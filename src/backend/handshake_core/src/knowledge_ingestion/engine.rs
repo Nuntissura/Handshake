@@ -16,14 +16,16 @@ use std::time::Instant;
 use futures_util::stream::{self, StreamExt};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use surrealdb::types::{RecordId, SurrealValue};
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
-    KnowledgeExtractionStatus, KnowledgeIndexingEligibility, KnowledgeParserStatus,
-    KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeRootKind, KnowledgeSource,
-    KnowledgeSourceKind, KnowledgeSourceRoot, KnowledgeStore, NewKnowledgeSource,
+    new_knowledge_id, KnowledgeExtractionStatus, KnowledgeIndexingEligibility,
+    KnowledgeParserStatus, KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeRootKind,
+    KnowledgeSource, KnowledgeSourceKind, KnowledgeSourceRoot, KnowledgeStore, NewKnowledgeSource,
     NewKnowledgeSourceRoot,
 };
+use crate::storage::surreal::event_ledger::{prepare_event, LedgerWrite};
 use crate::storage::surreal::SurrealDatabase;
 use crate::storage::Database;
 
@@ -110,6 +112,66 @@ pub(crate) struct PreparedCodeNavFile {
     pub extraction: ExtractionOutput,
     pub duration_ms: i64,
 }
+
+#[derive(SurrealValue)]
+struct CleanIngestionSpanWrite {
+    record: RecordId,
+    span_id: String,
+    span_index: i64,
+    anchor_kind: String,
+    anchor: Value,
+    byte_start: Option<i64>,
+    byte_end: Option<i64>,
+    content: String,
+    content_hash: String,
+    redaction_state: String,
+    link_candidates: Value,
+}
+
+#[derive(SurrealValue)]
+struct CleanIngestionFileWrite {
+    source: RecordId,
+    source_id: String,
+    relative_path: String,
+    content_hash: String,
+    size_bytes: i64,
+    provenance: Value,
+    redaction_state: String,
+    event: LedgerWrite,
+    receipt: RecordId,
+    receipt_id: String,
+    extractor_id: String,
+    extractor_version: String,
+    duration_ms: i64,
+    spans_failed: i64,
+    redaction_count: i64,
+    spans: Vec<CleanIngestionSpanWrite>,
+}
+
+#[derive(SurrealValue)]
+struct CleanIngestionBatchBindings {
+    workspace: RecordId,
+    root: RecordId,
+    run_token: String,
+    files: Vec<CleanIngestionFileWrite>,
+}
+
+const PERSIST_CLEAN_INGESTION_BATCH: &str = "BEGIN TRANSACTION; \
+    RETURN { \
+      FOR $file IN $files { \
+        LET $existing_source = (SELECT VALUE id FROM knowledge_sources WHERE root_id = $root AND relative_path = $file.relative_path LIMIT 1)[0]; \
+        IF $existing_source = NONE { CREATE $file.source CONTENT { source_id: $file.source_id, workspace_id: $workspace, root_id: $root, source_kind: 'file', relative_path: $file.relative_path, content_hash: $file.content_hash, size_bytes: $file.size_bytes, provenance: $file.provenance, permission_scope: 'workspace', redaction_state: $file.redaction_state, parser_status: 'pending', extraction_status: 'pending', stale: false } RETURN NONE; } ELSE { UPDATE $existing_source SET workspace_id = $workspace, content_hash = $file.content_hash, size_bytes = $file.size_bytes, provenance = $file.provenance, permission_scope = 'workspace', redaction_state = $file.redaction_state, parser_status = 'pending', extraction_status = 'pending', stale = false, updated_at = time::now() RETURN NONE; }; \
+        LET $source_ref = (SELECT VALUE id FROM knowledge_sources WHERE root_id = $root AND relative_path = $file.relative_path LIMIT 1)[0]; \
+        LET $existing_event = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $file.event.idempotency_key LIMIT 1)[0]; \
+        IF $existing_event = NONE { CREATE $file.event.record CONTENT { event_id: $file.event.event_id, event_version: $file.event.event_version, kernel_task_run_id: $file.event.kernel_task_run_id, session_run_id: $file.event.session_run_id, aggregate_type: $file.event.aggregate_type, aggregate_id: $file.event.aggregate_id, idempotency_key: $file.event.idempotency_key, event_type: $file.event.event_type, actor_kind: $file.event.actor_kind, actor_id: $file.event.actor_id, causation_id: $file.event.causation_id, correlation_id: $file.event.correlation_id, payload_hash: $file.event.payload_hash, source_component: $file.event.source_component, payload: $file.event.payload, created_at: $file.event.created_at } RETURN NONE; }; \
+        LET $event_ref = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $file.event.idempotency_key LIMIT 1)[0]; \
+        CREATE $file.receipt CONTENT { receipt_id: $file.receipt_id, workspace_id: $workspace, source_id: $source_ref, ingestion_run_token: $run_token, extractor_id: $file.extractor_id, extractor_version: $file.extractor_version, status: 'success', error_class: NONE, error_detail: NONE, spans_produced: array::len($file.spans), spans_failed: $file.spans_failed, redaction_count: $file.redaction_count, content_hash: $file.content_hash, duration_ms: $file.duration_ms, receipt_event_id: $event_ref } RETURN NONE; \
+        FOR $span IN $file.spans { CREATE $span.record CONTENT { span_id: $span.span_id, workspace_id: $workspace, source_id: $source_ref, receipt_id: $file.receipt, span_index: $span.span_index, anchor_kind: $span.anchor_kind, anchor: $span.anchor, byte_start: $span.byte_start, byte_end: $span.byte_end, content: $span.content, content_hash: $span.content_hash, redaction_state: $span.redaction_state, link_candidates: $span.link_candidates } RETURN NONE; }; \
+        UPDATE $source_ref SET parser_status = 'parsed', extraction_status = 'extracted', last_index_receipt_event_id = $event_ref, stale = false, updated_at = time::now() RETURN NONE; \
+      }; \
+      RETURN true; \
+    }; \
+    COMMIT TRANSACTION;";
 
 pub(crate) fn prepare_code_nav_file(
     root_kind: KnowledgeRootKind,
@@ -214,37 +276,59 @@ impl IngestionEngine {
             )
             .await?;
 
-        let mut sources = Vec::with_capacity(prepared.len());
-        for file in prepared {
-            let hashes = compute_content_hashes(&file.content);
-            match self
-                .persist_attempt(
-                    ctx,
-                    root,
-                    &file.relative_path,
-                    &hashes,
-                    file.size_bytes,
-                    run_token,
-                    file.extraction.clone(),
-                    file.duration_ms,
-                    false,
-                )
+        let sources_result = if prepared
+            .iter()
+            .all(|file| file.extraction.status == ExtractionStatus::Success)
+        {
+            self.persist_clean_code_nav_batch(ctx, root, run_token, prepared)
                 .await
-            {
-                Ok(outcome) => sources.push((outcome.source.source_id, file.relative_path.clone())),
-                Err(error) => {
-                    self.append_ingestion_failure_receipt(
+        } else {
+            let mut sources = Vec::with_capacity(prepared.len());
+            let mut failure = None;
+            for file in prepared {
+                let hashes = compute_content_hashes(&file.content);
+                match self
+                    .persist_attempt(
                         ctx,
                         root,
+                        &file.relative_path,
+                        &hashes,
+                        file.size_bytes,
                         run_token,
-                        &start_event_id,
-                        &error,
+                        file.extraction.clone(),
+                        file.duration_ms,
+                        false,
                     )
-                    .await;
-                    return Err(error);
+                    .await
+                {
+                    Ok(outcome) => {
+                        sources.push((outcome.source.source_id, file.relative_path.clone()))
+                    }
+                    Err(error) => {
+                        failure = Some(error);
+                        break;
+                    }
                 }
             }
-        }
+            match failure {
+                Some(error) => Err(error),
+                None => Ok(sources),
+            }
+        };
+        let sources = match sources_result {
+            Ok(sources) => sources,
+            Err(error) => {
+                self.append_ingestion_failure_receipt(
+                    ctx,
+                    root,
+                    run_token,
+                    &start_event_id,
+                    &error,
+                )
+                .await;
+                return Err(error);
+            }
+        };
 
         let seen_paths: HashSet<&str> = prepared
             .iter()
@@ -284,6 +368,159 @@ impl IngestionEngine {
             json!({"kind":"ingestion_run_finished","workspace_id":root.workspace_id,"root_id":root.root_id,"run_token":run_token,"files_ingested":sources.len(),"stale_marked":stale_marked,"causation_id":start_event_id}),
         )
         .await?;
+        Ok(sources)
+    }
+
+    async fn persist_clean_code_nav_batch(
+        &self,
+        ctx: &IngestionContext,
+        root: &KnowledgeSourceRoot,
+        run_token: &str,
+        prepared: &[PreparedCodeNavFile],
+    ) -> IngestionResult<Vec<(String, String)>> {
+        let existing_sources = self
+            .db
+            .list_knowledge_sources_for_root(&root.root_id)
+            .await?;
+        let existing_by_path = existing_sources
+            .into_iter()
+            .filter_map(|source| {
+                source
+                    .relative_path
+                    .map(|relative_path| (relative_path, source.source_id))
+            })
+            .collect::<std::collections::HashMap<_, _>>();
+
+        let mut files = Vec::with_capacity(prepared.len());
+        let mut sources = Vec::with_capacity(prepared.len());
+        for file in prepared {
+            let source_id = existing_by_path
+                .get(&file.relative_path)
+                .cloned()
+                .unwrap_or_else(|| new_knowledge_id("KSRC"));
+            let hashes = compute_content_hashes(&file.content);
+            let (extractor_id, extractor_version) = extractor_identity(file.extraction.kind);
+            let receipt = NewExtractionReceipt {
+                workspace_id: root.workspace_id.clone(),
+                source_id: source_id.clone(),
+                ingestion_run_token: Some(run_token.to_string()),
+                extractor_id: extractor_id.to_string(),
+                extractor_version: extractor_version.to_string(),
+                status: file.extraction.status,
+                error_class: file.extraction.error_class,
+                error_detail: file.extraction.error_detail.clone(),
+                spans_produced: file.extraction.spans.len() as i32,
+                spans_failed: file.extraction.spans_failed,
+                redaction_count: file.extraction.redaction_count,
+                content_hash: file.content_hash.clone(),
+                duration_ms: file.duration_ms,
+            };
+            receipt.validate()?;
+
+            let mut event_builder = NewKernelEvent::builder(
+                ctx.kernel_task_run_id.clone(),
+                ctx.session_run_id.clone(),
+                KernelEventType::ValidationRecorded,
+                ctx.actor.clone(),
+            )
+            .aggregate("knowledge_ingestion_receipt", &source_id)
+            .source_component("knowledge_ingestion")
+            .payload(json!({
+                "kind": "extraction_receipt",
+                "workspace_id": root.workspace_id,
+                "root_id": root.root_id,
+                "source_id": source_id,
+                "relative_path": file.relative_path,
+                "ingestion_kind": file.extraction.kind.map(|kind| kind.as_str()),
+                "extractor_id": extractor_id,
+                "extractor_version": extractor_version,
+                "status": file.extraction.status.as_str(),
+                "error_class": file.extraction.error_class.map(|class| class.as_str()),
+                "spans_produced": file.extraction.spans.len(),
+                "spans_failed": file.extraction.spans_failed,
+                "redaction_count": file.extraction.redaction_count,
+                "content_hash": file.content_hash,
+                "run_token": run_token,
+            }));
+            if let Some(correlation_id) = &ctx.correlation_id {
+                event_builder = event_builder.correlation_id(correlation_id.clone());
+            }
+            let event = event_builder
+                .build()
+                .map_err(|error| IngestionError::Kernel(error.to_string()))?;
+            let (_, event_write) = prepare_event(event).map_err(IngestionError::from)?;
+
+            let receipt_id = new_ingestion_id("KIRC");
+            let mut spans = Vec::with_capacity(file.extraction.spans.len());
+            for (span_index, span) in file.extraction.spans.iter().enumerate() {
+                let span_id = new_ingestion_id("KISP");
+                spans.push(CleanIngestionSpanWrite {
+                    record: RecordId::new("knowledge_ingestion_spans", span_id.clone()),
+                    span_id,
+                    span_index: span_index as i64,
+                    anchor_kind: span.anchor.kind_str().to_string(),
+                    anchor: span.anchor.to_json(),
+                    byte_start: span.byte_start,
+                    byte_end: span.byte_end,
+                    content: span.content.clone(),
+                    content_hash: hex::encode(Sha256::digest(span.content.as_bytes())),
+                    redaction_state: span.redaction.as_str().to_string(),
+                    link_candidates: json!(span.link_candidates),
+                });
+            }
+            let mut provenance = json!({
+                "discovered_by": "knowledge_ingestion_v1",
+                "run_token": run_token,
+                "ingestion_kind": file.extraction.kind.map(|kind| kind.as_str()),
+                "normalized_text_sha256": hashes.normalized_text_sha256,
+            });
+            if file.extraction.kind == Some(IngestionSourceKind::GovernanceArtifact) {
+                provenance["governance_sub_kind"] = json!(detect_governance_sub_kind(
+                    &file.relative_path
+                )
+                .map(|value| value.as_str()));
+            }
+            if file.extraction.kind == Some(IngestionSourceKind::OperatorResearchNote) {
+                provenance["authority"] = json!("non_normative_context");
+            }
+            files.push(CleanIngestionFileWrite {
+                source: RecordId::new("knowledge_sources", source_id.clone()),
+                source_id: source_id.clone(),
+                relative_path: file.relative_path.clone(),
+                content_hash: file.content_hash.clone(),
+                size_bytes: file.size_bytes,
+                provenance,
+                redaction_state: file.extraction.redaction_state.as_str().to_string(),
+                event: event_write,
+                receipt: RecordId::new("knowledge_ingestion_receipts", receipt_id.clone()),
+                receipt_id,
+                extractor_id: extractor_id.to_string(),
+                extractor_version: extractor_version.to_string(),
+                duration_ms: file.duration_ms,
+                spans_failed: i64::from(file.extraction.spans_failed),
+                redaction_count: i64::from(file.extraction.redaction_count),
+                spans,
+            });
+            sources.push((source_id, file.relative_path.clone()));
+        }
+
+        let bindings = CleanIngestionBatchBindings {
+            workspace: RecordId::new("workspaces", root.workspace_id.clone()),
+            root: RecordId::new("knowledge_source_roots", root.root_id.clone()),
+            run_token: run_token.to_string(),
+            files,
+        };
+        self.db
+            .storage()
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values_at::<bool, _>(PERSIST_CLEAN_INGESTION_BATCH, bindings, 1)
+                        .await
+                })
+            })
+            .await
+            .map_err(crate::storage::StorageError::from)?;
         Ok(sources)
     }
 

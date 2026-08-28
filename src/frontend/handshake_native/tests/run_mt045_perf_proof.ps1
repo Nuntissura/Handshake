@@ -1626,14 +1626,24 @@ function Get-FailureDiagnosticBindings {
                         throw "failure diagnostic listen report does not match its owned process: $receiptPath"
                     }
                     $expectedBaseUrl = "http://$($listenReport.listen_addr)"
-                    if (
-                        $receipt.trigger -ceq "request_failure" -and
-                        (
-                            [string]$receipt.reqwest_error.url -cne "$expectedBaseUrl/health" -or
-                            [string]$receipt.immediate_health.url -cne "$expectedBaseUrl/health"
-                        )
-                    ) {
-                        throw "failure diagnostic request/health URLs do not match the retained listener: $receiptPath"
+                    if ($receipt.trigger -ceq "request_failure") {
+                        $requestUri = $null
+                        $healthUri = $null
+                        $baseUri = [Uri]$expectedBaseUrl
+                        $labelParts = @(([string]$receipt.label) -split " ", 2)
+                        if (
+                            $labelParts.Count -ne 2 -or
+                            [string]::IsNullOrWhiteSpace([string]$labelParts[0]) -or
+                            -not ([string]$labelParts[1]).StartsWith("/", [StringComparison]::Ordinal) -or
+                            -not [Uri]::TryCreate([string]$receipt.reqwest_error.url, [UriKind]::Absolute, [ref]$requestUri) -or
+                            -not [Uri]::TryCreate([string]$receipt.immediate_health.url, [UriKind]::Absolute, [ref]$healthUri) -or
+                            $requestUri.Scheme -cne $baseUri.Scheme -or
+                            $requestUri.Authority -cne $baseUri.Authority -or
+                            $requestUri.PathAndQuery -cne [string]$labelParts[1] -or
+                            $healthUri.AbsoluteUri -cne "$expectedBaseUrl/health"
+                        ) {
+                            throw "failure diagnostic request/health URLs do not match the retained listener and labeled request: $receiptPath"
+                        }
                     }
                     $processExecutable = Get-Mt045ComparablePath -Path ([string]$receipt.process.executable_path)
                     $expectedExecutable = [IO.Path]::GetFullPath((Join-Path $targetRoot "release\handshake_core.exe"))
@@ -2278,6 +2288,32 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
             @($boundRetained[0].retained_files).Count -ne 3
         ) {
             throw "retained request-failure probe did not publish one complete typed Rust receipt"
+        }
+        # Counterfactual 6: a hash-valid receipt whose reqwest URL uses the retained listener but
+        # names a route different from its request label must fail closed. This guards the distinction
+        # between the failed request URL and the separate immediate /health probe URL.
+        $realReceiptPath = [string]$boundRetained[0].receipt
+        $realReceiptSidecarPath = "$realReceiptPath.sha256"
+        $originalReceiptBytes = [IO.File]::ReadAllBytes($realReceiptPath)
+        $originalSidecarBytes = [IO.File]::ReadAllBytes($realReceiptSidecarPath)
+        try {
+            $wrongRouteReceipt = Get-Content -LiteralPath $realReceiptPath -Raw | ConvertFrom-Json
+            $wrongRouteUri = [Uri][string]$wrongRouteReceipt.reqwest_error.url
+            $wrongRouteReceipt.reqwest_error.url = "$($wrongRouteUri.Scheme)://$($wrongRouteUri.Authority)/mt045-wrong-route"
+            Write-JsonAtomic -Path $realReceiptPath -Value $wrongRouteReceipt
+            [IO.File]::WriteAllText(
+                $realReceiptSidecarPath,
+                "$(Get-FileSha256 -Path $realReceiptPath)  failure-diagnostics.json`n",
+                [Text.UTF8Encoding]::new($false)
+            )
+            $wrongRouteBindings = @(Get-FailureDiagnosticBindings -ExpectedCommand $script:lastFailedCommandReceipt)
+            if (@($wrongRouteBindings | Where-Object { $_.binding_status -ceq "BOUND" }).Count -ne 0) {
+                throw "diagnostics self-test accepted a request URL whose route contradicted the receipt label"
+            }
+        }
+        finally {
+            [IO.File]::WriteAllBytes($realReceiptPath, $originalReceiptBytes)
+            [IO.File]::WriteAllBytes($realReceiptSidecarPath, $originalSidecarBytes)
         }
         Assert-SourceBindingClean -Repository $repoRoot -Paths $sourcePaths
         $retainedProofPath = Join-Path $runRoot "retained-failure-proof.json"
