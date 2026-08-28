@@ -2392,11 +2392,11 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
                 $headManifestJson + [Environment]::NewLine,
                 [Text.UTF8Encoding]::new($false)
             )
-            $manifestStatus = Invoke-GitText -Repository $repoRoot -Arguments @(
-                "status", "--porcelain=v1", "--", $manifestRepoPath
+            $restoredManifestGitObject = Invoke-GitText -Repository $repoRoot -Arguments @(
+                "hash-object", "--path=$manifestRepoPath", "--", $manifestRepoPath
             )
-            if (-not [string]::IsNullOrWhiteSpace($manifestStatus)) {
-                throw "diagnostics self-test did not restore the committed manifest:`n$manifestStatus"
+            if ($restoredManifestGitObject -cne $initialManifestGitObject) {
+                throw "diagnostics self-test did not restore the committed manifest object: expected=$initialManifestGitObject actual=$restoredManifestGitObject"
             }
         }
         catch {
