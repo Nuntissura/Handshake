@@ -396,16 +396,7 @@ fn validate_processes(
         .get("manifest_verifier")
         .cloned()
         .unwrap_or_default();
-    let expected_verifier = vec![
-        "test".to_owned(),
-        "--test".to_owned(),
-        "test_mt108_argus_aggregate".to_owned(),
-        "mt108_verify_argus_evidence_manifest".to_owned(),
-        "--".to_owned(),
-        "--ignored".to_owned(),
-        "--exact".to_owned(),
-        "--nocapture".to_owned(),
-    ];
+    let expected_verifier = expected_verifier_arguments();
     if verifier.len() != 1
         || verifier[0].status != "STARTED"
         || verifier[0].exit_code.is_some()
@@ -794,6 +785,11 @@ fn completed_process<'a>(
 fn expected_arguments(row: &MatrixRow) -> Vec<String> {
     let mut arguments = vec![
         "test".to_owned(),
+        "--features".to_owned(),
+        "integration,wgpu_screenshots".to_owned(),
+        "--no-fail-fast".to_owned(),
+        "-j".to_owned(),
+        "2".to_owned(),
         "--test".to_owned(),
         row.test_binary.clone(),
         row.test_name.clone(),
@@ -804,6 +800,24 @@ fn expected_arguments(row: &MatrixRow) -> Vec<String> {
     }
     arguments.extend(["--exact".to_owned(), "--nocapture".to_owned()]);
     arguments
+}
+
+fn expected_verifier_arguments() -> Vec<String> {
+    vec![
+        "test".to_owned(),
+        "--features".to_owned(),
+        "integration,wgpu_screenshots".to_owned(),
+        "--no-fail-fast".to_owned(),
+        "-j".to_owned(),
+        "2".to_owned(),
+        "--test".to_owned(),
+        "test_mt108_argus_aggregate".to_owned(),
+        "mt108_verify_argus_evidence_manifest".to_owned(),
+        "--".to_owned(),
+        "--ignored".to_owned(),
+        "--exact".to_owned(),
+        "--nocapture".to_owned(),
+    ]
 }
 
 fn required_env(name: &str) -> std::io::Result<String> {
@@ -901,7 +915,39 @@ fn screenshot_receipt_phase_is_valid(
 
 #[cfg(test)]
 mod tests {
-    use super::{json_observes_expected_author_state, screenshot_receipt_phase_is_valid};
+    use super::{
+        expected_arguments, expected_verifier_arguments, json_observes_expected_author_state,
+        screenshot_receipt_phase_is_valid, Matrix,
+    };
+
+    #[test]
+    fn expected_commands_retain_the_mandated_feature_and_concurrency_shape() {
+        let matrix: Matrix = serde_json::from_str(include_str!("../mt108_argus_matrix.json"))
+            .expect("matrix parses");
+        let arguments = expected_arguments(&matrix.rows[0]);
+        assert_eq!(
+            &arguments[..6],
+            [
+                "test",
+                "--features",
+                "integration,wgpu_screenshots",
+                "--no-fail-fast",
+                "-j",
+                "2",
+            ]
+        );
+        assert_eq!(
+            &expected_verifier_arguments()[..6],
+            [
+                "test",
+                "--features",
+                "integration,wgpu_screenshots",
+                "--no-fail-fast",
+                "-j",
+                "2",
+            ]
+        );
+    }
 
     #[test]
     fn multi_action_scenario_accepts_navigation_rows_before_one_contract_state_row() {
