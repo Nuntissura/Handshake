@@ -74,6 +74,8 @@ struct MatrixRow {
     expected_author_ids: Vec<String>,
     #[serde(default)]
     expected_author_id_prefixes: Vec<String>,
+    #[serde(default)]
+    allowed_methods: Vec<String>,
     route: Option<String>,
     action_author_id: Option<String>,
     action_value: Option<String>,
@@ -247,6 +249,13 @@ fn validate_matrix(matrix: &Matrix) -> std::io::Result<()> {
                 .expected_author_id_prefixes
                 .iter()
                 .any(|prefix| prefix.trim().is_empty())
+            || row
+                .allowed_methods
+                .iter()
+                .any(|method| !matches!(method.as_str(), "argus.click" | "argus.set_value"))
+            || (row.action_value.is_some()
+                && !row.allowed_methods.is_empty()
+                && row.allowed_methods != ["argus.set_value"])
             || !matches!(
                 row.proof_kind.as_str(),
                 "legacy_surface" | "host_route" | "canonical_driver" | "locus_live"
@@ -528,11 +537,6 @@ fn validate_traces(
         }
         let mut contract_state_observed = false;
         for row in scenario_rows {
-            let expected_method = if contract.action_value.is_some() {
-                "argus.set_value"
-            } else {
-                "argus.click"
-            };
             let declared_host_semantic = contract.proof_kind != "host_route"
                 || (matches!(
                     contract.action_semantic.as_deref(),
@@ -585,11 +589,14 @@ fn validate_traces(
                 || row.process_correlation_id != process.process_correlation_id
                 || Some(row.process_id) != process.test_process_pid
                 || row.client_session_id.trim().is_empty()
-                || row.method != expected_method
-                || row.action_value != contract.action_value
-                || contract.action_value.as_deref().is_some_and(|expected| {
-                    !json_has_author_id_value(&row.after, &row.target, expected)
-                })
+                || !action_shape_is_valid(
+                    &contract.allowed_methods,
+                    contract.action_value.as_deref(),
+                    &row.method,
+                    row.action_value.as_deref(),
+                    &row.after,
+                    &row.target,
+                )
                 || row.target.trim().is_empty()
                 || !json_has_author_id(&row.before, &row.target)
                 || row.receipt_id == 0
@@ -870,6 +877,39 @@ fn json_has_author_id_value(value: &serde_json::Value, author_id: &str, expected
     }
 }
 
+fn action_shape_is_valid(
+    declared_methods: &[String],
+    declared_action_value: Option<&str>,
+    observed_method: &str,
+    observed_action_value: Option<&str>,
+    after: &serde_json::Value,
+    target: &str,
+) -> bool {
+    let method_is_allowed = if declared_methods.is_empty() {
+        observed_method
+            == if declared_action_value.is_some() {
+                "argus.set_value"
+            } else {
+                "argus.click"
+            }
+    } else {
+        declared_methods
+            .iter()
+            .any(|method| method == observed_method)
+    };
+    if !method_is_allowed {
+        return false;
+    }
+    match observed_method {
+        "argus.click" => observed_action_value.is_none() && declared_action_value.is_none(),
+        "argus.set_value" => observed_action_value.is_some_and(|observed| {
+            declared_action_value.is_none_or(|declared| declared == observed)
+                && json_has_author_id_value(after, target, observed)
+        }),
+        _ => false,
+    }
+}
+
 fn json_has_author_id_prefix(value: &serde_json::Value, expected_prefix: &str) -> bool {
     match value {
         serde_json::Value::Object(map) => {
@@ -916,8 +956,9 @@ fn screenshot_receipt_phase_is_valid(
 #[cfg(test)]
 mod tests {
     use super::{
-        expected_arguments, expected_verifier_arguments, json_observes_expected_author_state,
-        screenshot_receipt_phase_is_valid, Matrix,
+        action_shape_is_valid, expected_arguments, expected_verifier_arguments,
+        json_observes_expected_author_state, screenshot_receipt_phase_is_valid, validate_matrix,
+        Matrix,
     };
 
     #[test]
@@ -953,6 +994,7 @@ mod tests {
     fn live_generated_matrix_rows_declare_stable_author_id_prefixes() {
         let matrix: Matrix = serde_json::from_str(include_str!("../mt108_argus_matrix.json"))
             .expect("matrix parses");
+        validate_matrix(&matrix).expect("matrix contract is valid");
         for (scenario, expected_prefixes) in [
             (
                 "folders_host",
@@ -982,6 +1024,53 @@ mod tests {
                     .collect::<Vec<_>>()
             );
         }
+        let wiki = matrix
+            .rows
+            .iter()
+            .find(|row| row.scenario_id == "wiki_projection_host")
+            .expect("wiki scenario exists");
+        assert_eq!(wiki.allowed_methods, ["argus.click", "argus.set_value"]);
+    }
+
+    #[test]
+    fn multi_action_contract_validates_each_observed_action_shape() {
+        let allowed = vec!["argus.click".to_owned(), "argus.set_value".to_owned()];
+        let after = serde_json::json!({
+            "author_id": "wiki.edit-area.dynamic",
+            "value": "persisted draft"
+        });
+        assert!(action_shape_is_valid(
+            &allowed,
+            None,
+            "argus.click",
+            None,
+            &after,
+            "wiki.edit.dynamic",
+        ));
+        assert!(action_shape_is_valid(
+            &allowed,
+            None,
+            "argus.set_value",
+            Some("persisted draft"),
+            &after,
+            "wiki.edit-area.dynamic",
+        ));
+        assert!(!action_shape_is_valid(
+            &allowed,
+            None,
+            "argus.set_value",
+            Some("different draft"),
+            &after,
+            "wiki.edit-area.dynamic",
+        ));
+        assert!(!action_shape_is_valid(
+            &[],
+            None,
+            "argus.set_value",
+            Some("persisted draft"),
+            &after,
+            "wiki.edit-area.dynamic",
+        ));
     }
 
     #[test]

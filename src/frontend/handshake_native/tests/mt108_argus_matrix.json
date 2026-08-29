@@ -329,6 +329,7 @@
       "test_name": "mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback",
       "ignored": false,
       "capture_required": true,
+      "allowed_methods": ["argus.click", "argus.set_value"],
       "expected_author_id_prefixes": [
         "wiki.title.",
         "wiki.content.",
