@@ -723,18 +723,25 @@ fn delete_locus_records(backend: &LiveBackend, workspace_id: &str, wp_id: &str, 
     );
     assert_eq!(deleted["wp_id"].as_str(), Some(wp_id));
     assert_eq!(
-        backend.get_status(&format!(
-            "/workspaces/{workspace_id}/locus/work-packets/{wp_id}"
-        )),
-        404,
-        "deleted fixture work packet must be absent through the canonical read API"
+        deleted["status"].as_str(),
+        Some("cancelled"),
+        "Surreal Locus deletion is the canonical durable cancelled tombstone"
     );
+    let tombstoned_wp = backend.get_json(&format!(
+        "/workspaces/{workspace_id}/locus/work-packets/{wp_id}"
+    ));
     assert_eq!(
-        backend.get_status(&format!(
-            "/workspaces/{workspace_id}/locus/microtasks/{mt_id}"
-        )),
-        404,
-        "deleting the fixture work packet must remove its microtask through the canonical product workflow"
+        tombstoned_wp["status"].as_str(),
+        Some("cancelled"),
+        "the canonical read API must expose the durable WP tombstone"
+    );
+    let retained_mt = backend.get_json(&format!(
+        "/workspaces/{workspace_id}/locus/microtasks/{mt_id}"
+    ));
+    assert_eq!(
+        retained_mt["title"].as_str(),
+        Some("MT-068 live Locus reference proof"),
+        "the canonical soft-delete workflow retains child MT history until the isolated store is removed"
     );
 }
 
