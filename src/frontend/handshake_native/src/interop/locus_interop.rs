@@ -605,6 +605,13 @@ impl LocusInteropService {
         let mut out = Vec::new();
         for note in notes {
             let block_id = note.block_id.as_str();
+            // Native RichDocument projections are same-id rows. A distinct document_id identifies a
+            // legacy/alias Loom block, which cannot be exact evidence for the native rich document even
+            // when its searchable title contains the requested URI. Reject that candidate before
+            // transclusion so an unrelated legacy anchor cannot poison an otherwise valid lookup.
+            if block_id != note.document_id {
+                continue;
+            }
             let (bound_document_id, content) = self
                 .reverse_lookup
                 .load_block_transclusion(&self.workspace_id, block_id)

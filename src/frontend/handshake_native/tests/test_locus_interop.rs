@@ -246,13 +246,10 @@ struct ScopedLocusBindingRoot {
 
 impl ScopedLocusBindingRoot {
     fn install() -> Self {
-        let root = external_artifact_dir("wp-kernel-012-mt-068/native-mcp-binding").join(format!(
-            "run-{}",
-            uuid::Uuid::new_v4().simple()
-        ));
+        let root = external_artifact_dir("wp-kernel-012-mt-068/native-mcp-binding")
+            .join(format!("run-{}", uuid::Uuid::new_v4().simple()));
         std::fs::create_dir_all(&root).expect("create isolated MT-068 native-MCP binding root");
-        let root =
-            std::fs::canonicalize(&root).expect("canonicalize isolated MT-068 binding root");
+        let root = std::fs::canonicalize(&root).expect("canonicalize isolated MT-068 binding root");
         let previous = std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT");
         std::env::set_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT", &root);
         Self { previous, root }
@@ -996,17 +993,30 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
         !save_receipt_event_id.is_empty(),
         "AC-006 LIVE: the rich-document save returns an authentic receipt"
     );
-    // Adversarial real-boundary fixture: a Loom alias points at the same source document. Its title
-    // deliberately matches both normalized Locus queries, while the production transclusion route
-    // returns the complete shared RichDocument. Reverse lookup must retain only the canonical native
-    // projection (`block_id == rich_document_id`), never this alias.
+    // Adversarial real-boundary fixture: a valid legacy Loom alias deliberately matches both normalized
+    // Locus queries. `loom_blocks.document_id` is a SurrealDB FK to the legacy `documents` table, never
+    // to a KRD id, so seed the real anchor first. Reverse lookup must retain only the canonical native
+    // projection (`block_id == rich_document_id`), never this noncanonical search hit. The same-source
+    // full-document transclusion counterexample remains covered by
+    // `ac004_reverse_lookup_verifies_each_document_block_pair` below.
+    let legacy_document = be.post_json(
+        &format!("/workspaces/{ws}/documents"),
+        &serde_json::json!({
+            "title": format!("MT-068 legacy alias anchor {suffix}"),
+        }),
+    );
+    let legacy_document_id = legacy_document["id"]
+        .as_str()
+        .filter(|id| !id.is_empty())
+        .expect("real backend created the legacy document anchor")
+        .to_owned();
     let alias_block_id = format!("BLK-MT068-ALIAS-{suffix}");
     let alias_block = be.post_json(
         &format!("/workspaces/{ws}/loom/blocks"),
         &serde_json::json!({
             "block_id": alias_block_id,
             "content_type": "note",
-            "document_id": document_id,
+            "document_id": legacy_document_id,
             "title": format!(
                 "plain-text alias {} {}",
                 wp_uri.to_ascii_lowercase(),
@@ -1017,7 +1027,7 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
     assert_eq!(
         alias_block["block_id"].as_str(),
         Some(alias_block_id.as_str()),
-        "real backend created the same-document alias candidate"
+        "real backend created the valid legacy alias candidate"
     );
     let (old_backend_base, new_backend_base) = be.restart_owned();
     let loaded = be.get_json(&format!("/knowledge/documents/{document_id}"));
@@ -1080,7 +1090,7 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
             candidates
                 .iter()
                 .any(|candidate| candidate.block_id == alias_block_id),
-            "AC-004 LIVE: the real search boundary must expose the adversarial same-document alias for {label}"
+            "AC-004 LIVE: the real search boundary must expose the adversarial legacy alias for {label}"
         );
     }
     let mut reverse_lookup_counts = serde_json::Map::new();
@@ -1096,7 +1106,7 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
         assert!(
             docs.iter()
                 .all(|document| document.block_id.as_deref() != Some(alias_block_id.as_str())),
-            "AC-004 LIVE: {label} exact lookup excludes the noncanonical same-document alias"
+            "AC-004 LIVE: {label} exact lookup excludes the noncanonical legacy alias"
         );
         // AC-004 / remediation item 7: zero duplicate `(document_id, block_id)` results across the
         // WHOLE returned set, not only for the fixture document. A de-duplication rule that happened to
@@ -1116,10 +1126,9 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
     // Remediation item 7: case-robust canonical RichDocument lookup INSIDE this proof. The document
     // persists the authored mixed-case URIs while both directions key on the lowercased normalized
     // form, so the assertions above only hold if the lookup is genuinely case-robust.
-    for (label, authored_uri, reference) in [
-        ("WP", wp_uri.as_str(), &wp),
-        ("MT", mt_uri.as_str(), &mt),
-    ] {
+    for (label, authored_uri, reference) in
+        [("WP", wp_uri.as_str(), &wp), ("MT", mt_uri.as_str(), &mt)]
+    {
         assert_ne!(
             reference.normalized, authored_uri,
             "{label}: the MT-068 canonical proof requires an authored case that differs from the normalized key"
@@ -1329,7 +1338,8 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
                     .and_then(|pane| app.tab_bar_states().get(pane))
                     .and_then(|bar| bar.tabs.get(bar.active_index))
                     .is_some_and(|tab| {
-                        tab.content_id.as_deref() == Some(expected_content_id_for_predicate.as_str())
+                        tab.content_id.as_deref()
+                            == Some(expected_content_id_for_predicate.as_str())
                             && tab.pane_type.label() == "Kernel DCC"
                     });
                 // The source chip is a TRANSIENT target: routing the record replaces the rich-document
@@ -1553,6 +1563,8 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
 
     let alias_cleanup = be.delete(&format!("/workspaces/{ws}/loom/blocks/{alias_block_id}"));
     assert!(matches!(alias_cleanup, 200 | 202 | 204 | 404));
+    let legacy_document_cleanup = be.delete(&format!("/documents/{legacy_document_id}"));
+    assert!(matches!(legacy_document_cleanup, 200 | 202 | 204 | 404));
     let document_cleanup = be.delete(&format!("/knowledge/documents/{document_id}"));
     assert!(matches!(document_cleanup, 200 | 202 | 204 | 404));
     assert_eq!(
@@ -1626,10 +1638,12 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
             },
             "reverse_lookup_alias_boundary": {
                 "source_document_id": document_id,
+                "legacy_document_id": legacy_document_id,
                 "alias_block_id": alias_block_id,
                 "real_search_candidate_seen_for_wp": true,
                 "real_search_candidate_seen_for_mt": true,
-                "production_transclusion_returns_full_shared_document": true,
+                "legacy_alias_schema_valid": true,
+                "same_source_full_document_counterexample_covered_by_unit_regression": true,
                 "canonical_projection_rule": "block_id == source_rich_document_id",
                 "alias_excluded_from_wp_result": true,
                 "alias_excluded_from_mt_result": true,
