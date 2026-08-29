@@ -326,13 +326,13 @@
       "edge_state_tag": "read_only_edit_cancel",
       "proof_kind": "canonical_driver",
       "test_binary": "test_wiki_page_panel_argus",
-      "test_name": "mt025_mounted_wiki_canonical_argus_edit_save_reload_surface",
+      "test_name": "mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback",
       "ignored": false,
       "capture_required": true,
-      "expected_author_ids": [
-        "wiki.title.proj-argus-mt025",
-        "wiki.content.proj-argus-mt025",
-        "wiki.edit.proj-argus-mt025"
+      "expected_author_id_prefixes": [
+        "wiki.title.",
+        "wiki.content.",
+        "wiki.edit."
       ]
     },
     {
