@@ -1164,6 +1164,15 @@ impl LiveBackend {
         )
     }
 
+    /// POST through the legacy workspace API's human/operator identity vocabulary.
+    pub fn post_workspace_json(&self, path: &str, body: &serde_json::Value) -> serde_json::Value {
+        self.request_json(
+            self.workspace_ident(self.client.post(format!("{}{path}", self.base)))
+                .json(body),
+            &format!("POST {path}"),
+        )
+    }
+
     /// Drive a contract-sized fixture through the product's public mutation routes without serializing
     /// thousands of independent round trips. The concurrency bound protects the backend pool while every
     /// row still traverses route validation, Loom authority mutation, ProjectKnowledgeIndex projection,

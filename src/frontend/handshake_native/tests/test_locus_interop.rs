@@ -999,7 +999,7 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
     // projection (`block_id == rich_document_id`), never this noncanonical search hit. The same-source
     // full-document transclusion counterexample remains covered by
     // `ac004_reverse_lookup_verifies_each_document_block_pair` below.
-    let legacy_document = be.post_json(
+    let legacy_document = be.post_workspace_json(
         &format!("/workspaces/{ws}/documents"),
         &serde_json::json!({
             "title": format!("MT-068 legacy alias anchor {suffix}"),
