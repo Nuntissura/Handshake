@@ -22,7 +22,7 @@
   "title": "E15-MT-126-Capture-And-Inspect-The-Real-GPU-Worksurface-Screenshot-PT-102-B-On-A-Live-Window",
   "group": "E15-Visual",
   "created_at_utc": "2026-08-12T13:45:00Z",
-  "updated_at_utc": "2026-08-12T13:45:00Z",
+  "updated_at_utc": "2026-08-29T02:44:14.9416840Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-126.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,15 +31,81 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260829-013635",
+    "claimed_at_utc": "2026-08-29T01:37:09.9881316Z",
+    "session_mt_batch": [
+      "MT-126"
+    ],
     "completed_by": null,
+    "ready_for_validation_at_utc": "2026-08-29T02:44:14.9416840Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260829-013635",
+    "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "ready_for_validation_summary": "At product commit b8f827a1b6023e17fc3edbcabbc197a1ba9a1331, a normal Windows launch with WGPU_BACKEND absent reached a responsive live Handshake window after the required DX12 feature anchor. External Win32 PrintWindow(PW_RENDERFULLCONTENT) captured the exact non-foreground live HWND to a 1500x1300 PNG, which was opened and inspected. The 66 ms capture bracket preserved foreground, active HWND, focused HWND, mouse-capture HWND, cursor coordinates, and both target Z-order neighbours. The final headless test passed 1/1 and its independently re-read JSON contains status=deferred and marker=screenshot_deferred_headless_gpu. Operator waiver WAIVE_MT126_SCOPE:Cargo.toml,Cargo.lock authorizes the two required manifest files outside the original allowed_paths whitelist. Official validator verdict remains unset and completed_by remains null.",
+    "validation_boundary": "KERNEL_BUILDER issues no official PASS verdict. Only an Operator-assigned WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 to COMPLETED.",
+    "evidence": {
+      "product_commit": "b8f827a1b6023e17fc3edbcabbc197a1ba9a1331",
+      "scope_waiver": {
+        "operator_text": "WAIVE_MT126_SCOPE:Cargo.toml,Cargo.lock",
+        "authorized_paths": [
+          "src/frontend/handshake_native/Cargo.toml",
+          "src/frontend/handshake_native/Cargo.lock"
+        ],
+        "reason": "The normal binary had eframe/wgpu integration but no Windows-native wgpu backend and panicked before a usable live window existed. The waived five-line manifest/lock change anchors the already-transitive wgpu 27.0.1 DX12 feature and is the minimum reproducible live-window unblocker."
+      },
+      "implementation": {
+        "summary": "Added a Windows-only direct feature anchor for the already-transitive wgpu 27.0.1 package with default-features=false and features=[dx12]; no runtime source logic changed.",
+        "normal_dependency_graph": "cargo tree -e normal,features -i wgpu shows one wgpu v27.0.1 with dx12 from handshake-native plus std/WGSL from eframe/egui-wgpu; cargo tree -d reports no wgpu-family duplicate.",
+        "negative_startup_probe": "A normal hidden launch with WGPU_BACKEND removed produced responsive=true and published the authenticated binding; the owned process was stopped after proof."
+      },
+      "live_printwindow": {
+        "artifact_path": "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-126/mt126-live-printwindow-final.png",
+        "sha256": "CD5755A35ECACD6D081B54C61E65894A911C76EDBDB2962FC485ACC13EA2BFBA",
+        "bytes": 324541,
+        "dimensions": "1500x1300",
+        "api": "Win32 PrintWindow with PW_RENDERFULLCONTENT against the exact titled Handshake HWND owned by pid 88768",
+        "opened_and_inspected": true,
+        "inspection": "The final frame clearly shows the top FILE/EDIT/VIEW/GO/RUN/HELP/EDITORS/OPERATOR menu, STUDIO/LAB/STAGE/INGEST/CKC/MAIN mode tabs, Default Project navigation, Code Symbol editor, Wiki Page editor, Runtime Chat, bottom search/status rails, and readable Retry controls. The disconnected backend state is visible and internally consistent: workspace/document load errors, Runtime Chat EndpointMissing with disabled Send, a local-only alias banner, and Settings persistence retry. Main pane dividers and text remain aligned with no general pane-content collision. Two floating degraded-state panels do obscure underlying content: Propose to Memory overlaps the Wiki header/body region, and Settings persistence overlaps the upper-right Runtime Chat/header region; underlying text is therefore clipped/hidden at those overlay intersections. These are observed live states, not hidden or normalized in the verdict.",
+        "quiet_bracket": {
+          "pre_utc": "2026-08-29T02:31:15.6209304Z",
+          "post_utc": "2026-08-29T02:31:15.6870652Z",
+          "foreground_unchanged": true,
+          "focus_hwnd_unchanged": true,
+          "active_hwnd_unchanged": true,
+          "mouse_capture_hwnd_unchanged": true,
+          "cursor_unchanged": true,
+          "z_prev_unchanged": true,
+          "z_next_unchanged": true,
+          "target_was_non_foreground": true
+        }
+      },
+      "headless_deferred": {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_visual_debugger visual_debugger_live_dump_contains_panes_widgets_layout -- --exact --nocapture",
+        "result": "exit 0; 1 passed, 0 failed, 3 filtered out",
+        "log": "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-126-headless-deferred-final.log",
+        "log_sha256": "34A89302F23A0F6B85352242B2ED72EA5A8C3A8FBB9C06AA4C1F926BE9C9FDDE",
+        "json": "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-102/live-dump/worksurface-snapshot-13724-1787970903-447146100Z-1.json",
+        "json_sha256": "8C327E7B3528D602076F2BCE2066FDBC1D72038F14FA1A41207E62123A533F74",
+        "status": "deferred",
+        "marker": "screenshot_deferred_headless_gpu",
+        "reason": "No visible window titled Handshake existed for the headless test pid; the JSON directs the operator/model to rerun from a live Handshake window/GPU host."
+      },
+      "build": {
+        "command": "cargo build --manifest-path src/frontend/handshake_native/Cargo.toml --bin handshake-native",
+        "result": "exit 0; dev profile finished; 37 pre-existing future-compatibility warnings",
+        "log": "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-126-build-dx12.log",
+        "log_sha256": "DE64F26924DCAB9D9B06939580770651335B5FE8F4208FFF3B8BB3F9E7FD4021"
+      },
+      "automation_statement": "The live capture and quiet invariants are automatable: resolve the exact titled Handshake HWND for the owned pid, call external PrintWindow(PW_RENDERFULLCONTENT), hash the PNG, and compare Win32 foreground/focus/active/capture/cursor/Z-order state before and after. Semantic visual quality still requires opening and inspecting the exact PNG. The authenticated in-process argus.screenshot call deadlocked this live build and UI Automation Invoke foregrounded the app, so neither was accepted as quiet proof; external PrintWindow is the proven automation path.",
+      "user_manual": "Existing User Manual coverage is current at manual_content_editors.rs:1042-1050 and 2983-2994: Settings -> Diagnostics, stable target settings.diagnostics.worksurface-inspector.dump, external JSON artifact, screenshot_deferred_headless_gpu meaning, and the prohibition on treating a missing screenshot as visual proof. No manual edit was necessary.",
+      "hbr_int": "Flight Recorder NOT_APPLICABLE for the capture itself; internal_diagnostics and Palmistry remain DEFERRED-with-reason while unshipped, per the MT contract."
+    },
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Created to be the TRUTHFUL NON-PASS OWNER of MT-108 residual item (8), PT-102-B. MT-108 V4 remediation item 6 requires a re-deferred residual to name an owner that REMAINS NON-PASS, and item 7 of the same plan states that a BLOCKED/DEFERRED marker may not close a required pixel row. MT-102 is PASS_V1, so deferring to it would have closed a required pixel row against a passing owner."
   },
