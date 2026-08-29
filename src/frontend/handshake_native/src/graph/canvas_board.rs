@@ -205,11 +205,9 @@ pub const PLACEMENT_REMOVAL_DETAIL_SCHEMA: &str =
 const VIEWPORT_COMPLETION_EFFECT: &str = "canvas-viewport";
 const PLACEMENT_MUTATION_COMPLETION_EFFECT: &str = "canvas-placement-mutation";
 
-/// How many rendered frames a TERMINAL observer record stays published before it settles back to
-/// `Ready` for the next action. The canonical Argus driver acknowledges a terminal receipt on the very
-/// next snapshot capture, so this window is generous; keeping it bounded means a later action on the
-/// same observer starts from a clean, honestly-recomputed declaration instead of republishing a stale
-/// prior-state semantic.
+/// Backstop for hosts that render the board without the app-level post-snapshot acknowledgement seam.
+/// The production shell settles terminal records immediately after publishing and acknowledging their
+/// exact snapshot; this bound only prevents a detached board from retaining a terminal forever.
 const TERMINAL_SETTLE_FRAMES: u32 = 24;
 
 /// Tolerance (logical px / scale units) when proving a persisted viewport equals the dispatched one.
@@ -302,7 +300,7 @@ impl CanvasActionObserver {
     }
 
     /// The declaration a control publishes as its AccessKit `value`. While an action bound to THIS
-    /// exact control is open (or terminal but not yet settled) the ORIGINAL semantic is republished
+    /// exact control is pending or terminal-but-unacknowledged, the ORIGINAL semantic is republished
     /// verbatim: `crate::mcp::action` requires the post-action declaration to advance by exactly one
     /// generation while carrying an unchanged semantic tuple.
     fn declaration(
@@ -311,7 +309,9 @@ impl CanvasActionObserver {
         fresh_semantic: &str,
         mode: CanvasTargetMode,
     ) -> Option<String> {
-        let semantic = if self.pending_target.as_deref() == Some(author_id) {
+        let semantic = if self.phase != CanvasObserverPhase::Ready
+            && self.pending_target.as_deref() == Some(author_id)
+        {
             self.semantic_value.as_deref().unwrap_or(fresh_semantic)
         } else {
             fresh_semantic
@@ -338,10 +338,16 @@ impl CanvasActionObserver {
         }
     }
 
-    /// Open a new action binding. Returns the owning generation, or `None` when an action is already in
-    /// flight or a terminal record has not yet settled (the product behavior still runs — only the
-    /// causal proof binding is skipped, so the receipt stays honestly indeterminate).
+    /// Open a new action binding. Returns the owning generation, or `None` while an action is still in
+    /// flight. A new explicit action settles a previously published terminal record before claiming the
+    /// next generation; the completion node otherwise remains durable for the bounded capture window.
     fn begin(&mut self, target: &str, semantic_value: String) -> Option<u64> {
+        if matches!(
+            self.phase,
+            CanvasObserverPhase::Applied | CanvasObserverPhase::Failed
+        ) {
+            self.settle();
+        }
         if self.phase != CanvasObserverPhase::Ready {
             return None;
         }
@@ -1154,7 +1160,7 @@ impl LoomCanvasBoard {
 
     fn viewport_interactions_allowed(&self) -> bool {
         self.mutation_interactions_allowed()
-            && self.viewport_observer.phase == CanvasObserverPhase::Ready
+            && self.viewport_observer.phase != CanvasObserverPhase::Pending
     }
 
     pub fn authoritative_event_ledger_event_id(&self) -> Option<&str> {
@@ -2011,6 +2017,21 @@ impl LoomCanvasBoard {
                 "Canvas placement mutation completion",
                 &value,
             );
+        }
+    }
+
+    /// Settle terminal observer state only after the app has published the exact terminal snapshot and
+    /// passed it to `ActionChannel::acknowledge_after_render`. This preserves the causal semantic for
+    /// receipt acknowledgement while ensuring the next inspect of the same viewport control declares
+    /// freshly recomputed prior/requested state.
+    pub fn acknowledge_action_terminal_snapshot(&mut self) {
+        for observer in [&mut self.viewport_observer, &mut self.placement_observer] {
+            if matches!(
+                observer.phase,
+                CanvasObserverPhase::Applied | CanvasObserverPhase::Failed
+            ) {
+                observer.settle();
+            }
         }
     }
 
@@ -3483,8 +3504,14 @@ impl LoomCanvasBoard {
             ),
             remove_size,
         );
-        let remove_id = egui::Id::new(placement_remove_author_id(&placement_id));
-        let removal_enabled = self.placement_observer.phase == CanvasObserverPhase::Ready;
+        let remove_author = placement_remove_author_id(&placement_id);
+        let remove_id = egui::Id::new(&remove_author);
+        // A flexible observer target must retain its original Click capability while the async
+        // mutation is Pending; ActionChannel uses that stable identity to keep waiting instead of
+        // terminalizing Indeterminate. Only the owning target remains addressable. The handler below
+        // still suppresses a duplicate product mutation while Pending.
+        let removal_enabled = self.placement_observer.phase != CanvasObserverPhase::Pending
+            || self.placement_observer.pending_target.as_deref() == Some(remove_author.as_str());
         let remove_resp = ui.interact(
             remove_rect,
             remove_id,
@@ -3513,7 +3540,6 @@ impl LoomCanvasBoard {
         // removes it, a terminal failure leaves it mounted) so an Argus removal is causally
         // acknowledgeable instead of Indeterminate. The declaration carries workspace/board/placement/
         // block identity + the prior board generation BEFORE dispatch.
-        let remove_author = placement_remove_author_id(&placement_id);
         let remove_semantic = self.placement_removal_semantic(&placement_id, &placed_block_id);
         let remove_declaration =
             self.placement_removal_declaration(&remove_author, remove_semantic.as_deref());
@@ -3525,7 +3551,7 @@ impl LoomCanvasBoard {
             removal_enabled,
         );
 
-        if remove_resp.clicked() {
+        if remove_resp.clicked() && self.placement_observer.phase != CanvasObserverPhase::Pending {
             self.begin_placement_removal(&placement_id, &placed_block_id, remove_semantic);
             return Some(CanvasEvent::RemovePlacement { placement_id });
         }
@@ -4045,6 +4071,47 @@ mod tests {
         assert_eq!((board.pan, board.zoom), (origin.pan, origin.zoom));
         assert!(board.pending_viewport.is_none());
         assert_eq!(board.viewport_observer.phase, CanvasObserverPhase::Failed);
+        assert!(
+            board.viewport_interactions_allowed(),
+            "a terminal receipt remains observable without disabling the operator's next viewport action"
+        );
+    }
+
+    #[test]
+    fn terminal_observer_rearms_after_acknowledged_snapshot_with_fresh_semantic() {
+        let mut observer = CanvasActionObserver::new("effect", "observer");
+        let first_generation = observer
+            .begin("canvas.zoom-in", "first-semantic".to_owned())
+            .expect("first action opens");
+        assert!(observer.applied(first_generation, "first-detail".to_owned()));
+
+        let terminal_declaration = observer
+            .declaration(
+                "canvas.zoom-in",
+                "second-semantic",
+                CanvasTargetMode::Persistent,
+            )
+            .expect("terminal target retains the acknowledged action semantic");
+        assert!(terminal_declaration.contains("first-semantic"));
+        assert!(!terminal_declaration.contains("second-semantic"));
+
+        observer.settle();
+        let next_declaration = observer
+            .declaration(
+                "canvas.zoom-in",
+                "second-semantic",
+                CanvasTargetMode::Persistent,
+            )
+            .expect("the post-acknowledgement target publishes fresh semantic");
+        assert!(next_declaration.contains("second-semantic"));
+        assert!(!next_declaration.contains("first-semantic"));
+
+        let second_generation = observer
+            .begin("canvas.zoom-in", "second-semantic".to_owned())
+            .expect("an explicit next action settles the prior terminal record and opens");
+        assert_eq!(second_generation, first_generation + 1);
+        let pending = observer.serialized().expect("pending observer serializes");
+        assert!(pending.contains("second-semantic"));
     }
 
     /// PROOF1 / MC-1: canvas_to_screen and screen_to_canvas are exact inverses (< 1px round-trip) across

@@ -43,7 +43,7 @@ use screenshot_harness::ScreenshotHarness as Harness;
 
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
-use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
@@ -434,7 +434,9 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
     let remove = argus.click_and_reinspect(&mut harness, &remove_author);
     assert_eq!(
         remove.receipt_status, "applied",
-        "MT-026 V4: the canonical placement-removal receipt must be TERMINAL and NON-INDETERMINATE"
+        "MT-026 V4: the canonical placement-removal receipt must be TERMINAL and NON-INDETERMINATE; receipts: {:?}; target: {:?}",
+        remove.after["action_receipts"],
+        json_node_by_author_id(&remove.after, &remove_author)
     );
     drive_until(
         &mut harness,

@@ -1772,7 +1772,10 @@ fn drive_canvas_host_until(
 ) {
     for _ in 0..400 {
         host.run_steps(1);
-        let matches = board.lock().map(|board| condition(&board)).unwrap_or(false);
+        let matches = board
+            .lock()
+            .map(|board| board.projection_is_confirmed() && condition(&board))
+            .unwrap_or(false);
         if events.lock().map(|queue| queue.is_empty()).unwrap_or(false)
             && host.state().canvas_op_cells_in_flight() == 0
             && matches

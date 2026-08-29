@@ -1100,12 +1100,13 @@ mod tests {
         let mut bar = named_bar(&[PaneType::CodeSymbol, PaneType::LoomWikiPage]);
         bar.activate(1);
         let target = TabBar::tab_egui_id("pane-a", 0, &bar.tabs[0].pane_type);
+        let palette = crate::theme::HsPalette::dark();
         let colors = TabBarColors {
-            active_bg: egui::Color32::WHITE,
-            inactive_bg: egui::Color32::BLACK,
-            text: egui::Color32::WHITE,
-            accent: egui::Color32::LIGHT_BLUE,
-            drop_highlight: egui::Color32::LIGHT_BLUE,
+            active_bg: palette.accent_soft,
+            inactive_bg: palette.surface,
+            text: palette.text,
+            accent: palette.accent,
+            drop_highlight: palette.accent_soft,
         };
         let ctx = egui::Context::default();
 

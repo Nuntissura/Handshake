@@ -13013,6 +13013,12 @@ impl HandshakeApp {
             if let Ok(pane) = self.editor_mounts.secondary.fr_pane.lock() {
                 pane.acknowledge_action_terminal_snapshot();
             }
+            // Canvas viewport/removal declarations include action-specific prior/requested state.
+            // Retain that semantic through the terminal snapshot above, then rearm so the next inspect
+            // of the same control cannot inherit stale action context.
+            if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
+                board.acknowledge_action_terminal_snapshot();
+            }
         }
     }
 

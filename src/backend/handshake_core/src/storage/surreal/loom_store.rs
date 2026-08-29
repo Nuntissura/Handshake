@@ -1710,14 +1710,28 @@ fn text_matcher(
             haystack.to_lowercase()
         };
         if whole_word {
-            let words: HashSet<&str> = haystack
-                .split(|ch: char| !ch.is_alphanumeric() && ch != '_')
-                .collect();
-            needles.iter().all(|needle| words.contains(needle.as_str()))
+            needles
+                .iter()
+                .all(|needle| contains_whole_word(&haystack, needle))
         } else {
             needles.iter().all(|needle| haystack.contains(needle))
         }
     }))
+}
+
+fn contains_whole_word(haystack: &str, needle: &str) -> bool {
+    haystack.match_indices(needle).any(|(start, matched)| {
+        let end = start + matched.len();
+        let before_is_word = haystack[..start]
+            .chars()
+            .next_back()
+            .is_some_and(|ch| ch.is_alphanumeric() || ch == '_');
+        let after_is_word = haystack[end..]
+            .chars()
+            .next()
+            .is_some_and(|ch| ch.is_alphanumeric() || ch == '_');
+        !before_is_word && !after_is_word
+    })
 }
 
 fn loom_search_source_allowed(
@@ -3807,6 +3821,20 @@ pub(crate) async fn test_insert_loom_traversal_perf_fixture(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn whole_word_match_preserves_internal_punctuation() {
+        let filters = LoomSearchFilters {
+            whole_word: true,
+            ..Default::default()
+        };
+        let matcher = text_matcher("MT029_FIND_mt029-123-abc", &filters)
+            .expect("whole-word matcher compiles");
+        assert!(matcher("MT029_FIND_mt029-123-abc"));
+        assert!(matcher("before MT029_FIND_mt029-123-abc after"));
+        assert!(!matcher("xMT029_FIND_mt029-123-abc"));
+        assert!(!matcher("MT029_FIND_mt029-123-abcx"));
+    }
     use crate::storage::surreal::{SurrealStorage, SurrealStorageConfig};
     use crate::storage::WriteActorKind;
 

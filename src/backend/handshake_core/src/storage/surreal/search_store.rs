@@ -371,13 +371,24 @@ fn highlight(search_text: &str, query: &QueryText) -> String {
 #[derive(Debug)]
 struct ScoredRow {
     block_id: String,
-    content_type: String,
     score: f64,
     fts_rank: f64,
     trgm_sim: f64,
     vector_sim: f64,
     edge_degree: i64,
     highlight: String,
+}
+
+/// Count the complete query/tag-matched set, then report whether this row belongs in the active
+/// content-type result set. Keeping both operations in one helper makes their order explicit: an active
+/// facet filters hits, never the sibling facet vocabulary used to switch filters in the mounted UI.
+fn record_facet_then_matches_filter(
+    facets: &mut BTreeMap<String, i64>,
+    row_content_type: &str,
+    active_content_type: Option<&str>,
+) -> bool {
+    *facets.entry(row_content_type.to_owned()).or_insert(0) += 1;
+    active_content_type.is_none_or(|active| active == row_content_type)
 }
 
 /// Runs LoomSearchV2 over the persisted SurrealDB projection and graph.
@@ -463,14 +474,8 @@ pub(crate) async fn loom_search_v2(
         .map(String::as_str)
         .collect::<HashSet<_>>();
     let mut scored = Vec::new();
+    let mut content_type_facets = BTreeMap::new();
     for row in index_rows {
-        if request
-            .content_type
-            .as_ref()
-            .is_some_and(|content_type| row.content_type != content_type.as_str())
-        {
-            continue;
-        }
         let block_id = record_key(row.block_id, BLOCKS_TABLE)?;
         if !requested_tags.is_empty()
             && tags.get(&block_id).is_none_or(|actual| {
@@ -497,11 +502,24 @@ pub(crate) async fn loom_search_v2(
             continue;
         }
 
+        // Facets describe the complete query/tag-matched set before the active content-type filter is
+        // applied. Otherwise selecting one facet makes every sibling facet disappear, preventing the
+        // mounted search panel from switching filters without first clearing the active one.
+        if !record_facet_then_matches_filter(
+            &mut content_type_facets,
+            &row.content_type,
+            request
+                .content_type
+                .as_ref()
+                .map(|content_type| content_type.as_str()),
+        ) {
+            continue;
+        }
+
         let edge_degree = degree.get(&block_id).copied().unwrap_or(0);
         let score = fts_rank + trgm_sim * 0.6 + vector_sim * 1.2 + edge_degree as f64 * graph_boost;
         scored.push(ScoredRow {
             block_id,
-            content_type: row.content_type,
             score,
             fts_rank,
             trgm_sim,
@@ -519,13 +537,6 @@ pub(crate) async fn loom_search_v2(
     });
     let total = i64::try_from(scored.len())
         .map_err(|_| StorageError::Serialization("loom search total exceeds i64".to_owned()))?;
-    let mut content_type_facets = BTreeMap::new();
-    for row in &scored {
-        *content_type_facets
-            .entry(row.content_type.clone())
-            .or_insert(0_i64) += 1;
-    }
-
     let offset = request.offset as usize;
     let limit = if request.limit == 0 {
         DEFAULT_LIMIT
@@ -574,5 +585,20 @@ mod tests {
         let query = QueryText::new("rust").expect("valid query");
         let rendered = highlight("Notes about ééé Rust storage", &query);
         assert!(rendered.contains("<mark>Rust</mark>"));
+    }
+
+    #[test]
+    fn active_content_type_filters_hits_without_hiding_sibling_facets() {
+        let mut facets = BTreeMap::new();
+        let admitted = ["note", "code", "note"]
+            .into_iter()
+            .filter(|content_type| {
+                record_facet_then_matches_filter(&mut facets, content_type, Some("note"))
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(admitted, vec!["note", "note"]);
+        assert_eq!(facets.get("note"), Some(&2));
+        assert_eq!(facets.get("code"), Some(&1));
     }
 }

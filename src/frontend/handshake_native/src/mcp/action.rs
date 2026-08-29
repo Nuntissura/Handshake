@@ -1630,8 +1630,11 @@ fn acknowledge_click_completion(
                         "observer target disappeared before acknowledgement",
                     );
                 };
-                let pending_async_target_identity = declaration.persistent_target
-                    && applied.state == ClickCompletionState::Pending
+                // Both persistent and flexible observer targets may be temporarily disabled while an
+                // asynchronous mutation is pending. Presence + stable node/role is sufficient during
+                // that non-terminal window; terminal flexible semantics remain strict below (Applied
+                // requires absence, Failed requires a fully actionable present target).
+                let pending_async_target_identity = applied.state == ClickCompletionState::Pending
                     && post_target.node_id == pending.outcome.request.target.0
                     && post_target.role == pending.expected_role
                     && (post_target.disabled
@@ -3235,6 +3238,79 @@ mod tests {
             target,
             semantic,
             "{\"graph_recovered\":true}",
+        );
+        channel.acknowledge_after_render(&snapshot);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Applied
+        );
+    }
+
+    #[test]
+    fn flexible_observer_keeps_waiting_while_exact_target_is_disabled_pending() {
+        let (effect, context, observer, target, semantic) = (
+            "canvas-placement-mutation",
+            "workspace-a/canvas-a",
+            "canvas.placement-mutation-completion",
+            "canvas.placement.p-1.remove",
+            "remove|workspace-a|canvas-a|p-1",
+        );
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children.push(clickable_node(
+            target,
+            405,
+            serialize_flexible_observer_click_target(effect, context, 8, observer, semantic),
+        ));
+        snapshot.root.children.push(observer_node(
+            observer,
+            406,
+            serialize_observer_click_state(
+                effect,
+                context,
+                8,
+                ClickCompletionState::Ready,
+                None,
+                None,
+            )
+            .unwrap(),
+        ));
+        let mut channel = ActionChannel::new();
+        let outcome = channel.enqueue(&snapshot, target, UiAction::Click).unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+
+        let pending_target = top_level_node_mut(&mut snapshot, target);
+        pending_target.disabled = true;
+        pending_target.actions.clear();
+        pending_target.value =
+            serialize_flexible_observer_click_target(effect, context, 9, observer, semantic);
+        top_level_node_mut(&mut snapshot, observer).value = serialize_observer_click_state(
+            effect,
+            context,
+            9,
+            ClickCompletionState::Pending,
+            Some(target),
+            Some(semantic),
+        );
+        channel.acknowledge_after_render(&snapshot);
+        let pending_receipt = channel
+            .receipts()
+            .into_iter()
+            .find(|receipt| receipt.receipt_id == outcome.receipt_id)
+            .unwrap();
+        assert_eq!(pending_receipt.status, ActionReceiptStatus::Dispatched);
+        assert_eq!(channel.pending(), 1);
+
+        snapshot
+            .root
+            .children
+            .retain(|node| node.author_id.as_deref() != Some(target));
+        top_level_node_mut(&mut snapshot, observer).value = serialize_observer_click_applied(
+            effect,
+            context,
+            9,
+            target,
+            semantic,
+            "{\"placement_absent_after_refresh\":true}",
         );
         channel.acknowledge_after_render(&snapshot);
         assert_eq!(
