@@ -331,6 +331,10 @@ interprocess = "2"
 # it is declared with the GDI + window-enumeration features the focus-safe capture needs. Windows-only
 # (the offscreen render path covers headless proof on every OS).
 [target.'cfg(windows)'.dependencies]
+# `eframe/wgpu` enables the renderer integration but no native backend when eframe defaults are
+# disabled. Anchor DX12 on Windows through the already-transitive wgpu package; this keeps normal
+# production binaries runnable without enabling Vulkan/Metal/GLES or eframe's unrelated defaults.
+wgpu = { version = "27.0.1", default-features = false, features = ["dx12"] }
 # MT-030 ADDS the `Win32_UI_Accessibility` feature (NOT a new crate — windows-sys is already the dep)
 # so the LIVE focus audit (tests/test_focus_audit_live.rs, #[ignore]) can install a REAL
 # WINEVENT_SYSTEM_FOREGROUND hook via SetWinEventHook / UnhookWinEvent / WINEVENTPROC / HWINEVENTHOOK
