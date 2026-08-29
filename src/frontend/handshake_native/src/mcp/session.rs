@@ -80,9 +80,12 @@ fn unreachable_capture() -> Result<ScreenshotResult, ScreenshotError> {
 /// acquire + enqueue.
 enum DispatchPlan {
     /// Auth failed, no `target`/lease applies, or an unknown method: dispatch directly with NO lease and
-    /// NO attribution (auth errors, malformed-param errors, `screenshot`, unknown methods). The canonical
+    /// NO attribution (auth errors, malformed-param errors, unknown methods). The canonical
     /// error/response shape comes from [`dispatch_request`].
     Direct,
+    /// A screenshot request: run the potentially blocking OS capture off the async worker and never
+    /// hold the shared action-channel mutex while it executes.
+    Screenshot,
     /// A reading tool (`list_widgets`): take a SHARED lease on [`SNAPSHOT_RESOURCE`], dispatch, NO
     /// attribution (reads are not logged).
     SharedRead,
@@ -163,7 +166,7 @@ impl McpSession {
     ///   missing/empty `target` is malformed -> [`DispatchPlan::Direct`] so `dispatch_request` produces
     ///   the canonical -32602 (nothing to lease).
     /// - `list_widgets` -> [`DispatchPlan::SharedRead`].
-    /// - `screenshot` + unknown methods -> [`DispatchPlan::Direct`] (no shared-widget mutation).
+    /// - `screenshot` -> [`DispatchPlan::Screenshot`]; unknown methods -> [`DispatchPlan::Direct`].
     fn decide(&self, request: &McpRequest) -> DispatchPlan {
         // Auth-gate BEFORE any lease/channel work so an unauthorized flood cannot even contend for leases.
         if !self.token.matches(&request.session_token) {
@@ -180,7 +183,8 @@ impl McpSession {
                 }
             }
             Some(ArgusMethod::Inspect) => DispatchPlan::SharedRead,
-            // Argus screenshot + unknown methods: no shared-widget mutation, so no lease.
+            Some(ArgusMethod::Screenshot) => DispatchPlan::Screenshot,
+            // Unknown methods: no shared-widget mutation, so no lease.
             _ => DispatchPlan::Direct,
         }
     }
@@ -211,6 +215,11 @@ impl McpSession {
         capture: impl FnOnce() -> Result<ScreenshotResult, ScreenshotError>,
     ) -> McpResponse {
         match self.decide(request) {
+            DispatchPlan::Screenshot => {
+                // The synchronous/in-process path retains its caller-defined capture semantics. The
+                // async server path below adds the production timeout boundary.
+                dispatch_request(request, &self.token, snapshot, channel, capture)
+            }
             DispatchPlan::Direct => {
                 dispatch_request(request, &self.token, snapshot, channel, capture)
             }
@@ -271,9 +280,43 @@ impl McpSession {
         request: &McpRequest,
         snapshot: &Arc<Mutex<UiTreeSnapshot>>,
         channel: &Arc<Mutex<ActionChannel>>,
-        capture: impl FnOnce() -> Result<ScreenshotResult, ScreenshotError>,
+        capture: impl FnOnce() -> Result<ScreenshotResult, ScreenshotError> + Send + 'static,
     ) -> McpResponse {
         match self.decide(request) {
+            DispatchPlan::Screenshot => {
+                // Windows PrintWindow/WM_PRINT/GDI capture is inherently synchronous and can stall on
+                // driver/window-manager behavior. Never execute it on the app's sole Tokio worker and
+                // never hold the shared ActionChannel while it runs: either the blocking worker returns
+                // within the boundary or the request receives a typed error while inspect/click/value
+                // traffic remains serviceable.
+                const SCREENSHOT_CAPTURE_TIMEOUT: Duration = Duration::from_secs(2);
+                let capture_result = match tokio::time::timeout(
+                    SCREENSHOT_CAPTURE_TIMEOUT,
+                    tokio::task::spawn_blocking(capture),
+                )
+                .await
+                {
+                    Ok(Ok(result)) => result,
+                    Ok(Err(error)) => Err(ScreenshotError(format!(
+                        "screenshot capture worker failed: {error}"
+                    ))),
+                    Err(_) => Err(ScreenshotError(format!(
+                        "screenshot capture exceeded the {} ms production boundary",
+                        SCREENSHOT_CAPTURE_TIMEOUT.as_millis()
+                    ))),
+                };
+                let snapshot = clone_snapshot(snapshot);
+                // Screenshot does not resolve or enqueue an action, so a private empty channel preserves
+                // the canonical dispatch/auth/response shape without contending with live UI actions.
+                let mut private_channel = ActionChannel::new();
+                dispatch_request(
+                    request,
+                    &self.token,
+                    &snapshot,
+                    &mut private_channel,
+                    move || capture_result,
+                )
+            }
             DispatchPlan::Direct => {
                 let snapshot = clone_snapshot(snapshot);
                 let mut ch = lock_channel(channel);

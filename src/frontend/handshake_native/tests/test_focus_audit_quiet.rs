@@ -11,10 +11,10 @@
 //       HARD FAIL.
 //   (b) POSITIVE INVARIANTS — asserts the pop-out viewports use `with_active(false)` (no focus theft
 //       on creation), that NO viewport requests `with_active(true)` / `with_focused(true)`, and that
-//       the only Win32 surface (the screenshot capture) uses focus-safe `PrintWindow`/`BitBlt` over
+//       the only Win32 surface (the screenshot capture) uses bounded focus-safe `WM_PRINT`/`BitBlt` over
 //       an offscreen DC.
-//   (c) ALLOW-LIST PROOF — the one disclosed allow-list item (MT-027 screenshot: PrintWindow /
-//       PW_RENDERFULLCONTENT / BitBlt over an offscreen memory DC, focus-safe by construction) is
+//   (c) ALLOW-LIST PROOF — the one disclosed allow-list item (MT-027 screenshot: bounded WM_PRINT /
+//       SendMessageTimeoutW(WM_PRINT) / BitBlt over an offscreen memory DC, focus-safe by construction) is
 //       present and uses no banned API.
 //
 // WHY SOURCE-AUDIT, NOT A LIVE WINDOWS HOOK: a live WINEVENT_SYSTEM_FOREGROUND / WH_KEYBOARD_LL hook
@@ -326,7 +326,7 @@ fn no_focus_stealing_or_input_injection_api_in_source() {
         "files_scanned": scanned,
         "banned_apis": BANNED_FOCUS_APIS,
         "allow_list": [
-            "mcp/screenshot.rs: PrintWindow(PW_RENDERFULLCONTENT)/BitBlt over an offscreen memory DC — focus-safe by construction (no Z-order/activation change)"
+            "mcp/screenshot.rs: bounded SendMessageTimeoutW(WM_PRINT)/BitBlt over an offscreen memory DC — focus-safe by construction (no Z-order/activation change)"
         ],
     });
     write_report(&report);
@@ -400,8 +400,21 @@ fn popout_viewports_do_not_steal_focus() {
     );
 }
 
+/// The governed real-window audit marks its child with HANDSHAKE_NATIVE_TEST=1. That controlled launch
+/// must remain visible and steerable without activating itself over the operator's foreground window.
+#[test]
+fn controlled_test_root_viewport_does_not_activate() {
+    let main_rs = src_dir().join("main.rs");
+    let code = std::fs::read_to_string(&main_rs)
+        .unwrap_or_else(|e| panic!("read {} failed: {e}", main_rs.display()));
+    assert!(
+        code.contains("HANDSHAKE_NATIVE_TEST") && code.contains("root_viewport.with_active(false)"),
+        "the controlled real-window launch must explicitly set the root viewport inactive"
+    );
+}
+
 /// ALLOW-LIST PROOF (AC-030-04 intent): the ONE Win32 surface in the shell (the screenshot capture)
-/// is the documented focus-safe allow-list item — it uses PrintWindow/BitBlt and references NO banned
+/// is the documented focus-safe allow-list item — it uses bounded WM_PRINT/BitBlt and references NO banned
 /// API in executable code.
 #[test]
 fn screenshot_capture_is_focus_safe_allow_list_item() {
@@ -411,8 +424,8 @@ fn screenshot_capture_is_focus_safe_allow_list_item() {
     let code = strip_comments_and_literals(&raw);
 
     assert!(
-        code.contains("PrintWindow"),
-        "screenshot.rs no longer uses PrintWindow — verify the capture is still focus-safe",
+        code.contains("SendMessageTimeoutW") && code.contains("WM_PRINT"),
+        "screenshot.rs no longer uses bounded WM_PRINT — verify the capture is still focus-safe",
     );
     for api in BANNED_FOCUS_APIS {
         assert!(
@@ -420,7 +433,9 @@ fn screenshot_capture_is_focus_safe_allow_list_item() {
             "screenshot.rs (the focus-safe allow-list item) now calls banned API {api}",
         );
     }
-    println!("PASS: screenshot capture uses focus-safe PrintWindow/BitBlt; no banned API in code");
+    println!(
+        "PASS: screenshot capture uses bounded focus-safe WM_PRINT/BitBlt; no banned API in code"
+    );
 }
 
 fn line_any_has_identifier(code: &str, ident: &str) -> bool {

@@ -512,11 +512,19 @@ fn main() -> eframe::Result<()> {
         arm_crash_client_late(handle.crash_socket());
     }
 
+    let controlled_quiet_launch =
+        std::env::var("HANDSHAKE_NATIVE_TEST").ok().as_deref() == Some("1");
+    let mut root_viewport = egui::ViewportBuilder::default()
+        .with_title("Handshake")
+        .with_inner_size([1280.0, 800.0])
+        .with_min_inner_size([640.0, 480.0]);
+    if controlled_quiet_launch {
+        // HBR-QUIET: governed model/CI desktop audits launch a real visible shell but must not take the
+        // operator's foreground activation. Ordinary interactive launches retain the platform default.
+        root_viewport = root_viewport.with_active(false);
+    }
     let native_options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_title("Handshake")
-            .with_inner_size([1280.0, 800.0])
-            .with_min_inner_size([640.0, 480.0]),
+        viewport: root_viewport,
         renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };

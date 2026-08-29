@@ -106,15 +106,18 @@ mod live {
 
     use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
     use windows_sys::Win32::System::Threading::GetCurrentThreadId;
-    use windows_sys::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
+    use windows_sys::Win32::UI::Accessibility::{
+        NotifyWinEvent, SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK,
+    };
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
         SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_SPACE,
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        CallNextHookEx, DispatchMessageW, GetForegroundWindow, GetMessageW,
-        GetWindowThreadProcessId, PostThreadMessageW, SetWindowsHookExW, TranslateMessage,
-        UnhookWindowsHookEx, EVENT_SYSTEM_FOREGROUND, KBDLLHOOKSTRUCT, LLKHF_INJECTED,
-        LLKHF_LOWER_IL_INJECTED, MSG, WH_KEYBOARD_LL, WINEVENT_OUTOFCONTEXT, WM_QUIT,
+        CallNextHookEx, CreateWindowExW, DestroyWindow, DispatchMessageW, GetForegroundWindow,
+        GetMessageW, GetWindowThreadProcessId, PostThreadMessageW, SetWindowTextW,
+        SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, CHILDID_SELF,
+        EVENT_OBJECT_NAMECHANGE, EVENT_SYSTEM_FOREGROUND, KBDLLHOOKSTRUCT, LLKHF_INJECTED,
+        LLKHF_LOWER_IL_INJECTED, MSG, OBJID_WINDOW, WH_KEYBOARD_LL, WINEVENT_OUTOFCONTEXT, WM_QUIT,
     };
 
     /// The TEST-HARNESS injection cookie. The audit's own single liveness keystroke (sent via
@@ -138,6 +141,10 @@ mod live {
     static FOREGROUND_PIDS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
     /// Total foreground events the WinEvent hook observed (liveness proof: > 0 means the hook fired).
     static FOREGROUND_EVENT_COUNT: AtomicUsize = AtomicUsize::new(0);
+    /// Test-owned EVENT_OBJECT_NAMECHANGE callbacks observed on the SAME pump thread as the foreground
+    /// hook. This is the deterministic liveness proof: a perfectly quiet desktop may legitimately emit
+    /// zero foreground changes, so foreground-event emptiness itself cannot prove a dead hook.
+    static FOREGROUND_HOOK_LIVENESS_COUNT: AtomicUsize = AtomicUsize::new(0);
     /// Total key events the LL keyboard hook observed (liveness proof).
     static KEY_EVENT_COUNT: AtomicUsize = AtomicUsize::new(0);
     /// Count of key events carrying the injected mask (synthetic keystrokes seen, from ANY source).
@@ -175,6 +182,10 @@ mod live {
         _thread: u32,
         _time: u32,
     ) {
+        if event == EVENT_OBJECT_NAMECHANGE {
+            FOREGROUND_HOOK_LIVENESS_COUNT.fetch_add(1, Ordering::Relaxed);
+            return;
+        }
         if event != EVENT_SYSTEM_FOREGROUND || hwnd.is_null() {
             return;
         }
@@ -288,52 +299,150 @@ mod live {
         }
     }
 
-    /// A live foreground (WinEvent) hook handle. Installed on the calling thread; `WINEVENT_OUTOFCONTEXT`
-    /// means our callback runs in our own process so no DLL injection is needed (the FocusAuditHandle
-    /// pattern). The hook is unhooked on drop.
+    /// Live foreground and test-liveness WinEvent hooks running on a dedicated message-pump thread.
+    /// Microsoft requires the thread that calls `SetWinEventHook` to own a message loop for
+    /// `WINEVENT_OUTOFCONTEXT` delivery. The companion liveness hook observes a real name change on a
+    /// hidden test-owned STATIC window; it proves callback delivery without stealing focus or fabricating
+    /// an app-attributable foreground transition.
     pub struct ForegroundAuditHook {
-        hook: HWINEVENTHOOK,
+        thread_id: u32,
+        foreground_installed: bool,
+        liveness_installed: bool,
+        join: Option<std::thread::JoinHandle<()>>,
     }
 
     impl ForegroundAuditHook {
-        /// Install the real `EVENT_SYSTEM_FOREGROUND` WinEvent hook. Returns `None` if the OS refused
-        /// (NULL handle) so the caller can record an honest "hook not installed" blocker rather than a
-        /// false PASS.
-        pub fn install() -> Option<Self> {
-            // SAFETY: a valid Win32 call; the callback is a `'static` fn item and writes only into the
-            // process-global statics above. NULL module + 0/0 process/thread = all processes, all
-            // threads, out-of-context (callback in our process). Unhooked in Drop.
-            let hook = unsafe {
-                SetWinEventHook(
-                    EVENT_SYSTEM_FOREGROUND,
-                    EVENT_SYSTEM_FOREGROUND,
-                    std::ptr::null_mut(),
-                    Some(win_event_proc),
-                    0,
-                    0,
-                    WINEVENT_OUTOFCONTEXT,
-                )
-            };
-            if hook.is_null() {
-                None
-            } else {
-                Some(Self { hook })
+        /// Install both hooks and block until their pump thread has reported the exact install result.
+        pub fn install() -> Self {
+            let (tx, rx) = std::sync::mpsc::channel::<(u32, bool, bool)>();
+            let join = std::thread::spawn(move || {
+                let thread_id = unsafe { GetCurrentThreadId() };
+                let static_class: Vec<u16> = "STATIC\0".encode_utf16().collect();
+                let initial_name: Vec<u16> =
+                    "hsk-focus-hook-liveness-initial\0".encode_utf16().collect();
+                let changed_name: Vec<u16> =
+                    "hsk-focus-hook-liveness-changed\0".encode_utf16().collect();
+
+                // A hidden, zero-sized system STATIC window gives the test a real accessible object whose
+                // name can change without becoming visible, active, or foreground.
+                let liveness_hwnd = unsafe {
+                    CreateWindowExW(
+                        0,
+                        static_class.as_ptr(),
+                        initial_name.as_ptr(),
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                        std::ptr::null(),
+                    )
+                };
+                // SAFETY: callback is static; null module + 0/0 scope means every foreground event on
+                // this desktop. Both hook handles are unhooked on this same thread after WM_QUIT.
+                let foreground_hook = unsafe {
+                    SetWinEventHook(
+                        EVENT_SYSTEM_FOREGROUND,
+                        EVENT_SYSTEM_FOREGROUND,
+                        std::ptr::null_mut(),
+                        Some(win_event_proc),
+                        0,
+                        0,
+                        WINEVENT_OUTOFCONTEXT,
+                    )
+                };
+                // A second hook on the same callback/pump listens only to this process and thread. Its
+                // event cannot be attributed to the Handshake child and exists solely to prove delivery.
+                let liveness_hook = unsafe {
+                    SetWinEventHook(
+                        EVENT_OBJECT_NAMECHANGE,
+                        EVENT_OBJECT_NAMECHANGE,
+                        std::ptr::null_mut(),
+                        Some(win_event_proc),
+                        std::process::id(),
+                        thread_id,
+                        WINEVENT_OUTOFCONTEXT,
+                    )
+                };
+                let foreground_installed = !foreground_hook.is_null();
+                let liveness_installed = !liveness_hook.is_null() && !liveness_hwnd.is_null();
+                let _ = tx.send((thread_id, foreground_installed, liveness_installed));
+
+                if liveness_installed {
+                    // SetWindowTextW performs the real name change; NotifyWinEvent announces that now-
+                    // completed change so the same pump must deliver EVENT_OBJECT_NAMECHANGE.
+                    unsafe {
+                        SetWindowTextW(liveness_hwnd, changed_name.as_ptr());
+                        NotifyWinEvent(
+                            EVENT_OBJECT_NAMECHANGE,
+                            liveness_hwnd,
+                            OBJID_WINDOW,
+                            CHILDID_SELF as i32,
+                        );
+                    }
+                }
+
+                if foreground_installed || liveness_installed {
+                    let mut msg: MSG = unsafe { std::mem::zeroed() };
+                    loop {
+                        let r = unsafe { GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) };
+                        if r <= 0 {
+                            break;
+                        }
+                        unsafe {
+                            TranslateMessage(&msg);
+                            DispatchMessageW(&msg);
+                        }
+                    }
+                }
+                unsafe {
+                    if !liveness_hook.is_null() {
+                        UnhookWinEvent(liveness_hook);
+                    }
+                    if !foreground_hook.is_null() {
+                        UnhookWinEvent(foreground_hook);
+                    }
+                    if !liveness_hwnd.is_null() {
+                        DestroyWindow(liveness_hwnd);
+                    }
+                }
+            });
+            let (thread_id, foreground_installed, liveness_installed) =
+                rx.recv().unwrap_or((0, false, false));
+            Self {
+                thread_id,
+                foreground_installed,
+                liveness_installed,
+                join: Some(join),
             }
         }
 
         pub fn installed(&self) -> bool {
-            !self.hook.is_null()
+            self.foreground_installed
+        }
+
+        pub fn liveness_installed(&self) -> bool {
+            self.liveness_installed
+        }
+
+        pub fn stop_and_join(&mut self) {
+            if self.thread_id != 0 {
+                unsafe {
+                    PostThreadMessageW(self.thread_id, WM_QUIT, 0, 0);
+                }
+            }
+            if let Some(join) = self.join.take() {
+                let _ = join.join();
+            }
         }
     }
 
     impl Drop for ForegroundAuditHook {
         fn drop(&mut self) {
-            if !self.hook.is_null() {
-                // SAFETY: `hook` was returned by SetWinEventHook and is unhooked exactly once.
-                unsafe {
-                    UnhookWinEvent(self.hook);
-                }
-            }
+            self.stop_and_join();
         }
     }
 
@@ -421,6 +530,7 @@ mod live {
         pub total_events: usize,
         pub app_attributable_events: usize,
         pub distinct_pids: usize,
+        pub liveness_events: usize,
     }
 
     /// Drain the foreground hook log and attribute events to `app_pid`.
@@ -437,6 +547,7 @@ mod live {
             total_events: FOREGROUND_EVENT_COUNT.load(Ordering::Relaxed),
             app_attributable_events,
             distinct_pids: distinct.len(),
+            liveness_events: FOREGROUND_HOOK_LIVENESS_COUNT.load(Ordering::Relaxed),
         }
     }
 
@@ -582,12 +693,10 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     let binding_path = tmp.join("handshake").join("swarm_mcp_binding.json");
 
     // ── 1. Install the REAL hooks BEFORE spawning the app, so we observe its entire lifetime. ──
-    let foreground_hook = live::ForegroundAuditHook::install();
+    let mut foreground_hook = live::ForegroundAuditHook::install();
     let mut keyboard_hook = live::KeyboardAuditHook::install();
-    let foreground_installed = foreground_hook
-        .as_ref()
-        .map(|h| h.installed())
-        .unwrap_or(false);
+    let foreground_installed = foreground_hook.installed();
+    let foreground_liveness_installed = foreground_hook.liveness_installed();
     let keyboard_installed = keyboard_hook.installed();
 
     // ── 2. Spawn the REAL shell binary (opens a genuine wgpu window + binds the MT-027 swarm server). ──
@@ -731,13 +840,19 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     // ── 4. Tear down: stop the app, unhook, drain the hook logs. ──
     let _ = child.kill();
     let _ = child.wait();
+    foreground_hook.stop_and_join();
     keyboard_hook.stop_and_join();
     let fg = live::foreground_observations(child_pid);
     let kb = live::keyboard_observations();
-    drop(foreground_hook); // unhook WinEvent
 
     // ── 5. Build the reports. `audited` ONLY when both hooks installed and we actually drove actions. ──
-    let audited = foreground_installed && keyboard_installed && connect_ok && driven_actions > 0;
+    let audited = foreground_installed
+        && foreground_liveness_installed
+        && fg.liveness_events > 0
+        && keyboard_installed
+        && connect_ok
+        && driven_actions == 20
+        && keyboard_actions == 10;
     let audit_status = if audited {
         "audited"
     } else {
@@ -750,6 +865,8 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
         "audit_method": "live_win32_winevent_foreground_hook",
         "app_pid": child_pid,
         "foreground_hook_installed": foreground_installed,
+        "foreground_liveness_hook_installed": foreground_liveness_installed,
+        "foreground_liveness_events": fg.liveness_events,
         "driven_actions": driven_actions,
         // FocusAuditReport-compatible field: foreground steals attributed to the app (must be empty).
         "handshake_owned_events": (0..fg.app_attributable_events)
@@ -757,7 +874,7 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
             .collect::<Vec<_>>(),
         "total_foreground_events": fg.total_events,
         "distinct_foreground_pids": fg.distinct_pids,
-        "transcript": transcript,
+        "transcript": transcript.clone(),
     });
     write_report("focus_audit_quiet_report.json", &focus_report);
 
@@ -803,6 +920,10 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
         "WINEVENT_SYSTEM_FOREGROUND hook failed to install — cannot prove quiet operation (no false PASS)"
     );
     assert!(
+        foreground_liveness_installed,
+        "test-owned EVENT_OBJECT_NAMECHANGE liveness hook/window failed to initialize — cannot prove the foreground hook pump is live"
+    );
+    assert!(
         keyboard_installed,
         "WH_KEYBOARD_LL hook failed to install — cannot prove no keyboard injection (no false PASS)"
     );
@@ -812,23 +933,28 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
          did not start its MT-027 server (likely no interactive desktop / GPU); run on a real desktop",
         binding_path.display()
     );
-    assert!(
-        driven_actions > 0,
-        "drove zero swarm actions — the audit observed an idle window, not a real swarm session \
-         (CTRL-030-04). total_foreground_events={}",
-        fg.total_events
+    assert_eq!(
+        driven_actions, 20,
+        "only {driven_actions}/20 foreground-candidate Swarm actions returned a response — the live \
+         audit did not complete its governed action window (CTRL-030-04). transcript={transcript:?}"
+    );
+    assert_eq!(
+        keyboard_actions, 10,
+        "only {keyboard_actions}/10 keyboard-driving Swarm actions returned a response — the live \
+         audit did not exercise the complete in-app keyboard path. transcript={transcript:?}"
     );
 
     // The core invariants (HBR-QUIET): the shell never foregrounded itself, never injected keystrokes.
     //
-    // Foreground liveness (CTRL-030-04 / RISK-030-07): a real spawned window ALWAYS produces at least
-    // one EVENT_SYSTEM_FOREGROUND on the desktop (its own creation), so total_foreground_events > 0 is
-    // the honest proof the hook was live and saw events — making an empty `handshake_owned_events` an
-    // OBSERVED result, not empty-by-construction.
+    // Foreground-hook liveness (CTRL-030-04 / RISK-030-07): a quiet background launch may correctly
+    // produce ZERO EVENT_SYSTEM_FOREGROUND events. Liveness is therefore proven by a second
+    // SetWinEventHook on the SAME dedicated pump thread observing a real EVENT_OBJECT_NAMECHANGE on a
+    // hidden test-owned STATIC window. This exercises installation, OS delivery, callback execution,
+    // and the message pump without stealing focus or crediting a child-app event.
     assert!(
-        fg.total_events > 0,
-        "the foreground hook recorded ZERO events while a real window was spawned + driven — the hook \
-         was not live (false-pass guard, RISK-030-07); refusing to trust app_attributable_events"
+        fg.liveness_events > 0,
+        "FOREGROUND_HOOK_INACTIVE: the test-owned WinEvent liveness name change produced ZERO callbacks \
+         on the foreground hook's pump thread — refusing to trust an empty app_attributable_events result"
     );
     assert_eq!(
         fg.app_attributable_events, 0,

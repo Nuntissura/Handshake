@@ -7,7 +7,7 @@
 //! The contract asks the production `screenshot` tool to grab the live OS window focus-safely. egui
 //! 0.33 does NOT expose a programmatic frame read-back from inside the running `eframe` app (the wgpu
 //! surface is presented to the OS, not handed to the app), so the production capture path uses an OS
-//! window grab. The native shell ships a focus-safe Win32 `PrintWindow`/`BitBlt`-style adapter
+//! window grab. The native shell ships a focus-safe bounded Win32 `WM_PRINT`/`BitBlt` adapter
 //! ([`capture_window_by_title_and_pid`]) — it NEVER calls `SetForegroundWindow`/`BringWindowToTop` and
 //! never changes Z-order (HBR-QUIET). That OS path needs a real on-screen window and a windowing
 //! environment, so it is GENUINELY UNDRIVEABLE from this headless `cargo test` host and is disclosed as
@@ -86,8 +86,8 @@ pub const HANDSHAKE_WINDOW_TITLE: &str = "Handshake";
 ///
 /// PRODUCTION path (the contract's live OS-window grab). Matches the window whose title is
 /// [`HANDSHAKE_WINDOW_TITLE`] AND whose owning process id is THIS process (red-team: window-title
-/// ambiguity — a multi-window dev session never captures another process's window). Uses Win32
-/// `PrintWindow` with `PW_RENDERFULLCONTENT` over an off-screen memory DC; it NEVER calls
+/// ambiguity — a multi-window dev session never captures another process's window). Uses bounded
+/// `SendMessageTimeoutW(WM_PRINT)` over an off-screen memory DC; it NEVER calls
 /// `SetForegroundWindow`/`BringWindowToTop` and never changes Z-order (HBR-QUIET).
 ///
 /// On non-Windows builds, or when no matching window is found / GDI fails, returns a typed
@@ -115,6 +115,7 @@ pub fn capture_handshake_window() -> Result<ScreenshotResult, ScreenshotError> {
 #[cfg(target_os = "windows")]
 mod windows_capture {
     use super::{screenshot_from_png, ScreenshotError, ScreenshotResult};
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     use windows_sys::Win32::Foundation::{HWND, LPARAM, RECT, TRUE};
     use windows_sys::Win32::Graphics::Gdi::{
@@ -122,20 +123,44 @@ mod windows_capture {
         GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
         HBITMAP, HDC, SRCCOPY,
     };
-    // `PrintWindow` lives under `Win32::Storage::Xps` in windows-sys 0.61; `PW_RENDERFULLCONTENT` is in
-    // `Win32::UI::WindowsAndMessaging`.
-    use windows_sys::Win32::Storage::Xps::PrintWindow;
     use windows_sys::Win32::System::Threading::GetCurrentProcessId;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         EnumWindows, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
-        PW_RENDERFULLCONTENT,
+        SendMessageTimeoutW, PRF_CHECKVISIBLE, PRF_CHILDREN, PRF_CLIENT, PRF_ERASEBKGND,
+        PRF_NONCLIENT, PRF_OWNED, SMTO_ABORTIFHUNG, SMTO_ERRORONEXIT, WM_PRINT,
     };
+
+    /// Prevent a stalled OS/driver capture from accumulating unbounded blocking workers. The async MCP
+    /// server returns a typed timeout after two seconds; this guard remains held by the detached capture
+    /// worker until the OS call actually unwinds, so later screenshots fail fast while all non-capture
+    /// Swarm traffic continues normally.
+    static CAPTURE_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+
+    struct CaptureInFlightGuard;
+
+    impl CaptureInFlightGuard {
+        fn acquire() -> Result<Self, ScreenshotError> {
+            CAPTURE_IN_FLIGHT
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .map(|_| Self)
+                .map_err(|_| {
+                    ScreenshotError("a previous screenshot capture is still in progress".to_owned())
+                })
+        }
+    }
+
+    impl Drop for CaptureInFlightGuard {
+        fn drop(&mut self) {
+            CAPTURE_IN_FLIGHT.store(false, Ordering::Release);
+        }
+    }
 
     /// Find the visible top-level window matching `title` owned by `pid`, then capture it focus-safely.
     pub fn capture_window_by_title_and_pid(
         title: &str,
         pid: u32,
     ) -> Result<ScreenshotResult, ScreenshotError> {
+        let _in_flight = CaptureInFlightGuard::acquire()?;
         let hwnd = find_window(title, pid).ok_or_else(|| {
             ScreenshotError(format!("no visible window titled '{title}' for pid {pid}"))
         })?;
@@ -192,8 +217,11 @@ mod windows_capture {
         TRUE
     }
 
-    /// Capture a specific HWND to PNG bytes via an off-screen memory DC + `PrintWindow`. Focus-safe:
-    /// no foreground/Z-order change.
+    /// Capture a specific HWND to PNG bytes via an off-screen memory DC + bounded `WM_PRINT`.
+    /// Focus-safe: no foreground/Z-order change. `PrintWindow` is intentionally not used: Microsoft
+    /// documents it as synchronous and potentially unbounded, which can stall the Swarm server's sole
+    /// runtime worker when the target window does not answer. `SendMessageTimeoutW` preserves the same
+    /// window-owned paint request with a hard one-second boundary, then falls back to `BitBlt`.
     fn capture_hwnd(hwnd: HWND) -> Result<ScreenshotResult, ScreenshotError> {
         // SAFETY: all handles are checked for null and released/deleted on every exit path below.
         unsafe {
@@ -226,10 +254,25 @@ mod windows_capture {
             }
             let old = SelectObject(mem_dc, bitmap as _);
 
-            // PrintWindow renders the window into the memory DC WITHOUT activating it (focus-safe).
-            // PW_RENDERFULLCONTENT captures GPU-composited (wgpu) client content. Fall back to BitBlt
-            // of the window DC if PrintWindow reports failure.
-            let printed = PrintWindow(hwnd, mem_dc, PW_RENDERFULLCONTENT);
+            // Ask the window to paint into the memory DC WITHOUT activating it. Unlike PrintWindow,
+            // SendMessageTimeoutW cannot wedge this request forever: an unresponsive window is aborted
+            // after one second. WM_PRINT is a system message, so cross-thread marshalling is supported.
+            let print_flags = PRF_CHECKVISIBLE
+                | PRF_NONCLIENT
+                | PRF_CLIENT
+                | PRF_ERASEBKGND
+                | PRF_CHILDREN
+                | PRF_OWNED;
+            let mut paint_result = 0usize;
+            let printed = SendMessageTimeoutW(
+                hwnd,
+                WM_PRINT,
+                mem_dc as usize,
+                print_flags as isize,
+                SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT,
+                1_000,
+                &mut paint_result,
+            );
             if printed == 0 {
                 let _ = BitBlt(mem_dc, 0, 0, width, height, window_dc, 0, 0, SRCCOPY);
             }
