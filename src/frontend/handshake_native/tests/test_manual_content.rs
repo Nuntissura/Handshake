@@ -2801,6 +2801,9 @@ fn mt108_supervisor_is_hard_bounded_and_invokes_the_mandatory_verifier() {
         "mt108_argus_matrix.json",
         "test_mt108_argus_aggregate",
         "mt108_verify_argus_evidence_manifest",
+        "'integration,wgpu_screenshots'",
+        "ReasonCode 'ZERO_TESTS'",
+        "selected zero tests",
     ] {
         assert!(
             runner.contains(needle),

@@ -620,6 +620,12 @@ exit ([int]$cargoExitCode)
             -Reason "Cargo exited $exitCode" -ExitCode $exitCode
         throw "$Scenario failed with exit code $exitCode; stderr=$stderrPath"
     }
+    $stdout = Get-Content -LiteralPath $stdoutPath -Raw
+    if ($stdout -match '(?m)^running 0 tests\r?$') {
+        Write-ExternalReceipt -ProcessContext $context -Status 'FAILED' -ReasonCode 'ZERO_TESTS' `
+            -Reason 'Cargo exited zero without executing the selected proof test' -ExitCode $exitCode
+        throw "$Scenario selected zero tests; stdout=$stdoutPath"
+    }
     $closureDeadline = [DateTimeOffset]::UtcNow.AddSeconds(10)
     $closureInventory = $null
     do {
@@ -715,7 +721,10 @@ function Assert-FinalProcessReceipts {
 $expectedCommands = [ordered]@{}
 
 foreach ($surface in @($matrix.rows)) {
-    $arguments = @('test', '--test', [string]$surface.test_binary, [string]$surface.test_name, '--')
+    $arguments = @(
+        'test', '--features', 'integration,wgpu_screenshots', '--no-fail-fast', '-j', '2',
+        '--test', [string]$surface.test_binary, [string]$surface.test_name, '--'
+    )
     if ([bool]$surface.ignored) {
         $arguments += '--ignored'
     }
@@ -727,7 +736,8 @@ foreach ($surface in @($matrix.rows)) {
 }
 
 $verifierArguments = @(
-    'test', '--test', 'test_mt108_argus_aggregate', 'mt108_verify_argus_evidence_manifest', '--', '--ignored', '--exact', '--nocapture'
+    'test', '--features', 'integration,wgpu_screenshots', '--no-fail-fast', '-j', '2',
+    '--test', 'test_mt108_argus_aggregate', 'mt108_verify_argus_evidence_manifest', '--', '--ignored', '--exact', '--nocapture'
 )
 $expectedCommands['manifest_verifier'] = $verifierArguments
 Invoke-BoundedCargoTest -Scenario 'manifest_verifier' -Surface 'matrix verifier' `
