@@ -1422,6 +1422,13 @@ impl LiveBackend {
         self.request_status(self.ident(self.client.delete(format!("{}{path}", self.base))))
     }
 
+    /// DELETE through the legacy workspace API's human/operator identity vocabulary.
+    pub fn delete_workspace_resource(&self, path: &str) -> u16 {
+        self.request_status(
+            self.workspace_ident(self.client.delete(format!("{}{path}", self.base))),
+        )
+    }
+
     /// Read back the exact durable Flight Recorder/EventLedger row correlated by one payload id.
     /// Product write routes await their recorder append before responding, but a short bounded poll also
     /// tolerates deployments whose recorder projection becomes visible just after the authority commit.

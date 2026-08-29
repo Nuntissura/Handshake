@@ -1563,7 +1563,8 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
 
     let alias_cleanup = be.delete(&format!("/workspaces/{ws}/loom/blocks/{alias_block_id}"));
     assert!(matches!(alias_cleanup, 200 | 202 | 204 | 404));
-    let legacy_document_cleanup = be.delete(&format!("/documents/{legacy_document_id}"));
+    let legacy_document_cleanup =
+        be.delete_workspace_resource(&format!("/documents/{legacy_document_id}"));
     assert!(matches!(legacy_document_cleanup, 200 | 202 | 204 | 404));
     let document_cleanup = be.delete(&format!("/knowledge/documents/{document_id}"));
     assert!(matches!(document_cleanup, 200 | 202 | 204 | 404));
