@@ -180,7 +180,7 @@
       "edge_state_tag": "populated_navigation",
       "proof_kind": "canonical_driver",
       "test_binary": "test_sidebar_panel_argus",
-      "test_name": "mt024_mounted_sidebar_canonical_argus_inspect_steer_reobserve",
+      "test_name": "live::mt024_mounted_sidebar_canonical_argus_inspect_steer_reobserve",
       "ignored": false,
       "capture_required": true,
       "expected_author_ids": [
