@@ -997,7 +997,13 @@ impl TabBar {
         if tab_resp.drag_started() {
             response.drag_started = Some(index);
         }
-        if tab_resp.clicked() {
+        let accesskit_clicked = ui.input(|input| {
+            input
+                .accesskit_action_requests(tab_resp.id, accesskit::Action::Click)
+                .next()
+                .is_some()
+        });
+        if tab_resp.clicked() || accesskit_clicked {
             response.activated_index = Some(index);
         }
         // ── MT-020 right-click context menu (replaces the MT-019 ad-hoc stub) ────────────────────────
