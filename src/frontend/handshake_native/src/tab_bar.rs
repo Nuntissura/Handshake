@@ -1096,6 +1096,45 @@ mod tests {
     }
 
     #[test]
+    fn accesskit_click_activates_inactive_tab() {
+        let mut bar = named_bar(&[PaneType::CodeSymbol, PaneType::LoomWikiPage]);
+        bar.activate(1);
+        let target = TabBar::tab_egui_id("pane-a", 0, &bar.tabs[0].pane_type);
+        let colors = TabBarColors {
+            active_bg: egui::Color32::WHITE,
+            inactive_bg: egui::Color32::BLACK,
+            text: egui::Color32::WHITE,
+            accent: egui::Color32::LIGHT_BLUE,
+            drop_highlight: egui::Color32::LIGHT_BLUE,
+        };
+        let ctx = egui::Context::default();
+
+        let render = |input| {
+            let mut response = TabBarResponse::default();
+            let output = ctx.run(input, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    response = TabBar::show(ui, &bar, colors, ModuleId::Main);
+                });
+            });
+            drop(output);
+            response
+        };
+        render(egui::RawInput::default());
+        let response = render(egui::RawInput {
+            events: vec![egui::Event::AccessKitActionRequest(
+                egui::accesskit::ActionRequest {
+                    action: egui::accesskit::Action::Click,
+                    target: egui::accesskit::NodeId(target.value()),
+                    data: None,
+                },
+            )],
+            ..Default::default()
+        });
+
+        assert_eq!(response.activated_index, Some(0));
+    }
+
+    #[test]
     fn production_tab_author_id_recognizer_matches_both_emission_paths() {
         assert!(is_tab_author_id(&tab_author_id("pane-a", 12)));
         assert!(is_tab_author_id(USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID));

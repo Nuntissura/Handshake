@@ -209,27 +209,41 @@ fn mt108_argus_manifest_surface_route() {
             row.scenario_id
         );
     }
-    let observation = match row.action_value.as_deref() {
+    let dispatch_observation = match row.action_value.as_deref() {
         Some(value) => argus.set_value_and_reinspect(&mut harness, &tab_target, value),
         None => argus.click_and_reinspect(&mut harness, &tab_target),
     };
     if reactivate_host_tab {
         assert_eq!(
-            observation.target_selected_before,
+            dispatch_observation.target_selected_before,
             Some(false),
             "{}: trace did not observe the original tab inactive before click",
             row.scenario_id
         );
         assert_eq!(
-            observation.target_selected_after,
+            argus.refresh_latest_live_target_selected(&mut harness),
             Some(true),
             "{}: trace did not observe the original tab selected after click",
             row.scenario_id
         );
     }
+    let predicate_id = format!("mt108.{}.post_action_target", row.scenario_id);
+    let expected_author_ids = row.expected_author_ids.clone();
+    let expected_value = row.action_value.clone();
+    let terminal_after =
+        argus.assert_latest_terminal_predicate(&mut harness, &predicate_id, |after| {
+            json_has_author_id(after, &tab_target)
+                && expected_author_ids
+                    .iter()
+                    .all(|author_id| json_has_author_id(after, author_id))
+                && expected_value
+                    .as_deref()
+                    .is_none_or(|value| json_has_author_id_value(after, &tab_target, value))
+        });
+    let observation = argus.latest_terminal_observation();
     if let Some(value) = row.action_value.as_deref() {
         assert!(
-            json_has_author_id_value(&observation.after, &tab_target, value),
+            json_has_author_id_value(&terminal_after, &tab_target, value),
             "{}: fresh inspection did not expose the exact applied value {:?} on {}",
             row.scenario_id,
             value,
@@ -241,14 +255,14 @@ fn mt108_argus_manifest_surface_route() {
         "applied" | "indeterminate"
     ));
     assert_eq!(
-        json_has_author_id(&observation.after, &tab_target),
+        json_has_author_id(&terminal_after, &tab_target),
         true,
         "{}: fresh inspection does not match the declared post-action target state",
         row.scenario_id
     );
     for author_id in &row.expected_author_ids {
         assert!(
-            json_has_author_id(&observation.after, author_id),
+            json_has_author_id(&terminal_after, author_id),
             "{}: fresh inspection lost mounted surface author_id {author_id}",
             row.scenario_id
         );
