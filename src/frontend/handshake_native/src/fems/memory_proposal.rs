@@ -520,6 +520,60 @@ pub struct ActionableProposalSummary {
     pub created_at: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct ProposalListSummary {
+    proposal_id: String,
+    workspace_id: String,
+    status: String,
+    review_gated: bool,
+    created_at: String,
+}
+
+fn actionable_proposal_rows(
+    workspace_id: &str,
+    rows: Vec<ProposalListSummary>,
+) -> Result<Vec<ActionableProposalSummary>, MemoryProposalError> {
+    let mut actionable = Vec::new();
+    for row in rows {
+        let lifecycle = match row.status.as_str() {
+            "pending_review" => Some(ActionableProposalLifecycle::PendingReview),
+            "approved" => Some(ActionableProposalLifecycle::Approved),
+            "rejected" | "committed" => None,
+            _ => {
+                return Err(MemoryProposalError::ReviewAckMismatch(format!(
+                    "proposal list returned unknown lifecycle proposal={} status={}",
+                    row.proposal_id, row.status
+                )));
+            }
+        };
+        if row.workspace_id != workspace_id
+            || !row.review_gated
+            || !is_canonical_proposal_id(&row.proposal_id)
+            || chrono::DateTime::parse_from_rfc3339(&row.created_at).is_err()
+        {
+            return Err(MemoryProposalError::ReviewAckMismatch(format!(
+                "proposal list returned invalid row proposal={} workspace={} status={} review_gated={}",
+                row.proposal_id, row.workspace_id, row.status, row.review_gated
+            )));
+        }
+        if let Some(status) = lifecycle {
+            actionable.push(ActionableProposalSummary {
+                proposal_id: row.proposal_id,
+                workspace_id: row.workspace_id,
+                status,
+                review_gated: row.review_gated,
+                created_at: row.created_at,
+            });
+        }
+    }
+    // An interrupted approval must reach explicit commit before a newer pending review is surfaced.
+    actionable.sort_by_key(|row| match row.status {
+        ActionableProposalLifecycle::Approved => 0,
+        ActionableProposalLifecycle::PendingReview => 1,
+    });
+    Ok(actionable)
+}
+
 const REVIEW_ACTOR_ID: &str = "native-editor-fems-reviewer";
 
 fn is_canonical_authenticated_native_actor(actor_id: &str) -> bool {
@@ -852,23 +906,12 @@ pub async fn list_actionable_proposals(
         )));
     }
     let rows = response
-        .json::<Vec<ActionableProposalSummary>>()
+        .json::<Vec<ProposalListSummary>>()
         .await
         .map_err(|error| {
             MemoryProposalError::SubmitFailed(format!("review list decode: {error}"))
         })?;
-    if let Some(invalid) = rows.iter().find(|row| {
-        row.workspace_id != workspace_id
-            || !row.review_gated
-            || !is_canonical_proposal_id(&row.proposal_id)
-            || chrono::DateTime::parse_from_rfc3339(&row.created_at).is_err()
-    }) {
-        return Err(MemoryProposalError::ReviewAckMismatch(format!(
-            "actionable projection returned invalid row proposal={} workspace={} status={} review_gated={}",
-            invalid.proposal_id, invalid.workspace_id, invalid.status.wire(), invalid.review_gated
-        )));
-    }
-    Ok(rows)
+    actionable_proposal_rows(workspace_id, rows)
 }
 
 /// The minimal typed HTTP client for the proposal submit. Holds ONLY a shared [`reqwest::Client`] (the
@@ -2161,5 +2204,35 @@ mod tests {
                 Err(MemoryProposalError::ReviewAckMismatch(_))
             ));
         }
+    }
+
+    #[test]
+    fn actionable_projection_filters_terminal_rows_and_prioritizes_approved_commit() {
+        let workspace_id = "550e8400-e29b-41d4-a716-446655440010";
+        let row = |proposal_id: &str, status: &str| ProposalListSummary {
+            proposal_id: proposal_id.to_owned(),
+            workspace_id: workspace_id.to_owned(),
+            status: status.to_owned(),
+            review_gated: true,
+            created_at: "2026-07-17T00:00:00Z".to_owned(),
+        };
+        let rows = actionable_proposal_rows(
+            workspace_id,
+            vec![
+                row("550e8400-e29b-41d4-a716-446655440011", "committed"),
+                row("550e8400-e29b-41d4-a716-446655440012", "pending_review"),
+                row("550e8400-e29b-41d4-a716-446655440013", "rejected"),
+                row("550e8400-e29b-41d4-a716-446655440014", "approved"),
+            ],
+        )
+        .expect("canonical proposal list projects actionable rows");
+
+        assert_eq!(rows.len(), 2);
+        assert_eq!(
+            rows[0].status,
+            ActionableProposalLifecycle::Approved,
+            "interrupted approval must reach explicit commit first"
+        );
+        assert_eq!(rows[1].status, ActionableProposalLifecycle::PendingReview);
     }
 }

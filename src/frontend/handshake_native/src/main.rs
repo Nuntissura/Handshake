@@ -275,9 +275,13 @@ fn run_crash_client_selftest() -> (String, i32) {
             .map(|d| d.as_nanos())
             .unwrap_or(0)
     );
-    // minidumper binds an AF_UNIX socket on EVERY platform (incl. Windows 10+) whose address is a real
-    // FILESYSTEM path in `sun_path` (NOT a `\\.\pipe\` named pipe). Keep the path short (the `sun_path`
-    // is 108 bytes) under the OS temp dir.
+    // minidumper binds an AF_UNIX socket on every platform (including Windows 10+), not a named pipe.
+    // Its Windows implementation and own runtime tests use a short relative `sun_path`; an absolute
+    // temp path can bind successfully yet make `connect` fail with WSAEINVAL (10022). Both endpoints
+    // run in this process with one stable cwd, so use that supported form on Windows and clean it below.
+    #[cfg(windows)]
+    let socket = format!("hsk-cself-{}.sock", std::process::id());
+    #[cfg(not(windows))]
     let socket = std::env::temp_dir()
         .join(format!("hsk-cself-{}.sock", std::process::id()))
         .to_string_lossy()
@@ -339,12 +343,17 @@ fn run_crash_client_selftest() -> (String, i32) {
         error: Arc::clone(&server_error),
     };
     let server_shutdown = Arc::clone(&shutdown);
+    let server_loop_error = Arc::clone(&server_error);
     let server_loop = std::thread::spawn(move || {
-        let _ = server.run(
+        if let Err(error) = server.run(
             Box::new(handler),
             &server_shutdown,
             Some(std::time::Duration::from_secs(5)),
-        );
+        ) {
+            if let Ok(mut slot) = server_loop_error.lock() {
+                *slot = Some(format!("server_loop: {error}"));
+            }
+        }
     });
 
     // Connect the client + install the crash handler pointed at it (the REAL production install path).
@@ -353,8 +362,15 @@ fn run_crash_client_selftest() -> (String, i32) {
         Err(e) => {
             shutdown.store(true, Ordering::SeqCst);
             let _ = server_loop.join();
+            let server_detail = server_error
+                .lock()
+                .ok()
+                .and_then(|slot| slot.clone())
+                .unwrap_or_else(|| "none".to_owned());
             return (
-                format!(r#"{{"ok":false,"stage":"client_connect","error":"{e}"}}"#),
+                format!(
+                    r#"{{"ok":false,"stage":"client_connect","error":"{e}","server_error":"{server_detail}"}}"#
+                ),
                 1,
             );
         }

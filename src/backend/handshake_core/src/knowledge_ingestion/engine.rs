@@ -261,6 +261,16 @@ impl IngestionEngine {
         Self { db, store }
     }
 
+    async fn mark_source_and_code_file_stale(&self, source_id: &str) -> IngestionResult<()> {
+        self.db.mark_knowledge_source_stale(source_id).await?;
+        if let Some(code_file) = self.db.get_knowledge_code_file_by_source(source_id).await? {
+            self.db
+                .mark_knowledge_code_file_stale(&code_file.code_file_id)
+                .await?;
+        }
+        Ok(())
+    }
+
     pub fn store(&self) -> &KnowledgeIngestionStore {
         &self.store
     }
@@ -400,8 +410,7 @@ impl IngestionEngine {
             if source.stale || seen_paths.contains(relative_path) {
                 continue;
             }
-            self.db
-                .mark_knowledge_source_stale(&source.source_id)
+            self.mark_source_and_code_file_stale(&source.source_id)
                 .await?;
             stale_marked += 1;
             self.append_receipt_event(
@@ -1315,8 +1324,7 @@ impl IngestionEngine {
             } else {
                 "deleted"
             };
-            self.db
-                .mark_knowledge_source_stale(&source.source_id)
+            self.mark_source_and_code_file_stale(&source.source_id)
                 .await?;
             let event_id = self
                 .append_receipt_event(

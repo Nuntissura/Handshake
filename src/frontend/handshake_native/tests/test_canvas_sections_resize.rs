@@ -481,7 +481,9 @@ fn canvas_drop_into_section_assigns_then_clears() {
 
 #[test]
 fn canvas_pan_drag_applies_each_frame_delta_exactly_once() {
-    let board = shared(LoomCanvasBoard::new("ws-pan", "canvas-pan"));
+    let mut seeded = LoomCanvasBoard::new("ws-pan", "canvas-pan");
+    seeded.set_board(Vec::new(), Vec::new(), egui::Vec2::ZERO, 1.0);
+    let board = shared(seeded);
     let events = Arc::new(Mutex::new(Vec::new()));
     let events_check = Arc::clone(&events);
     let mut harness = harness_for(Arc::clone(&board), events);

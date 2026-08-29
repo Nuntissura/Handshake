@@ -443,7 +443,7 @@ mod live {
                     && receipt["mutation_revision"]
                         .as_str()
                         .is_some_and(|value| !value.is_empty())
-                    && receipt["event_ledger_lookup"] == "resolved"
+                    && receipt["event_ledger_lookup"] == "response_exact"
                     && receipt["event_ledger_operation"] == "pin_removed"
                     && receipt["event_ledger_event_id"]
                         .as_str()

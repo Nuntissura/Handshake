@@ -24399,7 +24399,14 @@ impl HandshakeApp {
             match result {
                 Ok(rows) => {
                     self.memory_proposal_review_retry = None;
-                    if self.memory_proposal_review_target.is_none() {
+                    // A newer same-scope refresh means this snapshot predates a durable submit or
+                    // review transition. Never revive its actionable row: the deferred canonical read
+                    // owns reconciliation. This closes the post-commit race without letting an older
+                    // empty snapshot erase a newly submitted target.
+                    if self.memory_proposal_review_target.is_none()
+                        && self.memory_proposal_review_refresh_deferred.as_ref()
+                            != Some(&completed_scope)
+                    {
                         if let Some(row) = rows.first() {
                             self.memory_proposal_review_target = Some(MemoryProposalReviewTarget {
                                 workspace_id,
@@ -39121,6 +39128,55 @@ mod mt035_popout_undo_tests {
         assert!(app.memory_proposal_review_refresh_deferred.is_none());
         assert!(app.memory_proposal_status.is_none());
         assert!(app.memory_proposal_review_target.is_none());
+    }
+
+    #[test]
+    fn deferred_canonical_fems_refresh_prevents_stale_approved_target_revival() {
+        let ctx = egui::Context::default();
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("build dormant test runtime");
+        app.set_runtime_handle(runtime.handle().clone());
+        let scope = ("workspace-a".to_owned(), 3);
+        app.memory_proposal_review_refresh = Some(scope.clone());
+        app.memory_proposal_review_refresh_deferred = Some(scope.clone());
+        app.memory_proposal_status = Some("commit completed".to_owned());
+        app.memory_proposal_status_value = Some("state=committed;outcome=approved".to_owned());
+        app.memory_proposal_review_list_cell
+            .lock()
+            .unwrap()
+            .push_back((
+                scope.0.clone(),
+                scope.1,
+                Ok(vec![
+                    crate::fems::memory_proposal::ActionableProposalSummary {
+                        proposal_id: "550e8400-e29b-41d4-a716-446655440000".to_owned(),
+                        workspace_id: scope.0.clone(),
+                        status: crate::fems::memory_proposal::ActionableProposalLifecycle::Approved,
+                        review_gated: true,
+                        created_at: "2026-07-17T00:00:00Z".to_owned(),
+                    },
+                ]),
+            ));
+
+        let output = ctx.run(egui::RawInput::default(), |ctx| {
+            app.drive_propose_to_memory(ctx)
+        });
+        drop(output);
+
+        assert!(app.memory_proposal_review_target.is_none());
+        assert_eq!(
+            app.memory_proposal_status.as_deref(),
+            Some("commit completed")
+        );
+        assert_eq!(
+            app.memory_proposal_status_value.as_deref(),
+            Some("state=committed;outcome=approved")
+        );
+        assert_eq!(app.memory_proposal_review_refresh, Some(scope));
+        assert!(app.memory_proposal_review_refresh_deferred.is_none());
     }
 
     #[test]

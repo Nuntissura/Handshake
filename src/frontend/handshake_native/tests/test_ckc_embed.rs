@@ -753,9 +753,9 @@ fn ac3_unresolved_atelier_ref_emits_canonical_resolve_then_place_event() {
     // Each drop runs in its OWN harness (one drag-release per harness — the proven canvas-drop pattern;
     // reusing a harness for a second release leaves egui's pointer-button state stale).
     fn drop_payload_on_canvas(payload: DragPayload) -> Vec<CanvasEvent> {
-        let board = std::sync::Arc::new(std::sync::Mutex::new(LoomCanvasBoard::new(
-            "ws-test", "canvas-1",
-        )));
+        let mut seeded_board = LoomCanvasBoard::new("ws-test", "canvas-1");
+        seeded_board.set_board(Vec::new(), Vec::new(), egui::Vec2::ZERO, 1.0);
+        let board = std::sync::Arc::new(std::sync::Mutex::new(seeded_board));
         let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::<CanvasEvent>::new()));
         let board_h = std::sync::Arc::clone(&board);
         let events_h = std::sync::Arc::clone(&events);
@@ -813,10 +813,9 @@ fn ac3_real_panel_drag_source_drops_on_real_canvas() {
     use handshake_native::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
 
     let panel = std::sync::Arc::new(std::sync::Mutex::new(seeded_panel()));
-    let board = std::sync::Arc::new(std::sync::Mutex::new(LoomCanvasBoard::new(
-        "ws-test",
-        "canvas-test",
-    )));
+    let mut seeded_board = LoomCanvasBoard::new("ws-test", "canvas-test");
+    seeded_board.set_board(Vec::new(), Vec::new(), egui::Vec2::ZERO, 1.0);
+    let board = std::sync::Arc::new(std::sync::Mutex::new(seeded_board));
     let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::<CanvasEvent>::new()));
     let events_check = std::sync::Arc::clone(&events);
     let mut harness = Harness::builder()
@@ -3119,6 +3118,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             let mut board = mounted.lock().unwrap();
             board.workspace_id = workspace_id.clone();
             board.canvas_block_id = canvas_id.clone();
+            board.set_board(Vec::new(), Vec::new(), egui::Vec2::ZERO, 1.0);
         }
         app.set_atelier_panel_open(true);
         let mounted_board = app.mounted_canvas_board();

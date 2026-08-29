@@ -2083,6 +2083,8 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
         .join("mt027-session");
     std::fs::create_dir_all(stage_binding_root.join("handshake"))
         .expect("create contained MT-027 native-MCP binding root");
+    let stage_binding_root = std::fs::canonicalize(&stage_binding_root)
+        .expect("canonicalize contained MT-027 native-MCP binding root");
     let stage_binding_file = stage_binding_root
         .join("handshake")
         .join("swarm_mcp_binding.json");

@@ -920,7 +920,7 @@ fn sidebar_active_block_deliveries_bind_backlinks_and_unlinked() {
 
 #[test]
 fn sidebar_active_block_reload_debounces_to_the_newest_identity() {
-    let (app, _runtime) = secondary_shell();
+    let (mut app, _runtime) = secondary_shell();
     app.set_sidebar_backend_base_url_for_test("http://127.0.0.1:0");
 
     app.bind_sidebar_active_block_for_test("rapid-a");
@@ -2558,14 +2558,19 @@ fn canvas_mutation_events_map_to_host_dispatches_with_op_cells() {
     // Seed ONE board-local visual edge so the RemoveEdge visual-vs-semantic route split reads it from
     // the SAME board state the host routing locks. (The parked runtime never delivers the initial
     // board fetch, so the seed is never overwritten mid-test.)
-    board.lock().unwrap().visual_edges.push(VisualEdge {
-        visual_edge_id: "ve-w3".into(),
-        from_placement_id: "p-1".into(),
-        to_placement_id: "p-2".into(),
-    });
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(2);
+    board.lock().unwrap().set_board(
+        Vec::new(),
+        vec![VisualEdge {
+            visual_edge_id: "ve-w3".into(),
+            from_placement_id: "p-1".into(),
+            to_placement_id: "p-2".into(),
+        }],
+        egui::Vec2::ZERO,
+        1.0,
+    );
     let baseline = harness.state().canvas_op_cells_in_flight();
 
     {

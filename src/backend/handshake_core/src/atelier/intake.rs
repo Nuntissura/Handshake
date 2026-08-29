@@ -1285,8 +1285,7 @@ const ADOPT_ORPHAN_ITEM_STATEMENT: &str = concat!(
     " FROM $rid)[0]; };"
 );
 
-const GET_LOOM_BLOCK_STATEMENT: &str =
-    "SELECT workspace_id AS workspace_ref, record::id(workspace_id) AS workspace_id, \
+const GET_LOOM_BLOCK_STATEMENT: &str = "SELECT record::id(workspace_id) AS workspace_id, \
             (document_id != NONE OR asset_id != NONE) AS has_source \
      FROM $loom_block_ref LIMIT 1;";
 const GET_LOOM_PROJECTION_STATEMENT: &str =
@@ -1408,8 +1407,12 @@ impl AtelierStore {
                 "Loom block {loom_block_id} has no source document or asset"
             )));
         }
-        let workspace_ref: RecordId = block.get("workspace_ref");
         let workspace_id: String = block.get("workspace_id");
+        // `query_first` crosses the store boundary through `serde_json::Value`, where a Surreal
+        // RecordId is represented as its display string and cannot be deserialized back into the
+        // SDK's typed `RecordId`. Keep the public UUID projection and rebuild the schema-constrained
+        // workspaces relation instead of asking the JSON row mapper to recover the lost type tag.
+        let workspace_ref = RecordId::new("workspaces", workspace_id.clone());
         let projection_ref = RecordId::new(
             "atelier_intake_item_loom_projection",
             SurrealUuid::from(item_id),

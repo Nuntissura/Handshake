@@ -2804,24 +2804,20 @@ impl LoomCanvasBoard {
         // clicked placement's OWN payload ([`placement_menu_availability`]) — a text/note card ENABLES Open
         // Note, a resolvable placement enables Reveal Node, and a stale reference ENABLES Create-note —
         // never a dead handler (a disabled entry maps to `None`).
-        let secondary_click_pos = mutation_enabled
-            .then(|| {
-                canvas_resp
-                    .secondary_clicked()
-                    .then(|| canvas_resp.interact_pointer_pos())
-                    .flatten()
-                    .or_else(|| {
-                        ui.input(|input| {
-                            input
-                                .pointer
-                                .button_released(egui::PointerButton::Secondary)
-                                .then(|| input.pointer.interact_pos())
-                                .flatten()
-                        })
-                        .filter(|pos| rect.contains(*pos))
-                    })
-            })
-            .flatten();
+        let secondary_click_pos = canvas_resp
+            .secondary_clicked()
+            .then(|| canvas_resp.interact_pointer_pos())
+            .flatten()
+            .or_else(|| {
+                ui.input(|input| {
+                    input
+                        .pointer
+                        .button_released(egui::PointerButton::Secondary)
+                        .then(|| input.pointer.interact_pos())
+                        .flatten()
+                })
+                .filter(|pos| rect.contains(*pos))
+            });
         if let Some(screen) = secondary_click_pos {
             crate::context_menu::request_open(ui.ctx(), canvas_resp.id, screen);
             self.ctx_menu_placement = Some(screen)
@@ -2836,8 +2832,7 @@ impl LoomCanvasBoard {
                 crate::context_menu::dismiss(ui.ctx(), canvas_resp.id);
             }
         }
-        let owns_retained_menu = mutation_enabled
-            && self.ctx_menu_owner_pane_id.is_some()
+        let owns_retained_menu = self.ctx_menu_owner_pane_id.is_some()
             && self.ctx_menu_owner_pane_id == self.render_source_pane_id;
         if owns_retained_menu {
             let Some(pid) = self.ctx_menu_placement.clone() else {

@@ -332,6 +332,32 @@ fn silent_backlinks_server() -> (
 #[test]
 #[cfg(feature = "integration")]
 fn backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring() {
+    const CHILD_MARKER: &str = "HSK_MT032_DIAGNOSTICS_CHILD";
+    if std::env::var_os(CHILD_MARKER).is_none() {
+        let executable = std::env::current_exe().expect("resolve current MT-032 test executable");
+        let mut command = std::process::Command::new(executable);
+        command
+            .arg("backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring")
+            .args(["--exact", "--nocapture", "--test-threads=1"])
+            .env(CHILD_MARKER, "1");
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW (HBR-QUIET)
+        }
+        let output = command
+            .output()
+            .expect("re-execute MT-032 diagnostics proof in an isolated process");
+        assert!(
+            output.status.success(),
+            "isolated MT-032 diagnostics proof failed (status={}):\nstdout:\n{}\nstderr:\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+
     let ring_dir = external_artifact_dir("wp-kernel-012-mt-032/diagnostics-transient");
     std::fs::create_dir_all(&ring_dir).expect("create external MT-032 diagnostic proof directory");
     let ring_path = ring_dir.join(format!(
