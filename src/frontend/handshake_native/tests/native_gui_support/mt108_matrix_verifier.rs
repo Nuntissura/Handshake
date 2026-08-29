@@ -950,6 +950,41 @@ mod tests {
     }
 
     #[test]
+    fn live_generated_matrix_rows_declare_stable_author_id_prefixes() {
+        let matrix: Matrix = serde_json::from_str(include_str!("../mt108_argus_matrix.json"))
+            .expect("matrix parses");
+        for (scenario, expected_prefixes) in [
+            (
+                "folders_host",
+                &["folder-tree.node.lfd-", "folder-tree.color.lfd-"][..],
+            ),
+            (
+                "sidebar_host",
+                &[
+                    "sidebar.pin.",
+                    "sidebar.favorite.",
+                    "sidebar.backlink.",
+                    "sidebar.unlinked.",
+                ][..],
+            ),
+        ] {
+            let row = matrix
+                .rows
+                .iter()
+                .find(|row| row.scenario_id == scenario)
+                .expect("live-generated scenario exists");
+            assert!(row.expected_author_ids.is_empty());
+            assert_eq!(
+                row.expected_author_id_prefixes,
+                expected_prefixes
+                    .iter()
+                    .map(|prefix| (*prefix).to_owned())
+                    .collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
     fn multi_action_scenario_accepts_navigation_rows_before_one_contract_state_row() {
         let expected_ids = vec![
             "fems-propose-dialog".to_owned(),

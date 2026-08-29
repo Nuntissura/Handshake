@@ -155,9 +155,9 @@
       "test_name": "mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve",
       "ignored": false,
       "capture_required": true,
-      "expected_author_ids": [
-        "folder-tree.node.folder-001",
-        "folder-tree.node.folder-002"
+      "expected_author_id_prefixes": [
+        "folder-tree.node.lfd-",
+        "folder-tree.color.lfd-"
       ]
     },
     {
@@ -183,11 +183,11 @@
       "test_name": "live::mt024_mounted_sidebar_canonical_argus_inspect_steer_reobserve",
       "ignored": false,
       "capture_required": true,
-      "expected_author_ids": [
-        "sidebar.pin.block-001",
-        "sidebar.favorite.block-003",
-        "sidebar.backlink.block-back",
-        "sidebar.unlinked.block-unl"
+      "expected_author_id_prefixes": [
+        "sidebar.pin.",
+        "sidebar.favorite.",
+        "sidebar.backlink.",
+        "sidebar.unlinked."
       ]
     },
     {
