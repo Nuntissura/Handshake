@@ -2674,6 +2674,7 @@ fn mt108_manual_documents_replace_cap_watchdog_recovery_and_three_tier_posture()
         "33 required GUI scenarios",
         "cargo build --locked -j 2",
         "Split-Path $repoRoot -Parent",
+        "handshake-cargo-target\\wp-kernel-012-mt-108",
         "--bin handshake_core --features app-runtime",
         "HSK_TEST_BACKEND_BIN",
         "debug\\handshake_core.exe",
