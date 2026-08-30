@@ -108,7 +108,16 @@ if (-not $ProofArtifactDir.Equals($canonicalProofRoot, [StringComparison]::Ordin
 Assert-NoReparsePointEscape -Path $CargoTargetDir -Root $artifactSibling -Label 'CargoTargetDir'
 Assert-NoReparsePointEscape -Path $ProofArtifactDir -Root $artifactSibling -Label 'ProofArtifactDir'
 
+# Managed native-surface scenarios start the real current-source backend. Bind that executable from the
+# same canonical target used by every supervised Cargo child so the proof cannot inherit an arbitrary
+# machine-local HSK_TEST_BACKEND_BIN. The backend fixture independently rejects a stale binary.
+$backendBinary = [IO.Path]::GetFullPath((Join-Path $CargoTargetDir 'debug\handshake_core.exe'))
+if (-not (Test-Path -LiteralPath $backendBinary -PathType Leaf)) {
+    throw "MT-108 managed-surface proof requires the current-source backend at '$backendBinary'. Build it first with: cargo build --locked -j 2 --target-dir `"$CargoTargetDir`" --manifest-path `"$(Join-Path $repoRoot 'src\backend\handshake_core\Cargo.toml')`" --bin handshake_core --features app-runtime"
+}
+
 $env:CARGO_TARGET_DIR = $CargoTargetDir
+$env:HSK_TEST_BACKEND_BIN = $backendBinary
 $env:HANDSHAKE_PROOF_ARTIFACT_DIR = $ProofArtifactDir
 $env:HANDSHAKE_SCREENSHOT_RUN_ID = $RunId
 $env:HANDSHAKE_ARGUS_MATRIX_RUN_ID = $RunId
