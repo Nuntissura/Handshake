@@ -94,10 +94,10 @@ function Assert-NoReparsePointEscape {
 }
 
 $CargoTargetDir = Resolve-ExternalPath -ConfiguredPath $CargoTargetDir `
-    -DefaultPath (Join-Path $artifactSibling 'handshake-cargo-target') -Label 'CargoTargetDir'
+    -DefaultPath (Join-Path $artifactSibling 'handshake-cargo-target\wp-kernel-012-mt-108') -Label 'CargoTargetDir'
 $ProofArtifactDir = Resolve-ExternalPath -ConfiguredPath $ProofArtifactDir `
     -DefaultPath (Join-Path $artifactSibling 'handshake-test\wp-kernel-012-mt-108\integrated') -Label 'ProofArtifactDir'
-$canonicalCargoTarget = [IO.Path]::GetFullPath((Join-Path $artifactSibling 'handshake-cargo-target'))
+$canonicalCargoTarget = [IO.Path]::GetFullPath((Join-Path $artifactSibling 'handshake-cargo-target\wp-kernel-012-mt-108'))
 $canonicalProofRoot = [IO.Path]::GetFullPath((Join-Path $artifactSibling 'handshake-test\wp-kernel-012-mt-108\integrated'))
 if (-not $CargoTargetDir.Equals($canonicalCargoTarget, [StringComparison]::OrdinalIgnoreCase)) {
     throw "CargoTargetDir must equal the allocated canonical target '$canonicalCargoTarget'; got '$CargoTargetDir'"
