@@ -38,13 +38,13 @@
       "MT-108"
     ],
     "validator_verdict": null,
-    "claimed_by": "KERNEL_BUILDER-20260829-100217",
+    "claimed_by": "KERNEL_BUILDER-20260829-030210",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "The AC-108-3 sweep executed ALL 187 handshake-native test binaries for the first time and produced a measured red surface: 154 OK, 25 FAILED, 6 ZERO_TESTS, 2 TIMEOUT. MT-108 is the capstone and must not absorb 25 upstream defects - its own V4 verdict says so explicitly (remediation item 1: resolve each failed MT through its authoritative per-MT remediation, do not suppress upstream failures inside the aggregate runner). This contract OWNS the red surface so no failing binary is lost between capstone attempts.",
-    "claimed_at_utc": "2026-08-29T10:02:17.000Z",
-    "ready_for_validation_at_utc": "2026-08-30T03:08:47.255Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260829-100217"
+    "claimed_at_utc": "2026-08-29T03:17:26.008Z",
+    "ready_for_validation_at_utc": "2026-08-30T09:32:55.390Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260829-030210"
   },
   "scope": {
     "summary": "Route every binary failing the AC-108-3 full sweep to an owning microtask with evidence, so the capstone can be re-run against a green suite instead of re-discovering the same 25 failures.",
@@ -320,11 +320,11 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "coder_session": "KERNEL_BUILDER-20260829-100217",
+    "coder_session": "KERNEL_BUILDER-20260829-030210",
     "kb_ready_checklist_evidence": {
       "schema_id": "hsk.kb_ready_checklist_evidence@1",
       "product_commit": "53baef67c92076847668f38c12a1d3fa27bb34d6",
-      "actor_session": "KERNEL_BUILDER-20260829-100217",
+      "actor_session": "KERNEL_BUILDER-20260829-030210",
       "prepared_at_utc": "2026-08-30T03:05:43.224Z",
       "summary": "MT-127 product remediation is committed and pushed; the exact final source passed the complete corrected sweep and all governed live lanes without weakened assertions.",
       "rubric_items": [
