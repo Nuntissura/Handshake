@@ -410,6 +410,9 @@ pub fn prove_argus_surface<'h, State, VerifyMutation>(
         std::env::set_var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", receipt_id.to_string());
     }
 
+    harness
+        .warm_gpu_renderer()
+        .expect("initialize GPU renderer before the bounded real Argus screenshot request");
     let screenshot_request = request(
         4,
         handshake_native::mcp::ARGUS_SCREENSHOT_METHOD,

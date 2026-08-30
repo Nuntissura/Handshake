@@ -172,6 +172,22 @@ impl<State> ScreenshotHarness<'_, State> {
         Ok(image)
     }
 
+    /// Initialize the optional wgpu renderer without producing screenshot evidence.
+    ///
+    /// The real Argus screenshot route has a two-second production timeout. First-use shader and
+    /// pipeline initialization is setup work rather than screenshot latency, so governed GPU proofs
+    /// perform it before issuing the RPC request. The subsequent request still renders the terminal
+    /// UI state through the real bounded route and is the only render that writes a proof marker.
+    pub fn warm_gpu_renderer(&mut self) -> Result<(), String> {
+        if !gpu_screenshot_enabled() {
+            return Ok(());
+        }
+        catch_unwind(AssertUnwindSafe(|| self.inner.render()))
+            .map_err(|_| "wgpu renderer warm-up panicked".to_owned())?
+            .map(|_| ())
+            .map_err(|error| format!("wgpu renderer warm-up failed: {error}"))
+    }
+
     /// Require a material frame on a declared GPU run while accepting only a durably recorded
     /// `DEFERRED` outcome on a headless run. This is the canonical matrix call path: marker-write
     /// failures and GPU render failures remain hard test failures instead of being mistaken for an
