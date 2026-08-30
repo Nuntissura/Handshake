@@ -348,16 +348,23 @@ function Write-ProcessObservationAck {
     }
     $payload = [Text.Encoding]::UTF8.GetBytes(
         (($ack | ConvertTo-Json -Compress) + [Environment]::NewLine))
+    $temporaryAckPath = "$($ProcessContext.ProcessObservationAckPath).$([guid]::NewGuid().ToString('N')).tmp"
     $stream = [IO.File]::Open(
-        $ProcessContext.ProcessObservationAckPath,
+        $temporaryAckPath,
         [IO.FileMode]::CreateNew,
         [IO.FileAccess]::Write,
-        [IO.FileShare]::Read)
+        [IO.FileShare]::None)
     try {
         $stream.Write($payload, 0, $payload.Length)
         $stream.Flush($true)
     } finally {
         $stream.Dispose()
+    }
+    try {
+        [IO.File]::Move($temporaryAckPath, $ProcessContext.ProcessObservationAckPath)
+    } catch {
+        [IO.File]::Delete($temporaryAckPath)
+        throw
     }
 }
 

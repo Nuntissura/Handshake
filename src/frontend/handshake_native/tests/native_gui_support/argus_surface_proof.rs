@@ -1640,6 +1640,11 @@ mod aggregate_tests {
         assert!(runner.contains("'integration,wgpu_screenshots'"));
         assert!(runner.contains("ReasonCode 'ZERO_TESTS'"));
         assert!(runner.contains("selected zero tests"));
+        assert!(runner.contains("$temporaryAckPath"));
+        assert!(runner.contains("[IO.FileShare]::None"));
+        assert!(runner.contains(
+            "[IO.File]::Move($temporaryAckPath, $ProcessContext.ProcessObservationAckPath)"
+        ));
         assert!(!runner.contains("ParentPid = 0"));
     }
 
