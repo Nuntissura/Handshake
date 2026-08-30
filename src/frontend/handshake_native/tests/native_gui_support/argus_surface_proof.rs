@@ -410,9 +410,15 @@ pub fn prove_argus_surface<'h, State, VerifyMutation>(
         std::env::set_var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", receipt_id.to_string());
     }
 
-    harness
-        .warm_gpu_renderer()
-        .expect("initialize GPU renderer before the bounded real Argus screenshot request");
+    // WGPU readback is a harness operation and can legitimately exceed the production capture
+    // callback's two-second deadline. Capture the already-terminal post-action frame immediately
+    // before the request, then require the real Argus route to invoke its bound capture source and
+    // return these exact bytes within that unchanged deadline.
+    let rendered = capture_from_harness(harness);
+    let rendered_for_rpc = match &rendered {
+        Ok(result) => Ok(result.clone()),
+        Err(error) => Err(ScreenshotError(error.0.clone())),
+    };
     let screenshot_request = request(
         4,
         handshake_native::mcp::ARGUS_SCREENSHOT_METHOD,
@@ -432,7 +438,6 @@ pub fn prove_argus_surface<'h, State, VerifyMutation>(
     let capture_reply = capture_request_rx
         .recv_timeout(std::time::Duration::from_secs(5))
         .expect("argus.screenshot invoked the bound capture source within 5s");
-    let rendered = capture_from_harness(harness);
     let screenshot_status = match &rendered {
         Ok(_) => "CAPTURED",
         Err(error) if error.0.contains("typed DEFERRED") => "DEFERRED",
@@ -449,12 +454,15 @@ pub fn prove_argus_surface<'h, State, VerifyMutation>(
         screenshot_marker::gpu_screenshot_enabled()
     );
     capture_reply
-        .send(rendered)
+        .send(rendered_for_rpc)
         .expect("return runtime screenshot outcome to the real Argus request");
     let screenshot_response = runtime
         .block_on(screenshot_task)
         .expect("join real argus.screenshot request task");
     if screenshot_status == "CAPTURED" {
+        let expected_capture = rendered
+            .as_ref()
+            .expect("CAPTURED status retains the exact pre-request terminal frame");
         let png_base64 = screenshot_response["result"]["png_base64"]
             .as_str()
             .filter(|png| !png.is_empty())
@@ -465,6 +473,11 @@ pub fn prove_argus_surface<'h, State, VerifyMutation>(
         let height = screenshot_response["result"]["height"]
             .as_u64()
             .expect("CAPTURED argus.screenshot height") as u32;
+        assert_eq!(png_base64, expected_capture.png_base64);
+        assert_eq!(
+            (width, height),
+            (expected_capture.width, expected_capture.height)
+        );
         assert!(width > 0 && height > 0);
         use base64::Engine as _;
         let png = base64::engine::general_purpose::STANDARD
