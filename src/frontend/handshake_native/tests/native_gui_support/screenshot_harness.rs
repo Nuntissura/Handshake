@@ -87,9 +87,11 @@ impl<State> ScreenshotHarness<'_, State> {
             .unwrap_or("unnamed-test")
             .to_owned();
         let source = format!("{}:{}", caller.file(), caller.line());
+        let process_correlation_id = std::env::var("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID").ok();
+        let process_identity =
+            screenshot_process_identity(process_correlation_id.as_deref(), std::process::id());
         let outcome_id = format!(
-            "pid{}:{}:{source}:{ordinal}",
-            std::process::id(),
+            "{process_identity}:{}:{source}:{ordinal}",
             sanitize(&test_name)
         );
         let scenario_id = std::env::var("HANDSHAKE_PROOF_PROCESS_SCENARIO_ID")
@@ -144,9 +146,8 @@ impl<State> ScreenshotHarness<'_, State> {
             );
         }
         let frame_path = frame_dir.join(format!(
-            "{}-pid{}-{ordinal}.png",
+            "{}-{process_identity}-{ordinal}.png",
             sanitize(&test_name),
-            std::process::id()
         ));
         if let Err(error) = image.save(&frame_path) {
             let reason = format!(
@@ -344,4 +345,30 @@ fn sanitize(value: &str) -> String {
         })
         .collect::<String>();
     sanitized.trim_matches('-').to_owned()
+}
+
+fn screenshot_process_identity(correlation_id: Option<&str>, pid: u32) -> String {
+    correlation_id
+        .filter(|identity| !identity.trim().is_empty())
+        .map(sanitize)
+        .filter(|identity| !identity.is_empty())
+        .unwrap_or_else(|| format!("pid{pid}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::screenshot_process_identity;
+
+    #[test]
+    fn process_identity_survives_pid_reuse_between_supervised_scenarios() {
+        let first = screenshot_process_identity(Some("cargo-scenario-a-111"), 76348);
+        let second = screenshot_process_identity(Some("cargo-scenario-b-222"), 76348);
+
+        assert_ne!(first, second);
+        assert_eq!(
+            screenshot_process_identity(None, 76348),
+            "pid76348",
+            "standalone tests retain a deterministic process-local fallback"
+        );
+    }
 }

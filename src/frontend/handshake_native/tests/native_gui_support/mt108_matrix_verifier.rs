@@ -714,7 +714,10 @@ fn validate_screenshots(
                 || marker.process_scenario_id.as_deref() != Some(contract.scenario_id.as_str())
                 || Some(marker.process_id) != process.test_process_pid
                 || marker.proof_event_sequence == 0
-                || !process_event_sequences.insert((marker.process_id, marker.proof_event_sequence))
+                || !process_event_sequences.insert((
+                    marker.process_correlation_id.as_deref(),
+                    marker.proof_event_sequence,
+                ))
                 || !receipt_valid
                 || marker.gpu_screenshot_enabled != capture_expected
                 || !outcomes.insert(marker.outcome_id.as_str())
