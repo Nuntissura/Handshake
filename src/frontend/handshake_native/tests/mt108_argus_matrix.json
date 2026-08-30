@@ -328,6 +328,9 @@
       "test_binary": "test_wiki_page_panel_argus",
       "test_name": "mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback",
       "ignored": false,
+      "headless_test_binary": "test_mt108_argus_matrix",
+      "headless_test_name": "mt108_argus_wiki_projection_headless_route",
+      "headless_ignored": true,
       "capture_required": true,
       "allowed_methods": ["argus.click", "argus.set_value"],
       "expected_author_id_prefixes": [

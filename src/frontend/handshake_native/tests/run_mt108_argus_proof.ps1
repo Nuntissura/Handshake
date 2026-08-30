@@ -730,11 +730,21 @@ function Assert-FinalProcessReceipts {
 $expectedCommands = [ordered]@{}
 
 foreach ($surface in @($matrix.rows)) {
+    $testBinary = [string]$surface.test_binary
+    $testName = [string]$surface.test_name
+    $testIgnored = [bool]$surface.ignored
+    if ($Headless -and
+        -not [string]::IsNullOrWhiteSpace([string]$surface.headless_test_binary) -and
+        -not [string]::IsNullOrWhiteSpace([string]$surface.headless_test_name)) {
+        $testBinary = [string]$surface.headless_test_binary
+        $testName = [string]$surface.headless_test_name
+        $testIgnored = [bool]$surface.headless_ignored
+    }
     $arguments = @(
         'test', '--features', 'integration,wgpu_screenshots', '--no-fail-fast', '-j', '2',
-        '--test', [string]$surface.test_binary, [string]$surface.test_name, '--'
+        '--test', $testBinary, $testName, '--'
     )
-    if ([bool]$surface.ignored) {
+    if ($testIgnored) {
         $arguments += '--ignored'
     }
     $arguments += @('--exact', '--nocapture')

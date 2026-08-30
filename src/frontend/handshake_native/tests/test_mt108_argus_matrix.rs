@@ -10,8 +10,15 @@ mod canonical_argus_driver;
 mod screenshot_harness;
 
 use canonical_argus_driver::{json_has_author_id, live_author_id_selected, CanonicalArgusDriver};
-use handshake_native::app::{HandshakeApp, HealthDisplayState};
-use handshake_native::backend_client::HealthInfo;
+use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
+use handshake_native::backend_client::{HealthInfo, WikiPaneIdentity, WikiProjection};
+use handshake_native::editor_pane_factories::{placeholder_pane_type, WIKI_PAGE_PANE_LABEL};
+use handshake_native::graph::wiki_page_panel::{
+    content_author_id, edit_area_author_id, edit_author_id, title_author_id, LoomWikiPagePanel,
+};
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
 use screenshot_harness::ScreenshotHarness as Harness;
 
 #[derive(Debug, serde::Deserialize)]
@@ -276,6 +283,92 @@ fn mt108_argus_manifest_surface_route() {
             "MT-108 headless mode must emit a typed DEFERRED marker, never a captured frame"
         );
     }
+    argus.finish();
+}
+
+#[test]
+#[ignore = "MT-108 headless-only wiki route; the GPU lane retains the managed MT-025 proof"]
+fn mt108_argus_wiki_projection_headless_route() {
+    assert!(
+        !screenshot_harness::screenshot_marker::gpu_screenshot_enabled(),
+        "the MT-108 wiki companion is headless-only; GPU proof must retain the managed MT-025 route"
+    );
+    let row = selected_row();
+    assert_eq!(row.scenario_id, "wiki_projection_host");
+    assert_eq!(row.proof_kind, "canonical_driver");
+
+    let projection_id = "mt108-headless-wiki";
+    let (mut app, _runtime) = shell();
+    let pane_type: PaneType = placeholder_pane_type(WIKI_PAGE_PANE_LABEL);
+    app.pane_registry()
+        .lock()
+        .expect("pane registry")
+        .insert(PaneRecord::new(
+            PaneId::from("pane-a"),
+            pane_type.clone(),
+            DEFAULT_PROJECT_ID,
+            Some(projection_id.to_owned()),
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    if let Some(bar) = app.tab_bar_states_mut().get_mut(&PaneId::from("pane-a")) {
+        let mut tab = handshake_native::tab_bar::TabState::new(pane_type);
+        tab.content_id = Some(projection_id.to_owned());
+        bar.tabs = vec![tab];
+        bar.active_index = 0;
+    }
+    let mut panel = LoomWikiPagePanel::new(DEFAULT_PROJECT_ID, projection_id);
+    panel.bind_pane_generation(1);
+    panel.set_page(WikiProjection {
+        projection_id: projection_id.to_owned(),
+        workspace_id: DEFAULT_PROJECT_ID.to_owned(),
+        title: "MT-108 headless wiki projection".to_owned(),
+        source_block_ids: vec!["mt108-source".to_owned()],
+        rendered_content: "# MT-108\nHeadless typed-marker proof.".to_owned(),
+        staleness_hash: "mt108-headless-hash".to_owned(),
+        rebuild_status: "fresh".to_owned(),
+        created_at: "2026-08-30T00:00:00Z".to_owned(),
+        updated_at: "2026-08-30T00:00:00Z".to_owned(),
+        page_type: Some("concept".to_owned()),
+        overlays: Vec::new(),
+        staleness_verdict: serde_json::json!({"state": "fresh"}),
+    });
+    *app.mounted_wiki_binding_for_test()
+        .lock()
+        .expect("wiki binding") = Some((
+        WikiPaneIdentity {
+            workspace_id: DEFAULT_PROJECT_ID.to_owned(),
+            projection_id: projection_id.to_owned(),
+            pane_generation: 1,
+        },
+        panel,
+    ));
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 850.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), &row.scenario_id);
+    let before = argus.inspect(&mut harness);
+    for author_id in [
+        title_author_id(projection_id),
+        content_author_id(projection_id),
+        edit_author_id(projection_id),
+    ] {
+        assert!(json_has_author_id(&before, &author_id));
+    }
+    let edit_target = edit_author_id(projection_id);
+    let observation = argus.click_and_reinspect(&mut harness, &edit_target);
+    assert_eq!(observation.receipt_status, "applied");
+    let edit_area = edit_area_author_id(projection_id);
+    argus.assert_latest_terminal_predicate(&mut harness, "mt108.wiki.headless-edit", |tree| {
+        json_has_author_id(tree, &edit_area)
+    });
+    assert!(
+        harness.render().is_err(),
+        "headless wiki route must emit DEFERRED, never a captured frame"
+    );
     argus.finish();
 }
 

@@ -69,6 +69,12 @@ struct MatrixRow {
     test_binary: String,
     test_name: String,
     ignored: bool,
+    #[serde(default)]
+    headless_test_binary: Option<String>,
+    #[serde(default)]
+    headless_test_name: Option<String>,
+    #[serde(default)]
+    headless_ignored: bool,
     capture_required: bool,
     #[serde(default)]
     expected_author_ids: Vec<String>,
@@ -239,6 +245,12 @@ fn validate_matrix(matrix: &Matrix) -> std::io::Result<()> {
             || row.edge_state_tag.trim().is_empty()
             || row.test_binary.trim().is_empty()
             || row.test_name.trim().is_empty()
+            || (row.headless_test_binary.is_some() != row.headless_test_name.is_some())
+            || row
+                .headless_test_binary
+                .as_deref()
+                .is_some_and(str::is_empty)
+            || row.headless_test_name.as_deref().is_some_and(str::is_empty)
             || !row.capture_required
             || (row.expected_author_ids.is_empty() && row.expected_author_id_prefixes.is_empty())
             || row
@@ -381,7 +393,10 @@ fn validate_processes(
             .filter(|row| row.status == "COMPLETED")
             .copied()
             .collect::<Vec<_>>();
-        let expected = expected_arguments(contract);
+        let expected = expected_arguments(
+            contract,
+            !crate::screenshot_harness::screenshot_marker::gpu_screenshot_enabled(),
+        );
         if lifecycle.len() != 2
             || started.len() != 1
             || completed.len() != 1
@@ -789,7 +804,18 @@ fn completed_process<'a>(
         })
 }
 
-fn expected_arguments(row: &MatrixRow) -> Vec<String> {
+fn expected_arguments(row: &MatrixRow, headless: bool) -> Vec<String> {
+    let (test_binary, test_name, ignored) = if headless {
+        match (
+            row.headless_test_binary.as_ref(),
+            row.headless_test_name.as_ref(),
+        ) {
+            (Some(binary), Some(name)) => (binary, name, row.headless_ignored),
+            _ => (&row.test_binary, &row.test_name, row.ignored),
+        }
+    } else {
+        (&row.test_binary, &row.test_name, row.ignored)
+    };
     let mut arguments = vec![
         "test".to_owned(),
         "--features".to_owned(),
@@ -798,11 +824,11 @@ fn expected_arguments(row: &MatrixRow) -> Vec<String> {
         "-j".to_owned(),
         "2".to_owned(),
         "--test".to_owned(),
-        row.test_binary.clone(),
-        row.test_name.clone(),
+        test_binary.clone(),
+        test_name.clone(),
         "--".to_owned(),
     ];
-    if row.ignored {
+    if ignored {
         arguments.push("--ignored".to_owned());
     }
     arguments.extend(["--exact".to_owned(), "--nocapture".to_owned()]);
@@ -965,7 +991,7 @@ mod tests {
     fn expected_commands_retain_the_mandated_feature_and_concurrency_shape() {
         let matrix: Matrix = serde_json::from_str(include_str!("../mt108_argus_matrix.json"))
             .expect("matrix parses");
-        let arguments = expected_arguments(&matrix.rows[0]);
+        let arguments = expected_arguments(&matrix.rows[0], false);
         assert_eq!(
             &arguments[..6],
             [
@@ -976,6 +1002,21 @@ mod tests {
                 "-j",
                 "2",
             ]
+        );
+        let wiki = matrix
+            .rows
+            .iter()
+            .find(|row| row.scenario_id == "wiki_projection_host")
+            .expect("wiki row exists");
+        let headless = expected_arguments(wiki, true);
+        assert_eq!(headless[7], "test_mt108_argus_matrix");
+        assert_eq!(headless[8], "mt108_argus_wiki_projection_headless_route");
+        assert!(headless.iter().any(|argument| argument == "--ignored"));
+        let gpu = expected_arguments(wiki, false);
+        assert_eq!(gpu[7], "test_wiki_page_panel_argus");
+        assert_eq!(
+            gpu[8],
+            "mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback"
         );
         assert_eq!(
             &expected_verifier_arguments()[..6],
