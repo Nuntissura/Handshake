@@ -284,7 +284,7 @@
     }
   ],
   "public_surface_summary": {
-    "total_surfaces": 878,
+    "total_surfaces": 879,
     "counts_by_kind": {
       "GOVERNANCE_CHECK": 120,
       "GOVERNANCE_DOC": 81,
@@ -292,7 +292,7 @@
       "GOVERNANCE_SCRIPT": 238,
       "GOVERNANCE_TEMPLATE": 18,
       "GOVERNANCE_TEST": 136,
-      "JUST_RECIPE": 225,
+      "JUST_RECIPE": 226,
       "JUSTFILE": 1,
       "MACHINE_READABLE_CONTRACT": 13,
       "MACHINE_READABLE_RECORD": 11,
@@ -309,7 +309,7 @@
       "MEMORY_MANAGER": 13,
       "OPERATOR": 11,
       "ORCHESTRATOR": 60,
-      "SHARED": 713,
+      "SHARED": 714,
       "VALIDATOR": 39,
       "WP_VALIDATOR": 4
     },
@@ -323,9 +323,9 @@
       "INTERNAL_TEST": 136,
       "MACHINE_PROJECTION": 1,
       "PUBLIC_LEAF_BASELINED": 135,
-      "PUBLIC_RECIPE_BASELINED": 190
+      "PUBLIC_RECIPE_BASELINED": 191
     },
-    "public_recipe_count": 225,
+    "public_recipe_count": 226,
     "public_leaf_groups": [
       {
         "owner_role": "ACTIVATION_MANAGER",
@@ -749,6 +749,7 @@
           "just:memory-manager-proposal",
           "just:memory-manager-rgf-candidate",
           "just:mt-claim",
+          "just:mt-ready",
           "just:nudge-depth",
           "just:nudge-drain",
           "just:nudge-enqueue",
@@ -773,7 +774,7 @@
           "just:wp-token-usage",
           "just:wp-token-usage-settle"
         ],
-        "count": 44
+        "count": 45
       },
       {
         "owner_role": "SHARED",
@@ -1120,7 +1121,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:785c62710374146ba5e036ab2c38dbb820aa273bf09929dddf45276c0a95a5e4",
+      "source_hash": "sha256:80a2c3b527ccfd8815b7489785c0dac0291353ad731556053c7e26f8d9b3b755",
       "last_verified_at_utc": null
     },
     {
@@ -1180,7 +1181,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:f2d3f8df7c83921d56af434583fa3ad8f1ef76eb8d984872ad50a8cea8824fa2",
+      "source_hash": "sha256:1bf706f2d914d28fa7b91366f1bac0fed25ab6f668f06191c3f93133c832dfa9",
       "last_verified_at_utc": null
     },
     {
@@ -1262,7 +1263,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:4a7abc2c3c5fadf99c4e743ee2bf55e0836cab9150a12567493d64e538f1301c",
+      "source_hash": "sha256:a4f20e43cff9005c72fc0e3e1cb68219b2fb92e34158ee1e01c60771c4feb605",
       "last_verified_at_utc": null
     },
     {
@@ -1604,7 +1605,7 @@
         "just gov-check",
         "governance-topology-check"
       ],
-      "source_hash": "sha256:d62df4e6995568670513737bdb6c7688e5aa3b524287ec598495e160930355af",
+      "source_hash": "sha256:05258f6baefd34296bc51cbe2a0407239946f53523f0b944f1b3f3bbbbe3a422",
       "last_verified_at_utc": null
     },
     {
@@ -1625,7 +1626,7 @@
         "just gov-check",
         "governance-topology-check"
       ],
-      "source_hash": "sha256:c61cecb2bdb0157c1385dff6646275d6f7e0cad6f580c55473b1cb6d97a58692",
+      "source_hash": "sha256:5bd64dc6f051ba6d919be65d23ed47b1208378dbc7227e24072187008d296674",
       "last_verified_at_utc": null
     },
     {
@@ -1950,7 +1951,7 @@
         "just gov-check",
         "governance-topology-check"
       ],
-      "source_hash": "sha256:8ad4f5dc3ab012976407475cf41747c806d5c4cac0044c918a1a8f7b55ac800e",
+      "source_hash": "sha256:542d07b8e2a1e71b53dce25fc3fedd8df44fdfa0a5b53ab985c38dba5af21063",
       "last_verified_at_utc": null
     },
     {
@@ -2575,7 +2576,7 @@
         "just gov-check",
         "governance-topology-check"
       ],
-      "source_hash": "sha256:3a8cb72800b907e10948258b371d05e46b041b66bdbd33a012678202420d7e10",
+      "source_hash": "sha256:6cd02f9b4d23d791e3b427ad757a4d1f091d0c26f78b3e20ede7ca94e02706c0",
       "last_verified_at_utc": null
     },
     {
@@ -2598,7 +2599,7 @@
         "just gov-check",
         "governance-topology-check"
       ],
-      "source_hash": "sha256:492ebe26529b4b4371b6cb76425b435696a10484e5d17cb957180bb906b2d348",
+      "source_hash": "sha256:6b0ac4531211a89a407d14bb97b60a9facc9ba585a806174316addab6e4a8c9d",
       "last_verified_at_utc": null
     },
     {
@@ -2723,7 +2724,7 @@
         "just gov-check",
         "governance-topology-check"
       ],
-      "source_hash": "sha256:c1d71ec81fc5ee9d4a7c46653a3b43a3d91a31ca2060c7918b07a7be45c3eae8",
+      "source_hash": "sha256:97b21295590ac4989f7a621ca4674f508d6542f0702166f4ed8fb6298fa31952",
       "last_verified_at_utc": null
     },
     {
@@ -3536,7 +3537,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:801f01819dec768dd147a6c2215474493a7cbba44642e0bffe3a0ec784d5dee6",
+      "source_hash": "sha256:0ad7b21f1577a5468b40b0542d21226cca945f2020f901a553f855e011851e04",
       "last_verified_at_utc": null
     },
     {
@@ -3756,7 +3757,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:e3c757843239ed788876d889d4fb043069af0cd750b50d9952bf923d588a18ed",
+      "source_hash": "sha256:39283529c74fa96f38387717b55ebc2444ab34a36de9f322365374ee27a7197c",
       "last_verified_at_utc": null
     },
     {
@@ -3796,7 +3797,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:99eff5f38350e92b606f6aa474038d331b3024af50471e186de5d65d11409190",
+      "source_hash": "sha256:ea3002f9e89e7c6c69ec5a546a2fcb9ba77ff72d08f4d3b89e1ec7ecc9459cb3",
       "last_verified_at_utc": null
     },
     {
@@ -4016,7 +4017,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:4211bbd793fcfd8a9ad6dc623520f3906f4dce724789ef0741b2eb3170e9ea9d",
+      "source_hash": "sha256:740c6bc5140a24d6608c61e0f817276bc2f6f1d592d6c8e72d7da64b0400dc0c",
       "last_verified_at_utc": null
     },
     {
@@ -4056,7 +4057,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:716509387e61d3597d1309b053646b40997f9756df5714dd112572eb4b97e853",
+      "source_hash": "sha256:3c499755a0443728d9f8ff3dd3c99685be968b8b8ae702e82e44ff1e342a2297",
       "last_verified_at_utc": null
     },
     {
@@ -4224,7 +4225,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:ffa421aaf100cd611a568915b2475acbb1a27f2b4f8985dabf30069bbc080373",
+      "source_hash": "sha256:22e7e47471b7a7dbad8188d6d59c64ec4542c021561fc7b1a822743d5bd0e2d7",
       "last_verified_at_utc": null
     },
     {
@@ -4345,7 +4346,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:81f861fa8da76628b5303d404a16fa6d4bdf28bdfc3b71e1bed14bc929ce02a7",
+      "source_hash": "sha256:cf4dad38cd8bd1a5199bbd79423159bc46f74c347ef2fbb48685258658a80a7f",
       "last_verified_at_utc": null
     },
     {
@@ -4385,7 +4386,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:10f693a115743b612d29714db76412d77eccdcbd784e39cff624282802b0c2e7",
+      "source_hash": "sha256:6dc0dbcd2a5462890f52b880ec1719b8c65118ed3cddad79b293017b25895d67",
       "last_verified_at_utc": null
     },
     {
@@ -5185,7 +5186,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:3f07e2a852dde320f3a785648a6d5b3fa13d43aa9a3fb552f3f520beed46ab95",
+      "source_hash": "sha256:af3147cd9006e09782a5df9ab4fab431b1896bc4b5ce545358fd9e214ff80cf8",
       "last_verified_at_utc": null
     },
     {
@@ -5829,7 +5830,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:dd6eebc409aa566f110526c52befbf60a92260dd07c3fcaae55b3e1070757b2e",
+      "source_hash": "sha256:5744992dcff86aa069296ff37054dafe006f2eabf47980fd1c0f2f2f92bbc548",
       "last_verified_at_utc": null
     },
     {
@@ -6611,7 +6612,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:f926d47ebfe03d2b004840e4c8c2c73a4807abd453cd9385c1782f1021e22056",
+      "source_hash": "sha256:39cc40b5d5398612ab3e70c9ae0fe29e4d530ce158384ad5457ed2c1adb3bfbf",
       "last_verified_at_utc": null
     },
     {
@@ -6844,7 +6845,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:dbd085ab361a5db0710a3550801fb735de21808ba705506ff4edecbd768e162b",
+      "source_hash": "sha256:4a0c348fc379f2f51120f5051f4e1b33ad67db18c897308632eb7ad64ea7cf6d",
       "last_verified_at_utc": null
     },
     {
@@ -8353,7 +8354,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:7674a93873df8cc3e386fad69a89a924c54a58cbb33a0268e90300bbd53b57ce",
+      "source_hash": "sha256:17761a49f36de21d91cba3b48e682c2b042b20e55e49844e390c2769984a2d67",
       "last_verified_at_utc": null
     },
     {
@@ -8436,7 +8437,8 @@
         "mt-board",
         "mt-claim",
         "mt-complete",
-        "mt-populate"
+        "mt-populate",
+        "mt-ready"
       ],
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
       "replacement_bundle": "just phase-check",
@@ -8445,7 +8447,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:8645f28348fb2eaed1d7b106e51303d153933166d15bdd64179f9ebe70a4f39a",
+      "source_hash": "sha256:81d6f04df7c88b01e7fa178a9b62591fc743aeffa8fd294b0404499d53eb6870",
       "last_verified_at_utc": null
     },
     {
@@ -8467,7 +8469,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:7f5faf53fe46c13abf05066296fb35807271b355c48dfc71786f7239a7caf774",
+      "source_hash": "sha256:81cd75f3f8e519e1f47d3581842c7a190142791789d6404749a1b0a607da754a",
       "last_verified_at_utc": null
     },
     {
@@ -9220,7 +9222,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:1fce148a74171be21f3288a44fec25b1cd03a8ad786e34a72b5bbd6936c67104",
+      "source_hash": "sha256:2d90924d6f7b39725b64a0b9d65745395f232f9d6cd9af2b01977dc7b0d795bd",
       "last_verified_at_utc": null
     },
     {
@@ -9580,7 +9582,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:99258dcdd2ef5031d1552692c9b8df8a1dbd9d3042f66ce1eac1d17f6cb288ed",
+      "source_hash": "sha256:481ea174016d869e4634f7bbed5a343509c803dc4117303b2f0ed8050f0fa594",
       "last_verified_at_utc": null
     },
     {
@@ -9760,7 +9762,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:ed2313ef52987123442de634e6b185169b3c9e0e926cb10ba339c9ec579ec9a9",
+      "source_hash": "sha256:41aad84b3184aa740e879991db32b60f57d64b660a5160027467522d4e1b847e",
       "last_verified_at_utc": null
     },
     {
@@ -11042,7 +11044,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:89b8f97ce63ec253e598fc1400a27df94d2c1c60eac34b16cb9bc8b98d526a8e",
+      "source_hash": "sha256:5bf7b2fb3d5b1628ca1d18b9a7bcd1cf523a121fab206a8fcc09d4fe07926754",
       "last_verified_at_utc": null
     },
     {
@@ -11146,7 +11148,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:c609b851d8c1f1d88e9bb8d4893539cdc829e079f4dac3279c09f97d3ac783b3",
+      "source_hash": "sha256:a81fad53ab43da8637897033d72ee1581b94c081a09a2dad866c7074455b0b3b",
       "last_verified_at_utc": null
     },
     {
@@ -11294,7 +11296,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:e64121dd0db8803bbbee9dcd0729d2cbf73088c28dc552bb8e9f6dd39aebff27",
+      "source_hash": "sha256:4930c7bfb7aa6819456fc96b20e64be8d8daec599f5048d3524c8523b98d3039",
       "last_verified_at_utc": null
     },
     {
@@ -11680,7 +11682,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:293e2d52537829042afc6e22a08ff23b53e58b20e1773cc7f2d62b5ec2f280e5",
+      "source_hash": "sha256:4ac7af29548c1ce9881ca7e84168d0aedbfe9c0dc6bf39ce42cbb9dbb3d35edb",
       "last_verified_at_utc": null
     },
     {
@@ -11722,7 +11724,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:daf1dde5ca212cd152d24004718333072d729ea1e58b929b7a483189fd777029",
+      "source_hash": "sha256:19ef1335dfb7a30197dc2cd478b9431bd7c7b09188b763394d91064afc2a8188",
       "last_verified_at_utc": null
     },
     {
@@ -11744,7 +11746,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:e4ad18d7f710e6e48f245bf6bab2aa240644f5b2491a86ce11bd6dd04d1f69d6",
+      "source_hash": "sha256:7c487c6cc4fdbb5b88a6996414fa9230b8d7c6881b0c592c3f13801b7750dd23",
       "last_verified_at_utc": null
     },
     {
@@ -11764,7 +11766,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:803c7ee2644f695b7a48d9e3ecdfe233263e5f21b69ea5b0995477daea0d1cdf",
+      "source_hash": "sha256:9a10a56f7ad1204309f8d0bafce1ec16215a75f8d46af40591cba0ec900c8390",
       "last_verified_at_utc": null
     },
     {
@@ -12204,7 +12206,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:e93e8b29c394e37daefddd4ce13dcfd04a0696d79040243e3994595053ce47e3",
+      "source_hash": "sha256:6a924b55c336d52590b3f364d05c68428dad5335986a6f21b7701a186b323381",
       "last_verified_at_utc": null
     },
     {
@@ -13428,7 +13430,7 @@
         "just gov-check",
         "governance-topology-check"
       ],
-      "source_hash": "sha256:39e42959b21256a6ce5b967042efb9828131ca945c7bd22ee8cf1d79a6e206dc",
+      "source_hash": "sha256:7c13fd92f6112b5f9ebd523df7803cc21ba15ab4ce72d9058d16bc8b31e9dee1",
       "last_verified_at_utc": null
     },
     {
@@ -13755,7 +13757,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:7d4cb92c7a9aeb1a331de58c6b591e043392e3fb2a12fe356c34ccafd4a9ebd8",
+      "source_hash": "sha256:8a3b2462dfd3b7f9ea62ac7254dd362ca42b9a2d4ea8ecf8a72dc2185adc1495",
       "last_verified_at_utc": null
     },
     {
@@ -14099,7 +14101,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:ecae133e4e893084d1d1169c86936b254346d48281c386d63bcf7e18ec291970",
+      "source_hash": "sha256:1b5faa34bbd38e3b339e975d717681c9bf192690b2354b6aeef79ebf00a4ae6f",
       "last_verified_at_utc": null
     },
     {
@@ -14141,7 +14143,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:8d18397ecadc118deb549e63ea6c422f08715fe42d619a3ec8490c1659d23b69",
+      "source_hash": "sha256:fc491d3318fc946d3e99e27b9d8e4d70b5815bcf4cb3e63a170799a8d18ca10b",
       "last_verified_at_utc": null
     },
     {
@@ -14225,7 +14227,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:3d5f8d2c0219292286d2fbf9ba7d19668bac664d1a64e316bdd0291db70066fd",
+      "source_hash": "sha256:d6821b5770931db9915f3a6f25bcd125d525651b2ed12110c5c020de9c8808a2",
       "last_verified_at_utc": null
     },
     {
@@ -14265,7 +14267,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:ebfb2bce20af7bea1184f89d975109ce69fa37a3b4bf90e316819411dea255eb",
+      "source_hash": "sha256:e58570cf02e318d74c2ecf7c836c53e7b56b4ec01cdd4665a9b4d80ca0f41d16",
       "last_verified_at_utc": null
     },
     {
@@ -14325,7 +14327,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:3807299b9b7c1078d837c679a679ea2841b8c4096e20348b65a67011c84f7ae1",
+      "source_hash": "sha256:02ab044160d0f65ae5228a3e58e6ab29bb5d9cfae497ee566be7135ed0fcda9a",
       "last_verified_at_utc": null
     },
     {
@@ -14365,7 +14367,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:aa8a445dbd8c09ca339874920e8fee87a46d61fe9fc4d0d8ceb938a0c926c205",
+      "source_hash": "sha256:68e73487217ee022a638ca88d79fbcd4d930fbe23beaa43135a1ba5252903838",
       "last_verified_at_utc": null
     },
     {
@@ -14425,7 +14427,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:451e5dc18b9c6282dfb2bfc6e38425a374960454c82e3779dff5b84f246bd11f",
+      "source_hash": "sha256:ae8869463b7fcb66b708f6d8a3c057860a19ede1d5b92c1673fd47cae5dcfe5b",
       "last_verified_at_utc": null
     },
     {
@@ -14465,7 +14467,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:5ee1c5a362bbeb25d7430e5710448387605d6155c5ab84764dd11951eb9c6807",
+      "source_hash": "sha256:216ae2a27cff36e9d45edff103d89c2724f9848b91aa2fa6b604b7356bcb55f5",
       "last_verified_at_utc": null
     },
     {
@@ -14605,7 +14607,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:f40f527c709bef2372ffc6f772ca5f35479121e69bc988c24e0b8ad834ea3f5e",
+      "source_hash": "sha256:5e0990e3a30a5905b1582e4538042425d510889b297637fb1fa5b07bc93e00e8",
       "last_verified_at_utc": null
     },
     {
@@ -16845,7 +16847,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:21eb7e598f2c2d05a7812f00777492907f16c1de4cb45f72508972fbf44f0640",
+      "source_hash": "sha256:4f9caacf2ae4567f465fc268f96ad28ce957c7af15f98ed937bab863b726a0b7",
       "last_verified_at_utc": null
     },
     {
@@ -16890,6 +16892,28 @@
         "governance-topology-check"
       ],
       "source_hash": "sha256:44f8f89c1f4499bb2ed7569235e2f1ccb49ad7f44a3a28ce9aca98d66992839c",
+      "last_verified_at_utc": null
+    },
+    {
+      "surface_id": "just:mt-ready",
+      "path": "justfile#mt-ready",
+      "surface_kind": "JUST_RECIPE",
+      "owner_role": "SHARED",
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "phase": "SESSION_CONTROL",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "just_recipes": [
+        "mt-ready"
+      ],
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "replacement_bundle": "just phase-check",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "contract_authority": "CX-912_PUBLIC_SURFACE_CONTRACT",
+      "validation_coverage": [
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:dbccd040c572c859f6484f4eb72213a8353a6cfb960ee4c77ee22bb04dca537e",
       "last_verified_at_utc": null
     },
     {
@@ -19599,5 +19623,5 @@
       "last_verified_at_utc": null
     }
   ],
-  "projection_hash": "sha256:e59b517edbdc23059d59d3dd04618d8d3b9b48bf724d0f6214c26af9091a860e"
+  "projection_hash": "sha256:6b38771d362c984e6f1a690d2580ede4b36638a8c2ddd05532156ad76891c29f"
 }

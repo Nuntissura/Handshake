@@ -5,6 +5,9 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { communicationPathsForWp } from "../scripts/lib/wp-communications-lib.mjs";
+import { repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const scriptPath = path.join(repoRoot, ".GOV", "roles_shared", "scripts", "wp", "mt-board.mjs");
 
@@ -238,6 +241,95 @@ test("mt-board treats ready-for-validation microtasks as implemented dependency 
     assert.equal(mt001.lifecycle.status, "READY_FOR_VALIDATION");
     assert.equal(mt001.handoff.coder_session, "session-ready");
     assert.equal(mt002.lifecycle.status, "CLAIMED");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
+test("mt-board requires the claimant's passing readiness receipt before READY_FOR_VALIDATION", () => {
+  const wpId = "WP-TEST-MT-BOARD-READY-GATE-v1";
+  const session = "session-ready-gate";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = repoPathAbs(communicationPathsForWp(wpId).dir);
+  writeContract(path.join(packetDir, "packet.json"), {
+    schema_id: "hsk.work_packet_contract@1",
+    wp_id: wpId,
+  });
+  writeContract(path.join(packetDir, "MT-001.json"), {
+    schema_id: "hsk.microtask_contract@1",
+    mt_id: "MT-001",
+    wp_id: wpId,
+    title: "Ready-gated JSON MT",
+    owned_files: ["src/ready.rs"],
+    proof_commands: ["cargo test ready"],
+    lifecycle: { status: "CLAIMED", active: true, claimed_by: session, completed_by: null },
+    handoff: { coder_session: session },
+  });
+
+  try {
+    assert.throws(
+      () => runMtBoard(["ready", wpId, "MT-001", session]),
+      /requires a latest PASS KB readiness receipt/,
+    );
+    fs.mkdirSync(commDir, { recursive: true });
+    fs.writeFileSync(path.join(commDir, "KB_READY_CHECKLIST_RECEIPTS.jsonl"), `${JSON.stringify({
+      schema_id: "hsk.kb_ready_checklist_receipt@1",
+      wp_id: wpId,
+      mt_id: "MT-001",
+      actor_session: session,
+      overall_verdict: "PASS",
+    })}\n`, "utf8");
+    assert.match(runMtBoard(["ready", wpId, "MT-001", session]), /marked ready for validation/);
+    const mt001 = JSON.parse(fs.readFileSync(path.join(packetDir, "MT-001.json"), "utf8"));
+    assert.equal(mt001.lifecycle.status, "READY_FOR_VALIDATION");
+    assert.equal(mt001.lifecycle.active, false);
+    assert.equal(mt001.lifecycle.completed_by, null);
+    assert.equal(mt001.lifecycle.ready_for_validation_by, session);
+    assert.match(mt001.lifecycle.ready_for_validation_at_utc, /^\d{4}-\d{2}-\d{2}T/);
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("mt-board targets ready-for-dev MTs without collapsing versioned lifecycle states", () => {
+  const wpId = "WP-TEST-MT-BOARD-TARGETED-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  writeContract(path.join(packetDir, "packet.json"), {
+    schema_id: "hsk.work_packet_contract@1",
+    wp_id: wpId,
+  });
+  writeContract(path.join(packetDir, "MT-001.json"), {
+    schema_id: "hsk.microtask_contract@1",
+    mt_id: "MT-001",
+    wp_id: wpId,
+    title: "Versioned implemented MT",
+    owned_files: ["src/implemented.rs"],
+    proof_commands: ["cargo test implemented"],
+    lifecycle: { status: "READY_FOR_VALIDATION_V4", active: false, depends_on: [] },
+    handoff: { coder_session: "prior-session" },
+  });
+  writeContract(path.join(packetDir, "MT-002.json"), {
+    schema_id: "hsk.microtask_contract@1",
+    mt_id: "MT-002",
+    wp_id: wpId,
+    title: "Exact ready MT",
+    owned_files: ["src/ready.rs"],
+    proof_commands: ["cargo test ready"],
+    lifecycle: { status: "READY_FOR_DEV", active: true, depends_on: ["MT-001"] },
+    handoff: {},
+  });
+
+  try {
+    const board = runMtBoard(["board", wpId]);
+    assert.match(board, /MT-001 \| READY_FOR_VALIDATION/);
+    assert.match(board, /MT-002 \| OPEN/);
+    assert.match(runMtBoard(["claim", wpId, "session-targeted", "MT-002"]), /Claimed MT-002/);
+    const mt002 = JSON.parse(fs.readFileSync(path.join(packetDir, "MT-002.json"), "utf8"));
+    assert.equal(mt002.lifecycle.status, "CLAIMED");
+    assert.equal(mt002.lifecycle.claimed_by, "session-targeted");
+    assert.equal(mt002.handoff.coder_session, "session-targeted");
+    assert.match(mt002.lifecycle.claimed_at_utc, /^\d{4}-\d{2}-\d{2}T/);
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
   }

@@ -66,7 +66,7 @@
       ]
     },
     {
-      "count": 48,
+      "count": 49,
       "group_id": "public-surface-group:25aa5f7f409663ef",
       "owner_role": "SHARED",
       "phase": "SESSION_CONTROL",
@@ -95,6 +95,7 @@
         "just:memory-manager-proposal",
         "just:memory-manager-rgf-candidate",
         "just:mt-claim",
+        "just:mt-ready",
         "just:nudge-depth",
         "just:nudge-drain",
         "just:nudge-enqueue",
@@ -808,7 +809,7 @@
       ]
     }
   ],
-  "consolidation_hash": "sha256:4189aad661af9688",
+  "consolidation_hash": "sha256:d3ca9d87b1194f11",
   "counts": {
     "by_entrypoint_status": {
       "CANONICAL_BUNDLE_OR_CHECKPOINT": 3,
@@ -817,7 +818,7 @@
       "CONTRACT_AUTHORITY": 9,
       "INTERNAL_HELPER": 1,
       "PUBLIC_LEAF_BASELINED": 135,
-      "PUBLIC_RECIPE_BASELINED": 190
+      "PUBLIC_RECIPE_BASELINED": 191
     },
     "by_owner_role": {
       "ACTIVATION_MANAGER": 2,
@@ -829,7 +830,7 @@
       "MEMORY_MANAGER": 3,
       "OPERATOR": 2,
       "ORCHESTRATOR": 22,
-      "SHARED": 317,
+      "SHARED": 318,
       "VALIDATOR": 16,
       "WP_VALIDATOR": 2
     },
@@ -840,7 +841,7 @@
       "GENERAL": 31,
       "HANDOFF": 1,
       "MEMORY": 31,
-      "SESSION_CONTROL": 73,
+      "SESSION_CONTROL": 74,
       "SPEC": 4,
       "STARTUP": 20,
       "TOPOLOGY": 50,
@@ -850,10 +851,10 @@
     "by_side_effect_class": {
       "MUTATES_GIT_OR_WORKTREE": 20,
       "MUTATES_GOVERNANCE_OR_RUNTIME": 57,
-      "READ_ONLY_OR_DIAGNOSTIC": 296
+      "READ_ONLY_OR_DIAGNOSTIC": 297
     },
     "by_status": {
-      "CONSOLIDATE_WHEN_TOUCHED": 325,
+      "CONSOLIDATE_WHEN_TOUCHED": 326,
       "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT": 20,
       "RETAIN_CANONICAL": 19,
       "RETAIN_CONTRACT_AUTHORITY": 9
@@ -3046,7 +3047,8 @@
         "mt-board",
         "mt-claim",
         "mt-complete",
-        "mt-populate"
+        "mt-populate",
+        "mt-ready"
       ],
       "owner_role": "SHARED",
       "path": ".GOV/roles_shared/scripts/wp/mt-board.mjs",
@@ -7661,6 +7663,32 @@
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
+        "mt-ready"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#mt-ready",
+      "phase": "SESSION_CONTROL",
+      "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:mt-ready",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
         "nudge-depth"
       ],
       "owner_role": "SHARED",
@@ -11048,14 +11076,14 @@
   },
   "schema_id": "handshake.gov.public_surface_consolidation",
   "schema_version": "public_surface_consolidation_v1",
-  "source_topology_projection_hash": "sha256:b32001fb793b9319d8e262d4c2eca8770a160d07d04486cd5aa7855eabe4cf84",
+  "source_topology_projection_hash": "sha256:ee174c8215f4dbd4563c9549fba6665dc98d007f657c095882f06061c68a2c28",
   "totals": {
     "canonical": 19,
     "compatibility_aliases": 20,
-    "consolidate_when_touched": 325,
+    "consolidate_when_touched": 326,
     "consolidation_groups": 42,
     "contract_authority": 9,
-    "public_surfaces": 373,
+    "public_surfaces": 374,
     "tracked_public_surfaces": 0
   }
 }

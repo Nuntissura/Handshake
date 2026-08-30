@@ -229,6 +229,38 @@ test("startup phase plan skips pre-work-check for committed handoff preflight mo
   ]);
 });
 
+test("startup phase plan uses typed contract gates for primary JSON packets", () => {
+  const wpId = "WP-TEST-PHASE-TYPED-v1";
+  const packetDir = path.join(".GOV", "task_packets", wpId);
+  const packetPath = path.join(packetDir, "packet.json");
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(packetPath, JSON.stringify({
+    schema_id: "hsk.work_packet_contract@1",
+    contract_authority: "PRIMARY_MACHINE_READABLE",
+  }));
+
+  try {
+    const plan = buildPhaseCheckPlan({
+      phase: "STARTUP",
+      wpId,
+      role: "CODER",
+      session: "coder:test",
+    });
+
+    assert.deepEqual(plan.map((step) => step.label), [
+      "ensure-wp-communications",
+      "active-lane-brief",
+      "wp-communication-health-check",
+      "wp-contract-import-check",
+      "mt-packet-scope-alignment-check",
+    ]);
+    assert.deepEqual(plan[3]?.args, [wpId, "--dry-run", "--no-repair"]);
+    assert.deepEqual(plan[4]?.args, ["--wp", wpId]);
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
 test("startup phase runner resolves coder checks to the packet-declared worktree", () => {
   const wpId = "WP-TEST-PHASE-CODER-CWD-v1";
   const packetDir = path.join(".GOV", "task_packets", wpId);

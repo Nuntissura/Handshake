@@ -4,7 +4,8 @@
  *
  * Commands:
  *   board    <WP_ID>
- *   claim    <WP_ID> <SESSION_KEY>
+ *   claim    <WP_ID> <SESSION_KEY> [MT_ID]
+ *   ready    <WP_ID> <MT_ID> <SESSION_KEY>
  *   complete <WP_ID> <MT_ID>
  *   populate <WP_ID>
  */
@@ -13,7 +14,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { listDeclaredWpMicrotasks } from "../lib/wp-microtask-lib.mjs";
-import { normalizePath, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
+import { communicationPathsForWp } from "../lib/wp-communications-lib.mjs";
+import { normalizePath, repoPathAbs, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
 
 const command = String(process.argv[2] || "").trim().toLowerCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -21,7 +23,8 @@ const wpId = String(process.argv[3] || "").trim();
 function usage(exitCode = 1) {
   console.error("Usage:");
   console.error("  node mt-board.mjs board <WP_ID>");
-  console.error("  node mt-board.mjs claim <WP_ID> <SESSION_KEY>");
+  console.error("  node mt-board.mjs claim <WP_ID> <SESSION_KEY> [MT_ID]");
+  console.error("  node mt-board.mjs ready <WP_ID> <MT_ID> <SESSION_KEY>");
   console.error("  node mt-board.mjs complete <WP_ID> <MT_ID>");
   console.error("  node mt-board.mjs populate <WP_ID>");
   process.exit(exitCode);
@@ -82,6 +85,11 @@ function displayStatus(value) {
   const normalized = normalizeStatus(value);
   if (normalized === "COMPLETE") return "COMPLETED";
   if (normalized === "IN_PROGRESS" || normalized === "ACTIVE") return "CLAIMED";
+  if (normalized === "READY_FOR_DEV") return "OPEN";
+  if (/^CLAIMED(?:_V\d+)?$/.test(normalized)) return "CLAIMED";
+  if (/^READY_FOR_VALIDATION(?:_V\d+)?$/.test(normalized)) return "READY_FOR_VALIDATION";
+  if (/^(?:PASS|COMPLETED)(?:_V\d+)?$/.test(normalized)) return "COMPLETED";
+  if (/^(?:NEEDS_REIMPLEMENTATION|FAILED)(?:_V\d+)?$/.test(normalized)) return "FAIL_NEEDS_REWORK";
   if (VISIBLE_STATUS_VALUES.has(normalized)) {
     return normalized;
   }
@@ -173,10 +181,18 @@ function populate(wpIdValue) {
   console.log(formatBoard(wpIdValue));
 }
 
-function claim(wpIdValue, sessionKey) {
+function claim(wpIdValue, sessionKey, requestedMtId = "") {
   const rows = declaredMtRows(wpIdValue);
-  const claimable = rows.find((row) => (row.status === "OPEN" || row.status === "PENDING") && dependenciesCompleted(row, rows));
+  const normalizedRequestedMtId = String(requestedMtId || "").trim().toUpperCase();
+  const claimableStatuses = new Set(["OPEN", "PENDING", "FAIL_NEEDS_REWORK"]);
+  const candidates = normalizedRequestedMtId
+    ? rows.filter((row) => row.mtId.toUpperCase() === normalizedRequestedMtId)
+    : rows;
+  const claimable = candidates.find((row) => claimableStatuses.has(row.status) && dependenciesCompleted(row, rows));
   if (!claimable) {
+    if (normalizedRequestedMtId) {
+      fail(`${normalizedRequestedMtId} is missing, already owned, blocked, or has unsatisfied dependencies in ${wpIdValue}`);
+    }
     console.log(`[MT_BOARD] No unclaimed microtasks available for ${wpIdValue}`);
     return;
   }
@@ -185,6 +201,7 @@ function claim(wpIdValue, sessionKey) {
   lifecycle.status = "CLAIMED";
   lifecycle.active = true;
   lifecycle.claimed_by = sessionKey;
+  lifecycle.claimed_at_utc = new Date().toISOString();
   contract.handoff = {
     ...(contract.handoff || {}),
     coder_session: sessionKey,
@@ -210,6 +227,49 @@ function complete(wpIdValue, mtId) {
   console.log(`[MT_BOARD] ${String(mtId).toUpperCase()} marked completed`);
 }
 
+function latestReadyReceipt(wpIdValue, mtId) {
+  const commPaths = communicationPathsForWp(wpIdValue);
+  const receiptsPath = path.join(repoPathAbs(commPaths.dir), "KB_READY_CHECKLIST_RECEIPTS.jsonl");
+  if (!fs.existsSync(receiptsPath)) return null;
+  let latest = null;
+  for (const line of fs.readFileSync(receiptsPath, "utf8").split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    let receipt;
+    try {
+      receipt = JSON.parse(line);
+    } catch {
+      fail(`Invalid JSON in readiness receipt log: ${normalizePath(receiptsPath)}`);
+    }
+    if (String(receipt?.mt_id || "").trim().toUpperCase() === mtId) latest = receipt;
+  }
+  return latest;
+}
+
+function ready(wpIdValue, mtId, sessionKey) {
+  const packetDirAbs = resolvePacketDir(wpIdValue);
+  const contract = readMtContract(packetDirAbs, mtId);
+  if (!contract) fail(`Missing microtask contract for ${mtId}`);
+  const lifecycle = ensureLifecycle(contract);
+  if (displayStatus(lifecycle.status) !== "CLAIMED") {
+    fail(`${mtId} must be CLAIMED before READY_FOR_VALIDATION`);
+  }
+  if (String(lifecycle.claimed_by || "").trim() !== sessionKey) {
+    fail(`${mtId} is claimed by ${lifecycle.claimed_by || "<none>"}, not ${sessionKey}`);
+  }
+  const receipt = latestReadyReceipt(wpIdValue, mtId);
+  if (receipt?.schema_id !== "hsk.kb_ready_checklist_receipt@1"
+      || receipt?.overall_verdict !== "PASS"
+      || String(receipt?.actor_session || "").trim() !== sessionKey) {
+    fail(`${mtId} requires a latest PASS KB readiness receipt from ${sessionKey}`);
+  }
+  lifecycle.status = "READY_FOR_VALIDATION";
+  lifecycle.active = false;
+  lifecycle.ready_for_validation_at_utc = new Date().toISOString();
+  lifecycle.ready_for_validation_by = sessionKey;
+  writeMtContract(packetDirAbs, mtId, contract);
+  console.log(`[MT_BOARD] ${mtId} marked ready for validation by ${sessionKey}`);
+}
+
 if (!command || !wpId) usage();
 
 if (command === "board") {
@@ -219,7 +279,12 @@ if (command === "board") {
 } else if (command === "claim") {
   const sessionKey = String(process.argv[4] || "").trim();
   if (!sessionKey) usage();
-  claim(wpId, sessionKey);
+  claim(wpId, sessionKey, process.argv[5]);
+} else if (command === "ready") {
+  const mtId = String(process.argv[4] || "").trim().toUpperCase();
+  const sessionKey = String(process.argv[5] || "").trim();
+  if (!mtId || !sessionKey) usage();
+  ready(wpId, mtId, sessionKey);
 } else if (command === "complete") {
   const mtId = String(process.argv[4] || "").trim().toUpperCase();
   if (!mtId) usage();

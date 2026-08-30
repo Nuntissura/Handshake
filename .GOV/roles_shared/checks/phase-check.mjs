@@ -984,9 +984,23 @@ export function maybeDeferPrelaunchStartupMesh({
 function workflowLaneForPacket(wpId) {
   try {
     const packetText = readPacketText(wpId);
+    if (String(packetText || "").trimStart().startsWith("{")) {
+      const packet = JSON.parse(packetText);
+      return String(packet?.workflow?.lane || packet?.lifecycle?.workflow_lane || "").trim().toUpperCase();
+    }
     return parseSingleField(packetText, "WORKFLOW_LANE").toUpperCase();
   } catch {
     return "";
+  }
+}
+
+function usesPrimaryTypedPacket(wpId) {
+  try {
+    const packetText = readPacketText(wpId);
+    if (!String(packetText || "").trimStart().startsWith("{")) return false;
+    return JSON.parse(packetText)?.contract_authority === "PRIMARY_MACHINE_READABLE";
+  } catch {
+    return false;
   }
 }
 
@@ -1108,7 +1122,7 @@ function buildStartupCoderOutcome({
   const preWorkResult = stepResults.get("pre-work-check");
   const blockedOnBootstrapClaim = /Missing docs-only bootstrap claim commit/i.test(String(preWorkResult?.output || ""));
   const workflowLane = workflowLaneForPacket(wpId);
-  const usesSkeletonCheckpointGate = workflowLane !== "ORCHESTRATOR_MANAGED";
+  const usesSkeletonCheckpointGate = !usesPrimaryTypedPacket(wpId) && workflowLane !== "ORCHESTRATOR_MANAGED";
   const skeletonApprover =
     workflowLane === "ORCHESTRATOR_MANAGED" ? "Orchestrator/Validator/Operator" : "Operator/Validator";
   const checkpointSubjectRe = `^docs: skeleton checkpoint \\[${escapeRegex(wpId)}\\]$`;

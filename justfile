@@ -726,8 +726,11 @@ session-stall-scan role wp-id:
 mt-board wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" board {{wp-id}}
 
-mt-claim wp-id session-key:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" claim {{wp-id}} {{session-key}}
+mt-claim wp-id session-key mt-id="":
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" claim {{wp-id}} {{session-key}} {{mt-id}}
+
+mt-ready wp-id mt-id session-key:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" ready {{wp-id}} {{mt-id}} {{session-key}}
 
 mt-complete wp-id mt-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" complete {{wp-id}} {{mt-id}}

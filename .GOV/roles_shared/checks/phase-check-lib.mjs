@@ -1,4 +1,5 @@
-import { GOV_ROOT_REPO_REL, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import fs from "node:fs";
+import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 
 export const PHASE_VALUES = ["STARTUP", "HANDOFF", "VERDICT", "CLOSEOUT"];
 const PHASE_VALUE_SET = new Set(PHASE_VALUES);
@@ -39,6 +40,17 @@ function step(label, relativePath, args = []) {
     scriptPath: relativePath ? scriptPath(relativePath) : "",
     args,
   };
+}
+
+function usesPrimaryTypedPacket(wpId) {
+  const resolved = resolveWorkPacketPath(wpId);
+  if (!resolved?.packetPath || !resolved.packetPath.endsWith(".json")) return false;
+  try {
+    const packet = JSON.parse(fs.readFileSync(repoPathAbs(resolved.packetPath), "utf8"));
+    return packet?.contract_authority === "PRIMARY_MACHINE_READABLE";
+  } catch {
+    return false;
+  }
 }
 
 export function buildPhaseCheckCommand({
@@ -95,10 +107,17 @@ export function buildPhaseCheckPlan({
           normalizedRole,
           normalizedSession,
         ]),
-        step("gate-check", "", [normalizedWpId]),
       ];
-      if (!startupInternalFlags.has("--committed-handoff-preflight")) {
-        plan.push(step("pre-work-check", "roles/coder/checks/pre-work-check.mjs", [normalizedWpId]));
+      if (usesPrimaryTypedPacket(normalizedWpId)) {
+        plan.push(
+          step("wp-contract-import-check", "roles_shared/scripts/wp/wp-contract-import.mjs", [normalizedWpId, "--dry-run", "--no-repair"]),
+          step("mt-packet-scope-alignment-check", "roles_shared/checks/mt-packet-scope-alignment-check.mjs", ["--wp", normalizedWpId]),
+        );
+      } else {
+        plan.push(step("gate-check", "", [normalizedWpId]));
+        if (!startupInternalFlags.has("--committed-handoff-preflight")) {
+          plan.push(step("pre-work-check", "roles/coder/checks/pre-work-check.mjs", [normalizedWpId]));
+        }
       }
       return plan;
     }
