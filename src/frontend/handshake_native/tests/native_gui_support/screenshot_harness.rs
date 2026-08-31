@@ -347,28 +347,10 @@ fn sanitize(value: &str) -> String {
     sanitized.trim_matches('-').to_owned()
 }
 
-fn screenshot_process_identity(correlation_id: Option<&str>, pid: u32) -> String {
+pub(crate) fn screenshot_process_identity(correlation_id: Option<&str>, pid: u32) -> String {
     correlation_id
         .filter(|identity| !identity.trim().is_empty())
         .map(sanitize)
         .filter(|identity| !identity.is_empty())
         .unwrap_or_else(|| format!("pid{pid}"))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::screenshot_process_identity;
-
-    #[test]
-    fn process_identity_survives_pid_reuse_between_supervised_scenarios() {
-        let first = screenshot_process_identity(Some("cargo-scenario-a-111"), 76348);
-        let second = screenshot_process_identity(Some("cargo-scenario-b-222"), 76348);
-
-        assert_ne!(first, second);
-        assert_eq!(
-            screenshot_process_identity(None, 76348),
-            "pid76348",
-            "standalone tests retain a deterministic process-local fallback"
-        );
-    }
 }

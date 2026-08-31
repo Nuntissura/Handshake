@@ -10,6 +10,21 @@ mod screenshot_harness;
 mod mt108_matrix_verifier;
 
 #[test]
+fn mt108_screenshot_identity_survives_pid_reuse() {
+    let first =
+        screenshot_harness::screenshot_process_identity(Some("cargo-scenario-a-111"), 76348);
+    let second =
+        screenshot_harness::screenshot_process_identity(Some("cargo-scenario-b-222"), 76348);
+
+    assert_ne!(first, second);
+    assert_eq!(
+        screenshot_harness::screenshot_process_identity(None, 76348),
+        "pid76348",
+        "standalone tests retain a deterministic process-local fallback"
+    );
+}
+
+#[test]
 #[ignore = "post-run gate; invoke through tests/run_mt108_argus_proof.ps1"]
 fn mt108_verify_argus_evidence_manifest() {
     mt108_matrix_verifier::verify().expect(
