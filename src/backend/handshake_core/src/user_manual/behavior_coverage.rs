@@ -258,13 +258,13 @@ pub fn verify_diagnostic_tier_evidence_uri(
     let declared_tier = tier.as_str();
     let expected_prefix = diagnostic_tier_evidence_uri_prefix(tier);
     match diagnostic_tier_owning_evidence_uri_scheme(evidence_ref) {
-        Some(scheme_tier) if scheme_tier != tier => {
-            Err(DiagnosticEvidenceUriViolation::CrossTierSchemeSubstitution {
+        Some(scheme_tier) if scheme_tier != tier => Err(
+            DiagnosticEvidenceUriViolation::CrossTierSchemeSubstitution {
                 declared_tier,
                 scheme_owned_by_tier: scheme_tier.as_str(),
                 expected_prefix,
-            })
-        }
+            },
+        ),
         Some(_) if evidence_ref.starts_with(expected_prefix) => Ok(()),
         Some(_) => Err(DiagnosticEvidenceUriViolation::WrongAuthorityRoot {
             declared_tier,
@@ -1230,25 +1230,37 @@ impl ManualNamedSymbol {
             Self::ConsoleCategoryBreaker => "ConsoleCategory::Breaker",
             Self::ConsoleCategorySpawnRejected => "ConsoleCategory::SpawnRejected",
             Self::ConsoleSwarmSinkShared => "ConsoleSwarmSink::shared",
-            Self::DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest => "DexterityLaunchAdapterRegistry::adapter_kind_for_spawn_request",
-            Self::DexterityLaunchContractAttachToSpawnRequest => "DexterityLaunchContract::attach_to_spawn_request",
+            Self::DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest => {
+                "DexterityLaunchAdapterRegistry::adapter_kind_for_spawn_request"
+            }
+            Self::DexterityLaunchContractAttachToSpawnRequest => {
+                "DexterityLaunchContract::attach_to_spawn_request"
+            }
             Self::DexterityLaunchContractRestartGeneration => {
                 "DexterityLaunchContract::restart_generation"
             }
             Self::DisabledLlmClientCompletion => "DisabledLlmClient::completion",
             Self::DisabledLlmClientEmbedding => "DisabledLlmClient::embedding",
-            Self::EmbeddedModelProcessRecordReservedLoadWithDurableAck => "EmbeddedModelProcess::record_reserved_load_with_durable_ack",
+            Self::EmbeddedModelProcessRecordReservedLoadWithDurableAck => {
+                "EmbeddedModelProcess::record_reserved_load_with_durable_ack"
+            }
             Self::EmbeddedModelProcessShutdown => "EmbeddedModelProcess::shutdown",
-            Self::EngineOriginValidatorValidateLoadSpec => "EngineOriginValidator::validate_load_spec",
+            Self::EngineOriginValidatorValidateLoadSpec => {
+                "EngineOriginValidator::validate_load_spec"
+            }
             Self::ExternalEngineImportRecordNew => "ExternalEngineImportRecord::new",
             Self::FailureFingerprintCompute => "FailureFingerprint::compute",
             Self::FinishReasonCancelled => "FinishReason::Cancelled",
             Self::FlightRecorderEventTypeLlmInference => "FlightRecorderEventType::LlmInference",
             Self::FlightRecorderSwarmSinkNew => "FlightRecorderSwarmSink::new",
             Self::GuardedCliChildTerminateAndCollect => "GuardedCliChild::terminate_and_collect",
-            Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio => "HandshakeNativeSandboxAdapter::spawn_attached_with_stdio",
+            Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio => {
+                "HandshakeNativeSandboxAdapter::spawn_attached_with_stdio"
+            }
             Self::IsolationTierTier3Microvm => "IsolationTier::Tier3Microvm",
-            Self::KernelEventTypeModelRuntimeSelectionRecorded => "KernelEventType::ModelRuntimeSelectionRecorded",
+            Self::KernelEventTypeModelRuntimeSelectionRecorded => {
+                "KernelEventType::ModelRuntimeSelectionRecorded"
+            }
             Self::KillOutcomeFailed => "KillOutcome::Failed",
             Self::LaunchAuthoritySubagentManager => "LaunchAuthority::SubagentManager",
             Self::LiveCliSpawnerSpawn => "LiveCliSpawner::spawn",
@@ -1259,26 +1271,52 @@ impl ManualNamedSymbol {
             Self::ModelCatalogEmbeddingModelForDim => "ModelCatalog::embedding_model_for_dim",
             Self::ModelCatalogList => "ModelCatalog::list",
             Self::ModelCatalogRecordSelectionDecision => "ModelCatalog::record_selection_decision",
-            Self::ModelCatalogRecordSelectionDecisionWithContext => "ModelCatalog::record_selection_decision_with_context",
+            Self::ModelCatalogRecordSelectionDecisionWithContext => {
+                "ModelCatalog::record_selection_decision_with_context"
+            }
             Self::ModelLaneAuthorityAdvisory => "ModelLaneAuthority::Advisory",
             Self::ModelLaneAuthorityPromoted => "ModelLaneAuthority::Promoted",
             Self::ModelLaneErrorInvalidInput => "ModelLaneError::InvalidInput",
             Self::ModelLaneStatusCancelled => "ModelLaneStatus::Cancelled",
-            Self::ModelLaneStoreConsumeContextBundleForDownstream => "ModelLaneStore::consume_context_bundle_for_downstream",
+            Self::ModelLaneStoreConsumeContextBundleForDownstream => {
+                "ModelLaneStore::consume_context_bundle_for_downstream"
+            }
             Self::ModelLaneStoreDiagnosticsProjection => "ModelLaneStore::diagnostics_projection",
-            Self::ModelLaneStorePreflightCloudSpawnRequest => "ModelLaneStore::preflight_cloud_spawn_request",
-            Self::ModelLaneStoreRecordCloudConsentReceipt => "ModelLaneStore::record_cloud_consent_receipt",
-            Self::ModelLaneStoreRecordCloudProjectionPlan => "ModelLaneStore::record_cloud_projection_plan",
-            Self::ModelLaneStoreRecordContextBundleArtifactBinding => "ModelLaneStore::record_context_bundle_artifact_binding",
-            Self::ModelLaneStoreRecordContextBundleHandoff => "ModelLaneStore::record_context_bundle_handoff",
+            Self::ModelLaneStorePreflightCloudSpawnRequest => {
+                "ModelLaneStore::preflight_cloud_spawn_request"
+            }
+            Self::ModelLaneStoreRecordCloudConsentReceipt => {
+                "ModelLaneStore::record_cloud_consent_receipt"
+            }
+            Self::ModelLaneStoreRecordCloudProjectionPlan => {
+                "ModelLaneStore::record_cloud_projection_plan"
+            }
+            Self::ModelLaneStoreRecordContextBundleArtifactBinding => {
+                "ModelLaneStore::record_context_bundle_artifact_binding"
+            }
+            Self::ModelLaneStoreRecordContextBundleHandoff => {
+                "ModelLaneStore::record_context_bundle_handoff"
+            }
             Self::ModelLaneStoreRecordMessage => "ModelLaneStore::record_message",
-            Self::ModelLaneStoreRecordPromotionDecision => "ModelLaneStore::record_promotion_decision",
-            Self::ModelLaneStoreRecoverRunAfterRestart => "ModelLaneStore::recover_run_after_restart",
-            Self::ModelLaneStoreReplayCloudConsentAuthority => "ModelLaneStore::replay_cloud_consent_authority",
-            Self::ModelLaneStoreReplayContextBundleHandoffs => "ModelLaneStore::replay_context_bundle_handoffs",
-            Self::ModelLaneStoreReplayPromotionDecisions => "ModelLaneStore::replay_promotion_decisions",
+            Self::ModelLaneStoreRecordPromotionDecision => {
+                "ModelLaneStore::record_promotion_decision"
+            }
+            Self::ModelLaneStoreRecoverRunAfterRestart => {
+                "ModelLaneStore::recover_run_after_restart"
+            }
+            Self::ModelLaneStoreReplayCloudConsentAuthority => {
+                "ModelLaneStore::replay_cloud_consent_authority"
+            }
+            Self::ModelLaneStoreReplayContextBundleHandoffs => {
+                "ModelLaneStore::replay_context_bundle_handoffs"
+            }
+            Self::ModelLaneStoreReplayPromotionDecisions => {
+                "ModelLaneStore::replay_promotion_decisions"
+            }
             Self::ModelLaneStoreReplayRun => "ModelLaneStore::replay_run",
-            Self::ModelLaneStoreValidateDiagnosticTierPosture => "ModelLaneStore::validate_diagnostic_tier_posture",
+            Self::ModelLaneStoreValidateDiagnosticTierPosture => {
+                "ModelLaneStore::validate_diagnostic_tier_posture"
+            }
             Self::ModelRuntimeErrorAdapterMismatch => "ModelRuntimeError::AdapterMismatch",
             Self::ProcessReclaimRuntimeProductionWithLease => {
                 "ProcessReclaimRuntime::production_with_lease"
@@ -1294,14 +1332,24 @@ impl ManualNamedSymbol {
             Self::SemanticUnavailableReasonDimMismatch => "SemanticUnavailableReason::DimMismatch",
             Self::SemanticUnavailableReasonNoModel => "SemanticUnavailableReason::NoModel",
             Self::SpawnRequestWithDexterityLaunch => "SpawnRequest::with_dexterity_launch",
-            Self::SwarmCoordinatorContextBundleForDownstreamLane => "SwarmCoordinator::context_bundle_for_downstream_lane",
-            Self::SwarmCoordinatorInvokeDownstreamContextBundle => "SwarmCoordinator::invoke_downstream_context_bundle",
-            Self::SwarmCoordinatorLaunchOperatorSubagentModelLane => "SwarmCoordinator::launch_operator_subagent_model_lane",
+            Self::SwarmCoordinatorContextBundleForDownstreamLane => {
+                "SwarmCoordinator::context_bundle_for_downstream_lane"
+            }
+            Self::SwarmCoordinatorInvokeDownstreamContextBundle => {
+                "SwarmCoordinator::invoke_downstream_context_bundle"
+            }
+            Self::SwarmCoordinatorLaunchOperatorSubagentModelLane => {
+                "SwarmCoordinator::launch_operator_subagent_model_lane"
+            }
             Self::SwarmCoordinatorLiveSessionCount => "SwarmCoordinator::live_session_count",
             Self::SwarmCoordinatorMaxConcurrent => "SwarmCoordinator::max_concurrent",
             Self::SwarmCoordinatorRemaining => "SwarmCoordinator::remaining",
-            Self::SwarmCoordinatorRetryPendingSessionCleanups => "SwarmCoordinator::retry_pending_session_cleanups",
-            Self::SwarmCoordinatorRevokeCloudConsentReceipt => "SwarmCoordinator::revoke_cloud_consent_receipt",
+            Self::SwarmCoordinatorRetryPendingSessionCleanups => {
+                "SwarmCoordinator::retry_pending_session_cleanups"
+            }
+            Self::SwarmCoordinatorRevokeCloudConsentReceipt => {
+                "SwarmCoordinator::revoke_cloud_consent_receipt"
+            }
             Self::SwarmCoordinatorSessionRuntime => "SwarmCoordinator::session_runtime",
             Self::SwarmCoordinatorSetMaxConcurrent => "SwarmCoordinator::set_max_concurrent",
             Self::SwarmCoordinatorSpawnSession => "SwarmCoordinator::spawn_session",
@@ -1309,7 +1357,9 @@ impl ManualNamedSymbol {
             Self::SwarmErrorBudgetExhausted => "SwarmError::BudgetExhausted",
             Self::SwarmErrorConcurrencyCapReached => "SwarmError::ConcurrencyCapReached",
             Self::SwarmErrorDuplicateInstance => "SwarmError::DuplicateInstance",
-            Self::SwarmErrorLifetimeSpawnCeilingReached => "SwarmError::LifetimeSpawnCeilingReached",
+            Self::SwarmErrorLifetimeSpawnCeilingReached => {
+                "SwarmError::LifetimeSpawnCeilingReached"
+            }
             Self::SwarmErrorProviderNotConfigured => "SwarmError::ProviderNotConfigured",
             Self::SwarmErrorClassBreakerOpen => "SwarmErrorClass::BreakerOpen",
             Self::SwarmEventBreakerTripped => "SwarmEvent::BreakerTripped",
@@ -1435,31 +1485,52 @@ impl ManualNamedSymbol {
     fn assert_compiled(self) {
         match self {
             Self::AccountBoundAuthorityAccount => {
-                let _ = |value: &crate::swarm_orchestration::resource_scope::AccountBoundAuthority| matches!(value, crate::swarm_orchestration::resource_scope::AccountBoundAuthority::Account { .. });
+                let _ =
+                    |value: &crate::swarm_orchestration::resource_scope::AccountBoundAuthority| {
+                        matches!(value, crate::swarm_orchestration::resource_scope::AccountBoundAuthority::Account { .. })
+                    };
             }
             Self::AccountBoundAuthorityUnattributed => {
-                let _ = |value: &crate::swarm_orchestration::resource_scope::AccountBoundAuthority| matches!(value, crate::swarm_orchestration::resource_scope::AccountBoundAuthority::Unattributed { .. });
+                let _ =
+                    |value: &crate::swarm_orchestration::resource_scope::AccountBoundAuthority| {
+                        matches!(value, crate::swarm_orchestration::resource_scope::AccountBoundAuthority::Unattributed { .. })
+                    };
             }
             Self::AdmitDecisionSuppress => {
-                let _ = |value: &crate::swarm_orchestration::AdmitDecision| matches!(value, crate::swarm_orchestration::AdmitDecision::Suppress { .. });
+                let _ = |value: &crate::swarm_orchestration::AdmitDecision| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::AdmitDecision::Suppress { .. }
+                    )
+                };
             }
             Self::AppStateModelCatalog => {
                 let _ = crate::AppState::model_catalog;
             }
             Self::BreakerStateClosed => {
-                let _ = |value: &crate::swarm_orchestration::BreakerState| matches!(value, crate::swarm_orchestration::BreakerState::Closed);
+                let _ = |value: &crate::swarm_orchestration::BreakerState| {
+                    matches!(value, crate::swarm_orchestration::BreakerState::Closed)
+                };
             }
             Self::BreakerStateHalfOpen => {
-                let _ = |value: &crate::swarm_orchestration::BreakerState| matches!(value, crate::swarm_orchestration::BreakerState::HalfOpen);
+                let _ = |value: &crate::swarm_orchestration::BreakerState| {
+                    matches!(value, crate::swarm_orchestration::BreakerState::HalfOpen)
+                };
             }
             Self::BreakerStateOpen => {
-                let _ = |value: &crate::swarm_orchestration::BreakerState| matches!(value, crate::swarm_orchestration::BreakerState::Open);
+                let _ = |value: &crate::swarm_orchestration::BreakerState| {
+                    matches!(value, crate::swarm_orchestration::BreakerState::Open)
+                };
             }
             Self::ConsoleCategoryBreaker => {
-                let _ = |value: &crate::console_stream::ConsoleCategory| matches!(value, crate::console_stream::ConsoleCategory::Breaker);
+                let _ = |value: &crate::console_stream::ConsoleCategory| {
+                    matches!(value, crate::console_stream::ConsoleCategory::Breaker)
+                };
             }
             Self::ConsoleCategorySpawnRejected => {
-                let _ = |value: &crate::console_stream::ConsoleCategory| matches!(value, crate::console_stream::ConsoleCategory::SpawnRejected);
+                let _ = |value: &crate::console_stream::ConsoleCategory| {
+                    matches!(value, crate::console_stream::ConsoleCategory::SpawnRejected)
+                };
             }
             Self::ConsoleSwarmSinkShared => {
                 let _ = crate::console_stream::ConsoleSwarmSink::shared;
@@ -1486,9 +1557,10 @@ impl ManualNamedSymbol {
                 > = crate::swarm_orchestration::model_lane::DexterityLaunchContract::attach_to_spawn_request;
             }
             Self::DexterityLaunchContractRestartGeneration => {
-                let _ = |value: &crate::swarm_orchestration::model_lane::DexterityLaunchContract| {
-                    value.restart_generation
-                };
+                let _ =
+                    |value: &crate::swarm_orchestration::model_lane::DexterityLaunchContract| {
+                        value.restart_generation
+                    };
             }
             Self::DisabledLlmClientCompletion => {
                 let _ = <crate::llm::DisabledLlmClient as crate::llm::LlmClient>::completion;
@@ -1527,13 +1599,22 @@ impl ManualNamedSymbol {
                 let _ = crate::swarm_orchestration::FailureFingerprint::compute;
             }
             Self::FinishReasonCancelled => {
-                let _ = |value: &crate::model_runtime::FinishReason| matches!(value, crate::model_runtime::FinishReason::Cancelled);
+                let _ = |value: &crate::model_runtime::FinishReason| {
+                    matches!(value, crate::model_runtime::FinishReason::Cancelled)
+                };
             }
             Self::FlightRecorderEventTypeLlmInference => {
-                let _ = |value: &crate::flight_recorder::FlightRecorderEventType| matches!(value, crate::flight_recorder::FlightRecorderEventType::LlmInference);
+                let _ = |value: &crate::flight_recorder::FlightRecorderEventType| {
+                    matches!(
+                        value,
+                        crate::flight_recorder::FlightRecorderEventType::LlmInference
+                    )
+                };
             }
             Self::FlightRecorderSwarmSinkNew => {
-                let _ = crate::swarm_orchestration::FlightRecorderSwarmSink::<fn(crate::flight_recorder::FlightRecorderEvent) -> Result<(), String>>::new;
+                let _ = crate::swarm_orchestration::FlightRecorderSwarmSink::<
+                    fn(crate::flight_recorder::FlightRecorderEvent) -> Result<(), String>,
+                >::new;
             }
             Self::GuardedCliChildTerminateAndCollect => {
                 // Declared-with-reason; see `proof()`.
@@ -1547,7 +1628,12 @@ impl ManualNamedSymbol {
                 };
             }
             Self::KernelEventTypeModelRuntimeSelectionRecorded => {
-                let _ = |value: &crate::kernel::KernelEventType| matches!(value, crate::kernel::KernelEventType::ModelRuntimeSelectionRecorded);
+                let _ = |value: &crate::kernel::KernelEventType| {
+                    matches!(
+                        value,
+                        crate::kernel::KernelEventType::ModelRuntimeSelectionRecorded
+                    )
+                };
             }
             Self::KillOutcomeFailed => {
                 let _ = |value: &crate::process_ledger::KillOutcome| {
@@ -1555,7 +1641,12 @@ impl ManualNamedSymbol {
                 };
             }
             Self::LaunchAuthoritySubagentManager => {
-                let _ = |value: &crate::swarm_orchestration::model_lane::LaunchAuthority| matches!(value, crate::swarm_orchestration::model_lane::LaunchAuthority::SubagentManager);
+                let _ = |value: &crate::swarm_orchestration::model_lane::LaunchAuthority| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::model_lane::LaunchAuthority::SubagentManager
+                    )
+                };
             }
             Self::LiveCliSpawnerSpawn => {
                 let _ = <crate::model_runtime::cloud::LiveCliSpawner as crate::model_runtime::cloud::CliSubprocessSpawner>::spawn;
@@ -1564,7 +1655,8 @@ impl ManualNamedSymbol {
                 let _ = <crate::llm::DisabledLlmClient as crate::llm::LlmClient>::embedding;
             }
             Self::LlmClientShutdownGracefully => {
-                let _ = <crate::llm::DisabledLlmClient as crate::llm::LlmClient>::shutdown_gracefully;
+                let _ =
+                    <crate::llm::DisabledLlmClient as crate::llm::LlmClient>::shutdown_gracefully;
             }
             Self::LocalModelAdapterInvariantValidate => {
                 let _ = crate::model_runtime::LocalModelAdapterInvariant::validate;
@@ -1585,22 +1677,43 @@ impl ManualNamedSymbol {
                 let _ = crate::model_runtime::ModelCatalog::record_selection_decision_with_context;
             }
             Self::ModelLaneAuthorityAdvisory => {
-                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneAuthority| matches!(value, crate::swarm_orchestration::model_lane::ModelLaneAuthority::Advisory);
+                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneAuthority| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::model_lane::ModelLaneAuthority::Advisory
+                    )
+                };
             }
             Self::ModelLaneAuthorityPromoted => {
-                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneAuthority| matches!(value, crate::swarm_orchestration::model_lane::ModelLaneAuthority::Promoted);
+                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneAuthority| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::model_lane::ModelLaneAuthority::Promoted
+                    )
+                };
             }
             Self::ModelLaneErrorInvalidInput => {
-                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneError| matches!(value, crate::swarm_orchestration::model_lane::ModelLaneError::InvalidInput(..));
+                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneError| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::model_lane::ModelLaneError::InvalidInput(..)
+                    )
+                };
             }
             Self::ModelLaneStatusCancelled => {
-                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneStatus| matches!(value, crate::swarm_orchestration::model_lane::ModelLaneStatus::Cancelled);
+                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneStatus| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::model_lane::ModelLaneStatus::Cancelled
+                    )
+                };
             }
             Self::ModelLaneStoreConsumeContextBundleForDownstream => {
                 let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::consume_context_bundle_for_downstream;
             }
             Self::ModelLaneStoreDiagnosticsProjection => {
-                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::diagnostics_projection;
+                let _ =
+                    crate::swarm_orchestration::model_lane::ModelLaneStore::diagnostics_projection;
             }
             Self::ModelLaneStorePreflightCloudSpawnRequest => {
                 let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::preflight_cloud_spawn_request;
@@ -1642,16 +1755,25 @@ impl ManualNamedSymbol {
                 let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::validate_diagnostic_tier_posture;
             }
             Self::ModelRuntimeErrorAdapterMismatch => {
-                let _ = |value: &crate::model_runtime::ModelRuntimeError| matches!(value, crate::model_runtime::ModelRuntimeError::AdapterMismatch { .. });
+                let _ = |value: &crate::model_runtime::ModelRuntimeError| {
+                    matches!(
+                        value,
+                        crate::model_runtime::ModelRuntimeError::AdapterMismatch { .. }
+                    )
+                };
             }
             Self::ProcessReclaimRuntimeProductionWithLease => {
                 let _ = crate::process_ledger::ProcessReclaimRuntime::production_with_lease;
             }
             Self::ProviderKindExternalCompat => {
-                let _ = |value: &crate::model_runtime::ProviderKind| matches!(value, crate::model_runtime::ProviderKind::ExternalCompat);
+                let _ = |value: &crate::model_runtime::ProviderKind| {
+                    matches!(value, crate::model_runtime::ProviderKind::ExternalCompat)
+                };
             }
             Self::ProviderKindLocal => {
-                let _ = |value: &crate::model_runtime::ProviderKind| matches!(value, crate::model_runtime::ProviderKind::Local);
+                let _ = |value: &crate::model_runtime::ProviderKind| {
+                    matches!(value, crate::model_runtime::ProviderKind::Local)
+                };
             }
             Self::ProviderRegistryFromEnv => {
                 let _ = crate::llm::registry::ProviderRegistry::from_env;
@@ -1669,13 +1791,28 @@ impl ManualNamedSymbol {
                 let _ = crate::swarm_orchestration::RunBudget::defaulted;
             }
             Self::RuntimeBindingSubagent => {
-                let _ = |value: &crate::swarm_orchestration::model_lane::RuntimeBinding| matches!(value, crate::swarm_orchestration::model_lane::RuntimeBinding::Subagent);
+                let _ = |value: &crate::swarm_orchestration::model_lane::RuntimeBinding| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::model_lane::RuntimeBinding::Subagent
+                    )
+                };
             }
             Self::SemanticUnavailableReasonDimMismatch => {
-                let _ = |value: &crate::storage::loom::SemanticUnavailableReason| matches!(value, crate::storage::loom::SemanticUnavailableReason::DimMismatch { .. });
+                let _ = |value: &crate::storage::loom::SemanticUnavailableReason| {
+                    matches!(
+                        value,
+                        crate::storage::loom::SemanticUnavailableReason::DimMismatch { .. }
+                    )
+                };
             }
             Self::SemanticUnavailableReasonNoModel => {
-                let _ = |value: &crate::storage::loom::SemanticUnavailableReason| matches!(value, crate::storage::loom::SemanticUnavailableReason::NoModel);
+                let _ = |value: &crate::storage::loom::SemanticUnavailableReason| {
+                    matches!(
+                        value,
+                        crate::storage::loom::SemanticUnavailableReason::NoModel
+                    )
+                };
             }
             Self::SpawnRequestWithDexterityLaunch => {
                 let _ = crate::swarm_orchestration::SpawnRequest::with_dexterity_launch;
@@ -1684,7 +1821,8 @@ impl ManualNamedSymbol {
                 let _ = crate::swarm_orchestration::SwarmCoordinator::context_bundle_for_downstream_lane;
             }
             Self::SwarmCoordinatorInvokeDownstreamContextBundle => {
-                let _ = crate::swarm_orchestration::SwarmCoordinator::invoke_downstream_context_bundle;
+                let _ =
+                    crate::swarm_orchestration::SwarmCoordinator::invoke_downstream_context_bundle;
             }
             Self::SwarmCoordinatorLaunchOperatorSubagentModelLane => {
                 let _ = crate::swarm_orchestration::SwarmCoordinator::launch_operator_subagent_model_lane;
@@ -1699,7 +1837,8 @@ impl ManualNamedSymbol {
                 let _ = crate::swarm_orchestration::SwarmCoordinator::remaining;
             }
             Self::SwarmCoordinatorRetryPendingSessionCleanups => {
-                let _ = crate::swarm_orchestration::SwarmCoordinator::retry_pending_session_cleanups;
+                let _ =
+                    crate::swarm_orchestration::SwarmCoordinator::retry_pending_session_cleanups;
             }
             Self::SwarmCoordinatorRevokeCloudConsentReceipt => {
                 let _ = crate::swarm_orchestration::SwarmCoordinator::revoke_cloud_consent_receipt;
@@ -1730,37 +1869,88 @@ impl ManualNamedSymbol {
                 let _ = crate::swarm_orchestration::SwarmCoordinator::spawn_session;
             }
             Self::SwarmErrorBreakerOpen => {
-                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::BreakerOpen { .. });
+                let _ = |value: &crate::swarm_orchestration::SwarmError| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::SwarmError::BreakerOpen { .. }
+                    )
+                };
             }
             Self::SwarmErrorBudgetExhausted => {
-                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::BudgetExhausted { .. });
+                let _ = |value: &crate::swarm_orchestration::SwarmError| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::SwarmError::BudgetExhausted { .. }
+                    )
+                };
             }
             Self::SwarmErrorConcurrencyCapReached => {
-                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::ConcurrencyCapReached { .. });
+                let _ = |value: &crate::swarm_orchestration::SwarmError| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::SwarmError::ConcurrencyCapReached { .. }
+                    )
+                };
             }
             Self::SwarmErrorDuplicateInstance => {
-                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::DuplicateInstance(..));
+                let _ = |value: &crate::swarm_orchestration::SwarmError| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::SwarmError::DuplicateInstance(..)
+                    )
+                };
             }
             Self::SwarmErrorLifetimeSpawnCeilingReached => {
-                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::LifetimeSpawnCeilingReached { .. });
+                let _ = |value: &crate::swarm_orchestration::SwarmError| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::SwarmError::LifetimeSpawnCeilingReached { .. }
+                    )
+                };
             }
             Self::SwarmErrorProviderNotConfigured => {
-                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::ProviderNotConfigured { .. });
+                let _ = |value: &crate::swarm_orchestration::SwarmError| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::SwarmError::ProviderNotConfigured { .. }
+                    )
+                };
             }
             Self::SwarmErrorClassBreakerOpen => {
-                let _ = |value: &crate::swarm_orchestration::SwarmErrorClass| matches!(value, crate::swarm_orchestration::SwarmErrorClass::BreakerOpen);
+                let _ = |value: &crate::swarm_orchestration::SwarmErrorClass| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::SwarmErrorClass::BreakerOpen
+                    )
+                };
             }
             Self::SwarmEventBreakerTripped => {
-                let _ = |value: &crate::swarm_orchestration::SwarmEvent| matches!(value, crate::swarm_orchestration::SwarmEvent::BreakerTripped { .. });
+                let _ = |value: &crate::swarm_orchestration::SwarmEvent| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::SwarmEvent::BreakerTripped { .. }
+                    )
+                };
             }
             Self::SwarmEventSpawnRejected => {
-                let _ = |value: &crate::swarm_orchestration::SwarmEvent| matches!(value, crate::swarm_orchestration::SwarmEvent::SpawnRejected { .. });
+                let _ = |value: &crate::swarm_orchestration::SwarmEvent| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::SwarmEvent::SpawnRejected { .. }
+                    )
+                };
             }
             Self::SwarmFrEventIdSpawnRejected => {
-                let _ = |value: &crate::swarm_orchestration::SwarmFrEventId| matches!(value, crate::swarm_orchestration::SwarmFrEventId::SpawnRejected);
+                let _ = |value: &crate::swarm_orchestration::SwarmFrEventId| {
+                    matches!(
+                        value,
+                        crate::swarm_orchestration::SwarmFrEventId::SpawnRejected
+                    )
+                };
             }
             Self::SystemScopeAuthorityBootRecovery => {
-                let _ = crate::swarm_orchestration::resource_scope::SystemScopeAuthority::boot_recovery;
+                let _ =
+                    crate::swarm_orchestration::resource_scope::SystemScopeAuthority::boot_recovery;
             }
             Self::UpdateDecodeV1 => {
                 let _ = <yrs::Update as yrs::updates::decoder::Decode>::decode_v1;
@@ -1943,11 +2133,7 @@ fn is_rust_symbol_path(value: &str) -> bool {
     let Some(first) = segments.next() else {
         return false;
     };
-    if !first
-        .chars()
-        .next()
-        .is_some_and(|c| c.is_ascii_uppercase())
-    {
+    if !first.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
         return false;
     }
     if !is_ident_segment(first) {
@@ -2061,7 +2247,9 @@ fn flight_recorder_event_tokens(text: &str) -> Vec<FlightRecorderTokenClaim> {
         let start = cursor + offset;
         let mut end = start + PREFIX.len();
         while end < bytes.len()
-            && (bytes[end].is_ascii_uppercase() || bytes[end].is_ascii_digit() || bytes[end] == b'-')
+            && (bytes[end].is_ascii_uppercase()
+                || bytes[end].is_ascii_digit()
+                || bytes[end] == b'-')
         {
             end += 1;
         }
@@ -2148,7 +2336,11 @@ pub fn verify_manual_named_surface_existence(
     let mut symbol_segment_vocabulary: BTreeSet<&'static str> = BTreeSet::new();
     for literal in &symbol_vocabulary {
         for segment in literal.split("::") {
-            if segment.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+            if segment
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_uppercase())
+            {
                 symbol_segment_vocabulary.insert(segment);
             }
         }
@@ -2200,9 +2392,12 @@ pub fn verify_manual_named_surface_existence(
                             surface.method == route.method
                                 && route_path_matches(route.path, surface.route)
                         });
-                        let exempt = NON_REGISTRY_DOCUMENTED_ROUTES
-                            .iter()
-                            .any(|(method, path, _)| *method == route.method && *path == route.path);
+                        let exempt =
+                            NON_REGISTRY_DOCUMENTED_ROUTES
+                                .iter()
+                                .any(|(method, path, _)| {
+                                    *method == route.method && *path == route.path
+                                });
                         if !mounted && !exempt {
                             errors.push(BehaviorCoverageError {
                                 behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
@@ -2275,8 +2470,7 @@ pub fn verify_manual_named_surface_existence(
                         });
                         continue;
                     }
-                    let resolved =
-                        flight_recorder_token_resolves(&claim.token, &event_vocabulary);
+                    let resolved = flight_recorder_token_resolves(&claim.token, &event_vocabulary);
                     let planned = PLANNED_FLIGHT_RECORDER_EVENT_FAMILIES
                         .iter()
                         .any(|(family, _)| *family == claim.token);
@@ -2375,7 +2569,11 @@ pub fn manual_literal_claims(pages: &[NewUserManualPage]) -> Vec<ManualLiteralCl
     let mut symbol_segment_vocabulary: BTreeSet<&'static str> = BTreeSet::new();
     for literal in &symbol_vocabulary {
         for segment in literal.split("::") {
-            if segment.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+            if segment
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_uppercase())
+            {
                 symbol_segment_vocabulary.insert(segment);
             }
         }
@@ -3144,9 +3342,9 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_cloud_projection_plan",
             runtime_surface_id: "ModelLaneStore::record_cloud_projection_plan",
             user_manual_slug: "model-lane-cloud-projection-consent",
-            tool_id: "cloud_model_lane_policy_pg_tests",
+            tool_id: "cloud_model_lane_policy_surreal_tests",
             eventledger_flight_recorder_path:
-                "kernel_event_ledger:model_lane_cloud_projection_plan",
+                "model_lane_cloud_event_ledger:model_lane_cloud_projection_plan",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
@@ -3160,9 +3358,9 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_cloud_consent_receipt",
             runtime_surface_id: "ModelLaneStore::record_cloud_consent_receipt",
             user_manual_slug: "model-lane-cloud-projection-consent",
-            tool_id: "cloud_model_lane_policy_pg_tests",
+            tool_id: "cloud_model_lane_policy_surreal_tests",
             eventledger_flight_recorder_path:
-                "kernel_event_ledger:model_lane_cloud_consent_receipt",
+                "model_lane_cloud_event_ledger:model_lane_cloud_consent_receipt",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
@@ -3176,8 +3374,9 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_cloud_consent_denial",
             runtime_surface_id: "ModelLaneStore",
             user_manual_slug: "model-lane-cloud-projection-consent",
-            tool_id: "cloud_model_lane_policy_pg_tests",
-            eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_cloud_consent_denial",
+            tool_id: "cloud_model_lane_policy_surreal_tests",
+            eventledger_flight_recorder_path:
+                "model_lane_cloud_event_ledger:model_lane_cloud_consent_denial",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
@@ -3266,9 +3465,9 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_cloud_projection_plan",
             runtime_surface_id: "ModelLaneStore::record_cloud_projection_plan",
             user_manual_slug: "model-lane-cloud-projection-consent",
-            tool_id: "cloud_model_lane_policy_pg_tests",
+            tool_id: "cloud_model_lane_policy_surreal_tests",
             eventledger_flight_recorder_path:
-                "kernel_event_ledger:model_lane_cloud_projection_plan",
+                "model_lane_cloud_event_ledger:model_lane_cloud_projection_plan",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
@@ -3282,9 +3481,9 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_cloud_consent_receipt",
             runtime_surface_id: "ModelLaneStore::record_cloud_consent_receipt",
             user_manual_slug: "model-lane-cloud-projection-consent",
-            tool_id: "cloud_model_lane_policy_pg_tests",
+            tool_id: "cloud_model_lane_policy_surreal_tests",
             eventledger_flight_recorder_path:
-                "kernel_event_ledger:model_lane_cloud_consent_receipt",
+                "model_lane_cloud_event_ledger:model_lane_cloud_consent_receipt",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
@@ -3386,9 +3585,7 @@ pub fn model_lane_behavior_coverage_matrix(
         row.follow_up_ref = Some(match row.behavior_id {
             "wp1.model_lane.run" => "palmistry://wp1/model-lane/run",
             "wp1.model_lane.launch" => "palmistry://wp1/model-lane/launch",
-            "wp1.model_lane.official_cli_spawn" => {
-                "palmistry://wp1/model-lane/official-cli-spawn"
-            }
+            "wp1.model_lane.official_cli_spawn" => "palmistry://wp1/model-lane/official-cli-spawn",
             "wp1.model_lane.official_cli_attached_sandbox" => {
                 "palmistry://wp1/model-lane/official-cli-attached-sandbox"
             }
@@ -3398,15 +3595,11 @@ pub fn model_lane_behavior_coverage_matrix(
             "wp1.model_lane.context_bundle_artifact" => {
                 "palmistry://wp1/model-lane/context-bundle-artifact"
             }
-            "wp1.model_lane.context_bundle" => {
-                "palmistry://wp1/model-lane/context-bundle-handoff"
-            }
+            "wp1.model_lane.context_bundle" => "palmistry://wp1/model-lane/context-bundle-handoff",
             "wp1.model_lane.cloud_projection_plan" => {
                 "palmistry://wp1/model-lane/cloud-projection-plan"
             }
-            "wp1.model_lane.cloud_consent" => {
-                "palmistry://wp1/model-lane/cloud-consent-receipt"
-            }
+            "wp1.model_lane.cloud_consent" => "palmistry://wp1/model-lane/cloud-consent-receipt",
             "wp1.model_lane.cloud_consent_denial" => {
                 "palmistry://wp1/model-lane/cloud-consent-denial"
             }
@@ -3414,21 +3607,15 @@ pub fn model_lane_behavior_coverage_matrix(
             "wp1.model_lane.recovery_event" => "palmistry://wp1/model-lane/recovery-event",
             "wp1.model_lane.lease" => "palmistry://wp1/model-lane/lease",
             "wp1.model_lane.diagnostics" => "palmistry://wp1/model-lane/diagnostic-tier",
-            "wp1.model_lane.mixed_validation" => {
-                "palmistry://wp1/model-lane/mixed-validation"
-            }
+            "wp1.model_lane.mixed_validation" => "palmistry://wp1/model-lane/mixed-validation",
             "wp1.model_lane.cloud_projection_plan_v2" => {
                 "palmistry://wp1/model-lane/cloud-projection-plan-v2"
             }
             "wp1.model_lane.cloud_consent_v2" => {
                 "palmistry://wp1/model-lane/cloud-consent-receipt-v2"
             }
-            "wp1.model_lane.recovery_event_v2" => {
-                "palmistry://wp1/model-lane/recovery-event-v2"
-            }
-            "wp1.model_lane.routing_execution" => {
-                "palmistry://wp1/model-lane/routing-execution"
-            }
+            "wp1.model_lane.recovery_event_v2" => "palmistry://wp1/model-lane/recovery-event-v2",
+            "wp1.model_lane.routing_execution" => "palmistry://wp1/model-lane/routing-execution",
             "wp1.model_lane.routing_outbox" => "palmistry://wp1/model-lane/routing-outbox",
             "wp1.model_lane.routing_stage_attempt" => {
                 "palmistry://wp1/model-lane/routing-stage-attempt"
@@ -3706,16 +3893,12 @@ fn canonical_non_schema_behavior_registry() -> Vec<CanonicalBehaviorDescriptor> 
             }
             "wp1.llm.fail_closed_fr" => "palmistry://wp1/embedded-model/fail-closed-fr",
             "wp1.llm.embedding_fr" => "palmistry://wp1/embedded-model/embedding-fr",
-            "wp1.operator_chat.capture_message" => {
-                "palmistry://wp1/operator-chat/capture-message"
-            }
+            "wp1.operator_chat.capture_message" => "palmistry://wp1/operator-chat/capture-message",
             "wp1.operator_chat.agent_activity_fr" => {
                 "palmistry://wp1/operator-chat/agent-activity-fr"
             }
             _ => match descriptor.family {
-                CanonicalBehaviorFamily::EmbeddedModel => {
-                    "palmistry://wp1/embedded-model/observer"
-                }
+                CanonicalBehaviorFamily::EmbeddedModel => "palmistry://wp1/embedded-model/observer",
                 CanonicalBehaviorFamily::OperatorChat => "palmistry://wp1/operator-chat/observer",
                 CanonicalBehaviorFamily::DedicatedEmbedding => {
                     "palmistry://wp1/dedicated-embedding-model/observer"
@@ -4116,7 +4299,9 @@ pub async fn verify_model_lane_behavior_evidence(
         Err(error) => {
             return Err(vec![BehaviorCoverageError {
                 behavior_id: BEHAVIOR_ID,
-                reason: format!("run {run_id} has no valid three-tier diagnostic evidence: {error}"),
+                reason: format!(
+                    "run {run_id} has no valid three-tier diagnostic evidence: {error}"
+                ),
             }])
         }
     };
@@ -4367,7 +4552,8 @@ pub fn verify_user_manual_behavior_coverage_matrix(
         // vacuously, which is exactly the false green MT-011 forbids.
         errors.push(BehaviorCoverageError {
             behavior_id: MATRIX_ID,
-            reason: "coverage matrix is empty; a matrix that covers nothing is not proof".to_owned(),
+            reason: "coverage matrix is empty; a matrix that covers nothing is not proof"
+                .to_owned(),
         });
     }
 
@@ -4396,7 +4582,8 @@ pub fn verify_user_manual_behavior_coverage_matrix(
         if row.runtime_surface_id.trim().is_empty() {
             errors.push(BehaviorCoverageError {
                 behavior_id: row.behavior_id,
-                reason: "matrix row lacks an implemented command/API/IPC runtime surface".to_owned(),
+                reason: "matrix row lacks an implemented command/API/IPC runtime surface"
+                    .to_owned(),
             });
         }
         if row.user_manual_slug.trim().is_empty() {

@@ -5,10 +5,12 @@
 //! lanes. The stable wire/schema names remain `ModelLaneRun`, `ModelLane`, and
 //! `ModelLaneMessage`.
 
+use std::sync::atomic::{AtomicI64, Ordering as AtomicOrdering};
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, BTreeSet},
     ops::Deref,
+    sync::Arc,
 };
 
 use base64::Engine;
@@ -18,6 +20,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use sqlx::{PgPool, Postgres, Row, Transaction};
 use thiserror::Error;
+use tokio::sync::OnceCell;
 use uuid::Uuid;
 use yrs::{
     updates::{decoder::Decode, encoder::Encode},
@@ -41,6 +44,10 @@ use crate::kernel::{
 };
 use crate::model_runtime::ProviderKind;
 use crate::storage::postgres::append_kernel_event_with_executor;
+use crate::storage::surreal::{
+    bootstrap_cloud_model_lane_schema, CloudModelLaneRecordKind, CloudModelLaneScope,
+    CloudModelLaneStore, CloudModelLaneStoredRow, SurrealStorage, SurrealStorageError,
+};
 use crate::storage::{knowledge_crdt, StorageError};
 
 use super::error::SwarmError;
@@ -56,6 +63,7 @@ use super::resource_scope::{
 const SOURCE_COMPONENT: &str = "dexterity_model_lane";
 const MAX_CONTEXT_BUNDLE_LOOM_REFS: usize = 64;
 const MAX_CONTEXT_BUNDLE_MEMORY_PACK_REFS: usize = 16;
+static CLOUD_EVENT_SEQUENCE: AtomicI64 = AtomicI64::new(0);
 
 #[derive(Debug, Error)]
 pub enum ModelLaneError {
@@ -80,6 +88,8 @@ pub enum ModelLaneError {
     Storage(#[from] StorageError),
     #[error("model lane database error: {0}")]
     Sqlx(#[from] sqlx::Error),
+    #[error("model lane embedded SurrealDB error: {0}")]
+    Surreal(#[from] SurrealStorageError),
     #[error("model lane json error: {0}")]
     Json(#[from] serde_json::Error),
 }
@@ -88,13 +98,69 @@ pub type ModelLaneResult<T> = Result<T, ModelLaneError>;
 
 #[derive(Debug, Clone)]
 pub struct ModelLaneStore {
-    pool: PgPool,
+    pool: ModelLaneRelationalStore,
+    /// MT-006 cloud authority is owned exclusively by Handshake's embedded
+    /// SurrealDB. The PostgreSQL pool remains only for unrelated legacy lanes.
+    cloud_authority: Arc<OnceCell<CloudModelLaneStore>>,
     /// HBR-PRIV-001/002. Every write stamps this context onto the five scope
     /// columns migration 0363 added, and every enforced read filters on it — in
     /// SQL first, so a denied row never leaves PostgreSQL, and again in Rust
     /// after deserialization, because HBR-PRIV-002 says hiding a row in one
     /// layer is never sufficient.
     access: ResourceAccessContext,
+}
+
+#[derive(Clone)]
+enum ModelLaneRelationalStore {
+    Postgres(PgPool),
+    #[cfg(feature = "test-utils")]
+    DisabledForSurrealCloudProof,
+}
+
+impl std::fmt::Debug for ModelLaneRelationalStore {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Postgres(_) => formatter.write_str("Postgres(<pool>)"),
+            #[cfg(feature = "test-utils")]
+            Self::DisabledForSurrealCloudProof => {
+                formatter.write_str("DisabledForSurrealCloudProof")
+            }
+        }
+    }
+}
+
+impl ModelLaneRelationalStore {
+    fn postgres_pool_if_available(&self) -> Option<PgPool> {
+        match self {
+            Self::Postgres(pool) => Some(pool.clone()),
+            #[cfg(feature = "test-utils")]
+            Self::DisabledForSurrealCloudProof => None,
+        }
+    }
+
+    fn postgres_pool(&self) -> PgPool {
+        match self {
+            Self::Postgres(pool) => pool.clone(),
+            #[cfg(feature = "test-utils")]
+            Self::DisabledForSurrealCloudProof => {
+                panic!("MT-006 Surreal-only cloud proof attempted relational persistence")
+            }
+        }
+    }
+}
+
+impl Deref for ModelLaneRelationalStore {
+    type Target = PgPool;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Postgres(pool) => pool,
+            #[cfg(feature = "test-utils")]
+            Self::DisabledForSurrealCloudProof => {
+                panic!("MT-006 Surreal-only cloud proof attempted relational persistence")
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -148,7 +214,50 @@ impl ModelLaneStore {
     }
 
     pub fn new_with_access(pool: PgPool, access: ResourceAccessContext) -> Self {
-        Self { pool, access }
+        Self {
+            pool: ModelLaneRelationalStore::Postgres(pool),
+            cloud_authority: Arc::new(OnceCell::new()),
+            access,
+        }
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub async fn new_surreal_cloud_authority_only(
+        access: ResourceAccessContext,
+        storage: SurrealStorage,
+    ) -> ModelLaneResult<Self> {
+        bootstrap_cloud_model_lane_schema(&storage).await?;
+        let cloud_authority = Arc::new(OnceCell::new());
+        cloud_authority
+            .set(CloudModelLaneStore::new(storage))
+            .map_err(|_| {
+                ModelLaneError::IntegrityViolation("cloud authority initialized twice".into())
+            })?;
+        Ok(Self {
+            pool: ModelLaneRelationalStore::DisabledForSurrealCloudProof,
+            cloud_authority,
+            access,
+        })
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub fn new_unscoped_cloud_authority_without_storage() -> Self {
+        Self {
+            pool: ModelLaneRelationalStore::DisabledForSurrealCloudProof,
+            cloud_authority: Arc::new(OnceCell::new()),
+            access: ResourceAccessContext::system(SystemScopeAuthority::legacy_unscoped_call_site()),
+        }
+    }
+
+    async fn cloud_authority(&self) -> ModelLaneResult<&CloudModelLaneStore> {
+        self.cloud_authority
+            .get_or_try_init(|| async {
+                let storage = SurrealStorage::open_default().await?;
+                bootstrap_cloud_model_lane_schema(&storage).await?;
+                Ok::<_, SurrealStorageError>(CloudModelLaneStore::new(storage))
+            })
+            .await
+            .map_err(Into::into)
     }
 
     pub fn access(&self) -> &ResourceAccessContext {
@@ -179,7 +288,11 @@ impl ModelLaneStore {
     }
 
     pub(crate) fn postgres_pool(&self) -> PgPool {
-        self.pool.clone()
+        self.pool.postgres_pool()
+    }
+
+    pub(crate) fn postgres_pool_if_available(&self) -> Option<PgPool> {
+        self.pool.postgres_pool_if_available()
     }
 
     pub(crate) async fn record_session_cleanup_receipt(
@@ -233,7 +346,7 @@ impl ModelLaneStore {
         .bind(last_error)
         .bind(record_json)
         .bind(Utc::now().timestamp_millis())
-        .execute(&self.pool)
+        .execute(&*self.pool)
         .await?;
         Ok(())
     }
@@ -254,7 +367,7 @@ impl ModelLaneStore {
             ORDER BY updated_at_unix_ms ASC, instance_id ASC
             "#,
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&*self.pool)
         .await?;
         rows.into_iter()
             .map(|row| {
@@ -321,7 +434,7 @@ impl ModelLaneStore {
             "#,
         )
         .bind(process_uuid)
-        .fetch_optional(&self.pool)
+        .fetch_optional(&*self.pool)
         .await?;
         Ok(closed.unwrap_or(false))
     }
@@ -344,7 +457,7 @@ impl ModelLaneStore {
         .bind(instance_id)
         .bind(terminal_state)
         .bind(reason)
-        .fetch_optional(&self.pool)
+        .fetch_optional(&*self.pool)
         .await?;
         Ok(completed.unwrap_or(false))
     }
@@ -367,24 +480,9 @@ impl ModelLaneStore {
         validate_prepared_launch_pair(&records.0, &records.1)?;
         let cloud_check = is_cloud_lane(&records.1)
             .then(|| cloud_launch_check_from_records(&records.0, &records.1));
-        if cloud_check.is_some() {
-            require_exact_cloud_launch_scope(&self.access)?;
-        }
-        let mut tx = self.pool.begin().await?;
         if let Some(check) = cloud_check {
-            let consent_receipt_id = require_optional_token(
-                "consent_receipt_ref",
-                check.consent_receipt_ref.as_deref(),
-            )?;
-            lock_idempotency_key_tx(
-                &mut tx,
-                &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
-            )
-            .await?;
-            if let Err(error) =
-                ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await
-            {
-                tx.rollback().await?;
+            require_exact_cloud_launch_scope(&self.access)?;
+            if let Err(error) = self.ensure_cloud_launch_authority_surreal(&check).await {
                 return self
                     .deny_cloud_launch(
                         check,
@@ -392,7 +490,11 @@ impl ModelLaneStore {
                     )
                     .await;
             }
+            let stored_run = self.record_cloud_run_surreal(records.0).await?;
+            let stored_lane = self.record_cloud_lane_surreal(records.1).await?;
+            return Ok((stored_run, stored_lane));
         }
+        let mut tx = self.pool.begin().await?;
         let stored_run =
             record_or_extend_run_tx(&mut tx, records.0, &records.1, &self.access).await?;
         let stored_lane = record_lane_tx(&mut tx, records.1, self.scope_columns()).await?;
@@ -412,21 +514,14 @@ impl ModelLaneStore {
         validate_prepared_launch_pair(&records.0, &records.1)?;
         require_exact_cloud_launch_scope(&self.access)?;
         let check = cloud_launch_check_from_records(&records.0, &records.1);
-        let consent_receipt_id =
-            require_optional_token("consent_receipt_ref", check.consent_receipt_ref.as_deref())?;
-        let mut tx = self.pool.begin().await?;
-        lock_idempotency_key_tx(
-            &mut tx,
-            &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
-        )
-        .await?;
-        ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await?;
+        self.ensure_cloud_launch_authority_surreal(&check).await?;
         entered.notify_one();
         release.notified().await;
-        let stored_run =
-            record_or_extend_run_tx(&mut tx, records.0, &records.1, &self.access).await?;
-        let stored_lane = record_lane_tx(&mut tx, records.1, self.scope_columns()).await?;
-        tx.commit().await?;
+        // Recheck after the pause: a concurrent revocation that won during the
+        // test fence must prevent the cloud lane write.
+        self.ensure_cloud_launch_authority_surreal(&check).await?;
+        let stored_run = self.record_cloud_run_surreal(records.0).await?;
+        let stored_lane = self.record_cloud_lane_surreal(records.1).await?;
         Ok((stored_run, stored_lane))
     }
 
@@ -448,24 +543,9 @@ impl ModelLaneStore {
     pub async fn record_lane(&self, input: NewModelLane) -> ModelLaneResult<ModelLaneRecord> {
         validate_lane(&input)?;
         let cloud_check = is_cloud_lane(&input).then(|| cloud_launch_check_from_lane(&input));
-        if cloud_check.is_some() {
-            require_exact_cloud_launch_scope(&self.access)?;
-        }
-        let mut tx = self.pool.begin().await?;
         if let Some(check) = cloud_check {
-            let consent_receipt_id = require_optional_token(
-                "consent_receipt_ref",
-                check.consent_receipt_ref.as_deref(),
-            )?;
-            lock_idempotency_key_tx(
-                &mut tx,
-                &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
-            )
-            .await?;
-            if let Err(error) =
-                ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await
-            {
-                tx.rollback().await?;
+            require_exact_cloud_launch_scope(&self.access)?;
+            if let Err(error) = self.ensure_cloud_launch_authority_surreal(&check).await {
                 return self
                     .deny_cloud_launch(
                         check,
@@ -473,7 +553,9 @@ impl ModelLaneStore {
                     )
                     .await;
             }
+            return self.record_cloud_lane_surreal(input).await;
         }
+        let mut tx = self.pool.begin().await?;
         let stored = record_lane_tx(&mut tx, input, self.scope_columns()).await?;
         tx.commit().await?;
         Ok(stored)
@@ -833,439 +915,23 @@ impl ModelLaneStore {
 
     pub async fn record_cloud_projection_plan(
         &self,
-        mut input: NewModelLaneCloudProjectionPlan,
+        input: NewModelLaneCloudProjectionPlan,
     ) -> ModelLaneResult<ModelLaneCloudProjectionPlanRecord> {
-        canonicalize_cloud_consent_targets(&mut input.target_bindings);
-        validate_cloud_projection_plan(&input)?;
-        ensure_authority_matches_write_scope(
-            "ProjectionPlan.export_delegation.source_scope",
-            &input.export_delegation.source_scope,
-            &self.access,
-        )?;
-        let target_bindings_hash =
-            cloud_consent_target_bindings_hash(input.consent_scope, &input.target_bindings)?;
-        let projection_plan_hash = cloud_projection_plan_hash(&input)?;
-        let prepared = ModelLaneCloudProjectionPlanRecord {
-            inner: input,
-            target_bindings_hash,
-            projection_plan_hash,
-            event_ledger_event_id: String::new(),
-            event_ledger_seq: 0,
-            event_stream_version: 0,
-            transaction_seq: 0,
-        };
-        let mut tx = self.pool.begin().await?;
-        lock_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?;
-
-        if let Some(existing) =
-            cloud_projection_plan_by_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?
-        {
-            if existing.projection_plan_hash == prepared.projection_plan_hash {
-                tx.commit().await?;
-                return Ok(existing);
-            }
-            tx.rollback().await?;
-            return Err(ModelLaneError::IdempotencyConflict(format!(
-                "idempotency_key {} already belongs to projection_plan_hash {}",
-                prepared.idempotency_key, existing.projection_plan_hash
-            )));
-        }
-
-        let event = model_lane_event(
-            KernelEventType::ArtifactStored,
-            "model_lane_cloud_projection_plan",
-            &prepared.projection_plan_id,
-            &prepared.idempotency_key,
-            &prepared.work_packet_id,
-            &prepared.event_ledger_stream_id,
-            cloud_projection_plan_event_payload(&prepared),
-        )?;
-        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
-        let sequence = stored_event.event_sequence;
-        let record = ModelLaneCloudProjectionPlanRecord {
-            event_ledger_event_id: stored_event.event_id.clone(),
-            event_ledger_seq: sequence,
-            event_stream_version: sequence,
-            transaction_seq: sequence,
-            ..prepared
-        };
-        stamp_kernel_event_payload_tx(
-            &mut tx,
-            &record.event_ledger_event_id,
-            cloud_projection_plan_event_payload(&record),
-        )
-        .await?;
-
-        // HBR-PRIV-001: a cloud ProjectionPlan is a durable product resource and
-        // must carry its owning account before it is discoverable. Migration 0363
-        // added the five scope columns to this table; stamping them here is what
-        // makes `sql_predicate`/`authorize_row` able to keep one account's export
-        // plan away from another account.
-        let projection_insert_sql = format!(
-            r#"
-            INSERT INTO model_lane_cloud_projection_plans (
-                projection_plan_id, run_id, trace_id, lane_id,
-                model_session_id, provider_kind, requested_model_id,
-                scope_hash, source_artifact_refs, payload_artifact_ref,
-                payload_sha256, redaction_policy_ref, redaction_summary,
-                retention_policy, export_posture, provider_profile_ref,
-                fan_out_targets, consent_scope, target_bindings,
-                target_bindings_hash, status,
-                event_ledger_stream_id, work_packet_id, micro_task_id,
-                task_board_id, owner_session, idempotency_key,
-                created_at_utc, user_manual_behavior_ref, diagnostic_payload,
-                projection_plan_hash, event_ledger_event_id, event_ledger_seq,
-                event_stream_version, transaction_seq, record_json,
-                {RESOURCE_SCOPE_INSERT_COLUMNS}
-            )
-            VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-                $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-                $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41
-            )
-            ON CONFLICT (idempotency_key) DO NOTHING
-            RETURNING record_json
-            "#
-        );
-        let inserted = self
-            .scope_columns()
-            .bind(
-                sqlx::query(&projection_insert_sql)
-                    .bind(&record.projection_plan_id)
-                    .bind(&record.run_id)
-                    .bind(&record.trace_id)
-                    .bind(record.lane_id.as_deref())
-                    .bind(record.model_session_id.as_deref())
-                    .bind(record.provider_kind.as_deref())
-                    .bind(record.requested_model_id.as_deref())
-                    .bind(&record.scope_hash)
-                    .bind(serde_json::to_value(&record.source_artifact_refs)?)
-                    .bind(&record.payload_artifact_ref)
-                    .bind(&record.payload_sha256)
-                    .bind(&record.redaction_policy_ref)
-                    .bind(&record.redaction_summary)
-                    .bind(record.retention_policy.as_str())
-                    .bind(record.export_posture.as_str())
-                    .bind(&record.provider_profile_ref)
-                    .bind(serde_json::to_value(&record.fan_out_targets)?)
-                    .bind(record.consent_scope.as_str())
-                    .bind(serde_json::to_value(&record.target_bindings)?)
-                    .bind(record.target_bindings_hash.as_deref())
-                    .bind(record.status.as_str())
-                    .bind(&record.event_ledger_stream_id)
-                    .bind(&record.work_packet_id)
-                    .bind(&record.micro_task_id)
-                    .bind(&record.task_board_id)
-                    .bind(&record.owner_session)
-                    .bind(&record.idempotency_key)
-                    .bind(&record.created_at_utc)
-                    .bind(&record.user_manual_behavior_ref)
-                    .bind(&record.diagnostic_payload)
-                    .bind(&record.projection_plan_hash)
-                    .bind(&record.event_ledger_event_id)
-                    .bind(record.event_ledger_seq)
-                    .bind(record.event_stream_version)
-                    .bind(record.transaction_seq)
-                    .bind(serde_json::to_value(&record)?),
-            )
-            .fetch_optional(&mut *tx)
-            .await?;
-
-        let stored = if let Some(row) = inserted {
-            serde_json::from_value(row_to_json(row, "record_json")?)?
-        } else {
-            let existing =
-                cloud_projection_plan_by_idempotency_key_tx(&mut tx, &record.idempotency_key)
-                    .await?;
-            let existing = existing.ok_or_else(|| {
-                ModelLaneError::NotFound(format!(
-                    "idempotency_key {} after cloud projection insert conflict",
-                    record.idempotency_key
-                ))
-            })?;
-            if existing.projection_plan_hash == record.projection_plan_hash {
-                existing
-            } else {
-                tx.rollback().await?;
-                return Err(ModelLaneError::IdempotencyConflict(format!(
-                    "idempotency_key {} already belongs to projection_plan_hash {}",
-                    record.idempotency_key, existing.projection_plan_hash
-                )));
-            }
-        };
-
-        tx.commit().await?;
-        Ok(stored)
+        self.record_cloud_projection_plan_surreal(input).await
     }
 
     pub async fn record_cloud_consent_receipt(
         &self,
-        mut input: NewModelLaneCloudConsentReceipt,
+        input: NewModelLaneCloudConsentReceipt,
     ) -> ModelLaneResult<ModelLaneCloudConsentReceiptRecord> {
-        canonicalize_cloud_consent_targets(&mut input.target_bindings);
-        validate_cloud_consent_receipt(&input)?;
-        ensure_authority_matches_write_scope(
-            "ConsentReceipt.approver",
-            &input.approver,
-            &self.access,
-        )?;
-        let target_bindings_hash =
-            cloud_consent_target_bindings_hash(input.consent_scope, &input.target_bindings)?;
-        let consent_receipt_hash = cloud_consent_receipt_hash(&input)?;
-        let prepared = ModelLaneCloudConsentReceiptRecord {
-            inner: input,
-            target_bindings_hash,
-            consent_receipt_hash,
-            event_ledger_event_id: String::new(),
-            event_ledger_seq: 0,
-            event_stream_version: 0,
-            transaction_seq: 0,
-        };
-        let mut tx = self.pool.begin().await?;
-        lock_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?;
-
-        let projection =
-            cloud_projection_plan_by_id_tx(&mut tx, &self.access, &prepared.projection_plan_id)
-                .await?
-                .ok_or_else(|| {
-                    ModelLaneError::AuthorityDenied(format!(
-                        "CX-MM-007 ProjectionPlan {} is not durable",
-                        prepared.projection_plan_id
-                    ))
-                })?;
-        validate_cloud_projection_authority_tx(&mut tx, &projection).await?;
-        // Consent receipts are durable evidence, including evidence that does
-        // not authorize the referenced projection. Pair coherence is therefore
-        // enforced by replay and every launch/revocation gate, not by evidence
-        // ingestion; otherwise a denied launch loses the mismatched receipt
-        // that explains the CX-MM-007 decision.
-
-        if let Some(existing) =
-            cloud_consent_receipt_by_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?
-        {
-            if existing.consent_receipt_hash == prepared.consent_receipt_hash {
-                tx.commit().await?;
-                return Ok(existing);
-            }
-            tx.rollback().await?;
-            return Err(ModelLaneError::IdempotencyConflict(format!(
-                "idempotency_key {} already belongs to consent_receipt_hash {}",
-                prepared.idempotency_key, existing.consent_receipt_hash
-            )));
-        }
-
-        let event = model_lane_event(
-            KernelEventType::ArtifactStored,
-            "model_lane_cloud_consent_receipt",
-            &prepared.consent_receipt_id,
-            &prepared.idempotency_key,
-            &prepared.work_packet_id,
-            &prepared.event_ledger_stream_id,
-            cloud_consent_receipt_event_payload(&prepared),
-        )?;
-        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
-        let sequence = stored_event.event_sequence;
-        let record = ModelLaneCloudConsentReceiptRecord {
-            event_ledger_event_id: stored_event.event_id.clone(),
-            event_ledger_seq: sequence,
-            event_stream_version: sequence,
-            transaction_seq: sequence,
-            ..prepared
-        };
-        stamp_kernel_event_payload_tx(
-            &mut tx,
-            &record.event_ledger_event_id,
-            cloud_consent_receipt_event_payload(&record),
-        )
-        .await?;
-
-        // HBR-PRIV-001/005: same stamping as the ProjectionPlan above. A consent
-        // receipt is the authorization artifact for a third-party export, so an
-        // unowned one is exactly the row that must not be readable or reusable.
-        let consent_insert_sql = format!(
-            r#"
-            INSERT INTO model_lane_cloud_consent_receipts (
-                consent_receipt_id, projection_plan_id, projection_plan_hash,
-                run_id, trace_id, lane_id, model_session_id, provider_kind,
-                requested_model_id, scope_hash, consent_scope, target_bindings,
-                target_bindings_hash, retention_policy,
-                export_posture, fan_out_targets, approved, approved_by_ref,
-                approved_at_utc, valid_from_utc, valid_until_utc,
-                revoked_at_utc, revocation_ref, revocation_input_hash, status, event_ledger_stream_id,
-                work_packet_id, micro_task_id, task_board_id, owner_session,
-                idempotency_key, created_at_utc, user_manual_behavior_ref,
-                diagnostic_payload, consent_receipt_hash, event_ledger_event_id,
-                event_ledger_seq, event_stream_version, transaction_seq,
-                record_json,
-                {RESOURCE_SCOPE_INSERT_COLUMNS}
-            )
-            VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-                $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-                $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45
-            )
-            ON CONFLICT (idempotency_key) DO NOTHING
-            RETURNING record_json
-            "#
-        );
-        let inserted = self
-            .scope_columns()
-            .bind(
-                sqlx::query(&consent_insert_sql)
-                    .bind(&record.consent_receipt_id)
-                    .bind(&record.projection_plan_id)
-                    .bind(&record.projection_plan_hash)
-                    .bind(&record.run_id)
-                    .bind(&record.trace_id)
-                    .bind(record.lane_id.as_deref())
-                    .bind(record.model_session_id.as_deref())
-                    .bind(record.provider_kind.as_deref())
-                    .bind(record.requested_model_id.as_deref())
-                    .bind(&record.scope_hash)
-                    .bind(record.consent_scope.as_str())
-                    .bind(serde_json::to_value(&record.target_bindings)?)
-                    .bind(record.target_bindings_hash.as_deref())
-                    .bind(record.retention_policy.as_str())
-                    .bind(record.export_posture.as_str())
-                    .bind(serde_json::to_value(&record.fan_out_targets)?)
-                    .bind(record.approved)
-                    .bind(&record.approved_by_ref)
-                    .bind(&record.approved_at_utc)
-                    .bind(&record.valid_from_utc)
-                    .bind(&record.valid_until_utc)
-                    .bind(record.revoked_at_utc.as_deref())
-                    .bind(record.revocation_ref.as_deref())
-                    .bind(record.revocation_input_hash.as_deref())
-                    .bind(record.status.as_str())
-                    .bind(&record.event_ledger_stream_id)
-                    .bind(&record.work_packet_id)
-                    .bind(&record.micro_task_id)
-                    .bind(&record.task_board_id)
-                    .bind(&record.owner_session)
-                    .bind(&record.idempotency_key)
-                    .bind(&record.created_at_utc)
-                    .bind(&record.user_manual_behavior_ref)
-                    .bind(&record.diagnostic_payload)
-                    .bind(&record.consent_receipt_hash)
-                    .bind(&record.event_ledger_event_id)
-                    .bind(record.event_ledger_seq)
-                    .bind(record.event_stream_version)
-                    .bind(record.transaction_seq)
-                    .bind(serde_json::to_value(&record)?),
-            )
-            .fetch_optional(&mut *tx)
-            .await?;
-
-        let stored = if let Some(row) = inserted {
-            serde_json::from_value(row_to_json(row, "record_json")?)?
-        } else {
-            let existing =
-                cloud_consent_receipt_by_idempotency_key_tx(&mut tx, &record.idempotency_key)
-                    .await?;
-            let existing = existing.ok_or_else(|| {
-                ModelLaneError::NotFound(format!(
-                    "idempotency_key {} after cloud consent insert conflict",
-                    record.idempotency_key
-                ))
-            })?;
-            if existing.consent_receipt_hash == record.consent_receipt_hash {
-                existing
-            } else {
-                tx.rollback().await?;
-                return Err(ModelLaneError::IdempotencyConflict(format!(
-                    "idempotency_key {} already belongs to consent_receipt_hash {}",
-                    record.idempotency_key, existing.consent_receipt_hash
-                )));
-            }
-        };
-
-        tx.commit().await?;
-        Ok(stored)
+        self.record_cloud_consent_receipt_surreal(input).await
     }
 
     pub async fn replay_cloud_consent_authority(
         &self,
         run_id: &str,
     ) -> ModelLaneResult<ModelLaneCloudConsentAuthorityReplay> {
-        require_token("run_id", run_id)?;
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
-            .execute(&mut *tx)
-            .await?;
-        // HBR-PRIV-002: the cloud authority replay is a read boundary like any
-        // other. Before this it enumerated every plan/receipt for a run id
-        // regardless of who owned it, which made "replay the cloud consent
-        // authority" a disclosure route for another account's export policy,
-        // audience list and redaction summary.
-        let projection_predicate = self.access.sql_predicate(2);
-        let projection_sql = format!(
-            r#"
-            SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS}
-            FROM model_lane_cloud_projection_plans
-            WHERE run_id = $1{}
-            ORDER BY event_ledger_seq ASC
-            "#,
-            projection_predicate.clause()
-        );
-        let projection_plans = projection_predicate
-            .bind(sqlx::query(&projection_sql).bind(run_id))
-            .fetch_all(&mut *tx)
-            .await?
-            .into_iter()
-            .map(|row| authorize_and_decode_row(&self.access, row))
-            .collect::<ModelLaneResult<Vec<ModelLaneCloudProjectionPlanRecord>>>()?;
-
-        let consent_predicate = self.access.sql_predicate(2);
-        let consent_sql = format!(
-            r#"
-            SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS}
-            FROM model_lane_cloud_consent_receipts
-            WHERE run_id = $1{}
-            ORDER BY event_ledger_seq ASC
-            "#,
-            consent_predicate.clause()
-        );
-        let consent_receipts = consent_predicate
-            .bind(sqlx::query(&consent_sql).bind(run_id))
-            .fetch_all(&mut *tx)
-            .await?
-            .into_iter()
-            .map(|row| authorize_and_decode_row(&self.access, row))
-            .collect::<ModelLaneResult<Vec<ModelLaneCloudConsentReceiptRecord>>>()?;
-
-        for plan in &projection_plans {
-            validate_cloud_projection_authority_tx(&mut tx, plan)
-                .await
-                .map_err(|error| {
-                    ModelLaneError::AuthorityDenied(format!(
-                        "CX-MM-007 replay ProjectionPlan authority validation failed: {error}"
-                    ))
-                })?;
-        }
-        for receipt in &consent_receipts {
-            validate_cloud_consent_authority_tx(&mut tx, receipt)
-                .await
-                .map_err(|error| {
-                    ModelLaneError::AuthorityDenied(format!(
-                        "CX-MM-007 replay ConsentReceipt authority validation failed: {error}"
-                    ))
-                })?;
-            let plan = projection_plans
-                .iter()
-                .find(|plan| plan.projection_plan_id == receipt.projection_plan_id)
-                .ok_or_else(|| {
-                    ModelLaneError::AuthorityDenied(format!(
-                        "CX-MM-007 consent receipt {} references projection plan {} outside the replay snapshot",
-                        receipt.consent_receipt_id, receipt.projection_plan_id
-                    ))
-                })?;
-            validate_cloud_authority_pair(plan, receipt)?;
-        }
-        tx.commit().await?;
-        Ok(ModelLaneCloudConsentAuthorityReplay {
-            projection_plans,
-            consent_receipts,
-        })
+        self.replay_cloud_consent_authority_surreal(run_id).await
     }
 
     pub async fn preflight_cloud_spawn_request(
@@ -1327,285 +993,8 @@ impl ModelLaneStore {
         revoked_by_ref: &str,
         reason: &str,
     ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
-        require_token("consent_receipt_id", consent_receipt_id)?;
-        require_token("revoked_by_ref", revoked_by_ref)?;
-        require_token("reason", reason)?;
-        let revocation_input_hash =
-            cloud_consent_revocation_input_hash(consent_receipt_id, revoked_by_ref, reason);
-        let exact_scope = require_exact_lifecycle_write_scope(self)?;
-        let mut tx = self.pool.begin().await?;
-        lock_idempotency_key_tx(
-            &mut tx,
-            &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
-        )
-        .await?;
-        let existing = cloud_consent_receipt_by_id_tx(&mut tx, &self.access, consent_receipt_id)
-            .await?
-            .ok_or_else(|| {
-                ModelLaneError::NotFound(format!("consent_receipt_id {consent_receipt_id}"))
-            })?;
-        validate_cloud_consent_authority_tx(&mut tx, &existing).await?;
-        let projection =
-            cloud_projection_plan_by_id_tx(&mut tx, &self.access, &existing.projection_plan_id)
-                .await?
-                .ok_or_else(|| {
-                    ModelLaneError::AuthorityDenied(format!(
-                        "CX-MM-007 ProjectionPlan {} is missing during revocation",
-                        existing.projection_plan_id
-                    ))
-                })?;
-        validate_cloud_projection_authority_tx(&mut tx, &projection).await?;
-        validate_cloud_authority_pair(&projection, &existing)?;
-        let identical_retry = existing.status == ModelLaneCloudConsentReceiptStatus::Revoked;
-        if identical_retry
-            && existing.revocation_input_hash.as_deref() != Some(revocation_input_hash.as_str())
-        {
-            tx.rollback().await?;
-            return Err(ModelLaneError::IdempotencyConflict(format!(
-                "consent_receipt_id {consent_receipt_id} was already revoked with a different actor or reason"
-            )));
-        }
-
-        let mut covered_lanes = Vec::new();
-        if existing.consent_scope == ModelLaneCloudConsentScope::SingleLane {
-            let target_lane_id = existing.lane_id.as_deref().ok_or_else(|| {
-                ModelLaneError::AuthorityDenied(
-                    "CX-MM-007 single-lane consent is missing lane_id".into(),
-                )
-            })?;
-            if let Some((lane, _)) =
-                lane_by_access_tx(&mut tx, &self.access, target_lane_id).await?
-            {
-                let core_matches = lane.run_id == existing.run_id
-                    && lane.lane_id == target_lane_id
-                    && lane.model_session_id
-                        == existing.model_session_id.clone().unwrap_or_default()
-                    && Some(lane.provider_kind.as_str()) == existing.provider_kind.as_deref()
-                    && lane.model_id.as_deref() == existing.requested_model_id.as_deref()
-                    && lane.consent_receipt_ref.as_deref() == Some(consent_receipt_id)
-                    && lane.projection_plan_ref.as_deref()
-                        == Some(existing.projection_plan_id.as_str());
-                if !core_matches {
-                    return Err(ModelLaneError::AuthorityDenied(format!(
-                        "CX-MM-007 extant lane {} differs from single-lane consent {}",
-                        lane.lane_id, consent_receipt_id
-                    )));
-                }
-                covered_lanes.push(lane);
-            } else {
-                if let Some(lane) = current_lane_for_cloud_consent_tx(
-                    &mut tx,
-                    &existing.run_id,
-                    target_lane_id,
-                    consent_receipt_id,
-                    &exact_scope,
-                )
-                .await?
-                {
-                    validate_model_lane_authority_tx(&mut tx, &lane).await?;
-                    let core_matches = lane.run_id == existing.run_id
-                        && lane.lane_id == target_lane_id
-                        && lane.model_session_id
-                            == existing.model_session_id.clone().unwrap_or_default()
-                        && Some(lane.provider_kind.as_str()) == existing.provider_kind.as_deref()
-                        && lane.model_id.as_deref() == existing.requested_model_id.as_deref()
-                        && lane.consent_receipt_ref.as_deref() == Some(consent_receipt_id)
-                        && lane.projection_plan_ref.as_deref()
-                            == Some(existing.projection_plan_id.as_str());
-                    if !core_matches {
-                        return Err(ModelLaneError::AuthorityDenied(format!(
-                            "CX-MM-007 canonical lane {} differs from single-lane consent {}",
-                            lane.lane_id, consent_receipt_id
-                        )));
-                    }
-                    covered_lanes.push(lane);
-                }
-            }
-        } else {
-            let canonical_lane_ids: Vec<String> = sqlx::query_scalar(
-                r#"
-                SELECT DISTINCT aggregate_id
-                FROM kernel_event_ledger
-                WHERE aggregate_type IN ('model_lane', 'model_lane_terminal')
-                  AND payload->'record'->>'run_id' = $1
-                  AND payload->'record'->>'consent_receipt_ref' = $2
-                  AND payload->>'owner_account_id' = $3
-                  AND payload->>'actor_principal_id' = $4
-                  AND payload->>'authenticated_session_id' = $5
-                  AND payload->>'access_space_id' = $6
-                  AND payload->>'workspace_id' = $7
-                ORDER BY aggregate_id
-                "#,
-            )
-            .bind(&existing.run_id)
-            .bind(consent_receipt_id)
-            .bind(exact_scope.owner_account_id.to_string())
-            .bind(exact_scope.actor_principal_id.to_string())
-            .bind(exact_scope.authenticated_session_id.to_string())
-            .bind(exact_scope.access_space_id.to_string())
-            .bind(exact_scope.workspace_id.as_str())
-            .fetch_all(&mut *tx)
-            .await?;
-            let predicate = self.access.sql_predicate(3);
-            let rows_sql = format!(
-                "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lanes \
-                 WHERE run_id = $1 AND record_json->>'consent_receipt_ref' = $2{} \
-                 ORDER BY lane_id FOR UPDATE",
-                predicate.clause()
-            );
-            let rows = predicate
-                .bind(
-                    sqlx::query(&rows_sql)
-                        .bind(&existing.run_id)
-                        .bind(consent_receipt_id),
-                )
-                .fetch_all(&mut *tx)
-                .await?;
-            for row in rows {
-                let lane: ModelLaneRecord = authorize_and_decode_row(&self.access, row)?;
-                validate_model_lane_authority_tx(&mut tx, &lane).await?;
-                if lane.run_id != existing.run_id
-                    || lane.consent_receipt_ref.as_deref() != Some(consent_receipt_id)
-                    || lane.projection_plan_ref.as_deref()
-                        != Some(existing.projection_plan_id.as_str())
-                {
-                    return Err(ModelLaneError::AuthorityDenied(format!(
-                        "CX-MM-007 run-scoped lane {} differs from consent {}",
-                        lane.lane_id, consent_receipt_id
-                    )));
-                }
-                covered_lanes.push(lane);
-            }
-            let mutable_lane_ids = covered_lanes
-                .iter()
-                .map(|lane| lane.lane_id.clone())
-                .collect::<std::collections::BTreeSet<_>>();
-            let missing_lane_ids = canonical_lane_ids
-                .iter()
-                .filter(|lane_id| !mutable_lane_ids.contains(*lane_id))
-                .cloned()
-                .collect::<Vec<_>>();
-            for missing in missing_lane_ids {
-                let lane = current_lane_for_cloud_consent_tx(
-                    &mut tx,
-                    &existing.run_id,
-                    &missing,
-                    consent_receipt_id,
-                    &exact_scope,
-                )
-                .await?
-                .ok_or_else(|| {
-                    ModelLaneError::AuthorityDenied(format!(
-                        "CX-MM-007 run-scoped lane {missing} has inconsistent canonical EventLedger authority"
-                    ))
-                })?;
-                validate_model_lane_authority_tx(&mut tx, &lane).await?;
-                if lane.projection_plan_ref.as_deref() != Some(existing.projection_plan_id.as_str())
-                {
-                    return Err(ModelLaneError::AuthorityDenied(format!(
-                        "CX-MM-007 run-scoped lane {missing} differs from consent {consent_receipt_id}"
-                    )));
-                }
-                covered_lanes.push(lane);
-            }
-        }
-
-        if identical_retry {
-            tx.commit().await?;
-            return Ok(covered_lanes);
-        }
-
-        let mut receipt_inner = existing.inner.clone();
-        receipt_inner.status = ModelLaneCloudConsentReceiptStatus::Revoked;
-        // A revoked receipt must not keep claiming `approved: true`. Leaving the
-        // flag set produced a durable authorization record that simultaneously
-        // said "approved" and "revoked" — the same class of dishonest record as
-        // the self-minted approver this MT removes. The launch gate already
-        // fails closed either way; this makes the stored row agree with it.
-        receipt_inner.approved = false;
-        receipt_inner.revoked_at_utc = Some(Utc::now().to_rfc3339());
-        receipt_inner.revocation_ref = Some(revoked_by_ref.to_string());
-        receipt_inner.revocation_input_hash = Some(revocation_input_hash.clone());
-        receipt_inner.diagnostic_payload = merge_diagnostic_payload(
-            receipt_inner.diagnostic_payload,
-            json!({
-                "consent_status": "CX-MM-007",
-                "revocation_reason": reason,
-                "revoked_by_ref": revoked_by_ref
-            }),
-        );
-        let consent_receipt_hash = cloud_consent_receipt_hash(&receipt_inner)?;
-        let revocation_event = model_lane_event(
-            KernelEventType::ValidationRecorded,
-            "model_lane_cloud_consent_receipt",
-            consent_receipt_id,
-            &format!("model-lane-cloud-consent-revoked:{consent_receipt_id}"),
-            &receipt_inner.work_packet_id,
-            &receipt_inner.event_ledger_stream_id,
-            json!({
-                "schema_id": "hsk.model_lane_cloud_consent_receipt@2",
-                "dexterity_kernel": "Dexterity",
-                "reason_code": "CX-MM-007",
-                "consent_status": "CX-MM-007",
-                "revoked_by_ref": revoked_by_ref,
-                "reason": reason,
-                "record": &receipt_inner,
-            }),
-        )?;
-        let stored_revocation_event =
-            append_kernel_event_with_executor(&mut *tx, revocation_event).await?;
-        let revoked_receipt = ModelLaneCloudConsentReceiptRecord {
-            inner: receipt_inner,
-            consent_receipt_hash,
-            target_bindings_hash: existing.target_bindings_hash.clone(),
-            event_ledger_event_id: stored_revocation_event.event_id.clone(),
-            event_ledger_seq: stored_revocation_event.event_sequence,
-            event_stream_version: stored_revocation_event.event_sequence,
-            transaction_seq: stored_revocation_event.event_sequence,
-        };
-        stamp_kernel_event_payload_tx(
-            &mut tx,
-            &revoked_receipt.event_ledger_event_id,
-            cloud_consent_receipt_event_payload(&revoked_receipt),
-        )
-        .await?;
-        sqlx::query(
-            r#"
-            UPDATE model_lane_cloud_consent_receipts
-            SET approved = $2,
-                revoked_at_utc = $3,
-                revocation_ref = $4,
-                revocation_input_hash = $5,
-                status = $6,
-                diagnostic_payload = $7,
-                consent_receipt_hash = $8,
-                event_ledger_event_id = $9,
-                event_ledger_seq = $10,
-                event_stream_version = $11,
-                transaction_seq = $12,
-                record_json = $13,
-                updated_at = NOW()
-            WHERE consent_receipt_id = $1
-            "#,
-        )
-        .bind(consent_receipt_id)
-        .bind(revoked_receipt.approved)
-        .bind(revoked_receipt.revoked_at_utc.as_deref())
-        .bind(revoked_receipt.revocation_ref.as_deref())
-        .bind(revoked_receipt.revocation_input_hash.as_deref())
-        .bind(revoked_receipt.status.as_str())
-        .bind(&revoked_receipt.diagnostic_payload)
-        .bind(&revoked_receipt.consent_receipt_hash)
-        .bind(&revoked_receipt.event_ledger_event_id)
-        .bind(revoked_receipt.event_ledger_seq)
-        .bind(revoked_receipt.event_stream_version)
-        .bind(revoked_receipt.transaction_seq)
-        .bind(serde_json::to_value(&revoked_receipt)?)
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-        Ok(covered_lanes)
+        self.fence_cloud_consent_revocation_surreal(consent_receipt_id, revoked_by_ref, reason)
+            .await
     }
 
     pub(crate) async fn finalize_cloud_consent_revocation(
@@ -1615,221 +1004,13 @@ impl ModelLaneStore {
         reason: &str,
         provider_cancelled_lane_ids: &std::collections::BTreeSet<String>,
     ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
-        // Re-run the idempotent fence first so a crash/retry always rediscovers
-        // the canonical covered lane set while new launch persistence remains
-        // blocked by the revoked receipt.
-        let covered_lanes = self
-            .fence_cloud_consent_revocation(consent_receipt_id, revoked_by_ref, reason)
-            .await?;
-        let exact_scope = require_exact_lifecycle_write_scope(self)?;
-        let revocation_input_hash =
-            cloud_consent_revocation_input_hash(consent_receipt_id, revoked_by_ref, reason);
-        let mut tx = self.pool.begin().await?;
-        lock_idempotency_key_tx(
-            &mut tx,
-            &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
+        self.finalize_cloud_consent_revocation_surreal(
+            consent_receipt_id,
+            revoked_by_ref,
+            reason,
+            provider_cancelled_lane_ids,
         )
-        .await?;
-        let revoked_receipt =
-            cloud_consent_receipt_by_id_tx(&mut tx, &self.access, consent_receipt_id)
-                .await?
-                .ok_or_else(|| {
-                    ModelLaneError::NotFound(format!("consent_receipt_id {consent_receipt_id}"))
-                })?;
-        validate_cloud_consent_authority_tx(&mut tx, &revoked_receipt).await?;
-        if revoked_receipt.status != ModelLaneCloudConsentReceiptStatus::Revoked
-            || revoked_receipt.revocation_input_hash.as_deref()
-                != Some(revocation_input_hash.as_str())
-        {
-            tx.rollback().await?;
-            return Err(ModelLaneError::IdempotencyConflict(format!(
-                "consent_receipt_id {consent_receipt_id} is not fenced by this actor and reason"
-            )));
-        }
-
-        let mut cancelled = Vec::with_capacity(covered_lanes.len());
-        for fenced_lane in covered_lanes {
-            let existing_lane = current_lane_for_cloud_consent_tx(
-                &mut tx,
-                &fenced_lane.run_id,
-                &fenced_lane.lane_id,
-                consent_receipt_id,
-                &exact_scope,
-            )
-            .await?
-            .unwrap_or(fenced_lane);
-            validate_model_lane_authority_tx(&mut tx, &existing_lane).await?;
-            if matches!(
-                existing_lane.status,
-                ModelLaneStatus::Completed | ModelLaneStatus::Failed | ModelLaneStatus::Cancelled
-            ) {
-                if existing_lane.status == ModelLaneStatus::Cancelled
-                    && existing_lane.failstate_code.as_deref() == Some("CX-MM-007")
-                {
-                    cancelled.push(existing_lane);
-                }
-                continue;
-            }
-
-            let provider_call_cancelled =
-                provider_cancelled_lane_ids.contains(&existing_lane.lane_id);
-            let provider_cancel_outcome = if provider_call_cancelled {
-                "cancelled_by_coordinator"
-            } else {
-                "not_live_at_revocation"
-            };
-            let mut lane = existing_lane.inner.clone();
-            lane.status = ModelLaneStatus::Cancelled;
-            lane.recovery_state = ModelLaneRecoveryState::Terminal;
-            lane.failstate_code = Some("CX-MM-007".into());
-            lane.reason_ref = Some(format!(
-                "cloud-consent-revoked://dexterity/{}/{}",
-                lane.run_id, lane.lane_id
-            ));
-            lane.recovery_hint_ref =
-                Some("usermanual://model-lane-cloud-projection-consent#recovery".into());
-            lane.last_runtime_status_ref = Some(format!(
-                "runtime-status://dexterity/{}/cloud-consent-revoked",
-                lane.lane_id
-            ));
-            validate_lane(&lane)?;
-            let mut terminal_payload = json!({
-                "schema_id": "hsk.model_lane_terminal@1",
-                "dexterity_kernel": "Dexterity",
-                "lane_id": &lane.lane_id,
-                "run_id": &lane.run_id,
-                "status": "cancelled",
-                "reason": reason,
-                "reason_code": "CX-MM-007",
-                "consent_status": "CX-MM-007",
-                "consent_receipt_id": consent_receipt_id,
-                "projection_plan_id": &revoked_receipt.projection_plan_id,
-                "provider_call_cancelled": provider_call_cancelled,
-                "provider_cancel_outcome": provider_cancel_outcome,
-                "flight_recorder": "EventLedger",
-                "previous_event_ledger_event_id": &existing_lane.event_ledger_event_id,
-                "previous_event_ledger_seq": existing_lane.event_ledger_seq,
-            });
-            exact_scope
-                .stamp_json_object(&mut terminal_payload)
-                .map_err(|_| {
-                    ModelLaneError::AuthorityDenied(
-                        "cloud consent terminal EventLedger payload requires exact resource attribution"
-                            .into(),
-                    )
-                })?;
-            let terminal_event = model_lane_event(
-                KernelEventType::SessionCancelled,
-                "model_lane_terminal",
-                &lane.lane_id,
-                &format!(
-                    "model-lane-cloud-consent-revoked:{consent_receipt_id}:{}",
-                    lane.lane_id
-                ),
-                lane.work_packet_id.as_deref().unwrap_or(&lane.run_id),
-                &lane.event_ledger_stream_id,
-                terminal_payload,
-            )?;
-            let stored_terminal_event =
-                append_kernel_event_with_executor(&mut *tx, terminal_event).await?;
-            lane.last_recovery_event_ref = Some(stored_terminal_event.event_id.clone());
-            let record = ModelLaneRecord {
-                event_ledger_event_id: stored_terminal_event.event_id.clone(),
-                event_ledger_seq: stored_terminal_event.event_sequence,
-                inner: lane,
-            };
-            let mut stored_terminal_payload = json!({
-                "schema_id": "hsk.model_lane_terminal@1",
-                "dexterity_kernel": "Dexterity",
-                "lane_id": &record.lane_id,
-                "run_id": &record.run_id,
-                "status": "cancelled",
-                "reason": reason,
-                "reason_code": "CX-MM-007",
-                "consent_status": "CX-MM-007",
-                "consent_receipt_id": consent_receipt_id,
-                "projection_plan_id": &revoked_receipt.projection_plan_id,
-                "provider_call_cancelled": provider_call_cancelled,
-                "provider_cancel_outcome": provider_cancel_outcome,
-                "flight_recorder": "EventLedger",
-                "previous_event_ledger_event_id": &existing_lane.event_ledger_event_id,
-                "previous_event_ledger_seq": existing_lane.event_ledger_seq,
-                "record": serde_json::to_value(&record.inner)?,
-            });
-            exact_scope
-                .stamp_json_object(&mut stored_terminal_payload)
-                .map_err(|_| {
-                    ModelLaneError::AuthorityDenied(
-                        "cloud consent terminal EventLedger payload requires exact resource attribution"
-                            .into(),
-                    )
-                })?;
-            stamp_kernel_event_payload_tx(
-                &mut tx,
-                &record.event_ledger_event_id,
-                stored_terminal_payload,
-            )
-            .await?;
-            // The scope columns are only supplied on INSERT. The DO UPDATE arm
-            // deliberately leaves ownership untouched: a cancellation must never
-            // be able to re-home an existing lane onto a different account.
-            let revocation_lane_sql = format!(
-                r#"
-                INSERT INTO model_lanes (
-                    lane_id, run_id, trace_id, lane_span_id, kind,
-                    runtime_binding, launch_authority, status, work_packet_id,
-                    micro_task_id, task_board_id, owner_session, event_ledger_stream_id,
-                    event_ledger_event_id, event_ledger_seq, record_json, model_stable_anchor,
-                    {RESOURCE_SCOPE_INSERT_COLUMNS}
-                )
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
-                ON CONFLICT (lane_id) DO UPDATE
-                SET status = EXCLUDED.status,
-                    event_ledger_event_id = EXCLUDED.event_ledger_event_id,
-                    event_ledger_seq = EXCLUDED.event_ledger_seq,
-                    record_json = EXCLUDED.record_json,
-                    updated_at = NOW()
-                WHERE model_lanes.owner_account_id IS NOT DISTINCT FROM EXCLUDED.owner_account_id
-                  AND model_lanes.actor_principal_id IS NOT DISTINCT FROM EXCLUDED.actor_principal_id
-                  AND model_lanes.authenticated_session_id IS NOT DISTINCT FROM EXCLUDED.authenticated_session_id
-                  AND model_lanes.access_space_id IS NOT DISTINCT FROM EXCLUDED.access_space_id
-                  AND model_lanes.workspace_id IS NOT DISTINCT FROM EXCLUDED.workspace_id
-                "#
-            );
-            let projection_result = self
-                .scope_columns()
-                .bind(
-                    sqlx::query(&revocation_lane_sql)
-                        .bind(&record.lane_id)
-                        .bind(&record.run_id)
-                        .bind(&record.trace_id)
-                        .bind(&record.lane_span_id)
-                        .bind(record.kind.as_str())
-                        .bind(record.runtime_binding.as_str())
-                        .bind(record.launch_authority.as_str())
-                        .bind(record.status.as_str())
-                        .bind(record.work_packet_id.as_deref())
-                        .bind(record.micro_task_id.as_deref())
-                        .bind(record.task_board_id.as_deref())
-                        .bind(&record.owner_session)
-                        .bind(&record.event_ledger_stream_id)
-                        .bind(&record.event_ledger_event_id)
-                        .bind(record.event_ledger_seq)
-                        .bind(serde_json::to_value(&record)?)
-                        .bind(Option::<String>::None),
-                )
-                .execute(&mut *tx)
-                .await?;
-            if projection_result.rows_affected() != 1 {
-                return Err(ModelLaneError::AuthorityDenied(
-                    "cloud consent terminal projection scope conflict".into(),
-                ));
-            }
-            cancelled.push(record);
-        }
-
-        tx.commit().await?;
-        Ok(cancelled)
+        .await
     }
 
     #[cfg(feature = "test-utils")]
@@ -2791,7 +1972,7 @@ impl ModelLaneStore {
         let run: ModelLaneRunRecord = serde_json::from_value(row_to_json(run_row, "record_json")?)?;
         validate_stored_run_eventledger_authority_tx(&mut tx, &run, self.access.exact_read_scope())
             .await?;
-        validate_diagnostics_row_eventledger_authority(&self.pool, run_id)
+        validate_diagnostics_row_eventledger_authority(&*self.pool, run_id)
             .await
             .map_err(|_| {
                 ModelLaneError::AuthorityDenied("ModelLane navigation authority unavailable".into())
@@ -2876,7 +2057,7 @@ impl ModelLaneStore {
         );
         let run_id: String = predicate
             .bind_scalar(sqlx::query_scalar(&latest_sql))
-            .fetch_optional(&self.pool)
+            .fetch_optional(&*self.pool)
             .await?
             .ok_or_else(|| ModelLaneError::NotFound("no model lane runs recorded".into()))?;
         self.diagnostics_projection(&run_id).await
@@ -2905,13 +2086,13 @@ impl ModelLaneStore {
         &self,
         run_id: &str,
     ) -> ModelLaneResult<ModelLaneDiagnosticsProjection> {
-        validate_diagnostics_row_eventledger_authority(&self.pool, run_id).await?;
+        validate_diagnostics_row_eventledger_authority(&*self.pool, run_id).await?;
         let replay = self.replay_run(run_id).await?;
         let tier_posture = self
             .validate_diagnostic_tier_posture(run_id, "HBR-INT-009")
             .await?;
         let mt_runtime_statuses = select_records_by_column::<ModelLaneMtRuntimeStatusRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_mt_runtime_statuses",
             "run_id",
@@ -2919,7 +2100,7 @@ impl ModelLaneStore {
         )
         .await?;
         let leases = select_records_by_column::<ModelLaneLeaseRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_leases",
             "run_id",
@@ -2950,7 +2131,7 @@ impl ModelLaneStore {
             .collect::<Vec<_>>();
         let routing_executions =
             super::routing_execution::ModelLaneRoutingExecutionStore::new_with_access(
-                self.pool.clone(),
+                self.pool.postgres_pool(),
                 self.access.clone(),
             )
             .diagnostics_for_run(run_id)
@@ -2971,7 +2152,7 @@ impl ModelLaneStore {
         );
         let lane_anchors = anchor_predicate
             .bind(sqlx::query(&anchor_sql).bind(run_id))
-            .fetch_all(&self.pool)
+            .fetch_all(&*self.pool)
             .await?
             .into_iter()
             .map(|row| {
@@ -3249,21 +2430,45 @@ impl ModelLaneStore {
             .await
     }
 
+    #[cfg(feature = "test-utils")]
+    pub async fn test_cloud_schema_state(&self) -> ModelLaneResult<(String, i64, String)> {
+        let state = self
+            .cloud_authority()
+            .await?
+            .schema_state()
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::IntegrityViolation(
+                    "MT-006 cloud authority schema state is missing".into(),
+                )
+            })?;
+        Ok((
+            state.schema_version,
+            state.schema_revision,
+            state.apply_state,
+        ))
+    }
+
     pub async fn navigation_by_lane(
         &self,
         lane_id: &str,
     ) -> ModelLaneResult<ModelLaneNavigationProjection> {
         require_token("lane_id", lane_id)?;
-        let lane =
-            validated_navigation_origins(&self.pool, &self.access, "lane", "lane_id = $1", lane_id)
-                .await?
-                .into_iter()
-                .next()
-                .and_then(|origin| match origin {
-                    ValidatedNavigationOrigin::Lane(record) => Some(record),
-                    _ => None,
-                })
-                .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lane_id}")))?;
+        let lane = validated_navigation_origins(
+            &*self.pool,
+            &self.access,
+            "lane",
+            "lane_id = $1",
+            lane_id,
+        )
+        .await?
+        .into_iter()
+        .next()
+        .and_then(|origin| match origin {
+            ValidatedNavigationOrigin::Lane(record) => Some(record),
+            _ => None,
+        })
+        .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lane_id}")))?;
         let mut projection = self
             .navigation_projection_for_run(
                 "model_lane.navigation.lane",
@@ -3295,7 +2500,7 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneNavigationProjection> {
         require_token("message_id", message_id)?;
         let message = validated_navigation_origins(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "message",
             "message_id = $1",
@@ -3371,7 +2576,7 @@ impl ModelLaneStore {
         dedupe_context_handoffs(&mut handoffs);
         let context_run = if let Some(value) = context_bundle_id {
             validated_navigation_origins(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "run",
                 "record_json->>'context_bundle_id' = $1",
@@ -3491,7 +2696,7 @@ impl ModelLaneStore {
             require_token("span_id", value)?;
         }
         let run = validated_navigation_origins(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "run",
             "trace_id = $1",
@@ -3503,7 +2708,7 @@ impl ModelLaneStore {
         let run_id = if let Some(run) = run {
             run.run_id().to_owned()
         } else if let Some(lane) = validated_navigation_origins(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "lane",
             "trace_id = $1",
@@ -3515,7 +2720,7 @@ impl ModelLaneStore {
         {
             lane.run_id().to_owned()
         } else if let Some(message) = validated_navigation_origins(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "message",
             "trace_id = $1",
@@ -3633,7 +2838,7 @@ impl ModelLaneStore {
         let run_id = match lookup_kind.as_str() {
             "run_id" => lookup_ref.clone(),
             "lane_id" => validated_navigation_origins(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "lane",
                 "lane_id = $1",
@@ -3645,7 +2850,7 @@ impl ModelLaneStore {
             .map(|row| row.run_id().to_owned())
             .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lookup_ref}")))?,
             "message_id" => validated_navigation_origins(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "message",
                 "message_id = $1",
@@ -3753,7 +2958,7 @@ impl ModelLaneStore {
         // `model_lanes` stores model_session_id only inside record_json; the
         // recovery tables carry it as physical columns.
         if let Some(row) = validated_navigation_origins(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "lane",
             "record_json->>'model_session_id' = $1",
@@ -3766,7 +2971,7 @@ impl ModelLaneStore {
             return Ok(Some(row.run_id().to_owned()));
         }
         if let Some(row) = select_record_by_column::<ModelLaneRecoveryEventRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_recovery_events",
             "model_session_id",
@@ -3777,7 +2982,7 @@ impl ModelLaneStore {
             return Ok(Some(row.run_id.clone()));
         }
         select_record_by_column::<ModelLaneRecoveryCheckpointRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_recovery_checkpoints",
             "model_session_id",
@@ -3791,7 +2996,7 @@ impl ModelLaneStore {
         // `model_lanes` stores session_id only inside record_json; the recovery
         // tables carry it as physical columns.
         if let Some(row) = validated_navigation_origins(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "lane",
             "record_json->>'session_id' = $1",
@@ -3804,7 +3009,7 @@ impl ModelLaneStore {
             return Ok(Some(row.run_id().to_owned()));
         }
         if let Some(row) = select_record_by_column::<ModelLaneRecoveryEventRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_recovery_events",
             "session_id",
@@ -3815,7 +3020,7 @@ impl ModelLaneStore {
             return Ok(Some(row.run_id.clone()));
         }
         select_record_by_column::<ModelLaneRecoveryCheckpointRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_recovery_checkpoints",
             "session_id",
@@ -3827,7 +3032,7 @@ impl ModelLaneStore {
 
     async fn run_id_by_work_packet_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let run_ids = validated_navigation_run_ids(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "run",
             "work_packet_id = $1",
@@ -3839,7 +3044,7 @@ impl ModelLaneStore {
 
     async fn run_id_by_micro_task_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let mut run_ids = validated_navigation_run_ids(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "run",
             "micro_task_id = $1",
@@ -3848,7 +3053,7 @@ impl ModelLaneStore {
         .await?;
         run_ids.extend(
             select_run_ids_by_column(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "model_lane_mt_runtime_statuses",
                 "micro_task_id",
@@ -3861,7 +3066,7 @@ impl ModelLaneStore {
 
     async fn run_id_by_task_board_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let mut run_ids = validated_navigation_run_ids(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "run",
             "task_board_id = $1",
@@ -3870,7 +3075,7 @@ impl ModelLaneStore {
         .await?;
         run_ids.extend(
             select_run_ids_by_column(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "model_lane_mt_runtime_statuses",
                 "task_board_id",
@@ -3882,7 +3087,7 @@ impl ModelLaneStore {
     }
 
     async fn run_id_by_artifact_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        let mut run_ids = select_records_by_any_artifact_ref(&self.pool, &self.access, value)
+        let mut run_ids = select_records_by_any_artifact_ref(&*self.pool, &self.access, value)
             .await?
             .into_iter()
             // MT-003 unblock (out-of-scope, pre-existing WIP commit 0adac5d8):
@@ -3895,7 +3100,7 @@ impl ModelLaneStore {
         // physical column on model_lane_messages.
         run_ids.extend(
             validated_navigation_run_ids(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "message",
                 "record_json->>'payload_ref' = $1",
@@ -3905,7 +3110,7 @@ impl ModelLaneStore {
         );
         run_ids.extend(
             validated_navigation_run_ids(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "message",
                 "payload_sha256 = $1",
@@ -3920,7 +3125,7 @@ impl ModelLaneStore {
         // `model_lane_runs` carries context_bundle_id only inside record_json; the
         // handoff table exposes it as a physical column.
         let mut run_ids = validated_navigation_run_ids(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "run",
             "record_json->>'context_bundle_id' = $1",
@@ -3929,7 +3134,7 @@ impl ModelLaneStore {
         .await?;
         run_ids.extend(
             select_run_ids_by_column(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "model_lane_context_bundle_handoffs",
                 "context_bundle_id",
@@ -3942,7 +3147,7 @@ impl ModelLaneStore {
 
     async fn run_id_by_memory_pack_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let run_ids = validated_navigation_run_ids(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "run",
             "record_json->>'memory_pack_ref' = $1",
@@ -3954,7 +3159,7 @@ impl ModelLaneStore {
 
     async fn run_id_by_memory_pack_hash(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let run_ids = validated_navigation_run_ids(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "run",
             "record_json->>'memory_pack_hash' = $1",
@@ -3966,7 +3171,7 @@ impl ModelLaneStore {
 
     async fn run_id_by_trace_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         if let Some(row) =
-            validated_navigation_origins(&self.pool, &self.access, "run", "trace_id = $1", value)
+            validated_navigation_origins(&*self.pool, &self.access, "run", "trace_id = $1", value)
                 .await?
                 .into_iter()
                 .next()
@@ -3974,29 +3179,34 @@ impl ModelLaneStore {
             return Ok(Some(row.run_id().to_owned()));
         }
         if let Some(row) =
-            validated_navigation_origins(&self.pool, &self.access, "lane", "trace_id = $1", value)
+            validated_navigation_origins(&*self.pool, &self.access, "lane", "trace_id = $1", value)
                 .await?
                 .into_iter()
                 .next()
         {
             return Ok(Some(row.run_id().to_owned()));
         }
-        validated_navigation_origins(&self.pool, &self.access, "message", "trace_id = $1", value)
+        validated_navigation_origins(&*self.pool, &self.access, "message", "trace_id = $1", value)
             .await
             .map(|rows| rows.into_iter().next().map(|row| row.run_id().to_owned()))
     }
 
     async fn run_id_by_span_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        if let Some(row) =
-            validated_navigation_origins(&self.pool, &self.access, "run", "run_span_id = $1", value)
-                .await?
-                .into_iter()
-                .next()
+        if let Some(row) = validated_navigation_origins(
+            &*self.pool,
+            &self.access,
+            "run",
+            "run_span_id = $1",
+            value,
+        )
+        .await?
+        .into_iter()
+        .next()
         {
             return Ok(Some(row.run_id().to_owned()));
         }
         if let Some(row) = validated_navigation_origins(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "lane",
             "lane_span_id = $1",
@@ -4009,7 +3219,7 @@ impl ModelLaneStore {
             return Ok(Some(row.run_id().to_owned()));
         }
         if let Some(row) = validated_navigation_origins(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "message",
             "message_span_id = $1",
@@ -4022,7 +3232,7 @@ impl ModelLaneStore {
             return Ok(Some(row.run_id().to_owned()));
         }
         select_record_by_column::<ModelLaneRecoveryEventRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_recovery_events",
             "span_id",
@@ -4036,7 +3246,7 @@ impl ModelLaneStore {
         // `error_code` is a physical column on model_lane_recovery_events, but the
         // run/lane failstate_code lives only inside record_json.
         let mut run_ids = select_run_ids_by_column(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_recovery_events",
             "error_code",
@@ -4045,7 +3255,7 @@ impl ModelLaneStore {
         .await?;
         run_ids.extend(
             validated_navigation_run_ids(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "run",
                 "record_json->>'failstate_code' = $1",
@@ -4055,7 +3265,7 @@ impl ModelLaneStore {
         );
         run_ids.extend(
             validated_navigation_run_ids(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "lane",
                 "record_json->>'failstate_code' = $1",
@@ -4068,7 +3278,7 @@ impl ModelLaneStore {
 
     async fn run_id_by_locus_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let mut run_ids = validated_navigation_run_ids(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "run",
             "record_json #>> '{locus_binding,locus_binding_ref}' = $1",
@@ -4077,7 +3287,7 @@ impl ModelLaneStore {
         .await?;
         run_ids.extend(
             validated_navigation_run_ids(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "lane",
                 "record_json #>> '{locus_binding,locus_binding_ref}' = $1",
@@ -4087,7 +3297,7 @@ impl ModelLaneStore {
         );
         run_ids.extend(
             validated_navigation_run_ids(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "message",
                 "record_json #>> '{locus_binding,locus_binding_ref}' = $1 OR record_json #>> '{diagnostic_payload,locus_ref}' = $1",
@@ -4100,7 +3310,7 @@ impl ModelLaneStore {
 
     async fn run_id_by_loom_block_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let mut run_ids = validated_navigation_handoff_run_ids(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "EXISTS (
                 SELECT 1
@@ -4112,7 +3322,7 @@ impl ModelLaneStore {
         .await?;
         run_ids.extend(
             validated_navigation_run_ids(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "message",
                 "record_json #>> '{diagnostic_payload,loom_block_id}' = $1",
@@ -4122,7 +3332,7 @@ impl ModelLaneStore {
         );
         run_ids.extend(
             validated_navigation_handoff_run_ids(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "record_json #>> '{diagnostic_payload,loom_block_id}' = $1",
                 value,
@@ -4140,7 +3350,7 @@ impl ModelLaneStore {
         for key in keys {
             let condition = format!("record_json #>> '{{diagnostic_payload,{key}}}' = $1");
             let run_ids = validated_navigation_run_ids(
-                &self.pool,
+                &*self.pool,
                 &self.access,
                 "message",
                 &condition,
@@ -4175,7 +3385,7 @@ impl ModelLaneStore {
         );
         let row = predicate
             .bind(sqlx::query(&sql).bind(value))
-            .fetch_optional(&self.pool)
+            .fetch_optional(&*self.pool)
             .await?;
         let Some(row) = row else {
             return Ok(None);
@@ -4202,7 +3412,7 @@ impl ModelLaneStore {
         );
         let row = predicate
             .bind(sqlx::query(&sql).bind(value))
-            .fetch_optional(&self.pool)
+            .fetch_optional(&*self.pool)
             .await?;
         let Some(row) = row else {
             return Ok(None);
@@ -4222,7 +3432,7 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneNavigationProjection> {
         let replay = self.replay_run(run_id).await?;
         let artifacts = select_records_by_column::<ModelLaneContextBundleArtifactBindingRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_context_bundle_artifacts",
             "run_id",
@@ -4230,7 +3440,7 @@ impl ModelLaneStore {
         )
         .await?;
         let context_handoffs = select_records_by_column::<ModelLaneContextBundleHandoffRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_context_bundle_handoffs",
             "run_id",
@@ -4262,7 +3472,7 @@ impl ModelLaneStore {
         }
         authority_tx.commit().await?;
         let recovery_checkpoints = select_records_by_column::<ModelLaneRecoveryCheckpointRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_recovery_checkpoints",
             "run_id",
@@ -4270,7 +3480,7 @@ impl ModelLaneStore {
         )
         .await?;
         let recovery_events = select_records_by_column::<ModelLaneRecoveryEventRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_recovery_events",
             "run_id",
@@ -4278,7 +3488,7 @@ impl ModelLaneStore {
         )
         .await?;
         let leases = select_records_by_column::<ModelLaneLeaseRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_leases",
             "run_id",
@@ -4286,7 +3496,7 @@ impl ModelLaneStore {
         )
         .await?;
         let diagnostic_tiers = select_records_by_column::<ModelLaneDiagnosticTierStatusRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_diagnostic_tier_statuses",
             "run_id",
@@ -4294,7 +3504,7 @@ impl ModelLaneStore {
         )
         .await?;
         let mt_runtime_statuses = select_records_by_column::<ModelLaneMtRuntimeStatusRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_mt_runtime_statuses",
             "run_id",
@@ -4343,7 +3553,7 @@ impl ModelLaneStore {
         &self,
         value: &str,
     ) -> ModelLaneResult<Vec<ModelLaneContextBundleArtifactBindingRecord>> {
-        select_records_by_any_artifact_ref(&self.pool, &self.access, value).await
+        select_records_by_any_artifact_ref(&*self.pool, &self.access, value).await
     }
 
     async fn context_handoffs_by_context(
@@ -4351,7 +3561,7 @@ impl ModelLaneStore {
         context_bundle_id: &str,
     ) -> ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>> {
         select_records_by_column::<ModelLaneContextBundleHandoffRecord>(
-            &self.pool,
+            &*self.pool,
             &self.access,
             "model_lane_context_bundle_handoffs",
             "context_bundle_id",
@@ -4364,7 +3574,7 @@ impl ModelLaneStore {
         &self,
         value: &str,
     ) -> ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>> {
-        select_records_by_any_handoff_artifact_ref(&self.pool, &self.access, value).await
+        select_records_by_any_handoff_artifact_ref(&*self.pool, &self.access, value).await
     }
 
     pub async fn record_recovery_checkpoint(
@@ -4374,7 +3584,7 @@ impl ModelLaneStore {
         validate_recovery_checkpoint(&input)?;
         let mut tx = self.pool.begin().await?;
         let recovery_child_store = Self::new_with_access(
-            self.pool.clone(),
+            self.pool.postgres_pool(),
             recovery_child_access_for_canonical_run_tx(&mut tx, &self.access, &input.run_id)
                 .await?,
         );
@@ -4519,7 +3729,7 @@ impl ModelLaneStore {
         let mut tx = self.pool.begin().await?;
         lock_recovery_run_tx(&mut tx, &input.run_id).await?;
         let recovery_child_store = Self::new_with_access(
-            self.pool.clone(),
+            self.pool.postgres_pool(),
             recovery_child_access_for_canonical_run_tx(&mut tx, &self.access, &input.run_id)
                 .await?,
         );
@@ -4670,7 +3880,7 @@ impl ModelLaneStore {
         validate_lane_lease(&input)?;
         let mut tx = self.pool.begin().await?;
         let recovery_child_store = Self::new_with_access(
-            self.pool.clone(),
+            self.pool.postgres_pool(),
             recovery_child_access_for_canonical_run_tx(&mut tx, &self.access, &input.run_id)
                 .await?,
         );
@@ -4793,7 +4003,7 @@ impl ModelLaneStore {
         validate_diagnostic_tier_status(&input)?;
         let mut tx = self.pool.begin().await?;
         let recovery_child_store = Self::new_with_access(
-            self.pool.clone(),
+            self.pool.postgres_pool(),
             recovery_child_access_for_canonical_run_tx(&mut tx, &self.access, &input.run_id)
                 .await?,
         );
@@ -4924,7 +4134,7 @@ impl ModelLaneStore {
         let tiers = self.authorize_and_decode_rows::<ModelLaneDiagnosticTierStatusRecord>(
             predicate
                 .bind(sqlx::query(&sql).bind(run_id).bind(behavior_id))
-                .fetch_all(&self.pool)
+                .fetch_all(&*self.pool)
                 .await?,
         )?;
         Ok(ModelLaneDiagnosticTierPosture {
@@ -4996,7 +4206,7 @@ impl ModelLaneStore {
         validate_mt_runtime_status(&input)?;
         let mut tx = self.pool.begin().await?;
         let recovery_child_store = Self::new_with_access(
-            self.pool.clone(),
+            self.pool.postgres_pool(),
             recovery_child_access_for_canonical_run_tx(&mut tx, &self.access, &input.run_id)
                 .await?,
         );
@@ -5141,7 +4351,7 @@ impl ModelLaneStore {
             ORDER BY run_id
             "#,
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&*self.pool)
         .await?;
         let mut recovered = Vec::with_capacity(run_ids.len());
         for run_id in run_ids {
@@ -5184,9 +4394,10 @@ impl ModelLaneStore {
         let recovery_child_access =
             recovery_child_access_for_canonical_run_tx(recovery_fence, &self.access, run_id)
                 .await?;
-        let canonical_run = canonical_run_for_recovery(&self.pool, &self.access, run_id).await?;
-        validate_diagnostics_row_eventledger_authority(&self.pool, run_id).await?;
-        let recovery_child_store = Self::new_with_access(self.pool.clone(), recovery_child_access);
+        let canonical_run = canonical_run_for_recovery(&*self.pool, &self.access, run_id).await?;
+        validate_diagnostics_row_eventledger_authority(&*self.pool, run_id).await?;
+        let recovery_child_store =
+            Self::new_with_access(self.pool.postgres_pool(), recovery_child_access);
         validate_recovery_eventledger_resource_scope(
             recovery_fence,
             run_id,
@@ -5194,7 +4405,7 @@ impl ModelLaneStore {
         )
         .await?;
         let checkpoint =
-            latest_recovery_checkpoint(&self.pool, run_id, &canonical_run.event_ledger_stream_id)
+            latest_recovery_checkpoint(&*self.pool, run_id, &canonical_run.event_ledger_stream_id)
                 .await?;
         require_equal(
             "recovery_checkpoint.event_ledger_stream_id",
@@ -5202,7 +4413,7 @@ impl ModelLaneStore {
             "canonical_run.event_ledger_stream_id",
             &canonical_run.event_ledger_stream_id,
         )?;
-        validate_recovery_checkpoint_record(&self.pool, &checkpoint).await?;
+        validate_recovery_checkpoint_record(&*self.pool, &checkpoint).await?;
         // Spec 4.3.9.2.5 + MT-007 acceptance define a PER-KIND recovery boundary, not a
         // single blunt cut at the checkpoint high-watermark. Neither "replay the whole
         // stream high-watermark" nor "bound everything at the checkpoint" is correct.
@@ -5227,33 +4438,33 @@ impl ModelLaneStore {
         //   stay bounded at the checkpoint.
         let checkpoint_bound_event_ledger_seq = checkpoint.last_event_ledger_seq;
         let forward_bound_event_ledger_seq = if has_post_checkpoint_forward_messages(
-            &self.pool,
+            &*self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
             checkpoint_bound_event_ledger_seq,
         )
         .await?
         {
-            recovery_stream_high_watermark(&self.pool, &checkpoint.event_ledger_stream_id).await?
+            recovery_stream_high_watermark(&*self.pool, &checkpoint.event_ledger_stream_id).await?
         } else {
             checkpoint_bound_event_ledger_seq
         };
         let bounded_recovery_events = recovery_events_for_run(
-            &self.pool,
+            &*self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
             forward_bound_event_ledger_seq,
         )
         .await?;
         validate_recovery_event_stream(
-            &self.pool,
+            &*self.pool,
             run_id,
             forward_bound_event_ledger_seq,
             &bounded_recovery_events,
         )
         .await?;
         validate_recovery_payload_refs(
-            &self.pool,
+            &*self.pool,
             run_id,
             &checkpoint,
             checkpoint_bound_event_ledger_seq,
@@ -5270,14 +4481,14 @@ impl ModelLaneStore {
         )
         .await?;
         let replay = replay_run_at_recovery_bound(
-            &self.pool,
+            &*self.pool,
             run_id,
             &checkpoint,
             forward_bound_event_ledger_seq,
         )
         .await?;
         validate_replay_message_payload_authority(
-            &self.pool,
+            &*self.pool,
             run_id,
             &checkpoint,
             forward_bound_event_ledger_seq,
@@ -5297,7 +4508,7 @@ impl ModelLaneStore {
         .await?;
         validate_contiguous_recovery_order(run_id, &recovery_events)?;
         let leases =
-            current_lane_leases_for_run(&self.pool, run_id, &checkpoint.event_ledger_stream_id)
+            current_lane_leases_for_run(&*self.pool, run_id, &checkpoint.event_ledger_stream_id)
                 .await?;
         let now = Utc::now();
         let mut active_leases = Vec::new();
@@ -5342,14 +4553,14 @@ impl ModelLaneStore {
         }
         validate_contiguous_recovery_order(run_id, &recovery_events)?;
         let cloud_consent_denials = cloud_consent_denials_for_run(
-            &self.pool,
+            &*self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
             checkpoint_bound_event_ledger_seq,
         )
         .await?;
         let mt_runtime_statuses = mt_runtime_statuses_for_run(
-            &self.pool,
+            &*self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
             forward_bound_event_ledger_seq,
@@ -5453,17 +4664,9 @@ impl ModelLaneStore {
         check: CloudLaunchAuthorityCheck,
     ) -> ModelLaneResult<()> {
         require_exact_cloud_launch_scope(&self.access)?;
-        let mut tx = self.pool.begin().await?;
-        let result = ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await;
-        match result {
-            Ok(()) => {
-                tx.commit().await?;
-                Ok(())
-            }
-            Err(reason) => {
-                tx.rollback().await?;
-                self.deny_cloud_launch(check, &reason.to_string()).await
-            }
+        match self.ensure_cloud_launch_authority_surreal(&check).await {
+            Ok(()) => Ok(()),
+            Err(reason) => self.deny_cloud_launch(check, &reason.to_string()).await,
         }
     }
 
@@ -5473,18 +4676,655 @@ impl ModelLaneStore {
         reason: &str,
     ) -> ModelLaneResult<T> {
         let exact_scope = require_exact_cloud_launch_scope(&self.access)?;
-        record_cloud_consent_denial(
-            &self.pool,
-            &exact_scope,
-            &check,
-            reason,
-            "CX-MM-007 cloud lane launch denied before provider call",
-        )
-        .await?;
+        let scope = cloud_model_lane_scope(&exact_scope);
+        let failure_kind_hash = dexterity_sha256_hex(reason.as_bytes());
+        let stable_basis = json!({
+            "resource_scope": exact_scope,
+            "run_id": &check.run_id,
+            "lane_id": &check.lane_id,
+        });
+        let idempotency_key = format!(
+            "model-lane-cloud-consent-denial:{}:{}:{}",
+            check.run_id,
+            check.lane_id,
+            dexterity_sha256_hex(canonical_json_bytes(&stable_basis))
+        );
+        let mut payload = json!({
+            "schema_id": "hsk.model_lane_cloud_consent_denial@1",
+            "dexterity_kernel": "Dexterity",
+            "reason_code": "CX-MM-007",
+            "consent_status": "CX-MM-007",
+            "failure_kind": reason,
+            "failure_kind_hash": failure_kind_hash,
+            "detail": "CX-MM-007 cloud lane launch denied before provider call",
+            "run_id": &check.run_id,
+            "lane_id": &check.lane_id,
+            "model_session_id": &check.model_session_id,
+            "provider_kind": &check.provider_kind,
+            "requested_model_id": &check.requested_model_id,
+            "projection_plan_ref": &check.projection_plan_ref,
+            "consent_receipt_ref": &check.consent_receipt_ref,
+            "provider_call_attempted": false,
+            "partial_authority_state_created": false,
+            "flight_recorder": "SurrealDB EventLedger",
+            "user_manual_behavior_ref": &check.user_manual_behavior_ref,
+            "micro_task_id": &check.micro_task_id,
+            "owner_session": &check.owner_session,
+        });
+        exact_scope
+            .stamp_json_object(&mut payload)
+            .map_err(|error| {
+                ModelLaneError::AuthorityDenied(format!(
+                    "cloud denial audit requires exact resource-scope attribution: {error}"
+                ))
+            })?;
+        let event_id = Uuid::now_v7().to_string();
+        let event_seq = next_cloud_event_sequence();
+        self.cloud_authority()
+            .await?
+            .put_immutable(
+                CloudModelLaneRecordKind::ConsentDenial,
+                &check.lane_id,
+                &check.run_id,
+                check.projection_plan_ref.as_deref(),
+                check.consent_receipt_ref.as_deref(),
+                &idempotency_key,
+                serde_json::to_string(&payload)?,
+                event_id,
+                event_seq,
+                serde_json::to_string(&payload)?,
+                &scope,
+            )
+            .await?;
         Err(ModelLaneError::InvalidInput(format!(
             "CX-MM-007 cloud lane launch denied for run_id {} lane_id {}: {reason}",
             check.run_id, check.lane_id
         )))
+    }
+
+    async fn record_cloud_projection_plan_surreal(
+        &self,
+        mut input: NewModelLaneCloudProjectionPlan,
+    ) -> ModelLaneResult<ModelLaneCloudProjectionPlanRecord> {
+        canonicalize_cloud_consent_targets(&mut input.target_bindings);
+        validate_cloud_projection_plan(&input)?;
+        ensure_authority_matches_write_scope(
+            "ProjectionPlan.export_delegation.source_scope",
+            &input.export_delegation.source_scope,
+            &self.access,
+        )?;
+        let exact_scope = require_exact_cloud_launch_scope(&self.access)?;
+        let scope = cloud_model_lane_scope(&exact_scope);
+        let target_bindings_hash =
+            cloud_consent_target_bindings_hash(input.consent_scope, &input.target_bindings)?;
+        let projection_plan_hash = cloud_projection_plan_hash(&input)?;
+        let event_id = Uuid::now_v7().to_string();
+        let event_seq = next_cloud_event_sequence();
+        let record = ModelLaneCloudProjectionPlanRecord {
+            inner: input,
+            target_bindings_hash,
+            projection_plan_hash,
+            event_ledger_event_id: event_id.clone(),
+            event_ledger_seq: event_seq,
+            event_stream_version: event_seq,
+            transaction_seq: event_seq,
+        };
+        let payload = cloud_projection_plan_event_payload(&record);
+        let stored = self
+            .cloud_authority()
+            .await?
+            .put_immutable(
+                CloudModelLaneRecordKind::ProjectionPlan,
+                &record.projection_plan_id,
+                &record.run_id,
+                Some(&record.projection_plan_id),
+                None,
+                &record.idempotency_key,
+                serde_json::to_string(&record)?,
+                event_id,
+                event_seq,
+                serde_json::to_string(&payload)?,
+                &scope,
+            )
+            .await?;
+        let stored_record: ModelLaneCloudProjectionPlanRecord =
+            serde_json::from_str(&stored.record_json)?;
+        validate_cloud_projection_authority_surreal(&stored_record, &stored)?;
+        if stored_record.projection_plan_hash != record.projection_plan_hash {
+            return Err(ModelLaneError::IdempotencyConflict(format!(
+                "idempotency_key {} already belongs to projection_plan_hash {}",
+                record.idempotency_key, stored_record.projection_plan_hash
+            )));
+        }
+        Ok(stored_record)
+    }
+
+    async fn record_cloud_consent_receipt_surreal(
+        &self,
+        mut input: NewModelLaneCloudConsentReceipt,
+    ) -> ModelLaneResult<ModelLaneCloudConsentReceiptRecord> {
+        canonicalize_cloud_consent_targets(&mut input.target_bindings);
+        validate_cloud_consent_receipt(&input)?;
+        ensure_authority_matches_write_scope(
+            "ConsentReceipt.approver",
+            &input.approver,
+            &self.access,
+        )?;
+        let exact_scope = require_exact_cloud_launch_scope(&self.access)?;
+        let scope = cloud_model_lane_scope(&exact_scope);
+        let projection_row = self
+            .cloud_authority()
+            .await?
+            .get(
+                CloudModelLaneRecordKind::ProjectionPlan,
+                &input.projection_plan_id,
+                &scope,
+            )
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(format!(
+                    "CX-MM-007 ProjectionPlan {} is not durable",
+                    input.projection_plan_id
+                ))
+            })?;
+        let projection: ModelLaneCloudProjectionPlanRecord =
+            serde_json::from_str(&projection_row.record_json)?;
+        validate_cloud_projection_authority_surreal(&projection, &projection_row)?;
+        let target_bindings_hash =
+            cloud_consent_target_bindings_hash(input.consent_scope, &input.target_bindings)?;
+        let consent_receipt_hash = cloud_consent_receipt_hash(&input)?;
+        let event_id = Uuid::now_v7().to_string();
+        let event_seq = next_cloud_event_sequence();
+        let record = ModelLaneCloudConsentReceiptRecord {
+            inner: input,
+            target_bindings_hash,
+            consent_receipt_hash,
+            event_ledger_event_id: event_id.clone(),
+            event_ledger_seq: event_seq,
+            event_stream_version: event_seq,
+            transaction_seq: event_seq,
+        };
+        let payload = cloud_consent_receipt_event_payload(&record);
+        let stored = self
+            .cloud_authority()
+            .await?
+            .put_immutable(
+                CloudModelLaneRecordKind::ConsentReceipt,
+                &record.consent_receipt_id,
+                &record.run_id,
+                Some(&record.projection_plan_id),
+                Some(&record.consent_receipt_id),
+                &record.idempotency_key,
+                serde_json::to_string(&record)?,
+                event_id,
+                event_seq,
+                serde_json::to_string(&payload)?,
+                &scope,
+            )
+            .await?;
+        let stored_record: ModelLaneCloudConsentReceiptRecord =
+            serde_json::from_str(&stored.record_json)?;
+        validate_cloud_consent_authority_surreal(&stored_record, &stored)?;
+        if stored_record.consent_receipt_hash != record.consent_receipt_hash {
+            return Err(ModelLaneError::IdempotencyConflict(format!(
+                "idempotency_key {} already belongs to consent_receipt_hash {}",
+                record.idempotency_key, stored_record.consent_receipt_hash
+            )));
+        }
+        Ok(stored_record)
+    }
+
+    async fn replay_cloud_consent_authority_surreal(
+        &self,
+        run_id: &str,
+    ) -> ModelLaneResult<ModelLaneCloudConsentAuthorityReplay> {
+        require_token("run_id", run_id)?;
+        let exact_scope = require_exact_cloud_launch_scope(&self.access)?;
+        let scope = cloud_model_lane_scope(&exact_scope);
+        let store = self.cloud_authority().await?;
+        let projection_rows = store
+            .list_run(CloudModelLaneRecordKind::ProjectionPlan, run_id, &scope)
+            .await?;
+        let consent_rows = store
+            .list_run(CloudModelLaneRecordKind::ConsentReceipt, run_id, &scope)
+            .await?;
+        let mut projection_plans = Vec::with_capacity(projection_rows.len());
+        for row in projection_rows {
+            let record = serde_json::from_str(&row.record_json)?;
+            validate_cloud_projection_authority_surreal(&record, &row)?;
+            projection_plans.push(record);
+        }
+        let mut consent_receipts = Vec::with_capacity(consent_rows.len());
+        for row in consent_rows {
+            let record: ModelLaneCloudConsentReceiptRecord =
+                serde_json::from_str(&row.record_json)?;
+            validate_cloud_consent_authority_surreal(&record, &row)?;
+            let plan = projection_plans
+                .iter()
+                .find(|plan| plan.projection_plan_id == record.projection_plan_id)
+                .ok_or_else(|| {
+                    ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 consent receipt {} references projection plan {} outside the replay snapshot",
+                        record.consent_receipt_id, record.projection_plan_id
+                    ))
+                })?;
+            validate_cloud_authority_pair(plan, &record)?;
+            consent_receipts.push(record);
+        }
+        Ok(ModelLaneCloudConsentAuthorityReplay {
+            projection_plans,
+            consent_receipts,
+        })
+    }
+
+    async fn ensure_cloud_launch_authority_surreal(
+        &self,
+        check: &CloudLaunchAuthorityCheck,
+    ) -> ModelLaneResult<()> {
+        require_token("cloud.run_id", &check.run_id)?;
+        require_token("cloud.lane_id", &check.lane_id)?;
+        require_token("cloud.model_session_id", &check.model_session_id)?;
+        require_token("cloud.provider_kind", &check.provider_kind)?;
+        require_token("cloud.requested_model_id", &check.requested_model_id)?;
+        require_token(
+            "cloud.capability_snapshot_ref",
+            &check.capability_snapshot_ref,
+        )?;
+        require_token("cloud.provider_endpoint_ref", &check.provider_endpoint_ref)?;
+        let projection_plan_id =
+            require_optional_token("projection_plan_ref", check.projection_plan_ref.as_deref())?;
+        let consent_receipt_id =
+            require_optional_token("consent_receipt_ref", check.consent_receipt_ref.as_deref())?;
+        let exact_scope = require_exact_cloud_launch_scope(&self.access)?;
+        let scope = cloud_model_lane_scope(&exact_scope);
+        let store = self.cloud_authority().await?;
+        let projection_row = store
+            .get(
+                CloudModelLaneRecordKind::ProjectionPlan,
+                &projection_plan_id,
+                &scope,
+            )
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::InvalidInput(format!(
+                    "ProjectionPlan {projection_plan_id} is not durable"
+                ))
+            })?;
+        let consent_row = store
+            .get(
+                CloudModelLaneRecordKind::ConsentReceipt,
+                &consent_receipt_id,
+                &scope,
+            )
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::InvalidInput(format!(
+                    "ConsentReceipt {consent_receipt_id} is not durable"
+                ))
+            })?;
+        let projection: ModelLaneCloudProjectionPlanRecord =
+            serde_json::from_str(&projection_row.record_json)?;
+        let consent: ModelLaneCloudConsentReceiptRecord =
+            serde_json::from_str(&consent_row.record_json)?;
+        validate_cloud_projection_authority_surreal(&projection, &projection_row)?;
+        validate_cloud_consent_authority_surreal(&consent, &consent_row)?;
+        validate_cloud_authority_pair(&projection, &consent)?;
+        validate_cloud_launch_pair(&self.access, &projection, &consent, check)
+    }
+
+    async fn record_cloud_lane_surreal(
+        &self,
+        input: NewModelLane,
+    ) -> ModelLaneResult<ModelLaneRecord> {
+        validate_lane(&input)?;
+        let exact_scope = require_exact_cloud_launch_scope(&self.access)?;
+        let scope = cloud_model_lane_scope(&exact_scope);
+        let event_id = Uuid::now_v7().to_string();
+        let event_seq = next_cloud_event_sequence();
+        let record = ModelLaneRecord {
+            event_ledger_event_id: event_id.clone(),
+            event_ledger_seq: event_seq,
+            inner: input,
+        };
+        let mut payload = json!({
+            "schema_id": "hsk.model_lane@1",
+            "dexterity_kernel": "Dexterity",
+            "record": &record,
+        });
+        exact_scope.stamp_json_object(&mut payload).map_err(|_| {
+            ModelLaneError::AuthorityDenied(
+                "cloud ModelLane could not stamp exact resource attribution".into(),
+            )
+        })?;
+        let consent_receipt_ref = record.consent_receipt_ref.as_deref().ok_or_else(|| {
+            ModelLaneError::InvalidInput("cloud ModelLane requires consent_receipt_ref".into())
+        })?;
+        let stored = self
+            .cloud_authority()
+            .await?
+            .put_immutable(
+                CloudModelLaneRecordKind::CloudLane,
+                &record.lane_id,
+                &record.run_id,
+                record.projection_plan_ref.as_deref(),
+                Some(consent_receipt_ref),
+                &format!("model-lane:{}:{}", record.run_id, record.lane_id),
+                serde_json::to_string(&record)?,
+                event_id,
+                event_seq,
+                serde_json::to_string(&payload)?,
+                &scope,
+            )
+            .await?;
+        let stored_record: ModelLaneRecord = serde_json::from_str(&stored.record_json)?;
+        if stored_record.lane_id != record.lane_id || stored_record.run_id != record.run_id {
+            return Err(ModelLaneError::IdempotencyConflict(format!(
+                "lane_id {} already belongs to a different cloud lane",
+                record.lane_id
+            )));
+        }
+        Ok(stored_record)
+    }
+
+    async fn record_cloud_run_surreal(
+        &self,
+        input: NewModelLaneRun,
+    ) -> ModelLaneResult<ModelLaneRunRecord> {
+        validate_run(&input)?;
+        let exact_scope = require_exact_cloud_launch_scope(&self.access)?;
+        let scope = cloud_model_lane_scope(&exact_scope);
+        let store = self.cloud_authority().await?;
+        if let Some(existing) = store
+            .get(CloudModelLaneRecordKind::CloudRun, &input.run_id, &scope)
+            .await?
+        {
+            let existing: ModelLaneRunRecord = serde_json::from_str(&existing.record_json)?;
+            if existing.inner == input {
+                return Ok(existing);
+            }
+            return Err(ModelLaneError::IdempotencyConflict(format!(
+                "run_id {} already belongs to idempotency_key {}",
+                input.run_id, existing.idempotency_key
+            )));
+        }
+        let event_id = Uuid::now_v7().to_string();
+        let event_seq = next_cloud_event_sequence();
+        let record = ModelLaneRunRecord {
+            event_ledger_event_id: event_id.clone(),
+            event_ledger_seq: event_seq,
+            inner: input,
+        };
+        let mut payload = json!({
+            "schema_id": "hsk.model_lane_run@1",
+            "dexterity_kernel": "Dexterity",
+            "record": &record.inner,
+        });
+        exact_scope.stamp_json_object(&mut payload).map_err(|_| {
+            ModelLaneError::AuthorityDenied(
+                "cloud ModelLaneRun could not stamp exact resource attribution".into(),
+            )
+        })?;
+        let stored = store
+            .put_immutable(
+                CloudModelLaneRecordKind::CloudRun,
+                &record.run_id,
+                &record.run_id,
+                record.projection_plan_ref.as_deref(),
+                record.consent_receipt_ref.as_deref(),
+                &record.idempotency_key,
+                serde_json::to_string(&record)?,
+                event_id,
+                event_seq,
+                serde_json::to_string(&payload)?,
+                &scope,
+            )
+            .await?;
+        let stored_record: ModelLaneRunRecord = serde_json::from_str(&stored.record_json)?;
+        if stored_record != record {
+            return Err(ModelLaneError::IdempotencyConflict(format!(
+                "run_id {} already belongs to a different cloud launch",
+                record.run_id
+            )));
+        }
+        Ok(stored_record)
+    }
+
+    async fn fence_cloud_consent_revocation_surreal(
+        &self,
+        consent_receipt_id: &str,
+        revoked_by_ref: &str,
+        reason: &str,
+    ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
+        require_token("consent_receipt_id", consent_receipt_id)?;
+        require_token("revoked_by_ref", revoked_by_ref)?;
+        require_token("reason", reason)?;
+        let exact_scope = require_exact_lifecycle_write_scope(self)?;
+        let scope = cloud_model_lane_scope(&exact_scope);
+        let store = self.cloud_authority().await?;
+        let receipt_row = store
+            .get(
+                CloudModelLaneRecordKind::ConsentReceipt,
+                consent_receipt_id,
+                &scope,
+            )
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(
+                    "CX-MM-007 consent receipt authority unavailable".into(),
+                )
+            })?;
+        let existing: ModelLaneCloudConsentReceiptRecord =
+            serde_json::from_str(&receipt_row.record_json)?;
+        validate_cloud_consent_authority_surreal(&existing, &receipt_row)?;
+        let projection_row = store
+            .get(
+                CloudModelLaneRecordKind::ProjectionPlan,
+                &existing.projection_plan_id,
+                &scope,
+            )
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(format!(
+                    "CX-MM-007 ProjectionPlan {} is missing during revocation",
+                    existing.projection_plan_id
+                ))
+            })?;
+        let projection: ModelLaneCloudProjectionPlanRecord =
+            serde_json::from_str(&projection_row.record_json)?;
+        validate_cloud_projection_authority_surreal(&projection, &projection_row)?;
+        validate_cloud_authority_pair(&projection, &existing)?;
+
+        let revocation_input_hash =
+            cloud_consent_revocation_input_hash(consent_receipt_id, revoked_by_ref, reason);
+        if existing.status == ModelLaneCloudConsentReceiptStatus::Revoked {
+            if existing.revocation_input_hash.as_deref() != Some(revocation_input_hash.as_str()) {
+                return Err(ModelLaneError::IdempotencyConflict(format!(
+                    "consent_receipt_id {consent_receipt_id} was already revoked with a different actor or reason"
+                )));
+            }
+            return self
+                .cloud_lanes_for_receipt_surreal(&existing, &scope)
+                .await;
+        }
+
+        let covered_lanes = self
+            .cloud_lanes_for_receipt_surreal(&existing, &scope)
+            .await?;
+        let mut receipt_inner = existing.inner.clone();
+        receipt_inner.status = ModelLaneCloudConsentReceiptStatus::Revoked;
+        receipt_inner.approved = false;
+        receipt_inner.revoked_at_utc = Some(Utc::now().to_rfc3339());
+        receipt_inner.revocation_ref = Some(revoked_by_ref.to_owned());
+        receipt_inner.revocation_input_hash = Some(revocation_input_hash);
+        receipt_inner.diagnostic_payload = merge_diagnostic_payload(
+            receipt_inner.diagnostic_payload,
+            json!({
+                "consent_status": "CX-MM-007",
+                "revocation_reason": reason,
+                "revoked_by_ref": revoked_by_ref,
+                "storage_authority": "embedded_surrealdb",
+            }),
+        );
+        let event_id = Uuid::now_v7().to_string();
+        let event_seq = next_cloud_event_sequence();
+        let revoked = ModelLaneCloudConsentReceiptRecord {
+            consent_receipt_hash: cloud_consent_receipt_hash(&receipt_inner)?,
+            target_bindings_hash: existing.target_bindings_hash.clone(),
+            event_ledger_event_id: event_id.clone(),
+            event_ledger_seq: event_seq,
+            event_stream_version: event_seq,
+            transaction_seq: event_seq,
+            inner: receipt_inner,
+        };
+        let payload = cloud_consent_receipt_event_payload(&revoked);
+        let stored = store
+            .replace(
+                CloudModelLaneRecordKind::ConsentReceipt,
+                consent_receipt_id,
+                serde_json::to_string(&revoked)?,
+                event_id,
+                event_seq,
+                serde_json::to_string(&payload)?,
+                &scope,
+            )
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(
+                    "CX-MM-007 consent receipt disappeared during revocation".into(),
+                )
+            })?;
+        validate_cloud_consent_authority_surreal(&revoked, &stored)?;
+        Ok(covered_lanes)
+    }
+
+    async fn cloud_lanes_for_receipt_surreal(
+        &self,
+        receipt: &ModelLaneCloudConsentReceiptRecord,
+        scope: &CloudModelLaneScope,
+    ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
+        let rows = self
+            .cloud_authority()
+            .await?
+            .list_consent_lanes(&receipt.consent_receipt_id, scope)
+            .await?;
+        let mut lanes = Vec::with_capacity(rows.len());
+        for row in rows {
+            let lane: ModelLaneRecord = serde_json::from_str(&row.record_json)?;
+            let core_matches = lane.run_id == receipt.run_id
+                && lane.consent_receipt_ref.as_deref() == Some(receipt.consent_receipt_id.as_str())
+                && lane.projection_plan_ref.as_deref() == Some(receipt.projection_plan_id.as_str());
+            let single_lane_matches = receipt.consent_scope
+                != ModelLaneCloudConsentScope::SingleLane
+                || (receipt.lane_id.as_deref() == Some(lane.lane_id.as_str())
+                    && receipt.model_session_id.as_deref() == Some(lane.model_session_id.as_str())
+                    && receipt.provider_kind.as_deref() == Some(lane.provider_kind.as_str())
+                    && receipt.requested_model_id.as_deref() == lane.model_id.as_deref());
+            if !core_matches || !single_lane_matches {
+                return Err(ModelLaneError::AuthorityDenied(format!(
+                    "CX-MM-007 cloud lane {} differs from consent {}",
+                    lane.lane_id, receipt.consent_receipt_id
+                )));
+            }
+            lanes.push(lane);
+        }
+        Ok(lanes)
+    }
+
+    async fn finalize_cloud_consent_revocation_surreal(
+        &self,
+        consent_receipt_id: &str,
+        revoked_by_ref: &str,
+        reason: &str,
+        provider_cancelled_lane_ids: &BTreeSet<String>,
+    ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
+        let covered_lanes = self
+            .fence_cloud_consent_revocation_surreal(consent_receipt_id, revoked_by_ref, reason)
+            .await?;
+        let exact_scope = require_exact_lifecycle_write_scope(self)?;
+        let scope = cloud_model_lane_scope(&exact_scope);
+        let store = self.cloud_authority().await?;
+        let mut cancelled = Vec::with_capacity(covered_lanes.len());
+        for existing in covered_lanes {
+            if matches!(
+                existing.status,
+                ModelLaneStatus::Completed | ModelLaneStatus::Failed | ModelLaneStatus::Cancelled
+            ) {
+                if existing.status == ModelLaneStatus::Cancelled
+                    && existing.failstate_code.as_deref() == Some("CX-MM-007")
+                {
+                    cancelled.push(existing);
+                }
+                continue;
+            }
+            let mut lane = existing.inner.clone();
+            lane.status = ModelLaneStatus::Cancelled;
+            lane.recovery_state = ModelLaneRecoveryState::Terminal;
+            lane.failstate_code = Some("CX-MM-007".into());
+            lane.reason_ref = Some(format!(
+                "cloud-consent-revoked://dexterity/{}/{}",
+                lane.run_id, lane.lane_id
+            ));
+            lane.recovery_hint_ref =
+                Some("usermanual://model-lane-cloud-projection-consent#recovery".into());
+            lane.last_runtime_status_ref = Some(format!(
+                "runtime-status://dexterity/{}/cloud-consent-revoked",
+                lane.lane_id
+            ));
+            validate_lane(&lane)?;
+            let event_id = Uuid::now_v7().to_string();
+            let event_seq = next_cloud_event_sequence();
+            lane.last_recovery_event_ref = Some(event_id.clone());
+            let record = ModelLaneRecord {
+                event_ledger_event_id: event_id.clone(),
+                event_ledger_seq: event_seq,
+                inner: lane,
+            };
+            let mut payload = json!({
+                "schema_id": "hsk.model_lane_terminal@1",
+                "dexterity_kernel": "Dexterity",
+                "lane_id": &record.lane_id,
+                "run_id": &record.run_id,
+                "status": "cancelled",
+                "reason": reason,
+                "reason_code": "CX-MM-007",
+                "consent_receipt_id": consent_receipt_id,
+                "provider_call_cancelled": provider_cancelled_lane_ids.contains(&record.lane_id),
+                "flight_recorder": "SurrealDB EventLedger",
+                "record": &record,
+            });
+            exact_scope.stamp_json_object(&mut payload).map_err(|_| {
+                ModelLaneError::AuthorityDenied(
+                    "cloud consent terminal EventLedger payload requires exact resource attribution".into(),
+                )
+            })?;
+            let stored = store
+                .replace(
+                    CloudModelLaneRecordKind::CloudLane,
+                    &record.lane_id,
+                    serde_json::to_string(&record)?,
+                    event_id,
+                    event_seq,
+                    serde_json::to_string(&payload)?,
+                    &scope,
+                )
+                .await?
+                .ok_or_else(|| {
+                    ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 cloud lane {} disappeared during revocation",
+                        record.lane_id
+                    ))
+                })?;
+            if stored.event_id != record.event_ledger_event_id
+                || stored.event_seq != record.event_ledger_seq
+            {
+                return Err(ModelLaneError::IntegrityViolation(format!(
+                    "cloud lane {} SurrealDB EventLedger envelope mismatch",
+                    record.lane_id
+                )));
+            }
+            cancelled.push(record);
+        }
+        Ok(cancelled)
     }
 
     pub async fn schema_registry_rows(&self) -> ModelLaneResult<Vec<ModelLaneSchemaRegistryRow>> {
@@ -5495,7 +5335,7 @@ impl ModelLaneStore {
             ORDER BY schema_id
             "#,
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&*self.pool)
         .await?
         .into_iter()
         .map(|row| {
@@ -9791,44 +9631,121 @@ fn validate_cloud_authority_pair(
     Ok(())
 }
 
-async fn ensure_cloud_launch_authority_tx(
-    tx: &mut Transaction<'_, Postgres>,
+fn next_cloud_event_sequence() -> i64 {
+    let observed = Utc::now().timestamp_micros().max(1);
+    let mut current = CLOUD_EVENT_SEQUENCE.load(AtomicOrdering::Relaxed);
+    loop {
+        let next = observed.max(current.saturating_add(1));
+        match CLOUD_EVENT_SEQUENCE.compare_exchange_weak(
+            current,
+            next,
+            AtomicOrdering::SeqCst,
+            AtomicOrdering::Relaxed,
+        ) {
+            Ok(_) => return next,
+            Err(actual) => current = actual,
+        }
+    }
+}
+
+fn cloud_model_lane_scope(exact: &ExactResourceScopeAttribution) -> CloudModelLaneScope {
+    CloudModelLaneScope {
+        owner_account_id: exact.owner_account_id.to_string(),
+        actor_principal_id: exact.actor_principal_id.to_string(),
+        authenticated_session_id: exact.authenticated_session_id.to_string(),
+        access_space_id: exact.access_space_id.to_string(),
+        workspace_id: exact.workspace_id.to_string(),
+    }
+}
+
+fn validate_cloud_projection_authority_surreal(
+    record: &ModelLaneCloudProjectionPlanRecord,
+    stored: &CloudModelLaneStoredRow,
+) -> ModelLaneResult<()> {
+    validate_cloud_projection_plan(&record.inner)?;
+    let expected_targets =
+        cloud_consent_target_bindings_hash(record.consent_scope, &record.target_bindings)?;
+    if record.target_bindings_hash != expected_targets {
+        return Err(ModelLaneError::IntegrityViolation(format!(
+            "ProjectionPlan {} target_bindings_hash mismatch",
+            record.projection_plan_id
+        )));
+    }
+    let expected_hash = cloud_projection_plan_hash(&record.inner)?;
+    require_equal(
+        "ProjectionPlan.projection_plan_hash",
+        &record.projection_plan_hash,
+        "canonical ProjectionPlan hash",
+        &expected_hash,
+    )?;
+    validate_surreal_event_envelope(
+        &record.event_ledger_event_id,
+        record.event_ledger_seq,
+        &cloud_projection_plan_event_payload(record),
+        stored,
+        "ProjectionPlan",
+        &record.projection_plan_id,
+    )
+}
+
+fn validate_cloud_consent_authority_surreal(
+    record: &ModelLaneCloudConsentReceiptRecord,
+    stored: &CloudModelLaneStoredRow,
+) -> ModelLaneResult<()> {
+    validate_cloud_consent_receipt(&record.inner)?;
+    let expected_targets =
+        cloud_consent_target_bindings_hash(record.consent_scope, &record.target_bindings)?;
+    if record.target_bindings_hash != expected_targets {
+        return Err(ModelLaneError::IntegrityViolation(format!(
+            "ConsentReceipt {} target_bindings_hash mismatch",
+            record.consent_receipt_id
+        )));
+    }
+    let expected_hash = cloud_consent_receipt_hash(&record.inner)?;
+    require_equal(
+        "ConsentReceipt.consent_receipt_hash",
+        &record.consent_receipt_hash,
+        "canonical ConsentReceipt hash",
+        &expected_hash,
+    )?;
+    validate_surreal_event_envelope(
+        &record.event_ledger_event_id,
+        record.event_ledger_seq,
+        &cloud_consent_receipt_event_payload(record),
+        stored,
+        "ConsentReceipt",
+        &record.consent_receipt_id,
+    )
+}
+
+fn validate_surreal_event_envelope(
+    event_id: &str,
+    event_seq: i64,
+    expected_payload: &Value,
+    stored: &CloudModelLaneStoredRow,
+    label: &str,
+    aggregate_id: &str,
+) -> ModelLaneResult<()> {
+    if event_id != stored.event_id || event_seq != stored.event_seq || event_seq <= 0 {
+        return Err(ModelLaneError::IntegrityViolation(format!(
+            "CX-MM-007 {label} {aggregate_id} SurrealDB EventLedger envelope mismatch"
+        )));
+    }
+    let observed_payload: Value = serde_json::from_str(&stored.event_payload_json)?;
+    if observed_payload != *expected_payload {
+        return Err(ModelLaneError::IntegrityViolation(format!(
+            "CX-MM-007 {label} {aggregate_id} mutable/SurrealDB EventLedger authority mismatch"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_cloud_launch_pair(
     access: &ResourceAccessContext,
+    projection: &ModelLaneCloudProjectionPlanRecord,
+    consent: &ModelLaneCloudConsentReceiptRecord,
     check: &CloudLaunchAuthorityCheck,
 ) -> ModelLaneResult<()> {
-    require_token("cloud.run_id", &check.run_id)?;
-    require_token("cloud.lane_id", &check.lane_id)?;
-    require_token("cloud.model_session_id", &check.model_session_id)?;
-    require_token("cloud.provider_kind", &check.provider_kind)?;
-    require_token("cloud.requested_model_id", &check.requested_model_id)?;
-    require_token(
-        "cloud.capability_snapshot_ref",
-        &check.capability_snapshot_ref,
-    )?;
-    require_token("cloud.provider_endpoint_ref", &check.provider_endpoint_ref)?;
-    let projection_plan_id =
-        require_optional_token("projection_plan_ref", check.projection_plan_ref.as_deref())?;
-    let consent_receipt_id =
-        require_optional_token("consent_receipt_ref", check.consent_receipt_ref.as_deref())?;
-    let projection = cloud_projection_plan_by_id_tx(tx, access, &projection_plan_id)
-        .await?
-        .ok_or_else(|| {
-            ModelLaneError::InvalidInput(format!(
-                "ProjectionPlan {projection_plan_id} is not durable"
-            ))
-        })?;
-    let consent = cloud_consent_receipt_by_id_tx(tx, access, &consent_receipt_id)
-        .await?
-        .ok_or_else(|| {
-            ModelLaneError::InvalidInput(format!(
-                "ConsentReceipt {consent_receipt_id} is not durable"
-            ))
-        })?;
-
-    validate_cloud_projection_authority_tx(tx, &projection).await?;
-    validate_cloud_consent_authority_tx(tx, &consent).await?;
-    validate_cloud_authority_pair(&projection, &consent)?;
-
     if projection.status != ModelLaneCloudProjectionPlanStatus::Active {
         return Err(ModelLaneError::InvalidInput(
             "ProjectionPlan is not active".into(),
@@ -9841,12 +9758,6 @@ async fn ensure_cloud_launch_authority_tx(
         &check.run_id,
     )?;
     ensure_cloud_authority_target("ProjectionPlan", &projection.inner, check)?;
-    // Revocation is checked BEFORE the approval flag so the denial names the
-    // true cause. Previously a revoked receipt fell out of the `!approved`
-    // branch as "ConsentReceipt is not approved", which is both misleading (it
-    // was approved — and then withdrawn) and made the "ConsentReceipt is
-    // revoked" error that the in-product UserManual documents unreachable on the
-    // revocation path. Both orderings fail closed; only one is honest.
     if consent.revoked_at_utc.is_some()
         || consent.revocation_ref.is_some()
         || consent.status == ModelLaneCloudConsentReceiptStatus::Revoked
@@ -9867,17 +9778,6 @@ async fn ensure_cloud_launch_authority_tx(
         &check.run_id,
     )?;
     ensure_cloud_consent_receipt_target("ConsentReceipt", &consent.inner, check)?;
-
-    // HBR-PRIV-005/007: WHO approved is decided by the typed `approver`, never by
-    // `approved_by_ref`. `approved_by_ref` is not read anywhere in this gate, and
-    // that is the point: the string is provenance, the typed value is authority.
-    //
-    // A `System` access context has no account to check against; that is the
-    // documented pre-WP-KERNEL-006 residual bypass shared by every WP-1 table
-    // (see `SystemScopeAuthority::legacy_unscoped_call_site`), not a special
-    // exemption invented for cloud consent. As soon as a launch carries an
-    // account context, an `Unattributed` receipt cannot authorize it and neither
-    // can another account's receipt.
     if let Some(query) = access.read_query() {
         consent.approver.authorizes(query).map_err(|denied| {
             ModelLaneError::AuthorityDenied(format!(
@@ -9887,7 +9787,6 @@ async fn ensure_cloud_launch_authority_tx(
             ))
         })?;
     }
-
     let now = Utc::now();
     let valid_from = parse_utc("ConsentReceipt.valid_from_utc", &consent.valid_from_utc)?;
     let valid_until = parse_utc("ConsentReceipt.valid_until_utc", &consent.valid_until_utc)?;
@@ -9974,206 +9873,6 @@ fn ensure_cloud_target_binding(
     }
 
     let _ = target_bindings;
-    Ok(())
-}
-
-async fn validate_cloud_projection_authority_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    record: &ModelLaneCloudProjectionPlanRecord,
-) -> ModelLaneResult<()> {
-    validate_cloud_projection_plan(&record.inner)?;
-    let expected_targets =
-        cloud_consent_target_bindings_hash(record.consent_scope, &record.target_bindings)?;
-    if record.target_bindings_hash != expected_targets {
-        return Err(ModelLaneError::InvalidInput(format!(
-            "ProjectionPlan {} target_bindings_hash mismatch",
-            record.projection_plan_id
-        )));
-    }
-    let expected_record_hash = cloud_projection_plan_hash(&record.inner)?;
-    require_equal(
-        "ProjectionPlan.projection_plan_hash",
-        &record.projection_plan_hash,
-        "canonical ProjectionPlan hash",
-        &expected_record_hash,
-    )?;
-    let ledger = cloud_authority_ledger_record_tx::<ModelLaneCloudProjectionPlanRecord>(
-        tx,
-        &record.event_ledger_event_id,
-        "model_lane_cloud_projection_plan",
-        &record.projection_plan_id,
-        record.event_ledger_seq,
-        &record.event_ledger_stream_id,
-    )
-    .await?;
-    if &ledger != record {
-        return Err(ModelLaneError::InvalidInput(format!(
-            "ProjectionPlan {} mutable/EventLedger authority mismatch",
-            record.projection_plan_id
-        )));
-    }
-    Ok(())
-}
-
-async fn validate_cloud_consent_authority_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    record: &ModelLaneCloudConsentReceiptRecord,
-) -> ModelLaneResult<()> {
-    validate_cloud_consent_receipt(&record.inner)?;
-    let expected_targets =
-        cloud_consent_target_bindings_hash(record.consent_scope, &record.target_bindings)?;
-    if record.target_bindings_hash != expected_targets {
-        return Err(ModelLaneError::InvalidInput(format!(
-            "ConsentReceipt {} target_bindings_hash mismatch",
-            record.consent_receipt_id
-        )));
-    }
-    let expected_record_hash = cloud_consent_receipt_hash(&record.inner)?;
-    require_equal(
-        "ConsentReceipt.consent_receipt_hash",
-        &record.consent_receipt_hash,
-        "canonical ConsentReceipt hash",
-        &expected_record_hash,
-    )?;
-    let ledger = cloud_authority_ledger_record_tx::<ModelLaneCloudConsentReceiptRecord>(
-        tx,
-        &record.event_ledger_event_id,
-        "model_lane_cloud_consent_receipt",
-        &record.consent_receipt_id,
-        record.event_ledger_seq,
-        &record.event_ledger_stream_id,
-    )
-    .await?;
-    if &ledger != record {
-        return Err(ModelLaneError::InvalidInput(format!(
-            "ConsentReceipt {} mutable/EventLedger authority mismatch",
-            record.consent_receipt_id
-        )));
-    }
-    Ok(())
-}
-
-async fn cloud_authority_ledger_record_tx<T>(
-    tx: &mut Transaction<'_, Postgres>,
-    event_id: &str,
-    aggregate_type: &str,
-    aggregate_id: &str,
-    expected_event_sequence: i64,
-    expected_session_run_id: &str,
-) -> ModelLaneResult<T>
-where
-    T: serde::de::DeserializeOwned,
-{
-    let row = sqlx::query(
-        r#"
-        SELECT aggregate_type, aggregate_id, event_sequence, session_run_id, payload
-        FROM kernel_event_ledger
-        WHERE event_id = $1
-        "#,
-    )
-    .bind(event_id)
-    .fetch_optional(&mut **tx)
-    .await?
-    .ok_or_else(|| {
-        ModelLaneError::InvalidInput(format!(
-            "{aggregate_type} {aggregate_id} EventLedger row is missing"
-        ))
-    })?;
-    let ledger_type: String = row.try_get("aggregate_type")?;
-    let ledger_id: String = row.try_get("aggregate_id")?;
-    let ledger_sequence: i64 = row.try_get("event_sequence")?;
-    let ledger_session_run_id: String = row.try_get("session_run_id")?;
-    require_equal(
-        "EventLedger.aggregate_type",
-        &ledger_type,
-        "expected aggregate_type",
-        aggregate_type,
-    )?;
-    require_equal(
-        "EventLedger.aggregate_id",
-        &ledger_id,
-        "expected aggregate_id",
-        aggregate_id,
-    )?;
-    if ledger_sequence != expected_event_sequence
-        || ledger_session_run_id != expected_session_run_id
-    {
-        return Err(ModelLaneError::AuthorityDenied(format!(
-            "CX-MM-007 {aggregate_type} {aggregate_id} EventLedger envelope mismatch"
-        )));
-    }
-    let payload: Value = row.try_get("payload")?;
-    event_payload_record(&payload, aggregate_type, aggregate_id)
-}
-
-async fn record_cloud_consent_denial(
-    pool: &PgPool,
-    exact_scope: &ExactResourceScopeAttribution,
-    check: &CloudLaunchAuthorityCheck,
-    failure_kind: &str,
-    detail: &str,
-) -> ModelLaneResult<()> {
-    let mut tx = pool.begin().await?;
-    let failure_kind_hash = dexterity_sha256_hex(failure_kind.as_bytes());
-    let stable_basis = json!({
-        "resource_scope": exact_scope,
-        "run_id": &check.run_id,
-        "lane_id": &check.lane_id,
-        "model_session_id": &check.model_session_id,
-        "provider_kind": &check.provider_kind,
-        "requested_model_id": &check.requested_model_id,
-        "projection_plan_ref": &check.projection_plan_ref,
-        "consent_receipt_ref": &check.consent_receipt_ref,
-        "failure_kind_hash": &failure_kind_hash,
-    });
-    let idempotency_key = format!(
-        "model-lane-cloud-consent-denial:{}:{}:{}",
-        check.run_id,
-        check.lane_id,
-        dexterity_sha256_hex(canonical_json_bytes(&stable_basis))
-    );
-    let mut payload = json!({
-        "schema_id": "hsk.model_lane_cloud_consent_denial@1",
-        "dexterity_kernel": "Dexterity",
-        "reason_code": "CX-MM-007",
-        "consent_status": "CX-MM-007",
-        "failure_kind": failure_kind,
-        "failure_kind_hash": failure_kind_hash,
-        "detail": detail,
-        "run_id": &check.run_id,
-        "lane_id": &check.lane_id,
-        "model_session_id": &check.model_session_id,
-        "provider_kind": &check.provider_kind,
-        "requested_model_id": &check.requested_model_id,
-        "projection_plan_ref": &check.projection_plan_ref,
-        "consent_receipt_ref": &check.consent_receipt_ref,
-        "provider_call_attempted": false,
-        "partial_authority_state_created": false,
-        "flight_recorder": "EventLedger",
-        "internal_diagnostics": "deferred: backend event payload exposes denial; native diagnostic surface ships separately",
-        "palmistry": "deferred: external watcher will link by run_id/lane_id when available",
-        "user_manual_behavior_ref": &check.user_manual_behavior_ref,
-        "micro_task_id": &check.micro_task_id,
-        "owner_session": &check.owner_session,
-    });
-    exact_scope
-        .stamp_json_object(&mut payload)
-        .map_err(|error| {
-            ModelLaneError::AuthorityDenied(format!(
-                "cloud denial audit requires exact resource-scope attribution: {error}"
-            ))
-        })?;
-    let event = model_lane_event(
-        KernelEventType::ValidationRecorded,
-        "model_lane_cloud_consent_denial",
-        &check.lane_id,
-        &idempotency_key,
-        &check.work_packet_id,
-        &check.event_ledger_stream_id,
-        payload,
-    )?;
-    append_kernel_event_with_executor(&mut *tx, event).await?;
-    tx.commit().await?;
     Ok(())
 }
 
@@ -13557,88 +13256,6 @@ fn validate_message_payload_binding_pair(
     Ok(())
 }
 
-/// HBR-PRIV-002 default-deny lookup for a cloud ProjectionPlan.
-///
-/// This is the "cannot REUSE another account's authority" boundary, not just the
-/// "cannot read it" one: every cloud launch gate resolves its ProjectionPlan
-/// through here, so an account-scoped store simply cannot see another account's
-/// plan and the launch fails closed with `is not durable`.
-///
-/// Enforcement is in both layers per HBR-PRIV-002 — the owner predicate keeps the
-/// row inside PostgreSQL, and the stored scope columns are re-authorized after
-/// deserialization in case a future edit drops the predicate.
-async fn cloud_projection_plan_by_id_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    access: &ResourceAccessContext,
-    projection_plan_id: &str,
-) -> ModelLaneResult<Option<ModelLaneCloudProjectionPlanRecord>> {
-    let predicate = access.sql_predicate(2);
-    let sql = format!(
-        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_cloud_projection_plans WHERE projection_plan_id = $1{} FOR UPDATE",
-        predicate.clause()
-    );
-    predicate
-        .bind(sqlx::query(&sql).bind(projection_plan_id))
-        .fetch_optional(&mut **tx)
-        .await?
-        .map(|row| authorize_and_decode_row(access, row))
-        .transpose()
-}
-
-async fn cloud_projection_plan_by_idempotency_key_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    idempotency_key: &str,
-) -> ModelLaneResult<Option<ModelLaneCloudProjectionPlanRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_cloud_projection_plans WHERE idempotency_key = $1 LIMIT 1",
-    )
-    .bind(idempotency_key)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
-}
-
-/// HBR-PRIV-002 default-deny lookup for a cloud ConsentReceipt. See
-/// [`cloud_projection_plan_by_id_tx`] — same two-layer contract, and the same
-/// consequence: another account's consent receipt is not resolvable, so it
-/// cannot be reused to authorize a launch or to drive a revocation.
-async fn cloud_consent_receipt_by_id_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    access: &ResourceAccessContext,
-    consent_receipt_id: &str,
-) -> ModelLaneResult<Option<ModelLaneCloudConsentReceiptRecord>> {
-    let predicate = access.sql_predicate(2);
-    let sql = format!(
-        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_cloud_consent_receipts WHERE consent_receipt_id = $1{} FOR UPDATE",
-        predicate.clause()
-    );
-    predicate
-        .bind(sqlx::query(&sql).bind(consent_receipt_id))
-        .fetch_optional(&mut **tx)
-        .await?
-        .map(|row| authorize_and_decode_row(access, row))
-        .transpose()
-}
-
-async fn cloud_consent_receipt_by_idempotency_key_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    idempotency_key: &str,
-) -> ModelLaneResult<Option<ModelLaneCloudConsentReceiptRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_cloud_consent_receipts WHERE idempotency_key = $1 LIMIT 1",
-    )
-    .bind(idempotency_key)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
-}
-
 fn stored_scope_matches_write_columns(
     stored: &super::resource_scope::StoredResourceScope,
     scope: ScopeColumnValues<'_>,
@@ -14965,9 +14582,6 @@ async fn current_schema_id_for_aggregate_tx(
         "model_lane_promotion_decision" => "model_lane_promotion_decisions",
         "model_lane_context_bundle_artifact" => "model_lane_context_bundle_artifacts",
         "model_lane_context_bundle_handoff" => "model_lane_context_bundle_handoffs",
-        "model_lane_cloud_projection_plan" => "model_lane_cloud_projection_plans",
-        "model_lane_cloud_consent_receipt" => "model_lane_cloud_consent_receipts",
-        "model_lane_cloud_consent_denial" => "kernel_event_ledger",
         "model_lane_recovery_checkpoint" => "model_lane_recovery_checkpoints",
         "model_lane_recovery_event" => "model_lane_recovery_events",
         "model_lane_lease" => "model_lane_leases",

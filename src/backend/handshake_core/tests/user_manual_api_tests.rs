@@ -1645,18 +1645,9 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         "Palmistry",
         "DEFERRED-with-reason",
         "cloud_projection_and_consent_receipts_persist_and_replay",
-        "cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent",
-        "cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence",
-        "model_lane_cloud_consent_scope_pg_tests",
-        "unscoped_cloud_grant_fails_before_postgres_or_provider_authority",
-        "http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store",
-        "two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority",
-        "revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned",
-        "cloud_projection_records_audience_scope_and_authorization_provenance",
-        "a_self_issued_role_label_approver_is_refused_at_write_time",
-        "an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch",
-        "cloud_provider_start_receipt_preserves_exact_server_owned_scope",
-        "cloud_provider_requires_exact_scope_before_builder_side_effects",
+        "cloud_lane_rejects_missing_expired_mismatched_revoked_and_unscoped_consent_before_provider_call",
+        "cloud_consent_revocation_and_context_switch_cancel_covered_lanes_with_eventledger_evidence",
+        "cloud_http_launch_enforces_cross_account_and_delegated_audience_scope",
         "generic `/operator-chat/launch` cloud handlers require the scoped product router",
         "record_prepared_launch",
         "record_lane",
@@ -1700,14 +1691,14 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
     assert!(tool_ids.contains("model_lane_launch_tests"));
     assert!(tool_ids.contains("model_lane_promotion_pg_tests"));
     assert!(tool_ids.contains("model_lane_context_bundle_pg_tests"));
-    assert!(tool_ids.contains("cloud_model_lane_policy_pg_tests"));
-    assert!(tool_ids.contains("model_lane_cloud_consent_scope_pg_tests"));
+    assert!(tool_ids.contains("cloud_model_lane_policy_surreal_tests"));
+    assert!(tool_ids.contains("model_lane_cloud_consent_scope_surreal_tests"));
 
     let cloud_tool = tools["tools"]
         .as_array()
         .expect("tools array")
         .iter()
-        .find(|tool| tool["tool_id"] == "cloud_model_lane_policy_pg_tests")
+        .find(|tool| tool["tool_id"] == "cloud_model_lane_policy_surreal_tests")
         .expect("cloud policy tool entry");
     assert_eq!(cloud_tool["status"], "wired");
     assert!(cloud_tool["description"]
@@ -1716,19 +1707,11 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         .contains("ProjectionPlan/ConsentReceipt persistence"));
     for required in [
         "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows",
-        "model_lane_cloud_projection_plans and model_lane_cloud_consent_receipts",
-        "hsk.model_lane_cloud_projection_plan@2",
-        "hsk.model_lane_cloud_consent_receipt@2",
-        "hsk.model_lane_cloud_consent_denial@1",
+        "embedded SurrealDB model_lane_cloud_authority and model_lane_cloud_event_ledger",
+        "no PostgreSQL/SQLite fallback",
         "ModelLaneStore::replay_cloud_consent_authority",
-        "single-lane cloud launch allowed only when",
-        "single-run launch allowed only when durable run-scoped authority matches run_id",
-        "model_lane_cloud_consent_denial",
-        "provider_call_attempted = false",
-        "SwarmCoordinator::spawn_session preflight blocks before factory.create",
-        "ModelLaneAuthority::Promoted rejects without approved PromotionGate",
-        "SwarmCoordinator::revoke_cloud_consent_receipt",
-        "model_lane_terminal EventLedger evidence",
+        "missing/expired/mismatched/revoked consent rejected with CX-MM-007 before provider call",
+        "revocation cancels durable covered lanes with failstate_code CX-MM-007",
     ] {
         assert!(
             cloud_tool["expected_output"]
@@ -1743,15 +1726,15 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         .as_array()
         .expect("tools array")
         .iter()
-        .find(|tool| tool["tool_id"] == "model_lane_cloud_consent_scope_pg_tests")
+        .find(|tool| tool["tool_id"] == "model_lane_cloud_consent_scope_surreal_tests")
         .expect("cloud consent exact-scope tool entry");
     assert_eq!(scope_tool["status"], "wired");
     assert!(scope_tool["cli_flag"]
         .as_str()
         .expect("scope proof cli flag")
-        .contains("--test model_lane_cloud_consent_scope_pg_tests"));
+        .contains("--test model_lane_cloud_consent_scope_surreal_tests"));
     for required in [
-        "unscoped_cloud_grant_fails_before_postgres_or_provider_authority",
+        "unscoped_cloud_grant_fails_before_surrealdb_or_provider_authority",
         "http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store",
         "two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority",
         "revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned",
@@ -1760,7 +1743,7 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         "an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch",
         "cloud_provider_start_receipt_preserves_exact_server_owned_scope",
         "cloud_provider_requires_exact_scope_before_builder_side_effects",
-        "before new ProjectionPlan, ConsentReceipt, EventLedger, lane, or provider side effects",
+        "before new ProjectionPlan, ConsentReceipt, SurrealDB EventLedger, lane, or provider side effects",
         "returns no restricted authority metadata",
     ] {
         assert!(

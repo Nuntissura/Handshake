@@ -28,6 +28,9 @@ pub mod loom;
 pub mod loom_ai;
 pub mod postgres;
 pub mod retention;
+/// Handshake's embedded SurrealDB product-database seam. Product modules move
+/// onto this lifecycle-safe authority without PostgreSQL or SQLite fallbacks.
+pub mod surreal;
 
 pub use calendar::*;
 pub use loom::*;
@@ -360,6 +363,14 @@ impl From<sqlx::migrate::MigrateError> for StorageError {
 impl From<serde_json::Error> for StorageError {
     fn from(value: serde_json::Error) -> Self {
         StorageError::Serialization(value.to_string())
+    }
+}
+
+/// Embedded-store errors convert the same way the sqlx impls above do: keep
+/// the driver's message, keep the driver type out of the public API.
+impl From<surreal::SurrealStorageError> for StorageError {
+    fn from(err: surreal::SurrealStorageError) -> Self {
+        StorageError::Database(err.to_string())
     }
 }
 

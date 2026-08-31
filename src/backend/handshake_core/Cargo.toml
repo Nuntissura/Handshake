@@ -172,6 +172,13 @@ axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = { package = "yaml_serde", version = "0.10" }
+# Handshake embedded-SurrealDB product-database seam. `dirs` resolves
+# the platform-local application data directory; `dunce` canonicalizes Windows
+# paths without the verbatim `\\?\` prefix the SurrealDB 3.2 endpoint parser
+# rejects. Both pins mirror the reference SurrealDB worktree.
+dirs = "5"
+dunce = "=1.0.5"
+surrealdb = { version = "=3.2.0", default-features = false, features = ["kv-rocksdb"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util", "signal"] }
 tower-http = { version = "0.6", features = ["cors"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "chrono", "uuid", "json"] }
@@ -318,9 +325,17 @@ app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
 test-utils = []  # Exposes test helper utilities for integration tests
+surreal-test-support = []
 wsl2-integration = []
 docker-integration = []
 win-native-integration = []
+
+# Feature-gated read-only inspector contract over Handshake's embedded
+# SurrealDB product-database seam.
+[[test]]
+name = "surreal_test_inspector_contract_tests"
+path = "tests/surreal_test_inspector_contract_tests.rs"
+required-features = ["surreal-test-support"]
 
 [[test]]
 name = "model_registry_persistence_tests"
@@ -822,9 +837,9 @@ path = "tests/model_lane_context_bundle_pg_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
-name = "cloud_model_lane_policy_pg_tests"
-path = "tests/cloud_model_lane_policy_pg_tests.rs"
-required-features = ["test-utils"]
+name = "cloud_model_lane_policy_surreal_tests"
+path = "tests/cloud_model_lane_policy_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
 
 # WP-1 MT-006 HBR-PRIV proof imports test-only account-scope construction
 # seams and gates the entire crate with `cfg(feature = "test-utils")`.
@@ -832,9 +847,9 @@ required-features = ["test-utils"]
 # checks skip the target intentionally and direct invocations cannot run an
 # empty, vacuously green test binary when `test-utils` is absent.
 [[test]]
-name = "model_lane_cloud_consent_scope_pg_tests"
-path = "tests/model_lane_cloud_consent_scope_pg_tests.rs"
-required-features = ["test-utils"]
+name = "model_lane_cloud_consent_scope_surreal_tests"
+path = "tests/model_lane_cloud_consent_scope_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
 
 [[test]]
 name = "model_lane_recovery_pg_tests"

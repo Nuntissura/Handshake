@@ -3454,7 +3454,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
             section(
                 "purpose",
                 "What this cloud boundary does",
-                "Dexterity cloud lanes use durable PostgreSQL/EventLedger authority before any \
+                "Dexterity cloud lanes use durable embedded SurrealDB/EventLedger authority before any \
                  BYOK provider call. A cloud launch must resolve \
                  `ModelLaneCloudProjectionPlanRecord` and \
                  `ModelLaneCloudConsentReceiptRecord` rows through \
@@ -3469,9 +3469,10 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                 "schema",
                 "Durable records",
                 "The stable machine schemas are `hsk.model_lane_cloud_projection_plan@2` and \
-                 `hsk.model_lane_cloud_consent_receipt@2`. PostgreSQL authority tables are \
-                 `model_lane_cloud_projection_plans` and \
-                 `model_lane_cloud_consent_receipts`. `single_lane` authority binds `run_id`, \
+                 `hsk.model_lane_cloud_consent_receipt@2`. The embedded SurrealDB authority \
+                 tables are `model_lane_cloud_authority` and \
+                 `model_lane_cloud_event_ledger`; there is no PostgreSQL or SQLite fallback. \
+                 `single_lane` authority binds `run_id`, \
                  `lane_id`, `model_session_id`, `provider_kind`, and `requested_model_id` \
                  exactly. `single_run` authority drops those lane identity bindings and \
                  authorizes only launches whose `run_id` matches; revocation cancels every \
@@ -3522,7 +3523,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  working day.",
                 json!({
                     "projection_plan": {
-                        "table": "model_lane_cloud_projection_plans",
+                        "table": "model_lane_cloud_authority",
                         "schema_id": "hsk.model_lane_cloud_projection_plan@2",
                         "record": "ModelLaneCloudProjectionPlanRecord",
                         "input": "NewModelLaneCloudProjectionPlan",
@@ -3536,7 +3537,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                         }
                     },
                     "consent_receipt": {
-                        "table": "model_lane_cloud_consent_receipts",
+                        "table": "model_lane_cloud_authority",
                         "schema_id": "hsk.model_lane_cloud_consent_receipt@2",
                         "record": "ModelLaneCloudConsentReceiptRecord",
                         "input": "NewModelLaneCloudConsentReceipt",
@@ -3551,7 +3552,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                     },
                     "denial": {
                         "schema_id": "hsk.model_lane_cloud_consent_denial@1",
-                        "table": "kernel_event_ledger",
+                        "table": "model_lane_cloud_event_ledger",
                         "reason_code": "CX-MM-007",
                         "aggregate_type": "model_lane_cloud_consent_denial",
                         "provider_call_attempted": false,
@@ -3658,7 +3659,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
             section(
                 "recovery",
                 "Flight Recorder and Palmistry posture",
-                "EventLedger is WIRED through `kernel_event_ledger` rows for projection, \
+                "EventLedger is WIRED through embedded SurrealDB `model_lane_cloud_event_ledger` rows for projection, \
                  consent, denial, advisory cloud output, and revocation terminal state. Direct \
                  Flight Recorder event emission is DEFERRED-with-reason until the FR-EVT-CLOUD \
                   emitter is wired to these EventLedger rows. internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer; it joins by `run_id`, `lane_id`, \
@@ -3668,14 +3669,14 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-006 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_projection_and_consent_receipts_persist_and_replay -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_cloud_consent_scope_pg_tests -- --test-threads=1`; this target proves `unscoped_cloud_grant_fails_before_postgres_or_provider_authority`, `http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store`, `two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority`, `revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned`, `cloud_projection_records_audience_scope_and_authorization_provenance`, `a_self_issued_role_label_approver_is_refused_at_write_time`, `an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch`, `cloud_provider_start_receipt_preserves_exact_server_owned_scope`, and `cloud_provider_requires_exact_scope_before_builder_side_effects`; \
+                 `cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_projection_and_consent_receipts_persist_and_replay -- --exact --nocapture`; \
+                 `cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_lane_rejects_missing_expired_mismatched_revoked_and_unscoped_consent_before_provider_call -- --exact --nocapture`; \
+                 `cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_consent_revocation_and_context_switch_cancel_covered_lanes_with_eventledger_evidence -- --exact --nocapture`; \
+                 `cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_http_launch_enforces_cross_account_and_delegated_audience_scope -- --exact --nocapture`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests cloud_model_lane_policy_user_manual_entry_is_current -- --exact`. \
-                 Use `-j 1` locally if Windows linker fan-out leaves stale cargo/rustc/link \
-                 workers during test development. Passing tests must use real PostgreSQL plus \
-                 EventLedger and must not rely on SQLite, prompt-only state, synthetic refs, \
+                 Use `-j 1` locally because the embedded RocksDB native build is intentionally \
+                 bounded on Windows. Passing tests use isolated embedded SurrealDB plus \
+                 EventLedger and must not rely on PostgreSQL, SQLite, prompt-only state, synthetic refs, \
                  or frontend/Tauri launch authority.",
             ),
         ],
@@ -3687,12 +3688,12 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
             route_anchor("POST", "/operator-chat/cloud/single-run/revoke"),
             NewManualAnchor {
                 anchor_kind: "test",
-                anchor_value: "cloud_model_lane_policy_pg_tests".into(),
+                anchor_value: "cloud_model_lane_policy_surreal_tests".into(),
                 http_method: "",
             },
             NewManualAnchor {
                 anchor_kind: "test",
-                anchor_value: "model_lane_cloud_consent_scope_pg_tests".into(),
+                anchor_value: "model_lane_cloud_consent_scope_surreal_tests".into(),
                 http_method: "",
             },
         ],
@@ -6261,14 +6262,15 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
 
     let cloud_model_lane_policy_tool_hash = sha256_hex(
         &serde_json::to_string(&json!({
-            "id": "cloud_model_lane_policy_pg_tests",
+            "id": "cloud_model_lane_policy_surreal_tests",
             "name": "Dexterity cloud ProjectionPlan and ConsentReceipt runtime proof",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests",
+            "cli_flag": "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests",
             "exact_commands": [
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_projection_and_consent_receipts_persist_and_replay -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence -- --exact",
+                "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_projection_and_consent_receipts_persist_and_replay -- --exact --nocapture",
+                "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_lane_rejects_missing_expired_mismatched_revoked_and_unscoped_consent_before_provider_call -- --exact --nocapture",
+                "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_consent_revocation_and_context_switch_cancel_covered_lanes_with_eventledger_evidence -- --exact --nocapture",
+                "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_http_launch_enforces_cross_account_and_delegated_audience_scope -- --exact --nocapture",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests cloud_model_lane_policy_user_manual_entry_is_current -- --exact"
             ],
             "hardening": [
@@ -6285,14 +6287,14 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         .expect("cloud model-lane policy tool serializes"),
     );
     tools.push(UserManualToolEntry {
-        tool_id: "cloud_model_lane_policy_pg_tests".into(),
+        tool_id: "cloud_model_lane_policy_surreal_tests".into(),
         page_id: None,
         name: "Dexterity cloud ProjectionPlan and ConsentReceipt runtime proof".into(),
         status: "wired".into(),
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests".into(),
+            "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests".into(),
         ),
         http_route: None,
         http_method: String::new(),
@@ -6300,10 +6302,10 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for Dexterity cloud ProjectionPlan/ConsentReceipt persistence, CX-MM-007 denial evidence, pre-factory provider suppression, advisory cloud outputs, and revocation cancellation."
                 .into(),
         expected_input:
-            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; NewModelLaneCloudProjectionPlan rows; NewModelLaneCloudConsentReceipt rows; BYOK cloud SpawnRequest with DexterityLaunchContract; cloud ModelLane rows with projection_plan_ref and consent_receipt_ref; revoked receipt id for cancellation proof."
+            "An isolated embedded SurrealDB namespace/database; test-utils and surreal-test-support features; generated inert BYOK identifiers; deterministic no-egress provider recorder; NewModelLaneCloudProjectionPlan and NewModelLaneCloudConsentReceipt rows; cloud ModelLane rows with projection_plan_ref and consent_receipt_ref; revoked receipt id for cancellation proof."
                 .into(),
         expected_output:
-            "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows in model_lane_cloud_projection_plans and model_lane_cloud_consent_receipts, schema registry rows hsk.model_lane_cloud_projection_plan@2, hsk.model_lane_cloud_consent_receipt@2, and hsk.model_lane_cloud_consent_denial@1, replay through ModelLaneStore::replay_cloud_consent_authority, single-lane cloud launch allowed only when durable ProjectionPlan and ConsentReceipt match projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets, single-run launch allowed only when durable run-scoped authority matches run_id plus the shared non-lane authority fields, missing/expired/mismatched/revoked consent rejected with CX-MM-007 and model_lane_cloud_consent_denial EventLedger payload provider_call_attempted = false, SwarmCoordinator::spawn_session preflight blocks before factory.create and spawn_cloud_consent_batch preflights every run-scoped request before dispatch, cloud ModelLaneMessage diagnostic_payload carries projection/redaction metadata, ModelLaneAuthority::Promoted rejects without approved PromotionGate, and SwarmCoordinator::revoke_cloud_consent_receipt cancels every durable covered lane with failstate_code CX-MM-007 and per-lane model_lane_terminal EventLedger evidence."
+            "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows in embedded SurrealDB model_lane_cloud_authority and model_lane_cloud_event_ledger, with no PostgreSQL/SQLite fallback; replay through ModelLaneStore::replay_cloud_consent_authority; missing/expired/mismatched/revoked consent rejected with CX-MM-007 before provider call; revocation cancels durable covered lanes with failstate_code CX-MM-007 and terminal SurrealDB EventLedger evidence."
                 .into(),
         schema_fields: vec![
             "NewModelLaneCloudProjectionPlan".into(),
@@ -6319,8 +6321,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "hsk.model_lane_cloud_projection_plan@2".into(),
             "hsk.model_lane_cloud_consent_receipt@2".into(),
             "hsk.model_lane_cloud_consent_denial@1".into(),
-            "model_lane_cloud_projection_plans".into(),
-            "model_lane_cloud_consent_receipts".into(),
+            "model_lane_cloud_authority".into(),
+            "model_lane_cloud_event_ledger".into(),
             "model_lane_cloud_consent_denial".into(),
             "model_lane_terminal".into(),
             "CX-MM-007".into(),
@@ -6350,7 +6352,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "idempotency conflict".into(),
         ],
         recovery_steps: vec![
-            "Record or replay the ProjectionPlan with ModelLaneStore::record_cloud_projection_plan, then compare projection_plan_hash and event_ledger_seq to kernel_event_ledger.".into(),
+            "Record or replay the ProjectionPlan with ModelLaneStore::record_cloud_projection_plan, then compare projection_plan_hash and event_ledger_seq to model_lane_cloud_event_ledger.".into(),
             "Record or replay the ConsentReceipt with ModelLaneStore::record_cloud_consent_receipt. For single_lane verify projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets; for single_run verify projection_plan_hash/run_id/scope_hash/retention/export/fan_out_targets and confirm no lane-bound identity is present.".into(),
             "For CX-MM-007 denials, inspect model_lane_cloud_consent_denial payloads and confirm provider_call_attempted = false before retrying with a new valid receipt.".into(),
             "For revocations, call SwarmCoordinator::revoke_cloud_consent_receipt and replay the affected run to confirm Cancelled lanes with failstate_code CX-MM-007.".into(),
@@ -6364,12 +6366,12 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
 
     let cloud_consent_scope_tool_hash = sha256_hex(
         &serde_json::to_string(&json!({
-            "id": "model_lane_cloud_consent_scope_pg_tests",
+            "id": "model_lane_cloud_consent_scope_surreal_tests",
             "name": "Cloud consent exact ResourceScope privacy proof",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_cloud_consent_scope_pg_tests -- --test-threads=1",
+            "cli_flag": "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_cloud_consent_scope_surreal_tests -- --test-threads=1",
             "test_names": [
-                "unscoped_cloud_grant_fails_before_postgres_or_provider_authority",
+                "unscoped_cloud_grant_fails_before_surrealdb_or_provider_authority",
                 "http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store",
                 "two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority",
                 "revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned",
@@ -6384,25 +6386,25 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         .expect("cloud consent exact-scope tool serializes"),
     );
     tools.push(UserManualToolEntry {
-        tool_id: "model_lane_cloud_consent_scope_pg_tests".into(),
+        tool_id: "model_lane_cloud_consent_scope_surreal_tests".into(),
         page_id: None,
         name: "Cloud consent exact ResourceScope privacy proof".into(),
         status: "wired".into(),
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_cloud_consent_scope_pg_tests -- --test-threads=1".into(),
+            "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_cloud_consent_scope_surreal_tests -- --test-threads=1".into(),
         ),
         http_route: None,
         http_method: String::new(),
         description:
-            "Real-PostgreSQL privacy proof for exact account/Principal/session/AccessSpace/workspace binding across cloud grant, launch, revocation, replay, EventLedger, and provider-dispatch boundaries."
+            "Embedded-SurrealDB privacy proof for exact account/Principal/session/AccessSpace/workspace binding across cloud grant, launch, revocation, replay, EventLedger, and provider-dispatch boundaries."
                 .into(),
         expected_input:
-            "Handshake-managed PostgreSQL; test-utils feature; a complete server-derived ResourceScope; cross-owner plus same-owner one-dimension mismatch fixtures; account-bound and legacy-unattributed cloud authority fixtures."
+            "An isolated embedded SurrealDB namespace/database; test-utils and surreal-test-support features; a complete server-derived ResourceScope; cross-owner plus same-owner one-dimension mismatch fixtures; account-bound and legacy-unattributed cloud authority fixtures; deterministic no-egress provider recorder."
                 .into(),
         expected_output:
-            "unscoped_cloud_grant_fails_before_postgres_or_provider_authority; http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store; two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority; revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned; cloud_projection_records_audience_scope_and_authorization_provenance; a_self_issued_role_label_approver_is_refused_at_write_time; an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch; cloud_provider_start_receipt_preserves_exact_server_owned_scope; cloud_provider_requires_exact_scope_before_builder_side_effects. Missing or mismatched exact-scope boundary requests fail before new ProjectionPlan, ConsentReceipt, EventLedger, lane, or provider side effects and return no restricted authority metadata. Consent-policy denials after successful exact-scope authorization append a five-dimension-attributed model_lane_cloud_consent_denial EventLedger row."
+            "unscoped_cloud_grant_fails_before_surrealdb_or_provider_authority; http_cloud_launch_binds_extracted_exact_scope_to_the_durable_store; two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority; revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned; cloud_projection_records_audience_scope_and_authorization_provenance; a_self_issued_role_label_approver_is_refused_at_write_time; an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch; cloud_provider_start_receipt_preserves_exact_server_owned_scope; cloud_provider_requires_exact_scope_before_builder_side_effects. Missing or mismatched exact-scope requests fail before new ProjectionPlan, ConsentReceipt, SurrealDB EventLedger, lane, or provider side effects and return no restricted authority metadata."
                 .into(),
         schema_fields: vec![
             "owner_account_id".into(),
@@ -7254,7 +7256,7 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "official_cli_attached_lifecycle_tests".to_string(),
         "model_lane_promotion_pg_tests".to_string(),
         "model_lane_context_bundle_pg_tests".to_string(),
-        "cloud_model_lane_policy_pg_tests".to_string(),
+        "cloud_model_lane_policy_surreal_tests".to_string(),
         "model_lane_recovery_pg_tests".to_string(),
         "swarm_lane_diagnostics_runtime_proof".to_string(),
         "mixed_model_lane_integration_pg_tests".to_string(),

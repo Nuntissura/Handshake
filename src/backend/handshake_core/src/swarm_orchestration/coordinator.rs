@@ -1173,11 +1173,13 @@ impl SwarmCoordinator {
         let breaker = FailureFingerprintBreaker::new(config.breaker);
         // Inherit the lane store's account scope so routing-produced rows carry
         // the same ownership as directly recorded ones (HBR-PRIV-001).
-        let routing_execution_store = model_lane_store.as_ref().map(|store| {
-            super::routing_execution::ModelLaneRoutingExecutionStore::new_with_access(
-                store.postgres_pool(),
-                store.access().clone(),
-            )
+        let routing_execution_store = model_lane_store.as_ref().and_then(|store| {
+            store.postgres_pool_if_available().map(|pool| {
+                super::routing_execution::ModelLaneRoutingExecutionStore::new_with_access(
+                    pool,
+                    store.access().clone(),
+                )
+            })
         });
         let inner = Arc::new(Inner {
             spawn_admission_closed: AtomicBool::new(false),
