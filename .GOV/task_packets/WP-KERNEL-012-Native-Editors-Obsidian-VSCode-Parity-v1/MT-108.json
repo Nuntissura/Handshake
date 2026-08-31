@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-08-13T16:40:00Z",
+  "updated_at_utc": "2026-08-31T04:49:20.779Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,11 +35,11 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "PENDING_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-20260731-195928",
     "validated_at_utc": "2026-07-31T23:36:08.8188448Z",
@@ -85,13 +85,13 @@
     "reopened_by": "KERNEL_BUILDER",
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "completed_by": null,
-    "claimed_by": "KERNEL_BUILDER-20260726-052638",
-    "claimed_at_utc": "2026-07-27T20:27:22.495Z",
+    "claimed_by": "KERNEL_BUILDER-20260830-124008",
+    "claimed_at_utc": "2026-08-30T12:43:01.281Z",
     "remediation_v3_in_progress": false,
     "remediation_v3_status": "READY_FOR_VALIDATION_V3",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260726-052638",
-    "ready_for_validation_at_utc": "2026-07-28T11:32:54.134Z",
-    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_WITH_TYPED_SUITE_BLOCKER_PENDING_OFFICIAL_VALIDATOR",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260830-124008",
+    "ready_for_validation_at_utc": "2026-08-31T04:49:20.779Z",
+    "proof_status": "V4_IMPLEMENTER_PROOF_COMPLETE_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "ACCEPTED_BY_TWO_INDEPENDENT_REVIEWERS_NO_HIGH_OR_MEDIUM_2026-07-28",
     "rfv_evidence_2026_07_28": {
       "by": "KERNEL_BUILDER-20260726-052638",
@@ -171,6 +171,70 @@
       "correct_fix": "Extend the dynamic/conditional allowlists to cover the menu.editors.* leaves, the two settings reset buttons, the fems-class-* radios, the flight-recorder.* status/retry nodes, and stage-route-status/retry; and teach the audit to recognise {placeholder} templates. Each allowlist entry MUST cite the focused test that proves the node in its live conditional state, mirroring how the existing TERMINAL_MENU_AUTHOR_ID and retry entries are justified.",
       "do_not": "Do NOT satisfy this by deleting manual rows, by blanket-skipping unmatched ids, or by weakening the audit intent. The audit must still FAIL when the manual names a surface that genuinely does not exist at the named contract (HBR-MAN-003 self-consistency). Narrow the exemption to provably-conditional and provably-parameterized ids only.",
       "ownership_note": "The conditional surfaces belong to MT-035 (Editors menu), MT-036 (flight recorder), MT-064 (FEMS classes), MT-066 (stage route), MT-072 (settings resets) - all of which are already implemented. The AUDIT itself is manual-currency infrastructure, so repairing it sits naturally in MT-108 residual hardening rather than reopening five validated MTs."
+    },
+    "rfv_evidence_2026_08_31_v4": {
+      "schema_id": "hsk.mt108_rfv_evidence@4",
+      "recorded_at_utc": "2026-08-31T04:49:20.779Z",
+      "by": "KERNEL_BUILDER-20260830-124008",
+      "mode": "FAIL_V4_REMEDIATION_EXACT_SOURCE_GPU_HEADLESS_AND_PROCESS_IDENTITY_CLOSURE",
+      "source_head": "1505edb6ebab0c22d85fd38f9f840505f55927e4",
+      "product_commits": [
+        "bade6f84",
+        "716d1fdd",
+        "bbeaa6b5",
+        "6920acbb",
+        "047c1dba",
+        "e9f0775b",
+        "8b374703",
+        "96e0d5f3",
+        "1505edb6"
+      ],
+      "changed_surface": "Nine MT-108-owned manual/test/proof files only; no backend source changed. MT-025's contract and test were not edited. The GPU runner retained MT-025's existing managed wiki proof; headless used an MT-108-only companion route. The screenshot identity self-test is isolated in MT-108's owning aggregate target instead of being duplicated into every shared-helper consumer.",
+      "managed_backend": {
+        "path": "Handshake_Artifacts/handshake-cargo-target/wp-kernel-012-mt-108/debug/handshake_core.exe",
+        "size_bytes": 259684864,
+        "sha256": "E5A16F3BFC484078C0B7F4C00ABC1BA00E4F0853EB5DF8DC002FB5E30BE33426",
+        "build": "cargo build --locked -j 2 --target-dir <Handshake_Artifacts>/handshake-cargo-target/wp-kernel-012-mt-108 --manifest-path src/backend/handshake_core/Cargo.toml --bin handshake_core --features app-runtime => exit 0",
+        "source_policy": "Runner binds this exact executable through HSK_TEST_BACKEND_BIN; managed fixture independently rejects a backend older than current source inputs."
+      },
+      "gpu_proof": {
+        "run_id": "mt108-v4-gpu-final6-1505edb6-1788150500",
+        "artifact": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-108/integrated/mt108-v4-gpu-final6-1505edb6-1788150500",
+        "result": "PASS by the existing aggregate verifier at exact source",
+        "reconciliation": "68 lifecycle receipts = 34 STARTED + 34 COMPLETED; 34 process-observation acknowledgements; 0 invalid pairs; 0 nonzero exits; 0 completed cleanup failures; 38 CAPTURED markers; 38 PNG files; minimum 360x220; 0 DEFERRED/BLOCKED; 0 duplicate receipt outcomes; 0 duplicate marker outcomes; 0 duplicate correlation/event sequences; source SHA only 1505edb6ebab0c22d85fd38f9f840505f55927e4."
+      },
+      "headless_proof": {
+        "run_id": "mt108-v4-headless-final2-1505edb6-1788151400",
+        "artifact": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-108/integrated/mt108-v4-headless-final2-1505edb6-1788151400",
+        "result": "PASS by the existing aggregate verifier at exact source; explicitly NOT pixel closure",
+        "reconciliation": "68 lifecycle receipts = 34 STARTED + 34 COMPLETED; 34 process-observation acknowledgements; 0 invalid pairs; 0 nonzero exits; 0 completed cleanup failures; 38 DEFERRED markers; 0 CAPTURED/BLOCKED; 0 frame paths/files; 0 duplicate receipt outcomes; 0 duplicate marker outcomes; 0 duplicate correlation/event sequences; source SHA only 1505edb6ebab0c22d85fd38f9f840505f55927e4."
+      },
+      "visual_inspection": "Directly opened retained GPU frames for the managed wiki edit/readback, formatting toolbar active Bold state, Canvas, FEMS persisted proposal/pending-review dialog, and Locus unresolved plus resolved navigation. Controls, state, and text were readable; no overlap was observed in those inspected frames.",
+      "targeted_and_counterfactual_proof": "Current source test_mt108_argus_aggregate: 6 passed / 0 failed / 1 runner-only ignored. The current-source test_manual_content plus test_mt108_argus_matrix command chain exited 0; matrix default result 0 passed / 0 failed / 2 runner-only ignored because both rows are supervisor-only. Guards cover mandated command shape, stable author IDs, multi-action closure, screenshot phase ordering, PID reuse, atomic process-observation acknowledgement, GPU CAPTURED versus headless DEFERRED separation, exact Argus response byte/dimension equality, and zero owned survivors.",
+      "broad_suite_evidence": {
+        "authoritative_full_suite": "MT-127 governed per-binary sweep at source 53baef67c92076847668f38c12a1d3fa27bb34d6: 189/189 binaries OK with integration,wgpu_screenshots, -j 2, --test-threads=1, real governed inputs, GPU enabled, and per-binary isolated binding roots. Artifact: Handshake_Artifacts/handshake-test/wp-kernel-012-mt-127/final-sweep-governed-20260830020733/full-sweep/summary.json.",
+        "change_to_validation_mapping": "The MT-108 delta after the governed sweep changes no product runtime or backend source: one UserManual content file plus MT-108 test/proof infrastructure. Current-source manual, aggregate, GPU, and headless proofs cover every changed asserted behavior. Outside an MT-108 matrix run, screenshot_process_identity retains the prior deterministic PID fallback; the correlation-ID path is exercised by all 68 final supervised proof processes. Therefore the 189/189 product-suite result is reused for unchanged product inputs under GLOBAL-VALIDATION-005/017/050, while changed inputs have fresh exact-source proof.",
+        "current_head_result": "AC-108-3 is GREEN by proof-preserving composition: the authoritative 189/189 unchanged-input full-suite proof plus current-head changed-input targets all pass.",
+        "invalid_run_exclusion": "Excluded: monolithic attempts with missing backend/binding prerequisites; the unrelated nondeterministic MT-113 whole-binary attempt; GPU final3/final5 compile-timeouts; interrupted GPU final4; all earlier 96e0d5f3 GPU/headless artifacts invalidated by the final test-isolation commit. Only the two 1505edb6 final matrix runs and current-head focused checks support this handoff."
+      },
+      "adversarial_review": {
+        "status": "IMPLEMENTER_SELF_AUDIT_NO_HIGH_OR_MEDIUM_IN_MT108_DELTA_PENDING_INDEPENDENT_VALIDATOR",
+        "attack_surfaces": [
+          "stale or arbitrary managed backend",
+          "PID reuse and process start-identity drift",
+          "partial process-observation acknowledgement reads",
+          "duplicate screenshot outcome or correlation/sequence reuse",
+          "GPU/headless proof substitution and MT-025 boundary",
+          "Argus callback bypass or response-byte substitution",
+          "production screenshot timeout drift",
+          "owned-process cleanup and survivor leakage"
+        ],
+        "independent_checks": "Exact GPU/headless artifact reconciliation, scoped source diff review, scoped rustfmt, PowerShell AST parse, matrix JSON parse/count, git diff --check, focused counterfactual tests, direct final-source PNG inspection, and change-to-validation mapping against the authoritative 189/189 governed sweep.",
+        "format_checks": "Scoped rustfmt PASS for all seven changed Rust files; PowerShell parser PASS; matrix JSON PASS with 33 rows; git diff --check PASS. Whole-workspace cargo fmt --check remains red on pre-existing unrelated formatting drift and is not represented as an MT-108 failure."
+      },
+      "acceptance_closure": "AC-108-1 is disposed by the retained residual disposition plus current runtime proofs; AC-108-2 is GREEN through the exact-source 38-DEFERRED/0-frame headless run; AC-108-3 is GREEN through proof-preserving full-suite reuse plus fresh changed-input validation.",
+      "ready_checklist": "PASS receipt emitted by kb-ready-checklist.mjs to KB_READY_CHECKLIST_RECEIPTS.jsonl with no blockers.",
+      "validator_boundary": "Implementer evidence only. lifecycle.status is READY_FOR_VALIDATION_V4, validator_verdict is PENDING_V4, completed_by remains null, and no PASS_V4 is self-issued."
     }
   },
   "scope": {
@@ -244,7 +308,7 @@
   "hbr_obligations": [],
   "hbr_int_009_tier_obligations": [],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260830-124008",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
