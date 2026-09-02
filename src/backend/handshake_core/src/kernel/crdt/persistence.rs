@@ -12,11 +12,7 @@ pub const CRDT_SURREAL_UPDATE_LOG_CONTRACT_SCHEMA_ID: &str =
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CrdtStorageAuthorityPosture {
-    #[serde(
-        rename = "surreal_event_ledger",
-        alias = "PostgresEventLedger",
-        alias = "postgres_event_ledger"
-    )]
+    #[serde(rename = "surreal_event_ledger")]
     SurrealEventLedger,
     FileSystemAuthority,
     MemoryOnly,

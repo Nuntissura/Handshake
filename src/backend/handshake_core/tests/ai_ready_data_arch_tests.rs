@@ -12,7 +12,7 @@ use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
     RecorderError,
 };
-use handshake_core::storage::tests::postgres_backend_from_env;
+use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
 use handshake_core::storage::{Database, NewWorkspace, WriteContext};
 
 #[derive(Clone, Default)]
@@ -54,11 +54,10 @@ fn json_contains_string(value: &serde_json::Value, needle: &str) -> bool {
     }
 }
 
-async fn postgres_backend_for_test(test_name: &str) -> Arc<dyn Database> {
-    match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(err) => panic!("failed to init postgres backend for {test_name}: {err:?}"),
-    }
+async fn embedded_backend_for_test(test_name: &str) -> EmbeddedTestBackend {
+    embedded_test_backend()
+        .await
+        .unwrap_or_else(|err| panic!("failed to init embedded backend for {test_name}: {err:?}"))
 }
 
 #[test]
@@ -185,7 +184,8 @@ async fn pipeline_emits_validation_failed_on_treesitter_parse_error_and_skips_si
     let temp = tempdir().expect("tempdir");
     let handshake_root = temp.path().to_path_buf();
 
-    let db = postgres_backend_for_test("ai-ready parse-error pipeline storage test").await;
+    let backend = embedded_backend_for_test("ai-ready parse-error pipeline storage test").await;
+    let db = Arc::clone(&backend.database);
     let ctx = WriteContext::human(None);
     let workspace = db
         .create_workspace(
@@ -241,6 +241,12 @@ async fn pipeline_emits_validation_failed_on_treesitter_parse_error_and_skips_si
         event.event_type == FlightRecorderEventType::DataValidationFailed
             && event.payload.get("type").and_then(|v| v.as_str()) == Some("data_validation_failed")
     }));
+
+    drop(db);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded ai-ready backend");
 }
 
 #[tokio::test]
@@ -248,7 +254,8 @@ async fn pipeline_hashes_query_in_retrieval_events() {
     let temp = tempdir().expect("tempdir");
     let handshake_root = temp.path().to_path_buf();
 
-    let db = postgres_backend_for_test("ai-ready retrieval event storage test").await;
+    let backend = embedded_backend_for_test("ai-ready retrieval event storage test").await;
+    let db = Arc::clone(&backend.database);
     let ctx = WriteContext::human(None);
     let workspace = db
         .create_workspace(
@@ -334,6 +341,12 @@ async fn pipeline_hashes_query_in_retrieval_events() {
     assert!(!events
         .iter()
         .any(|event| json_contains_string(&event.payload, query_text)));
+
+    drop(db);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded ai-ready backend");
 }
 
 #[test]

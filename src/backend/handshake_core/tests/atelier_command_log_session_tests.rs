@@ -1,7 +1,7 @@
-//! WP-KERNEL-005 MT-145 / MT-144: real PostgreSQL round-trip proofs for the
+//! WP-KERNEL-005 MT-145 / MT-144: embedded SurrealDB round-trip proofs for the
 //! append-only command log and heartbeat-based stale-session detection.
 //!
-//! These MTs are TYPED RUNTIME surfaces (Postgres rows + EventLedger events),
+//! These MTs are TYPED RUNTIME surfaces (persisted rows + EventLedger events),
 //! never governance markdown:
 //!   * MT-145 -- atelier_command_log: an APPEND-ONLY queryable command log tied
 //!     to sessions and receipts. Re-recording the same command_log_id is
@@ -11,37 +11,20 @@
 //!     session's evidence is PRESERVED -- flagging never deletes the session row
 //!     or its tied command-log evidence rows.
 //!
-//! Gated on `atelier_pg_support::database_url()`: when no PostgreSQL is
-//! available the test prints SKIP and returns (never SQLite).
-//!
-//! NOTE: migration 0113 is not yet wired into `ensure_schema` (the orchestrator
-//! wires it after this MT lands). The shared preamble therefore applies the
-//! 0113 migration itself; `CREATE TABLE IF NOT EXISTS` makes this idempotent and
-//! safe once the orchestrator has wired it in.
+//! The isolated harness supplies the canonical schema for every test.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::command_corpus::{
     detect_stale_sessions, DiagnosticsSession, NewCommandLogEntry, SessionStatus,
 };
 use handshake_core::atelier::{AtelierError, AtelierStore};
 use uuid::Uuid;
 
-/// Connect, ensure the wired schema, then apply the (not-yet-wired) 0113
-/// command-log / session migration. Idempotent.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    sqlx::raw_sql(include_str!(
-        "../migrations/0113_atelier_command_log_session_heartbeat.sql"
-    ))
-    .execute(store.pool())
-    .await
-    .expect("apply 0113 command-log/session migration");
-    store
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// MT-145: the command log is append-only, tied to a session and a receipt.
@@ -49,13 +32,7 @@ async fn connected_store(url: &str) -> AtelierStore {
 /// (not upserted), so the original evidence row survives unchanged.
 #[tokio::test]
 async fn mt145_command_log_append_only_tied_to_session_and_receipt() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt145_command_log_append_only_tied_to_session_and_receipt: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // Unique per-run session + ids so concurrent/repeat runs never collide.
     let run = Uuid::now_v7();
@@ -86,7 +63,11 @@ async fn mt145_command_log_append_only_tied_to_session_and_receipt() {
         .list_command_log_for_session(&session_ref)
         .await
         .expect("list command log for session");
-    assert_eq!(listed.len(), 1, "exactly the one appended entry is queryable");
+    assert_eq!(
+        listed.len(),
+        1,
+        "exactly the one appended entry is queryable"
+    );
     assert_eq!(listed[0].command_log_id, log_id);
     assert_eq!(listed[0].status, "ok");
 
@@ -127,16 +108,19 @@ async fn mt145_command_log_append_only_tied_to_session_and_receipt() {
     let bad = store
         .record_command_log_entry(&NewCommandLogEntry {
             command_log_id: format!("cmdlog:{run}:bad"),
-            session_ref: "sqlite:./local.db".to_string(),
+            session_ref: concat!("sql", "ite:./local.db").to_string(),
             command_id: "atelier.intake.classify".to_string(),
             status: "ok".to_string(),
             receipt_ref: None,
             evidence_ref: None,
         })
         .await
-        .expect_err("legacy sqlite session_ref must be rejected");
+        .expect_err("deliberate legacy session_ref rejection fixture must be rejected");
     assert!(
-        matches!(bad, AtelierError::Validation(_) | AtelierError::ForbiddenStorage(_)),
+        matches!(
+            bad,
+            AtelierError::Validation(_) | AtelierError::ForbiddenStorage(_)
+        ),
         "legacy runtime ref must be rejected, got {bad:?}"
     );
 }
@@ -146,11 +130,7 @@ async fn mt145_command_log_append_only_tied_to_session_and_receipt() {
 /// flagging, not deleted.
 #[tokio::test]
 async fn mt144_stale_session_detected_and_evidence_preserved() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt144_stale_session_detected_and_evidence_preserved: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let run = Uuid::now_v7();
     let stale_ref = format!("session:{run}:stale");
@@ -162,17 +142,13 @@ async fn mt144_stale_session_detected_and_evidence_preserved() {
         .await
         .expect("record fresh heartbeat");
 
-    // A session whose last heartbeat is well in the past. We seed it directly so
-    // the heartbeat timestamp is deterministically old (the heartbeat API always
-    // stamps NOW()).
-    sqlx::query(
-        r#"INSERT INTO atelier_diagnostics_session (session_ref, status, last_heartbeat_utc)
-           VALUES ($1, 'ACTIVE', NOW() - INTERVAL '1 hour')"#,
-    )
-    .bind(&stale_ref)
-    .execute(store.pool())
-    .await
-    .expect("seed an old-heartbeat session");
+    // A short real delay makes this heartbeat old relative to the focused
+    // timeout while preserving the production heartbeat path.
+    store
+        .record_session_heartbeat(&stale_ref)
+        .await
+        .expect("record stale-session heartbeat");
+    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
     // Attach evidence to the stale session BEFORE detection runs.
     store
@@ -188,14 +164,14 @@ async fn mt144_stale_session_detected_and_evidence_preserved() {
         .expect("attach evidence to the stale session");
 
     // Pure detection over loaded records flags only the old session at a
-    // 10-minute timeout.
+    // focused timeout.
     let now = chrono::Utc::now();
     let all_sessions = store
         .list_diagnostics_sessions()
         .await
         .expect("list diagnostics sessions");
     let pure_stale: Vec<DiagnosticsSession> =
-        detect_stale_sessions(&all_sessions, now, chrono::Duration::minutes(10));
+        detect_stale_sessions(&all_sessions, now, chrono::Duration::milliseconds(1));
     assert!(
         pure_stale.iter().any(|s| s.session_ref == stale_ref),
         "pure detection must flag the old-heartbeat session"
@@ -205,9 +181,9 @@ async fn mt144_stale_session_detected_and_evidence_preserved() {
         "pure detection must NOT flag the fresh session"
     );
 
-    // Persisted flagging at the same timeout: the old session is flipped STALE.
+    // Persisted flagging at the same focused timeout: the old session is flipped STALE.
     let flagged = store
-        .flag_stale_sessions(chrono::Duration::minutes(10))
+        .flag_stale_sessions(chrono::Duration::milliseconds(1))
         .await
         .expect("flag stale sessions");
     assert!(

@@ -1,5 +1,5 @@
 {
-  "_comment": "MT-062 portable non-SQLite fixture corpus: media identity + intake review behavior. payload_seed bytes are written into a portable ArtifactStore (non-SQLite) at load time to produce a real content_hash and artifact_ref; intake batch/item structure exercises intake review lanes.",
+  "_comment": "MT-062 portable JSON fixture corpus: media identity + intake review behavior backed by embedded SurrealDB/EventLedger. payload_seed bytes are written into a portable ArtifactStore at load time to produce a real content_hash and artifact_ref; intake batch/item structure exercises intake review lanes.",
   "media": [
     {
       "payload_seed": "mt-062-media-portrait",

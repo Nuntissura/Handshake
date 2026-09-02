@@ -1,62 +1,43 @@
 //! WP-KERNEL-005 backend readiness proof: parallel swarm agents + mass file
-//! ingestion against live PostgreSQL. These tests assert the atelier store is
+//! ingestion against embedded SurrealDB. These tests assert the atelier store is
 //! safe under the concurrency a fleet of governed swarm sessions would create:
-//! concurrent schema bootstrap (advisory-locked, no CREATE TABLE race), mass
+//! mass
 //! concurrent intake at scale, content-hash dedup under contention, and
 //! per-(batch, source_path) idempotency under contention.
 //!
 //! Concurrency is driven with `join_all` so many queries are in flight against
-//! the shared pool at once (genuine DB-level contention on the ON CONFLICT
-//! paths). Uses DATABASE_URL when explicitly provided; otherwise falls back to
-//! Handshake-managed local PostgreSQL. Storage authority is PostgreSQL only (no
-//! SQLite, no Docker).
+//! the shared embedded store at once (genuine contention on typed persistence
+//! paths).
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use std::{collections::HashSet, time::Duration};
+use std::collections::HashSet;
 
 use futures::future::join_all;
 use handshake_core::atelier::intake::{
     IntakeBatchMode, IntakeProfileMode, NewIntakeBatch, NewIntakeItem,
 };
 use handshake_core::atelier::{AtelierStore, NewMediaAsset};
-use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 
-async fn connected_store(url: &str) -> AtelierStore {
-    let pool = PgPoolOptions::new()
-        .max_connections(32)
-        .acquire_timeout(Duration::from_secs(120))
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let store = AtelierStore::new(pool);
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
-/// A swarm of agents racing to bootstrap the schema must never collide on
-/// CREATE TABLE; ensure_schema is serialized by a transaction-scoped advisory
-/// lock. Every concurrent connect+ensure_schema must succeed.
+/// A swarm of agents concurrently opening isolated embedded stores must all
+/// receive the canonical schema and shut down cleanly.
 #[tokio::test]
 async fn swarm_concurrent_schema_bootstrap_is_race_free() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP swarm_concurrent_schema_bootstrap_is_race_free: PostgreSQL unavailable");
-        return;
-    };
-
-    let futs = (0..16).map(|_| {
-        let url = url.clone();
-        async move {
-            // Independent connection per "agent", as a real swarm would have.
-            let store = AtelierStore::connect(&url).await.expect("connect");
-            store.ensure_schema().await
-        }
+    let futs = (0..16).map(|_| async move {
+        let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+        harness.shutdown().await;
+        Ok::<(), String>(())
     });
     let results = join_all(futs).await;
     assert_eq!(results.len(), 16);
     for r in results {
-        r.expect("ensure_schema must succeed under concurrency");
+        r.expect("embedded schema bootstrap must succeed under concurrency");
     }
 }
 
@@ -65,11 +46,7 @@ async fn swarm_concurrent_schema_bootstrap_is_race_free() {
 /// lane-count must equal the total ingested (no lost or phantom rows).
 #[tokio::test]
 async fn mass_concurrent_intake_persists_every_item() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mass_concurrent_intake_persists_every_item: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let run = Uuid::new_v4();
     let batch = store
@@ -136,13 +113,9 @@ async fn mass_concurrent_intake_persists_every_item() {
 /// same bytes from many sources.
 #[tokio::test]
 async fn concurrent_identical_hash_dedups_to_one_asset() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP concurrent_identical_hash_dedups_to_one_asset: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
-    let artifact = atelier_pg_support::write_native_media_artifact(b"swarm-dedup-media");
+    let artifact = atelier_surreal_support::write_native_media_artifact(b"swarm-dedup-media");
     let shared_hash = artifact.content_hash.clone();
     let artifact_ref = artifact.artifact_ref.clone();
     let byte_len = artifact.byte_len;
@@ -190,11 +163,7 @@ async fn concurrent_identical_hash_dedups_to_one_asset() {
 /// proving a swarm re-scanning the same source path cannot fork the item.
 #[tokio::test]
 async fn concurrent_same_source_path_is_idempotent() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP concurrent_same_source_path_is_idempotent: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let run = Uuid::new_v4();
     let batch = store

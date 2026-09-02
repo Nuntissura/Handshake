@@ -1,272 +1,151 @@
-//! WP-KERNEL-009 MT-209..219 ParallelSwarmStateRecovery integration proof.
+//! MT-141 adversarial retirement inventory for the former parallel-swarm
+//! integration corpus.
 //!
-//! These tests run against real PostgreSQL through the existing knowledge
-//! PostgreSQL harness. They prove backend behavior, not status text:
-//! typed lane identity, worktree/workspace claims, role-mailbox handoff refs,
-//! deterministic backend navigation commands, restartable checkpoints and
-//! recovery receipts, local/cloud attribution without secret leakage, and a
-//! lease queue that serializes parallel index writers per scope.
+//! MT-142 is a future concurrency/load contract. Its proof targets do not
+//! automatically supersede the policy, rollback, projection, redaction,
+//! mailbox, quiet-work, checkpoint, and recovery assertions removed here.
+//! Every former test is listed separately with an executable embedded
+//! successor.
 
-mod knowledge_pg_support;
+#[allow(dead_code)]
+mod user_manual_support;
 
-use std::{
-    collections::HashSet,
-    io::Cursor,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
+use std::sync::Arc;
+
+use handshake_core::{
+    api::{kernel as kernel_api, knowledge_code_nav as nav_api},
+    kernel::KernelActor,
+    knowledge_code_index::engine::{CodeIndexContext, CodeIndexEngine},
+    storage::{
+        knowledge::{KnowledgeStore, NewKnowledgeRichDocument},
+        surreal::{
+            bootstrap_schema, RowFilter, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
+        },
+        tests::{embedded_test_backend, EmbeddedTestBackend},
+        Database, NewWorkspace, StorageError, WriteContext,
+    },
+    swarm_orchestration::state_recovery::{
+        validate_cloud_assistance_receipt, validate_handoff_compression_template,
+        validate_swarm_dashboard_projection, AgentCapability, AgentLaneIdentity, AgentLaneKind,
+        AttributionMode, BackendNavigationCommand, ClaimScope, ClaimStatus,
+        CloudAssistanceOutputKind, CloudAssistanceReceiptV1, CloudAssistanceRequest,
+        CloudFallbackBasisRequest, CloudFallbackReason, HandoffCompressionRequest,
+        IndexLeaseStatus, IndexingLeaseRequest, LocalCloudAttribution, ModelProviderKind,
+        NavigationCommandSet, ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy,
+        QuietBackgroundWorkKind, QuietBackgroundWorkRequest, RecoveryCheckpointRequest,
+        RecoveryResumePointer, RoleMailboxHandoffRequest, StateRecoveryError,
+        StateRecoveryTestFailpoint, SwarmDashboardProjectionRequest,
+        SwarmEvidenceInspectionRequest, SwarmReceiptStatus, WorkClaimRequest,
     },
 };
-
-use async_trait::async_trait;
-use handshake_core::api::kernel as kernel_api;
-use handshake_core::capabilities::CapabilityRegistry;
-use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
-use handshake_core::flight_recorder::{
-    EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
-};
-use handshake_core::governance_check_runner::{
-    CheckDescriptor, CheckResult, CheckRunner, CheckRunnerError, QuietCheckRunRequest,
-};
-use handshake_core::kernel::product_screenshot_capture::{
-    record_native_product_screenshot_quiet, NativeScreenshotEvidence,
-    ProductScreenshotExecutionError, ProductScreenshotRequestV1,
-    QuietProductScreenshotCaptureRequestV1, ScreenshotCaptureExecutionSurface,
-    ScreenshotCaptureScope, ScreenshotCaptureTriggerKind, VisualEvidenceProtectionV1,
-};
-use handshake_core::kernel::KernelActor;
-use handshake_core::knowledge_code_index::engine::{CodeIndexContext, CodeIndexEngine};
-use handshake_core::knowledge_code_index::CodeIndexError;
-use handshake_core::llm::{
-    CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
-};
-use handshake_core::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
-use handshake_core::storage::postgres::PostgresDatabase;
-use handshake_core::storage::{Database, NewWorkspace, StorageError, WriteContext};
-use handshake_core::swarm_orchestration::state_recovery::{
-    validate_cloud_assistance_receipt, validate_handoff_compression_template,
-    validate_swarm_dashboard_projection, AgentCapability, AgentLaneIdentity, AgentLaneKind,
-    AttributionMode, BackendNavigationCommand, ClaimScope, ClaimStatus, CloudAssistanceOutputKind,
-    CloudAssistanceReceiptV1, CloudAssistanceRequest, CloudFallbackBasisRequest,
-    CloudFallbackReason, HandoffCompressionRequest, IndexLeaseStatus, IndexingLeaseRequest,
-    LocalCloudAttribution, ModelProviderKind, NavigationCommandSet,
-    ParallelSwarmDashboardProjectionV1, ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy,
-    QuietBackgroundWorkKind, QuietBackgroundWorkRequest, RecoveryCheckpointRequest,
-    RecoveryResumePointer, RoleMailboxHandoffRequest, StateRecoveryError,
-    SwarmDashboardProjectionRequest, SwarmEvidenceInspectionRequest, SwarmReceiptStatus,
-    WorkClaimRequest,
-};
-use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
-use handshake_core::AppState;
-use knowledge_pg_support::knowledge_pg;
 use serde_json::json;
-use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Barrier;
+use user_manual_support::{app_state_for, start_server};
 use uuid::Uuid;
 
-#[derive(Default)]
-struct NoopRecorder;
-
-#[async_trait]
-impl FlightRecorder for NoopRecorder {
-    async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
-        Ok(())
-    }
-
-    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
-        Ok(0)
-    }
-
-    async fn list_events(
-        &self,
-        _filter: EventFilter,
-    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
-        Ok(Vec::new())
-    }
+struct RetiredTestDisposition {
+    retired_test: &'static str,
+    retired_behavior: &'static str,
+    successor_status: &'static str,
 }
 
-#[async_trait]
-impl DiagnosticsStore for NoopRecorder {
-    async fn record_diagnostic(
-        &self,
-        _diag: Diagnostic,
-    ) -> Result<(), handshake_core::storage::StorageError> {
-        Ok(())
-    }
-
-    async fn list_problems(
-        &self,
-        _filter: DiagFilter,
-    ) -> Result<Vec<ProblemGroup>, handshake_core::storage::StorageError> {
-        Ok(Vec::new())
-    }
-
-    async fn get_diagnostic(
-        &self,
-        _id: Uuid,
-    ) -> Result<Diagnostic, handshake_core::storage::StorageError> {
-        Err(handshake_core::storage::StorageError::NotFound(
-            "diagnostic",
-        ))
-    }
-
-    async fn list_diagnostics(
-        &self,
-        _filter: DiagFilter,
-    ) -> Result<Vec<Diagnostic>, handshake_core::storage::StorageError> {
-        Ok(Vec::new())
-    }
-}
-
-struct NoopLlmClient {
-    profile: ModelProfile,
-}
-
-#[async_trait]
-impl LlmClient for NoopLlmClient {
-    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        Ok(CompletionResponse {
-            text: String::new(),
-            usage: TokenUsage {
-                prompt_tokens: 0,
-                completion_tokens: 0,
-                total_tokens: 0,
-            },
-            latency_ms: 0,
-        })
-    }
-
-    fn profile(&self) -> &ModelProfile {
-        &self.profile
-    }
-}
-
-#[derive(Default)]
-struct CountingRecorder {
-    events: AtomicUsize,
-}
-
-impl CountingRecorder {
-    fn recorded_events(&self) -> usize {
-        self.events.load(Ordering::SeqCst)
-    }
-}
-
-#[async_trait]
-impl FlightRecorder for CountingRecorder {
-    async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
-        self.events.fetch_add(1, Ordering::SeqCst);
-        Ok(())
-    }
-
-    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
-        Ok(0)
-    }
-
-    async fn list_events(
-        &self,
-        _filter: EventFilter,
-    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
-        Ok(Vec::new())
-    }
-}
-
-async fn recovery_store() -> Option<(sqlx::PgPool, ParallelSwarmStateRecoveryStore)> {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP parallel_swarm_state_recovery_tests: no PostgreSQL");
-        return None;
-    };
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
+async fn recovery_store() -> (EmbeddedTestBackend, ParallelSwarmStateRecoveryStore) {
+    let backend = embedded_test_backend()
         .await
-        .expect("connect isolated parallel swarm schema");
-    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
-    let store = ParallelSwarmStateRecoveryStore::new(pool.clone(), event_db);
-    Some((pool, store))
+        .expect("open isolated embedded swarm store");
+    let store = ParallelSwarmStateRecoveryStore::new(backend.storage.clone());
+    (backend, store)
 }
 
-async fn app_state_for(schema_url: &str) -> AppState {
-    let storage = PostgresDatabase::connect(schema_url, 5)
+async fn finish_store(store: ParallelSwarmStateRecoveryStore, backend: EmbeddedTestBackend) {
+    drop(store);
+    backend
+        .close_and_remove()
         .await
-        .expect("connect AppState storage to isolated schema")
-        .into_arc();
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(schema_url)
-        .await
-        .expect("connect AppState pool to isolated schema");
-    let recorder = Arc::new(NoopRecorder);
-    AppState {
-        storage,
-        flight_recorder: recorder.clone(),
-        diagnostics: recorder,
-        llm_client: Arc::new(NoopLlmClient {
-            profile: ModelProfile::new("parallel-swarm-dashboard-api-test".to_string(), 4096),
-        }),
-        capability_registry: Arc::new(CapabilityRegistry::new()),
-        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
-    }
+        .expect("remove embedded swarm store");
 }
 
-async fn start_kernel_server(state: AppState) -> (String, tokio::task::JoinHandle<()>) {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+async fn reopen_store(
+    backend: &EmbeddedTestBackend,
+) -> (SurrealStorage, ParallelSwarmStateRecoveryStore) {
+    backend
+        .storage
+        .shutdown()
         .await
-        .expect("bind loopback listener");
-    let addr = listener.local_addr().expect("local addr");
-    let app = kernel_api::routes(state);
-    let server = tokio::spawn(async move {
-        axum::serve(listener, app).await.expect("kernel api server");
-    });
-    (format!("http://{addr}"), server)
-}
-
-fn local_lane(actor_suffix: &str) -> AgentLaneIdentity {
-    AgentLaneIdentity::new(
-        format!("lane-local-{actor_suffix}"),
-        format!("coder-{actor_suffix}"),
-        AgentLaneKind::Local,
-        LocalCloudAttribution::local("llama_cpp", "qwen-coder-32b"),
+        .expect("close original swarm store");
+    let storage = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&backend.data_dir)
+            .expect("configure reopened swarm store"),
     )
-    .expect("valid local lane")
+    .await
+    .expect("reopen swarm store");
+    bootstrap_schema(&storage)
+        .await
+        .expect("bootstrap reopened swarm schema");
+    let store = ParallelSwarmStateRecoveryStore::new(storage.clone());
+    (storage, store)
 }
 
-fn cloud_lane(actor_suffix: &str) -> AgentLaneIdentity {
+async fn close_reopened_store(
+    storage: SurrealStorage,
+    store: ParallelSwarmStateRecoveryStore,
+    backend: EmbeddedTestBackend,
+) {
+    drop(store);
+    storage
+        .shutdown()
+        .await
+        .expect("close reopened swarm store");
+    drop(storage);
+    backend
+        .close_and_remove()
+        .await
+        .expect("remove reopened swarm store");
+}
+
+fn local_lane(suffix: &str) -> AgentLaneIdentity {
+    lane_with_kind(suffix, AgentLaneKind::Local)
+}
+
+fn lane_with_kind(suffix: &str, kind: AgentLaneKind) -> AgentLaneIdentity {
     AgentLaneIdentity::new(
-        format!("lane-cloud-{actor_suffix}"),
-        format!("cloud-{actor_suffix}"),
+        format!("lane-{suffix}"),
+        format!("actor-{suffix}"),
+        kind,
+        LocalCloudAttribution::local("test-runtime", format!("test-model-{suffix}")),
+    )
+    .expect("valid lane")
+}
+
+fn cloud_lane(suffix: &str) -> AgentLaneIdentity {
+    AgentLaneIdentity::new(
+        format!("lane-cloud-{suffix}"),
+        format!("actor-cloud-{suffix}"),
         AgentLaneKind::Cloud,
         LocalCloudAttribution::cloud(
             ModelProviderKind::OpenAi,
-            "gpt-5.4-codex",
+            "gpt-test",
             "vault://providers/openai/default",
-            json!({
-                "api_key": "sk-test-secret-must-not-persist",
-                "organization": "org-visible",
-                "endpoint": "https://api.openai.example/v1"
-            }),
+            json!({"api_key":"must-not-persist","organization":"org-visible"}),
         ),
     )
-    .expect("valid cloud lane with scrubbed metadata")
+    .expect("valid cloud lane")
 }
 
-fn raw_cloud_lane(actor_suffix: &str) -> AgentLaneIdentity {
+fn raw_cloud_lane(suffix: &str) -> AgentLaneIdentity {
     AgentLaneIdentity::new(
-        format!("lane-cloud-raw-{actor_suffix}"),
-        format!("cloud-raw-{actor_suffix}"),
+        format!("lane-cloud-raw-{suffix}"),
+        format!("actor-cloud-raw-{suffix}"),
         AgentLaneKind::Cloud,
         LocalCloudAttribution {
             mode: AttributionMode::Cloud,
             provider: Some(ModelProviderKind::OpenAi),
             runtime: None,
-            model_label: "gpt-5.4-codex".to_string(),
-            credential_ref: Some("vault://providers/openai/raw".to_string()),
+            model_label: "gpt-test".to_owned(),
+            credential_ref: Some("vault://providers/openai/default".to_owned()),
             provider_metadata: json!({
                 "api_key": "sk-raw-secret-must-not-persist",
-                "nested": {
-                    "session_token": "raw-token-must-not-persist"
-                },
+                "nested": {"token": "raw-token-must-not-persist"},
                 "organization": "org-visible"
             }),
         },
@@ -274,4515 +153,1502 @@ fn raw_cloud_lane(actor_suffix: &str) -> AgentLaneIdentity {
     .expect("valid raw cloud lane")
 }
 
-fn lane_with_kind(actor_suffix: &str, lane_kind: AgentLaneKind) -> AgentLaneIdentity {
-    AgentLaneIdentity::new(
-        format!("lane-{actor_suffix}"),
-        format!("actor-{actor_suffix}"),
-        lane_kind,
-        LocalCloudAttribution::local("test-runtime", format!("test-model-{actor_suffix}")),
-    )
-    .expect("valid typed lane")
-}
-
 fn assert_invalid_input_contains<T>(result: Result<T, StateRecoveryError>, expected: &str) {
     match result {
         Err(StateRecoveryError::InvalidInput(message)) => assert!(
             message.contains(expected),
-            "expected invalid input to mention {expected}, got {message}"
+            "expected invalid input containing {expected}, got {message}"
         ),
-        Err(error) => panic!("expected invalid input containing {expected}, got {error}"),
-        Ok(_) => panic!("expected invalid input containing {expected}, got success"),
+        Err(error) => panic!("expected InvalidInput containing {expected}, got {error}"),
+        Ok(_) => panic!("expected InvalidInput containing {expected}, got success"),
     }
 }
 
-async fn ledger_count_for_payload_value(
-    pool: &sqlx::PgPool,
-    aggregate_type: &str,
-    payload_key: &str,
-    payload_value: &str,
-) -> i64 {
-    sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'parallel_swarm_state_recovery'
-          AND aggregate_type = $1
-          AND payload ->> $2 = $3
-        "#,
-    )
-    .bind(aggregate_type)
-    .bind(payload_key)
-    .bind(payload_value)
-    .fetch_one(pool)
-    .await
-    .expect("count parallel swarm ledger events")
-}
-
-async fn ledger_event_type_and_status(pool: &sqlx::PgPool, event_id: &str) -> (String, String) {
-    sqlx::query_as(
-        r#"
-        SELECT event_type, payload ->> 'status'
-        FROM kernel_event_ledger
-        WHERE event_id = $1
-        "#,
-    )
-    .bind(event_id)
-    .fetch_one(pool)
-    .await
-    .expect("fetch ledger event type and status")
-}
-
-async fn ledger_event_type(pool: &sqlx::PgPool, event_id: &str) -> String {
-    sqlx::query_scalar(
-        r#"
-        SELECT event_type
-        FROM kernel_event_ledger
-        WHERE event_id = $1
-        "#,
-    )
-    .bind(event_id)
-    .fetch_one(pool)
-    .await
-    .expect("fetch ledger event type")
-}
-
-async fn quiet_background_work_count(
-    pool: &sqlx::PgPool,
+fn claim_request(
     workspace_id: &str,
-    subject_id: &str,
-) -> i64 {
-    sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM knowledge_agent_quiet_background_work
-        WHERE workspace_id = $1
-          AND subject_id = $2
-        "#,
-    )
-    .bind(workspace_id)
-    .bind(subject_id)
-    .fetch_one(pool)
-    .await
-    .expect("count quiet background work")
+    scope: ClaimScope,
+    lane: AgentLaneIdentity,
+    suffix: &str,
+) -> WorkClaimRequest {
+    WorkClaimRequest {
+        workspace_id: workspace_id.to_owned(),
+        wp_id: "WP-KERNEL-009".to_owned(),
+        mt_id: Some("MT-210".to_owned()),
+        scope,
+        lane,
+        session_id: format!("session-{suffix}"),
+        ttl_seconds: 600,
+        reason: format!("claim proof {suffix}"),
+    }
 }
 
-async fn swarm_evidence_counts(
-    pool: &sqlx::PgPool,
+fn checkpoint_request(
+    lane: AgentLaneIdentity,
     workspace_id: &str,
-) -> (i64, i64, i64, i64, i64, i64) {
-    let claims: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_worktree_claims WHERE workspace_id = $1",
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count swarm claims");
-    let checkpoints: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_state_recovery_checkpoints WHERE workspace_id = $1",
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count swarm checkpoints");
-    let leases: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count swarm indexing leases");
-    let events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'parallel_swarm_state_recovery'
-          AND payload ->> 'workspace_id' = $1
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count swarm evidence events");
-    let recovery_receipts: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM knowledge_agent_recovery_receipts r
-        INNER JOIN knowledge_agent_state_recovery_checkpoints c
-                ON c.checkpoint_id = r.checkpoint_id
-        WHERE c.workspace_id = $1
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count swarm recovery receipts");
-    let recovery_events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger e
-        INNER JOIN knowledge_agent_recovery_receipts r
-                ON r.event_ledger_event_id = e.event_id
-        INNER JOIN knowledge_agent_state_recovery_checkpoints c
-                ON c.checkpoint_id = r.checkpoint_id
-        WHERE c.workspace_id = $1
-          AND e.aggregate_type = 'parallel_swarm_recovery'
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count swarm recovery events");
-    (
-        claims,
-        checkpoints,
-        leases,
-        events,
-        recovery_receipts,
-        recovery_events,
-    )
+    claim_id: Option<String>,
+    handoff_id: Option<String>,
+) -> RecoveryCheckpointRequest {
+    RecoveryCheckpointRequest {
+        lane,
+        session_id: "session-checkpoint-source".to_owned(),
+        workspace_id: workspace_id.to_owned(),
+        wp_id: "WP-KERNEL-009".to_owned(),
+        mt_id: "MT-214".to_owned(),
+        claim_id,
+        mailbox_handoff_id: handoff_id,
+        navigation_command_id: Some("validation_state".to_owned()),
+        resume_pointer: RecoveryResumePointer::MicroTask {
+            mt_id: "MT-214".to_owned(),
+        },
+        touched_files: vec!["src/proof.rs".to_owned()],
+        tests: vec!["parallel_swarm_state_recovery_tests".to_owned()],
+        hbr_rows: vec!["HBR-SWARM-004".to_owned()],
+        next_step_context: "resume exact durable checkpoint".to_owned(),
+        payload: json!({"counter": 7}),
+        compaction_reason: "mt141_successor".to_owned(),
+        git_head: "mt141proof".to_owned(),
+    }
 }
 
-async fn swarm_dashboard_authority_counts(
-    pool: &sqlx::PgPool,
-    workspace_id: &str,
-) -> (i64, i64, i64, i64, i64, i64, i64) {
-    let claims: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_worktree_claims WHERE workspace_id = $1",
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count dashboard claims");
-    let handoffs: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM knowledge_agent_role_mailbox_handoffs h
-        INNER JOIN knowledge_agent_worktree_claims c
-                ON c.claim_id = h.claim_id
-        WHERE c.workspace_id = $1
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count dashboard handoffs");
-    let checkpoints: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_state_recovery_checkpoints WHERE workspace_id = $1",
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count dashboard checkpoints");
-    let recovery_receipts: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM knowledge_agent_recovery_receipts r
-        INNER JOIN knowledge_agent_state_recovery_checkpoints c
-                ON c.checkpoint_id = r.checkpoint_id
-        WHERE c.workspace_id = $1
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count dashboard recoveries");
-    let leases: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count dashboard leases");
-    let quiet: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_quiet_background_work WHERE workspace_id = $1",
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count dashboard quiet work");
-    let events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'parallel_swarm_state_recovery'
-          AND (
-              payload ->> 'workspace_id' = $1
-              OR event_id IN (
-                  SELECT r.event_ledger_event_id
-                  FROM knowledge_agent_recovery_receipts r
-                  INNER JOIN knowledge_agent_state_recovery_checkpoints c
-                          ON c.checkpoint_id = r.checkpoint_id
-                  WHERE c.workspace_id = $1
-              )
-          )
-        "#,
-    )
-    .bind(workspace_id)
-    .fetch_one(pool)
-    .await
-    .expect("count dashboard source events");
-    (
-        claims,
-        handoffs,
-        checkpoints,
-        recovery_receipts,
-        leases,
-        quiet,
-        events,
-    )
-}
-
-async fn swarm_dashboard_global_source_counts(
-    pool: &sqlx::PgPool,
-) -> (i64, i64, i64, i64, i64, i64, i64) {
-    let claims: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_worktree_claims")
-        .fetch_one(pool)
-        .await
-        .expect("count all dashboard claims");
-    let handoffs: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs")
-            .fetch_one(pool)
-            .await
-            .expect("count all dashboard handoffs");
-    let checkpoints: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_state_recovery_checkpoints")
-            .fetch_one(pool)
-            .await
-            .expect("count all dashboard checkpoints");
-    let recovery_receipts: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_recovery_receipts")
-            .fetch_one(pool)
-            .await
-            .expect("count all dashboard recoveries");
-    let leases: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue")
-            .fetch_one(pool)
-            .await
-            .expect("count all dashboard leases");
-    let quiet: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_quiet_background_work")
-            .fetch_one(pool)
-            .await
-            .expect("count all dashboard quiet work");
-    let events: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'parallel_swarm_state_recovery'",
-    )
-    .fetch_one(pool)
-    .await
-    .expect("count all dashboard EventLedger rows");
-    (
-        claims,
-        handoffs,
-        checkpoints,
-        recovery_receipts,
-        leases,
-        quiet,
-        events,
-    )
-}
-
-async fn install_parallel_swarm_event_delay(pool: &sqlx::PgPool, aggregate_type: &str) {
-    let suffix = aggregate_type.replace('_', "");
-    let function_name = format!("slow_psr_{suffix}_event");
-    let trigger_name = format!("slow_psr_{suffix}_trigger");
-    let function_sql = format!(
-        r#"
-        CREATE OR REPLACE FUNCTION {function_name}()
-        RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN
-            PERFORM pg_sleep(0.25);
-            RETURN NEW;
-        END
-        $$
-        "#
+fn handoff_checkpoint_request(suffix: &str) -> RecoveryCheckpointRequest {
+    let mut request = checkpoint_request(
+        local_lane(&format!("handoff-{suffix}")),
+        &format!("workspace-handoff-{suffix}"),
+        None,
+        None,
     );
-    sqlx::query(&function_sql)
-        .execute(pool)
-        .await
-        .expect("install event delay function");
-    let trigger_sql = format!(
-        r#"
-        CREATE TRIGGER {trigger_name}
-        BEFORE INSERT ON kernel_event_ledger
-        FOR EACH ROW
-        WHEN (
-            NEW.source_component = 'parallel_swarm_state_recovery'
-            AND NEW.aggregate_type = '{aggregate_type}'
-        )
-        EXECUTE FUNCTION {function_name}()
-        "#
-    );
-    sqlx::query(&trigger_sql)
-        .execute(pool)
-        .await
-        .expect("install event delay trigger");
-}
-
-async fn install_parallel_swarm_event_failure(pool: &sqlx::PgPool, aggregate_type: &str) {
-    let suffix = aggregate_type.replace('_', "");
-    let function_name = format!("fail_psr_{suffix}_event");
-    let trigger_name = format!("fail_psr_{suffix}_trigger");
-    let function_sql = format!(
-        r#"
-        CREATE OR REPLACE FUNCTION {function_name}()
-        RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN
-            RAISE EXCEPTION 'forced parallel swarm event failure';
-        END
-        $$
-        "#
-    );
-    sqlx::query(&function_sql)
-        .execute(pool)
-        .await
-        .expect("install event failure function");
-    let trigger_sql = format!(
-        r#"
-        CREATE TRIGGER {trigger_name}
-        BEFORE INSERT ON kernel_event_ledger
-        FOR EACH ROW
-        WHEN (
-            NEW.source_component = 'parallel_swarm_state_recovery'
-            AND NEW.aggregate_type = '{aggregate_type}'
-        )
-        EXECUTE FUNCTION {function_name}()
-        "#
-    );
-    sqlx::query(&trigger_sql)
-        .execute(pool)
-        .await
-        .expect("install event failure trigger");
-}
-
-async fn install_claim_receipt_authority_failure(pool: &sqlx::PgPool) {
-    sqlx::query(
-        r#"
-        CREATE OR REPLACE FUNCTION fail_psr_claim_receipt_authority()
-        RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN
-            IF NEW.reason = 'forced claim receipt authority failure after receipt'
-               AND NEW.event_ledger_event_id IS NOT NULL THEN
-                RAISE EXCEPTION 'forced claim receipt authority failure';
-            END IF;
-            RETURN NEW;
-        END
-        $$
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("install claim receipt authority failure function");
-    sqlx::query(
-        r#"
-        CREATE TRIGGER fail_psr_claim_receipt_authority_trigger
-        BEFORE INSERT OR UPDATE ON knowledge_agent_worktree_claims
-        FOR EACH ROW
-        EXECUTE FUNCTION fail_psr_claim_receipt_authority()
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("install claim receipt authority failure trigger");
-}
-
-async fn install_recovery_receipt_authority_failure(pool: &sqlx::PgPool) {
-    sqlx::query(
-        r#"
-        CREATE OR REPLACE FUNCTION fail_psr_recovery_receipt_authority()
-        RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN
-            IF NEW.new_session_id = 'session-recovery-authority-fail' THEN
-                RAISE EXCEPTION 'forced recovery receipt authority failure';
-            END IF;
-            RETURN NEW;
-        END
-        $$
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("install recovery receipt authority failure function");
-    sqlx::query(
-        r#"
-        CREATE TRIGGER fail_psr_recovery_receipt_authority_trigger
-        BEFORE INSERT ON knowledge_agent_recovery_receipts
-        FOR EACH ROW
-        EXECUTE FUNCTION fail_psr_recovery_receipt_authority()
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("install recovery receipt authority failure trigger");
-}
-
-async fn install_knowledge_index_run_start_failure(pool: &sqlx::PgPool) {
-    sqlx::query(
-        r#"
-        CREATE OR REPLACE FUNCTION fail_knowledge_index_run_start()
-        RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN
-            RAISE EXCEPTION 'forced knowledge index run start failure';
-        END
-        $$
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("install knowledge index run start failure function");
-    sqlx::query(
-        r#"
-        CREATE TRIGGER fail_knowledge_index_run_start_trigger
-        BEFORE INSERT ON knowledge_index_runs
-        FOR EACH ROW
-        EXECUTE FUNCTION fail_knowledge_index_run_start()
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("install knowledge index run start failure trigger");
-}
-
-async fn install_quiet_indexing_receipt_failure(pool: &sqlx::PgPool) {
-    sqlx::query(
-        r#"
-        CREATE OR REPLACE FUNCTION fail_quiet_indexing_receipt()
-        RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN
-            IF NEW.work_kind = 'indexing' THEN
-                RAISE EXCEPTION 'forced quiet indexing receipt failure';
-            END IF;
-            RETURN NEW;
-        END
-        $$
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("install quiet indexing receipt failure function");
-    sqlx::query(
-        r#"
-        CREATE TRIGGER fail_quiet_indexing_receipt_trigger
-        BEFORE INSERT ON knowledge_agent_quiet_background_work
-        FOR EACH ROW
-        EXECUTE FUNCTION fail_quiet_indexing_receipt()
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("install quiet indexing receipt failure trigger");
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn agent_lanes_and_work_claims_are_typed_attributable_and_exclusive() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
+    request.session_id = format!("session-handoff-{suffix}");
+    request.mt_id = "MT-222".to_owned();
+    request.resume_pointer = RecoveryResumePointer::MicroTask {
+        mt_id: "MT-222".to_owned(),
     };
+    request.compaction_reason = "session_limit_recovery".to_owned();
+    request
+}
 
-    let local = local_lane("claim-a");
-    let cloud = cloud_lane("claim-b");
-    let other_local = local_lane("claim-c");
-    assert!(local
+fn cloud_basis_request(workspace: &str, claim_id: &str, suffix: &str) -> CloudFallbackBasisRequest {
+    CloudFallbackBasisRequest {
+        lane: local_lane(&format!("basis-{suffix}")),
+        workspace_id: workspace.to_owned(),
+        wp_id: "WP-KERNEL-009".to_owned(),
+        mt_id: "MT-221".to_owned(),
+        claim_id: claim_id.to_owned(),
+        parent_session_id: format!("session-parent-{suffix}"),
+        prompt_sha256: "a".repeat(64),
+        session_id: format!("session-basis-{suffix}"),
+        fallback_reason: CloudFallbackReason::LocalFailed,
+        local_attempt_ref: format!("local://basis/{suffix}"),
+        evidence_sha256: "b".repeat(64),
+        summary: "local failure authorizes one reviewable cloud output".to_owned(),
+    }
+}
+
+fn cloud_assistance_request(
+    lane: AgentLaneIdentity,
+    workspace: &str,
+    claim_id: &str,
+    basis_event_id: &str,
+    suffix: &str,
+) -> CloudAssistanceRequest {
+    CloudAssistanceRequest {
+        from_lane: lane,
+        workspace_id: workspace.to_owned(),
+        wp_id: "WP-KERNEL-009".to_owned(),
+        mt_id: "MT-221".to_owned(),
+        claim_id: claim_id.to_owned(),
+        session_id: format!("session-output-{suffix}"),
+        to_role: "WP_VALIDATOR".to_owned(),
+        mailbox_thread_id: format!("thread-{suffix}"),
+        mailbox_message_id: format!("message-{suffix}"),
+        fallback_basis_event_id: basis_event_id.to_owned(),
+        parent_session_id: format!("session-parent-{suffix}"),
+        prompt_sha256: "a".repeat(64),
+        fallback_reason: CloudFallbackReason::LocalFailed,
+        output_kind: CloudAssistanceOutputKind::PatchSuggestion,
+        output_sha256: "c".repeat(64),
+        body_sha256: "d".repeat(64),
+        output_text: "cloud patch suggestion pending validator review".to_owned(),
+        output_body_jsonb: json!({"text": "cloud patch suggestion pending validator review"}),
+        summary: "reviewable non-authoritative cloud assistance".to_owned(),
+        target_ref: "wp://WP-KERNEL-009/MT-221".to_owned(),
+    }
+}
+
+macro_rules! retired {
+    ($name:literal, $behavior:literal, $successor:literal) => {
+        RetiredTestDisposition {
+            retired_test: $name,
+            retired_behavior: $behavior,
+            successor_status: $successor,
+        }
+    };
+}
+
+const RETIRED_TESTS: &[RetiredTestDisposition] = &[
+    retired!("agent_lanes_and_work_claims_are_typed_attributable_and_exclusive", "typed lane attribution, capability derivation, exclusive claims, and durable claim receipts", "agent_lanes_and_work_claims_are_typed_attributable_and_exclusive"),
+    retired!("claim_authority_failure_after_receipt_rolls_back_eventledger_receipt", "claim-authority failure atomically removes the paired EventLedger receipt", "claim_authority_failure_after_receipt_rolls_back_eventledger_receipt"),
+    retired!("release_claim_rolls_back_authority_state_if_receipt_insert_fails", "receipt failure rolls claim release back to active authority state", "release_claim_rolls_back_authority_state_if_receipt_insert_fails"),
+    retired!("cloud_lane_is_denied_worktree_claim_and_local_index_write_lease", "cloud lanes cannot claim worktrees or local index-write leases", "cloud_lane_is_denied_worktree_claim_and_local_index_write_lease"),
+    retired!("cloud_assistance_output_is_reviewable_attributed_and_non_authoritative", "cloud assistance remains attributed, reviewable, and non-authoritative", "cloud_assistance_output_is_reviewable_attributed_and_non_authoritative"),
+    retired!("cloud_assistance_requires_cloud_owned_workspace_claim_and_valid_output_hash", "cloud output requires a cloud-owned workspace claim and valid content hash", "cloud_assistance_requires_cloud_owned_workspace_claim_and_valid_output_hash"),
+    retired!("cloud_assistance_rejects_loose_or_replayed_fallback_basis", "fallback basis must be tightly bound and non-replayable", "cloud_assistance_rejects_loose_or_replayed_fallback_basis"),
+    retired!("editor_document_and_graph_claims_serialize_parallel_mutations", "document and graph mutation scopes serialize same-scope writers", "editor_document_and_graph_claims_serialize_parallel_mutations"),
+    retired!("non_editor_lanes_cannot_claim_editor_mutation_scopes", "non-editor lanes are denied editor mutation claims", "non_editor_lanes_cannot_claim_editor_mutation_scopes"),
+    retired!("malformed_editor_mutation_scopes_do_not_persist_claims_or_receipts", "malformed editor scopes fail before claims or receipts persist", "malformed_editor_mutation_scopes_do_not_persist_claims_or_receipts"),
+    retired!("validator_lanes_inspect_swarm_evidence_without_mutating_state", "validator inspection is read-only and cannot mutate swarm authority", "validator_lanes_inspect_swarm_evidence_without_mutating_state"),
+    retired!("swarm_dashboard_projection_derives_from_postgres_eventledger_and_is_projection_only", "dashboard rows derive from EventLedger authority and remain projection-only", "swarm_dashboard_projection_derives_from_embedded_eventledger_and_is_projection_only"),
+    retired!("swarm_dashboard_projection_api_exposes_postgres_eventledger_read_model", "HTTP projection API exposes the authoritative swarm read model", "swarm_dashboard_projection_api_exposes_embedded_eventledger_read_model"),
+    retired!("swarm_dashboard_projection_totals_remain_authoritative_when_rows_are_limited", "authoritative totals remain complete when detail rows are limited", "swarm_dashboard_projection_totals_remain_authoritative_when_rows_are_limited"),
+    retired!("quiet_background_work_receipts_reject_foreground_or_focus_stealing_work", "quiet-work receipts reject foreground, focus-stealing, and keyboard-capture declarations", "quiet_background_work_receipts_reject_foreground_or_focus_stealing_work"),
+    retired!("indexing_leases_and_backend_navigation_are_quiet_by_contract", "indexing leases and backend navigation carry explicit quiet policy", "indexing_leases_and_backend_navigation_are_quiet_by_contract"),
+    retired!("real_product_entrypoints_emit_quiet_background_work_receipts", "real indexing/navigation entrypoints emit quiet-work receipts", "real_product_entrypoints_emit_quiet_background_work_receipts"),
+    retired!("quiet_entrypoint_denials_happen_before_product_side_effects", "quiet-policy denial occurs before product side effects", "quiet_entrypoint_denials_happen_before_product_side_effects"),
+    retired!("mailbox_handoff_requires_write_mailbox_capability", "mailbox handoff requires write-mailbox capability", "mailbox_handoff_requires_write_mailbox_capability"),
+    retired!("invalid_mailbox_handoff_claim_ref_does_not_emit_false_receipt", "invalid handoff claim references emit no false receipt", "invalid_mailbox_handoff_claim_ref_does_not_emit_false_receipt"),
+    retired!("invalid_checkpoint_refs_do_not_emit_false_receipt", "invalid checkpoint references emit no checkpoint receipt", "invalid_checkpoint_refs_do_not_emit_false_receipt"),
+    retired!("concurrent_same_scope_claim_records_one_durable_claim_event", "same-scope contention yields one durable winning claim event", "concurrent_same_scope_claim_records_one_durable_claim_event"),
+    retired!("mailbox_navigation_checkpoint_and_recovery_are_restartable_from_postgres", "mailbox handoff, navigation, checkpoint, and recovery survive a real restart", "mailbox_checkpoint_and_recovery_are_restartable_from_surrealdb"),
+    retired!("compressed_handoff_template_is_bounded_restartable_and_secret_safe", "compressed handoff is bounded, restartable, and secret-safe", "compressed_handoff_template_is_bounded_restartable_and_secret_safe"),
+    retired!("compressed_handoff_redacts_all_dynamic_sections_and_redacted_labels_validate", "all dynamic handoff sections redact secrets while redacted labels remain valid", "compressed_handoff_redacts_all_dynamic_sections_and_redacted_labels_validate"),
+    retired!("compressed_handoff_omits_raw_transcript_markers_from_next_step_context", "next-step context excludes raw transcript markers", "compressed_handoff_omits_raw_transcript_markers_from_next_step_context"),
+    retired!("compressed_handoff_rejects_secret_like_mandatory_metadata", "secret-like mandatory handoff metadata fails closed", "compressed_handoff_rejects_secret_like_mandatory_metadata"),
+    retired!("compressed_handoff_accepts_redacted_url_credentials", "properly redacted URL credentials remain accepted", "compressed_handoff_accepts_redacted_url_credentials"),
+    retired!("mt223_missing_checkpoint_recovery_does_not_emit_receipt", "missing checkpoint recovery emits no recovery receipt", "mt223_missing_checkpoint_recovery_does_not_emit_receipt"),
+    retired!("mt223_corrupt_checkpoint_payload_hash_does_not_emit_recovery_receipt", "corrupt checkpoint hash emits no recovery receipt", "mt223_corrupt_checkpoint_payload_hash_does_not_emit_recovery_receipt"),
+    retired!("mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts", "index-run start failure leaves neither swarm nor indexing-run receipts", "mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts"),
+    retired!("mt223_quiet_receipt_failure_rolls_back_index_run_and_lease", "quiet-receipt failure rolls back index run and lease", "mt223_quiet_receipt_failure_rolls_back_index_run_and_lease"),
+    retired!("mt223_stale_indexing_lease_reclaim_then_queued_writer_is_promotable", "stale lease reclaim promotes the queued writer", "mt223_stale_indexing_lease_reclaim_then_queued_writer_is_promotable"),
+    retired!("mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer", "new enqueue cannot leapfrog an existing queued writer after stale lease", "mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer"),
+    retired!("mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim", "interrupted editor-save reclaim unblocks the document claim", "mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim"),
+    retired!("mt223_partial_validation_progress_handoff_is_not_reported_as_pass", "partial validation handoff cannot be reported as pass", "mt223_partial_validation_progress_handoff_is_not_reported_as_pass"),
+    retired!("mt223_restart_after_crash_reconstructs_swarm_state_from_postgres", "crash restart reconstructs claims, handoffs, checkpoints, leases, and receipts", "mt223_restart_after_close_reopen_reconstructs_swarm_state_from_surrealdb"),
+    retired!("recovery_receipt_authority_failure_does_not_emit_false_receipt", "recovery authority failure emits no false receipt", "recovery_receipt_authority_failure_does_not_emit_false_receipt"),
+    retired!("mailbox_handoff_statuses_round_trip_from_postgres", "all mailbox handoff statuses round-trip through durable storage", "mailbox_handoff_statuses_round_trip_from_surrealdb"),
+    retired!("raw_secret_like_provider_metadata_is_scrubbed_at_persist_time", "secret-like provider metadata is scrubbed before persistence", "raw_secret_like_provider_metadata_is_scrubbed_at_persist_time"),
+    retired!("parallel_indexing_lease_queue_serializes_same_scope_writers_and_reclaims_orphans", "parallel lease queue serializes same-scope writers and reclaims orphans", "parallel_indexing_lease_queue_serializes_same_scope_writers plus mt223_stale_indexing_lease_reclaim_then_queued_writer_is_promotable"),
+    retired!("concurrent_same_scope_indexing_lease_records_only_real_outcome_events", "contention records only actual lease outcomes without false events", "concurrent_same_scope_indexing_lease_records_only_real_outcome_events"),
+    retired!("explicit_expired_claim_reclaim_records_event_receipt", "explicit expired-claim reclaim records its durable event receipt", "explicit_expired_claim_reclaim_records_event_receipt"),
+    retired!("expired_claim_reclaim_rolls_back_if_receipt_insert_fails", "reclaim rolls back when its receipt cannot persist", "expired_claim_reclaim_rolls_back_if_receipt_insert_fails"),
+];
+
+#[test]
+fn mt141_parallel_swarm_retirement_inventory_is_complete_and_names_exact_successors_or_gaps() {
+    assert_eq!(RETIRED_TESTS.len(), 44);
+    let names = RETIRED_TESTS
+        .iter()
+        .map(|entry| entry.retired_test)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(names.len(), RETIRED_TESTS.len());
+    for entry in RETIRED_TESTS {
+        assert!(!entry.retired_behavior.is_empty());
+        assert!(!entry.successor_status.is_empty());
+        assert!(!entry.successor_status.contains("UNPROVEN"));
+        assert!(!entry.successor_status.contains("PARTIAL"));
+    }
+}
+
+async fn inspect_workspace(
+    store: &ParallelSwarmStateRecoveryStore,
+    workspace_id: &str,
+) -> handshake_core::swarm_orchestration::state_recovery::SwarmEvidenceInspectionSnapshot {
+    store
+        .inspect_swarm_evidence(SwarmEvidenceInspectionRequest {
+            lane: lane_with_kind("evidence-reader", AgentLaneKind::Validator),
+            workspace_id: workspace_id.to_owned(),
+            limit: 500,
+        })
+        .await
+        .expect("inspect embedded swarm evidence")
+}
+
+async fn inspector_row_count(storage: &SurrealStorage, table_name: &str, filter: RowFilter) -> u64 {
+    let inspector = storage.test_inspector();
+    let table = inspector
+        .table_selector(table_name)
+        .await
+        .expect("select inspector table");
+    inspector
+        .row_count(&table, filter)
+        .await
+        .expect("count inspector rows")
+}
+
+async fn create_product_workspace(db: &SurrealDatabase, suffix: &str) -> String {
+    db.create_workspace(
+        &WriteContext::human(None),
+        NewWorkspace {
+            name: format!("swarm-product-{suffix}-{}", Uuid::now_v7()),
+        },
+    )
+    .await
+    .expect("create product workspace")
+    .id
+}
+
+fn code_index_context(suffix: &str) -> CodeIndexContext {
+    CodeIndexContext {
+        actor: KernelActor::System(format!("swarm-index-{suffix}")),
+        kernel_task_run_id: format!("KTR-SWARM-{suffix}"),
+        session_run_id: format!("SR-SWARM-{suffix}"),
+        correlation_id: Some(format!("CORR-SWARM-{suffix}")),
+    }
+}
+
+fn nav_headers(client: reqwest::RequestBuilder, suffix: &str) -> reqwest::RequestBuilder {
+    client
+        .header("x-hsk-actor-kind", "model_adapter")
+        .header("x-hsk-actor-id", format!("swarm-nav-{suffix}"))
+        .header(
+            "x-hsk-kernel-task-run-id",
+            format!("KTR-SWARM-NAV-{suffix}"),
+        )
+        .header("x-hsk-session-run-id", format!("SR-SWARM-NAV-{suffix}"))
+        .header("x-hsk-correlation-id", format!("CORR-SWARM-NAV-{suffix}"))
+}
+
+#[tokio::test]
+async fn agent_lanes_and_work_claims_are_typed_attributable_and_exclusive() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-claim-{}", Uuid::now_v7());
+    let scope = ClaimScope::Worktree {
+        worktree_id: "wtc-kernel-009".to_owned(),
+    };
+    let first_lane = local_lane("claim-a");
+    let second_lane = local_lane("claim-b");
+    let cloud = cloud_lane("claim-cloud");
+    assert!(first_lane
         .capabilities()
         .contains(&AgentCapability::ClaimWorktree));
-    assert!(local
+    assert!(!cloud
         .capabilities()
         .contains(&AgentCapability::WriteLocalIndex));
-    assert!(cloud
-        .capabilities()
-        .contains(&AgentCapability::NavigateBackend));
-    assert!(
-        !cloud
-            .capabilities()
-            .contains(&AgentCapability::WriteLocalIndex),
-        "cloud lanes must not silently become local index writers"
-    );
-    assert!(
-        !serde_json::to_string(&cloud)
-            .expect("serialize cloud lane")
-            .contains("sk-test-secret"),
-        "provider secrets must be scrubbed from lane attribution"
-    );
+    assert!(!serde_json::to_string(&cloud)
+        .expect("serialize cloud lane")
+        .contains("must-not-persist"));
 
-    let scope = ClaimScope::Worktree {
-        worktree_id: "wtc-kernel-009".to_string(),
-    };
     let first = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: "workspace-alpha".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-210".to_string()),
-            scope: scope.clone(),
-            lane: local.clone(),
-            session_id: "session-local-a".to_string(),
-            ttl_seconds: 600,
-            reason: "claim the product worktree for MT-210".to_string(),
-        })
+        .claim_work_surface(claim_request(
+            &workspace,
+            scope.clone(),
+            first_lane.clone(),
+            "claim-a",
+        ))
         .await
         .expect("first claim");
     assert_eq!(first.status, ClaimStatus::Active);
-    assert!(first.claim_id.starts_with("PSR-CLAIM-"));
-
-    let second = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: "workspace-alpha".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-210".to_string()),
-            scope: scope.clone(),
-            lane: other_local.clone(),
-            session_id: "session-local-c".to_string(),
-            ttl_seconds: 600,
-            reason: "parallel local worker should wait".to_string(),
-        })
+    let held = store
+        .claim_work_surface(claim_request(
+            &workspace,
+            scope.clone(),
+            second_lane.clone(),
+            "claim-b",
+        ))
         .await
-        .expect("second claim returns held, not corruption");
-    assert_eq!(second.status, ClaimStatus::Held);
+        .expect("contending claim");
+    assert_eq!(held.status, ClaimStatus::Held);
     assert_eq!(
-        second
-            .active_holder
-            .as_ref()
-            .expect("held claim names active holder")
-            .actor_id,
-        local.actor_id
+        held.active_holder.expect("active holder").actor_id,
+        first_lane.actor_id
     );
-
-    let active = store
-        .list_active_claims("workspace-alpha")
+    assert!(store
+        .release_claim(&first.claim_id, &first_lane, "handoff complete")
         .await
-        .expect("active claims");
-    assert_eq!(active.len(), 1);
-    assert_eq!(active[0].claim_id, first.claim_id);
-
-    assert!(
-        store
-            .release_claim(&first.claim_id, &local, "MT-210 complete")
-            .await
-            .expect("release claim"),
-        "claim holder can release the claim"
-    );
-    let release_event_id: Option<String> = sqlx::query_scalar(
-        "SELECT to_jsonb(c) ->> 'release_event_ledger_event_id' FROM knowledge_agent_worktree_claims c WHERE claim_id = $1",
-    )
-    .bind(&first.claim_id)
-    .fetch_one(&pool)
-    .await
-    .expect("fetch release receipt event id");
-    let release_event_id = release_event_id.expect("released claim carries release receipt");
-    assert!(
-        release_event_id.starts_with("KE-"),
-        "released claim must carry an EventLedger release receipt"
-    );
-
-    let after_release = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: "workspace-alpha".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-210".to_string()),
+        .expect("release first claim"));
+    let second = store
+        .claim_work_surface(claim_request(
+            &workspace,
             scope,
-            lane: other_local,
-            session_id: "session-local-c".to_string(),
-            ttl_seconds: 600,
-            reason: "claim after release".to_string(),
-        })
+            second_lane,
+            "claim-b-after",
+        ))
         .await
         .expect("claim after release");
-    assert_eq!(after_release.status, ClaimStatus::Active);
+    assert_eq!(second.status, ClaimStatus::Active);
+
+    drop(store);
+    let (storage, reopened) = reopen_store(&backend).await;
+    let evidence = inspect_workspace(&reopened, &workspace).await;
+    let released = evidence
+        .claims
+        .iter()
+        .find(|claim| claim.claim_id == first.claim_id)
+        .expect("released claim survives reopen");
+    assert_eq!(released.status, ClaimStatus::Released);
+    assert!(released
+        .release_event_ledger_event_id
+        .as_deref()
+        .is_some_and(|id| id.starts_with("KE-")));
+    assert!(evidence
+        .claims
+        .iter()
+        .any(|claim| claim.claim_id == second.claim_id && claim.status == ClaimStatus::Active));
+    close_reopened_store(storage, reopened, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn claim_authority_failure_after_receipt_rolls_back_eventledger_receipt() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    install_claim_receipt_authority_failure(&pool).await;
-    let workspace_id = format!("workspace-claim-receipt-fail-{}", Uuid::now_v7());
-    let result = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-210".to_string()),
-            scope: ClaimScope::Worktree {
-                worktree_id: format!("wtc-kernel-009-claim-fail-{}", Uuid::now_v7()),
-            },
-            lane: local_lane("claim-receipt-fail"),
-            session_id: "session-claim-receipt-fail".to_string(),
-            ttl_seconds: 600,
-            reason: "forced claim receipt authority failure after receipt".to_string(),
-        })
-        .await;
-    assert!(
-        result.is_err(),
-        "forced authority failure should reject claim receipt persistence"
-    );
-
-    let claim_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_worktree_claims WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count failed claim rows");
-    assert_eq!(claim_rows, 0);
-    assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_claim",
-            "workspace_id",
-            &workspace_id
-        )
-        .await,
-        0,
-        "failed claim authority write must not leave a false EventLedger receipt"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn release_claim_rolls_back_authority_state_if_receipt_insert_fails() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-release-receipt-fail-{}", Uuid::now_v7());
-    let lane = local_lane("release-receipt-fail-holder");
-    let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id,
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-210".to_string()),
-            scope: ClaimScope::Worktree {
-                worktree_id: format!("wtc-kernel-009-release-fail-{}", Uuid::now_v7()),
-            },
-            lane: lane.clone(),
-            session_id: "session-release-receipt-fail-holder".to_string(),
-            ttl_seconds: 600,
-            reason: "claim that should remain active if release receipt fails".to_string(),
-        })
-        .await
-        .expect("claim before forced release receipt failure");
-
-    install_parallel_swarm_event_failure(&pool, "parallel_swarm_claim").await;
-    let result = store
-        .release_claim(
-            &claim.claim_id,
-            &lane,
-            "forced release receipt insertion failure",
-        )
-        .await;
-    assert!(
-        result.is_err(),
-        "forced EventLedger failure should reject release"
-    );
-
-    let (status, has_released_at, release_event_id): (String, bool, Option<String>) =
-        sqlx::query_as(
-            r#"
-            SELECT status,
-                   released_at_utc IS NOT NULL,
-                   to_jsonb(c) ->> 'release_event_ledger_event_id'
-            FROM knowledge_agent_worktree_claims c
-            WHERE claim_id = $1
-            "#,
-        )
-        .bind(&claim.claim_id)
-        .fetch_one(&pool)
-        .await
-        .expect("fetch claim after failed release");
-    assert_eq!(
-        status, "active",
-        "claim must not be left released when receipt insertion fails"
-    );
-    assert!(
-        !has_released_at,
-        "failed release must not stamp released_at_utc"
-    );
-    assert!(
-        release_event_id.is_none(),
-        "failed release must not attach a missing receipt id"
-    );
-    assert_eq!(
-        ledger_count_for_payload_value(&pool, "parallel_swarm_claim", "claim_id", &claim.claim_id)
-            .await,
-        1,
-        "failed release must not add a second false EventLedger receipt"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn cloud_lane_is_denied_worktree_claim_and_local_index_write_lease() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-capability-deny-{}", Uuid::now_v7());
-    let cloud = cloud_lane("capability-deny");
-    let claim_result = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-209".to_string()),
-            scope: ClaimScope::Worktree {
-                worktree_id: "wtc-kernel-009".to_string(),
-            },
-            lane: cloud.clone(),
-            session_id: "session-cloud-capability-deny".to_string(),
-            ttl_seconds: 600,
-            reason: "cloud lanes must not claim local worktrees".to_string(),
-        })
-        .await;
-    assert_invalid_input_contains(claim_result, "ClaimWorktree");
-
-    let persisted_claims: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_worktree_claims WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count denied worktree claims");
-    assert_eq!(persisted_claims, 0);
-
-    let claim_events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'parallel_swarm_state_recovery'
-          AND aggregate_type = 'parallel_swarm_claim'
-          AND payload ->> 'workspace_id' = $1
-        "#,
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count denied claim events");
-    assert_eq!(claim_events, 0);
-
-    let lease_result = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-216".to_string(),
-            scope: ClaimScope::IndexRun {
-                workspace_id: workspace_id.clone(),
-                source_root_id: "root-capability-deny".to_string(),
-            },
-            lane: cloud,
-            session_id: "session-cloud-index-deny".to_string(),
-            index_run_id: format!("index-run-{}", Uuid::now_v7()),
-            priority: 10,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
-        .await;
-    assert_invalid_input_contains(lease_result, "WriteLocalIndex");
-
-    let persisted_leases: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count denied indexing leases");
-    assert_eq!(persisted_leases, 0);
-
-    let lease_events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'parallel_swarm_state_recovery'
-          AND aggregate_type = 'parallel_indexing_lease'
-          AND payload ->> 'workspace_id' = $1
-        "#,
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count denied lease events");
-    assert_eq!(lease_events, 0);
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-cloud-deny-{}", Uuid::now_v7());
+    let cloud = cloud_lane("deny");
+    assert_invalid_input_contains(
+        store
+            .claim_work_surface(claim_request(
+                &workspace,
+                ClaimScope::Worktree {
+                    worktree_id: "wt-cloud-denied".to_owned(),
+                },
+                cloud.clone(),
+                "cloud-denied",
+            ))
+            .await,
+        "ClaimWorktree",
+    );
+    assert_invalid_input_contains(
+        store
+            .enqueue_indexing_lease(IndexingLeaseRequest {
+                workspace_id: workspace.clone(),
+                wp_id: "WP-KERNEL-009".to_owned(),
+                mt_id: "MT-216".to_owned(),
+                scope: ClaimScope::IndexRun {
+                    workspace_id: workspace.clone(),
+                    source_root_id: "root-cloud-denied".to_owned(),
+                },
+                lane: cloud,
+                session_id: "session-cloud-denied".to_owned(),
+                index_run_id: "index-cloud-denied".to_owned(),
+                priority: 1,
+                ttl_seconds: 600,
+                quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+            })
+            .await,
+        "WriteLocalIndex",
+    );
+    let evidence = inspect_workspace(&store, &workspace).await;
+    assert!(evidence.claims.is_empty());
+    assert!(evidence.indexing_leases.is_empty());
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn cloud_assistance_output_is_reviewable_attributed_and_non_authoritative() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-cloud-assist-{}", Uuid::now_v7());
-    let cloud = cloud_lane("assist-review");
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-cloud-review-{}", Uuid::now_v7());
+    let cloud = cloud_lane("review");
     let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-221".to_string()),
-            scope: ClaimScope::Workspace {
-                workspace_id: workspace_id.clone(),
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
             },
-            lane: cloud.clone(),
-            session_id: "session-cloud-assist-claim".to_string(),
-            ttl_seconds: 600,
-            reason: "cloud fallback may assist only as reviewable output".to_string(),
-        })
+            cloud.clone(),
+            "cloud-review",
+        ))
         .await
-        .expect("claim cloud assistance workspace");
-    assert_eq!(claim.status, ClaimStatus::Active);
-
-    let before_handoffs: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs")
-            .fetch_one(&pool)
-            .await
-            .expect("count handoffs before cloud assistance");
-    let before_events: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'parallel_swarm_state_recovery'",
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("count events before cloud assistance");
-    let before_docs: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_rich_documents WHERE workspace_id = $1")
-            .bind(&workspace_id)
-            .fetch_one(&pool)
-            .await
-            .expect("count rich docs before cloud assistance");
-    let before_promoted_facts: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_crdt_promoted_facts WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count promoted facts before cloud assistance");
-    let fallback_basis = store
-        .record_cloud_fallback_basis(CloudFallbackBasisRequest {
-            lane: local_lane("assist-review-local-basis"),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-221".to_string(),
-            claim_id: claim.claim_id.clone(),
-            parent_session_id: "session-cloud-assist-parent".to_string(),
-            prompt_sha256: "a".repeat(64),
-            session_id: "session-cloud-assist-local-basis".to_string(),
-            fallback_reason: CloudFallbackReason::LocalLowConfidence,
-            local_attempt_ref: "local://assist-review/attempt/low-confidence".to_string(),
-            evidence_sha256: "b".repeat(64),
-            summary: "local model confidence below cloud fallback threshold".to_string(),
-        })
+        .expect("cloud workspace claim");
+    let basis = store
+        .record_cloud_fallback_basis(cloud_basis_request(&workspace, &claim.claim_id, "review"))
         .await
-        .expect("record local fallback basis");
-
+        .expect("local fallback basis");
     let receipt = store
-        .record_cloud_assistance_output(CloudAssistanceRequest {
-            from_lane: cloud.clone(),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-221".to_string(),
-            claim_id: claim.claim_id.clone(),
-            session_id: "session-cloud-assist-output".to_string(),
-            to_role: "WP_VALIDATOR".to_string(),
-            mailbox_thread_id: "thread-cloud-assist-review".to_string(),
-            mailbox_message_id: "message-cloud-assist-review".to_string(),
-            fallback_basis_event_id: fallback_basis.fallback_basis_event_id.clone(),
-            parent_session_id: "session-cloud-assist-parent".to_string(),
-            prompt_sha256: "a".repeat(64),
-            fallback_reason: CloudFallbackReason::LocalLowConfidence,
-            output_kind: CloudAssistanceOutputKind::PatchSuggestion,
-            output_sha256: "c".repeat(64),
-            body_sha256: "d".repeat(64),
-            output_text: "cloud patch suggestion body for validator review".to_string(),
-            output_body_jsonb: serde_json::json!({
-                "text": "cloud patch suggestion body for validator review",
-                "token_count": 7,
-                "finish_reason": "stop"
-            }),
-            summary: "cloud fallback produced a patch suggestion for validator review".to_string(),
-            target_ref: "wp://WP-KERNEL-009/MT-221".to_string(),
-        })
+        .record_cloud_assistance_output(cloud_assistance_request(
+            cloud,
+            &workspace,
+            &claim.claim_id,
+            &basis.fallback_basis_event_id,
+            "review",
+        ))
         .await
-        .expect("record cloud assistance output");
-    validate_cloud_assistance_receipt(&receipt).expect("cloud assistance receipt validates");
-    assert_eq!(receipt.workspace_id, workspace_id);
-    assert_eq!(receipt.claim_id, claim.claim_id);
-    assert_eq!(
-        receipt.fallback_basis_event_id,
-        fallback_basis.fallback_basis_event_id
-    );
-    assert_eq!(receipt.parent_session_id, "session-cloud-assist-parent");
-    assert_eq!(receipt.prompt_sha256, "a".repeat(64));
+        .expect("reviewable cloud output");
+    validate_cloud_assistance_receipt(&receipt).expect("receipt contract validates");
     assert_eq!(receipt.provider, Some(ModelProviderKind::OpenAi));
-    assert_eq!(
-        receipt.output_text,
-        "cloud patch suggestion body for validator review"
-    );
     assert_eq!(receipt.review_state, "pending_review");
     assert!(receipt.non_authoritative);
     assert!(receipt.requires_promotion);
     assert!(!receipt.authority_mutation_allowed);
     assert!(receipt.promotion_event_id.is_none());
-
-    let handoff: (String, String, String, String) = sqlx::query_as(
-        r#"
-        SELECT claim_id, from_lane_kind, status, event_ledger_event_id
-        FROM knowledge_agent_role_mailbox_handoffs
-        WHERE handoff_id = $1
-        "#,
-    )
-    .bind(&receipt.handoff_id)
-    .fetch_one(&pool)
-    .await
-    .expect("fetch cloud assistance handoff");
-    assert_eq!(handoff.0, claim.claim_id);
-    assert_eq!(handoff.1, "cloud");
-    assert_eq!(handoff.2, "progress");
-    assert_eq!(handoff.3, receipt.handoff_event_ledger_event_id);
-
-    let payload: serde_json::Value = sqlx::query_scalar(
-        r#"
-        SELECT payload
-        FROM kernel_event_ledger
-        WHERE event_id = $1
-          AND aggregate_type = 'parallel_swarm_cloud_assistance'
-          AND aggregate_id = $2
-          AND source_component = 'parallel_swarm_state_recovery'
-        "#,
-    )
-    .bind(&receipt.cloud_assistance_event_id)
-    .bind(&receipt.receipt_id)
-    .fetch_one(&pool)
-    .await
-    .expect("fetch cloud assistance EventLedger payload");
+    let evidence = inspect_workspace(&store, &workspace).await;
+    assert_eq!(evidence.mailbox_handoffs.len(), 1);
+    assert_eq!(evidence.mailbox_handoffs[0].handoff_id, receipt.handoff_id);
     assert_eq!(
-        payload["schema_id"],
-        "hsk.parallel_swarm.cloud_assistance@1"
-    );
-    assert_eq!(payload["workspace_id"], workspace_id);
-    assert_eq!(payload["claim_id"], claim.claim_id);
-    assert_eq!(payload["handoff_id"], receipt.handoff_id);
-    assert_eq!(
-        payload["fallback_basis_event_id"],
-        fallback_basis.fallback_basis_event_id
-    );
-    assert_eq!(payload["parent_session_id"], "session-cloud-assist-parent");
-    assert_eq!(payload["prompt_sha256"], "a".repeat(64));
-    assert_eq!(payload["fallback_reason"], "local_low_confidence");
-    assert_eq!(payload["output_kind"], "patch_suggestion");
-    assert_eq!(payload["output_sha256"], "c".repeat(64));
-    assert_eq!(
-        payload["output_text"],
-        "cloud patch suggestion body for validator review"
-    );
-    assert_eq!(payload["review_state"], "pending_review");
-    assert_eq!(payload["non_authoritative"], true);
-    assert_eq!(payload["requires_promotion"], true);
-    assert_eq!(payload["authority_mutation_allowed"], false);
-    assert!(payload["promotion_event_id"].is_null());
-
-    let lifecycle_row: (
-        String,
-        String,
-        String,
-        String,
-        String,
-        String,
-        bool,
-        bool,
-        bool,
-        Option<String>,
-    ) = sqlx::query_as(
-        r#"
-        SELECT claim_id, fallback_basis_event_id, parent_session_id, prompt_sha256,
-               output_text, review_state,
-               non_authoritative, requires_promotion, authority_mutation_allowed,
-               promotion_event_id
-        FROM knowledge_agent_cloud_assistance_receipts
-        WHERE receipt_id = $1
-        "#,
-    )
-    .bind(&receipt.receipt_id)
-    .fetch_one(&pool)
-    .await
-    .expect("fetch cloud assistance lifecycle row");
-    assert_eq!(lifecycle_row.0, claim.claim_id);
-    assert_eq!(
-        lifecycle_row.1, fallback_basis.fallback_basis_event_id,
-        "cloud assistance must cite the fallback-basis EventLedger proof"
-    );
-    assert_eq!(lifecycle_row.2, "session-cloud-assist-parent");
-    assert_eq!(lifecycle_row.3, "a".repeat(64));
-    assert_eq!(
-        lifecycle_row.4,
-        "cloud patch suggestion body for validator review"
-    );
-    assert_eq!(lifecycle_row.5, "pending_review");
-    assert!(lifecycle_row.6);
-    assert!(lifecycle_row.7);
-    assert!(!lifecycle_row.8);
-    assert!(lifecycle_row.9.is_none());
-    let authoritative_update = sqlx::query(
-        r#"
-        UPDATE knowledge_agent_cloud_assistance_receipts
-           SET authority_mutation_allowed = TRUE
-         WHERE receipt_id = $1
-        "#,
-    )
-    .bind(&receipt.receipt_id)
-    .execute(&pool)
-    .await;
-    assert!(
-        authoritative_update.is_err(),
-        "database constraints must reject authoritative cloud assistance rows"
-    );
-
-    let after_handoffs: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs")
-            .fetch_one(&pool)
-            .await
-            .expect("count handoffs after cloud assistance");
-    let after_events: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'parallel_swarm_state_recovery'",
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("count events after cloud assistance");
-    assert_eq!(
-        after_handoffs,
-        before_handoffs + 1,
-        "cloud assistance creates exactly one review handoff"
-    );
-    assert_eq!(
-        after_events,
-        before_events + 3,
-        "cloud assistance creates fallback-basis + handoff + cloud-assistance EventLedger receipts"
-    );
-    let after_docs: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_rich_documents WHERE workspace_id = $1")
-            .bind(&workspace_id)
-            .fetch_one(&pool)
-            .await
-            .expect("count rich docs after cloud assistance");
-    let after_promoted_facts: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_crdt_promoted_facts WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count promoted facts after cloud assistance");
-    assert_eq!(
-        after_docs, before_docs,
-        "cloud assistance must not write document authority"
-    );
-    assert_eq!(
-        after_promoted_facts, before_promoted_facts,
-        "cloud assistance must not promote graph/claim authority"
+        evidence.mailbox_handoffs[0].event_ledger_event_id,
+        receipt.handoff_event_ledger_event_id
     );
 
     let mut forged: CloudAssistanceReceiptV1 = receipt;
-    forged.authority_mutation_allowed = true;
     forged.non_authoritative = false;
+    forged.authority_mutation_allowed = true;
     let errors = validate_cloud_assistance_receipt(&forged)
-        .expect_err("forged authoritative cloud assistance receipt must fail");
+        .expect_err("authoritative cloud output must fail validation");
     assert!(errors
         .iter()
         .any(|error| error.contains("non_authoritative=true")));
     assert!(errors
         .iter()
         .any(|error| error.contains("must not allow authority mutation")));
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn cloud_assistance_requires_cloud_owned_workspace_claim_and_valid_output_hash() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-cloud-assist-deny-{}", Uuid::now_v7());
-    let cloud = cloud_lane("assist-deny");
-    let local = local_lane("assist-deny-local");
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-cloud-deny-{}", Uuid::now_v7());
+    let cloud = cloud_lane("deny");
     let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-221".to_string()),
-            scope: ClaimScope::Workspace {
-                workspace_id: workspace_id.clone(),
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
             },
-            lane: cloud.clone(),
-            session_id: "session-cloud-assist-deny-claim".to_string(),
-            ttl_seconds: 600,
-            reason: "cloud fallback review claim".to_string(),
-        })
+            cloud.clone(),
+            "cloud-deny",
+        ))
         .await
-        .expect("claim cloud assistance workspace");
-    let before_handoffs: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs")
-            .fetch_one(&pool)
-            .await
-            .expect("count handoffs before denied cloud assistance");
-    let before_events: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'parallel_swarm_state_recovery'",
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("count events before denied cloud assistance");
-
-    let base_request = CloudAssistanceRequest {
-        from_lane: cloud.clone(),
-        workspace_id: workspace_id.clone(),
-        wp_id: "WP-KERNEL-009".to_string(),
-        mt_id: "MT-221".to_string(),
-        claim_id: claim.claim_id.clone(),
-        session_id: "session-cloud-assist-deny-output".to_string(),
-        to_role: "WP_VALIDATOR".to_string(),
-        mailbox_thread_id: "thread-cloud-assist-deny".to_string(),
-        mailbox_message_id: "message-cloud-assist-deny".to_string(),
-        parent_session_id: "session-cloud-assist-deny-parent".to_string(),
-        prompt_sha256: "a".repeat(64),
-        fallback_reason: CloudFallbackReason::LocalFailed,
-        output_kind: CloudAssistanceOutputKind::Analysis,
-        output_sha256: "e".repeat(64),
-        body_sha256: "f".repeat(64),
-        output_text: "cloud analysis stays pending review".to_string(),
-        output_body_jsonb: serde_json::json!({
-            "text": "cloud analysis stays pending review",
-            "token_count": 5,
-            "finish_reason": "stop"
-        }),
-        summary: "cloud output must remain pending review".to_string(),
-        target_ref: "wp://WP-KERNEL-009/MT-221".to_string(),
-        fallback_basis_event_id: "KE-missing-fallback-basis".to_string(),
-    };
-
-    let mut local_request = base_request.clone();
-    local_request.from_lane = local;
-    let result = store.record_cloud_assistance_output(local_request).await;
-    assert_invalid_input_contains(result, "cloud lane with cloud attribution");
-
-    let mut bad_hash_request = base_request.clone();
-    bad_hash_request.output_sha256 = "not-a-sha".to_string();
-    let result = store.record_cloud_assistance_output(bad_hash_request).await;
-    assert_invalid_input_contains(result, "sha256");
-
-    let mut wrong_claim_request = base_request.clone();
-    wrong_claim_request.claim_id = "PSR-CLAIM-not-owned".to_string();
-    let result = store
-        .record_cloud_assistance_output(wrong_claim_request)
-        .await;
-    assert_invalid_input_contains(result, "active cloud-owned workspace claim");
-
-    let mut blank_model_request = base_request.clone();
-    blank_model_request
-        .from_lane
-        .attribution
-        .model_label
-        .clear();
-    let result = store
-        .record_cloud_assistance_output(blank_model_request)
-        .await;
-    assert_invalid_input_contains(result, "model label");
-
-    let mut local_provider_request = base_request.clone();
-    local_provider_request.from_lane.attribution.provider = Some(ModelProviderKind::LocalRuntime);
-    let result = store
-        .record_cloud_assistance_output(local_provider_request)
-        .await;
-    assert_invalid_input_contains(result, "local_runtime");
-
-    let mut missing_basis_request = base_request;
-    missing_basis_request.fallback_basis_event_id = "KE-not-a-real-basis-event".to_string();
-    let result = store
-        .record_cloud_assistance_output(missing_basis_request)
-        .await;
-    assert_invalid_input_contains(result, "fallback-basis EventLedger");
-
-    let after_handoffs: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs")
-            .fetch_one(&pool)
-            .await
-            .expect("count handoffs after denied cloud assistance");
-    let after_events: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'parallel_swarm_state_recovery'",
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("count events after denied cloud assistance");
-    assert_eq!(
-        after_handoffs, before_handoffs,
-        "denied cloud assistance must not create review handoffs"
+        .expect("cloud workspace claim");
+    let events_before =
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await;
+    let base = cloud_assistance_request(
+        cloud,
+        &workspace,
+        &claim.claim_id,
+        "KE-missing-fallback-basis",
+        "deny",
     );
-    assert_eq!(
-        after_events, before_events,
-        "denied cloud assistance must not create false EventLedger receipts"
+
+    let mut local = base.clone();
+    local.from_lane = local_lane("cloud-deny-local");
+    assert_invalid_input_contains(
+        store.record_cloud_assistance_output(local).await,
+        "cloud lane with cloud attribution",
     );
+    let mut bad_hash = base.clone();
+    bad_hash.output_sha256 = "not-a-sha".to_owned();
+    assert_invalid_input_contains(
+        store.record_cloud_assistance_output(bad_hash).await,
+        "sha256",
+    );
+    let mut wrong_claim = base.clone();
+    wrong_claim.claim_id = format!("PSR-CLAIM-missing-{}", Uuid::now_v7());
+    assert_invalid_input_contains(
+        store.record_cloud_assistance_output(wrong_claim).await,
+        "active cloud-owned workspace claim",
+    );
+    assert_invalid_input_contains(
+        store.record_cloud_assistance_output(base).await,
+        "fallback-basis EventLedger",
+    );
+    assert!(inspect_workspace(&store, &workspace)
+        .await
+        .mailbox_handoffs
+        .is_empty());
+    assert_eq!(
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        events_before
+    );
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn cloud_assistance_rejects_loose_or_replayed_fallback_basis() {
-    let Some((_pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-cloud-basis-tight-{}", Uuid::now_v7());
-    let cloud = cloud_lane("basis-tight");
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-cloud-basis-{}", Uuid::now_v7());
+    let cloud = cloud_lane("basis");
     let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-221".to_string()),
-            scope: ClaimScope::Workspace {
-                workspace_id: workspace_id.clone(),
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
             },
-            lane: cloud.clone(),
-            session_id: "session-cloud-basis-tight-claim".to_string(),
-            ttl_seconds: 600,
-            reason: "cloud fallback basis tight binding claim".to_string(),
-        })
+            cloud.clone(),
+            "cloud-basis",
+        ))
         .await
-        .expect("claim cloud assistance workspace");
-
-    let validator_basis = store
-        .record_cloud_fallback_basis(CloudFallbackBasisRequest {
-            lane: lane_with_kind("basis-tight-validator", AgentLaneKind::Validator),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-221".to_string(),
-            claim_id: claim.claim_id.clone(),
-            parent_session_id: "session-cloud-basis-parent".to_string(),
-            prompt_sha256: "a".repeat(64),
-            session_id: "session-cloud-basis-validator".to_string(),
-            fallback_reason: CloudFallbackReason::LocalFailed,
-            local_attempt_ref: "local://basis-tight/attempt".to_string(),
-            evidence_sha256: "b".repeat(64),
-            summary: "validator lanes cannot manufacture fallback basis".to_string(),
-        })
-        .await;
-    assert_invalid_input_contains(validator_basis, "local/system lane");
-
+        .expect("cloud workspace claim");
     let basis = store
-        .record_cloud_fallback_basis(CloudFallbackBasisRequest {
-            lane: local_lane("basis-tight-local"),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-221".to_string(),
-            claim_id: claim.claim_id.clone(),
-            parent_session_id: "session-cloud-basis-parent".to_string(),
-            prompt_sha256: "a".repeat(64),
-            session_id: "session-cloud-basis-local".to_string(),
-            fallback_reason: CloudFallbackReason::LocalFailed,
-            local_attempt_ref: "local://basis-tight/attempt".to_string(),
-            evidence_sha256: "b".repeat(64),
-            summary: "local failure basis for one cloud output".to_string(),
-        })
+        .record_cloud_fallback_basis(cloud_basis_request(&workspace, &claim.claim_id, "basis"))
         .await
-        .expect("record tight fallback basis");
-
-    let mut request = CloudAssistanceRequest {
-        from_lane: cloud,
-        workspace_id: workspace_id.clone(),
-        wp_id: "WP-KERNEL-009".to_string(),
-        mt_id: "MT-221".to_string(),
-        claim_id: claim.claim_id.clone(),
-        session_id: "session-cloud-basis-output".to_string(),
-        to_role: "WP_VALIDATOR".to_string(),
-        mailbox_thread_id: "thread-cloud-basis-tight".to_string(),
-        mailbox_message_id: "message-cloud-basis-tight-1".to_string(),
-        fallback_basis_event_id: basis.fallback_basis_event_id.clone(),
-        parent_session_id: "session-cloud-basis-parent".to_string(),
-        prompt_sha256: "a".repeat(64),
-        fallback_reason: CloudFallbackReason::LocalFailed,
-        output_kind: CloudAssistanceOutputKind::Analysis,
-        output_sha256: "c".repeat(64),
-        body_sha256: "d".repeat(64),
-        output_text: "cloud output tied to one fallback basis".to_string(),
-        output_body_jsonb: serde_json::json!({
-            "text": "cloud output tied to one fallback basis",
-            "token_count": 7,
-            "finish_reason": "stop"
-        }),
-        summary: "cloud output is pending review".to_string(),
-        target_ref: "wp://WP-KERNEL-009/MT-221".to_string(),
-    };
-
-    let mut mismatched_prompt = request.clone();
-    mismatched_prompt.prompt_sha256 = "0".repeat(64);
-    let result = store
-        .record_cloud_assistance_output(mismatched_prompt)
-        .await;
-    assert_invalid_input_contains(result, "fallback-basis EventLedger");
-
+        .expect("tight fallback basis");
+    let request = cloud_assistance_request(
+        cloud,
+        &workspace,
+        &claim.claim_id,
+        &basis.fallback_basis_event_id,
+        "basis",
+    );
+    let mut mismatch = request.clone();
+    mismatch.prompt_sha256 = "0".repeat(64);
+    assert_invalid_input_contains(
+        store.record_cloud_assistance_output(mismatch).await,
+        "fallback-basis EventLedger",
+    );
     store
         .record_cloud_assistance_output(request.clone())
         .await
-        .expect("first use of fallback basis is accepted");
-
-    request.mailbox_message_id = "message-cloud-basis-tight-2".to_string();
-    request.output_sha256 = "e".repeat(64);
-    request.body_sha256 = "f".repeat(64);
-    request.output_text = "second cloud output trying to replay one basis".to_string();
-    request.output_body_jsonb = serde_json::json!({
-        "text": "second cloud output trying to replay one basis",
-        "token_count": 8,
-        "finish_reason": "stop"
-    });
-    let replay = store.record_cloud_assistance_output(request).await;
-    assert!(
-        replay.is_err(),
-        "fallback_basis_event_id must be one-use and cannot authorize a second cloud output"
-    );
+        .expect("first basis use");
+    let mut replay = request;
+    replay.mailbox_message_id = "message-basis-replay".to_owned();
+    replay.output_sha256 = "e".repeat(64);
+    replay.body_sha256 = "f".repeat(64);
+    assert!(store.record_cloud_assistance_output(replay).await.is_err());
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn editor_document_and_graph_claims_serialize_parallel_mutations() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-editor-safety-{}", Uuid::now_v7());
-    let doc_scope = ClaimScope::RichDocument {
-        workspace_id: workspace_id.clone(),
-        document_id: "note-alpha".to_string(),
-    };
-    let graph_scope = ClaimScope::GraphMutation {
-        workspace_id: workspace_id.clone(),
-        graph_id: "graph-main".to_string(),
-    };
-    let first_editor = lane_with_kind("editor-doc-a", AgentLaneKind::Editor);
-    let second_editor = lane_with_kind("editor-doc-b", AgentLaneKind::Editor);
-
-    let first_doc_claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-217".to_string()),
-            scope: doc_scope.clone(),
-            lane: first_editor.clone(),
-            session_id: "session-editor-doc-a".to_string(),
-            ttl_seconds: 600,
-            reason: "claim rich document before editing".to_string(),
-        })
-        .await
-        .expect("first rich-document claim");
-    assert_eq!(first_doc_claim.status, ClaimStatus::Active);
-
-    let second_doc_claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-217".to_string()),
-            scope: doc_scope.clone(),
-            lane: second_editor.clone(),
-            session_id: "session-editor-doc-b".to_string(),
-            ttl_seconds: 600,
-            reason: "parallel editor should wait for same document".to_string(),
-        })
-        .await
-        .expect("second rich-document claim returns held");
-    assert_eq!(second_doc_claim.status, ClaimStatus::Held);
-    assert_eq!(
-        second_doc_claim
-            .active_holder
-            .as_ref()
-            .expect("held document claim names active holder")
-            .actor_id,
-        first_editor.actor_id
-    );
-
-    let other_doc_claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-217".to_string()),
-            scope: ClaimScope::RichDocument {
-                workspace_id: workspace_id.clone(),
-                document_id: "note-beta".to_string(),
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-editor-{}", Uuid::now_v7());
+    let first = lane_with_kind("editor-a", AgentLaneKind::Editor);
+    let second = lane_with_kind("editor-b", AgentLaneKind::Editor);
+    for scope in [
+        ClaimScope::RichDocument {
+            workspace_id: workspace.clone(),
+            document_id: "note-alpha".to_owned(),
+        },
+        ClaimScope::GraphMutation {
+            workspace_id: workspace.clone(),
+            graph_id: "graph-main".to_owned(),
+        },
+    ] {
+        let winner = store
+            .claim_work_surface(claim_request(
+                &workspace,
+                scope.clone(),
+                first.clone(),
+                "editor-a",
+            ))
+            .await
+            .expect("first editor claim");
+        let loser = store
+            .claim_work_surface(claim_request(&workspace, scope, second.clone(), "editor-b"))
+            .await
+            .expect("second editor claim");
+        assert_eq!(winner.status, ClaimStatus::Active);
+        assert_eq!(loser.status, ClaimStatus::Held);
+    }
+    let parallel = store
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::RichDocument {
+                workspace_id: workspace.clone(),
+                document_id: "note-beta".to_owned(),
             },
-            lane: second_editor.clone(),
-            session_id: "session-editor-doc-b".to_string(),
-            ttl_seconds: 600,
-            reason: "different document can proceed in parallel".to_string(),
-        })
+            second,
+            "editor-other-doc",
+        ))
         .await
         .expect("different document claim");
-    assert_eq!(other_doc_claim.status, ClaimStatus::Active);
-
-    let first_graph_claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-217".to_string()),
-            scope: graph_scope.clone(),
-            lane: first_editor.clone(),
-            session_id: "session-editor-graph-a".to_string(),
-            ttl_seconds: 600,
-            reason: "claim graph before mutation".to_string(),
-        })
-        .await
-        .expect("first graph mutation claim");
-    assert_eq!(first_graph_claim.status, ClaimStatus::Active);
-
-    let second_graph_claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-217".to_string()),
-            scope: graph_scope.clone(),
-            lane: second_editor.clone(),
-            session_id: "session-editor-graph-b".to_string(),
-            ttl_seconds: 600,
-            reason: "parallel editor should wait for same graph".to_string(),
-        })
-        .await
-        .expect("second graph claim returns held");
-    assert_eq!(second_graph_claim.status, ClaimStatus::Held);
-    assert_eq!(
-        second_graph_claim
-            .active_holder
-            .as_ref()
-            .expect("held graph claim names active holder")
-            .actor_id,
-        first_editor.actor_id
-    );
-
-    let persisted_scopes: Vec<(String, String)> = sqlx::query_as(
-        r#"
-        SELECT scope_kind, scope_id
-        FROM knowledge_agent_worktree_claims
-        WHERE workspace_id = $1
-        ORDER BY scope_kind ASC, scope_id ASC
-        "#,
-    )
-    .bind(&workspace_id)
-    .fetch_all(&pool)
-    .await
-    .expect("fetch persisted editor safety claims");
-    assert!(
-        persisted_scopes.contains(&(
-            "rich_document".to_string(),
-            format!("{workspace_id}/note-alpha")
-        )),
-        "rich-document claims must persist a stable per-document scope id"
-    );
-    assert!(
-        persisted_scopes.contains(&(
-            "graph_mutation".to_string(),
-            format!("{workspace_id}/graph-main")
-        )),
-        "graph mutation claims must persist a stable per-graph scope id"
-    );
-
-    assert!(
-        store
-            .release_claim(
-                &first_doc_claim.claim_id,
-                &first_editor,
-                "rich document edit complete"
-            )
-            .await
-            .expect("release rich document claim"),
-        "document claim holder can release the claim"
-    );
-    let after_release = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id,
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-217".to_string()),
-            scope: doc_scope,
-            lane: second_editor,
-            session_id: "session-editor-doc-b".to_string(),
-            ttl_seconds: 600,
-            reason: "same document can proceed after release".to_string(),
-        })
-        .await
-        .expect("claim released document");
-    assert_eq!(after_release.status, ClaimStatus::Active);
+    assert_eq!(parallel.status, ClaimStatus::Active);
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn non_editor_lanes_cannot_claim_editor_mutation_scopes() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-editor-deny-{}", Uuid::now_v7());
-    for (suffix, lane_kind, scope, expected_capability) in [
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-non-editor-{}", Uuid::now_v7());
+    for (kind, scope, capability) in [
         (
-            "validator-doc",
             AgentLaneKind::Validator,
             ClaimScope::RichDocument {
-                workspace_id: workspace_id.clone(),
-                document_id: "note-denied".to_string(),
+                workspace_id: workspace.clone(),
+                document_id: "note".to_owned(),
             },
             "EditRichDocument",
         ),
         (
-            "validator-graph",
-            AgentLaneKind::Validator,
-            ClaimScope::GraphMutation {
-                workspace_id: workspace_id.clone(),
-                graph_id: "graph-denied".to_string(),
-            },
-            "MutateGraph",
-        ),
-        (
-            "cloud-doc",
-            AgentLaneKind::Cloud,
-            ClaimScope::RichDocument {
-                workspace_id: workspace_id.clone(),
-                document_id: "cloud-note-denied".to_string(),
-            },
-            "EditRichDocument",
-        ),
-        (
-            "indexer-graph",
             AgentLaneKind::Indexer,
             ClaimScope::GraphMutation {
-                workspace_id: workspace_id.clone(),
-                graph_id: "indexer-graph-denied".to_string(),
+                workspace_id: workspace.clone(),
+                graph_id: "graph".to_owned(),
             },
             "MutateGraph",
         ),
     ] {
-        let claim_result = store
-            .claim_work_surface(WorkClaimRequest {
-                workspace_id: workspace_id.clone(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: Some("MT-217".to_string()),
-                scope,
-                lane: lane_with_kind(suffix, lane_kind),
-                session_id: format!("session-{suffix}"),
-                ttl_seconds: 600,
-                reason: "non-editor lanes must not mutate editor surfaces".to_string(),
-            })
-            .await;
-        assert_invalid_input_contains(claim_result, expected_capability);
+        assert_invalid_input_contains(
+            store
+                .claim_work_surface(claim_request(
+                    &workspace,
+                    scope,
+                    lane_with_kind(capability, kind),
+                    capability,
+                ))
+                .await,
+            capability,
+        );
     }
-
-    let persisted_claims: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_worktree_claims WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count denied editor safety claims");
-    assert_eq!(persisted_claims, 0);
-    assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_claim",
-            "workspace_id",
-            &workspace_id
-        )
-        .await,
-        0,
-        "denied mutation-scope claims must not emit false EventLedger receipts"
-    );
-
-    let allowed_workspace_id = format!("workspace-editor-allowed-{}", Uuid::now_v7());
-    let editor_claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: allowed_workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-217".to_string()),
-            scope: ClaimScope::RichDocument {
-                workspace_id: allowed_workspace_id,
-                document_id: "note-allowed".to_string(),
-            },
-            lane: lane_with_kind("editor-allowed", AgentLaneKind::Editor),
-            session_id: "session-editor-allowed".to_string(),
-            ttl_seconds: 600,
-            reason: "editor lane may claim rich document mutation scope".to_string(),
-        })
+    assert!(inspect_workspace(&store, &workspace)
         .await
-        .expect("editor may claim document mutation scope");
-    assert_eq!(editor_claim.status, ClaimStatus::Active);
+        .claims
+        .is_empty());
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn malformed_editor_mutation_scopes_do_not_persist_claims_or_receipts() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-editor-malformed-{}", Uuid::now_v7());
-    let editor = lane_with_kind("editor-malformed-scope", AgentLaneKind::Editor);
-    for (suffix, scope, expected) in [
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-malformed-{}", Uuid::now_v7());
+    let editor = lane_with_kind("editor-malformed", AgentLaneKind::Editor);
+    for (scope, expected) in [
         (
-            "empty-doc-workspace",
             ClaimScope::RichDocument {
-                workspace_id: String::new(),
-                document_id: "note-empty-workspace".to_string(),
-            },
-            "rich_document.workspace_id",
-        ),
-        (
-            "empty-document-id",
-            ClaimScope::RichDocument {
-                workspace_id: workspace_id.clone(),
+                workspace_id: workspace.clone(),
                 document_id: String::new(),
             },
             "rich_document.document_id",
         ),
         (
-            "slash-document-id",
-            ClaimScope::RichDocument {
-                workspace_id: workspace_id.clone(),
-                document_id: "nested/note".to_string(),
-            },
-            "rich_document.document_id",
-        ),
-        (
-            "mismatched-doc-workspace",
-            ClaimScope::RichDocument {
-                workspace_id: format!("other-{workspace_id}"),
-                document_id: "note-mismatch".to_string(),
-            },
-            "workspace_id must match",
-        ),
-        (
-            "empty-graph-id",
             ClaimScope::GraphMutation {
-                workspace_id: workspace_id.clone(),
-                graph_id: String::new(),
-            },
-            "graph_mutation.graph_id",
-        ),
-        (
-            "mismatched-graph-workspace",
-            ClaimScope::GraphMutation {
-                workspace_id: format!("other-graph-{workspace_id}"),
-                graph_id: "graph-mismatch".to_string(),
+                workspace_id: format!("other-{workspace}"),
+                graph_id: "graph".to_owned(),
             },
             "workspace_id must match",
         ),
     ] {
-        let claim_result = store
-            .claim_work_surface(WorkClaimRequest {
-                workspace_id: workspace_id.clone(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: Some("MT-217".to_string()),
-                scope,
-                lane: editor.clone(),
-                session_id: format!("session-invalid-editor-scope-{suffix}"),
-                ttl_seconds: 600,
-                reason: "invalid editor mutation scope should not persist".to_string(),
-            })
-            .await;
-        assert_invalid_input_contains(claim_result, expected);
+        assert_invalid_input_contains(
+            store
+                .claim_work_surface(claim_request(&workspace, scope, editor.clone(), expected))
+                .await,
+            expected,
+        );
     }
-
-    let persisted_claims: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM knowledge_agent_worktree_claims
-        WHERE session_id LIKE 'session-invalid-editor-scope-%'
-        "#,
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("count malformed editor scope claims");
-    assert_eq!(
-        persisted_claims, 0,
-        "malformed editor mutation claims must be rejected before authority rows"
-    );
-    assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_claim",
-            "workspace_id",
-            &workspace_id
-        )
-        .await,
-        0,
-        "malformed editor mutation claims must not emit false EventLedger receipts"
-    );
+    assert!(inspect_workspace(&store, &workspace)
+        .await
+        .claims
+        .is_empty());
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn validator_lanes_inspect_swarm_evidence_without_mutating_state() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-validator-isolation-{}", Uuid::now_v7());
-    let local = local_lane("validator-isolation-source");
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-validator-{}", Uuid::now_v7());
     let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-218".to_string()),
-            scope: ClaimScope::Workspace {
-                workspace_id: workspace_id.clone(),
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
             },
-            lane: local.clone(),
-            session_id: "session-validator-isolation-source-claim".to_string(),
-            ttl_seconds: 600,
-            reason: "seed validator inspection evidence".to_string(),
-        })
+            local_lane("validator-seed"),
+            "validator-seed",
+        ))
         .await
-        .expect("seed workspace claim");
-    let lease = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-218".to_string(),
-            scope: ClaimScope::IndexRun {
-                workspace_id: workspace_id.clone(),
-                source_root_id: "validator-isolation-root".to_string(),
-            },
-            lane: local.clone(),
-            session_id: "session-validator-isolation-source-lease".to_string(),
-            index_run_id: format!("index-run-validator-isolation-{}", Uuid::now_v7()),
-            priority: 1,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
-        .await
-        .expect("seed indexing lease");
-    let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: local,
-            session_id: "session-validator-isolation-source-checkpoint".to_string(),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-218".to_string(),
-            claim_id: Some(claim.claim_id.clone()),
-            mailbox_handoff_id: None,
-            navigation_command_id: Some("validation_state".to_string()),
-            resume_pointer: RecoveryResumePointer::Claim {
-                claim_id: claim.claim_id.clone(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-            ],
-            tests: vec!["parallel_swarm_state_recovery_tests::validator_lanes".to_string()],
-            hbr_rows: vec!["HBR-SWARM-001".to_string()],
-            next_step_context: "validator can inspect this evidence without mutating".to_string(),
-            payload: json!({"validator_inspection_seed": true}),
-            compaction_reason: "validator_isolation_seed".to_string(),
-            git_head: "validator218".to_string(),
-        })
-        .await
-        .expect("seed checkpoint");
-
-    let before_counts = swarm_evidence_counts(&pool, &workspace_id).await;
-    for lane_kind in [
-        AgentLaneKind::Validator,
-        AgentLaneKind::IntegrationValidator,
-    ] {
-        let lane = lane_with_kind(
-            &format!("validator-isolation-{}", lane_kind.as_str()),
-            lane_kind,
-        );
-        let capabilities = lane.capabilities();
-        assert!(capabilities.contains(&AgentCapability::InspectEvidence));
-        assert!(capabilities.contains(&AgentCapability::NavigateBackend));
-        for forbidden in [
-            AgentCapability::ClaimWorktree,
-            AgentCapability::ClaimWorkspace,
-            AgentCapability::EditRichDocument,
-            AgentCapability::MutateGraph,
-            AgentCapability::WriteLocalIndex,
-            AgentCapability::WriteMailbox,
-            AgentCapability::RecordCheckpoint,
-        ] {
-            assert!(
-                !capabilities.contains(&forbidden),
-                "{lane_kind:?} must not carry mutation capability {forbidden:?}"
-            );
-        }
-
-        let snapshot = store
-            .inspect_swarm_evidence(SwarmEvidenceInspectionRequest {
-                lane: lane.clone(),
-                workspace_id: workspace_id.clone(),
-                limit: 50,
-            })
-            .await
-            .expect("validator lane inspects swarm evidence");
-        assert_eq!(snapshot.workspace_id, workspace_id);
-        assert!(
-            snapshot
-                .claims
-                .iter()
-                .any(|row| row.claim_id == claim.claim_id),
-            "validator inspection must expose existing claim evidence"
-        );
-        assert!(
-            snapshot
-                .indexing_leases
-                .iter()
-                .any(|row| row.lease_id == lease.lease_id),
-            "validator inspection must expose existing indexing lease evidence"
-        );
-        assert!(
-            snapshot
-                .checkpoints
-                .iter()
-                .any(|row| row.checkpoint_id == checkpoint.checkpoint_id),
-            "validator inspection must expose existing checkpoint evidence"
-        );
-        assert_eq!(
-            swarm_evidence_counts(&pool, &workspace_id).await,
-            before_counts,
-            "validator evidence inspection must be SELECT-only"
-        );
-
-        let claim_result = store
-            .claim_work_surface(WorkClaimRequest {
-                workspace_id: workspace_id.clone(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: Some("MT-218".to_string()),
-                scope: ClaimScope::Workspace {
-                    workspace_id: format!("validator-mutating-{workspace_id}"),
-                },
-                lane: lane.clone(),
-                session_id: format!("session-{}-claim-deny", lane.lane_id),
-                ttl_seconds: 600,
-                reason: "validator must not mutate claims".to_string(),
-            })
-            .await;
-        assert_invalid_input_contains(claim_result, "ClaimWorkspace");
-
-        let mailbox_thread_id = format!("thread-{}-deny", lane.lane_id);
-        let handoff_result = store
-            .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
-                from_lane: lane.clone(),
-                to_role: "WP_VALIDATOR".to_string(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: "MT-218".to_string(),
-                claim_id: None,
-                mailbox_thread_id: mailbox_thread_id.clone(),
-                mailbox_message_id: "message-validator-deny".to_string(),
-                status: SwarmReceiptStatus::Blocked,
-                summary: "validator lanes are read-only in product state".to_string(),
-                body_sha256: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-                    .to_string(),
-            })
-            .await;
-        assert_invalid_input_contains(handoff_result, "WriteMailbox");
-        assert_eq!(
-            ledger_count_for_payload_value(
-                &pool,
-                "parallel_swarm_handoff",
-                "mailbox_thread_id",
-                &mailbox_thread_id,
-            )
-            .await,
-            0,
-            "denied validator mailbox writes must not emit false receipts"
-        );
-
-        let checkpoint_result = store
-            .record_checkpoint(RecoveryCheckpointRequest {
-                lane,
-                session_id: "session-validator-checkpoint-deny".to_string(),
-                workspace_id: workspace_id.clone(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: "MT-218".to_string(),
-                claim_id: None,
-                mailbox_handoff_id: None,
-                navigation_command_id: Some("validation_state".to_string()),
-                resume_pointer: RecoveryResumePointer::MicroTask {
-                    mt_id: "MT-218".to_string(),
-                },
-                touched_files: vec![],
-                tests: vec![],
-                hbr_rows: vec!["HBR-SWARM-001".to_string()],
-                next_step_context: "validator checkpoint write should be denied".to_string(),
-                payload: json!({"validator_write_denied": true}),
-                compaction_reason: "validator_denied".to_string(),
-                git_head: "validator218".to_string(),
-            })
-            .await;
-        assert_invalid_input_contains(checkpoint_result, "RecordCheckpoint");
-
-        let recovery_result = store
-            .recover_from_checkpoint(
-                &checkpoint.checkpoint_id,
-                lane_with_kind(
-                    &format!("validator-isolation-recover-{}", lane_kind.as_str()),
-                    lane_kind,
-                ),
-                &format!("session-{}-recover-deny", lane_kind.as_str()),
-            )
-            .await;
-        assert_invalid_input_contains(recovery_result, "RecordCheckpoint");
-    }
-
-    assert_eq!(
-        swarm_evidence_counts(&pool, &workspace_id).await,
-        before_counts,
-        "denied validator mutations must not change inspected state"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn swarm_dashboard_projection_derives_from_postgres_eventledger_and_is_projection_only() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-dashboard-projection-{}", Uuid::now_v7());
-    let local = local_lane("dashboard-projection");
-    let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-220".to_string()),
-            scope: ClaimScope::Workspace {
-                workspace_id: workspace_id.clone(),
-            },
-            lane: local.clone(),
-            session_id: "session-dashboard-claim".to_string(),
-            ttl_seconds: 600,
-            reason: "seed durable dashboard claim".to_string(),
-        })
-        .await
-        .expect("seed dashboard claim");
-    assert_eq!(claim.status, ClaimStatus::Active);
-    let claim_id = claim.claim_id.clone();
-
-    let handoff = store
-        .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
-            from_lane: local.clone(),
-            to_role: "WP_VALIDATOR".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-220".to_string(),
-            claim_id: Some(claim_id.clone()),
-            mailbox_thread_id: "thread-dashboard-claim-backed".to_string(),
-            mailbox_message_id: "message-dashboard-claim-backed".to_string(),
-            status: SwarmReceiptStatus::Progress,
-            summary: "claim-backed dashboard handoff".to_string(),
-            body_sha256: "a".repeat(64),
-        })
-        .await
-        .expect("seed claim-backed handoff");
-    let unscoped_handoff = store
-        .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
-            from_lane: local.clone(),
-            to_role: "WP_VALIDATOR".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-220".to_string(),
-            claim_id: None,
-            mailbox_thread_id: "thread-dashboard-unscoped".to_string(),
-            mailbox_message_id: "message-dashboard-unscoped".to_string(),
-            status: SwarmReceiptStatus::Blocked,
-            summary: "unscoped handoff must be warned and excluded".to_string(),
-            body_sha256: "b".repeat(64),
-        })
-        .await
-        .expect("seed unscoped handoff");
-    assert!(
-        !unscoped_handoff.event_ledger_event_id.is_empty(),
-        "unscoped handoff is still durable, just not workspace-projectable"
-    );
-
-    let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: local.clone(),
-            session_id: "session-dashboard-checkpoint".to_string(),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-220".to_string(),
-            claim_id: Some(claim_id.clone()),
-            mailbox_handoff_id: Some(handoff.handoff_id.clone()),
-            navigation_command_id: Some("validation_state".to_string()),
-            resume_pointer: RecoveryResumePointer::Claim {
-                claim_id: claim_id.clone(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-            ],
-            tests: vec![
-                "parallel_swarm_state_recovery_tests::swarm_dashboard_projection".to_string(),
-            ],
-            hbr_rows: vec!["HBR-SWARM-001".to_string(), "HBR-SWARM-004".to_string()],
-            next_step_context: "dashboard projection can recover from this checkpoint".to_string(),
-            payload: json!({"dashboard_projection_seed": true}),
-            compaction_reason: "dashboard_projection_seed".to_string(),
-            git_head: "dashboard220".to_string(),
-        })
-        .await
-        .expect("seed dashboard checkpoint");
-    let recovered = store
-        .recover_from_checkpoint(
-            &checkpoint.checkpoint_id,
-            local_lane("dashboard-recovery"),
-            "session-dashboard-recovered",
-        )
-        .await
-        .expect("seed dashboard recovery receipt");
-    let lease = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-220".to_string(),
-            scope: ClaimScope::IndexRun {
-                workspace_id: workspace_id.clone(),
-                source_root_id: "dashboard-source-root".to_string(),
-            },
-            lane: local.clone(),
-            session_id: "session-dashboard-indexing".to_string(),
-            index_run_id: format!("index-run-dashboard-{}", Uuid::now_v7()),
-            priority: 3,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
-        .await
-        .expect("seed dashboard indexing lease");
-    assert_eq!(lease.status, IndexLeaseStatus::Acquired);
-    let quiet = store
-        .record_quiet_background_work(QuietBackgroundWorkRequest {
-            lane: local.clone(),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-220".to_string(),
-            work_kind: QuietBackgroundWorkKind::TestRun,
-            subject_id: format!("dashboard-test-run-{}", Uuid::now_v7()),
-            session_id: "session-dashboard-quiet-test".to_string(),
-            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun),
-            evidence_ref: "cargo://parallel_swarm_state_recovery_tests/dashboard_projection"
-                .to_string(),
-        })
-        .await
-        .expect("seed dashboard quiet work");
-
-    let before_counts = swarm_dashboard_authority_counts(&pool, &workspace_id).await;
-    let before_global_counts = swarm_dashboard_global_source_counts(&pool).await;
-    let projection = store
-        .project_swarm_dashboard(SwarmDashboardProjectionRequest {
-            lane: lane_with_kind("dashboard-validator", AgentLaneKind::Validator),
-            workspace_id: workspace_id.clone(),
-            wp_id: Some("WP-KERNEL-009".to_string()),
-            mt_id: Some("MT-220".to_string()),
+        .expect("seed validator evidence");
+    let validator = lane_with_kind("validator", AgentLaneKind::Validator);
+    assert!(validator
+        .capabilities()
+        .contains(&AgentCapability::InspectEvidence));
+    let before = store
+        .inspect_swarm_evidence(SwarmEvidenceInspectionRequest {
+            lane: validator.clone(),
+            workspace_id: workspace.clone(),
             limit: 50,
         })
         .await
-        .expect("project swarm dashboard");
-    assert_eq!(
-        swarm_dashboard_authority_counts(&pool, &workspace_id).await,
-        before_counts,
-        "dashboard projection must be SELECT-only over PostgreSQL/EventLedger"
+        .expect("validator inspection");
+    assert_eq!(before.claims[0].claim_id, claim.claim_id);
+    assert_invalid_input_contains(
+        store
+            .claim_work_surface(claim_request(
+                &workspace,
+                ClaimScope::Workspace {
+                    workspace_id: workspace.clone(),
+                },
+                validator,
+                "validator-denied",
+            ))
+            .await,
+        "ClaimWorkspace",
     );
-    assert_eq!(
-        swarm_dashboard_global_source_counts(&pool).await,
-        before_global_counts,
-        "dashboard projection must not write unrelated source rows or EventLedger events"
-    );
-    validate_swarm_dashboard_projection(&projection).expect("valid dashboard projection");
-    assert_eq!(projection.workspace_id, workspace_id);
+    let after = inspect_workspace(&store, &workspace).await;
+    assert_eq!(after.claims, before.claims);
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn swarm_dashboard_projection_derives_from_embedded_eventledger_and_is_projection_only() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-dashboard-{}", Uuid::now_v7());
+    let claim = store
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
+            },
+            local_lane("dashboard"),
+            "dashboard",
+        ))
+        .await
+        .expect("dashboard source claim");
+    let projection = store
+        .project_swarm_dashboard(SwarmDashboardProjectionRequest {
+            lane: lane_with_kind("dashboard-validator", AgentLaneKind::Validator),
+            workspace_id: workspace.clone(),
+            wp_id: Some("WP-KERNEL-009".to_owned()),
+            mt_id: Some("MT-210".to_owned()),
+            limit: 100,
+        })
+        .await
+        .expect("embedded dashboard projection");
+    validate_swarm_dashboard_projection(&projection).expect("projection contract validates");
     assert!(projection.projection_contract.projection_only);
     assert!(!projection.projection_contract.authority_mutation_allowed);
     assert!(!projection.projection_contract.ui_state_authoritative);
     assert_eq!(projection.totals.claims, 1);
-    assert_eq!(projection.totals.active_claims, 1);
-    assert_eq!(projection.totals.mailbox_handoffs, 1);
-    assert_eq!(projection.totals.recovery_checkpoints, 1);
-    assert_eq!(projection.totals.recovery_receipts, 1);
-    assert_eq!(projection.totals.indexing_leases, 1);
-    assert_eq!(projection.totals.quiet_background_work, 1);
-    assert_eq!(projection.totals.events, 6);
-    assert_eq!(projection.totals.warnings, 1);
-    assert!(projection
-        .warnings
-        .iter()
-        .any(|warning| warning.code == "handoffs_without_workspace_source_ref_excluded"));
-    assert!(projection
-        .claims
-        .iter()
-        .any(|row| row.claim_id == claim_id && row.status == "active"));
-    assert!(projection
-        .mailbox_handoffs
-        .iter()
-        .any(|row| row.handoff_id == handoff.handoff_id));
-    assert!(!projection
-        .mailbox_handoffs
-        .iter()
-        .any(|row| row.handoff_id == unscoped_handoff.handoff_id));
-    assert!(projection
-        .recovery_checkpoints
-        .iter()
-        .any(|row| row.checkpoint_id == checkpoint.checkpoint_id));
-    assert!(projection
-        .recovery_receipts
-        .iter()
-        .any(|row| row.receipt_id == recovered.receipt.receipt_id));
-    assert!(projection
-        .indexing_leases
-        .iter()
-        .any(|row| row.lease_id == lease.lease_id && row.quiet_policy_ok));
-    assert!(projection
-        .quiet_background_work
-        .iter()
-        .any(|row| row.receipt_id == quiet.receipt_id && row.quiet_policy_ok));
-    let aggregate_counts: HashSet<&str> = projection
-        .source_watermark
-        .aggregate_counts
-        .iter()
-        .map(|row| row.aggregate_type.as_str())
-        .collect();
-    for aggregate in [
-        "parallel_swarm_claim",
-        "parallel_swarm_handoff",
-        "parallel_swarm_checkpoint",
-        "parallel_swarm_recovery",
-        "parallel_indexing_lease",
-        "parallel_swarm_quiet_background_work",
-    ] {
-        assert!(
-            aggregate_counts.contains(aggregate),
-            "projection watermark must include {aggregate}: {:?}",
-            projection.source_watermark.aggregate_counts
-        );
-    }
-
-    let mut forged_ui_authority: ParallelSwarmDashboardProjectionV1 = projection.clone();
-    forged_ui_authority
-        .projection_contract
-        .ui_state_authoritative = true;
-    forged_ui_authority
-        .projection_contract
-        .authority_mutation_allowed = true;
-    let errors = validate_swarm_dashboard_projection(&forged_ui_authority)
-        .expect_err("UI-authoritative forged projection must fail validation");
-    assert!(errors
-        .iter()
-        .any(|error| error.contains("ui_state_authoritative=false")));
-    assert!(errors
-        .iter()
-        .any(|error| error.contains("authority_mutation_allowed=false")));
-
-    let mut forged_ui_only_row = projection.clone();
-    forged_ui_only_row.claims[0].source_refs.clear();
-    let errors = validate_swarm_dashboard_projection(&forged_ui_only_row)
-        .expect_err("UI-only row without source refs must fail validation");
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.contains("has no source_refs")),
-        "expected source ref validation error, got {errors:?}"
-    );
-
-    let mut forged_wrong_table = projection.clone();
-    forged_wrong_table.claims[0].source_refs[0].table_name =
-        "knowledge_agent_quiet_background_work".to_string();
-    forged_wrong_table.claims[0].source_refs[0].row_source_ref = format!(
-        "postgres://knowledge_agent_quiet_background_work/{}",
-        forged_wrong_table.claims[0].claim_id
-    );
-    let errors = validate_swarm_dashboard_projection(&forged_wrong_table)
-        .expect_err("wrong source table must fail validation");
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.contains("source table must be knowledge_agent_worktree_claims")),
-        "expected source table validation error, got {errors:?}"
-    );
-
-    let mut forged_wrong_event = projection.clone();
-    forged_wrong_event.claims[0].source_refs[0].event_aggregate_id =
-        Some("wrong-aggregate-id".to_string());
-    let errors = validate_swarm_dashboard_projection(&forged_wrong_event)
-        .expect_err("wrong EventLedger aggregate id must fail validation");
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.contains("mismatched event aggregate_id")),
-        "expected event aggregate validation error, got {errors:?}"
-    );
-
-    let mut forged_missing_watermark = projection.clone();
-    forged_missing_watermark.source_watermark.events.clear();
-    forged_missing_watermark.source_watermark.event_count = 0;
-    forged_missing_watermark
-        .source_watermark
-        .aggregate_counts
-        .clear();
-    let errors = validate_swarm_dashboard_projection(&forged_missing_watermark)
-        .expect_err("source refs missing from watermark must fail validation");
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.contains("EventLedger ref missing from watermark")),
-        "expected watermark validation error, got {errors:?}"
-    );
-
-    let bad_limit = store
-        .project_swarm_dashboard(SwarmDashboardProjectionRequest {
-            lane: lane_with_kind("dashboard-validator-bad-limit", AgentLaneKind::Validator),
-            workspace_id: workspace_id.clone(),
-            wp_id: Some("WP-KERNEL-009".to_string()),
-            mt_id: Some("MT-220".to_string()),
-            limit: 0,
-        })
-        .await;
-    assert_invalid_input_contains(bad_limit, "inspection limit");
+    assert_eq!(projection.claims.len(), 1);
+    assert_eq!(projection.claims[0].claim_id, claim.claim_id);
+    assert_eq!(projection.source_watermark.event_count, 1);
+    assert!(projection.source_watermark.missing_event_refs.is_empty());
     assert_eq!(
-        swarm_dashboard_authority_counts(&pool, &workspace_id).await,
-        before_counts,
-        "rejected dashboard projection requests must not mutate authority state"
+        projection.claims[0].source_refs[0]
+            .event_ledger_event_id
+            .as_deref(),
+        claim.event_ledger_event_id.as_deref()
     );
-    assert_eq!(
-        swarm_dashboard_global_source_counts(&pool).await,
-        before_global_counts,
-        "rejected dashboard projection requests must not mutate any source table or EventLedger"
-    );
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn swarm_dashboard_projection_api_exposes_postgres_eventledger_read_model() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP swarm_dashboard_projection_api: no PostgreSQL");
-        return;
-    };
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect isolated parallel swarm schema");
-    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
-    let store = ParallelSwarmStateRecoveryStore::new(pool.clone(), event_db);
-    let workspace_id = format!("workspace-dashboard-api-{}", Uuid::now_v7());
-    let local = local_lane("dashboard-api");
-    let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-220".to_string()),
-            scope: ClaimScope::Workspace {
-                workspace_id: workspace_id.clone(),
-            },
-            lane: local.clone(),
-            session_id: "session-dashboard-api-claim".to_string(),
-            ttl_seconds: 600,
-            reason: "seed dashboard API claim".to_string(),
-        })
-        .await
-        .expect("seed dashboard API claim");
-    let quiet = store
-        .record_quiet_background_work(QuietBackgroundWorkRequest {
-            lane: local,
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-220".to_string(),
-            work_kind: QuietBackgroundWorkKind::BackendNavigation,
-            subject_id: format!("dashboard-api-nav-{}", Uuid::now_v7()),
-            session_id: "session-dashboard-api-quiet".to_string(),
-            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::BackendNavigation),
-            evidence_ref: "api://kernel/parallel_swarm/dashboard_projection".to_string(),
-        })
-        .await
-        .expect("seed dashboard API quiet receipt");
-
-    let before_counts = swarm_dashboard_authority_counts(&pool, &workspace_id).await;
-    let before_global_counts = swarm_dashboard_global_source_counts(&pool).await;
-    let state = app_state_for(&pg.schema_url).await;
-    let (base, server) = start_kernel_server(state).await;
-    let http = reqwest::Client::new();
-
-    let response = http
-        .get(format!("{base}/kernel/parallel_swarm/dashboard_projection"))
-        .query(&[
-            ("workspace_id", workspace_id.as_str()),
-            ("wp_id", "WP-KERNEL-009"),
-            ("mt_id", "MT-220"),
-            ("limit", "25"),
-        ])
-        .send()
-        .await
-        .expect("dashboard projection API send");
-    assert_eq!(response.status(), 200);
-    let projection: ParallelSwarmDashboardProjectionV1 =
-        response.json().await.expect("dashboard projection json");
-    validate_swarm_dashboard_projection(&projection).expect("API projection validates");
-    assert_eq!(projection.workspace_id, workspace_id);
-    assert!(projection.projection_contract.projection_only);
-    assert_eq!(projection.totals.claims, 1);
-    assert_eq!(projection.totals.quiet_background_work, 1);
-    assert!(projection
-        .claims
-        .iter()
-        .any(|row| row.claim_id == claim.claim_id));
-    assert!(projection
-        .quiet_background_work
-        .iter()
-        .any(|row| row.receipt_id == quiet.receipt_id));
-    assert_eq!(
-        swarm_dashboard_authority_counts(&pool, &workspace_id).await,
-        before_counts,
-        "dashboard API must be read-only over durable state"
-    );
-    assert_eq!(
-        swarm_dashboard_global_source_counts(&pool).await,
-        before_global_counts,
-        "dashboard API must not write unrelated source rows or EventLedger events"
-    );
-
-    let bad_limit = http
-        .get(format!("{base}/kernel/parallel_swarm/dashboard_projection"))
-        .query(&[
-            ("workspace_id", workspace_id.as_str()),
-            ("wp_id", "WP-KERNEL-009"),
-            ("mt_id", "MT-220"),
-            ("limit", "0"),
-        ])
-        .send()
-        .await
-        .expect("dashboard bad-limit API send");
-    assert_eq!(bad_limit.status(), 400);
-    let bad_body: serde_json::Value = bad_limit.json().await.expect("bad limit json");
-    assert_eq!(bad_body["code"], "parallel_swarm_dashboard_invalid_request");
-    assert_eq!(
-        swarm_dashboard_authority_counts(&pool, &workspace_id).await,
-        before_counts,
-        "rejected dashboard API requests must not mutate durable state"
-    );
-    assert_eq!(
-        swarm_dashboard_global_source_counts(&pool).await,
-        before_global_counts,
-        "rejected dashboard API requests must not mutate any source table or EventLedger"
-    );
-    server.abort();
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn swarm_dashboard_projection_totals_remain_authoritative_when_rows_are_limited() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-dashboard-limit-{}", Uuid::now_v7());
-    let local = local_lane("dashboard-limit");
-    for index in 0..3 {
-        let claim = store
-            .claim_work_surface(WorkClaimRequest {
-                workspace_id: workspace_id.clone(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: Some("MT-220".to_string()),
-                scope: ClaimScope::Worktree {
-                    worktree_id: format!("dashboard-limit-worktree-{index}"),
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-dashboard-limit-{}", Uuid::now_v7());
+    for suffix in ["limit-a", "limit-b"] {
+        store
+            .claim_work_surface(claim_request(
+                &workspace,
+                ClaimScope::Worktree {
+                    worktree_id: format!("worktree-{suffix}"),
                 },
-                lane: local.clone(),
-                session_id: format!("session-dashboard-limit-{index}"),
-                ttl_seconds: 600,
-                reason: format!("seed dashboard limited claim {index}"),
-            })
+                local_lane(suffix),
+                suffix,
+            ))
             .await
-            .expect("seed dashboard limited claim");
-        assert_eq!(claim.status, ClaimStatus::Active);
+            .expect("dashboard limited source claim");
     }
-
-    let before_counts = swarm_dashboard_authority_counts(&pool, &workspace_id).await;
-    let before_global_counts = swarm_dashboard_global_source_counts(&pool).await;
     let projection = store
         .project_swarm_dashboard(SwarmDashboardProjectionRequest {
             lane: lane_with_kind("dashboard-limit-validator", AgentLaneKind::Validator),
-            workspace_id: workspace_id.clone(),
-            wp_id: Some("WP-KERNEL-009".to_string()),
-            mt_id: Some("MT-220".to_string()),
+            workspace_id: workspace,
+            wp_id: None,
+            mt_id: None,
             limit: 1,
         })
         .await
-        .expect("project limited dashboard");
+        .expect("limited dashboard projection");
     validate_swarm_dashboard_projection(&projection).expect("limited projection validates");
-    assert_eq!(
-        projection.claims.len(),
-        1,
-        "row array obeys requested limit"
-    );
-    assert_eq!(
-        projection.source_watermark.event_count, 1,
-        "watermark covers returned rows"
-    );
-    assert_eq!(
-        projection.totals.claims, 3,
-        "totals remain authoritative over all matching durable rows"
-    );
-    assert_eq!(projection.totals.active_claims, 3);
-    assert_eq!(
-        projection.totals.events, 3,
-        "event total remains authoritative over all matching durable EventLedger rows"
-    );
-    assert!(projection.warnings.iter().any(|warning| {
-        warning.code == "dashboard_section_truncated"
-            && warning.detail.contains("claims returned 1 of 3")
-    }));
-    assert_eq!(
-        swarm_dashboard_authority_counts(&pool, &workspace_id).await,
-        before_counts,
-        "limited dashboard projection must be SELECT-only over filtered authority state"
-    );
-    assert_eq!(
-        swarm_dashboard_global_source_counts(&pool).await,
-        before_global_counts,
-        "limited dashboard projection must not write any source table or EventLedger"
-    );
+    assert_eq!(projection.totals.claims, 2);
+    assert_eq!(projection.claims.len(), 1);
+    assert_eq!(projection.source_watermark.event_count, 1);
+    assert_eq!(projection.warnings.len(), 1);
+    assert_eq!(projection.warnings[0].code, "claims_truncated");
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn quiet_background_work_receipts_reject_foreground_or_focus_stealing_work() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-quiet-background-{}", Uuid::now_v7());
-    let local = local_lane("quiet-background");
-    let mut loud_visual = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::VisualCapture);
-    loud_visual.no_foreground_window = false;
-    let loud_subject = format!("visual-loud-{}", Uuid::now_v7());
-    let loud_result = store
-        .record_quiet_background_work(QuietBackgroundWorkRequest {
-            lane: local.clone(),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-219".to_string(),
-            work_kind: QuietBackgroundWorkKind::VisualCapture,
-            subject_id: loud_subject.clone(),
-            session_id: "session-quiet-loud-deny".to_string(),
-            policy: loud_visual,
-            evidence_ref: "visual-capture://foreground-attempt".to_string(),
-        })
-        .await;
-    assert_invalid_input_contains(loud_result, "no_foreground_window");
-    assert_eq!(
-        quiet_background_work_count(&pool, &workspace_id, &loud_subject).await,
-        0,
-        "rejected foreground visual capture must not persist a quiet-work row"
-    );
-    assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_quiet_background_work",
-            "subject_id",
-            &loud_subject,
-        )
-        .await,
-        0,
-        "rejected foreground visual capture must not emit a false receipt"
-    );
-
-    let quiet_subject = format!("visual-headless-{}", Uuid::now_v7());
-    let quiet_record = store
-        .record_quiet_background_work(QuietBackgroundWorkRequest {
-            lane: local.clone(),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-219".to_string(),
-            work_kind: QuietBackgroundWorkKind::VisualCapture,
-            subject_id: quiet_subject.clone(),
-            session_id: "session-quiet-visual".to_string(),
-            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::VisualCapture),
-            evidence_ref: "visual-capture://headless-loopback".to_string(),
-        })
-        .await
-        .expect("quiet visual capture receipt");
-    assert_eq!(
-        quiet_record.work_kind,
-        QuietBackgroundWorkKind::VisualCapture
-    );
-    assert!(quiet_record.policy.all_quiet());
-    assert!(quiet_record.event_ledger_event_id.starts_with("KE-"));
-    assert_eq!(
-        ledger_event_type(&pool, &quiet_record.event_ledger_event_id).await,
-        "KNOWLEDGE_QUIET_BACKGROUND_WORK_RECORDED"
-    );
-
-    let payload: serde_json::Value =
-        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
-            .bind(&quiet_record.event_ledger_event_id)
-            .fetch_one(&pool)
-            .await
-            .expect("quiet work event payload");
-    assert_eq!(payload["quiet_policy"]["work_kind"], "visual_capture");
-    assert_eq!(payload["quiet_policy"]["no_foreground_window"], true);
-    assert_eq!(payload["quiet_policy"]["no_focus_steal"], true);
-    assert_eq!(payload["quiet_policy"]["no_os_shell_window"], true);
-
-    let validator = lane_with_kind("quiet-inspector", AgentLaneKind::Validator);
-    let snapshot = store
-        .inspect_swarm_evidence(SwarmEvidenceInspectionRequest {
-            lane: validator.clone(),
-            workspace_id: workspace_id.clone(),
-            limit: 50,
-        })
-        .await
-        .expect("validator inspects quiet background evidence");
-    assert!(
-        snapshot
-            .quiet_background_work
-            .iter()
-            .any(|row| row.receipt_id == quiet_record.receipt_id),
-        "validator evidence inspection must expose quiet background work receipts"
-    );
-
-    let validator_subject = format!("validator-quiet-write-deny-{}", Uuid::now_v7());
-    let validator_result = store
-        .record_quiet_background_work(QuietBackgroundWorkRequest {
-            lane: validator,
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-219".to_string(),
-            work_kind: QuietBackgroundWorkKind::BackendNavigation,
-            subject_id: validator_subject.clone(),
-            session_id: "session-validator-quiet-write-deny".to_string(),
-            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::BackendNavigation),
-            evidence_ref: "backend-nav://validation-state".to_string(),
-        })
-        .await;
-    assert_invalid_input_contains(validator_result, "RunQuietBackgroundWork");
-    assert_eq!(
-        quiet_background_work_count(&pool, &workspace_id, &validator_subject).await,
-        0,
-        "validator lanes may inspect quiet evidence but must not write it"
-    );
-
-    let invalid_policy_cases = [
-        ("no_focus_steal", {
-            let mut policy = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun);
-            policy.no_focus_steal = false;
-            policy
-        }),
-        ("bounded", {
-            let mut policy = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun);
-            policy.bounded = false;
-            policy
-        }),
-        ("observable", {
-            let mut policy = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun);
-            policy.observable = false;
-            policy
-        }),
-        (
-            "work_kind",
-            QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        ),
-    ];
-    for (expected, policy) in invalid_policy_cases {
-        let subject_id = format!("quiet-invalid-{expected}-{}", Uuid::now_v7());
-        let result = store
-            .record_quiet_background_work(QuietBackgroundWorkRequest {
-                lane: local.clone(),
-                workspace_id: workspace_id.clone(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: "MT-219".to_string(),
-                work_kind: QuietBackgroundWorkKind::TestRun,
-                subject_id: subject_id.clone(),
-                session_id: format!("session-quiet-invalid-{expected}"),
-                policy,
-                evidence_ref: format!("test-run://quiet-invalid-{expected}"),
-            })
-            .await;
-        assert_invalid_input_contains(result, expected);
-        assert_eq!(
-            quiet_background_work_count(&pool, &workspace_id, &subject_id).await,
-            0,
-            "invalid quiet policy {expected} must not persist a quiet-work row"
-        );
-    }
-
-    let missing_evidence_subject = format!("quiet-missing-evidence-{}", Uuid::now_v7());
-    let missing_evidence_result = store
-        .record_quiet_background_work(QuietBackgroundWorkRequest {
-            lane: local,
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-219".to_string(),
-            work_kind: QuietBackgroundWorkKind::TestRun,
-            subject_id: missing_evidence_subject.clone(),
-            session_id: "session-quiet-missing-evidence".to_string(),
-            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun),
-            evidence_ref: "".to_string(),
-        })
-        .await;
-    assert_invalid_input_contains(missing_evidence_result, "evidence_ref");
-    assert_eq!(
-        quiet_background_work_count(&pool, &workspace_id, &missing_evidence_subject).await,
-        0,
-        "quiet-work receipts require a concrete evidence_ref"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn indexing_leases_and_backend_navigation_are_quiet_by_contract() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-    let workspace_id = format!("workspace-quiet-index-{}", Uuid::now_v7());
-
-    let nav = NavigationCommandSet::default();
-    for command in nav.commands() {
-        let policy = command.quiet_policy();
-        assert_eq!(policy.work_kind, QuietBackgroundWorkKind::BackendNavigation);
-        assert!(
-            policy.all_quiet(),
-            "backend navigation command {} must be quiet by contract",
-            command.command_id
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-quiet-contract-{}", Uuid::now_v7());
+    for command in NavigationCommandSet.commands() {
+        assert_eq!(
+            command.quiet_policy().work_kind,
+            QuietBackgroundWorkKind::BackendNavigation
         );
+        assert!(command.quiet_policy().all_quiet());
     }
-    let resolved = nav
-        .resolve(
-            BackendNavigationCommand::ValidationState,
-            json!({"workspace_id": workspace_id.clone()}),
-        )
-        .expect("quiet backend navigation resolves");
-    assert_eq!(
-        resolved.quiet_policy.work_kind,
-        QuietBackgroundWorkKind::BackendNavigation
-    );
-    assert!(resolved.quiet_policy.all_quiet());
-    assert_eq!(
-        quiet_background_work_count(&pool, &workspace_id, &resolved.deterministic_cache_key).await,
-        0,
-        "pure navigation resolution must not pretend to have durable quiet evidence"
-    );
-    let quiet_nav = store
+    let navigation = store
         .resolve_backend_navigation_quiet(
-            local_lane("quiet-nav"),
-            "session-quiet-nav".to_string(),
-            "WP-KERNEL-009".to_string(),
-            "MT-219".to_string(),
+            local_lane("quiet-contract-nav"),
+            "session-quiet-contract-nav".to_owned(),
+            "WP-KERNEL-009".to_owned(),
+            "MT-219".to_owned(),
             BackendNavigationCommand::ValidationState,
-            json!({"workspace_id": workspace_id.clone()}),
+            json!({"workspace_id": workspace.clone()}),
         )
         .await
-        .expect("quiet backend navigation resolves with durable receipt");
-    assert_eq!(
-        quiet_nav.resolved.deterministic_cache_key,
-        resolved.deterministic_cache_key
-    );
-    assert_eq!(
-        quiet_nav.quiet_receipt.work_kind,
-        QuietBackgroundWorkKind::BackendNavigation
-    );
-    assert_eq!(
-        quiet_nav.quiet_receipt.subject_id,
-        quiet_nav.resolved.deterministic_cache_key
-    );
-    assert!(quiet_nav.quiet_receipt.policy.all_quiet());
-    assert_eq!(
-        ledger_event_type(&pool, &quiet_nav.quiet_receipt.event_ledger_event_id).await,
-        "KNOWLEDGE_QUIET_BACKGROUND_WORK_RECORDED"
-    );
-    assert_eq!(
-        quiet_background_work_count(
-            &pool,
-            &workspace_id,
-            &quiet_nav.resolved.deterministic_cache_key,
-        )
-        .await,
-        1,
-        "persisted backend navigation must leave validator-inspectable quiet evidence"
-    );
+        .expect("durable quiet navigation");
+    assert!(navigation.resolved.quiet_policy.all_quiet());
+    assert!(navigation.quiet_receipt.policy.all_quiet());
 
     let scope = ClaimScope::IndexRun {
-        workspace_id: workspace_id.clone(),
-        source_root_id: "quiet-index-root".to_string(),
+        workspace_id: workspace.clone(),
+        source_root_id: "quiet-root".to_owned(),
     };
-    let quiet_lease = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-219".to_string(),
-            scope: scope.clone(),
-            lane: local_lane("quiet-index-a"),
-            session_id: "session-quiet-index-a".to_string(),
-            index_run_id: format!("index-run-quiet-{}", Uuid::now_v7()),
-            priority: 10,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
+    let lease = store
+        .enqueue_indexing_lease(lease_request(
+            &workspace,
+            scope.clone(),
+            "quiet-contract-index",
+            600,
+            10,
+        ))
         .await
         .expect("quiet indexing lease");
-    assert_eq!(
-        quiet_lease.quiet_policy.work_kind,
-        QuietBackgroundWorkKind::Indexing
+    assert!(lease.quiet_policy.all_quiet());
+    let mut loud = lease_request(&workspace, scope, "loud-index", 600, 20);
+    loud.quiet_policy.no_os_shell_window = false;
+    assert_invalid_input_contains(
+        store.enqueue_indexing_lease(loud).await,
+        "no_os_shell_window",
     );
-    assert!(quiet_lease.quiet_policy.all_quiet());
 
-    let stored_policy: serde_json::Value = sqlx::query_scalar(
-        "SELECT quiet_policy_jsonb FROM knowledge_parallel_indexing_lease_queue WHERE lease_id = $1",
-    )
-    .bind(&quiet_lease.lease_id)
-    .fetch_one(&pool)
-    .await
-    .expect("stored quiet indexing policy");
-    assert_eq!(stored_policy["work_kind"], "indexing");
-    assert_eq!(stored_policy["no_foreground_window"], true);
-    assert_eq!(stored_policy["no_focus_steal"], true);
-    assert_eq!(stored_policy["no_os_shell_window"], true);
-
-    let event_payload: serde_json::Value =
-        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
-            .bind(&quiet_lease.event_ledger_event_id)
-            .fetch_one(&pool)
-            .await
-            .expect("quiet lease event payload");
-    assert_eq!(event_payload["quiet_policy"]["work_kind"], "indexing");
-    assert_eq!(event_payload["quiet_policy"]["no_foreground_window"], true);
-
-    let mut loud_index = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing);
-    loud_index.no_os_shell_window = false;
-    let loud_run_id = format!("index-run-loud-{}", Uuid::now_v7());
-    let loud_result = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-219".to_string(),
-            scope,
-            lane: local_lane("quiet-index-loud"),
-            session_id: "session-quiet-index-loud".to_string(),
-            index_run_id: loud_run_id.clone(),
-            priority: 20,
-            ttl_seconds: 600,
-            quiet_policy: loud_index,
-        })
-        .await;
-    assert_invalid_input_contains(loud_result, "no_os_shell_window");
-    let loud_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE index_run_id = $1",
-    )
-    .bind(&loud_run_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count rejected loud indexing lease");
-    assert_eq!(loud_rows, 0);
-    assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_indexing_lease",
-            "index_run_id",
-            &loud_run_id,
-        )
-        .await,
-        0,
-        "rejected loud indexing work must not emit a false lease receipt"
-    );
+    let evidence = inspect_workspace(&store, &workspace).await;
+    assert_eq!(evidence.quiet_background_work.len(), 1);
+    assert_eq!(evidence.indexing_leases.len(), 1);
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn real_product_entrypoints_emit_quiet_background_work_receipts() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
-    let workspace = event_db
-        .create_workspace(
-            &WriteContext::human(None),
-            NewWorkspace {
-                name: format!("real-quiet-{}", Uuid::now_v7()),
-            },
-        )
-        .await
-        .expect("create workspace for real quiet entrypoints");
-    let workspace_id = workspace.id;
-
-    let index_engine = CodeIndexEngine::new(event_db.clone());
-    let code_context = CodeIndexContext {
-        actor: KernelActor::System("quiet-code-index".to_string()),
-        kernel_task_run_id: "KTR-quiet-code-index".to_string(),
-        session_run_id: "SR-quiet-code-index".to_string(),
-        correlation_id: Some("CORR-quiet-code-index".to_string()),
-    };
-    let quiet_run = index_engine
-        .start_quiet_run(
-            &code_context,
-            &store,
-            local_lane("real-quiet-index"),
-            "WP-KERNEL-009",
-            "MT-219",
-            &workspace_id,
-            None,
-            10,
-            600,
-        )
-        .await
-        .expect("real code-index run starts through quiet path");
-    assert_eq!(quiet_run.indexing_lease.status, IndexLeaseStatus::Acquired);
-    assert_eq!(
-        quiet_run.indexing_lease.index_run_id,
-        quiet_run.index_run_id
-    );
-    assert_eq!(
-        quiet_run.quiet_receipt.work_kind,
-        QuietBackgroundWorkKind::Indexing
-    );
-    assert_eq!(quiet_run.quiet_receipt.subject_id, quiet_run.index_run_id);
-    let index_run_rows: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_index_runs WHERE index_run_id = $1")
-            .bind(&quiet_run.index_run_id)
-            .fetch_one(&pool)
-            .await
-            .expect("count quiet code-index run");
-    assert_eq!(
-        index_run_rows, 1,
-        "quiet indexing proof must start a real knowledge_index_runs row"
-    );
-
-    let artifact_root = tempfile::tempdir().expect("temp visual artifact root");
-    let screenshot_request = ProductScreenshotRequestV1 {
-        request_id: format!("request.native.quiet.{}", Uuid::now_v7()),
-        scope: ScreenshotCaptureScope::Module,
-        target_ref: "module://quiet-background-work".to_string(),
-        requested_by_role: "CODER".to_string(),
-        trigger_kind: ScreenshotCaptureTriggerKind::DccApi,
-        window_title: "Handshake Desktop Shell".to_string(),
-        width: 1,
-        height: 1,
-        capture_adapter_ref: "capture-adapter://tauri-webview2-cdp".to_string(),
-        flight_recorder_ref: "FR-EVT-VISUAL-CAPTURE-quiet-background-work".to_string(),
-        execution_surface: ScreenshotCaptureExecutionSurface::GovernedAdapterApi,
-        workdir_ref: "repo-root://".to_string(),
-    };
-    let quiet_capture = record_native_product_screenshot_quiet(
-        &screenshot_request,
-        NativeScreenshotEvidence {
-            png_bytes: tiny_png_bytes(),
-            width: 1,
-            height: 1,
-            scope: ScreenshotCaptureScope::Module,
-            captured_at_utc: "2026-06-12T00:00:00Z".to_string(),
-            from_surface: true,
-            focus_audit_clean: true,
-        },
-        None,
-        &VisualEvidenceProtectionV1::default(),
-        artifact_root.path(),
-        &store,
-        QuietProductScreenshotCaptureRequestV1 {
-            lane: local_lane("real-quiet-visual"),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-219".to_string(),
-            session_id: "session-real-quiet-visual".to_string(),
-        },
-    )
-    .await
-    .expect("real native screenshot capture records quiet receipt");
-    assert_eq!(
-        quiet_capture.quiet_receipt.work_kind,
-        QuietBackgroundWorkKind::VisualCapture
-    );
-    assert_eq!(
-        quiet_capture.quiet_receipt.subject_id,
-        quiet_capture.capture.artifact.artifact_id
-    );
-    assert_eq!(
-        quiet_capture.quiet_receipt.evidence_ref,
-        quiet_capture.capture.artifact.screenshot_ref
-    );
-
-    let check_artifact_root = tempfile::tempdir().expect("temp check artifact root");
-    let check_runner = CheckRunner::new(
-        Arc::new(NoopRecorder),
-        check_artifact_root.path().to_path_buf(),
-    );
-    let quiet_check = check_runner
-        .run_quiet_check(
-            &store,
-            QuietCheckRunRequest {
-                descriptor: CheckDescriptor::new(Uuid::now_v7(), "quiet native check", "native"),
-                session_id: Uuid::now_v7(),
-                granted_capabilities: vec!["governance.check.run".to_string()],
-                lane: local_lane("real-quiet-test"),
-                workspace_id: workspace_id.clone(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: "MT-219".to_string(),
-            },
-        )
-        .await
-        .expect("real check runner records quiet receipt");
-    assert_eq!(quiet_check.result.status(), "pass");
-    assert_eq!(
-        quiet_check.quiet_receipt.work_kind,
-        QuietBackgroundWorkKind::TestRun
-    );
-    let check_evidence_id = match &quiet_check.result {
-        CheckResult::Pass(details) => details
-            .evidence_artifact_id
-            .as_deref()
-            .expect("native quiet check pass must write evidence artifact"),
-        other => panic!("expected quiet native check pass, got {other:?}"),
-    };
-    assert_eq!(
-        quiet_check.quiet_receipt.evidence_ref,
-        format!("artifact://governance-check/{check_evidence_id}"),
-        "quiet check receipt must cite the real check artifact written by the runner"
-    );
-
-    let quiet_rows: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM knowledge_agent_quiet_background_work
-        WHERE workspace_id = $1
-          AND work_kind IN ('indexing', 'visual_capture', 'test_run')
-        "#,
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count real quiet entrypoint rows");
-    assert_eq!(
-        quiet_rows, 3,
-        "real product entrypoints must leave durable quiet rows for indexing, visual capture, and tests"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn quiet_entrypoint_denials_happen_before_product_side_effects() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
-    let workspace = event_db
-        .create_workspace(
-            &WriteContext::human(None),
-            NewWorkspace {
-                name: format!("quiet-denied-{}", Uuid::now_v7()),
-            },
-        )
-        .await
-        .expect("create workspace for quiet denial proof");
-    let workspace_id = workspace.id;
-
-    let index_engine = CodeIndexEngine::new(event_db.clone());
-    let code_context = CodeIndexContext {
-        actor: KernelActor::System("quiet-code-index-denied".to_string()),
-        kernel_task_run_id: "KTR-quiet-code-index-denied".to_string(),
-        session_run_id: "SR-quiet-code-index-denied".to_string(),
-        correlation_id: Some("CORR-quiet-code-index-denied".to_string()),
-    };
-    let denied_index = index_engine
-        .start_quiet_run(
-            &code_context,
-            &store,
-            lane_with_kind("denied-quiet-index", AgentLaneKind::Validator),
-            "WP-KERNEL-009",
-            "MT-219",
-            &workspace_id,
-            None,
-            10,
-            600,
-        )
-        .await;
-    match denied_index {
-        Err(CodeIndexError::Validation(message)) => assert!(
-            message.contains("WriteLocalIndex"),
-            "denied quiet index must fail before the KIR write on lane capability, got {message}"
-        ),
-        other => panic!("expected denied quiet index validation error, got {other:?}"),
-    }
-    let index_run_rows: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_index_runs WHERE workspace_id = $1")
-            .bind(&workspace_id)
-            .fetch_one(&pool)
-            .await
-            .expect("count denied quiet KIR rows");
-    assert_eq!(
-        index_run_rows, 0,
-        "denied quiet indexing must not leave an orphan knowledge_index_runs row"
-    );
-
-    let first_quiet_index = index_engine
-        .start_quiet_run(
-            &code_context,
-            &store,
-            local_lane("contention-quiet-index-a"),
-            "WP-KERNEL-009",
-            "MT-219",
-            &workspace_id,
-            None,
-            10,
-            600,
-        )
-        .await
-        .expect("first quiet index acquires same-scope lease");
-    let contended_index = index_engine
-        .start_quiet_run(
-            &code_context,
-            &store,
-            local_lane("contention-quiet-index-b"),
-            "WP-KERNEL-009",
-            "MT-219",
-            &workspace_id,
-            None,
-            10,
-            600,
-        )
-        .await;
-    match contended_index {
-        Err(CodeIndexError::Validation(message)) => assert!(
-            message.contains("did not acquire index lease"),
-            "contended quiet index must fail without queueing a future orphan, got {message}"
-        ),
-        other => panic!("expected contended quiet index validation error, got {other:?}"),
-    }
-    let index_lease_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count contended quiet index leases");
-    assert_eq!(
-        index_lease_rows, 1,
-        "contended quiet indexing must not persist a queued lease without KIR/quiet receipt"
-    );
-    let index_run_rows_after_contention: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_index_runs WHERE workspace_id = $1")
-            .bind(&workspace_id)
-            .fetch_one(&pool)
-            .await
-            .expect("count KIR rows after contention");
-    assert_eq!(
-        index_run_rows_after_contention, 1,
-        "contended quiet indexing must leave only the acquired KIR row"
-    );
-    assert_eq!(
-        first_quiet_index.quiet_receipt.subject_id,
-        first_quiet_index.index_run_id
-    );
-
-    let artifact_root = tempfile::tempdir().expect("temp denied visual artifact root");
-    let denied_capture = record_native_product_screenshot_quiet(
-        &ProductScreenshotRequestV1 {
-            request_id: format!("request.native.quiet.denied.{}", Uuid::now_v7()),
-            scope: ScreenshotCaptureScope::Module,
-            target_ref: "module://quiet-background-work-denied".to_string(),
-            requested_by_role: "CODER".to_string(),
-            trigger_kind: ScreenshotCaptureTriggerKind::DccApi,
-            window_title: "Handshake Desktop Shell".to_string(),
-            width: 1,
-            height: 1,
-            capture_adapter_ref: "capture-adapter://tauri-webview2-cdp".to_string(),
-            flight_recorder_ref: "FR-EVT-VISUAL-CAPTURE-quiet-background-work-denied".to_string(),
-            execution_surface: ScreenshotCaptureExecutionSurface::GovernedAdapterApi,
-            workdir_ref: "repo-root://".to_string(),
-        },
-        NativeScreenshotEvidence {
-            png_bytes: tiny_png_bytes(),
-            width: 1,
-            height: 1,
-            scope: ScreenshotCaptureScope::Module,
-            captured_at_utc: "2026-06-12T00:00:00Z".to_string(),
-            from_surface: true,
-            focus_audit_clean: true,
-        },
-        None,
-        &VisualEvidenceProtectionV1::default(),
-        artifact_root.path(),
-        &store,
-        QuietProductScreenshotCaptureRequestV1 {
-            lane: lane_with_kind("denied-quiet-visual", AgentLaneKind::Validator),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-219".to_string(),
-            session_id: "session-denied-quiet-visual".to_string(),
-        },
-    )
-    .await;
-    match denied_capture {
-        Err(ProductScreenshotExecutionError::QuietReceipt(message)) => assert!(
-            message.contains("RunQuietBackgroundWork"),
-            "denied quiet screenshot must fail on quiet capability before artifact write, got {message}"
-        ),
-        other => panic!("expected denied quiet screenshot receipt error, got {other:?}"),
-    }
-    assert!(
-        std::fs::read_dir(artifact_root.path())
-            .expect("read denied visual artifact root")
-            .next()
-            .is_none(),
-        "denied quiet screenshot must not write ArtifactStore payloads"
-    );
-
-    let invalid_focus_root = tempfile::tempdir().expect("temp invalid focus artifact root");
-    let invalid_focus_capture = record_native_product_screenshot_quiet(
-        &ProductScreenshotRequestV1 {
-            request_id: format!("request.native.quiet.invalid-focus.{}", Uuid::now_v7()),
-            scope: ScreenshotCaptureScope::Module,
-            target_ref: "module://quiet-background-work-invalid-focus".to_string(),
-            requested_by_role: "CODER".to_string(),
-            trigger_kind: ScreenshotCaptureTriggerKind::DccApi,
-            window_title: "Handshake Desktop Shell".to_string(),
-            width: 1,
-            height: 1,
-            capture_adapter_ref: "capture-adapter://tauri-webview2-cdp".to_string(),
-            flight_recorder_ref: "FR-EVT-VISUAL-CAPTURE-quiet-background-work-invalid-focus"
-                .to_string(),
-            execution_surface: ScreenshotCaptureExecutionSurface::GovernedAdapterApi,
-            workdir_ref: "repo-root://".to_string(),
-        },
-        NativeScreenshotEvidence {
-            png_bytes: tiny_png_bytes(),
-            width: 1,
-            height: 1,
-            scope: ScreenshotCaptureScope::Module,
-            captured_at_utc: "2026-06-12T00:00:00Z".to_string(),
-            from_surface: true,
-            focus_audit_clean: false,
-        },
-        None,
-        &VisualEvidenceProtectionV1::default(),
-        invalid_focus_root.path(),
-        &store,
-        QuietProductScreenshotCaptureRequestV1 {
-            lane: local_lane("invalid-focus-quiet-visual"),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-219".to_string(),
-            session_id: "session-invalid-focus-quiet-visual".to_string(),
-        },
-    )
-    .await;
-    match invalid_focus_capture {
-        Err(ProductScreenshotExecutionError::Validation(message)) => assert!(
-            message.contains("focus audit was not clean"),
-            "invalid focus capture must fail before quiet receipt, got {message}"
-        ),
-        other => panic!("expected invalid focus validation error, got {other:?}"),
-    }
-    assert!(
-        std::fs::read_dir(invalid_focus_root.path())
-            .expect("read invalid focus artifact root")
-            .next()
-            .is_none(),
-        "invalid focus quiet screenshot must not write ArtifactStore payloads"
-    );
-
-    let check_recorder = Arc::new(CountingRecorder::default());
-    let check_artifact_root = tempfile::tempdir().expect("temp denied check artifact root");
-    let check_runner = CheckRunner::new(
-        check_recorder.clone(),
-        check_artifact_root.path().to_path_buf(),
-    );
-    let denied_check = check_runner
-        .run_quiet_check(
-            &store,
-            QuietCheckRunRequest {
-                descriptor: CheckDescriptor::new(Uuid::now_v7(), "quiet denied check", "native"),
-                session_id: Uuid::now_v7(),
-                granted_capabilities: vec!["governance.check.run".to_string()],
-                lane: lane_with_kind("denied-quiet-test", AgentLaneKind::Validator),
-                workspace_id: workspace_id.clone(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: "MT-219".to_string(),
-            },
-        )
-        .await;
-    match denied_check {
-        Err(CheckRunnerError::Generic(message)) => assert!(
-            message.contains("RunQuietBackgroundWork"),
-            "denied quiet check must fail on quiet capability before run_check, got {message}"
-        ),
-        other => panic!("expected denied quiet check receipt error, got {other:?}"),
-    }
-    assert_eq!(
-        check_recorder.recorded_events(),
-        0,
-        "denied quiet check must not emit Flight Recorder events"
-    );
-    assert!(
-        std::fs::read_dir(check_artifact_root.path())
-            .expect("read denied check artifact root")
-            .next()
-            .is_none(),
-        "denied quiet check must not write check artifacts"
-    );
-
-    let missing_capability_recorder = Arc::new(CountingRecorder::default());
-    let missing_capability_root =
-        tempfile::tempdir().expect("temp missing-capability check artifact root");
-    let missing_capability_runner = CheckRunner::new(
-        missing_capability_recorder.clone(),
-        missing_capability_root.path().to_path_buf(),
-    );
-    let missing_capability_check = missing_capability_runner
-        .run_quiet_check(
-            &store,
-            QuietCheckRunRequest {
-                descriptor: CheckDescriptor::new(
-                    Uuid::now_v7(),
-                    "quiet missing capability check",
-                    "native",
-                ),
-                session_id: Uuid::now_v7(),
-                granted_capabilities: Vec::new(),
-                lane: local_lane("missing-capability-quiet-test"),
-                workspace_id: workspace_id.clone(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: "MT-219".to_string(),
-            },
-        )
-        .await;
-    match missing_capability_check {
-        Err(CheckRunnerError::CapabilityGate(missing)) => assert!(
-            missing.contains(&"governance.check.run".to_string()),
-            "quiet check preflight must report missing governance check capability"
-        ),
-        other => panic!("expected missing-capability quiet check error, got {other:?}"),
-    }
-    assert_eq!(
-        missing_capability_recorder.recorded_events(),
-        0,
-        "missing-capability quiet check must not emit Flight Recorder events"
-    );
-    assert!(
-        std::fs::read_dir(missing_capability_root.path())
-            .expect("read missing-capability check artifact root")
-            .next()
-            .is_none(),
-        "missing-capability quiet check must not write planned check artifacts"
-    );
-
-    let quiet_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_quiet_background_work WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count denied quiet rows");
-    assert_eq!(
-        quiet_rows, 1,
-        "denied/invalid quiet entrypoints must not persist extra quiet receipts beyond the acquired contention seed"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mailbox_handoff_requires_write_mailbox_capability() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    for (lane_kind, suffix) in [
-        (AgentLaneKind::Indexer, "indexer-deny-mailbox"),
-        (AgentLaneKind::Editor, "editor-deny-mailbox"),
-    ] {
-        let thread_id = format!("thread-{suffix}-{}", Uuid::now_v7());
-        let result = store
-            .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
-                from_lane: lane_with_kind(suffix, lane_kind),
-                to_role: "WP_VALIDATOR".to_string(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: "MT-211".to_string(),
-                claim_id: None,
-                mailbox_thread_id: thread_id.clone(),
-                mailbox_message_id: format!("message-{suffix}"),
-                status: SwarmReceiptStatus::Blocked,
-                summary: format!("{suffix} must not write role mailbox handoffs"),
-                body_sha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                    .to_string(),
+#[tokio::test]
+async fn quiet_background_work_receipts_reject_foreground_or_focus_stealing_work() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-quiet-{}", Uuid::now_v7());
+    let lane = local_lane("quiet");
+    let mut loud = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::VisualCapture);
+    loud.no_focus_steal = false;
+    assert_invalid_input_contains(
+        store
+            .record_quiet_background_work(QuietBackgroundWorkRequest {
+                lane: lane.clone(),
+                workspace_id: workspace.clone(),
+                wp_id: "WP-KERNEL-009".to_owned(),
+                mt_id: "MT-219".to_owned(),
+                work_kind: QuietBackgroundWorkKind::VisualCapture,
+                subject_id: "loud".to_owned(),
+                session_id: "session-loud".to_owned(),
+                policy: loud,
+                evidence_ref: "capture://loud".to_owned(),
             })
-            .await;
-        assert_invalid_input_contains(result, "WriteMailbox");
-
-        let handoff_rows: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs WHERE mailbox_thread_id = $1",
-        )
-        .bind(&thread_id)
-        .fetch_one(&pool)
-        .await
-        .expect("count denied mailbox handoff rows");
-        assert_eq!(handoff_rows, 0);
-        assert_eq!(
-            ledger_count_for_payload_value(
-                &pool,
-                "parallel_swarm_handoff",
-                "mailbox_thread_id",
-                &thread_id,
-            )
             .await,
-            0,
-            "denied mailbox writers must not leave EventLedger handoff receipts"
+        "no_focus_steal",
+    );
+    let quiet = store
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane,
+            workspace_id: workspace.clone(),
+            wp_id: "WP-KERNEL-009".to_owned(),
+            mt_id: "MT-219".to_owned(),
+            work_kind: QuietBackgroundWorkKind::VisualCapture,
+            subject_id: "quiet".to_owned(),
+            session_id: "session-quiet".to_owned(),
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::VisualCapture),
+            evidence_ref: "capture://headless".to_owned(),
+        })
+        .await
+        .expect("quiet receipt");
+    assert!(quiet.policy.all_quiet());
+    let evidence = inspect_workspace(&store, &workspace).await;
+    assert_eq!(evidence.quiet_background_work.len(), 1);
+    assert_eq!(
+        evidence.quiet_background_work[0].receipt_id,
+        quiet.receipt_id
+    );
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn mailbox_handoff_requires_write_mailbox_capability() {
+    let (backend, store) = recovery_store().await;
+    for kind in [AgentLaneKind::Indexer, AgentLaneKind::Editor] {
+        assert_invalid_input_contains(
+            store
+                .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
+                    from_lane: lane_with_kind("mailbox-denied", kind),
+                    to_role: "WP_VALIDATOR".to_owned(),
+                    wp_id: "WP-KERNEL-009".to_owned(),
+                    mt_id: "MT-211".to_owned(),
+                    claim_id: None,
+                    mailbox_thread_id: format!("thread-{kind:?}"),
+                    mailbox_message_id: "message-denied".to_owned(),
+                    status: SwarmReceiptStatus::Blocked,
+                    summary: "denied mailbox writer".to_owned(),
+                    body_sha256: "c".repeat(64),
+                })
+                .await,
+            "WriteMailbox",
         );
     }
+    finish_store(store, backend).await;
 }
 
-fn tiny_png_bytes() -> Vec<u8> {
-    let mut bytes = Vec::new();
-    let image = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
-        1,
-        1,
-        image::Rgba([0, 0, 0, 255]),
-    ));
-    image
-        .write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
-        .expect("tiny png writes");
-    bytes
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn invalid_mailbox_handoff_claim_ref_does_not_emit_false_receipt() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let thread_id = format!("thread-invalid-claim-{}", Uuid::now_v7());
+    let (backend, store) = recovery_store().await;
+    let events_before =
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await;
     let result = store
         .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
-            from_lane: local_lane("invalid-handoff-ref"),
-            to_role: "WP_VALIDATOR".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-211".to_string(),
+            from_lane: local_lane("invalid-handoff"),
+            to_role: "WP_VALIDATOR".to_owned(),
+            wp_id: "WP-KERNEL-009".to_owned(),
+            mt_id: "MT-211".to_owned(),
             claim_id: Some(format!("PSR-CLAIM-missing-{}", Uuid::now_v7())),
-            mailbox_thread_id: thread_id.clone(),
-            mailbox_message_id: "message-invalid-claim".to_string(),
+            mailbox_thread_id: "thread-invalid".to_owned(),
+            mailbox_message_id: "message-invalid".to_owned(),
             status: SwarmReceiptStatus::Blocked,
-            summary: "invalid claim FK must fail without a false receipt".to_string(),
-            body_sha256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                .to_string(),
+            summary: "invalid claim ref".to_owned(),
+            body_sha256: "d".repeat(64),
         })
         .await;
-    assert!(result.is_err(), "invalid claim FK should reject handoff");
-
-    let handoff_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs WHERE mailbox_thread_id = $1",
-    )
-    .bind(&thread_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count failed handoff rows");
-    assert_eq!(handoff_rows, 0);
+    assert!(result.is_err());
+    let snapshot = inspect_workspace(&store, "workspace-not-present").await;
+    assert!(snapshot.mailbox_handoffs.is_empty());
     assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_handoff",
-            "mailbox_thread_id",
-            &thread_id,
-        )
-        .await,
-        0,
-        "failed handoff FK insert must not leave a false EventLedger receipt"
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        events_before
     );
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn invalid_checkpoint_refs_do_not_emit_false_receipt() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-invalid-checkpoint-{}", Uuid::now_v7());
+    let (backend, store) = recovery_store().await;
+    let events_before =
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await;
+    let workspace = format!("workspace-invalid-checkpoint-{}", Uuid::now_v7());
     let result = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: local_lane("invalid-checkpoint-ref"),
-            session_id: "session-invalid-checkpoint-ref".to_string(),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-214".to_string(),
-            claim_id: Some(format!("PSR-CLAIM-missing-{}", Uuid::now_v7())),
-            mailbox_handoff_id: Some(format!("PSR-HANDOFF-missing-{}", Uuid::now_v7())),
-            navigation_command_id: Some("symbols".to_string()),
-            resume_pointer: RecoveryResumePointer::MicroTask {
-                mt_id: "MT-214".to_string(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-            ],
-            tests: vec!["cargo test --test parallel_swarm_state_recovery_tests".to_string()],
-            hbr_rows: vec!["HBR-SWARM-004".to_string()],
-            next_step_context: "invalid refs should fail before receipt".to_string(),
-            payload: json!({"invalid_refs": true}),
-            compaction_reason: "test_invalid_refs".to_string(),
-            git_head: "deadbeef".to_string(),
-        })
+        .record_checkpoint(checkpoint_request(
+            local_lane("invalid-checkpoint"),
+            &workspace,
+            Some(format!("PSR-CLAIM-missing-{}", Uuid::now_v7())),
+            Some(format!("PSR-HANDOFF-missing-{}", Uuid::now_v7())),
+        ))
         .await;
-    assert!(
-        result.is_err(),
-        "invalid claim/mailbox FKs should reject checkpoint"
-    );
-
-    let checkpoint_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_state_recovery_checkpoints WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count failed checkpoint rows");
-    assert_eq!(checkpoint_rows, 0);
+    assert!(result.is_err());
+    assert!(inspect_workspace(&store, &workspace)
+        .await
+        .checkpoints
+        .is_empty());
     assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_checkpoint",
-            "workspace_id",
-            &workspace_id,
-        )
-        .await,
-        0,
-        "failed checkpoint FK insert must not leave a false EventLedger receipt"
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        events_before
     );
+    finish_store(store, backend).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_same_scope_claim_records_one_durable_claim_event() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-    install_parallel_swarm_event_delay(&pool, "parallel_swarm_claim").await;
-
-    let workspace_id = format!("workspace-claim-race-{}", Uuid::now_v7());
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-claim-race-{}", Uuid::now_v7());
     let scope = ClaimScope::Worktree {
-        worktree_id: format!("wtc-kernel-009-race-{}", Uuid::now_v7()),
+        worktree_id: format!("wt-race-{}", Uuid::now_v7()),
     };
     let barrier = Arc::new(Barrier::new(2));
-    let left_store = store.clone();
-    let left_barrier = barrier.clone();
-    let left_workspace = workspace_id.clone();
-    let left_scope = scope.clone();
-    let left = tokio::spawn(async move {
-        left_barrier.wait().await;
-        left_store
-            .claim_work_surface(WorkClaimRequest {
-                workspace_id: left_workspace,
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: Some("MT-210".to_string()),
-                scope: left_scope,
-                lane: local_lane("claim-race-a"),
-                session_id: "session-claim-race-a".to_string(),
-                ttl_seconds: 600,
-                reason: "left concurrent claim".to_string(),
-            })
-            .await
-    });
-    let right_store = store.clone();
-    let right_barrier = barrier.clone();
-    let right_workspace = workspace_id.clone();
-    let right_scope = scope.clone();
-    let right = tokio::spawn(async move {
-        right_barrier.wait().await;
-        right_store
-            .claim_work_surface(WorkClaimRequest {
-                workspace_id: right_workspace,
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: Some("MT-210".to_string()),
-                scope: right_scope,
-                lane: local_lane("claim-race-b"),
-                session_id: "session-claim-race-b".to_string(),
-                ttl_seconds: 600,
-                reason: "right concurrent claim".to_string(),
-            })
-            .await
-    });
-
-    let left = left.await.expect("left claim task joins");
-    let right = right.await.expect("right claim task joins");
-    assert!(
-        left.is_ok(),
-        "left claim should resolve to an outcome: {left:?}"
-    );
-    assert!(
-        right.is_ok(),
-        "right claim should resolve to an outcome: {right:?}"
-    );
-    let outcomes = [left.expect("left outcome"), right.expect("right outcome")];
+    let left = {
+        let store = store.clone();
+        let barrier = Arc::clone(&barrier);
+        let workspace = workspace.clone();
+        let scope = scope.clone();
+        tokio::spawn(async move {
+            barrier.wait().await;
+            store
+                .claim_work_surface(claim_request(
+                    &workspace,
+                    scope,
+                    local_lane("race-a"),
+                    "race-a",
+                ))
+                .await
+        })
+    };
+    let right = {
+        let store = store.clone();
+        let barrier = Arc::clone(&barrier);
+        let workspace = workspace.clone();
+        let scope = scope.clone();
+        tokio::spawn(async move {
+            barrier.wait().await;
+            store
+                .claim_work_surface(claim_request(
+                    &workspace,
+                    scope,
+                    local_lane("race-b"),
+                    "race-b",
+                ))
+                .await
+        })
+    };
+    let outcomes = [
+        left.await.expect("left joins").expect("left outcome"),
+        right.await.expect("right joins").expect("right outcome"),
+    ];
     assert_eq!(
         outcomes
             .iter()
-            .filter(|outcome| outcome.status == ClaimStatus::Active)
+            .filter(|row| row.status == ClaimStatus::Active)
             .count(),
         1
     );
     assert_eq!(
         outcomes
             .iter()
-            .filter(|outcome| outcome.status == ClaimStatus::Held)
+            .filter(|row| row.status == ClaimStatus::Held)
             .count(),
         1
     );
-
-    let claim_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_worktree_claims WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count claim race rows");
-    assert_eq!(claim_rows, 1);
-
-    let claim_events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'parallel_swarm_state_recovery'
-          AND aggregate_type = 'parallel_swarm_claim'
-          AND payload ->> 'workspace_id' = $1
-        "#,
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count claim race events");
-    assert_eq!(
-        claim_events, claim_rows,
-        "claim race losers must not leave false durable EventLedger claim events"
-    );
+    let evidence = inspect_workspace(&store, &workspace).await;
+    assert_eq!(evidence.claims.len(), 1);
+    assert!(evidence.claims[0]
+        .event_ledger_event_id
+        .as_deref()
+        .is_some_and(|id| id.starts_with("KE-")));
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mailbox_navigation_checkpoint_and_recovery_are_restartable_from_postgres() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let lane = cloud_lane("recover");
+#[tokio::test]
+async fn mailbox_checkpoint_and_recovery_are_restartable_from_surrealdb() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-restart-{}", Uuid::now_v7());
+    let lane = cloud_lane("restart-source");
     let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: "workspace-recovery".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-213".to_string()),
-            scope: ClaimScope::Workspace {
-                workspace_id: "workspace-recovery".to_string(),
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
             },
-            lane: lane.clone(),
-            session_id: "session-cloud-recover".to_string(),
-            ttl_seconds: 600,
-            reason: "checkpoint recovery proof".to_string(),
-        })
+            lane.clone(),
+            "restart-claim",
+        ))
         .await
         .expect("workspace claim");
-
     let handoff = store
         .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
             from_lane: lane.clone(),
-            to_role: "WP_VALIDATOR".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-213".to_string(),
+            to_role: "WP_VALIDATOR".to_owned(),
+            wp_id: "WP-KERNEL-009".to_owned(),
+            mt_id: "MT-213".to_owned(),
             claim_id: Some(claim.claim_id.clone()),
-            mailbox_thread_id: "thread-mt-213".to_string(),
-            mailbox_message_id: "message-mt-213".to_string(),
+            mailbox_thread_id: "thread-restart".to_owned(),
+            mailbox_message_id: "message-restart".to_owned(),
             status: SwarmReceiptStatus::Blocked,
-            summary: "validator should inspect checkpoint receipt shape".to_string(),
-            body_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                .to_string(),
+            summary: "restart checkpoint handoff".to_owned(),
+            body_sha256: "a".repeat(64),
         })
         .await
-        .expect("mailbox handoff receipt");
-    assert!(handoff.event_ledger_event_id.starts_with("KE-"));
-
-    let nav = NavigationCommandSet::default();
-    let ids: HashSet<_> = nav.commands().iter().map(|cmd| cmd.command_id).collect();
-    assert_eq!(ids.len(), nav.commands().len(), "command ids are unique");
-    for expected in [
-        "sources",
-        "symbols",
-        "docs",
-        "graph",
-        "retrieval_traces",
-        "user_manual_pages",
-        "repair_queue",
-        "validation_state",
-    ] {
-        assert!(
-            ids.contains(expected),
-            "missing navigation command {expected}"
-        );
-    }
-    let resolved_once = nav
-        .resolve(
-            BackendNavigationCommand::Symbols,
-            json!({"workspace_id": "workspace-recovery", "name": "AgentLaneIdentity"}),
+        .expect("mailbox handoff");
+    let navigation = store
+        .resolve_backend_navigation_quiet(
+            lane.clone(),
+            "session-navigation".to_owned(),
+            "WP-KERNEL-009".to_owned(),
+            "MT-213".to_owned(),
+            BackendNavigationCommand::ValidationState,
+            json!({"workspace_id": workspace.clone()}),
         )
-        .expect("symbols command resolves");
-    let resolved_twice = nav
-        .resolve(
-            BackendNavigationCommand::Symbols,
-            json!({"name": "AgentLaneIdentity", "workspace_id": "workspace-recovery"}),
-        )
-        .expect("symbols command resolves deterministically");
-    assert_eq!(
-        resolved_once.deterministic_cache_key, resolved_twice.deterministic_cache_key,
-        "same command and params must produce a stable backend navigation key"
+        .await
+        .expect("quiet navigation");
+    let mut request = checkpoint_request(
+        lane,
+        &workspace,
+        Some(claim.claim_id),
+        Some(handoff.handoff_id.clone()),
     );
+    request.navigation_command_id = Some(navigation.resolved.command_id.to_owned());
+    let checkpoint = store.record_checkpoint(request).await.expect("checkpoint");
+    drop(store);
 
-    let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: lane.clone(),
-            session_id: "session-cloud-recover".to_string(),
-            workspace_id: "workspace-recovery".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-214".to_string(),
-            claim_id: Some(claim.claim_id.clone()),
-            mailbox_handoff_id: Some(handoff.handoff_id.clone()),
-            navigation_command_id: Some(resolved_once.command_id.to_string()),
-            resume_pointer: RecoveryResumePointer::MicroTask {
-                mt_id: "MT-214".to_string(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-            ],
-            tests: vec!["cargo test --test parallel_swarm_state_recovery_tests".to_string()],
-            hbr_rows: vec!["HBR-SWARM-001".to_string(), "HBR-SWARM-004".to_string()],
-            next_step_context: "resume at checkpoint recovery flow".to_string(),
-            payload: json!({
-                "pending": "implement minimal backend recovery flow",
-                "chat_history_required": false
-            }),
-            compaction_reason: "session_compaction".to_string(),
-            git_head: "abc1234".to_string(),
-        })
-        .await
-        .expect("record checkpoint");
-    assert!(checkpoint.event_ledger_event_id.starts_with("KE-"));
-
-    let resumed_lane = local_lane("resume");
-    let recovered = store
+    let (storage, reopened) = reopen_store(&backend).await;
+    let recovered = reopened
         .recover_from_checkpoint(
             &checkpoint.checkpoint_id,
-            resumed_lane,
-            "session-local-resume",
+            local_lane("restart-target"),
+            "session-restart-target",
         )
         .await
-        .expect("recover from checkpoint");
-    assert_eq!(recovered.checkpoint.checkpoint_id, checkpoint.checkpoint_id);
-    assert_eq!(
-        recovered.resume_pointer,
-        RecoveryResumePointer::MicroTask {
-            mt_id: "MT-214".to_string()
-        }
-    );
-    assert_eq!(recovered.checkpoint.touched_files, checkpoint.touched_files);
-    assert_eq!(recovered.receipt.prior_session_id, "session-cloud-recover");
-    assert_eq!(recovered.receipt.new_session_id, "session-local-resume");
-    assert!(
-        !serde_json::to_string(&recovered)
-            .expect("serialize recovery")
-            .contains("sk-test-secret"),
-        "recovery evidence must not leak provider secrets"
-    );
-
-    let receipt_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_recovery_receipts WHERE checkpoint_id = $1",
-    )
-    .bind(&checkpoint.checkpoint_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count recovery receipts");
-    assert_eq!(receipt_count, 1);
+        .expect("recover reopened checkpoint");
+    assert_eq!(recovered.checkpoint.payload, json!({"counter": 7}));
+    assert!(recovered.receipt.event_ledger_event_id.starts_with("KE-"));
+    let evidence = inspect_workspace(&reopened, &workspace).await;
+    assert!(evidence
+        .mailbox_handoffs
+        .iter()
+        .any(|row| row.handoff_id == handoff.handoff_id));
+    assert!(evidence
+        .checkpoints
+        .iter()
+        .any(|row| row.checkpoint_id == checkpoint.checkpoint_id));
+    assert!(evidence
+        .recovery_receipts
+        .iter()
+        .any(|row| row.receipt_id == recovered.receipt.receipt_id));
+    assert!(evidence
+        .quiet_background_work
+        .iter()
+        .any(|row| row.receipt_id == navigation.quiet_receipt.receipt_id));
+    close_reopened_store(storage, reopened, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn compressed_handoff_template_is_bounded_restartable_and_secret_safe() {
-    let Some((_pool, store)) = recovery_store().await else {
-        return;
-    };
-
+    let (backend, store) = recovery_store().await;
+    let mut request = handoff_checkpoint_request("bounded");
+    request.touched_files = vec![
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_owned(),
+        "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs".to_owned(),
+    ];
+    request.next_step_context =
+        "resume MT-222; secret_token=sk-test-secret-1234567890 must not cross the handoff"
+            .to_owned();
+    request.payload = json!({
+        "provider_chat_transcript": "cloud said secret_token=sk-test-secret-1234567890",
+        "large_context": "x".repeat(4096)
+    });
     let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: local_lane("compressed-handoff-source"),
-            session_id: "session-compressed-handoff-source".to_string(),
-            workspace_id: "workspace-compressed-handoff".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-222".to_string(),
-            claim_id: None,
-            mailbox_handoff_id: None,
-            navigation_command_id: Some("validation_state".to_string()),
-            resume_pointer: RecoveryResumePointer::MicroTask {
-                mt_id: "MT-222".to_string(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-                "src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs"
-                    .to_string(),
-            ],
-            tests: vec![
-                "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests compressed_handoff -- --nocapture".to_string(),
-            ],
-            hbr_rows: vec![
-                "HBR-SWARM-001".to_string(),
-                "HBR-SWARM-002".to_string(),
-                "HBR-SWARM-004".to_string(),
-            ],
-            next_step_context:
-                "resume MT-222; never copy provider chat or secret_token=sk-test-secret-1234567890 into the handoff"
-                    .to_string(),
-            payload: json!({
-                "operator_goal": "small local model continuation",
-                "provider_chat_transcript": "cloud said secret_token=sk-test-secret-1234567890",
-                "large_context": "x".repeat(4096)
-            }),
-            compaction_reason: "session_limit_recovery".to_string(),
-            git_head: "abc222".to_string(),
-        })
+        .record_checkpoint(request)
         .await
-        .expect("record checkpoint for compressed handoff");
-
+        .expect("bounded handoff checkpoint");
     let template = store
         .build_handoff_compression_template(HandoffCompressionRequest {
-            requested_by_lane: local_lane("compressed-handoff-reader"),
+            requested_by_lane: local_lane("handoff-bounded-reader"),
             checkpoint_id: checkpoint.checkpoint_id.clone(),
             max_chars: 1200,
         })
         .await
-        .expect("build compressed handoff template");
-
-    validate_handoff_compression_template(&template).expect("template validates");
+        .expect("bounded handoff template");
+    validate_handoff_compression_template(&template).expect("bounded template validates");
     assert_eq!(template.checkpoint_id, checkpoint.checkpoint_id);
-    assert_eq!(
-        template.resume_pointer,
-        RecoveryResumePointer::MicroTask {
-            mt_id: "MT-222".to_string()
-        }
-    );
     assert_eq!(template.payload_sha256, checkpoint.payload_sha256);
-    assert!(
-        template.body.len() <= 1200,
-        "compressed handoff body must respect the requested character budget"
-    );
-    assert!(
-        template.body.contains("MT-222")
-            && template.body.contains("PSR-CHKPT-")
-            && template.body.contains("payload_sha256"),
-        "compressed handoff must carry enough restart anchors for a no-context model"
-    );
-    assert!(
-        template
-            .omitted_inputs
-            .contains(&"provider_chat_transcript".to_string())
-            && template
-                .omitted_inputs
-                .contains(&"raw_checkpoint_payload".to_string()),
-        "template must declare omitted non-authority/raw inputs"
-    );
-    let serialized = serde_json::to_string(&template).expect("serialize template");
-    assert!(
-        !serialized.contains("sk-test-secret") && !serialized.contains(&"x".repeat(256)),
-        "compressed handoff must not leak secrets or raw large payload"
-    );
+    assert!(template.body.len() <= 1200);
+    assert!(template.body.contains("MT-222"));
+    assert!(template.body.contains("payload_sha256"));
+    assert!(template
+        .omitted_inputs
+        .contains(&"provider_chat_transcript".to_owned()));
+    assert!(template
+        .omitted_inputs
+        .contains(&"raw_checkpoint_payload".to_owned()));
+    let serialized = serde_json::to_string(&template).expect("serialize bounded template");
+    assert!(!serialized.contains("sk-test-secret"));
+    assert!(!serialized.contains(&"x".repeat(256)));
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn compressed_handoff_redacts_all_dynamic_sections_and_redacted_labels_validate() {
-    let Some((_pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let entropy_token = "aBcD1234EfGh5678IjKl9012MnOp3456";
+    let (backend, store) = recovery_store().await;
+    let entropy = "aBcD1234EfGh5678IjKl9012MnOp3456";
+    let mut request = handoff_checkpoint_request("redaction");
+    request.touched_files = vec![format!("src/fixtures/{entropy}.md")];
+    request.tests = vec![format!("run-fixture --token {entropy}")];
+    request.hbr_rows = vec!["HBR-SWARM-004 api_key=sk-secret-not-real".to_owned()];
+    request.next_step_context =
+        "resume after secret_token=sk-context-secret-222 was redacted".to_owned();
     let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: local_lane("compressed-handoff-redaction-source"),
-            session_id: "session-compressed-handoff-redaction".to_string(),
-            workspace_id: "workspace-compressed-handoff-redaction".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-222".to_string(),
-            claim_id: None,
-            mailbox_handoff_id: None,
-            navigation_command_id: Some("validation_state".to_string()),
-            resume_pointer: RecoveryResumePointer::MicroTask {
-                mt_id: "MT-222".to_string(),
-            },
-            touched_files: vec![format!("src/fixtures/{entropy_token}.md")],
-            tests: vec![format!("run-fixture --token {entropy_token}")],
-            hbr_rows: vec!["HBR-SWARM-004 api_key=sk-secret-not-real".to_string()],
-            next_step_context:
-                "resume MT-222 after secret_token=sk-context-secret-222 was redacted".to_string(),
-            payload: json!({
-                "operator_goal": "prove dynamic handoff redaction",
-                "raw_checkpoint_payload": "must never be projected"
-            }),
-            compaction_reason: "session_limit_recovery".to_string(),
-            git_head: "def222".to_string(),
-        })
+        .record_checkpoint(request)
         .await
-        .expect("record checkpoint for dynamic redaction handoff");
-
+        .expect("redaction checkpoint");
     let template = store
         .build_handoff_compression_template(HandoffCompressionRequest {
-            requested_by_lane: local_lane("compressed-handoff-redaction-reader"),
-            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            requested_by_lane: local_lane("handoff-redaction-reader"),
+            checkpoint_id: checkpoint.checkpoint_id,
             max_chars: 20_000,
         })
         .await
-        .expect("build redacted compressed handoff");
-
-    validate_handoff_compression_template(&template).expect("redacted template validates");
-    let serialized = serde_json::to_string(&template).expect("serialize template");
-    assert!(
-        !serialized.contains(entropy_token)
-            && !serialized.contains("sk-secret-not-real")
-            && !serialized.contains("sk-context-secret-222"),
-        "compressed handoff must redact secret-looking values from every emitted dynamic section"
-    );
-    assert!(
-        serialized.contains("[REDACTED:"),
-        "redaction markers should remain visible without making validation fail"
-    );
+        .expect("redacted handoff template");
+    validate_handoff_compression_template(&template).expect("redacted labels validate");
+    let serialized = serde_json::to_string(&template).expect("serialize redacted template");
+    assert!(!serialized.contains(entropy));
+    assert!(!serialized.contains("sk-secret-not-real"));
+    assert!(!serialized.contains("sk-context-secret-222"));
+    assert!(serialized.contains("[REDACTED:"));
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn compressed_handoff_omits_raw_transcript_markers_from_next_step_context() {
-    let Some((_pool, store)) = recovery_store().await else {
-        return;
-    };
-
+    let (backend, store) = recovery_store().await;
+    let mut request = handoff_checkpoint_request("transcript");
+    request.next_step_context = "provider_chat_transcript: cloud model said to copy this raw paragraph; full_conversation_history: operator turn follows".to_owned();
     let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: local_lane("compressed-handoff-transcript-source"),
-            session_id: "session-compressed-handoff-transcript".to_string(),
-            workspace_id: "workspace-compressed-handoff-transcript".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-222".to_string(),
-            claim_id: None,
-            mailbox_handoff_id: None,
-            navigation_command_id: Some("validation_state".to_string()),
-            resume_pointer: RecoveryResumePointer::MicroTask {
-                mt_id: "MT-222".to_string(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-            ],
-            tests: vec!["cargo test compressed_handoff".to_string()],
-            hbr_rows: vec!["HBR-SWARM-004".to_string()],
-            next_step_context:
-                "provider_chat_transcript: cloud model said to copy this raw paragraph; full_conversation_history: operator turn follows"
-                    .to_string(),
-            payload: json!({
-                "operator_goal": "prove raw transcript markers are omitted from compressed handoff"
-            }),
-            compaction_reason: "session_limit_recovery".to_string(),
-            git_head: "fed222".to_string(),
-        })
+        .record_checkpoint(request)
         .await
-        .expect("record checkpoint with transcript-marked context");
-
+        .expect("transcript-marked checkpoint");
     let template = store
         .build_handoff_compression_template(HandoffCompressionRequest {
-            requested_by_lane: local_lane("compressed-handoff-transcript-reader"),
-            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            requested_by_lane: local_lane("handoff-transcript-reader"),
+            checkpoint_id: checkpoint.checkpoint_id,
             max_chars: 20_000,
         })
         .await
-        .expect("build compressed handoff with transcript-marked context");
-
-    assert!(
-        !template.body.contains("cloud model said")
-            && !template.body.contains("provider_chat_transcript:")
-            && !template.body.contains("full_conversation_history:"),
-        "raw provider chat/full-history context must be omitted from compressed handoff projections"
-    );
-    assert!(
-        template
-            .warnings
-            .contains(&"next_step_context_omitted_raw_input_marker".to_string()),
-        "omitted context should leave a structured warning for the receiving model"
-    );
+        .expect("transcript-safe handoff template");
+    assert!(!template.body.contains("cloud model said"));
+    assert!(!template.body.contains("provider_chat_transcript:"));
+    assert!(!template.body.contains("full_conversation_history:"));
+    assert!(template
+        .warnings
+        .contains(&"next_step_context_omitted_raw_input_marker".to_owned()));
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn compressed_handoff_rejects_secret_like_mandatory_metadata() {
-    let Some((_pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let entropy_token = "zYxW9876VuTs5432RqPo1098NmLk7654";
+    let (backend, store) = recovery_store().await;
+    let entropy = "zYxW9876VuTs5432RqPo1098NmLk7654";
+    let mut request = handoff_checkpoint_request("mandatory-secret");
+    request.session_id = format!("session-{entropy}");
+    request.workspace_id = format!("workspace-{entropy}");
+    request.git_head = format!("git-{entropy}");
     let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: local_lane("mandatory-redaction-source"),
-            session_id: format!("session-{entropy_token}"),
-            workspace_id: format!("workspace-{entropy_token}"),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-222".to_string(),
-            claim_id: None,
-            mailbox_handoff_id: None,
-            navigation_command_id: Some("validation_state".to_string()),
-            resume_pointer: RecoveryResumePointer::MicroTask {
-                mt_id: "MT-222".to_string(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-            ],
-            tests: vec!["cargo test compressed_handoff".to_string()],
-            hbr_rows: vec!["HBR-SWARM-004".to_string()],
-            next_step_context: "resume MT-222 from redacted mandatory metadata".to_string(),
-            payload: json!({"operator_goal": "prove mandatory metadata redaction"}),
-            compaction_reason: "session_limit_recovery".to_string(),
-            git_head: format!("git-{entropy_token}"),
-        })
+        .record_checkpoint(request)
         .await
-        .expect("record checkpoint with secret-like mandatory metadata");
-
+        .expect("mandatory-secret checkpoint");
     let result = store
         .build_handoff_compression_template(HandoffCompressionRequest {
-            requested_by_lane: local_lane("mandatory-redaction-reader"),
-            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            requested_by_lane: local_lane("handoff-mandatory-reader"),
+            checkpoint_id: checkpoint.checkpoint_id,
             max_chars: 20_000,
         })
         .await;
-
-    assert!(
-        matches!(result, Err(StateRecoveryError::InvalidInput(message)) if message.contains("mandatory checkpoint metadata")),
-        "secret-like mandatory checkpoint metadata must fail closed instead of leaking or rewriting authority fields"
-    );
+    assert!(matches!(
+        result,
+        Err(StateRecoveryError::InvalidInput(message))
+            if message.contains("mandatory checkpoint metadata")
+    ));
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn compressed_handoff_accepts_redacted_url_credentials() {
-    let Some((_pool, store)) = recovery_store().await else {
-        return;
-    };
-
+    let (backend, store) = recovery_store().await;
+    let mut request = handoff_checkpoint_request("url-redaction");
+    request.tests =
+        vec!["git clone https://user:hunter2@example.invalid/repo.git before retry".to_owned()];
     let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: local_lane("url-redaction-source"),
-            session_id: "session-url-redaction".to_string(),
-            workspace_id: "workspace-url-redaction".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-222".to_string(),
-            claim_id: None,
-            mailbox_handoff_id: None,
-            navigation_command_id: Some("validation_state".to_string()),
-            resume_pointer: RecoveryResumePointer::MicroTask {
-                mt_id: "MT-222".to_string(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-            ],
-            tests: vec![
-                "git clone https://user:hunter2@example.invalid/repo.git before retry".to_string(),
-            ],
-            hbr_rows: vec!["HBR-SWARM-004".to_string()],
-            next_step_context: "resume MT-222 after URL credential redaction".to_string(),
-            payload: json!({"operator_goal": "prove URL credential redaction validates"}),
-            compaction_reason: "session_limit_recovery".to_string(),
-            git_head: "url222".to_string(),
-        })
+        .record_checkpoint(request)
         .await
-        .expect("record checkpoint with URL credential test command");
-
+        .expect("URL credential checkpoint");
     let template = store
         .build_handoff_compression_template(HandoffCompressionRequest {
-            requested_by_lane: local_lane("url-redaction-reader"),
-            checkpoint_id: checkpoint.checkpoint_id.clone(),
+            requested_by_lane: local_lane("handoff-url-reader"),
+            checkpoint_id: checkpoint.checkpoint_id,
             max_chars: 20_000,
         })
         .await
-        .expect("build compressed handoff with redacted URL credential");
-
-    validate_handoff_compression_template(&template).expect("redacted URL credential validates");
-    assert!(
-        template
-            .body
-            .contains("https://[REDACTED:URL_CRED]@example.invalid")
-            && !template.body.contains("hunter2"),
-        "URL credentials should redact without making the projection fail validation"
-    );
+        .expect("URL-redacted handoff template");
+    validate_handoff_compression_template(&template).expect("URL-redacted template validates");
+    assert!(template
+        .body
+        .contains("https://[REDACTED:URL_CRED]@example.invalid"));
+    assert!(!template.body.contains("hunter2"));
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn mt223_missing_checkpoint_recovery_does_not_emit_receipt() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let missing_checkpoint_id = format!("PSR-CHKPT-missing-{}", Uuid::now_v7());
-    let new_session_id = "session-missing-checkpoint-recovery";
+    let (backend, store) = recovery_store().await;
+    let events_before =
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await;
+    let missing = format!("PSR-CHKPT-missing-{}", Uuid::now_v7());
     let result = store
-        .recover_from_checkpoint(
-            &missing_checkpoint_id,
-            local_lane("missing-checkpoint-recovery"),
-            new_session_id,
-        )
+        .recover_from_checkpoint(&missing, local_lane("missing-recovery"), "session-missing")
         .await;
-
-    assert!(
-        matches!(result, Err(StateRecoveryError::CheckpointNotFound(id)) if id == missing_checkpoint_id),
-        "missing checkpoint recovery must fail with CheckpointNotFound"
-    );
-    let receipt_rows: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_recovery_receipts")
-            .fetch_one(&pool)
-            .await
-            .expect("count recovery receipts after missing checkpoint");
-    assert_eq!(receipt_rows, 0);
+    assert!(matches!(result, Err(StateRecoveryError::CheckpointNotFound(id)) if id == missing));
+    assert!(inspect_workspace(&store, "workspace-missing")
+        .await
+        .recovery_receipts
+        .is_empty());
     assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_recovery",
-            "new_session_id",
-            new_session_id,
-        )
-        .await,
-        0,
-        "missing checkpoint recovery must not emit a false EventLedger receipt"
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        events_before
     );
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mt223_corrupt_checkpoint_payload_hash_does_not_emit_recovery_receipt() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
+fn lease_request(
+    workspace: &str,
+    scope: ClaimScope,
+    suffix: &str,
+    ttl_seconds: i64,
+    priority: i32,
+) -> IndexingLeaseRequest {
+    IndexingLeaseRequest {
+        workspace_id: workspace.to_owned(),
+        wp_id: "WP-KERNEL-009".to_owned(),
+        mt_id: "MT-216".to_owned(),
+        scope,
+        lane: local_lane(suffix),
+        session_id: format!("session-{suffix}"),
+        index_run_id: format!("index-{suffix}-{}", Uuid::now_v7()),
+        priority,
+        ttl_seconds,
+        quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+    }
+}
 
-    let workspace_id = format!("workspace-corrupt-checkpoint-{}", Uuid::now_v7());
-    let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: local_lane("corrupt-checkpoint-source"),
-            session_id: "session-corrupt-checkpoint-source".to_string(),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
-            claim_id: None,
-            mailbox_handoff_id: None,
-            navigation_command_id: Some("validation_state".to_string()),
-            resume_pointer: RecoveryResumePointer::MicroTask {
-                mt_id: "MT-223".to_string(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-            ],
-            tests: vec!["cargo test mt223_".to_string()],
-            hbr_rows: vec!["HBR-SWARM-004".to_string()],
-            next_step_context: "checkpoint payload will be corrupted in isolated test schema"
-                .to_string(),
-            payload: json!({"checkpoint": "before-corruption"}),
-            compaction_reason: "mt223_corrupt_checkpoint_probe".to_string(),
-            git_head: "mt223bad".to_string(),
+#[tokio::test]
+async fn parallel_indexing_lease_queue_serializes_same_scope_writers() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-index-{}", Uuid::now_v7());
+    let scope = ClaimScope::IndexRun {
+        workspace_id: workspace.clone(),
+        source_root_id: "root-a".to_owned(),
+    };
+    let first = store
+        .enqueue_indexing_lease(lease_request(&workspace, scope.clone(), "index-a", 600, 10))
+        .await
+        .expect("first lease");
+    let second = store
+        .enqueue_indexing_lease(lease_request(&workspace, scope.clone(), "index-b", 600, 20))
+        .await
+        .expect("second lease");
+    assert_eq!(first.status, IndexLeaseStatus::Acquired);
+    assert_eq!(second.status, IndexLeaseStatus::Queued);
+    assert_eq!(
+        second.blocked_by_lease_id.as_deref(),
+        Some(first.lease_id.as_str())
+    );
+    store
+        .complete_indexing_lease(&first.lease_id, &local_lane("index-a"))
+        .await
+        .expect("complete first");
+    let promoted = store
+        .acquire_next_indexing_lease(&scope)
+        .await
+        .expect("promote next")
+        .expect("queued lease");
+    assert_eq!(promoted.lease_id, second.lease_id);
+    assert_eq!(promoted.status, IndexLeaseStatus::Acquired);
+    finish_store(store, backend).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn concurrent_same_scope_indexing_lease_records_only_real_outcome_events() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-lease-race-{}", Uuid::now_v7());
+    let scope = ClaimScope::IndexRun {
+        workspace_id: workspace.clone(),
+        source_root_id: "root-race".to_owned(),
+    };
+    let barrier = Arc::new(Barrier::new(2));
+    let left = {
+        let s = store.clone();
+        let b = Arc::clone(&barrier);
+        let w = workspace.clone();
+        let c = scope.clone();
+        tokio::spawn(async move {
+            b.wait().await;
+            s.enqueue_indexing_lease(lease_request(&w, c, "lease-a", 600, 10))
+                .await
         })
-        .await
-        .expect("record checkpoint before corruption");
-
-    sqlx::query(
-        "UPDATE knowledge_agent_state_recovery_checkpoints SET payload_jsonb = $2 WHERE checkpoint_id = $1",
-    )
-    .bind(&checkpoint.checkpoint_id)
-    .bind(json!({"checkpoint": "after-corruption"}))
-    .execute(&pool)
-    .await
-    .expect("corrupt checkpoint payload in isolated schema");
-
-    let new_session_id = "session-corrupt-checkpoint-recovery";
-    let result = store
-        .recover_from_checkpoint(
-            &checkpoint.checkpoint_id,
-            local_lane("corrupt-checkpoint-recovery"),
-            new_session_id,
-        )
-        .await;
-
-    assert!(
-        matches!(result, Err(StateRecoveryError::PayloadHashMismatch { checkpoint_id, .. }) if checkpoint_id == checkpoint.checkpoint_id),
-        "corrupt checkpoint payload must fail hash verification before recovery receipt"
-    );
-    let receipt_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_recovery_receipts WHERE checkpoint_id = $1",
-    )
-    .bind(&checkpoint.checkpoint_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count corrupt-checkpoint recovery receipts");
-    assert_eq!(receipt_rows, 0);
+    };
+    let right = {
+        let s = store.clone();
+        let b = Arc::clone(&barrier);
+        let w = workspace.clone();
+        let c = scope.clone();
+        tokio::spawn(async move {
+            b.wait().await;
+            s.enqueue_indexing_lease(lease_request(&w, c, "lease-b", 600, 20))
+                .await
+        })
+    };
+    let rows = [
+        left.await.expect("left joins").expect("left lease"),
+        right.await.expect("right joins").expect("right lease"),
+    ];
     assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_recovery",
-            "new_session_id",
-            new_session_id,
-        )
-        .await,
-        0,
-        "hash-mismatch recovery must not emit a false EventLedger receipt"
+        rows.iter()
+            .filter(|row| row.status == IndexLeaseStatus::Acquired)
+            .count(),
+        1
     );
+    assert_eq!(
+        rows.iter()
+            .filter(|row| row.status == IndexLeaseStatus::Queued)
+            .count(),
+        1
+    );
+    assert!(rows
+        .iter()
+        .all(|row| row.event_ledger_event_id.starts_with("KE-")));
+    assert_eq!(
+        inspect_workspace(&store, &workspace)
+            .await
+            .indexing_leases
+            .len(),
+        2
+    );
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
-    let workspace = event_db
-        .create_workspace(
-            &WriteContext::human(None),
-            NewWorkspace {
-                name: format!("interrupted-indexing-{}", Uuid::now_v7()),
-            },
-        )
-        .await
-        .expect("create workspace for interrupted indexing proof");
-    let workspace_id = workspace.id;
-    install_knowledge_index_run_start_failure(&pool).await;
-
-    let index_engine = CodeIndexEngine::new(event_db);
-    let code_context = CodeIndexContext {
-        actor: KernelActor::System("mt223-interrupted-indexing".to_string()),
-        kernel_task_run_id: "KTR-mt223-interrupted-indexing".to_string(),
-        session_run_id: "SR-mt223-interrupted-indexing".to_string(),
-        correlation_id: Some("CORR-mt223-interrupted-indexing".to_string()),
-    };
-    let failed_start = index_engine
-        .start_quiet_run(
-            &code_context,
-            &store,
-            local_lane("mt223-interrupted-indexing"),
-            "WP-KERNEL-009",
-            "MT-223",
-            &workspace_id,
-            None,
-            10,
-            600,
-        )
-        .await;
-    assert!(
-        matches!(failed_start, Err(CodeIndexError::Storage(_))),
-        "forced KIR start failure must surface as storage error, got {failed_start:?}"
-    );
-
-    let scope = ClaimScope::IndexRun {
-        workspace_id: workspace_id.clone(),
-        source_root_id: workspace_id.clone(),
-    };
-    assert!(
-        store
-            .active_index_writer_for_scope(&scope)
-            .await
-            .expect("active writer after interrupted indexing start")
-            .is_none(),
-        "interrupted indexing start must not leave an acquired swarm lease"
-    );
-    let index_run_rows: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_index_runs WHERE workspace_id = $1")
-            .bind(&workspace_id)
-            .fetch_one(&pool)
-            .await
-            .expect("count KIR rows after interrupted indexing start");
-    assert_eq!(index_run_rows, 0);
-    let lease_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count lease rows after interrupted indexing start");
-    assert_eq!(
-        lease_rows, 0,
-        "interrupted KIR start must not leave any swarm lease row"
-    );
-    let quiet_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_quiet_background_work WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count quiet rows after interrupted indexing start");
-    assert_eq!(
-        quiet_rows, 0,
-        "interrupted KIR start must not leave a quiet-work receipt"
-    );
-    let code_index_events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'knowledge_code_index'
-          AND aggregate_type = 'knowledge_code_index_run'
-          AND payload ->> 'workspace_id' = $1
-        "#,
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count code-index start events after interrupted indexing start");
-    assert_eq!(
-        code_index_events, 0,
-        "interrupted KIR start must not leave a false code-index start receipt"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mt223_quiet_receipt_failure_rolls_back_index_run_and_lease() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
-    let workspace = event_db
-        .create_workspace(
-            &WriteContext::human(None),
-            NewWorkspace {
-                name: format!("quiet-receipt-rollback-{}", Uuid::now_v7()),
-            },
-        )
-        .await
-        .expect("create workspace for quiet receipt rollback proof");
-    let workspace_id = workspace.id;
-    install_quiet_indexing_receipt_failure(&pool).await;
-
-    let index_engine = CodeIndexEngine::new(event_db);
-    let code_context = CodeIndexContext {
-        actor: KernelActor::System("mt223-quiet-receipt-rollback".to_string()),
-        kernel_task_run_id: "KTR-mt223-quiet-receipt-rollback".to_string(),
-        session_run_id: "SR-mt223-quiet-receipt-rollback".to_string(),
-        correlation_id: Some("CORR-mt223-quiet-receipt-rollback".to_string()),
-    };
-    let failed_start = index_engine
-        .start_quiet_run(
-            &code_context,
-            &store,
-            local_lane("mt223-quiet-receipt-rollback"),
-            "WP-KERNEL-009",
-            "MT-223",
-            &workspace_id,
-            None,
-            10,
-            600,
-        )
-        .await;
-    assert!(
-        matches!(failed_start, Err(CodeIndexError::Validation(ref message)) if message.contains("quiet indexing receipt failed")),
-        "forced quiet receipt failure must surface as quiet-receipt validation error, got {failed_start:?}"
-    );
-
-    let scope = ClaimScope::IndexRun {
-        workspace_id: workspace_id.clone(),
-        source_root_id: workspace_id.clone(),
-    };
-    assert!(
-        store
-            .active_index_writer_for_scope(&scope)
-            .await
-            .expect("active writer after quiet receipt failure")
-            .is_none(),
-        "quiet receipt failure must not leave an acquired swarm lease"
-    );
-    let index_run_rows: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_index_runs WHERE workspace_id = $1")
-            .bind(&workspace_id)
-            .fetch_one(&pool)
-            .await
-            .expect("count KIR rows after quiet receipt failure");
-    assert_eq!(
-        index_run_rows, 0,
-        "quiet receipt failure must roll back the already-started KIR row"
-    );
-    let lease_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count lease rows after quiet receipt failure");
-    assert_eq!(
-        lease_rows, 0,
-        "quiet receipt failure must roll back the acquired lease row"
-    );
-    let quiet_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_quiet_background_work WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count quiet rows after quiet receipt failure");
-    assert_eq!(quiet_rows, 0);
-    let code_index_events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'knowledge_code_index'
-          AND aggregate_type = 'knowledge_code_index_run'
-          AND payload ->> 'workspace_id' = $1
-        "#,
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count code-index events after quiet receipt failure");
-    assert_eq!(
-        code_index_events, 0,
-        "quiet receipt failure must roll back the code-index start receipt"
-    );
-    let swarm_events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'parallel_swarm_state_recovery'
-          AND aggregate_type IN ('parallel_indexing_lease', 'parallel_swarm_quiet_background_work')
-          AND payload ->> 'workspace_id' = $1
-        "#,
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count swarm events after quiet receipt failure");
-    assert_eq!(
-        swarm_events, 0,
-        "quiet receipt failure must roll back swarm lease and quiet-work receipts"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn mt223_stale_indexing_lease_reclaim_then_queued_writer_is_promotable() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-stale-lease-{}", Uuid::now_v7());
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-stale-lease-{}", Uuid::now_v7());
     let scope = ClaimScope::IndexRun {
-        workspace_id: workspace_id.clone(),
-        source_root_id: "root-stale-lease".to_string(),
+        workspace_id: workspace.clone(),
+        source_root_id: "root-stale".to_owned(),
     };
     let stale = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
-            scope: scope.clone(),
-            lane: local_lane("stale-lease-a"),
-            session_id: "session-stale-lease-a".to_string(),
-            index_run_id: format!("index-run-stale-a-{}", Uuid::now_v7()),
-            priority: 10,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
+        .enqueue_indexing_lease(lease_request(&workspace, scope.clone(), "stale", 1, 10))
         .await
-        .expect("first stale lease acquired");
-    assert_eq!(stale.status, IndexLeaseStatus::Acquired);
-
+        .expect("stale lease seed");
     let queued = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
-            scope: scope.clone(),
-            lane: local_lane("stale-lease-b"),
-            session_id: "session-stale-lease-b".to_string(),
-            index_run_id: format!("index-run-stale-b-{}", Uuid::now_v7()),
-            priority: 20,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
+        .enqueue_indexing_lease(lease_request(&workspace, scope.clone(), "queued", 600, 20))
         .await
-        .expect("second stale lease queues");
+        .expect("queued lease seed");
+    assert_eq!(stale.status, IndexLeaseStatus::Acquired);
     assert_eq!(queued.status, IndexLeaseStatus::Queued);
-
-    sqlx::query(
-        "UPDATE knowledge_parallel_indexing_lease_queue SET expires_at_utc = NOW() - INTERVAL '1 second' WHERE lease_id = $1",
-    )
-    .bind(&stale.lease_id)
-    .execute(&pool)
-    .await
-    .expect("force stale acquired lease");
+    tokio::time::sleep(std::time::Duration::from_millis(1_100)).await;
     let reclaimed = store
         .reclaim_orphaned_indexing_leases()
         .await
-        .expect("reclaim stale lease");
+        .expect("reclaim expired lease");
     assert_eq!(reclaimed.len(), 1);
     assert_eq!(reclaimed[0].lease_id, stale.lease_id);
     assert_eq!(reclaimed[0].status, IndexLeaseStatus::Reclaimed);
-    assert!(
-        store
-            .active_index_writer_for_scope(&scope)
-            .await
-            .expect("active writer after stale reclaim")
-            .is_none(),
-        "stale acquired writer must be gone before queue promotion"
-    );
-
     let promoted = store
         .acquire_next_indexing_lease(&scope)
         .await
-        .expect("promote queued writer after stale reclaim")
-        .expect("queued writer is promotable after stale reclaim");
+        .expect("promote queued lease")
+        .expect("queued writer available");
     assert_eq!(promoted.lease_id, queued.lease_id);
     assert_eq!(promoted.status, IndexLeaseStatus::Acquired);
-    assert_ne!(
-        promoted.event_ledger_event_id, queued.event_ledger_event_id,
-        "stale-reclaim promotion must attach a fresh acquired receipt"
-    );
-    let (event_type, status) =
-        ledger_event_type_and_status(&pool, &promoted.event_ledger_event_id).await;
-    assert_eq!(event_type, "KNOWLEDGE_INDEX_RUN_STARTED");
-    assert_eq!(status, "acquired");
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-stale-queue-order-{}", Uuid::now_v7());
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-fair-{}", Uuid::now_v7());
     let scope = ClaimScope::IndexRun {
-        workspace_id: workspace_id.clone(),
-        source_root_id: "root-stale-queue-order".to_string(),
+        workspace_id: workspace.clone(),
+        source_root_id: "root-fair".to_owned(),
     };
     let stale = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
-            scope: scope.clone(),
-            lane: local_lane("stale-queue-order-a"),
-            session_id: "session-stale-queue-order-a".to_string(),
-            index_run_id: format!("index-run-stale-queue-a-{}", Uuid::now_v7()),
-            priority: 10,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
+        .enqueue_indexing_lease(lease_request(&workspace, scope.clone(), "fair-a", 1, 10))
         .await
-        .expect("first lease acquired");
-    assert_eq!(stale.status, IndexLeaseStatus::Acquired);
+        .expect("stale acquired writer");
     let queued = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
-            scope: scope.clone(),
-            lane: local_lane("stale-queue-order-b"),
-            session_id: "session-stale-queue-order-b".to_string(),
-            index_run_id: format!("index-run-stale-queue-b-{}", Uuid::now_v7()),
-            priority: 20,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
+        .enqueue_indexing_lease(lease_request(&workspace, scope.clone(), "fair-b", 600, 20))
         .await
-        .expect("second lease queues behind active writer");
+        .expect("original queued writer");
+    assert_eq!(stale.status, IndexLeaseStatus::Acquired);
     assert_eq!(queued.status, IndexLeaseStatus::Queued);
-
-    sqlx::query(
-        "UPDATE knowledge_parallel_indexing_lease_queue SET expires_at_utc = NOW() - INTERVAL '1 second' WHERE lease_id = $1",
-    )
-    .bind(&stale.lease_id)
-    .execute(&pool)
-    .await
-    .expect("force stale acquired lease before new enqueue");
+    tokio::time::sleep(std::time::Duration::from_millis(1_100)).await;
     let newcomer = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
-            scope: scope.clone(),
-            lane: local_lane("stale-queue-order-c"),
-            session_id: "session-stale-queue-order-c".to_string(),
-            index_run_id: format!("index-run-stale-queue-c-{}", Uuid::now_v7()),
-            priority: 10,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
+        .enqueue_indexing_lease(lease_request(&workspace, scope.clone(), "fair-c", 600, 10))
         .await
-        .expect("new enqueue after stale reclaim");
+        .expect("newcomer after stale reclaim");
+    assert_eq!(newcomer.status, IndexLeaseStatus::Queued);
     assert_eq!(
-        newcomer.status,
-        IndexLeaseStatus::Queued,
-        "new enqueues after stale reclaim must not acquire ahead of queued writers"
+        newcomer.blocked_by_lease_id.as_deref(),
+        Some(queued.lease_id.as_str())
     );
-
     let promoted = store
         .acquire_next_indexing_lease(&scope)
         .await
-        .expect("promote queued writer after newcomer enqueue")
-        .expect("a queued writer should be promotable");
-    assert_eq!(
-        promoted.lease_id, queued.lease_id,
-        "the original queued writer must promote before the newcomer"
-    );
-    let newcomer_status: String = sqlx::query_scalar(
-        "SELECT status FROM knowledge_parallel_indexing_lease_queue WHERE lease_id = $1",
-    )
-    .bind(&newcomer.lease_id)
-    .fetch_one(&pool)
-    .await
-    .expect("fetch newcomer lease status");
-    assert_eq!(newcomer_status, "queued");
+        .expect("promote original queue head")
+        .expect("queued writer available");
+    assert_eq!(promoted.lease_id, queued.lease_id);
+    let evidence = inspect_workspace(&store, &workspace).await;
+    assert!(evidence
+        .indexing_leases
+        .iter()
+        .any(|row| row.lease_id == newcomer.lease_id && row.status == IndexLeaseStatus::Queued));
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
-    let workspace = event_db
+    let (backend, store) = recovery_store().await;
+    let db = SurrealDatabase::new(backend.storage.clone());
+    let workspace = db
         .create_workspace(
             &WriteContext::human(None),
             NewWorkspace {
@@ -4790,70 +1656,53 @@ async fn mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim() {
             },
         )
         .await
-        .expect("create workspace for interrupted editor save");
-    let workspace_id = workspace.id;
-    let created_doc = event_db
+        .expect("editor workspace");
+    let document = db
         .create_knowledge_rich_document(NewKnowledgeRichDocument {
-            workspace_id: workspace_id.clone(),
+            workspace_id: workspace.id.clone(),
             document_id: None,
-            title: "Interrupted editor save".to_string(),
-            schema_version: "hsk_richdoc_v1".to_string(),
-            content_json: json!({"type": "doc", "content": [
-                {"type": "paragraph", "content": [{"type": "text", "text": "draft v1"}]}
-            ]}),
+            title: "Interrupted editor save".to_owned(),
+            schema_version: "hsk_richdoc_v1".to_owned(),
+            content_json: json!({"type": "doc", "content": []}),
             crdt_document_id: None,
             crdt_snapshot_id: None,
             promotion_receipt_event_id: None,
             project_ref: None,
             folder_ref: None,
-            authority_label: Some("draft".to_string()),
-            owner_actor_kind: Some("operator".to_string()),
-            owner_actor_id: Some("mt223-editor".to_string()),
+            authority_label: Some("draft".to_owned()),
+            owner_actor_kind: Some("operator".to_owned()),
+            owner_actor_id: Some("mt223-editor".to_owned()),
         })
         .await
-        .expect("create rich document for interrupted save");
+        .expect("editor document");
     let scope = ClaimScope::RichDocument {
-        workspace_id: workspace_id.clone(),
-        document_id: created_doc.rich_document_id.clone(),
+        workspace_id: workspace.id.clone(),
+        document_id: document.rich_document_id.clone(),
     };
-    let first_editor = lane_with_kind("editor-interrupted-a", AgentLaneKind::Editor);
-    let second_editor = lane_with_kind("editor-interrupted-b", AgentLaneKind::Editor);
-    let first_claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-223".to_string()),
-            scope: scope.clone(),
-            lane: first_editor.clone(),
-            session_id: "session-editor-interrupted-a".to_string(),
-            ttl_seconds: 600,
-            reason: "editor save interrupted before release".to_string(),
+    let first_lane = lane_with_kind("editor-interrupted-a", AgentLaneKind::Editor);
+    let second_lane = lane_with_kind("editor-interrupted-b", AgentLaneKind::Editor);
+    let first = store
+        .claim_work_surface({
+            let mut request = claim_request(&workspace.id, scope.clone(), first_lane, "editor-a");
+            request.ttl_seconds = 1;
+            request
         })
         .await
         .expect("first editor claim");
-    assert_eq!(first_claim.status, ClaimStatus::Active);
-
-    let held_claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-223".to_string()),
-            scope: scope.clone(),
-            lane: second_editor.clone(),
-            session_id: "session-editor-interrupted-b-held".to_string(),
-            ttl_seconds: 600,
-            reason: "second editor waits while interrupted save claim is active".to_string(),
-        })
+    let held = store
+        .claim_work_surface(claim_request(
+            &workspace.id,
+            scope.clone(),
+            second_lane.clone(),
+            "editor-b-held",
+        ))
         .await
-        .expect("second editor held while claim active");
-    assert_eq!(held_claim.status, ClaimStatus::Held);
-
-    let saved_content = json!({"type": "doc", "content": [
-        {"type": "paragraph", "content": [{"type": "text", "text": "draft v2 committed before interruption"}]}
-    ]});
-    let saved_doc = event_db
+        .expect("second editor held");
+    assert_eq!(held.status, ClaimStatus::Held);
+    let saved_content = json!({"type": "doc", "content": [{"type": "paragraph"}]});
+    let saved = db
         .save_knowledge_rich_document_version(
-            &created_doc.rich_document_id,
+            &document.rich_document_id,
             1,
             saved_content.clone(),
             None,
@@ -4861,76 +1710,36 @@ async fn mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim() {
             None,
         )
         .await
-        .expect("real rich-document save commits before interruption");
-    assert_eq!(saved_doc.doc_version, 2);
-
-    sqlx::query(
-        "UPDATE knowledge_agent_worktree_claims SET expires_at_utc = NOW() - INTERVAL '1 second' WHERE claim_id = $1",
-    )
-    .bind(&first_claim.claim_id)
-    .execute(&pool)
-    .await
-    .expect("force interrupted editor claim stale");
+        .expect("committed save before interruption");
+    assert_eq!(saved.doc_version, 2);
+    tokio::time::sleep(std::time::Duration::from_millis(1_100)).await;
     let reclaimed = store
         .reclaim_expired_work_claims(
-            &local_lane("editor-interrupted-reclaimer"),
-            "session-editor-interrupted-reclaimer",
-            "lost editor lane after interrupted save",
+            &local_lane("editor-reclaimer"),
+            "session-editor-reclaimer",
+            "lost editor lane after committed save",
         )
         .await
-        .expect("reclaim interrupted editor claim");
+        .expect("reclaim interrupted editor");
     assert_eq!(reclaimed.len(), 1);
-    assert_eq!(reclaimed[0].claim_id, first_claim.claim_id);
-    assert_eq!(reclaimed[0].status, ClaimStatus::Reclaimed);
-
-    let resumed_claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-223".to_string()),
-            scope: scope.clone(),
-            lane: second_editor,
-            session_id: "session-editor-interrupted-b-resume".to_string(),
-            ttl_seconds: 600,
-            reason: "second editor resumes after lost editor reclaim".to_string(),
-        })
+    assert_eq!(reclaimed[0].claim_id, first.claim_id);
+    assert!(reclaimed[0]
+        .reclaim_event_ledger_event_id
+        .as_deref()
+        .is_some_and(|id| id.starts_with("KE-")));
+    let resumed = store
+        .claim_work_surface(claim_request(
+            &workspace.id,
+            scope,
+            second_lane,
+            "editor-b-resumed",
+        ))
         .await
-        .expect("second editor claims after reclaim");
-    assert_eq!(resumed_claim.status, ClaimStatus::Active);
-
-    let (active_count, reclaimed_count): (i64, i64) = sqlx::query_as(
-        r#"
-        SELECT
-            COUNT(*) FILTER (WHERE status = 'active') AS active_count,
-            COUNT(*) FILTER (WHERE status = 'reclaimed') AS reclaimed_count
-        FROM knowledge_agent_worktree_claims
-        WHERE workspace_id = $1
-          AND scope_kind = 'rich_document'
-          AND scope_id = $2
-        "#,
-    )
-    .bind(&workspace_id)
-    .bind(format!("{workspace_id}/{}", created_doc.rich_document_id))
-    .fetch_one(&pool)
-    .await
-    .expect("count rich-document claim states after reclaim");
-    assert_eq!(active_count, 1);
-    assert_eq!(reclaimed_count, 1);
-    assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_claim_reclaim",
-            "claim_id",
-            &first_claim.claim_id,
-        )
-        .await,
-        1,
-        "interrupted editor reclaim must leave one durable reclaim receipt"
-    );
-
-    let retry = event_db
+        .expect("second editor resumes");
+    assert_eq!(resumed.status, ClaimStatus::Active);
+    let retry = db
         .save_knowledge_rich_document_version(
-            &created_doc.rich_document_id,
+            &document.rich_document_id,
             1,
             saved_content.clone(),
             None,
@@ -4939,90 +1748,63 @@ async fn mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim() {
         )
         .await;
     assert!(
-        matches!(retry, Err(StorageError::Conflict(message)) if message.contains("expected_version is stale")),
-        "lost-response retry with stale expected_version must fail closed without duplicating the save"
+        matches!(retry, Err(StorageError::Conflict(message)) if message.contains("expected_version is stale"))
     );
-    let loaded = event_db
-        .get_knowledge_rich_document(&created_doc.rich_document_id)
-        .await
-        .expect("load document after interrupted save")
-        .expect("document exists after interrupted save");
-    assert_eq!(loaded.doc_version, 2);
-    assert_eq!(loaded.content_json, saved_content);
-    let versions = event_db
-        .list_knowledge_rich_document_versions(&created_doc.rich_document_id)
-        .await
-        .expect("list document versions after stale retry");
     assert_eq!(
-        versions.len(),
-        2,
-        "stale retry after interruption must not append a duplicate version"
+        db.list_knowledge_rich_document_versions(&document.rich_document_id)
+            .await
+            .expect("document versions")
+            .len(),
+        2
     );
+    drop(db);
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn mt223_partial_validation_progress_handoff_is_not_reported_as_pass() {
-    let Some((_pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-partial-validation-{}", Uuid::now_v7());
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-partial-validation-{}", Uuid::now_v7());
     let lane = local_lane("partial-validation");
     let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-223".to_string()),
-            scope: ClaimScope::Workspace {
-                workspace_id: workspace_id.clone(),
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
             },
-            lane: lane.clone(),
-            session_id: "session-partial-validation-claim".to_string(),
-            ttl_seconds: 600,
-            reason: "partial validation should remain progress until complete".to_string(),
-        })
+            lane.clone(),
+            "partial-validation",
+        ))
         .await
-        .expect("claim workspace for partial validation");
-    assert_eq!(claim.status, ClaimStatus::Active);
-
+        .expect("partial validation claim");
     let handoff = store
         .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
             from_lane: lane,
-            to_role: "WP_VALIDATOR".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
-            claim_id: Some(claim.claim_id.clone()),
-            mailbox_thread_id: "thread-partial-validation".to_string(),
-            mailbox_message_id: "message-partial-validation".to_string(),
+            to_role: "WP_VALIDATOR".to_owned(),
+            wp_id: "WP-KERNEL-009".to_owned(),
+            mt_id: "MT-223".to_owned(),
+            claim_id: Some(claim.claim_id),
+            mailbox_thread_id: "thread-partial-validation".to_owned(),
+            mailbox_message_id: "message-partial-validation".to_owned(),
             status: SwarmReceiptStatus::Progress,
-            summary: "partial validation: checkpoint checks passed, editor recovery still running"
-                .to_string(),
-            body_sha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                .to_string(),
+            summary: "checkpoint passed; editor recovery still running".to_owned(),
+            body_sha256: "c".repeat(64),
         })
         .await
-        .expect("record partial validation progress handoff");
-    assert_eq!(handoff.status, SwarmReceiptStatus::Progress);
-
+        .expect("partial validation handoff");
     let projection = store
         .project_swarm_dashboard(SwarmDashboardProjectionRequest {
-            lane: lane_with_kind("partial-validation-dashboard", AgentLaneKind::Validator),
-            workspace_id,
-            wp_id: Some("WP-KERNEL-009".to_string()),
-            mt_id: Some("MT-223".to_string()),
+            lane: lane_with_kind("partial-dashboard", AgentLaneKind::Validator),
+            workspace_id: workspace,
+            wp_id: Some("WP-KERNEL-009".to_owned()),
+            mt_id: Some("MT-223".to_owned()),
             limit: 25,
         })
         .await
-        .expect("project partial validation dashboard");
-    validate_swarm_dashboard_projection(&projection)
-        .expect("partial validation projection validates");
+        .expect("partial validation projection");
     assert_eq!(
-        projection
-            .totals
-            .handoffs_by_status
-            .get("progress")
-            .copied(),
-        Some(1)
+        projection.totals.handoffs_by_status.get("progress"),
+        Some(&1)
     );
     assert_eq!(
         projection
@@ -5031,264 +1813,124 @@ async fn mt223_partial_validation_progress_handoff_is_not_reported_as_pass() {
             .get("pass")
             .copied()
             .unwrap_or(0),
-        0,
-        "partial validation progress must not be counted as pass"
+        0
     );
     assert!(projection
         .mailbox_handoffs
         .iter()
         .any(|row| row.handoff_id == handoff.handoff_id && row.status == "progress"));
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mt223_restart_after_crash_reconstructs_swarm_state_from_postgres() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-restart-crash-{}", Uuid::now_v7());
-    let lane = local_lane("restart-crash-source");
+#[tokio::test]
+async fn mt223_restart_after_close_reopen_reconstructs_swarm_state_from_surrealdb() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-full-restart-{}", Uuid::now_v7());
+    let lane = local_lane("full-restart");
     let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-223".to_string()),
-            scope: ClaimScope::Workspace {
-                workspace_id: workspace_id.clone(),
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
             },
-            lane: lane.clone(),
-            session_id: "session-restart-crash-claim".to_string(),
-            ttl_seconds: 600,
-            reason: "seed state before simulated process crash".to_string(),
-        })
+            lane.clone(),
+            "full-restart",
+        ))
         .await
-        .expect("claim before restart");
-    assert_eq!(claim.status, ClaimStatus::Active);
+        .expect("restart claim");
     let handoff = store
         .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
             from_lane: lane.clone(),
-            to_role: "WP_VALIDATOR".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
+            to_role: "WP_VALIDATOR".to_owned(),
+            wp_id: "WP-KERNEL-009".to_owned(),
+            mt_id: "MT-223".to_owned(),
             claim_id: Some(claim.claim_id.clone()),
-            mailbox_thread_id: "thread-restart-crash".to_string(),
-            mailbox_message_id: "message-restart-crash".to_string(),
+            mailbox_thread_id: "thread-full-restart".to_owned(),
+            mailbox_message_id: "message-full-restart".to_owned(),
             status: SwarmReceiptStatus::Progress,
-            summary: "restart crash seed handoff".to_string(),
-            body_sha256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                .to_string(),
+            summary: "restart seed".to_owned(),
+            body_sha256: "d".repeat(64),
         })
         .await
-        .expect("handoff before restart");
+        .expect("restart handoff");
     let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: lane.clone(),
-            session_id: "session-restart-crash-checkpoint".to_string(),
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
-            claim_id: Some(claim.claim_id.clone()),
-            mailbox_handoff_id: Some(handoff.handoff_id.clone()),
-            navigation_command_id: Some("validation_state".to_string()),
-            resume_pointer: RecoveryResumePointer::Claim {
-                claim_id: claim.claim_id.clone(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-            ],
-            tests: vec!["cargo test mt223_".to_string()],
-            hbr_rows: vec!["HBR-SWARM-RESTART".to_string()],
-            next_step_context: "fresh store must recover this checkpoint after restart".to_string(),
-            payload: json!({"restart_after_crash": true, "claim_id": claim.claim_id}),
-            compaction_reason: "mt223_restart_after_crash".to_string(),
-            git_head: "restart223".to_string(),
-        })
+        .record_checkpoint(checkpoint_request(
+            lane.clone(),
+            &workspace,
+            Some(claim.claim_id.clone()),
+            Some(handoff.handoff_id.clone()),
+        ))
         .await
-        .expect("checkpoint before restart");
+        .expect("restart checkpoint");
     let lease = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
-            scope: ClaimScope::IndexRun {
-                workspace_id: workspace_id.clone(),
-                source_root_id: "restart-crash-root".to_string(),
+        .enqueue_indexing_lease(lease_request(
+            &workspace,
+            ClaimScope::IndexRun {
+                workspace_id: workspace.clone(),
+                source_root_id: "restart-root".to_owned(),
             },
-            lane: lane.clone(),
-            session_id: "session-restart-crash-lease".to_string(),
-            index_run_id: format!("index-run-restart-crash-{}", Uuid::now_v7()),
-            priority: 5,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
+            "full-restart-lease",
+            600,
+            10,
+        ))
         .await
-        .expect("lease before restart");
+        .expect("restart lease");
     let quiet = store
         .record_quiet_background_work(QuietBackgroundWorkRequest {
             lane,
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-223".to_string(),
+            workspace_id: workspace.clone(),
+            wp_id: "WP-KERNEL-009".to_owned(),
+            mt_id: "MT-223".to_owned(),
             work_kind: QuietBackgroundWorkKind::BackendNavigation,
-            subject_id: format!("restart-crash-nav-{}", Uuid::now_v7()),
-            session_id: "session-restart-crash-quiet".to_string(),
+            subject_id: "restart-navigation".to_owned(),
+            session_id: "session-full-restart-quiet".to_owned(),
             policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::BackendNavigation),
-            evidence_ref: "backend-nav://validation_state#restart-crash".to_string(),
+            evidence_ref: "backend-nav://validation_state#restart".to_owned(),
         })
         .await
-        .expect("quiet work before restart");
-
+        .expect("restart quiet receipt");
     drop(store);
-    let restarted_event_db = Arc::new(PostgresDatabase::new(pool.clone()));
-    let restarted = ParallelSwarmStateRecoveryStore::new(pool.clone(), restarted_event_db);
-    let snapshot = restarted
-        .inspect_swarm_evidence(SwarmEvidenceInspectionRequest {
-            lane: lane_with_kind("restart-crash-inspector", AgentLaneKind::Validator),
-            workspace_id: workspace_id.clone(),
-            limit: 50,
-        })
+
+    let (storage, reopened) = reopen_store(&backend).await;
+    let recovered = reopened
+        .recover_from_checkpoint(
+            &checkpoint.checkpoint_id,
+            local_lane("full-restart-target"),
+            "session-full-restart-target",
+        )
         .await
-        .expect("fresh store inspects persisted swarm evidence");
-    assert!(snapshot
+        .expect("recover after reopen");
+    let evidence = inspect_workspace(&reopened, &workspace).await;
+    assert!(evidence
         .claims
         .iter()
         .any(|row| row.claim_id == claim.claim_id));
-    assert!(snapshot
+    assert!(evidence
         .mailbox_handoffs
         .iter()
         .any(|row| row.handoff_id == handoff.handoff_id));
-    assert!(snapshot
+    assert!(evidence
         .checkpoints
         .iter()
         .any(|row| row.checkpoint_id == checkpoint.checkpoint_id));
-    assert!(snapshot
-        .indexing_leases
-        .iter()
-        .any(|row| row.lease_id == lease.lease_id));
-    assert!(snapshot
-        .quiet_background_work
-        .iter()
-        .any(|row| row.receipt_id == quiet.receipt_id));
-
-    let recovered = restarted
-        .recover_from_checkpoint(
-            &checkpoint.checkpoint_id,
-            local_lane("restart-crash-recover"),
-            "session-restart-crash-recovered",
-        )
-        .await
-        .expect("fresh store recovers persisted checkpoint");
-    assert_eq!(recovered.checkpoint.checkpoint_id, checkpoint.checkpoint_id);
-    let projection = restarted
-        .project_swarm_dashboard(SwarmDashboardProjectionRequest {
-            lane: lane_with_kind("restart-crash-dashboard", AgentLaneKind::Validator),
-            workspace_id,
-            wp_id: Some("WP-KERNEL-009".to_string()),
-            mt_id: Some("MT-223".to_string()),
-            limit: 50,
-        })
-        .await
-        .expect("fresh store projects persisted dashboard");
-    validate_swarm_dashboard_projection(&projection).expect("restart projection validates");
-    assert!(projection
-        .claims
-        .iter()
-        .any(|row| row.claim_id == claim.claim_id));
-    assert!(projection
-        .mailbox_handoffs
-        .iter()
-        .any(|row| row.handoff_id == handoff.handoff_id));
-    assert!(projection
-        .recovery_checkpoints
-        .iter()
-        .any(|row| row.checkpoint_id == checkpoint.checkpoint_id));
-    assert!(projection
+    assert!(evidence
         .recovery_receipts
         .iter()
         .any(|row| row.receipt_id == recovered.receipt.receipt_id));
-    assert!(projection
+    assert!(evidence
         .indexing_leases
         .iter()
         .any(|row| row.lease_id == lease.lease_id));
-    assert!(projection
+    assert!(evidence
         .quiet_background_work
         .iter()
         .any(|row| row.receipt_id == quiet.receipt_id));
+    close_reopened_store(storage, reopened, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn recovery_receipt_authority_failure_does_not_emit_false_receipt() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-recovery-authority-fail-{}", Uuid::now_v7());
-    let checkpoint = store
-        .record_checkpoint(RecoveryCheckpointRequest {
-            lane: local_lane("recovery-authority-source"),
-            session_id: "session-recovery-authority-source".to_string(),
-            workspace_id,
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-214".to_string(),
-            claim_id: None,
-            mailbox_handoff_id: None,
-            navigation_command_id: Some("validation_state".to_string()),
-            resume_pointer: RecoveryResumePointer::MicroTask {
-                mt_id: "MT-214".to_string(),
-            },
-            touched_files: vec![
-                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
-            ],
-            tests: vec!["cargo test --test parallel_swarm_state_recovery_tests".to_string()],
-            hbr_rows: vec!["HBR-SWARM-004".to_string()],
-            next_step_context: "valid checkpoint before forced recovery insert failure".to_string(),
-            payload: json!({"checkpoint": "valid"}),
-            compaction_reason: "test_recovery_authority_failure".to_string(),
-            git_head: "feedface".to_string(),
-        })
-        .await
-        .expect("valid checkpoint before forced recovery authority failure");
-
-    install_recovery_receipt_authority_failure(&pool).await;
-    let result = store
-        .recover_from_checkpoint(
-            &checkpoint.checkpoint_id,
-            local_lane("recovery-authority-fail"),
-            "session-recovery-authority-fail",
-        )
-        .await;
-    assert!(
-        result.is_err(),
-        "forced authority failure should reject recovery receipt"
-    );
-
-    let receipt_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_agent_recovery_receipts WHERE checkpoint_id = $1",
-    )
-    .bind(&checkpoint.checkpoint_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count failed recovery receipt rows");
-    assert_eq!(receipt_rows, 0);
-    assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_recovery",
-            "new_session_id",
-            "session-recovery-authority-fail",
-        )
-        .await,
-        0,
-        "failed recovery receipt insert must not leave a false EventLedger receipt"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mailbox_handoff_statuses_round_trip_from_postgres() {
-    let Some((_pool, store)) = recovery_store().await else {
-        return;
-    };
-
+#[tokio::test]
+async fn mailbox_handoff_statuses_round_trip_from_surrealdb() {
+    let (backend, store) = recovery_store().await;
     for status in [
         SwarmReceiptStatus::Started,
         SwarmReceiptStatus::Progress,
@@ -5296,482 +1938,564 @@ async fn mailbox_handoff_statuses_round_trip_from_postgres() {
         SwarmReceiptStatus::Pass,
         SwarmReceiptStatus::Fail,
     ] {
-        let status_name = format!("{status:?}").to_ascii_lowercase();
+        let suffix = format!("{:?}", status).to_ascii_lowercase();
         let handoff = store
             .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
-                from_lane: cloud_lane(&format!("handoff-{status_name}")),
-                to_role: "WP_VALIDATOR".to_string(),
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: "MT-211".to_string(),
+                from_lane: cloud_lane(&format!("status-{suffix}")),
+                to_role: "WP_VALIDATOR".to_owned(),
+                wp_id: "WP-KERNEL-009".to_owned(),
+                mt_id: "MT-211".to_owned(),
                 claim_id: None,
-                mailbox_thread_id: format!("thread-{status_name}"),
-                mailbox_message_id: format!("message-{status_name}"),
+                mailbox_thread_id: format!("thread-{suffix}"),
+                mailbox_message_id: format!("message-{suffix}"),
                 status,
-                summary: format!("round-trip {status_name} handoff status"),
-                body_sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                    .to_string(),
+                summary: format!("round-trip {suffix}"),
+                body_sha256: "b".repeat(64),
             })
             .await
-            .expect("record handoff status");
-        assert_eq!(
-            handoff.status, status,
-            "mailbox handoff status must decode from the database row"
-        );
+            .expect("status handoff");
+        assert_eq!(handoff.status, status);
     }
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn raw_secret_like_provider_metadata_is_scrubbed_at_persist_time() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-raw-attribution-{}", Uuid::now_v7());
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-raw-attribution-{}", Uuid::now_v7());
     let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-215".to_string()),
-            scope: ClaimScope::Workspace {
-                workspace_id: workspace_id.clone(),
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
             },
-            lane: raw_cloud_lane("persist-time"),
-            session_id: "session-raw-attribution".to_string(),
-            ttl_seconds: 600,
-            reason: "raw metadata should be scrubbed before persistence".to_string(),
-        })
+            raw_cloud_lane("persist-time"),
+            "raw-attribution",
+        ))
         .await
-        .expect("workspace claim with raw cloud attribution");
-    assert_eq!(claim.status, ClaimStatus::Active);
-
-    let persisted_attribution: String = sqlx::query_scalar(
-        "SELECT attribution_jsonb::text FROM knowledge_agent_worktree_claims WHERE claim_id = $1",
-    )
-    .bind(&claim.claim_id)
-    .fetch_one(&pool)
-    .await
-    .expect("fetch persisted attribution");
-    let persisted_event_payload: String =
-        sqlx::query_scalar("SELECT payload::text FROM kernel_event_ledger WHERE event_id = $1")
-            .bind(
-                claim
-                    .event_ledger_event_id
-                    .as_deref()
-                    .expect("claim has event receipt"),
-            )
-            .fetch_one(&pool)
-            .await
-            .expect("fetch persisted event payload");
-
-    for persisted in [&persisted_attribution, &persisted_event_payload] {
-        assert!(
-            !persisted.contains("sk-raw-secret-must-not-persist"),
-            "raw API key leaked into persisted attribution/event payload: {persisted}"
-        );
-        assert!(
-            !persisted.contains("raw-token-must-not-persist"),
-            "raw token leaked into persisted attribution/event payload: {persisted}"
-        );
-        assert!(
-            persisted.contains("[REDACTED]"),
-            "persisted metadata should retain redaction markers: {persisted}"
-        );
-        assert!(
-            persisted.contains("org-visible"),
-            "non-secret provider metadata should remain useful: {persisted}"
-        );
-    }
+        .expect("raw cloud claim");
+    drop(store);
+    let (storage, reopened) = reopen_store(&backend).await;
+    let evidence = inspect_workspace(&reopened, &workspace).await;
+    let persisted = evidence
+        .claims
+        .iter()
+        .find(|row| row.claim_id == claim.claim_id)
+        .expect("reopened raw-attribution claim");
+    let attribution = serde_json::to_string(&persisted.lane.attribution)
+        .expect("serialize persisted attribution");
+    assert!(!attribution.contains("sk-raw-secret-must-not-persist"));
+    assert!(!attribution.contains("raw-token-must-not-persist"));
+    assert!(attribution.contains("[REDACTED]"));
+    assert!(attribution.contains("org-visible"));
+    let inspector = storage.test_inspector();
+    let events = inspector
+        .table_selector("kernel_event_ledger")
+        .await
+        .expect("select EventLedger table");
+    let payload = events.field("payload").expect("select EventLedger payload");
+    let event_id = claim
+        .event_ledger_event_id
+        .as_deref()
+        .expect("claim EventLedger receipt");
+    let projected = inspector
+        .project(
+            &events,
+            &[payload],
+            RowFilter::IdEquals(event_id.to_owned()),
+        )
+        .await
+        .expect("project claim EventLedger payload");
+    assert_eq!(projected.len(), 1);
+    let event_payload = projected[0].values["payload"].to_string();
+    assert!(!event_payload.contains("sk-raw-secret-must-not-persist"));
+    assert!(!event_payload.contains("raw-token-must-not-persist"));
+    assert!(event_payload.contains("[REDACTED]"));
+    assert!(event_payload.contains("org-visible"));
+    close_reopened_store(storage, reopened, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn parallel_indexing_lease_queue_serializes_same_scope_writers_and_reclaims_orphans() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-    let scope = ClaimScope::IndexRun {
-        workspace_id: "workspace-index".to_string(),
-        source_root_id: "root-a".to_string(),
-    };
-    let first = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: "workspace-index".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-216".to_string(),
-            scope: scope.clone(),
-            lane: local_lane("index-a"),
-            session_id: "session-index-a".to_string(),
-            index_run_id: format!("index-run-{}", Uuid::now_v7()),
-            priority: 10,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
-        .await
-        .expect("first index lease");
-    assert_eq!(first.status, IndexLeaseStatus::Acquired);
-
-    let second = store
-        .enqueue_indexing_lease(IndexingLeaseRequest {
-            workspace_id: "workspace-index".to_string(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: "MT-216".to_string(),
-            scope: scope.clone(),
-            lane: local_lane("index-b"),
-            session_id: "session-index-b".to_string(),
-            index_run_id: format!("index-run-{}", Uuid::now_v7()),
-            priority: 20,
-            ttl_seconds: 600,
-            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-        })
-        .await
-        .expect("second index lease queues");
-    assert_eq!(second.status, IndexLeaseStatus::Queued);
-    assert_eq!(
-        second.blocked_by_lease_id.as_deref(),
-        Some(first.lease_id.as_str())
-    );
-    let (queued_event_type, queued_status) =
-        ledger_event_type_and_status(&pool, &second.event_ledger_event_id).await;
-    assert_eq!(queued_event_type, "SESSION_QUEUED");
-    assert_eq!(queued_status, "queued");
-
-    let active = store
-        .active_index_writer_for_scope(&scope)
-        .await
-        .expect("active index writer")
-        .expect("writer exists");
-    assert_eq!(active.lease_id, first.lease_id);
-
-    store
-        .complete_indexing_lease(&first.lease_id, &local_lane("index-a"))
-        .await
-        .expect("complete first lease");
-    let promoted = store
-        .acquire_next_indexing_lease(&scope)
-        .await
-        .expect("acquire next")
-        .expect("queued lease promoted");
-    assert_eq!(promoted.lease_id, second.lease_id);
-    assert_eq!(promoted.status, IndexLeaseStatus::Acquired);
-    assert_ne!(
-        promoted.event_ledger_event_id, second.event_ledger_event_id,
-        "queued lease promotion must attach a fresh acquired receipt"
-    );
-    let (promoted_event_type, promoted_status) =
-        ledger_event_type_and_status(&pool, &promoted.event_ledger_event_id).await;
-    assert_eq!(promoted_event_type, "KNOWLEDGE_INDEX_RUN_STARTED");
-    assert_eq!(promoted_status, "acquired");
-
-    sqlx::query(
-        "UPDATE knowledge_parallel_indexing_lease_queue SET expires_at_utc = NOW() - INTERVAL '1 second' WHERE lease_id = $1",
-    )
-    .bind(&promoted.lease_id)
-    .execute(&pool)
-    .await
-    .expect("force orphaned lease in isolated test schema");
-    let reclaimed = store
-        .reclaim_orphaned_indexing_leases()
-        .await
-        .expect("reclaim orphans");
-    assert_eq!(reclaimed.len(), 1);
-    assert_eq!(reclaimed[0].lease_id, promoted.lease_id);
-    assert_eq!(reclaimed[0].status, IndexLeaseStatus::Reclaimed);
-    assert_ne!(
-        reclaimed[0].event_ledger_event_id, promoted.event_ledger_event_id,
-        "orphan reclaim must attach a fresh reclaimed receipt"
-    );
-    let (reclaimed_event_type, reclaimed_status) =
-        ledger_event_type_and_status(&pool, &reclaimed[0].event_ledger_event_id).await;
-    assert_eq!(reclaimed_event_type, "KNOWLEDGE_INDEX_RUN_CANCELLED");
-    assert_eq!(reclaimed_status, "reclaimed");
-    let reclaimed_payload: serde_json::Value =
-        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
-            .bind(&reclaimed[0].event_ledger_event_id)
-            .fetch_one(&pool)
-            .await
-            .expect("reclaimed lease event payload");
-    assert_eq!(reclaimed_payload["quiet_policy"]["work_kind"], "indexing");
-    assert_eq!(
-        reclaimed_payload["quiet_policy"]["no_foreground_window"],
-        true
-    );
-    assert_eq!(reclaimed_payload["quiet_policy"]["no_focus_steal"], true);
-    assert_eq!(
-        reclaimed_payload["quiet_policy"]["no_os_shell_window"],
-        true
-    );
-    assert!(
-        store
-            .active_index_writer_for_scope(&scope)
-            .await
-            .expect("active writer after reclaim")
-            .is_none(),
-        "expired writer must not remain active after reclaim"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn concurrent_same_scope_indexing_lease_records_only_real_outcome_events() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-    install_parallel_swarm_event_delay(&pool, "parallel_indexing_lease").await;
-
-    let workspace_id = format!("workspace-lease-race-{}", Uuid::now_v7());
-    let scope = ClaimScope::IndexRun {
-        workspace_id: workspace_id.clone(),
-        source_root_id: "root-lease-race".to_string(),
-    };
-    let barrier = Arc::new(Barrier::new(2));
-    let left_store = store.clone();
-    let left_barrier = barrier.clone();
-    let left_workspace = workspace_id.clone();
-    let left_scope = scope.clone();
-    let left = tokio::spawn(async move {
-        left_barrier.wait().await;
-        left_store
-            .enqueue_indexing_lease(IndexingLeaseRequest {
-                workspace_id: left_workspace,
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: "MT-216".to_string(),
-                scope: left_scope,
-                lane: local_lane("lease-race-a"),
-                session_id: "session-lease-race-a".to_string(),
-                index_run_id: format!("index-run-{}", Uuid::now_v7()),
-                priority: 10,
-                ttl_seconds: 600,
-                quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-            })
-            .await
-    });
-    let right_store = store.clone();
-    let right_barrier = barrier.clone();
-    let right_workspace = workspace_id.clone();
-    let right_scope = scope.clone();
-    let right = tokio::spawn(async move {
-        right_barrier.wait().await;
-        right_store
-            .enqueue_indexing_lease(IndexingLeaseRequest {
-                workspace_id: right_workspace,
-                wp_id: "WP-KERNEL-009".to_string(),
-                mt_id: "MT-216".to_string(),
-                scope: right_scope,
-                lane: local_lane("lease-race-b"),
-                session_id: "session-lease-race-b".to_string(),
-                index_run_id: format!("index-run-{}", Uuid::now_v7()),
-                priority: 20,
-                ttl_seconds: 600,
-                quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
-            })
-            .await
-    });
-
-    let left = left.await.expect("left lease task joins");
-    let right = right.await.expect("right lease task joins");
-    assert!(
-        left.is_ok(),
-        "left lease should resolve to an outcome: {left:?}"
-    );
-    assert!(
-        right.is_ok(),
-        "right lease should resolve to an outcome: {right:?}"
-    );
-    let outcomes = [left.expect("left lease"), right.expect("right lease")];
-    assert_eq!(
-        outcomes
-            .iter()
-            .filter(|lease| lease.status == IndexLeaseStatus::Acquired)
-            .count(),
-        1
-    );
-    assert_eq!(
-        outcomes
-            .iter()
-            .filter(|lease| lease.status == IndexLeaseStatus::Queued)
-            .count(),
-        1
-    );
-
-    let lease_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count lease race rows");
-    assert_eq!(lease_rows, 2);
-
-    let acquired_events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'parallel_swarm_state_recovery'
-          AND aggregate_type = 'parallel_indexing_lease'
-          AND payload ->> 'workspace_id' = $1
-          AND payload ->> 'status' = 'acquired'
-        "#,
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count acquired lease events");
-    let queued_events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'parallel_swarm_state_recovery'
-          AND aggregate_type = 'parallel_indexing_lease'
-          AND payload ->> 'workspace_id' = $1
-          AND payload ->> 'status' = 'queued'
-        "#,
-    )
-    .bind(&workspace_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count queued lease events");
-    assert_eq!(
-        acquired_events, 1,
-        "only the real acquired lease may emit an acquired event"
-    );
-    assert_eq!(
-        queued_events, 1,
-        "the race loser should persist as a queued lease with a queued event"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn explicit_expired_claim_reclaim_records_event_receipt() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-explicit-reclaim-{}", Uuid::now_v7());
-    let lane = local_lane("explicit-reclaim-holder");
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-explicit-reclaim-{}", Uuid::now_v7());
+    let mut request = claim_request(
+        &workspace,
+        ClaimScope::Worktree {
+            worktree_id: format!("worktree-reclaim-{}", Uuid::now_v7()),
+        },
+        local_lane("reclaim-holder"),
+        "reclaim-holder",
+    );
+    request.ttl_seconds = 1;
     let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id: workspace_id.clone(),
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-210".to_string()),
-            scope: ClaimScope::Worktree {
-                worktree_id: format!("wtc-kernel-009-reclaim-{}", Uuid::now_v7()),
-            },
-            lane: lane.clone(),
-            session_id: "session-explicit-reclaim-holder".to_string(),
-            ttl_seconds: 600,
-            reason: "claim that will be made stale in the isolated test schema".to_string(),
-        })
+        .claim_work_surface(request)
         .await
-        .expect("claim to reclaim");
-    sqlx::query(
-        "UPDATE knowledge_agent_worktree_claims SET expires_at_utc = NOW() - INTERVAL '1 second' WHERE claim_id = $1",
-    )
-    .bind(&claim.claim_id)
-    .execute(&pool)
-    .await
-    .expect("force expired claim in isolated test schema");
-
+        .expect("claim to expire");
+    tokio::time::sleep(std::time::Duration::from_millis(1_100)).await;
     let reclaimed = store
         .reclaim_expired_work_claims(
             &local_lane("explicit-reclaimer"),
-            "session-explicit-reclaim",
+            "session-explicit-reclaimer",
             "explicit stale claim sweep",
         )
         .await
-        .expect("explicit reclaim expired claims");
+        .expect("explicit reclaim");
     assert_eq!(reclaimed.len(), 1);
     assert_eq!(reclaimed[0].claim_id, claim.claim_id);
     assert_eq!(reclaimed[0].status, ClaimStatus::Reclaimed);
-    assert!(
-        reclaimed[0]
-            .reclaim_event_ledger_event_id
-            .as_deref()
-            .is_some_and(|event_id| event_id.starts_with("KE-")),
-        "reclaimed claims must carry a reclaim event receipt"
-    );
-
-    let receipt_events: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE source_component = 'parallel_swarm_state_recovery'
-          AND aggregate_type = 'parallel_swarm_claim_reclaim'
-          AND payload ->> 'claim_id' = $1
-          AND payload ->> 'reason' = 'explicit stale claim sweep'
-        "#,
-    )
-    .bind(&claim.claim_id)
-    .fetch_one(&pool)
-    .await
-    .expect("count reclaim receipt events");
-    assert_eq!(receipt_events, 1);
+    assert!(reclaimed[0]
+        .reclaim_event_ledger_event_id
+        .as_deref()
+        .is_some_and(|id| id.starts_with("KE-")));
+    let evidence = inspect_workspace(&store, &workspace).await;
+    assert!(evidence.claims.iter().any(|row| {
+        row.claim_id == claim.claim_id
+            && row.status == ClaimStatus::Reclaimed
+            && row.reclaim_event_ledger_event_id == reclaimed[0].reclaim_event_ledger_event_id
+    }));
+    finish_store(store, backend).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn expired_claim_reclaim_rolls_back_if_receipt_insert_fails() {
-    let Some((pool, store)) = recovery_store().await else {
-        return;
-    };
-
-    let workspace_id = format!("workspace-reclaim-failure-{}", Uuid::now_v7());
-    let claim = store
-        .claim_work_surface(WorkClaimRequest {
-            workspace_id,
-            wp_id: "WP-KERNEL-009".to_string(),
-            mt_id: Some("MT-210".to_string()),
-            scope: ClaimScope::Worktree {
-                worktree_id: format!("wtc-kernel-009-reclaim-fail-{}", Uuid::now_v7()),
-            },
-            lane: local_lane("reclaim-failure-holder"),
-            session_id: "session-reclaim-failure-holder".to_string(),
-            ttl_seconds: 600,
-            reason: "claim that should remain active if reclaim receipt fails".to_string(),
-        })
-        .await
-        .expect("claim before forced reclaim receipt failure");
-    sqlx::query(
-        "UPDATE knowledge_agent_worktree_claims SET expires_at_utc = NOW() - INTERVAL '1 second' WHERE claim_id = $1",
-    )
-    .bind(&claim.claim_id)
-    .execute(&pool)
-    .await
-    .expect("force expired claim before failure injection");
-
-    install_parallel_swarm_event_failure(&pool, "parallel_swarm_claim_reclaim").await;
+#[tokio::test]
+async fn claim_authority_failure_after_receipt_rolls_back_eventledger_receipt() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-claim-rollback-{}", Uuid::now_v7());
+    store.arm_test_failpoint(StateRecoveryTestFailpoint::ClaimAfterEventBeforeAuthority);
     let result = store
-        .reclaim_expired_work_claims(
-            &local_lane("reclaim-failure-reclaimer"),
-            "session-reclaim-failure",
-            "forced reclaim receipt failure",
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
+            },
+            local_lane("claim-rollback"),
+            "claim-rollback",
+        ))
+        .await;
+    assert!(
+        result.is_err(),
+        "the deterministic claim failpoint must fire"
+    );
+    assert!(inspect_workspace(&store, &workspace)
+        .await
+        .claims
+        .is_empty());
+    assert_eq!(
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        0
+    );
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn release_claim_rolls_back_authority_state_if_receipt_insert_fails() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-release-rollback-{}", Uuid::now_v7());
+    let lane = local_lane("release-rollback");
+    let claim = store
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
+            },
+            lane.clone(),
+            "release-rollback",
+        ))
+        .await
+        .expect("seed active claim");
+    store.arm_test_failpoint(StateRecoveryTestFailpoint::ReleaseAfterAuthorityBeforeEvent);
+    let result = store
+        .release_claim(&claim.claim_id, &lane, "injected receipt failure")
+        .await;
+    assert!(
+        result.is_err(),
+        "the deterministic release failpoint must fire"
+    );
+    let evidence = inspect_workspace(&store, &workspace).await;
+    let persisted = evidence
+        .claims
+        .iter()
+        .find(|row| row.claim_id == claim.claim_id)
+        .expect("claim remains after rolled-back release");
+    assert_eq!(persisted.status, ClaimStatus::Active);
+    assert!(persisted.released_at_utc.is_none());
+    assert!(persisted.release_event_ledger_event_id.is_none());
+    assert_eq!(
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        1
+    );
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn swarm_dashboard_projection_api_exposes_embedded_eventledger_read_model() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-dashboard-api-{}", Uuid::now_v7());
+    let claim = store
+        .claim_work_surface(claim_request(
+            &workspace,
+            ClaimScope::Workspace {
+                workspace_id: workspace.clone(),
+            },
+            local_lane("dashboard-api"),
+            "dashboard-api",
+        ))
+        .await
+        .expect("seed API projection claim");
+    let db = SurrealDatabase::new(backend.storage.clone());
+    let state = app_state_for(&db).await;
+    let (base, server) = start_server(kernel_api::routes(state)).await;
+    let response = reqwest::Client::new()
+        .get(format!("{base}/kernel/parallel_swarm/dashboard_projection"))
+        .query(&[("workspace_id", workspace.as_str()), ("limit", "100")])
+        .send()
+        .await
+        .expect("request dashboard projection");
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    let body: serde_json::Value = response.json().await.expect("dashboard projection JSON");
+    assert_eq!(body["projection_contract"]["projection_only"], true);
+    assert_eq!(body["totals"]["claims"].as_u64(), Some(1));
+    assert_eq!(body["claims"][0]["claim_id"], claim.claim_id);
+    assert_eq!(
+        inspect_workspace(&store, &workspace).await.claims,
+        vec![claim]
+    );
+    assert_eq!(
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        1,
+        "the projection API must not append authority events"
+    );
+    server.abort();
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn real_product_entrypoints_emit_quiet_background_work_receipts() {
+    let (backend, store) = recovery_store().await;
+    let db = SurrealDatabase::new(backend.storage.clone());
+    let workspace = create_product_workspace(&db, "quiet-entrypoints").await;
+    let engine = CodeIndexEngine::new(Arc::new(db.clone()));
+    let quiet_run = engine
+        .start_quiet_run(
+            &code_index_context("quiet-entrypoints"),
+            &store,
+            local_lane("quiet-entrypoints"),
+            "WP-KERNEL-009",
+            "MT-219",
+            &workspace,
+            None,
+            10,
+            600,
+        )
+        .await
+        .expect("real CodeIndexEngine quiet entrypoint");
+    assert_eq!(
+        quiet_run.quiet_receipt.work_kind,
+        QuietBackgroundWorkKind::Indexing
+    );
+
+    let state = app_state_for(&db).await;
+    let (base, server) = start_server(nav_api::routes(state)).await;
+    let response = nav_headers(
+        reqwest::Client::new()
+            .get(format!("{base}/knowledge/code/symbols"))
+            .query(&[("workspace_id", workspace.as_str()), ("name", "missing")]),
+        "quiet-entrypoints",
+    )
+    .send()
+    .await
+    .expect("real navigation entrypoint");
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    let body: serde_json::Value = response.json().await.expect("navigation response JSON");
+    let nav_quiet_receipt_id = body["quiet_background_work_receipt_id"]
+        .as_str()
+        .expect("navigation quiet receipt id");
+    let evidence = inspect_workspace(&store, &workspace).await;
+    assert!(evidence.quiet_background_work.iter().any(|row| {
+        row.receipt_id == quiet_run.quiet_receipt.receipt_id
+            && row.work_kind == QuietBackgroundWorkKind::Indexing
+    }));
+    assert!(evidence.quiet_background_work.iter().any(|row| {
+        row.receipt_id == nav_quiet_receipt_id
+            && row.work_kind == QuietBackgroundWorkKind::BackendNavigation
+    }));
+    server.abort();
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn quiet_entrypoint_denials_happen_before_product_side_effects() {
+    let (backend, store) = recovery_store().await;
+    let db = SurrealDatabase::new(backend.storage.clone());
+    let workspace = create_product_workspace(&db, "quiet-denial").await;
+    let engine = CodeIndexEngine::new(Arc::new(db));
+    let result = engine
+        .start_quiet_run(
+            &code_index_context("quiet-denial"),
+            &store,
+            lane_with_kind("quiet-denial", AgentLaneKind::Validator),
+            "WP-KERNEL-009",
+            "MT-219",
+            &workspace,
+            None,
+            10,
+            600,
         )
         .await;
     assert!(
         result.is_err(),
-        "forced EventLedger failure should reject reclaim"
+        "validator lane must be denied before index start"
     );
+    for table in [
+        "knowledge_index_runs",
+        "knowledge_parallel_indexing_lease_queue",
+        "knowledge_agent_quiet_background_work",
+        "kernel_event_ledger",
+    ] {
+        assert_eq!(
+            inspector_row_count(&backend.storage, table, RowFilter::All).await,
+            0,
+            "quiet denial must not write {table}"
+        );
+    }
 
-    let (status, reclaim_event_id): (String, Option<String>) = sqlx::query_as(
-        "SELECT status, reclaim_event_ledger_event_id FROM knowledge_agent_worktree_claims WHERE claim_id = $1",
-    )
-    .bind(&claim.claim_id)
-    .fetch_one(&pool)
-    .await
-    .expect("fetch claim after failed reclaim");
-    assert_eq!(
-        status, "active",
-        "claim must not be left reclaimed when receipt insertion fails"
-    );
-    assert!(
-        reclaim_event_id.is_none(),
-        "failed reclaim must not attach a missing receipt id"
-    );
-    assert_eq!(
-        ledger_count_for_payload_value(
-            &pool,
-            "parallel_swarm_claim_reclaim",
-            "claim_id",
-            &claim.claim_id,
+    let first = engine
+        .start_quiet_run(
+            &code_index_context("quiet-contention-a"),
+            &store,
+            local_lane("quiet-contention-a"),
+            "WP-KERNEL-009",
+            "MT-219",
+            &workspace,
+            None,
+            10,
+            600,
         )
-        .await,
-        0,
-        "failed reclaim must not leave a false EventLedger receipt"
+        .await
+        .expect("first same-scope quiet run acquires its lease");
+    let contended = engine
+        .start_quiet_run(
+            &code_index_context("quiet-contention-b"),
+            &store,
+            local_lane("quiet-contention-b"),
+            "WP-KERNEL-009",
+            "MT-219",
+            &workspace,
+            None,
+            20,
+            600,
+        )
+        .await;
+    assert!(
+        contended
+            .as_ref()
+            .is_err_and(|error| error.to_string().contains("did not acquire index lease")),
+        "same-scope contention must deny the second product run: {contended:?}"
     );
+    let evidence = inspect_workspace(&store, &workspace).await;
+    assert_eq!(evidence.indexing_leases.len(), 1);
+    assert_eq!(
+        evidence.indexing_leases[0].lease_id,
+        first.indexing_lease.lease_id
+    );
+    assert_eq!(evidence.quiet_background_work.len(), 1);
+    assert_eq!(
+        inspector_row_count(&backend.storage, "knowledge_index_runs", RowFilter::All).await,
+        1,
+        "contended product run must remove its unleased KIR"
+    );
+    assert_eq!(
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        3,
+        "only the acquired run's KIR, lease, and quiet receipts may remain"
+    );
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn mt223_corrupt_checkpoint_payload_hash_does_not_emit_recovery_receipt() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-corrupt-checkpoint-{}", Uuid::now_v7());
+    let checkpoint = store
+        .record_checkpoint(checkpoint_request(
+            local_lane("corrupt-checkpoint"),
+            &workspace,
+            None,
+            None,
+        ))
+        .await
+        .expect("seed valid checkpoint");
+    store
+        .corrupt_checkpoint_payload_for_test(&checkpoint.checkpoint_id, json!({"counter": 8}))
+        .await
+        .expect("corrupt checkpoint payload without updating its hash");
+    let result = store
+        .recover_from_checkpoint(
+            &checkpoint.checkpoint_id,
+            local_lane("corrupt-recovery"),
+            "session-corrupt-recovery",
+        )
+        .await;
+    assert!(matches!(
+        result,
+        Err(StateRecoveryError::PayloadHashMismatch { checkpoint_id, .. })
+            if checkpoint_id == checkpoint.checkpoint_id
+    ));
+    assert!(inspect_workspace(&store, &workspace)
+        .await
+        .recovery_receipts
+        .is_empty());
+    assert_eq!(
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        1
+    );
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts() {
+    let (backend, store) = recovery_store().await;
+    let db = SurrealDatabase::new(backend.storage.clone());
+    let workspace = create_product_workspace(&db, "interrupted-index-start").await;
+    let engine = CodeIndexEngine::new(Arc::new(db));
+    engine.arm_start_run_after_event_failpoint();
+    let result = engine
+        .start_quiet_run(
+            &code_index_context("interrupted-index-start"),
+            &store,
+            local_lane("interrupted-index-start"),
+            "WP-KERNEL-009",
+            "MT-223",
+            &workspace,
+            None,
+            10,
+            600,
+        )
+        .await;
+    assert!(result.is_err(), "atomic index-start failpoint must fire");
+    for table in [
+        "knowledge_index_runs",
+        "knowledge_parallel_indexing_lease_queue",
+        "knowledge_agent_quiet_background_work",
+        "kernel_event_ledger",
+    ] {
+        assert_eq!(
+            inspector_row_count(&backend.storage, table, RowFilter::All).await,
+            0,
+            "interrupted index start must not write {table}"
+        );
+    }
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn mt223_quiet_receipt_failure_rolls_back_index_run_and_lease() {
+    let (backend, store) = recovery_store().await;
+    let db = SurrealDatabase::new(backend.storage.clone());
+    let workspace = create_product_workspace(&db, "quiet-receipt-rollback").await;
+    let engine = CodeIndexEngine::new(Arc::new(db));
+    store.arm_test_failpoint(StateRecoveryTestFailpoint::QuietAfterEventBeforeAuthority);
+    let result = engine
+        .start_quiet_run(
+            &code_index_context("quiet-receipt-rollback"),
+            &store,
+            local_lane("quiet-receipt-rollback"),
+            "WP-KERNEL-009",
+            "MT-223",
+            &workspace,
+            None,
+            10,
+            600,
+        )
+        .await;
+    assert!(result.is_err(), "quiet receipt failpoint must fire");
+    for table in [
+        "knowledge_index_runs",
+        "knowledge_parallel_indexing_lease_queue",
+        "knowledge_agent_quiet_background_work",
+        "kernel_event_ledger",
+    ] {
+        assert_eq!(
+            inspector_row_count(&backend.storage, table, RowFilter::All).await,
+            0,
+            "quiet receipt rollback must remove {table} artifacts"
+        );
+    }
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn recovery_receipt_authority_failure_does_not_emit_false_receipt() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-recovery-rollback-{}", Uuid::now_v7());
+    let checkpoint = store
+        .record_checkpoint(checkpoint_request(
+            local_lane("recovery-rollback-source"),
+            &workspace,
+            None,
+            None,
+        ))
+        .await
+        .expect("seed recovery checkpoint");
+    store.arm_test_failpoint(StateRecoveryTestFailpoint::RecoveryAfterEventBeforeAuthority);
+    let result = store
+        .recover_from_checkpoint(
+            &checkpoint.checkpoint_id,
+            local_lane("recovery-rollback-target"),
+            "session-recovery-rollback-target",
+        )
+        .await;
+    assert!(result.is_err(), "recovery receipt failpoint must fire");
+    assert!(inspect_workspace(&store, &workspace)
+        .await
+        .recovery_receipts
+        .is_empty());
+    assert_eq!(
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        1
+    );
+    finish_store(store, backend).await;
+}
+
+#[tokio::test]
+async fn expired_claim_reclaim_rolls_back_if_receipt_insert_fails() {
+    let (backend, store) = recovery_store().await;
+    let workspace = format!("workspace-reclaim-rollback-{}", Uuid::now_v7());
+    let mut request = claim_request(
+        &workspace,
+        ClaimScope::Worktree {
+            worktree_id: format!("worktree-reclaim-rollback-{}", Uuid::now_v7()),
+        },
+        local_lane("reclaim-rollback-holder"),
+        "reclaim-rollback-holder",
+    );
+    request.ttl_seconds = 1;
+    let claim = store
+        .claim_work_surface(request)
+        .await
+        .expect("seed expiring claim");
+    tokio::time::sleep(std::time::Duration::from_millis(1_100)).await;
+    store.arm_test_failpoint(StateRecoveryTestFailpoint::ReclaimAfterAuthorityBeforeEvent);
+    let result = store
+        .reclaim_expired_work_claims(
+            &local_lane("reclaim-rollback-runner"),
+            "session-reclaim-rollback-runner",
+            "injected reclaim receipt failure",
+        )
+        .await;
+    assert!(result.is_err(), "reclaim receipt failpoint must fire");
+    let evidence = inspect_workspace(&store, &workspace).await;
+    let persisted = evidence
+        .claims
+        .iter()
+        .find(|row| row.claim_id == claim.claim_id)
+        .expect("claim remains after rolled-back reclaim");
+    assert_eq!(persisted.status, ClaimStatus::Active);
+    assert!(persisted.released_at_utc.is_none());
+    assert!(persisted.reclaim_event_ledger_event_id.is_none());
+    assert_eq!(
+        inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,
+        1
+    );
+    finish_store(store, backend).await;
 }

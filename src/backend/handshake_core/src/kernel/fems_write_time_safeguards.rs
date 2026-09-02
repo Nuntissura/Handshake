@@ -6,7 +6,7 @@ pub const FOLDED_FEMS_WRITE_TIME_SAFEGUARDS_STUB_ID: &str = "WP-1-FEMS-Write-Tim
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FemsResetStoragePrimitive {
-    Postgres,
+    EmbeddedSurrealDb,
     EventLedger,
     CrdtSearchIndex,
     LegacyLocalStore,
@@ -354,7 +354,7 @@ fn validate_config(
     }
     if !config
         .storage_primitives
-        .contains(&FemsResetStoragePrimitive::Postgres)
+        .contains(&FemsResetStoragePrimitive::EmbeddedSurrealDb)
         || !config
             .storage_primitives
             .contains(&FemsResetStoragePrimitive::EventLedger)
@@ -371,7 +371,7 @@ fn validate_config(
         errors.push(FemsWriteTimeSafeguardValidationError {
             field: "config.storage_primitives",
             message:
-                "write-time safeguards must use Postgres/EventLedger/CRDT search, not legacy local/FTS authority",
+                "write-time safeguards must use embedded SurrealDB/EventLedger/CRDT search, not legacy local/FTS authority",
         });
     }
 }

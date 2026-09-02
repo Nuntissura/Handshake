@@ -4,20 +4,52 @@ use std::{
 };
 
 use async_trait::async_trait;
-use sqlx::{postgres::PgPoolOptions, Row};
 use tokio::sync::Notify;
 
 use handshake_core::{
     kernel::KernelEventType,
     process_ledger::{
-        is_degraded, LedgerEvent, LedgerEventKind, LedgerOverflowEvent, PostgresProcessLedgerStore,
-        ProcessEngineKind, ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore,
-        ProcessLedgerWriter, ProcessStart, ProcessStop, WriterConfig,
-        PROCESS_LEDGER_DEFAULT_CHANNEL_CAPACITY, PROCESS_LEDGER_MIGRATION_SQL,
-        PROCESS_LEDGER_RING_CAPACITY, PROCESS_LEDGER_TABLE_NAME, PROCESS_START_INSERT_SQL,
-        PROCESS_STOP_UPSERT_SQL,
+        is_degraded, LedgerEvent, LedgerEventKind, LedgerOverflowEvent, ProcessEngineKind,
+        ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore, ProcessLedgerWriter,
+        ProcessStart, ProcessStop, SurrealProcessLedgerStore, WriterConfig,
+        PROCESS_LEDGER_DEFAULT_CHANNEL_CAPACITY, PROCESS_LEDGER_RING_CAPACITY,
+        PROCESS_LEDGER_TABLE_NAME,
+    },
+    storage::{
+        surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig},
+        tests::{embedded_test_backend, EmbeddedTestBackend},
     },
 };
+
+async fn reopen_embedded_store(backend: &EmbeddedTestBackend) -> SurrealStorage {
+    backend
+        .storage
+        .shutdown()
+        .await
+        .expect("close original embedded process ledger store");
+    let reopened = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&backend.data_dir)
+            .expect("configure reopened embedded process ledger store"),
+    )
+    .await
+    .expect("reopen embedded process ledger store");
+    bootstrap_schema(&reopened)
+        .await
+        .expect("bootstrap reopened process ledger schema");
+    reopened
+}
+
+async fn close_reopened_and_remove(reopened: SurrealStorage, backend: EmbeddedTestBackend) {
+    reopened
+        .shutdown()
+        .await
+        .expect("close reopened process ledger store");
+    drop(reopened);
+    backend
+        .close_and_remove()
+        .await
+        .expect("remove embedded process ledger store");
+}
 
 const PROCESS_LEDGER_SOURCE_FILES: &[&str] = &[
     "src/process_ledger/mod.rs",
@@ -25,8 +57,8 @@ const PROCESS_LEDGER_SOURCE_FILES: &[&str] = &[
     "src/process_ledger/writer.rs",
 ];
 
-#[test]
-fn postgres_table_contract_declares_process_lifecycle_primitive() {
+#[tokio::test]
+async fn embedded_process_table_contract_declares_process_lifecycle_primitive() {
     assert_eq!(PROCESS_LEDGER_TABLE_NAME, "kernel_process_lifecycle");
     assert_eq!(
         PROCESS_LEDGER_DEFAULT_CHANNEL_CAPACITY,
@@ -34,43 +66,32 @@ fn postgres_table_contract_declares_process_lifecycle_primitive() {
     );
     assert_eq!(PROCESS_LEDGER_DEFAULT_CHANNEL_CAPACITY, 10_000);
 
-    let ddl = PROCESS_LEDGER_MIGRATION_SQL;
-    assert!(ddl.contains("CREATE TABLE IF NOT EXISTS kernel_process_lifecycle"));
-    assert!(ddl.contains("process_uuid UUID PRIMARY KEY"));
-    assert!(ddl.contains("process_id UUID GENERATED ALWAYS AS (process_uuid) STORED"));
-    assert!(ddl.contains("os_pid BIGINT"));
-    assert!(ddl.contains("adapter_id TEXT GENERATED ALWAYS AS (sandbox_adapter_id) STORED"));
-    assert!(ddl.contains("sandbox_internal_id TEXT"));
-    assert!(ddl.contains("started_at TIMESTAMPTZ NOT NULL"));
-    assert!(ddl.contains("spawned_at_utc TIMESTAMPTZ GENERATED ALWAYS AS (started_at) STORED"));
-    assert!(ddl.contains("stopped_at TIMESTAMPTZ"));
-    assert!(ddl.contains("stop_reason TEXT"));
-    assert!(ddl.contains("sandbox_capabilities_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb"));
-    assert!(ddl.contains("metadata_jsonb JSONB NOT NULL DEFAULT '{}'::jsonb"));
-    assert!(ddl.contains("idx_kernel_process_lifecycle_parent_session_started"));
-    assert!(ddl.contains("idx_kernel_process_lifecycle_engine_started"));
-    assert!(ddl.contains("idx_kernel_process_lifecycle_os_pid"));
-    assert!(ddl.contains("idx_kernel_process_lifecycle_adapter_spawned"));
-    assert!(ddl.contains("idx_kernel_process_lifecycle_wp_spawned"));
-
-    for engine in [
-        "llamacpp",
-        "candle",
-        "abliteration_tool",
-        "sandbox_container",
-        "mechanical_job",
-        "asr_worker",
-        "comfyui_worker",
-        "plugin_process",
-        "helper_subprocess",
-        "external_compat",
-        "webview2_cdp",
-        "official_cli_bridge",
+    let backend = embedded_test_backend()
+        .await
+        .expect("open embedded backend");
+    let inspector = backend.storage.test_inspector();
+    let table = inspector
+        .table_selector(PROCESS_LEDGER_TABLE_NAME)
+        .await
+        .expect("process lifecycle table is in the embedded schema");
+    for field in [
+        "process_uuid",
+        "process_id",
+        "engine_kind",
+        "started_at",
+        "stopped_at",
+        "stop_reason",
+        "owner_role",
+        "metadata",
     ] {
-        assert!(ddl.contains(engine), "missing engine kind {engine}");
+        table
+            .field(field)
+            .expect("required process lifecycle field");
     }
-
-    assert!(!ddl.to_ascii_lowercase().contains("sqlite"));
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 #[test]
@@ -95,10 +116,6 @@ fn process_uuid_uses_uuid_v7_and_stop_upsert_recovers_missing_start() {
     assert_eq!(stop.os_pid, start.os_pid);
     assert_eq!(stop.engine_kind, start.engine_kind);
     assert_eq!(stop.owner_role, start.owner_role);
-
-    assert!(PROCESS_START_INSERT_SQL.contains("ON CONFLICT (process_uuid) DO UPDATE"));
-    assert!(PROCESS_STOP_UPSERT_SQL.contains("ON CONFLICT (process_uuid) DO UPDATE"));
-    assert!(PROCESS_STOP_UPSERT_SQL.contains("started_at"));
 }
 
 #[tokio::test]
@@ -203,7 +220,7 @@ fn overflow_payload_converts_to_typed_kernel_event() {
 }
 
 #[test]
-fn new_process_ledger_sources_do_not_add_sqlite_paths() {
+fn process_ledger_sources_keep_forbidden_backend_tokens_absent() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     for relative_path in PROCESS_LEDGER_SOURCE_FILES {
         let path = std::path::Path::new(manifest_dir).join(relative_path);
@@ -217,17 +234,11 @@ fn new_process_ledger_sources_do_not_add_sqlite_paths() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
-async fn process_ledger_persists_start_and_stop_in_postgres(
-) -> Result<(), Box<dyn std::error::Error>> {
-    let postgres_url = handshake_core::storage::tests::postgres_test_base_url().await?;
-    let pool = PgPoolOptions::new()
-        .max_connections(1)
-        .connect(&postgres_url)
-        .await?;
-    let store = PostgresProcessLedgerStore::new(pool.clone());
-    store.apply_migration().await?;
-
+async fn process_ledger_persists_start_and_stop_in_embedded_store() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open embedded backend");
+    let store = SurrealProcessLedgerStore::new(backend.storage.clone());
     let start = start_event("kernel_builder", "WP-KERNEL-004");
     let stop = ProcessStop::from_start(&start, Some(0));
     store
@@ -235,24 +246,33 @@ async fn process_ledger_persists_start_and_stop_in_postgres(
             LedgerEvent::Start(start.clone()),
             LedgerEvent::Stop(stop),
         ])
-        .await?;
+        .await
+        .expect("write process lifecycle batch");
 
-    let row = sqlx::query(
-        r#"
-        SELECT engine_kind, stopped_at IS NOT NULL AS has_stop
-        FROM kernel_process_lifecycle
-        WHERE process_uuid = $1::uuid
-        "#,
-    )
-    .bind(start.process_uuid.to_string())
-    .fetch_one(&pool)
-    .await?;
-
-    let engine_kind: String = row.get("engine_kind");
-    let has_stop: bool = row.get("has_stop");
-    assert_eq!(engine_kind, ProcessEngineKind::HelperSubprocess.as_str());
-    assert!(has_stop);
-    Ok(())
+    drop(store);
+    let reopened = reopen_embedded_store(&backend).await;
+    let inspector = reopened.test_inspector();
+    let table = inspector
+        .table_selector(PROCESS_LEDGER_TABLE_NAME)
+        .await
+        .expect("process lifecycle table");
+    let engine_kind = table.field("engine_kind").expect("engine field");
+    let stopped_at = table.field("stopped_at").expect("stop field");
+    let rows = inspector
+        .project(
+            &table,
+            &[engine_kind, stopped_at],
+            handshake_core::storage::surreal::RowFilter::IdEquals(start.process_uuid.to_string()),
+        )
+        .await
+        .expect("read embedded process lifecycle row");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(
+        rows[0].values["engine_kind"],
+        serde_json::json!(ProcessEngineKind::HelperSubprocess.as_str())
+    );
+    assert!(!rows[0].values["stopped_at"].is_null());
+    close_reopened_and_remove(reopened, backend).await;
 }
 
 fn start_event(owner_role: &str, owner_wp: &str) -> ProcessStart {

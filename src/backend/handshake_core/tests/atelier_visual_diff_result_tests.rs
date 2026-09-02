@@ -1,4 +1,4 @@
-//! WP-KERNEL-005 MT-157 (Pixel Versus Structural Comparison) live PostgreSQL
+//! WP-KERNEL-005 MT-157 (Pixel Versus Structural Comparison) embedded SurrealDB
 //! proof.
 //!
 //! Integration validation v2 failed MT-157 because the comparison strategy
@@ -10,12 +10,11 @@
 //! three strategy variants (`PixelDiff` / `StructuralDom` / `Manual`), the
 //! computed result fields persist in `kernel_visual_diff_result` (migration
 //! 0124) against their request through the real `AtelierStore`, are RE-READ
-//! from PostgreSQL, and the `kernel.visual_diff.result_recorded` EventLedger
+//! from the embedded store, and the `kernel.visual_diff.result_recorded` EventLedger
 //! family is asserted on the request aggregate.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use chrono::Utc;
 use handshake_core::atelier::AtelierStore;
 use handshake_core::kernel::visual_debugging_loop::{
@@ -27,28 +26,19 @@ use handshake_core::kernel::visual_diff_baseline::{
     VisualDiffReference, KERNEL_VISUAL_DIFF_RESULT_SCHEMA,
 };
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
+use handshake_core::storage::Database;
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use uuid::Uuid;
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 fn sha256_token(bytes: &[u8]) -> String {
@@ -110,14 +100,7 @@ async fn baseline_bound_request(
 
 #[tokio::test]
 async fn mt157_pixel_diff_computation_persists_result_fields_and_ledger_event() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt157_pixel_diff_computation_persists_result_fields_and_ledger_event: \
-             PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let surface_id = unique_surface();
     // Real pixel payloads: 1000 bytes, 30 of them flipped in the candidate.
@@ -155,7 +138,7 @@ async fn mt157_pixel_diff_computation_persists_result_fields_and_ledger_event() 
         .expect("persist pixel comparison result");
     assert_eq!(recorded.computation, computation);
 
-    // RE-READ from PostgreSQL: the result fields are durable evidence.
+    // RE-READ from the embedded store: the result fields are durable evidence.
     let results = store
         .list_visual_diff_results_for_request(request_id)
         .await
@@ -188,14 +171,7 @@ async fn mt157_pixel_diff_computation_persists_result_fields_and_ledger_event() 
 
 #[tokio::test]
 async fn mt157_structural_dom_computation_persists_within_limit_pass() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt157_structural_dom_computation_persists_within_limit_pass: \
-             PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, _database) = connected_store_with_ledger(&url).await;
+    let (store, _database, _harness) = connected_store_with_ledger().await;
 
     let surface_id = unique_surface();
     // Real DOM snapshots: one text node differs; the structural limit is 2,
@@ -252,20 +228,12 @@ async fn mt157_structural_dom_computation_persists_within_limit_pass() {
 
 #[tokio::test]
 async fn mt157_manual_mode_persists_manual_review_required_and_rejects_mode_mismatch() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt157_manual_mode_persists_manual_review_required_and_rejects_mode_mismatch: \
-             PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let surface_id = unique_surface();
     let payload: Vec<u8> = (0..128u32).map(|i| (i % 113) as u8).collect();
     let request_id =
-        baseline_bound_request(&store, &surface_id, &payload, VisualComparisonMode::Manual)
-            .await;
+        baseline_bound_request(&store, &surface_id, &payload, VisualComparisonMode::Manual).await;
 
     // The Manual strategy never auto-decides: the computed result parks in
     // ManualReviewRequired until an operator verdict is recorded.
@@ -301,8 +269,7 @@ async fn mt157_manual_mode_persists_manual_review_required_and_rejects_mode_mism
         .expect("list manual result ledger events");
     assert!(
         events.iter().any(|event| {
-            event.payload["event_family"]
-                == json!(kernel_visual_diff_event_family::RESULT_RECORDED)
+            event.payload["event_family"] == json!(kernel_visual_diff_event_family::RESULT_RECORDED)
                 && event.payload["atelier_payload"]["outcome"] == json!("manual_review_required")
         }),
         "manual result must emit EventLedger evidence with the parked outcome"
@@ -329,7 +296,11 @@ async fn mt157_manual_mode_persists_manual_review_required_and_rejects_mode_mism
         .list_visual_diff_results_for_request(request_id)
         .await
         .expect("re-read results after rejected write");
-    assert_eq!(results.len(), 1, "rejected mode-mismatch write must not persist");
+    assert_eq!(
+        results.len(),
+        1,
+        "rejected mode-mismatch write must not persist"
+    );
 
     // Unknown request defense.
     let err = store

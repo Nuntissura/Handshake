@@ -13,6 +13,8 @@ use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+#[cfg(any(test, feature = "surreal-test-support"))]
+use super::SurrealStorage;
 use super::{event_ledger, loom_store, SurrealDataContext, SurrealStorageError};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::block_view_outbox::{self, BlockViewMutationOperation};
@@ -308,6 +310,120 @@ const CREATE_TRANSACTION: &str = "BEGIN TRANSACTION; \
     CREATE $outbox CONTENT $outbox_content; \
     UPDATE $block SET event_ledger_event_id = $mutation_event.record RETURN AFTER; \
     COMMIT TRANSACTION;";
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+impl SurrealStorage {
+    async fn set_block_view_create_failpoint(&self, statement: &'static str) -> StorageResult<()> {
+        self.with_data_operation(move |database| {
+            Box::pin(async move {
+                database.client.query(statement).await?.check()?;
+                Ok(())
+            })
+        })
+        .await
+        .map_err(map_err)
+    }
+
+    pub async fn test_set_block_view_block_create_failpoint(
+        &self,
+        enabled: bool,
+    ) -> StorageResult<()> {
+        self.set_block_view_create_failpoint(if enabled {
+            "DEFINE EVENT OVERWRITE mt141_block_view_block_create_failpoint ON TABLE loom_blocks \
+             WHEN $event = 'CREATE' THEN { THROW 'MT141-BLOCK-VIEW-BLOCK-CREATE'; };"
+        } else {
+            "REMOVE EVENT mt141_block_view_block_create_failpoint ON TABLE loom_blocks;"
+        })
+        .await
+    }
+
+    pub async fn test_set_block_view_search_failpoint(&self, enabled: bool) -> StorageResult<()> {
+        self.set_block_view_create_failpoint(if enabled {
+            "DEFINE EVENT OVERWRITE mt141_block_view_search_failpoint \
+             ON TABLE loom_block_search_index WHEN ($event = 'CREATE' OR $event = 'UPDATE') \
+             THEN { THROW 'MT141-BLOCK-VIEW-SEARCH'; };"
+        } else {
+            "REMOVE EVENT mt141_block_view_search_failpoint ON TABLE loom_block_search_index;"
+        })
+        .await
+    }
+
+    pub async fn test_set_block_view_bridge_receipt_failpoint(
+        &self,
+        enabled: bool,
+    ) -> StorageResult<()> {
+        self.set_block_view_create_failpoint(if enabled {
+            "DEFINE EVENT OVERWRITE mt141_block_view_bridge_receipt_failpoint \
+             ON TABLE kernel_event_ledger WHEN $event = 'CREATE' \
+             AND $after.event_type = 'KNOWLEDGE_LOOM_BLOCK_INDEXED' \
+             THEN { THROW 'MT141-BLOCK-VIEW-BRIDGE-RECEIPT'; };"
+        } else {
+            "REMOVE EVENT mt141_block_view_bridge_receipt_failpoint ON TABLE kernel_event_ledger;"
+        })
+        .await
+    }
+
+    pub async fn test_set_block_view_mutation_receipt_failpoint(
+        &self,
+        enabled: bool,
+    ) -> StorageResult<()> {
+        self.set_block_view_create_failpoint(if enabled {
+            "DEFINE EVENT OVERWRITE mt141_block_view_mutation_receipt_failpoint \
+             ON TABLE kernel_event_ledger WHEN $event = 'CREATE' \
+             AND $after.event_type = 'KNOWLEDGE_LOOM_BLOCK_MUTATED' \
+             THEN { THROW 'MT141-BLOCK-VIEW-MUTATION-RECEIPT'; };"
+        } else {
+            "REMOVE EVENT mt141_block_view_mutation_receipt_failpoint ON TABLE kernel_event_ledger;"
+        })
+        .await
+    }
+
+    pub async fn test_set_block_view_entity_failpoint(&self, enabled: bool) -> StorageResult<()> {
+        self.set_block_view_create_failpoint(if enabled {
+            "DEFINE EVENT OVERWRITE mt141_block_view_entity_failpoint ON TABLE knowledge_entities \
+             WHEN $event = 'CREATE' THEN { THROW 'MT141-BLOCK-VIEW-ENTITY'; };"
+        } else {
+            "REMOVE EVENT mt141_block_view_entity_failpoint ON TABLE knowledge_entities;"
+        })
+        .await
+    }
+
+    pub async fn test_set_block_view_bridge_failpoint(&self, enabled: bool) -> StorageResult<()> {
+        self.set_block_view_create_failpoint(if enabled {
+            "DEFINE EVENT OVERWRITE mt141_block_view_bridge_failpoint \
+             ON TABLE loom_block_knowledge_bridge WHEN $event = 'CREATE' \
+             THEN { THROW 'MT141-BLOCK-VIEW-BRIDGE'; };"
+        } else {
+            "REMOVE EVENT mt141_block_view_bridge_failpoint ON TABLE loom_block_knowledge_bridge;"
+        })
+        .await
+    }
+
+    pub async fn test_set_block_view_outbox_failpoint(&self, enabled: bool) -> StorageResult<()> {
+        self.set_block_view_create_failpoint(if enabled {
+            "DEFINE EVENT OVERWRITE mt141_block_view_outbox_failpoint \
+             ON TABLE loom_block_view_fr_outbox WHEN $event = 'CREATE' \
+             THEN { THROW 'MT141-BLOCK-VIEW-OUTBOX'; };"
+        } else {
+            "REMOVE EVENT mt141_block_view_outbox_failpoint ON TABLE loom_block_view_fr_outbox;"
+        })
+        .await
+    }
+
+    pub async fn test_set_block_view_receipt_link_failpoint(
+        &self,
+        enabled: bool,
+    ) -> StorageResult<()> {
+        self.set_block_view_create_failpoint(if enabled {
+            "DEFINE EVENT OVERWRITE mt141_block_view_receipt_link_failpoint ON TABLE loom_blocks \
+             WHEN $event = 'UPDATE' AND $after.content_type = 'view_def' \
+             THEN { THROW 'MT141-BLOCK-VIEW-RECEIPT-LINK'; };"
+        } else {
+            "REMOVE EVENT mt141_block_view_receipt_link_failpoint ON TABLE loom_blocks;"
+        })
+        .await
+    }
+}
 
 pub(crate) async fn create_block_view(
     db: &SurrealDataContext<'_>,

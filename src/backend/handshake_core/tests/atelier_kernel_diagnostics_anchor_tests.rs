@@ -1,19 +1,18 @@
 //! WP-KERNEL-005 MT-133 (Diagnostics Product Anchor Verification) live
-//! PostgreSQL round-trip proof.
+//! embedded SurrealDB round-trip proof.
 //!
 //! No mocks: the test verifies the kernel-diagnostics anchor matrix against
 //! the REAL product source tree (sessions, command catalog, Workflow Engine,
 //! DCC, Locus, Flight Recorder, visual capture, build diagnostics), records it
-//! through the real `AtelierStore` into live PostgreSQL, RE-READS it, and
+//! through the real `AtelierStore` into embedded SurrealDB, RE-READS it, and
 //! asserts the canonical `atelier.source_evidence.matrix_recorded` EventLedger
 //! family. A negative path proves the verification logic is real: against a
 //! source tree without the product anchors, every anchor downgrades to
 //! `BLOCKED_MISSING_ANCHOR` and the recorded EventLedger payload carries the
 //! blocked count.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::source_evidence::{
     source_evidence_event_family, AnchorVerificationStatus, SourceMaturityStatus,
 };
@@ -23,28 +22,19 @@ use handshake_core::diagnostics::product_anchor_matrix::{
     KERNEL_DIAGNOSTIC_SURFACES,
 };
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use uuid::Uuid;
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 /// The repository root that contains `src/backend/handshake_core` and `app`.
@@ -58,14 +48,7 @@ fn repo_root() -> PathBuf {
 
 #[tokio::test]
 async fn mt133_kernel_diagnostics_anchor_matrix_verifies_all_contract_surfaces() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt133_kernel_diagnostics_anchor_matrix_verifies_all_contract_surfaces: \
-             PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let root = repo_root();
     assert!(
@@ -128,7 +111,7 @@ async fn mt133_kernel_diagnostics_anchor_matrix_verifies_all_contract_surfaces()
         }
     }
 
-    // Persist through the real store, then RE-READ from PostgreSQL.
+    // Persist through the real store, then RE-READ from the embedded store.
     let recorded = store
         .record_source_evidence_matrix(&matrix)
         .await
@@ -205,14 +188,7 @@ async fn mt133_kernel_diagnostics_anchor_matrix_verifies_all_contract_surfaces()
 
 #[tokio::test]
 async fn mt133_verification_records_blocked_anchors_for_missing_source_tree() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt133_verification_records_blocked_anchors_for_missing_source_tree: \
-             PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     // A real (empty) directory that does not contain the product anchors: the
     // verification logic must downgrade every anchor instead of trusting the
@@ -276,8 +252,7 @@ async fn mt133_verification_records_blocked_anchors_for_missing_source_tree() {
                     == source_evidence_event_family::SOURCE_EVIDENCE_MATRIX_RECORDED
                 && event.payload["atelier_payload"]["blocked_missing_anchor_count"]
                     == serde_json::json!(KERNEL_DIAGNOSTIC_SURFACES.len())
-                && event.payload["atelier_payload"]["verified_anchor_count"]
-                    == serde_json::json!(0)
+                && event.payload["atelier_payload"]["verified_anchor_count"] == serde_json::json!(0)
         }),
         "blocked MT-133 matrix must emit EventLedger evidence with the blocked anchor count"
     );

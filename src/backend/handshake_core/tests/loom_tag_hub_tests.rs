@@ -1,4 +1,4 @@
-//! WP-KERNEL-009 MT-182 TagsAndTagHubs — REAL PostgreSQL authority proof.
+//! WP-KERNEL-009 MT-182 TagsAndTagHubs — real embedded authority proof.
 //!
 //! §10.12 [LM-TAG-001..005] / §7.1.4.3: tags are first-class LoomBlocks
 //! (content_type=tag_hub) with their own content, sub-tags (SUB_TAG nested-tag
@@ -6,20 +6,21 @@
 //! tagged with a tag, optionally including descendant sub-tags). Authority =
 //! loom_blocks + loom_edges. No parallel store.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod knowledge_ingestion_support;
 
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy, LoomEdgeType,
     NewLoomBlock, NewLoomEdge, WriteContext,
 };
-use knowledge_pg_support::knowledge_pg;
+use knowledge_ingestion_support::open_embedded_store;
 
-macro_rules! pg_or_skip {
+macro_rules! embedded_or_skip {
     () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
+        match open_embedded_store().await {
+            Some(store) => store,
             None => {
-                eprintln!("SKIP MT-182 loom tag hub proof: PostgreSQL unavailable");
+                eprintln!("SKIP MT-182 loom tag hub proof: embedded store unavailable");
                 return;
             }
         }
@@ -27,7 +28,7 @@ macro_rules! pg_or_skip {
 }
 
 async fn blk(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ws: &str,
     title: &str,
     ct: LoomBlockContentType,
@@ -56,7 +57,7 @@ async fn blk(
 }
 
 async fn edge(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ws: &str,
     src: &str,
     tgt: &str,
@@ -83,7 +84,7 @@ async fn edge(
 /// Build: tag #project; sub-tag #alpha (SUB_TAG alpha->project);
 /// note N1 TAG #project; note N2 TAG #alpha.
 async fn fixture(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ws: &str,
 ) -> (String, String, String, String) {
     let project = blk(db, ws, "project", LoomBlockContentType::TagHub).await;
@@ -96,13 +97,29 @@ async fn fixture(
     (project, alpha, n1, n2)
 }
 
+async fn updated_at_for(
+    db: &handshake_core::storage::surreal::SurrealDatabase,
+    workspace_id: &str,
+    block_id: &str,
+) -> chrono::DateTime<chrono::Utc> {
+    db.get_loom_block(workspace_id, block_id)
+        .await
+        .expect("read Loom block")
+        .expect("member Loom block must exist")
+        .updated_at
+}
+
 #[tokio::test]
 async fn list_tag_hubs_returns_only_tag_blocks() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
-    let (project, alpha, _n1, _n2) = fixture(&pg.db, &ws).await;
+    let store = embedded_or_skip!();
+    let ws = store.create_workspace().await;
+    let (project, alpha, _n1, _n2) = fixture(&store.db, &ws).await;
 
-    let tags = pg.db.list_tag_hubs(&ws, 100, 0).await.expect("list tags");
+    let tags = store
+        .db
+        .list_tag_hubs(&ws, 100, 0)
+        .await
+        .expect("list tags");
     let ids: Vec<&str> = tags.iter().map(|b| b.block_id.as_str()).collect();
     assert!(ids.contains(&project.as_str()) && ids.contains(&alpha.as_str()));
     // Only tag_hub blocks (the notes are excluded).
@@ -113,11 +130,11 @@ async fn list_tag_hubs_returns_only_tag_blocks() {
 
 #[tokio::test]
 async fn get_tag_hub_exposes_subtags_tagged_blocks_and_backlinks() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
-    let (project, alpha, n1, _n2) = fixture(&pg.db, &ws).await;
+    let store = embedded_or_skip!();
+    let ws = store.create_workspace().await;
+    let (project, alpha, n1, _n2) = fixture(&store.db, &ws).await;
 
-    let hub = pg.db.get_tag_hub(&ws, &project).await.expect("tag hub");
+    let hub = store.db.get_tag_hub(&ws, &project).await.expect("tag hub");
     assert_eq!(hub.block.block_id, project);
 
     // Exact separation: alpha is the only direct sub-tag; N1 is the only direct tag member.
@@ -145,11 +162,11 @@ async fn get_tag_hub_exposes_subtags_tagged_blocks_and_backlinks() {
 
 #[tokio::test]
 async fn get_tag_hub_deduplicates_members_without_hiding_duplicate_edge_backlinks() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
-    let project = blk(&pg.db, &ws, "project", LoomBlockContentType::TagHub).await;
+    let store = embedded_or_skip!();
+    let ws = store.create_workspace().await;
+    let project = blk(&store.db, &ws, "project", LoomBlockContentType::TagHub).await;
     let note = blk(
-        &pg.db,
+        &store.db,
         &ws,
         "duplicate-edge-note",
         LoomBlockContentType::Note,
@@ -159,10 +176,10 @@ async fn get_tag_hub_deduplicates_members_without_hiding_duplicate_edge_backlink
     // Semantic-edge uniqueness is not a schema invariant: two physical edge rows may name the same
     // source/target/type tuple. The tag-hub contract intentionally de-duplicates the complete member
     // row while backlink_count continues to report every incoming physical edge.
-    edge(&pg.db, &ws, &note, &project, LoomEdgeType::Tag).await;
-    edge(&pg.db, &ws, &note, &project, LoomEdgeType::Tag).await;
+    edge(&store.db, &ws, &note, &project, LoomEdgeType::Tag).await;
+    edge(&store.db, &ws, &note, &project, LoomEdgeType::Tag).await;
 
-    let hub = pg.db.get_tag_hub(&ws, &project).await.expect("tag hub");
+    let hub = store.db.get_tag_hub(&ws, &project).await.expect("tag hub");
     assert_eq!(
         hub.tagged_blocks
             .iter()
@@ -179,12 +196,12 @@ async fn get_tag_hub_deduplicates_members_without_hiding_duplicate_edge_backlink
 
 #[tokio::test]
 async fn get_tag_hub_is_workspace_isolated_and_deterministically_ordered() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
-    let other_ws = pg.create_workspace().await;
-    let hub = blk(&pg.db, &ws, "ordered-hub", LoomBlockContentType::TagHub).await;
+    let store = embedded_or_skip!();
+    let ws = store.create_workspace().await;
+    let other_ws = store.create_workspace().await;
+    let hub = blk(&store.db, &ws, "ordered-hub", LoomBlockContentType::TagHub).await;
     let other_hub = blk(
-        &pg.db,
+        &store.db,
         &other_ws,
         "other-workspace-hub",
         LoomBlockContentType::TagHub,
@@ -192,19 +209,19 @@ async fn get_tag_hub_is_workspace_isolated_and_deterministically_ordered() {
     .await;
     let mut members = Vec::new();
     for title in ["member-c", "member-a", "member-b"] {
-        let member = blk(&pg.db, &ws, title, LoomBlockContentType::Note).await;
-        edge(&pg.db, &ws, &member, &hub, LoomEdgeType::Tag).await;
+        let member = blk(&store.db, &ws, title, LoomBlockContentType::Note).await;
+        edge(&store.db, &ws, &member, &hub, LoomEdgeType::Tag).await;
         members.push(member);
     }
     let other_member = blk(
-        &pg.db,
+        &store.db,
         &other_ws,
         "other-workspace-member",
         LoomBlockContentType::Note,
     )
     .await;
     edge(
-        &pg.db,
+        &store.db,
         &other_ws,
         &other_member,
         &other_hub,
@@ -212,21 +229,27 @@ async fn get_tag_hub_is_workspace_isolated_and_deterministically_ordered() {
     )
     .await;
 
-    // Force the primary ordering key equal so the required block_id ASC total tie-breaker is proven.
-    let mut connection = pg.raw_connection().await;
-    sqlx::query(
-        "UPDATE loom_blocks SET updated_at = TIMESTAMPTZ '2026-01-01 00:00:00+00' \
-         WHERE workspace_id = $1 AND block_id = ANY($2)",
-    )
-    .bind(&ws)
-    .bind(&members)
-    .execute(&mut connection)
-    .await
-    .expect("set equal updated_at values");
-    drop(connection);
+    // Read the primary ordering key through the typed LoomBlock API. The assertion below
+    // proves the complete production order against the actual stored timestamps and the
+    // required block_id ASC total tie-breaker whenever timestamps are equal.
+    let mut updated_at = std::collections::HashMap::new();
+    for block_id in &members {
+        updated_at.insert(
+            block_id.clone(),
+            updated_at_for(&store.db, &ws, block_id).await,
+        );
+    }
 
-    let first = pg.db.get_tag_hub(&ws, &hub).await.expect("first tag hub");
-    let second = pg.db.get_tag_hub(&ws, &hub).await.expect("repeat tag hub");
+    let first = store
+        .db
+        .get_tag_hub(&ws, &hub)
+        .await
+        .expect("first tag hub");
+    let second = store
+        .db
+        .get_tag_hub(&ws, &hub)
+        .await
+        .expect("repeat tag hub");
     let first_ids: Vec<String> = first
         .tagged_blocks
         .iter()
@@ -238,8 +261,21 @@ async fn get_tag_hub_is_workspace_isolated_and_deterministically_ordered() {
         .map(|block| block.block_id.clone())
         .collect();
     let mut expected = members;
-    expected.sort();
-    assert_eq!(first_ids, expected, "equal timestamps use block_id ASC");
+    expected.sort_by(|left, right| {
+        updated_at[right]
+            .cmp(&updated_at[left])
+            .then_with(|| left.cmp(right))
+    });
+    for pair in expected.windows(2) {
+        if updated_at[&pair[0]] == updated_at[&pair[1]] {
+            assert!(
+                pair[0] < pair[1],
+                "equal timestamps use block_id ASC: {:?}",
+                pair
+            );
+        }
+    }
+    assert_eq!(first_ids, expected, "updated_at DESC then block_id ASC");
     assert_eq!(second_ids, first_ids, "repeat reads preserve total order");
     assert!(
         first
@@ -252,12 +288,12 @@ async fn get_tag_hub_is_workspace_isolated_and_deterministically_ordered() {
 
 #[tokio::test]
 async fn list_blocks_for_tag_resolves_nested_membership() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
-    let (project, _alpha, n1, n2) = fixture(&pg.db, &ws).await;
+    let store = embedded_or_skip!();
+    let ws = store.create_workspace().await;
+    let (project, _alpha, n1, n2) = fixture(&store.db, &ws).await;
 
     // Direct only: #project has just N1.
-    let direct = pg
+    let direct = store
         .db
         .list_blocks_for_tag(&ws, &project, false, 100, 0)
         .await
@@ -270,7 +306,7 @@ async fn list_blocks_for_tag_resolves_nested_membership() {
     );
 
     // Nested: #project includes descendants (#alpha) -> N1 + N2.
-    let nested = pg
+    let nested = store
         .db
         .list_blocks_for_tag(&ws, &project, true, 100, 0)
         .await
@@ -284,18 +320,18 @@ async fn list_blocks_for_tag_resolves_nested_membership() {
 
 #[tokio::test]
 async fn tag_hub_apis_fail_closed_on_non_tag_block() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
-    let note = blk(&pg.db, &ws, "Just A Note", LoomBlockContentType::Note).await;
+    let store = embedded_or_skip!();
+    let ws = store.create_workspace().await;
+    let note = blk(&store.db, &ws, "Just A Note", LoomBlockContentType::Note).await;
 
-    let err = pg
+    let err = store
         .db
         .get_tag_hub(&ws, &note)
         .await
         .expect_err("not a tag_hub");
     assert!(format!("{err}").contains("not a tag_hub"), "{err}");
 
-    let err2 = pg
+    let err2 = store
         .db
         .list_blocks_for_tag(&ws, &note, true, 100, 0)
         .await

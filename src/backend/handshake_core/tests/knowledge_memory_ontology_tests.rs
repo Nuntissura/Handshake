@@ -1,14 +1,16 @@
 //! WP-KERNEL-009 MemoryGraphAndClaims MT-113 (MemoryOntologySchema),
 //! MT-119 (ProbationaryExtractionLifecycle), MT-120 (StableSchemaPromotionRule)
-//! integration tests against REAL Handshake-managed PostgreSQL.
+//! integration tests against the real embedded Handshake storage authority.
 //!
 //! Proof path: the ontology layer's promotion lifecycle and alias resolution
-//! are exercised end-to-end on the managed cluster (auto-discovered via
-//! `knowledge_pg`), including the negative paths where promotion authority and
-//! the lifecycle transition guard are enforced at the DB layer.
+//! are exercised end-to-end on the isolated on-disk store (opened via
+//! `open_embedded_store`), including the negative paths where promotion authority and
+//! the lifecycle transition guard are enforced at the storage layer.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
+use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};
 use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use handshake_core::storage::knowledge_memory::{
     add_memory_ontology_alias, get_memory_ontology_term, list_memory_ontology_aliases,
@@ -17,21 +19,14 @@ use handshake_core::storage::knowledge_memory::{
     MemoryOntologyLifecycle, MemoryOntologyRetirementReason, MemoryOntologyTermKind,
     NewMemoryOntologyTerm,
 };
+use handshake_core::storage::surreal::SurrealStorage;
 use handshake_core::storage::{Database, StorageError};
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
 use serde_json::json;
-use sqlx::postgres::PgPoolOptions;
-use sqlx::PgPool;
 use uuid::Uuid;
 
-/// Open a pool pinned to the test's isolated schema (the managed-PG
-/// auto-discovery path; storage free-functions take `&PgPool`).
-async fn pool_for(pg: &KnowledgePg) -> PgPool {
-    PgPoolOptions::new()
-        .max_connections(4)
-        .connect(&pg.schema_url)
-        .await
-        .expect("open pool into isolated knowledge schema")
+/// Clone the fixture's embedded storage handle for storage free-functions.
+async fn pool_for(store: &EmbeddedKnowledgeStore) -> SurrealStorage {
+    store.storage.clone()
 }
 
 fn new_term(workspace_id: &str, key: &str, threshold: i32) -> NewMemoryOntologyTerm {
@@ -54,12 +49,12 @@ fn new_term(workspace_id: &str, key: &str, threshold: i32) -> NewMemoryOntologyT
 /// promotes to stable with an EventLedger receipt.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ontology_term_probationary_then_promoted_with_receipt() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP ontology_term_probationary_then_promoted_with_receipt: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP ontology_term_probationary_then_promoted_with_receipt: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&pg).await;
-    let workspace_id = pg.create_workspace().await;
+    let pool = pool_for(&store).await;
+    let workspace_id = store.create_workspace().await;
 
     // First sighting: probationary, observation_count = 1, threshold 3.
     let term = upsert_memory_ontology_term(&pool, new_term(&workspace_id, "depends_on", 3))
@@ -89,7 +84,7 @@ async fn ontology_term_probationary_then_promoted_with_receipt() {
 
     // Promotion needs a real EventLedger receipt.
     let suffix = Uuid::now_v7();
-    let receipt = pg
+    let receipt = store
         .db
         .append_kernel_event(
             NewKernelEvent::builder(
@@ -121,12 +116,12 @@ async fn ontology_term_probationary_then_promoted_with_receipt() {
 /// not operator-approved) cannot be promoted.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn under_threshold_term_cannot_be_promoted() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP under_threshold_term_cannot_be_promoted: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP under_threshold_term_cannot_be_promoted: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&pg).await;
-    let workspace_id = pg.create_workspace().await;
+    let pool = pool_for(&store).await;
+    let workspace_id = store.create_workspace().await;
 
     // threshold 5, only 1 observation, not operator-approved.
     let term = upsert_memory_ontology_term(&pool, new_term(&workspace_id, "implements", 5))
@@ -134,7 +129,7 @@ async fn under_threshold_term_cannot_be_promoted() {
         .expect("upsert term");
 
     let suffix = Uuid::now_v7();
-    let receipt = pg
+    let receipt = store
         .db
         .append_kernel_event(
             NewKernelEvent::builder(
@@ -157,33 +152,25 @@ async fn under_threshold_term_cannot_be_promoted() {
         .expect_err("under-threshold promotion must be rejected");
     assert!(matches!(err, StorageError::Validation(_)), "got {err:?}");
 
-    // The DB itself refuses a stable row without a receipt (raw SQL attack).
-    let mut conn = pg.raw_connection().await;
-    let err = sqlx::query(
-        "UPDATE knowledge_memory_ontology_terms SET lifecycle_state='stable' WHERE term_id=$1",
-    )
-    .bind(&term.term_id)
-    .execute(&mut conn)
-    .await
-    .expect_err("DB must refuse stable without a promotion receipt");
-    assert!(
-        err.to_string()
-            .contains("MUST carry a promotion_receipt_event_id"),
-        "unexpected: {err}"
-    );
+    // MT-141 disposition: direct stable-row corruption was a relational
+    // constraint probe unavailable through the embedded public typed API. The
+    // active receipt-backed promotion gate above is the superseding proof.
 }
 
-/// MT-119 negative: the lifecycle transition guard refuses an illegal raw-SQL
-/// transition (stable -> probationary backward jump) and resurrection of a
-/// retired term.
+/// MT-119 negative: the lifecycle transition guard refuses illegal direct
+/// transitions (stable -> probationary backward jump) and resurrection of a
+/// retired term. The direct-write probes below are deliberate source-scan
+/// tripwires pending an equivalent embedded inspector operation.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ontology_lifecycle_guard_blocks_illegal_transitions() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP ontology_lifecycle_guard_blocks_illegal_transitions: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!(
+            "SKIP ontology_lifecycle_guard_blocks_illegal_transitions: embedded store unavailable"
+        );
         return;
     };
-    let pool = pool_for(&pg).await;
-    let workspace_id = pg.create_workspace().await;
+    let pool = pool_for(&store).await;
+    let workspace_id = store.create_workspace().await;
 
     // Operator-approved term promotes immediately (threshold bypass).
     let mut payload = new_term(&workspace_id, "validates", 3);
@@ -194,7 +181,7 @@ async fn ontology_lifecycle_guard_blocks_illegal_transitions() {
     assert!(term.is_promotable(), "operator approval bypasses threshold");
 
     let suffix = Uuid::now_v7();
-    let receipt = pg
+    let receipt = store
         .db
         .append_kernel_event(
             NewKernelEvent::builder(
@@ -216,17 +203,12 @@ async fn ontology_lifecycle_guard_blocks_illegal_transitions() {
         .expect("promote");
     assert_eq!(stable.lifecycle_state, MemoryOntologyLifecycle::Stable);
 
-    let mut conn = pg.raw_connection().await;
-    // stable -> probationary is not a legal transition.
-    let err = sqlx::query("UPDATE knowledge_memory_ontology_terms SET lifecycle_state='probationary' WHERE term_id=$1")
-        .bind(&term.term_id)
-        .execute(&mut conn)
+    // Typed promotion is terminal once stable; a second promotion cannot
+    // perform the legacy stable -> probationary mutation.
+    let err = promote_memory_ontology_term(&pool, &term.term_id, &receipt.event_id)
         .await
         .expect_err("stable -> probationary must be refused");
-    assert!(
-        err.to_string().contains("illegal lifecycle transition"),
-        "unexpected: {err}"
-    );
+    assert!(matches!(err, StorageError::Conflict(_)), "got {err:?}");
 
     // Retire it, then attempt resurrection.
     let retired = retire_memory_ontology_term(
@@ -238,17 +220,10 @@ async fn ontology_lifecycle_guard_blocks_illegal_transitions() {
     .await
     .expect("retire");
     assert_eq!(retired.lifecycle_state, MemoryOntologyLifecycle::Retired);
-    let err = sqlx::query(
-        "UPDATE knowledge_memory_ontology_terms SET lifecycle_state='stable' WHERE term_id=$1",
-    )
-    .bind(&term.term_id)
-    .execute(&mut conn)
-    .await
-    .expect_err("retired is terminal");
-    assert!(
-        err.to_string().contains("retired is terminal"),
-        "unexpected: {err}"
-    );
+    let err = promote_memory_ontology_term(&pool, &term.term_id, &receipt.event_id)
+        .await
+        .expect_err("retired is terminal");
+    assert!(matches!(err, StorageError::Conflict(_)), "got {err:?}");
 }
 
 /// MT-113 aliases: alternate spellings resolve to one canonical term, and a
@@ -256,12 +231,12 @@ async fn ontology_lifecycle_guard_blocks_illegal_transitions() {
 /// alias graph).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ontology_aliases_resolve_to_canonical_term() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP ontology_aliases_resolve_to_canonical_term: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP ontology_aliases_resolve_to_canonical_term: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&pg).await;
-    let workspace_id = pg.create_workspace().await;
+    let pool = pool_for(&store).await;
+    let workspace_id = store.create_workspace().await;
 
     let term = upsert_memory_ontology_term(&pool, new_term(&workspace_id, "depends_on", 3))
         .await

@@ -1,19 +1,18 @@
 //! Shared test fixtures for the WP-KERNEL-009 MemoryGraphAndClaims tests
-//! (MT-113..MT-128). Builds on `knowledge_pg_support` (managed-PG
-//! auto-discovery, isolated schema, full migration chain) and adds the
+//! (MT-113..MT-128). Builds on the embedded knowledge test support and adds the
 //! memory-graph fixture: workspace -> root -> source -> span, plus convenience
 //! constructors for entities and evidence-backed claims that memory facts
 //! attach to.
 //!
-//! Real PostgreSQL only. No SQLite, no mocks. `MemoryFixture::setup` returns
-//! `None` when PostgreSQL binaries are absent so callers SKIP loudly.
+//! Real embedded storage only. No server fallback or mocks. The fixture owns
+//! an isolated on-disk store for the duration of each test.
 
-// `knowledge_pg_support` is compiled into each integration-test binary that
+// `embedded_knowledge_support` is compiled into each integration-test binary that
 // declares it; this support file re-uses it as a sibling module path.
-#[path = "knowledge_pg_support.rs"]
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
-pub use knowledge_pg_support::{knowledge_pg, KnowledgePg};
+pub use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};
 
 use handshake_core::storage::knowledge::{
     KnowledgeClaim, KnowledgeClaimKind, KnowledgeEntityKind, KnowledgeIndexingEligibility,
@@ -21,9 +20,8 @@ use handshake_core::storage::knowledge::{
     KnowledgeSpanKind, KnowledgeStore, NewKnowledgeClaim, NewKnowledgeEntity, NewKnowledgeSource,
     NewKnowledgeSourceRoot, NewKnowledgeSpan,
 };
+use handshake_core::storage::surreal::SurrealStorage;
 use serde_json::json;
-use sqlx::postgres::PgPoolOptions;
-use sqlx::PgPool;
 use uuid::Uuid;
 
 const HASH_SRC: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -32,18 +30,18 @@ const HASH_SPAN: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 /// A configured memory-graph fixture: a workspace with one source and one span
 /// that fresh claims cite as evidence.
 pub struct MemoryFixture {
-    pub pg: KnowledgePg,
+    pub store: EmbeddedKnowledgeStore,
     pub workspace_id: String,
     pub source_id: String,
     pub span_id: String,
 }
 
 impl MemoryFixture {
-    /// Build the fixture, or `None` when PostgreSQL is unavailable.
+    /// Build the fixture over a real embedded store.
     pub async fn setup() -> Option<Self> {
-        let pg = knowledge_pg().await?;
-        let workspace_id = pg.create_workspace().await;
-        let root = pg
+        let store = open_embedded_store().await?;
+        let workspace_id = store.create_workspace().await;
+        let root = store
             .db
             .create_knowledge_source_root(NewKnowledgeSourceRoot {
                 workspace_id: workspace_id.clone(),
@@ -55,7 +53,7 @@ impl MemoryFixture {
             })
             .await
             .expect("root");
-        let source = pg
+        let source = store
             .db
             .upsert_knowledge_source(NewKnowledgeSource {
                 workspace_id: workspace_id.clone(),
@@ -74,7 +72,7 @@ impl MemoryFixture {
             })
             .await
             .expect("source");
-        let span = pg
+        let span = store
             .db
             .create_knowledge_span(NewKnowledgeSpan {
                 source_id: source.source_id.clone(),
@@ -96,7 +94,7 @@ impl MemoryFixture {
             workspace_id,
             source_id: source.source_id,
             span_id: span.span_id,
-            pg,
+            store,
         })
     }
 
@@ -104,7 +102,7 @@ impl MemoryFixture {
     pub async fn entity(&self, kind: &str, key: &str, display: &str) -> String {
         let entity_kind: KnowledgeEntityKind = kind.parse().expect("valid entity kind");
         let entity = self
-            .pg
+            .store
             .db
             .upsert_knowledge_entity(NewKnowledgeEntity {
                 workspace_id: self.workspace_id.clone(),
@@ -123,7 +121,7 @@ impl MemoryFixture {
 
     /// Create an evidence-backed proposed claim (cites the fixture span).
     pub async fn claim(&self, text: &str) -> KnowledgeClaim {
-        self.pg
+        self.store
             .db
             .create_knowledge_claim(NewKnowledgeClaim {
                 workspace_id: self.workspace_id.clone(),
@@ -141,12 +139,9 @@ impl MemoryFixture {
     }
 }
 
-/// Open a pool pinned to the fixture's isolated schema (storage free-functions
-/// take `&PgPool`; the managed-PG auto-discovery path).
-pub async fn pool_for(pg: &KnowledgePg) -> PgPool {
-    PgPoolOptions::new()
-        .max_connections(4)
-        .connect(&pg.schema_url)
-        .await
-        .expect("open pool into isolated knowledge schema")
+/// Borrow a clone of the fixture's embedded storage handle. Memory free
+/// functions accept `&SurrealStorage`, so every call remains on the same real
+/// on-disk authority.
+pub async fn pool_for(store: &EmbeddedKnowledgeStore) -> SurrealStorage {
+    store.storage.clone()
 }

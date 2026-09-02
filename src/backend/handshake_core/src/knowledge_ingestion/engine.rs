@@ -502,6 +502,7 @@ impl IngestionEngine {
             let receipt_id = new_ingestion_id("KIRC");
             let mut spans = Vec::with_capacity(file.extraction.spans.len());
             for (span_index, span) in file.extraction.spans.iter().enumerate() {
+                super::store::validate_span_redaction(span)?;
                 let span_id = new_ingestion_id("KISP");
                 spans.push(CleanIngestionSpanWrite {
                     record: RecordId::new("knowledge_ingestion_spans", span_id.clone()),

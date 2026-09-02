@@ -1,10 +1,11 @@
-//! WP-KERNEL-009 SourceIngestionAndEvidence HARDENING proofs against REAL
-//! Handshake-managed PostgreSQL (MT-081/082/085/086/087/091/094 #1-#10).
+//! WP-KERNEL-009 SourceIngestionAndEvidence HARDENING proofs against the real
+//! Handshake-managed embedded SurrealDB store (MT-081/082/085/086/087/091/094
+//! #1-#10).
 //!
-//! Every test drives the real `IngestionEngine` into a fresh isolated schema
-//! (full migration chain incl. 0210 redaction guard + 0211 receipt-event
-//! NOT NULL) and asserts durable DB state. No mocks, no SQLite. The fixtures
-//! below carry FAKE credentials shaped like real ones.
+//! Every active test drives the real `IngestionEngine` into a fresh isolated
+//! embedded store and re-reads typed durable state. No mocks, fallback
+//! authority, or raw database connections are involved. The fixtures below
+//! carry FAKE credentials shaped like real ones.
 //!
 //! Coverage:
 //! * #1/#4 (MT-091/096): a MEDIUM secret on the 120-line code-window seam is
@@ -14,26 +15,26 @@
 //!   single-line -- so a secret whose BYTES straddle the seam (and would
 //!   defeat a per-span rescan) cannot also be detected by the whole-file scan
 //!   at the integration level. The byte-level split that genuinely breaks the
-//!   OLD per-span rescan is proved by the unit test
+//!   per-span rescan is proved by the unit test
 //!   `secrets::tests::whole_file_redaction_catches_boundary_split_secret`
 //!   (manual byte-split: each fragment alone matches nothing, whole-file
 //!   findings still excise both halves). This integration test proves the
-//!   end-to-end DB outcome: the secret at the seam is redacted out of every
+//!   persisted outcome: the secret at the seam is redacted out of every
 //!   stored span row.
 //! * #2 (MT-091): each new pattern (github_pat_, xapp-, headerless base64) is
 //!   caught and redacted; raw bytes never stored.
-//! * #3 (MT-091): the 0210 DB CHECK refuses a redacted span with no marker.
+//! * #3 (MT-091): marker-bearing redaction is enforced before span replacement.
 //! * #5 (MT-086/087): a garbage PDF degrades to ONE failed file, the pass
 //!   completes and other files still ingest (catch_unwind guard).
 //! * #6 (MT-086): an image-only PDF with tiny/invisible text -> NO_TEXT_LAYER.
-//! * #8 (MT-085/094): the 0211 NOT NULL pins refuse a receipt / repair row
-//!   with a NULL ledger-event ref.
+//! * #8 (MT-085/094): persisted receipt and repair event references are observed
+//!   through the inspector, and absent references reject before write.
 //! * #7 (MT-094): re-failing after dead-letter REOPENS the terminal row for
 //!   the same source+reason instead of inserting a new one.
 //! * #10 (MT-091): .env / .pem paths are denied root registration.
 
+#[path = "knowledge_ingestion_support.rs"]
 mod knowledge_ingestion_support;
-mod knowledge_pg_support;
 
 use std::path::Path;
 
@@ -42,14 +43,21 @@ use handshake_core::knowledge_ingestion::engine::{
     FileIngestOutcome, IngestionContext, RootRegistrationRequest,
 };
 use handshake_core::knowledge_ingestion::pdf::fixtures as pdf_fixtures;
-use handshake_core::knowledge_ingestion::receipts::{ExtractionStatus, IngestionErrorClass};
-use handshake_core::knowledge_ingestion::repair::RepairState;
-use handshake_core::storage::knowledge::{KnowledgeRootKind, KnowledgeSourceRoot};
-use knowledge_ingestion_support::{ingestion_pg, register_root, test_ctx, IngestionPg};
-use sqlx::Row;
+use handshake_core::knowledge_ingestion::receipts::{
+    ExtractionStatus, IngestionErrorClass, NewExtractionReceipt,
+};
+use handshake_core::knowledge_ingestion::repair::{NewRepairEntry, RepairReason, RepairState};
+use handshake_core::knowledge_ingestion::spans::{ExtractedSpan, SpanAnchor, SpanRedaction};
+use handshake_core::knowledge_ingestion::IngestionError;
+use handshake_core::storage::knowledge::{KnowledgeRootKind, KnowledgeSourceRoot, KnowledgeStore};
+use handshake_core::storage::surreal::RowFilter;
+use handshake_core::storage::Database;
+use knowledge_ingestion_support::{
+    open_embedded_ingestion_fixture, register_root, test_ctx, EmbeddedIngestionFixture,
+};
 
 async fn ingest(
-    env: &IngestionPg,
+    env: &EmbeddedIngestionFixture,
     ctx: &IngestionContext,
     root: &KnowledgeSourceRoot,
     rel_path: &str,
@@ -69,16 +77,19 @@ async fn ingest(
         .expect("ingest file bytes")
 }
 
-/// Count rows in `table` whose `content` column matches `LIKE %needle%`.
-async fn count_like(env: &IngestionPg, table: &str, column: &str, needle: &str) -> i64 {
-    let mut conn = env.pg.raw_connection().await;
-    sqlx::query_scalar(&format!(
-        "SELECT count(*) FROM {table} WHERE {column} LIKE $1"
-    ))
-    .bind(format!("%{needle}%"))
-    .fetch_one(&mut conn)
-    .await
-    .expect("count_like probe")
+/// Re-read the canonical embedded EventLedger rows for one ingestion session.
+async fn persisted_event_payloads(
+    env: &EmbeddedIngestionFixture,
+    ctx: &IngestionContext,
+) -> Vec<String> {
+    env.engine
+        .knowledge()
+        .list_kernel_events_for_session(&ctx.session_run_id)
+        .await
+        .expect("read embedded EventLedger rows")
+        .into_iter()
+        .map(|event| event.payload.to_string())
+        .collect()
 }
 
 fn write(dir: &Path, rel: &str, content: &[u8]) {
@@ -100,11 +111,11 @@ fn write(dir: &Path, rel: &str, content: &[u8]) {
 /// see the module note above.)
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt091_mt096_boundary_seam_medium_secret_absent_from_all_spans() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt091_mt096_boundary_straddle: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt091_mt096_boundary_straddle: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt096-boundary");
     let root = register_root(
         &env,
@@ -173,31 +184,91 @@ async fn mt091_mt096_boundary_seam_medium_secret_absent_from_all_spans() {
         });
     assert_eq!(redacted_span.redaction_state.as_str(), "redacted");
 
-    // CORE assertion: the raw JWT is absent from EVERY stored span content row
-    // (LIKE probe straight against the DB), and from receipts/sources/ledger.
-    assert_eq!(
-        count_like(&env, "knowledge_ingestion_spans", "content", jwt).await,
-        0,
-        "raw boundary JWT leaked into a span content row"
-    );
-    // Probe each contiguous third of the JWT too: a boundary split could leave
-    // a fragment behind even if the whole token is gone.
-    for fragment in [&jwt[..30], &jwt[30..60], &jwt[60..]] {
-        assert_eq!(
-            count_like(&env, "knowledge_ingestion_spans", "content", fragment).await,
-            0,
-            "a JWT fragment leaked into a span content row: {fragment}"
+    // CORE assertion: re-read the canonical embedded rows and prove the raw
+    // JWT and each contiguous fragment are absent from every durable surface.
+    let stored_spans = env
+        .engine
+        .store()
+        .list_source_spans(&outcome.source.source_id)
+        .await
+        .expect("re-read embedded span rows");
+    assert_eq!(stored_spans.len(), outcome.spans.len());
+    for fragment in [jwt, &jwt[..30], &jwt[30..60], &jwt[60..]] {
+        assert!(
+            stored_spans
+                .iter()
+                .all(|span| !span.content.contains(fragment)),
+            "boundary JWT material leaked into an embedded span content row: {fragment}"
         );
     }
-    for (table, column) in [
-        ("knowledge_ingestion_receipts", "error_detail::text"),
-        ("knowledge_sources", "provenance::text"),
-        ("kernel_event_ledger", "payload::text"),
-    ] {
-        assert_eq!(
-            count_like(&env, table, column, jwt).await,
-            0,
-            "raw boundary JWT leaked into {table}.{column}"
+
+    let inspector = env.store.storage.test_inspector();
+    let span_table = inspector
+        .table_selector("knowledge_ingestion_spans")
+        .await
+        .expect("select ingestion span table");
+    let span_content = span_table.field("content").expect("select span content");
+    let span_redaction = span_table
+        .field("redaction_state")
+        .expect("select span redaction state");
+    let inspected_spans = inspector
+        .project(&span_table, &[span_content, span_redaction], RowFilter::All)
+        .await
+        .expect("inspect persisted ingestion spans");
+    assert_eq!(inspected_spans.len(), outcome.spans.len());
+    for row in &inspected_spans {
+        let content = row
+            .values
+            .get("content")
+            .and_then(serde_json::Value::as_str)
+            .expect("inspected span content");
+        for fragment in [jwt, &jwt[..30], &jwt[30..60], &jwt[60..]] {
+            assert!(
+                !content.contains(fragment),
+                "boundary JWT material leaked into inspector-observed span {}: {fragment}",
+                row.record_id.key_string().unwrap_or("<non-string-id>")
+            );
+        }
+        if row.values.get("redaction_state") == Some(&serde_json::json!("redacted")) {
+            assert!(
+                content.contains("[REDACTED:"),
+                "inspector observed redacted span without a marker: {:?}",
+                row.record_id
+            );
+        }
+    }
+
+    let receipts = env
+        .engine
+        .store()
+        .list_extraction_receipts(&outcome.source.source_id, 10)
+        .await
+        .expect("re-read embedded extraction receipt rows");
+    assert!(
+        receipts
+            .iter()
+            .all(|receipt| !serde_json::to_string(receipt)
+                .expect("serialize embedded receipt")
+                .contains(jwt)),
+        "raw boundary JWT leaked into an embedded receipt row"
+    );
+
+    let source = env
+        .engine
+        .knowledge()
+        .get_knowledge_source(&outcome.source.source_id)
+        .await
+        .expect("re-read embedded source row")
+        .expect("source row exists");
+    assert!(
+        !source.provenance.to_string().contains(jwt),
+        "raw boundary JWT leaked into embedded source provenance"
+    );
+
+    for payload in persisted_event_payloads(&env, &ctx).await {
+        assert!(
+            !payload.contains(jwt),
+            "raw boundary JWT leaked into an embedded EventLedger payload"
         );
     }
 }
@@ -208,11 +279,11 @@ async fn mt091_mt096_boundary_seam_medium_secret_absent_from_all_spans() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt091_new_patterns_github_pat_slack_app_headerless_blob_redacted() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt091_new_patterns: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt091_new_patterns: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt091-newpat");
     let root = register_root(
         &env,
@@ -236,10 +307,17 @@ async fn mt091_new_patterns_github_pat_slack_app_headerless_blob_redacted() {
         .spans
         .iter()
         .any(|s| s.content.contains("[REDACTED:github_fine_grained_pat]")));
-    assert_eq!(
-        count_like(&env, "knowledge_ingestion_spans", "content", pat_body59).await,
-        0,
-        "raw github_pat body leaked into span content"
+    let persisted_pat_spans = env
+        .engine
+        .store()
+        .list_source_spans(&out_pat.source.source_id)
+        .await
+        .expect("re-read embedded PAT span rows");
+    assert!(
+        persisted_pat_spans
+            .iter()
+            .all(|span| !span.content.contains(pat_body59)),
+        "raw github_pat body leaked into an embedded span content row"
     );
 
     // (b) Slack app-level token xapp- (MEDIUM -> redact). FAKE.
@@ -256,10 +334,17 @@ async fn mt091_new_patterns_github_pat_slack_app_headerless_blob_redacted() {
         .spans
         .iter()
         .any(|s| s.content.contains("[REDACTED:slack_app_token]")));
-    assert_eq!(
-        count_like(&env, "knowledge_ingestion_spans", "content", xapp_body).await,
-        0,
-        "raw xapp token leaked into span content"
+    let persisted_xapp_spans = env
+        .engine
+        .store()
+        .list_source_spans(&out_xapp.source.source_id)
+        .await
+        .expect("re-read embedded Slack span rows");
+    assert!(
+        persisted_xapp_spans
+            .iter()
+            .all(|span| !span.content.contains(xapp_body)),
+        "raw xapp token leaked into an embedded span content row"
     );
 
     // (c) Headerless base64 key blob (HIGH -> BLOCK; no spans stored at all).
@@ -284,33 +369,84 @@ async fn mt091_new_patterns_github_pat_slack_app_headerless_blob_redacted() {
     let detail = out_blob.receipt.error_detail.as_ref().expect("detail");
     assert!(detail.to_string().contains("headerless_key_blob"));
     assert!(!detail.to_string().contains(blob));
-    // The blob never lands anywhere durable.
-    assert_eq!(
-        count_like(&env, "knowledge_ingestion_spans", "content", blob).await,
-        0
+    // The blob never lands anywhere durable. Re-read each canonical typed
+    // surface available through the embedded support.
+    let persisted_blob_spans = env
+        .engine
+        .store()
+        .list_source_spans(&out_blob.source.source_id)
+        .await
+        .expect("re-read embedded blocked-file spans");
+    assert!(persisted_blob_spans.is_empty());
+    let persisted_blob_receipts = env
+        .engine
+        .store()
+        .list_extraction_receipts(&out_blob.source.source_id, 10)
+        .await
+        .expect("re-read embedded blocked-file receipts");
+    assert!(
+        persisted_blob_receipts
+            .iter()
+            .all(|receipt| !serde_json::to_string(receipt)
+                .expect("serialize embedded blocked-file receipt")
+                .contains(blob)),
+        "raw headerless key blob leaked into an embedded receipt row"
     );
-    assert_eq!(
-        count_like(&env, "kernel_event_ledger", "payload::text", blob).await,
-        0
-    );
+    for payload in persisted_event_payloads(&env, &ctx).await {
+        assert!(
+            !payload.contains(blob),
+            "raw headerless key blob leaked into an embedded EventLedger payload"
+        );
+    }
+
+    let inspector = env.store.storage.test_inspector();
+    let span_table = inspector
+        .table_selector("knowledge_ingestion_spans")
+        .await
+        .expect("select ingestion span table");
+    let span_content = span_table.field("content").expect("select span content");
+    let span_redaction = span_table
+        .field("redaction_state")
+        .expect("select span redaction state");
+    let inspected_spans = inspector
+        .project(&span_table, &[span_content, span_redaction], RowFilter::All)
+        .await
+        .expect("inspect persisted pattern-test spans");
+    for row in inspected_spans {
+        let content = row
+            .values
+            .get("content")
+            .and_then(serde_json::Value::as_str)
+            .expect("inspected pattern-test span content");
+        for secret in [pat_body59, xapp_body, blob] {
+            assert!(
+                !content.contains(secret),
+                "secret material leaked into inspector-observed span {}",
+                row.record_id.key_string().unwrap_or("<non-string-id>")
+            );
+        }
+        if row.values.get("redaction_state") == Some(&serde_json::json!("redacted")) {
+            assert!(
+                content.contains("[REDACTED:"),
+                "inspector observed redacted span without a marker: {:?}",
+                row.record_id
+            );
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
-// #3 (MT-091): the 0210 DB CHECK refuses a redacted span with no marker.
+// #3 (MT-091): persisted redaction-marker invariant.
 // ---------------------------------------------------------------------------
 
-/// Schema-enforced redaction invariant: a row claiming
-/// redaction_state='redacted' whose content carries NO '[REDACTED:' marker
-/// (i.e. raw secret bytes could still be present) is refused at the DB layer,
-/// independent of any application code path.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mt091_db_guard_refuses_redacted_span_without_marker() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt091_db_guard_redacted_marker: no PostgreSQL");
+async fn mt091_markerless_redacted_span_is_rejected_without_replacing_durable_spans() {
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt091_markerless_redacted_span: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
-    let ctx = test_ctx("mt091-dbguard");
+    let workspace_id = env.store.create_workspace().await;
+    let ctx = test_ctx("mt091-markerless");
     let root = register_root(
         &env,
         &ctx,
@@ -319,89 +455,63 @@ async fn mt091_db_guard_refuses_redacted_span_without_marker() {
         KnowledgeRootKind::ProjectRepo,
     )
     .await;
+    let outcome = ingest(&env, &ctx, &root, "docs/plain.md", b"# Plain\n\nbody\n").await;
+    let before = env
+        .engine
+        .store()
+        .list_source_spans(&outcome.source.source_id)
+        .await
+        .expect("read original spans");
 
-    // Create a real source + receipt to satisfy the span FKs.
-    let outcome = ingest(
-        &env,
-        &ctx,
-        &root,
-        "docs/plain.md",
-        b"# Plain\n\nno secrets here\n",
-    )
-    .await;
-    let source_id = outcome.source.source_id.clone();
-    let receipt_id = outcome.receipt.receipt_id.clone();
-
-    let mut conn = env.pg.raw_connection().await;
-
-    // A 'redacted' span whose content has NO marker must be REFUSED by the
-    // 0210 CHECK. The content here is a raw secret that was (incorrectly) not
-    // redacted -- exactly the leak the guard exists to stop. span_index 900
-    // is chosen well clear of the real spans the plain.md ingest already wrote
-    // on this receipt, so the ONLY constraint this row can violate is the
-    // redaction-marker CHECK (never the (receipt_id, span_index) unique index).
-    let bad = sqlx::query(
-        "INSERT INTO knowledge_ingestion_spans
-            (span_id, workspace_id, source_id, receipt_id, span_index, anchor_kind,
-             anchor, content, content_hash, redaction_state)
-         VALUES ($1, $2, $3, $4, 900, 'line_range',
-                 '{\"anchor_kind\":\"line_range\",\"line_start\":1,\"line_end\":1}'::jsonb,
-                 $5, $6, 'redacted')",
-    )
-    .bind(format!("KISP-{}", "0".repeat(32)))
-    .bind(&workspace_id)
-    .bind(&source_id)
-    .bind(&receipt_id)
-    .bind("api_key = AKIAIOSFODNN7EXAMPLE still raw")
-    .bind("a".repeat(64))
-    .execute(&mut conn)
-    .await;
-    let err = bad.expect_err("redacted span without a marker must be refused by the DB");
-    assert!(
-        err.to_string()
-            .contains("chk_knowledge_ingestion_spans_redaction_marker")
-            || err.to_string().to_lowercase().contains("check"),
-        "unexpected error (want check_violation): {err}"
+    let mut invalid = ExtractedSpan::new(
+        SpanAnchor::LineRange {
+            line_start: 1,
+            line_end: 1,
+            heading_path: Vec::new(),
+        },
+        "api_key = raw-secret-material",
     );
+    invalid.redaction = SpanRedaction::Redacted;
+    let error = env
+        .engine
+        .store()
+        .replace_source_spans(
+            &workspace_id,
+            &outcome.source.source_id,
+            &outcome.receipt.receipt_id,
+            &[invalid],
+        )
+        .await
+        .expect_err("markerless redacted span must be rejected");
+    assert!(matches!(error, IngestionError::Validation(_)));
 
-    // The SAME content shape but WITH a proper marker IS accepted (positive
-    // control), at a likewise-clear span_index.
-    let good = sqlx::query(
-        "INSERT INTO knowledge_ingestion_spans
-            (span_id, workspace_id, source_id, receipt_id, span_index, anchor_kind,
-             anchor, content, content_hash, redaction_state)
-         VALUES ($1, $2, $3, $4, 901, 'line_range',
-                 '{\"anchor_kind\":\"line_range\",\"line_start\":1,\"line_end\":1}'::jsonb,
-                 $5, $6, 'redacted')",
-    )
-    .bind(format!("KISP-{}", "1".repeat(32)))
-    .bind(&workspace_id)
-    .bind(&source_id)
-    .bind(&receipt_id)
-    .bind("api_key = [REDACTED:aws_access_key_id] now safe")
-    .bind("b".repeat(64))
-    .execute(&mut conn)
-    .await;
-    assert!(
-        good.is_ok(),
-        "a redacted span WITH a marker must be accepted: {good:?}"
+    let after = env
+        .engine
+        .store()
+        .list_source_spans(&outcome.source.source_id)
+        .await
+        .expect("re-read original spans");
+    assert_eq!(
+        after, before,
+        "validation must precede destructive replacement"
     );
 }
 
 // ---------------------------------------------------------------------------
-// #8 (MT-085 / MT-094): 0211 NOT NULL pins on the ledger-event refs.
+// #8 (MT-085 / MT-094): ledger-event refs on embedded engine paths.
 // ---------------------------------------------------------------------------
 
-/// Every ingestion mutation must carry an EventLedger receipt: a receipt or a
-/// repair-queue row inserted with a NULL ledger-event ref is refused by the
-/// 0211 NOT NULL constraints, schema-enforcing the receipt law.
+/// Positive-path coverage only: the real engine persists event references on
+/// receipt and repair rows, and the inspector independently resolves both
+/// references to the exact EventLedger records. The negative absent-reference
+/// invariant remains separately dispositioned below.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mt085_mt094_db_guard_requires_ledger_event_ref() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt085_mt094_ledger_ref_not_null: no PostgreSQL");
+async fn mt085_mt094_engine_paths_persist_event_refs_observed_by_inspector() {
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt085_mt094_ledger_refs: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt085-notnull");
     let root = register_root(
         &env,
@@ -413,51 +523,179 @@ async fn mt085_mt094_db_guard_requires_ledger_event_ref() {
     .await;
     // A real source to satisfy FKs.
     let outcome = ingest(&env, &ctx, &root, "docs/plain.md", b"# Plain\n\nbody\n").await;
-    let source_id = outcome.source.source_id.clone();
 
-    let mut conn = env.pg.raw_connection().await;
-
-    // (a) receipt with NULL receipt_event_id -> refused.
-    let bad_receipt = sqlx::query(
-        "INSERT INTO knowledge_ingestion_receipts
-            (receipt_id, workspace_id, source_id, extractor_id, extractor_version,
-             status, content_hash, receipt_event_id)
-         VALUES ($1, $2, $3, 'x', '1', 'success', $4, NULL)",
-    )
-    .bind(format!("KIRC-{}", "0".repeat(32)))
-    .bind(&workspace_id)
-    .bind(&source_id)
-    .bind("c".repeat(64))
-    .execute(&mut conn)
-    .await;
-    let err = bad_receipt.expect_err("receipt without a ledger event must be refused");
-    assert!(
-        err.to_string().to_lowercase().contains("null")
-            || err.to_string().to_lowercase().contains("not-null")
-            || err.to_string().to_lowercase().contains("not null"),
-        "unexpected error (want not-null violation): {err}"
-    );
-
-    // (b) repair entry with NULL enqueue_event_id -> refused.
-    let bad_repair = sqlx::query(
-        "INSERT INTO knowledge_ingestion_repair_queue
-            (repair_id, workspace_id, source_id, reason_class, enqueue_event_id)
-         VALUES ($1, $2, $3, 'PARSE_ERROR', NULL)",
-    )
-    .bind(format!("KIRQ-{}", "0".repeat(32)))
-    .bind(&workspace_id)
-    .bind(&source_id)
-    .execute(&mut conn)
-    .await;
-    let err = bad_repair.expect_err("repair row without a ledger event must be refused");
-    assert!(
-        err.to_string().to_lowercase().contains("null"),
-        "unexpected error (want not-null violation): {err}"
-    );
-
-    // Positive control: the real engine path (which always mints the event)
-    // already produced a receipt WITH a ledger event for the source above.
+    // Positive receipt path: the real engine mints and stores the event before
+    // the typed receipt row is written.
     assert!(outcome.receipt.receipt_event_id.is_some());
+
+    // Positive repair path: a failed extraction still receives a receipt event
+    // and the repair row stores the same event reference.
+    let failed = ingest(
+        &env,
+        &ctx,
+        &root,
+        "docs/stuck.srt",
+        b"garbage\nwithout timing\n",
+    )
+    .await;
+    assert_eq!(failed.receipt.status, ExtractionStatus::Failed);
+    assert!(failed.receipt.receipt_event_id.is_some());
+    assert!(
+        failed
+            .repair
+            .as_ref()
+            .and_then(|repair| repair.enqueue_event_id.as_ref())
+            .is_some(),
+        "repair enqueue must carry the receipt EventLedger reference"
+    );
+
+    let inspector = env.store.storage.test_inspector();
+    let event_table = inspector
+        .table_selector("kernel_event_ledger")
+        .await
+        .expect("select EventLedger table");
+    let references = inspector
+        .references_to(&event_table)
+        .await
+        .expect("inspect EventLedger references");
+    let receipt_event_reference = references
+        .iter()
+        .find(|reference| {
+            reference.source_table() == "knowledge_ingestion_receipts"
+                && reference.source_field() == "receipt_event_id"
+        })
+        .expect("ingestion receipt event reference")
+        .clone();
+    let repair_event_reference = references
+        .iter()
+        .find(|reference| {
+            reference.source_table() == "knowledge_ingestion_repair_queue"
+                && reference.source_field() == "enqueue_event_id"
+        })
+        .expect("repair enqueue event reference")
+        .clone();
+
+    for receipt in [&outcome.receipt, &failed.receipt] {
+        let referenced = inspector
+            .referenced_ids(
+                &receipt_event_reference,
+                RowFilter::IdEquals(receipt.receipt_id.clone()),
+            )
+            .await
+            .expect("inspect persisted receipt event reference");
+        assert_eq!(referenced.len(), 1);
+        assert_eq!(
+            referenced[0].key_string(),
+            receipt.receipt_event_id.as_deref(),
+            "persisted receipt must reference its exact EventLedger event"
+        );
+    }
+    let repair = failed.repair.as_ref().expect("failed-file repair row");
+    let referenced = inspector
+        .referenced_ids(
+            &repair_event_reference,
+            RowFilter::IdEquals(repair.repair_id.clone()),
+        )
+        .await
+        .expect("inspect persisted repair event reference");
+    assert_eq!(referenced.len(), 1);
+    assert_eq!(
+        referenced[0].key_string(),
+        repair.enqueue_event_id.as_deref(),
+        "persisted repair must reference its exact EventLedger event"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt085_mt094_absent_event_references_are_rejected_before_write() {
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt085_mt094_absent_event_refs: embedded store unavailable");
+        return;
+    };
+    let workspace_id = env.store.create_workspace().await;
+    let ctx = test_ctx("mt085-absent-event");
+    let root = register_root(
+        &env,
+        &ctx,
+        &workspace_id,
+        "src",
+        KnowledgeRootKind::ProjectRepo,
+    )
+    .await;
+    let outcome = ingest(&env, &ctx, &root, "docs/plain.md", b"# Plain\n\nbody\n").await;
+    let receipt_count = env
+        .engine
+        .store()
+        .list_extraction_receipts(&outcome.source.source_id, 100)
+        .await
+        .expect("count receipts before invalid write")
+        .len();
+
+    let receipt_error = env
+        .engine
+        .store()
+        .record_extraction_receipt(
+            NewExtractionReceipt {
+                workspace_id: workspace_id.clone(),
+                source_id: outcome.source.source_id.clone(),
+                ingestion_run_token: Some("KIRUN-absent-event".to_owned()),
+                extractor_id: "hardening-proof".to_owned(),
+                extractor_version: "1".to_owned(),
+                status: ExtractionStatus::Success,
+                error_class: None,
+                error_detail: None,
+                spans_produced: 0,
+                spans_failed: 0,
+                redaction_count: 0,
+                content_hash: outcome.source.content_hash.clone(),
+                duration_ms: 1,
+            },
+            None,
+        )
+        .await
+        .expect_err("receipt without event reference must be rejected");
+    assert!(matches!(receipt_error, IngestionError::Validation(_)));
+    assert_eq!(
+        env.engine
+            .store()
+            .list_extraction_receipts(&outcome.source.source_id, 100)
+            .await
+            .expect("count receipts after invalid write")
+            .len(),
+        receipt_count
+    );
+
+    let repairs_before = env
+        .engine
+        .store()
+        .list_repair_entries(&workspace_id, None, 100)
+        .await
+        .expect("count repairs before invalid write")
+        .len();
+    let repair_error = env
+        .engine
+        .store()
+        .enqueue_repair(NewRepairEntry {
+            workspace_id: workspace_id.clone(),
+            source_id: outcome.source.source_id,
+            receipt_id: Some(outcome.receipt.receipt_id),
+            reason_class: RepairReason::StaleHash,
+            reason_detail: serde_json::json!({"proof":"missing-event"}),
+            max_attempts: 1,
+            enqueue_event_id: None,
+        })
+        .await
+        .expect_err("repair without event reference must be rejected");
+    assert!(matches!(repair_error, IngestionError::Validation(_)));
+    assert_eq!(
+        env.engine
+            .store()
+            .list_repair_entries(&workspace_id, None, 100)
+            .await
+            .expect("count repairs after invalid write")
+            .len(),
+        repairs_before
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -467,11 +705,11 @@ async fn mt085_mt094_db_guard_requires_ledger_event_ref() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt086_garbage_pdf_degrades_to_one_failed_file_pass_survives() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt086_garbage_pdf_degrades: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt086_garbage_pdf_degrades: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt086-garbage");
     let root = register_root(
         &env,
@@ -560,11 +798,11 @@ async fn mt086_garbage_pdf_degrades_to_one_failed_file_pass_survives() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt086_invisible_text_pdf_is_no_text_layer_not_empty_success() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt086_invisible_text_pdf: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt086_invisible_text_pdf: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt086-invisible");
     let root = register_root(
         &env,
@@ -618,11 +856,11 @@ async fn mt086_invisible_text_pdf_is_no_text_layer_not_empty_success() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt094_refail_after_dead_letter_reopens_row_not_new_one() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt094_reopen_dead_letter: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt094_reopen_dead_letter: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt094-reopen");
     let root = register_root(
         &env,
@@ -726,11 +964,11 @@ async fn mt094_refail_after_dead_letter_reopens_row_not_new_one() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt091_secret_bearing_paths_are_denied_root_registration() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt091_denied_paths: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt091_denied_paths: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt091-deny");
 
     // Each of these secret-bearing shapes must be DENIED by the default deny

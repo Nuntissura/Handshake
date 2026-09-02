@@ -1,5 +1,5 @@
 //! WP-KERNEL-009 MT-260 UnifiedWorkSurface-260-AILoomJobs (GAP-LM-011) —
-//! REAL PostgreSQL authority proof.
+//! Real embedded-store authority proof.
 //!
 //! Master Spec anchor: 02-system-architecture.md section 2.3.13.11. AI Loom
 //! jobs run the configured model over LoomBlocks; EVERY suggestion lands as a
@@ -25,27 +25,26 @@ use handshake_core::loom_ai::promotion::{
     LoomAiAcceptOutcome, LoomAiRejectOutcome,
 };
 use handshake_core::loom_ai::{run_loom_ai_job, LoomAiJobError, LoomAiJobRequest};
+use handshake_core::storage::knowledge_crdt::list_denial_receipts_for_scope;
 use handshake_core::storage::loom_ai::{
     get_loom_ai_suggestion, list_loom_ai_suggestions, LoomAiJobKind,
 };
-use handshake_core::storage::tests::{postgres_backend_with_pool_from_env, PostgresTestBackend};
 use handshake_core::storage::{
     LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomEdgeType, NewLoomBlock, WriteContext,
 };
-use sqlx::Row;
+use knowledge_ingestion_support::{open_embedded_store, EmbeddedKnowledgeStore};
 use uuid::Uuid;
 
-async fn backend_for_test() -> PostgresTestBackend {
-    match postgres_backend_with_pool_from_env().await {
-        Ok(backend) => backend,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
-    }
+async fn backend_for_test() -> EmbeddedKnowledgeStore {
+    open_embedded_store()
+        .await
+        .expect("embedded store fixture must be available")
 }
 
-async fn workspace(backend: &PostgresTestBackend) -> String {
+async fn workspace(backend: &EmbeddedKnowledgeStore) -> String {
     let ctx = WriteContext::human(None);
     backend
-        .database
+        .db
         .create_workspace(
             &ctx,
             handshake_core::storage::NewWorkspace {
@@ -57,10 +56,10 @@ async fn workspace(backend: &PostgresTestBackend) -> String {
         .id
 }
 
-async fn note(backend: &PostgresTestBackend, ws: &str, title: &str) -> LoomBlock {
+async fn note(backend: &EmbeddedKnowledgeStore, ws: &str, title: &str) -> LoomBlock {
     let ctx = WriteContext::human(None);
     backend
-        .database
+        .db
         .create_loom_block(
             &ctx,
             NewLoomBlock {
@@ -106,16 +105,27 @@ fn llm_for_test(response: &str) -> InMemoryLlmClient {
     InMemoryLlmClient::new(response.to_string())
 }
 
-async fn count_events(backend: &PostgresTestBackend, event_type: &str, aggregate_id: &str) -> i64 {
-    sqlx::query(
-        "SELECT COUNT(*) AS c FROM kernel_event_ledger WHERE event_type = $1 AND aggregate_id = $2",
-    )
-    .bind(event_type)
-    .bind(aggregate_id)
-    .fetch_one(&backend.postgres_pool)
-    .await
-    .expect("count events")
-    .get::<i64, _>("c")
+async fn count_events(
+    backend: &EmbeddedKnowledgeStore,
+    event_type: &str,
+    aggregate_id: &str,
+) -> i64 {
+    let mut events = backend
+        .db
+        .list_kernel_events_for_aggregate("loom_ai_suggestion", aggregate_id)
+        .await
+        .expect("list suggestion events");
+    events.extend(
+        backend
+            .db
+            .list_kernel_events_for_aggregate("loom_ai_promotion", aggregate_id)
+            .await
+            .expect("list promotion events"),
+    );
+    events
+        .iter()
+        .filter(|event| event.event_type.to_string() == event_type)
+        .count() as i64
 }
 
 // ---------------------------------------------------------------------------
@@ -132,7 +142,7 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
     let llm = llm_for_test("roadmap");
     let result = run_loom_ai_job(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &llm,
         LoomAiJobRequest {
             workspace_id: ws.clone(),
@@ -177,7 +187,7 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
     // ACCEPT -> promote.
     let outcome = accept_loom_ai_suggestion(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &suggestion.suggestion_id,
         &operator(),
         "SR-test",
@@ -191,7 +201,7 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
         other => panic!("expected Promoted, got {other:?}"),
     };
 
-    let promoted = get_loom_ai_suggestion(&backend.postgres_pool, &suggestion.suggestion_id)
+    let promoted = get_loom_ai_suggestion(&backend.storage, &suggestion.suggestion_id)
         .await
         .expect("get")
         .expect("row");
@@ -244,7 +254,7 @@ async fn reject_leaves_authority_untouched() {
     let llm = llm_for_test("draft");
     let result = run_loom_ai_job(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &llm,
         LoomAiJobRequest {
             workspace_id: ws.clone(),
@@ -262,7 +272,7 @@ async fn reject_leaves_authority_untouched() {
 
     let outcome = reject_loom_ai_suggestion(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &suggestion.suggestion_id,
         &operator(),
         "SR-test",
@@ -273,7 +283,7 @@ async fn reject_leaves_authority_untouched() {
     .expect("reject");
     assert!(matches!(outcome, LoomAiRejectOutcome::Rejected(_)));
 
-    let row = get_loom_ai_suggestion(&backend.postgres_pool, &suggestion.suggestion_id)
+    let row = get_loom_ai_suggestion(&backend.storage, &suggestion.suggestion_id)
         .await
         .expect("get")
         .expect("row");
@@ -306,7 +316,7 @@ async fn non_operator_confirm_denied_with_receipt() {
     let llm = llm_for_test("note");
     let result = run_loom_ai_job(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &llm,
         LoomAiJobRequest {
             workspace_id: ws.clone(),
@@ -325,7 +335,7 @@ async fn non_operator_confirm_denied_with_receipt() {
     // A MODEL actor (not operator/validator) tries to confirm.
     let outcome = accept_loom_ai_suggestion(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &suggestion.suggestion_id,
         &model_actor(),
         "SR-test",
@@ -339,23 +349,24 @@ async fn non_operator_confirm_denied_with_receipt() {
         other => panic!("expected Denied, got {other:?}"),
     };
 
-    // Durable denial receipt persisted with the right kind.
-    let kind: String = sqlx::query(
-        "SELECT receipt_kind FROM knowledge_crdt_denial_receipts WHERE receipt_id = $1",
+    // Durable denial receipt persisted with the right kind through the typed
+    // embedded-store reader (the old raw row probe had no public equivalent).
+    let denial_receipts = list_denial_receipts_for_scope(
+        &backend.storage,
+        &format!("loom_ai_suggestion:{}", suggestion.suggestion_id),
     )
-    .bind(&denial.denial_receipt_id)
-    .fetch_one(&backend.postgres_pool)
     .await
-    .expect("receipt")
-    .get("receipt_kind");
-    assert_eq!(kind, "loom_ai_promotion_denied");
+    .expect("receipt");
+    assert_eq!(denial_receipts.len(), 1);
+    assert_eq!(denial_receipts[0].receipt_id, denial.denial_receipt_id);
+    assert_eq!(denial_receipts[0].receipt_kind, "loom_ai_promotion_denied");
     assert_eq!(
         count_events(&backend, "PROMOTION_REJECTED", &suggestion.suggestion_id).await,
         1
     );
 
     // The suggestion is still pending; authority untouched.
-    let row = get_loom_ai_suggestion(&backend.postgres_pool, &suggestion.suggestion_id)
+    let row = get_loom_ai_suggestion(&backend.storage, &suggestion.suggestion_id)
         .await
         .expect("get")
         .expect("row");
@@ -384,7 +395,7 @@ async fn no_model_declines_with_zero_rows() {
     );
     let err = run_loom_ai_job(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &disabled,
         LoomAiJobRequest {
             workspace_id: ws.clone(),
@@ -404,7 +415,7 @@ async fn no_model_declines_with_zero_rows() {
     );
 
     // ZERO suggestion rows written for this workspace.
-    let rows = list_loom_ai_suggestions(&backend.postgres_pool, &ws, None, None)
+    let rows = list_loom_ai_suggestions(&backend.storage, &ws, None, None)
         .await
         .expect("list");
     assert!(rows.is_empty(), "no rows on no-model decline");
@@ -422,7 +433,7 @@ async fn auto_caption_accept_writes_derived_field_with_provenance() {
     let llm = llm_for_test("A vivid sunset over the harbor.");
     let result = run_loom_ai_job(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &llm,
         LoomAiJobRequest {
             workspace_id: ws.clone(),
@@ -448,7 +459,7 @@ async fn auto_caption_accept_writes_derived_field_with_provenance() {
 
     accept_loom_ai_suggestion(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &suggestion.suggestion_id,
         &validator(),
         "SR-test",
@@ -487,7 +498,7 @@ async fn link_suggest_accept_promotes_ai_suggested_edge() {
     let llm = llm_for_test("Beta");
     let result = run_loom_ai_job(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &llm,
         LoomAiJobRequest {
             workspace_id: ws.clone(),
@@ -516,7 +527,7 @@ async fn link_suggest_accept_promotes_ai_suggested_edge() {
 
     accept_loom_ai_suggestion(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &n1_suggestion.suggestion_id,
         &operator(),
         "SR-test",
@@ -559,7 +570,7 @@ async fn rerun_is_idempotent_per_value() {
         let llm = llm_for_test("stable");
         let result = run_loom_ai_job(
             backend.database.as_ref(),
-            &backend.postgres_pool,
+            &backend.storage,
             &llm,
             LoomAiJobRequest {
                 workspace_id: ws.clone(),
@@ -576,7 +587,7 @@ async fn rerun_is_idempotent_per_value() {
         assert_eq!(result.suggestions.len(), 1);
     }
     // Two jobs, each one suggestion (different job ids) => 2 rows total.
-    let rows = list_loom_ai_suggestions(&backend.postgres_pool, &ws, None, Some("pending"))
+    let rows = list_loom_ai_suggestions(&backend.storage, &ws, None, Some("pending"))
         .await
         .expect("list");
     assert_eq!(rows.len(), 2, "each job records its own suggestion");
@@ -606,7 +617,7 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
     let llm = llm_for_test("roadmap");
     let result = run_loom_ai_job(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &llm,
         LoomAiJobRequest {
             workspace_id: ws.clone(),
@@ -630,7 +641,7 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
     // (1) NON-OPERATOR accept-all promotes NOTHING.
     let denied_outcome = accept_all_loom_ai_suggestions(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &ws,
         &job_id,
         Some(LoomAiJobKind::AutoTag),
@@ -661,7 +672,7 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
         .expect("edges n2")
         .is_empty());
     let still_pending =
-        list_loom_ai_suggestions(&backend.postgres_pool, &ws, Some(&job_id), Some("pending"))
+        list_loom_ai_suggestions(&backend.storage, &ws, Some(&job_id), Some("pending"))
             .await
             .expect("list pending");
     assert_eq!(
@@ -673,7 +684,7 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
     // (2) OPERATOR accept-all promotes ALL of the kind.
     let promoted_outcome = accept_all_loom_ai_suggestions(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         &ws,
         &job_id,
         Some(LoomAiJobKind::AutoTag),
@@ -708,7 +719,7 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
 
     // No rows left pending; all promoted.
     let promoted_rows =
-        list_loom_ai_suggestions(&backend.postgres_pool, &ws, Some(&job_id), Some("promoted"))
+        list_loom_ai_suggestions(&backend.storage, &ws, Some(&job_id), Some("promoted"))
             .await
             .expect("list promoted");
     assert_eq!(promoted_rows.len(), 2, "both suggestions promoted");

@@ -1,15 +1,17 @@
 //! WP-KERNEL-009 MT-236 Tiptap/ProseMirror roundtrip fixture.
 //!
 //! This test proves every WP-009 custom editor node shape survives the real
-//! RichDocument authority path: PostgreSQL create, optimistic save, load,
-//! version history, and CRDT promotion metadata stamping. There is no SQLite,
+//! RichDocument authority path: embedded create, optimistic save, load,
+//! version history, and CRDT promotion metadata stamping. There is no alternate
 //! mock, generated markdown, or frontend-only serializer in the proof path.
 
 #![recursion_limit = "256"]
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
 use base64::Engine;
+use embedded_knowledge_support::open_embedded_store;
 use handshake_core::kernel::crdt::actor_site::{
     knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
 };
@@ -33,7 +35,6 @@ use handshake_core::storage::knowledge::{
     KnowledgeStore, NewKnowledgeRichDocument, UpsertKnowledgeDocumentBacklink,
 };
 use handshake_core::storage::{Database, NewDocument, WriteContext};
-use knowledge_pg_support::knowledge_pg;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
@@ -230,12 +231,12 @@ async fn append_snapshot_and_receipt(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("MT-236 requires PostgreSQL proof; missing PostgreSQL must fail closed");
-    let workspace_id = pg.create_workspace().await;
+        .expect("MT-236 requires the mandatory embedded authority");
+    let workspace_id = store.create_workspace().await;
     let suffix = Uuid::now_v7().simple().to_string();
-    let document = pg
+    let document = store
         .db
         .create_document(
             &WriteContext::human(None),
@@ -270,13 +271,15 @@ async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion(
         &actor,
     );
     assert!(matches!(
-        push_yjs_update(&pg.db, &update_v1).await.expect("push v1"),
+        push_yjs_update(&store.db, &update_v1)
+            .await
+            .expect("push v1"),
         YjsPushOutcomeV1::Stored { .. }
     ));
 
     let v1_json = all_custom_nodes_doc(" v1");
     let v1_event_id = append_snapshot_and_receipt(
-        &pg.db,
+        &store.db,
         &workspace_id,
         &document_id,
         &crdt_document_id,
@@ -288,7 +291,7 @@ async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion(
         &actor,
     )
     .await;
-    let created = pg
+    let created = store
         .db
         .create_knowledge_rich_document(new_doc(
             &workspace_id,
@@ -315,13 +318,15 @@ async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion(
         &actor,
     );
     assert!(matches!(
-        push_yjs_update(&pg.db, &update_v2).await.expect("push v2"),
+        push_yjs_update(&store.db, &update_v2)
+            .await
+            .expect("push v2"),
         YjsPushOutcomeV1::Stored { .. }
     ));
 
     let v2_json = all_custom_nodes_doc(" v2");
     let v2_event_id = append_snapshot_and_receipt(
-        &pg.db,
+        &store.db,
         &workspace_id,
         &document_id,
         &crdt_document_id,
@@ -333,7 +338,7 @@ async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion(
         &actor,
     )
     .await;
-    let saved = pg
+    let saved = store
         .db
         .save_knowledge_rich_document_version(
             &created.rich_document_id,
@@ -372,13 +377,15 @@ async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion(
         &actor,
     );
     assert!(matches!(
-        push_yjs_update(&pg.db, &update_v3).await.expect("push v3"),
+        push_yjs_update(&store.db, &update_v3)
+            .await
+            .expect("push v3"),
         YjsPushOutcomeV1::Stored { .. }
     ));
 
     let v3_json = all_custom_nodes_doc(" v3");
     let v3_event_id = append_snapshot_and_receipt(
-        &pg.db,
+        &store.db,
         &workspace_id,
         &document_id,
         &crdt_document_id,
@@ -395,7 +402,7 @@ async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion(
     )
     .await;
     let idempotency_key = format!("mt236-rich-save-{suffix}");
-    let first_idempotent = pg
+    let first_idempotent = store
         .db
         .save_knowledge_rich_document_version_idempotent(
             &idempotency_key,
@@ -419,7 +426,7 @@ async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion(
         Some(v3_event_id.as_str())
     );
 
-    let replayed_idempotent = pg
+    let replayed_idempotent = store
         .db
         .save_knowledge_rich_document_version_idempotent(
             &idempotency_key,
@@ -439,7 +446,7 @@ async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion(
         Some("snap-mt236-v3")
     );
 
-    let loaded = pg
+    let loaded = store
         .db
         .get_knowledge_rich_document(&created.rich_document_id)
         .await
@@ -513,7 +520,7 @@ async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion(
     assert!(has_ref(DocumentLinkKind::Tag, "tag-fixture"));
     assert!(has_ref(DocumentLinkKind::Wikilink, "video:KVID-fixture"));
 
-    let persisted_backlinks = pg
+    let persisted_backlinks = store
         .db
         .replace_knowledge_document_backlinks(
             &loaded.rich_document_id,
@@ -557,7 +564,7 @@ async fn mt236_custom_tiptap_nodes_survive_save_load_history_and_crdt_promotion(
         "inline tagMention node must persist as a backend backlink"
     );
 
-    let versions = pg
+    let versions = store
         .db
         .list_knowledge_rich_document_versions(&created.rich_document_id)
         .await

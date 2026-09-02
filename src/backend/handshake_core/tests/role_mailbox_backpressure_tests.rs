@@ -6,8 +6,8 @@
 //!    `BackpressureReceipt` round-trip, the deterministic `FixedClock` token
 //!    bucket math, the FR-EVT-MAILBOX-BACKPRESSURE emission, and adversarial
 //!    boundaries (zero-cap, max-cap, concurrent appenders racing the cap).
-//!  - Postgres-backed assertions are `#[ignore]`-gated on `POSTGRES_TEST_URL`
-//!    so default `cargo test` exits 0 against the pure-Rust assertions.
+//!  - Embedded SurrealDB-backed assertions use an isolated test harness, so
+//!    default `cargo test` exercises both pure-Rust and repository assertions.
 //!  - No `LiveXxxUnavailable` / `todo!()` / `unimplemented!()` paths.
 //!
 //! Adversarial coverage (per MT-182 `red_team.minimum_controls`,
@@ -37,9 +37,11 @@
 //!     (`mt_182_config_serde_round_trip_rejects_unknown_keys`).
 //!   - Receipt serde round-trip with `deny_unknown_fields`
 //!     (`mt_182_receipt_serde_round_trip`).
-//!   - Postgres-gated: actual cap enforcement against real MT-177
+//!   - Embedded repository assertions cover actual MT-177
 //!     `count_pending_messages_for_role` (test:
-//!     `mt_182_postgres_check_via_repo_observes_pending`).
+//!     `mt_182_surreal_check_via_repo_observes_pending`).
+
+mod atelier_surreal_support;
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -59,6 +61,8 @@ use handshake_core::role_mailbox_v1::{
     TakeoverPolicy,
 };
 use std::sync::{Arc, Mutex};
+
+use atelier_surreal_support::AtelierSurrealHarness;
 
 // ----- test-stub FlightRecorder -----
 
@@ -523,17 +527,12 @@ fn mt_182_default_config_matches_spec_5_7_3_budgets() {
     assert_eq!(cfg.burst_capacity, 32);
 }
 
-// ===== Postgres-gated integration tests =====
-// Run with `cargo test --features test-utils --test
-// role_mailbox_backpressure_tests -- --ignored` after exporting
-// `POSTGRES_TEST_URL=postgres://user:pass@host/db`.
+// ===== Embedded SurrealDB integration tests =====
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_182_postgres_check_via_repo_observes_pending() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_182_surreal_check_via_repo_observes_pending() {
+    let harness = AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     // Create a thread with cap=2, append three pending DelegateWork messages
     // addressed to Coder, then assert check_via_repo observes pending >=
@@ -588,11 +587,9 @@ async fn mt_182_postgres_check_via_repo_observes_pending() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_182_postgres_check_via_repo_allows_under_cap() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_182_surreal_check_via_repo_allows_under_cap() {
+    let harness = AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     // Create a thread, append one pending message. cap=100 so we are way
     // under — check_via_repo must Allow and return None receipt.
@@ -622,11 +619,9 @@ async fn mt_182_postgres_check_via_repo_allows_under_cap() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_182_postgres_check_via_repo_rate_limit_path() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_182_surreal_check_via_repo_rate_limit_path() {
+    let harness = AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     // No pending messages, but burst=1 means the second send within the
     // same instant must Deny on the rate path.
@@ -668,11 +663,4 @@ fn sample_open_thread() -> RoleMailboxThread {
         TakeoverPolicy::Never,
         ResponseAuthorityScope::LeaseHolder,
     )
-}
-
-async fn postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL for role_mailbox_backpressure_tests");
-    sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }

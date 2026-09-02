@@ -1,6 +1,6 @@
 //! WP-KERNEL-009 MemoryGraphAndClaims MT-121 (ConflictCandidateSearch),
 //! MT-122 (ConflictDetectionAgentJob), MT-123 (ConflictResolutionAgentJob)
-//! integration tests against REAL Handshake-managed PostgreSQL.
+//! integration tests against the real embedded Handshake storage authority.
 //!
 //! Proof: two facts that assert the same (subject, predicate) but disagree on
 //! the object are found by the deterministic candidate search; the detection
@@ -21,7 +21,7 @@ use handshake_core::storage::knowledge_memory::{
     create_memory_fact, find_fact_conflict_candidates, list_conflict_detection_findings,
     MemoryClaimAuthorityLabel, MemoryFactObject, NewMemoryFact,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::{Database, StorageError};
 use knowledge_memory_fixtures::{pool_for, MemoryFixture};
 use serde_json::json;
@@ -29,12 +29,13 @@ use uuid::Uuid;
 
 /// Build two facts sharing (subject, predicate) but with different literal
 /// objects (a symbolic conflict). Returns (subject_entity_id, claim_a, claim_b).
-async fn conflicting_facts(fx: &MemoryFixture, pool: &sqlx::PgPool) -> (String, String, String) {
-    let subject = fx
-        .entity("api", "managed_postgres", "ManagedPostgres")
-        .await;
-    let claim_a = fx.claim("managed PG port is 5544").await;
-    let claim_b = fx.claim("managed PG port is 5432").await;
+async fn conflicting_facts(
+    fx: &MemoryFixture,
+    pool: &handshake_core::storage::surreal::SurrealStorage,
+) -> (String, String, String) {
+    let subject = fx.entity("api", "managed_storage", "ManagedStore").await;
+    let claim_a = fx.claim("managed store port is 5544").await;
+    let claim_b = fx.claim("managed store port is 5432").await;
 
     for (claim, port) in [(&claim_a, "5544"), (&claim_b, "5432")] {
         create_memory_fact(
@@ -63,10 +64,12 @@ async fn conflicting_facts(fx: &MemoryFixture, pool: &sqlx::PgPool) -> (String, 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn symbolic_candidate_search_finds_object_mismatch() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP symbolic_candidate_search_finds_object_mismatch: no PostgreSQL");
+        eprintln!(
+            "SKIP symbolic_candidate_search_finds_object_mismatch: embedded store unavailable"
+        );
         return;
     };
-    let pool = pool_for(&fx.pg).await;
+    let pool = pool_for(&fx.store).await;
     let (subject, claim_a, claim_b) = conflicting_facts(&fx, &pool).await;
 
     let candidates = find_fact_conflict_candidates(&pool, &fx.workspace_id, 50)
@@ -86,11 +89,13 @@ async fn symbolic_candidate_search_finds_object_mismatch() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn detection_job_records_conflict_and_is_idempotent() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP detection_job_records_conflict_and_is_idempotent: no PostgreSQL");
+        eprintln!(
+            "SKIP detection_job_records_conflict_and_is_idempotent: embedded store unavailable"
+        );
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
     let (_subject, claim_a, claim_b) = conflicting_facts(&fx, &pool).await;
 
     // First detection pass: records one conflict, both claims -> conflicted.
@@ -133,11 +138,11 @@ async fn detection_job_records_conflict_and_is_idempotent() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn resolution_job_records_outcome_with_receipt() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP resolution_job_records_outcome_with_receipt: no PostgreSQL");
+        eprintln!("SKIP resolution_job_records_outcome_with_receipt: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
     let (_subject, claim_a, claim_b) = conflicting_facts(&fx, &pool).await;
 
     let result = run_symbolic_conflict_detection(&db, &pool, &fx.workspace_id, 50, None)

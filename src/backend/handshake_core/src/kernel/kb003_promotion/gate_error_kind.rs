@@ -1,7 +1,7 @@
 //! H4 fix (KB003 remediation): normalised storage-error taxonomy used by
 //! `PromotionRejectionReason::canonical_hash_projection`.
 //!
-//! `PromotionRejectionReason::PostgresFailure` carries `storage_error: String`
+//! `PromotionRejectionReason::StorageFailure` carries `storage_error: String`
 //! which contains transient line numbers, connection-id fragments, server
 //! timestamps, and other wobble that varies between retries. Including that
 //! raw string in `payload_hash` caused two retries of the SAME logical
@@ -76,7 +76,7 @@ mod tests {
             NormalisedStorageErrorKind::Deadlock
         );
         assert_eq!(
-            NormalisedStorageErrorKind::classify_message("Postgres: DEADLOCK on transaction 4711"),
+            NormalisedStorageErrorKind::classify_message("storage: DEADLOCK on transaction 4711"),
             NormalisedStorageErrorKind::Deadlock
         );
     }

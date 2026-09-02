@@ -102,7 +102,7 @@ impl GovernanceSubKind {
 }
 
 /// What the shipped extractors can do for a kind.
-// NOTE (cross-lane unblock by PostgresEventLedgerCore agent): `Deserialize`
+// NOTE (cross-lane unblock by SurrealEventLedgerCore agent): `Deserialize`
 // removed from this derive — `&'static [&'static str]` fields cannot
 // implement `Deserialize`, so the derive could never compile and no consumer
 // can exist. Serialize is untouched.

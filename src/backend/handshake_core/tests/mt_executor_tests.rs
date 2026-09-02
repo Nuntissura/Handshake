@@ -290,18 +290,15 @@ fn mt_184_job_state_default_is_queued() {
     assert_eq!(j.state, MicroTaskJobState::Queued);
 }
 
-// Postgres-gated.
+// Embedded-store queue proof.
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_184_queue_atomic_claim() {
     use handshake_core::mt_executor::queue::MicroTaskQueue;
-    let url = handshake_core::storage::tests::postgres_test_base_url()
+    let backend = handshake_core::storage::tests::embedded_test_backend()
         .await
-        .expect("resolve real PostgreSQL test URL");
-    let pool = sqlx::PgPool::connect(&url).await.unwrap();
-    let q = MicroTaskQueue::new(pool);
-    q.ensure_schema().await.unwrap();
+        .expect("open isolated queue backend");
+    let q = MicroTaskQueue::new(backend.storage.clone());
     let job = MicroTaskJob::queue("W-A", "MT-1", PathBuf::from("a.json"), 6, vec![]);
     q.enqueue(&job).await.unwrap();
     let claimed = q.claim_next(Uuid::now_v7()).await.unwrap();

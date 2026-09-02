@@ -1,48 +1,32 @@
 //! WP-KERNEL-005 MT-138 state-probe catalog proof.
 //!
-//! The catalog is runtime state: it is persisted in PostgreSQL and emits a
+//! The catalog is runtime state: it is persisted in embedded SurrealDB and emits a
 //! canonical EventLedger row before model-driven visual inspection.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
-use handshake_core::atelier::AtelierStore;
 use handshake_core::atelier::state_probe::{
-    MODEL_WORKFLOW_STATE_PROBE_CATALOG_ID, StateProbeSurface, model_workflow_state_probe_catalog,
-    state_probe_event_family,
+    model_workflow_state_probe_catalog, state_probe_event_family, StateProbeSurface,
+    MODEL_WORKFLOW_STATE_PROBE_CATALOG_ID,
 };
+use handshake_core::atelier::AtelierStore;
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{Database, postgres::PostgresDatabase};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::{collections::HashSet, sync::Arc};
 use uuid::Uuid;
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 #[tokio::test]
 async fn state_probe_catalog_records_required_surfaces_before_visual_inspection() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP state_probe_catalog_records_required_surfaces_before_visual_inspection: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let mut catalog = model_workflow_state_probe_catalog(format!("test-run-{}", Uuid::new_v4()));
     catalog.catalog_id = format!("{MODEL_WORKFLOW_STATE_PROBE_CATALOG_ID}-{}", Uuid::new_v4());
@@ -96,14 +80,14 @@ async fn state_probe_catalog_records_required_surfaces_before_visual_inspection(
             entry.probe_id
         );
         assert_eq!(entry.status, "ready");
-        assert_eq!(entry.read_model, "postgres_event_ledger_projection");
+        assert_eq!(entry.read_model, "surreal_event_ledger_projection");
         assert_eq!(
             entry.probe_fields["schema"],
             serde_json::json!("hsk.atelier.state_probe.fields@1")
         );
         assert_eq!(
             entry.probe_fields["state_authority"],
-            serde_json::json!("postgres")
+            serde_json::json!("surreal")
         );
         assert_eq!(
             entry.probe_fields["event_authority"],
@@ -154,13 +138,7 @@ async fn state_probe_catalog_records_required_surfaces_before_visual_inspection(
 
 #[tokio::test]
 async fn state_probe_catalog_rejects_missing_required_surface() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP state_probe_catalog_rejects_missing_required_surface: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, _) = connected_store_with_ledger(&url).await;
+    let (store, _, _harness) = connected_store_with_ledger().await;
 
     let mut catalog = model_workflow_state_probe_catalog(format!("test-run-{}", Uuid::new_v4()));
     catalog.catalog_id = format!("bad-state-probe-catalog-{}", Uuid::new_v4());
@@ -187,13 +165,7 @@ async fn state_probe_catalog_rejects_missing_required_surface() {
 
 #[tokio::test]
 async fn state_probe_catalog_rejects_bogus_ready_catalog_metadata() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP state_probe_catalog_rejects_bogus_ready_catalog_metadata: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, _) = connected_store_with_ledger(&url).await;
+    let (store, _, _harness) = connected_store_with_ledger().await;
 
     let mut catalog = model_workflow_state_probe_catalog(format!("test-run-{}", Uuid::new_v4()));
     catalog.catalog_id = format!("bogus-state-probe-catalog-{}", Uuid::new_v4());

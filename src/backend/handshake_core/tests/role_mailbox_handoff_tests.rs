@@ -7,7 +7,7 @@
 //!
 //! Contract: MT-183 owns `src/backend/handshake_core/src/role_mailbox_v1/handoff.rs`
 //! and this integration-test surface. Pure-Rust assertions are always-on;
-//! Postgres-backed assertions are `#[ignore]`-gated on `POSTGRES_TEST_URL`
+//! embedded SurrealDB-backed assertions are `#[ignore]`-gated on `HANDSHAKE_DATA_DIR`
 //! per the cluster X.1 Spec-Realism Gate convention used by
 //! role_mailbox_repo_tests and role_mailbox_lease_tests.
 //!
@@ -22,12 +22,14 @@
 //!   (e) Dangling correlation: announce-back references a bundle id absent
 //!       from the verifier's bundle map (`ChainError::DanglingBundleCorrelation`).
 //!   (f) Tampered bundle insert via `RoleMailboxRepository::insert_handoff_bundle`
-//!       returns `MailboxError::HashMismatch` (Postgres-gated).
+//!       returns `MailboxError::HashMismatch` (embedded SurrealDB-gated).
 //!   (g) `get_handoff_bundle` round-trip preserves all fields and the
-//!       reloaded bundle's `verify_hash` returns true (Postgres-gated).
+//!       reloaded bundle's `verify_hash` returns true (embedded SurrealDB-gated).
 //!   (h) Canonical-JSON hashing is order-stable: permuting `linked_artifacts`
 //!       changes the hash, but reserializing a clone of the bundle produces
 //!       the same hash (deterministic-hash golden-fixture).
+
+mod atelier_surreal_support;
 
 use chrono::{Duration, Utc};
 use handshake_core::role_mailbox::RoleId;
@@ -364,13 +366,14 @@ fn mt_183_chain_error_display_variants_are_distinct() {
 }
 
 #[test]
-fn mt_183_repo_handoff_bundle_methods_have_pgpool_only_constructor() {
+fn mt_183_repo_handoff_bundle_methods_have_embedded_storage_constructor() {
     // CX-503R surface check: insert_handoff_bundle / get_handoff_bundle /
     // list_handoff_bundles_for_thread all live on
-    // RoleMailboxRepository which is PgPool-only by construction. This
-    // type-pin proves they cannot accept a SqliteConnection at compile
+    // RoleMailboxRepository is bound to the embedded storage type. This
+    // type-pin proves the constructor's storage boundary.
     // time (mirrors the pattern in role_mailbox_repo_tests.rs).
-    let _ctor: fn(sqlx::PgPool) -> RoleMailboxRepository = RoleMailboxRepository::new;
+    let _ctor: fn(handshake_core::storage::surreal::SurrealStorage) -> RoleMailboxRepository =
+        RoleMailboxRepository::new;
 }
 
 #[test]
@@ -406,16 +409,14 @@ fn mt_183_handoff_bundle_with_transcript_pointer_round_trip() {
 }
 
 // ====================================================================
-//                  Postgres-gated integration tests
+//                  embedded SurrealDB-gated integration tests
 // ====================================================================
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_183_insert_handoff_bundle_recomputes_hash_and_rejects_tampered_input() {
     // (f) Direct insert with a tampered content_hash -> MailboxError::HashMismatch.
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread();
     let thread_id = thread.thread_id;
@@ -453,12 +454,10 @@ async fn mt_183_insert_handoff_bundle_recomputes_hash_and_rejects_tampered_input
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_183_get_handoff_bundle_round_trip_preserves_fields_and_verify_hash() {
     // (g) Insert -> get -> verify all fields round-trip and verify_hash() passes.
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread();
     let thread_id = thread.thread_id;
@@ -505,16 +504,14 @@ async fn mt_183_get_handoff_bundle_round_trip_preserves_fields_and_verify_hash()
     assert_eq!(got.capability_grants.len(), 1);
     assert!(
         got.verify_hash(),
-        "round-tripped bundle from Postgres must verify hash"
+        "round-tripped bundle from embedded SurrealDB must verify hash"
     );
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_183_list_handoff_bundles_for_thread_chronological() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread();
     let thread_id = thread.thread_id;
@@ -549,11 +546,10 @@ async fn mt_183_list_handoff_bundles_for_thread_chronological() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_183_get_handoff_bundle_unknown_returns_none() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
+
     let unknown = Uuid::now_v7();
     let got = repo
         .get_handoff_bundle(unknown)
@@ -563,13 +559,11 @@ async fn mt_183_get_handoff_bundle_unknown_returns_none() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_183_insert_with_clean_hash_then_get_then_verify_chain_end_to_end() {
     // End-to-end: insert bundle, compose AnnounceBack with a provenance
     // chain referring to a stored message, verify chain + bundle pairing.
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread();
     let thread_id = thread.thread_id;
@@ -661,11 +655,4 @@ fn sample_open_thread() -> RoleMailboxThread {
         TakeoverPolicy::Never,
         ResponseAuthorityScope::LeaseHolder,
     )
-}
-
-async fn postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL for role_mailbox_handoff_tests");
-    sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }

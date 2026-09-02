@@ -1,34 +1,28 @@
-//! WP-KERNEL-005 MT-115 / MT-116 / MT-117: real PostgreSQL round-trip proofs
+//! WP-KERNEL-005 MT-115 / MT-116 / MT-117: embedded SurrealDB round-trip proofs
 //! for the typed pose deferred-feature registry.
 //!
 //! These MTs are "record a deferred/blocked pose feature with a reason" as a
 //! TYPED RUNTIME RECORD, not governance markdown. Each test connects the real
-//! `AtelierStore` to a live Postgres, ensures the schema, records the specific
+//! `AtelierStore` to an isolated embedded store, records the specific
 //! features each MT names, reloads them, and asserts they persist with a
 //! non-empty reason and the correct status. A negative test proves a blank
 //! `deferral_reason` is rejected, so a deferral can never be silent.
 //!
-//! Gated on `atelier_pg_support::database_url()`: when no PostgreSQL is
-//! available the test prints SKIP and returns (never SQLite).
+//! Each test uses an isolated embedded store.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::pose::{
     pose_deferred_feature_catalog, NewPoseDeferredFeature, PoseDeferredStatus,
 };
 use handshake_core::atelier::{AtelierError, AtelierStore};
 use std::collections::HashMap;
 
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres. The deferred-feature table has no character FK, so no fixture
+/// Open an isolated embedded store. The deferred-feature table has no character FK, so no fixture
 /// entity is needed.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// The deferred-feature table is keyed by a stable `feature_id` PK and persists
@@ -56,11 +50,7 @@ async fn record_catalog_and_reload(
 /// BLOCKED with a non-empty reason.
 #[tokio::test]
 async fn mt115_pose_workspace_blocked_features_persist_with_reasons() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt115_pose_workspace_blocked_features_persist_with_reasons: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let by_id = record_catalog_and_reload(&store).await;
 
     let expected = [
@@ -105,11 +95,7 @@ async fn mt115_pose_workspace_blocked_features_persist_with_reasons() {
 /// DEFERRED record with a non-empty reason.
 #[tokio::test]
 async fn mt116_rigdata_v2_multi_subject_carry_forward_deferred() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt116_rigdata_v2_multi_subject_carry_forward_deferred: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let by_id = record_catalog_and_reload(&store).await;
 
     let feature = by_id
@@ -137,11 +123,7 @@ async fn mt116_rigdata_v2_multi_subject_carry_forward_deferred() {
 /// MT-117: the named Pose tab polish features persist as PLANNED deferred.
 #[tokio::test]
 async fn mt117_pose_tab_polish_features_deferred() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt117_pose_tab_polish_features_deferred: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let by_id = record_catalog_and_reload(&store).await;
 
     let expected = [
@@ -183,11 +165,7 @@ async fn mt117_pose_tab_polish_features_deferred() {
 /// blank deferral can never be persisted.
 #[tokio::test]
 async fn empty_deferral_reason_is_rejected() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP empty_deferral_reason_is_rejected: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let blank = NewPoseDeferredFeature {
         feature_id: "mt-115.pose-workspace.blank-reason-probe".to_string(),

@@ -80,7 +80,9 @@ async fn mt196_kernel002_manual_topics_are_seeded_as_pages() {
         }
     }
     drop(store);
-    kpg.close_and_remove().await.expect("close embedded backend");
+    kpg.close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 /// MT-196: the documented startup constants (bind address and embedded-store
@@ -126,7 +128,9 @@ async fn mt196_documented_startup_constants_match_product_source() {
     // The documented mounts exist in main.rs (`/api` nest + merge at root).
     assert!(main_rs.contains(".nest(\"/api\", api_routes)"));
     drop(store);
-    kpg.close_and_remove().await.expect("close embedded backend");
+    kpg.close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 // ---------------------------------------------------------------------------
@@ -364,7 +368,9 @@ async fn mt198_embed_law_and_repair_vocabulary_match_types() {
         );
     }
     drop(store);
-    kpg.close_and_remove().await.expect("close embedded backend");
+    kpg.close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 // ---------------------------------------------------------------------------
@@ -465,7 +471,9 @@ async fn mt202_bundle_cites_manual_page_with_version_and_anchor() {
         .contains("user_manual_page"));
     drop(planner);
     drop(store);
-    kpg.close_and_remove().await.expect("close embedded backend");
+    kpg.close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 // ---------------------------------------------------------------------------
@@ -508,7 +516,9 @@ async fn mt206_state_recovery_guide_covers_contract_scenarios() {
         assert_eq!(section.section_kind, "recovery");
     }
     drop(store);
-    kpg.close_and_remove().await.expect("close embedded backend");
+    kpg.close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 /// MT-224: the state-recovery guide must cover the live parallel-swarm
@@ -575,7 +585,7 @@ async fn mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols() {
         "mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts",
         "mt223_quiet_receipt_failure_rolls_back_index_run_and_lease",
         "mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer",
-        "mt223_restart_after_crash_reconstructs_swarm_state_from_postgres",
+        "mt223_restart_after_crash_reconstructs_swarm_state_from_embedded_store",
     ];
     let test_source =
         std::fs::read_to_string(crate_root.join("tests/parallel_swarm_state_recovery_tests.rs"))
@@ -603,7 +613,9 @@ async fn mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols() {
         );
     }
     drop(store);
-    kpg.close_and_remove().await.expect("close embedded backend");
+    kpg.close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 /// MT-207: every spec-enrichment seed row targets an anchor that EXISTS in
@@ -738,7 +750,9 @@ async fn mt208_missing_page_fixture_detected_and_healed() {
         "reseed restores the deleted page"
     );
     drop(store);
-    kpg.close_and_remove().await.expect("close embedded backend");
+    kpg.close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 /// MT-208: legacy redirect fixture — known aliases resolve, unknown aliases
@@ -763,7 +777,9 @@ async fn mt208_legacy_redirect_fixture() {
         .expect("unknown alias query")
         .is_none());
     drop(store);
-    kpg.close_and_remove().await.expect("close embedded backend");
+    kpg.close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 /// MT-208: visual-navigation fixture — an orphan page (nothing links to it)
@@ -785,5 +801,7 @@ async fn mt208_orphan_page_fixture_detected() {
         orphans.contains(&orphan_slug),
         "navigation audit must flag the orphan (got {orphans:?})"
     );
-    kpg.close_and_remove().await.expect("close embedded backend");
+    kpg.close_and_remove()
+        .await
+        .expect("close embedded backend");
 }

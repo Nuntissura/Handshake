@@ -83,7 +83,7 @@ impl MteDropBackDecisionV1 {
             }
             // Transient infrastructure failures hold in place; the scheduler
             // will retry per `MteRetryBudgetV1`.
-            PromotionRejectionReason::PostgresFailure { .. }
+            PromotionRejectionReason::StorageFailure { .. }
             | PromotionRejectionReason::ProjectionRebuildFailure { .. } => {
                 (MteDropBackAction::HoldInPlace, None)
             }
@@ -215,8 +215,8 @@ mod tests {
     }
 
     #[test]
-    fn postgres_failure_holds_for_retry() {
-        let reason = PromotionRejectionReason::PostgresFailure {
+    fn storage_failure_holds_for_retry() {
+        let reason = PromotionRejectionReason::StorageFailure {
             storage_error: "deadlock".into(),
         };
         let dec =

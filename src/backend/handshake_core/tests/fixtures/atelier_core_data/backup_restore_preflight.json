@@ -1,5 +1,5 @@
 {
-  "_comment": "MT-079 portable non-SQLite fixture corpus: backup + restore-preflight behavior only. Backups carry app/spec/schema version traceability with checksummed logical files (synthetic seeds only, no real operator data, relocatable artifact:// refs); preflight scenarios pin the version/refusal rules: same-version restores are accepted, newer app/spec/schema backups are refused. All payloads are made run-unique at load time.",
+  "_comment": "MT-079 portable JSON fixture corpus: backup + restore-preflight behavior backed by embedded SurrealDB/EventLedger. Backups carry app/spec/schema version traceability with checksummed logical files (synthetic seeds only, no real operator data, relocatable artifact:// refs); preflight scenarios pin the version/refusal rules: same-version restores are accepted, newer app/spec/schema backups are refused. All payloads are made run-unique at load time.",
   "backups": [
     {
       "key": "baseline",

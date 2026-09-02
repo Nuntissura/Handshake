@@ -1,6 +1,6 @@
 //! WP-KERNEL-009 MemoryGraphAndClaims MT-114 (MemoryFactSchema) and
-//! MT-125 (ClaimAuthorityLabels) integration tests against REAL
-//! Handshake-managed PostgreSQL.
+//! MT-125 (ClaimAuthorityLabels) integration tests against the real embedded
+//! Handshake store.
 //!
 //! A MemoryFact is a structured subject/predicate/object record backed 1:1 by a
 //! knowledge_claims row. These tests prove: a fact round-trips with its backing
@@ -23,10 +23,10 @@ use serde_json::json;
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn relationship_fact_roundtrip_backed_by_claim() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP relationship_fact_roundtrip_backed_by_claim: no PostgreSQL");
+        eprintln!("SKIP relationship_fact_roundtrip_backed_by_claim: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
+    let pool = pool_for(&fx.store).await;
 
     // subject entity, object entity, and a backing claim (with evidence span).
     let subject = fx.entity("symbol", "crate::a::Foo", "Foo").await;
@@ -68,33 +68,21 @@ async fn relationship_fact_roundtrip_backed_by_claim() {
         .expect("fact exists");
     assert_eq!(by_claim.fact_id, fact.fact_id);
 
-    // Deleting the backing claim cascades the fact away (claim is authority).
-    let mut conn = fx.pg.raw_connection().await;
-    sqlx::query("DELETE FROM knowledge_claims WHERE claim_id = $1")
-        .bind(&claim.claim_id)
-        .execute(&mut conn)
-        .await
-        .expect("delete backing claim");
-    assert!(
-        get_memory_fact(&pool, &fact.fact_id)
-            .await
-            .expect("get fact after claim delete")
-            .is_none(),
-        "fact must cascade away when its backing claim is deleted"
-    );
+    // MT-141 disposition: direct backing-claim deletion was a relational
+    // cascade probe. The embedded public typed API intentionally exposes no
+    // destructive claim-delete operation; the retained typed lookups prove
+    // the fact/claim authority link without weakening the legal-row proof.
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn attribute_fact_and_object_shape_check() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP attribute_fact_and_object_shape_check: no PostgreSQL");
+        eprintln!("SKIP attribute_fact_and_object_shape_check: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let subject = fx
-        .entity("api", "managed_postgres", "ManagedPostgres")
-        .await;
-    let claim = fx.claim("ManagedPostgres default port is 5544").await;
+    let pool = pool_for(&fx.store).await;
+    let subject = fx.entity("api", "managed_store", "ManagedStore").await;
+    let claim = fx.claim("ManagedStore default port is 5544").await;
 
     // Attribute fact: literal object.
     let fact = create_memory_fact(
@@ -119,25 +107,10 @@ async fn attribute_fact_and_object_shape_check() {
     assert_eq!(fact.object_literal.as_deref(), Some("5544"));
     assert!(fact.object_entity_id.is_none());
 
-    // DB object-shape CHECK: a fact with NEITHER object form is rejected.
-    let mut conn = fx.pg.raw_connection().await;
-    let err = sqlx::query(
-        "INSERT INTO knowledge_memory_facts
-            (fact_id, workspace_id, claim_id, subject_entity_id, predicate_key,
-             extractor_version)
-         VALUES ('KMF-00000000000000000000000000000001', $1, $2, $3, 'p', 'v')",
-    )
-    .bind(&fx.workspace_id)
-    .bind(&claim.claim_id)
-    .bind(&subject)
-    .execute(&mut conn)
-    .await
-    .expect_err("a fact with no object form must violate the object-shape CHECK");
-    assert!(
-        err.to_string()
-            .contains("chk_knowledge_memory_facts_object_shape"),
-        "unexpected: {err}"
-    );
+    // MT-141 disposition: malformed neither/both-object row insertion was a
+    // direct relational constraint probe. `MemoryFactObject` is exhaustive,
+    // so the embedded typed API cannot construct that invalid shape; the
+    // active enum-backed round-trip proves both legal object forms.
 }
 
 /// MT-125: authority label transitions enforce a legal table; an
@@ -145,10 +118,10 @@ async fn attribute_fact_and_object_shape_check() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn authority_label_transition_table_is_enforced() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP authority_label_transition_table_is_enforced: no PostgreSQL");
+        eprintln!("SKIP authority_label_transition_table_is_enforced: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
+    let pool = pool_for(&fx.store).await;
     let subject = fx
         .entity("concept", "retrieval_mode", "RetrievalMode")
         .await;

@@ -1,4 +1,4 @@
-//! WP-KERNEL-005 MT-104 / MT-130: real PostgreSQL round-trip proofs for the
+//! WP-KERNEL-005 MT-104 / MT-130: embedded SurrealDB round-trip proofs for the
 //! Comfy-compatible Replay Input Contract and the replay event family.
 //!
 //! MT-104 (Replay Input Contract): a `ReplayRequest` captures the workflow
@@ -14,28 +14,23 @@
 //! specific event rows for THIS test's run (via `count_events_for_aggregate`),
 //! never global event counts.
 //!
-//! Gated on `atelier_pg_support::database_url()`: when no PostgreSQL is
-//! available the test prints SKIP and returns (never SQLite). No mocks: each
-//! test connects the real `AtelierStore` to a real Postgres, ensures schema,
+//! No mocks: each test uses the real `AtelierStore` on an isolated embedded
+//! SurrealDB harness with the canonical schema,
 //! materializes a real stored intake output, and resolves/replays against it.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
+use atelier_surreal_support::AtelierSurrealHarness;
 use handshake_core::atelier::comfy::{
     comfy_event_family, MediaKind, NewIntakeOutput, ReplayRequest, RoutingIntent,
 };
 use handshake_core::atelier::AtelierStore;
 use uuid::Uuid;
 
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, AtelierSurrealHarness) {
+    let harness = AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// Record a real stored intake output for `run_id` and return its portable
@@ -74,11 +69,7 @@ async fn store_real_output(store: &AtelierStore, run_id: Uuid) -> String {
 /// artifact for the run; a request naming a non-existent ref is rejected.
 #[tokio::test]
 async fn mt104_replay_request_resolves_all_input_refs() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt104_replay_request_resolves_all_input_refs: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let run_id = Uuid::new_v4();
 
     // Two real stored outputs become the replay inputs.
@@ -132,7 +123,8 @@ async fn mt104_replay_request_resolves_all_input_refs() {
         .await
         .expect_err("a missing input ref must be rejected");
     assert!(
-        err.to_string().contains("does not resolve to a stored artifact"),
+        err.to_string()
+            .contains("does not resolve to a stored artifact"),
         "unexpected error for missing ref: {err}"
     );
 
@@ -150,7 +142,9 @@ async fn mt104_replay_request_resolves_all_input_refs() {
         .await
         .expect_err(".GOV replay input refs are forbidden");
     assert!(
-        legacy_err.to_string().contains("Handshake-native portable ref"),
+        legacy_err
+            .to_string()
+            .contains("Handshake-native portable ref"),
         "unexpected error for legacy ref: {legacy_err}"
     );
 }
@@ -161,13 +155,7 @@ async fn mt104_replay_request_resolves_all_input_refs() {
 /// workflow run id, never global event totals.
 #[tokio::test]
 async fn mt130_replay_event_family_emitted_on_request_complete_fail() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt130_replay_event_family_emitted_on_request_complete_fail: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // The replay event family is registered for parity/coverage.
     assert!(
@@ -243,7 +231,13 @@ async fn mt130_replay_event_family_emitted_on_request_complete_fail() {
         .count_events_for_aggregate(comfy_event_family::REPLAY_FAILED, AGG, &bad_agg)
         .await
         .expect("count REPLAY_FAILED for bad run");
-    assert_eq!(bad_requested, 1, "REPLAY_REQUESTED emitted once for the bad run");
-    assert_eq!(bad_completed, 0, "no REPLAY_COMPLETED for the failed bad run");
+    assert_eq!(
+        bad_requested, 1,
+        "REPLAY_REQUESTED emitted once for the bad run"
+    );
+    assert_eq!(
+        bad_completed, 0,
+        "no REPLAY_COMPLETED for the failed bad run"
+    );
     assert_eq!(bad_failed, 1, "REPLAY_FAILED emitted once for the bad run");
 }

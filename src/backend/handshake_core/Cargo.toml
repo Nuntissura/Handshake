@@ -475,7 +475,7 @@ required-features = ["test-utils"]
 [[test]]
 name = "crash_recovery_e2e"
 path = "tests/crash_recovery_e2e/mod.rs"
-required-features = ["test-utils"]
+required-features = ["app-runtime", "surreal-test-support", "test-utils"]
 
 [[test]]
 name = "observability_aggregate_queries_tests"
@@ -522,12 +522,12 @@ name = "native_screenshot_capture_tests"
 path = "tests/native_screenshot_capture_tests.rs"
 required-features = ["test-utils"]
 
-# WP-KERNEL-009 PostgresEventLedgerCore (MT-049..MT-064): real-PostgreSQL
+# WP-KERNEL-009 EventLedgerCore (MT-049..MT-064): embedded SurrealDB
 # integration proof for the ProjectKnowledgeIndex authority schema.
 [[test]]
 name = "knowledge_schema_tests"
 path = "tests/knowledge_schema_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "surreal-test-support"]
 
 [[test]]
 name = "knowledge_graph_tests"
@@ -547,12 +547,17 @@ required-features = ["test-utils"]
 [[test]]
 name = "knowledge_claims_tests"
 path = "tests/knowledge_claims_tests.rs"
-required-features = ["test-utils"]
+required-features = ["surreal-test-support", "test-utils"]
+
+[[test]]
+name = "knowledge_documents_api_tests"
+path = "tests/knowledge_documents_api_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
 
 [[test]]
 name = "knowledge_documents_tests"
 path = "tests/knowledge_documents_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "surreal-test-support"]
 
 [[test]]
 name = "knowledge_tiptap_roundtrip_fixture_tests"
@@ -589,18 +594,18 @@ path = "tests/loom_retrieval_bias_visibility_tests.rs"
 required-features = ["test-utils"]
 
 # WP-KERNEL-009 LoomObsidianNavigation MT-191: bounded Loom visual-debug
-# snapshot over graph/backlink/folder/search state from real PostgreSQL.
+# snapshot over graph/backlink/folder/search state from embedded SurrealDB.
 [[test]]
 name = "loom_visual_debug_views_tests"
 path = "tests/loom_visual_debug_views_tests.rs"
 required-features = ["test-utils"]
 
-# WP-KERNEL-009 SourceIngestionAndEvidence (MT-081..MT-096): real-PostgreSQL
+# WP-KERNEL-009 SourceIngestionAndEvidence (MT-081..MT-096): embedded SurrealDB
 # integration proof for allowlisted, hash-based, secret-aware ingestion.
 [[test]]
 name = "knowledge_ingestion_policy_tests"
 path = "tests/knowledge_ingestion_policy_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "surreal-test-support"]
 
 [[test]]
 name = "knowledge_ingestion_pipeline_tests"
@@ -622,7 +627,12 @@ name = "knowledge_ingestion_fixture_tests"
 path = "tests/knowledge_ingestion_fixture_tests.rs"
 required-features = ["test-utils"]
 
-# WP-KERNEL-009 SecurityPortabilityValidation MT-237: real-PostgreSQL
+[[test]]
+name = "knowledge_ingestion_hardening_tests"
+path = "tests/knowledge_ingestion_hardening_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
+# WP-KERNEL-009 SecurityPortabilityValidation MT-237: embedded SurrealDB
 # parallel write conflict fixture over CRDT denial receipts, conflict_state,
 # EventLedger, and pull/merge/resubmit repair.
 [[test]]
@@ -630,19 +640,19 @@ name = "knowledge_parallel_write_conflict_fixture_tests"
 path = "tests/knowledge_parallel_write_conflict_fixture_tests.rs"
 required-features = ["test-utils"]
 
-# WP-KERNEL-009 Retrieval replay (MT-238): real-PostgreSQL context-bundle
+# WP-KERNEL-009 Retrieval replay (MT-238): embedded SurrealDB context-bundle
 # reconstruction from RetrievalTrace, QueryPlan, evidence rows, and receipts.
 [[test]]
 name = "knowledge_retrieval_replay_tests"
 path = "tests/knowledge_retrieval_replay_tests.rs"
 required-features = ["test-utils"]
 
-# WP-KERNEL-009 SecurityPortabilityValidation MT-239: real-PostgreSQL
+# WP-KERNEL-009 SecurityPortabilityValidation MT-239: embedded SurrealDB
 # UserManual freshness false-PASS fixture for same-count child-row tampering.
 [[test]]
 name = "user_manual_freshness_fixture_tests"
 path = "tests/user_manual_freshness_fixture_tests.rs"
-required-features = ["test-utils"]
+required-features = ["surreal-test-support", "test-utils"]
 
 # WP-KERNEL-009 CRDTAndConcurrencyCore (MT-065..MT-080): typed actor/site ids,
 # state vectors, rich-document CRDT drafts, proposals, leases, recovery.
@@ -669,7 +679,7 @@ required-features = ["test-utils"]
 [[test]]
 name = "knowledge_crdt_proof_tests"
 path = "tests/knowledge_crdt_proof_tests.rs"
-required-features = ["test-utils"]
+required-features = ["surreal-test-support", "test-utils"]
 
 [[test]]
 name = "knowledge_crdt_proposal_tests"
@@ -679,9 +689,9 @@ required-features = ["test-utils"]
 [[test]]
 name = "parallel_swarm_state_recovery_tests"
 path = "tests/parallel_swarm_state_recovery_tests.rs"
-required-features = ["test-utils"]
+required-features = ["app-runtime", "surreal-test-support", "test-utils"]
 
-# WP-KERNEL-009 UserManualAndNoContextOps (MT-193..MT-208): real-PostgreSQL
+# WP-KERNEL-009 UserManualAndNoContextOps (MT-193..MT-208): embedded SurrealDB
 # proof for the canonical UserManual surface (storage, API, content accuracy).
 [[test]]
 name = "user_manual_storage_tests"
@@ -698,7 +708,7 @@ name = "user_manual_content_tests"
 path = "tests/user_manual_content_tests.rs"
 required-features = ["test-utils"]
 
-# WP-KERNEL-009 ProjectWikiCompileLayer (MT-241..MT-243): real-PostgreSQL
+# WP-KERNEL-009 ProjectWikiCompileLayer (MT-241..MT-243): embedded SurrealDB
 # proof for the bootstrap compiler, drift/staleness, and fan-out surfaces.
 [[test]]
 name = "project_wiki_bootstrap_tests"
@@ -725,13 +735,13 @@ name = "debug_adapter_breakpoint_persistence"
 path = "tests/debug_adapter_breakpoint_persistence.rs"
 required-features = ["test-utils"]
 
-# WP-KERNEL-009 MT-261 CanvasBoard: real-PostgreSQL + EventLedger proof that the
+# WP-KERNEL-009 MT-261 CanvasBoard: embedded SurrealDB + EventLedger proof that the
 # canvas IS a typed LoomBlock, placements are references (never copies), visual
 # edges are not graph authority, and the board state round-trips.
 [[test]]
 name = "loom_canvas_board_tests"
 path = "tests/loom_canvas_board_tests.rs"
-required-features = ["test-utils"]
+required-features = ["surreal-test-support", "test-utils"]
 
 # MT-262 BlockCollectionViews: saved table/Kanban/calendar views over the real
 # Loom query backend. Proves a view IS a typed LoomBlock (view_def +
@@ -740,4 +750,9 @@ required-features = ["test-utils"]
 [[test]]
 name = "loom_block_collection_views_tests"
 path = "tests/loom_block_collection_views_tests.rs"
-required-features = ["test-utils"]
+required-features = ["surreal-test-support", "test-utils"]
+
+[[test]]
+name = "atelier_core_data_tests"
+path = "tests/atelier_core_data_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{future::Future, sync::Arc};
+use std::{collections::BTreeMap, future::Future, sync::Arc};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -13,7 +13,9 @@ use super::hygiene::{
     MEMORY_HYGIENE_SOURCE_COMPONENT,
 };
 use super::pinned_core::{
-    MEMORY_PIN_AGGREGATE_TYPE, MEMORY_PIN_SOURCE_COMPONENT, PIN_MEMORY_ACTION_ID,
+    action_id_for_pin_state, fr_event_for_pin_state, pin_submission, PinError, PinReceipt,
+    PinSubmitter, PinnedItem, MEMORY_PIN_AGGREGATE_TYPE, MEMORY_PIN_MANIFEST_AGGREGATE_ID,
+    MEMORY_PIN_MANIFEST_AGGREGATE_TYPE, MEMORY_PIN_SOURCE_COMPONENT, PIN_MEMORY_ACTION_ID,
     PIN_MEMORY_PAYLOAD_SCHEMA_ID, UNPIN_MEMORY_ACTION_ID,
 };
 use crate::kernel::{
@@ -253,6 +255,207 @@ impl KernelActionSubmitter for SurrealKernelActionSubmitter {
             }),
         }
     }
+}
+
+impl PinSubmitter for SurrealKernelActionSubmitter {
+    fn set_pin(&self, item: PinnedItem) -> Result<PinReceipt, PinError> {
+        let receipt = PinReceipt {
+            receipt_id: Uuid::now_v7(),
+            memory_id: item.memory_id,
+            pinned: item.pinned,
+            action_id: action_id_for_pin_state(item.pinned).to_owned(),
+            fr_event_kind: fr_event_for_pin_state(item.pinned).to_owned(),
+        };
+        let submission = pin_submission(&item, &receipt)?;
+        let action = self
+            .catalog
+            .action(&submission.request.action_id)
+            .ok_or_else(|| PinError::Rejected {
+                code: "kernel_action_unknown".to_owned(),
+                reason: format!(
+                    "action_id {} is not registered in KernelActionCatalogV1 catalog {}",
+                    submission.request.action_id, self.catalog.catalog_id
+                ),
+            })?;
+        validate_submission_against_catalog(action, &submission).map_err(pin_rejection)?;
+
+        let action_event =
+            build_catalog_action_event(&submission, action).map_err(pin_rejection)?;
+        let manifest_event = build_pin_manifest_event(&item, &receipt, &submission)?;
+        let db = Arc::clone(&self.db);
+        match block_on_storage(async move {
+            db.append_kernel_events_atomic(vec![action_event, manifest_event])
+                .await
+        }) {
+            Ok(_) => Ok(receipt),
+            Err(error) if is_kernel_event_idempotency_conflict(&error) => {
+                if let Some(existing) = existing_pin_submission_matches(&self.db, &submission)? {
+                    Ok(existing)
+                } else {
+                    Err(PinError::Rejected {
+                        code: "memory_pin_atomic_append_failed".to_owned(),
+                        reason: format!(
+                            "atomic memory pin action/manifest append conflicted: {error}"
+                        ),
+                    })
+                }
+            }
+            Err(error) => Err(PinError::Rejected {
+                code: "memory_pin_atomic_append_failed".to_owned(),
+                reason: format!("atomic memory pin action/manifest append failed: {error}"),
+            }),
+        }
+    }
+
+    fn list_pinned(&self) -> Result<Vec<PinnedItem>, PinError> {
+        let db = Arc::clone(&self.db);
+        let mut events = block_on_storage(async move {
+            db.list_kernel_events_for_aggregate(
+                MEMORY_PIN_MANIFEST_AGGREGATE_TYPE,
+                MEMORY_PIN_MANIFEST_AGGREGATE_ID,
+            )
+            .await
+        })
+        .map_err(|error| PinError::Rejected {
+            code: "memory_pin_manifest_replay_failed".to_owned(),
+            reason: format!("replaying the memory pin manifest failed: {error}"),
+        })?;
+        events.sort_by_key(|event| event.event_sequence);
+
+        let mut latest_by_memory_id = BTreeMap::new();
+        for event in events {
+            let item = event
+                .payload
+                .get("pinned_item")
+                .cloned()
+                .ok_or_else(|| PinError::InvalidShape {
+                    field: "memory_pin_manifest.pinned_item",
+                    message: format!(
+                        "manifest event {} does not contain pinned_item",
+                        event.event_id
+                    ),
+                })
+                .and_then(|value| {
+                    serde_json::from_value::<PinnedItem>(value)
+                        .map_err(|error| PinError::Serialization(error.to_string()))
+                })?;
+            latest_by_memory_id.insert(item.memory_id, item);
+        }
+
+        Ok(latest_by_memory_id
+            .into_values()
+            .filter(|item| item.pinned)
+            .collect())
+    }
+}
+
+fn pin_rejection(error: KernelActionRejection) -> PinError {
+    PinError::Rejected {
+        code: error.code,
+        reason: error.reason,
+    }
+}
+
+fn build_pin_manifest_event(
+    item: &PinnedItem,
+    receipt: &PinReceipt,
+    submission: &KernelActionSubmission,
+) -> Result<NewKernelEvent, PinError> {
+    NewKernelEvent::builder(
+        format!("KTR-MEMORY-PIN-MANIFEST-{}", receipt.receipt_id),
+        item.session_id.clone(),
+        KernelEventType::ArtifactStored,
+        KernelActor::ModelAdapter(item.actor_id.clone()),
+    )
+    .aggregate(
+        MEMORY_PIN_MANIFEST_AGGREGATE_TYPE,
+        MEMORY_PIN_MANIFEST_AGGREGATE_ID,
+    )
+    .idempotency_key(format!(
+        "memory_pin_manifest:{}",
+        submission.request.idempotency_key
+    ))
+    .correlation_id(submission.request.trace_id.clone())
+    .event_version("kernel_event_v1")
+    .source_component(MEMORY_PIN_SOURCE_COMPONENT)
+    .payload(json!({
+        "schema_id": "hsk.memory_pin.manifest_event@1",
+        "memory_id": item.memory_id,
+        "pinned_item": item,
+        "pin_receipt": receipt,
+        "action_id": receipt.action_id,
+        "flight_recorder_event_id": receipt.fr_event_kind,
+        "action_idempotency_key": submission.request.idempotency_key,
+    }))
+    .build()
+    .map_err(|error| PinError::InvalidShape {
+        field: "memory_pin_manifest_event",
+        message: error.to_string(),
+    })
+}
+
+fn existing_pin_submission_matches(
+    db: &Arc<dyn Database>,
+    submission: &KernelActionSubmission,
+) -> Result<Option<PinReceipt>, PinError> {
+    let memory_id = submission
+        .request
+        .target_ids
+        .iter()
+        .find(|target| target.target_kind == "memory_item")
+        .map(|target| target.target_id.clone())
+        .ok_or_else(|| PinError::InvalidShape {
+            field: "kernel_action_request.target_ids",
+            message: "memory pin submission has no memory_item target".to_owned(),
+        })?;
+    let action_key = submission.request.idempotency_key.clone();
+    let manifest_key = format!("memory_pin_manifest:{action_key}");
+    let db = Arc::clone(db);
+    let (action_events, manifest_events) = block_on_storage(async move {
+        let action_events = db
+            .list_kernel_events_for_aggregate(MEMORY_PIN_AGGREGATE_TYPE, &memory_id)
+            .await?;
+        let manifest_events = db
+            .list_kernel_events_for_aggregate(
+                MEMORY_PIN_MANIFEST_AGGREGATE_TYPE,
+                MEMORY_PIN_MANIFEST_AGGREGATE_ID,
+            )
+            .await?;
+        Ok::<_, StorageError>((action_events, manifest_events))
+    })
+    .map_err(|error| PinError::Rejected {
+        code: "memory_pin_idempotency_lookup_failed".to_owned(),
+        reason: format!("checking an existing memory pin submission failed: {error}"),
+    })?;
+
+    let action_matches = action_events.iter().any(|event| {
+        event.idempotency_key == action_key && same_submission_semantics(&event.payload, submission)
+    });
+    if !action_matches {
+        return Ok(None);
+    }
+
+    manifest_events
+        .iter()
+        .find(|event| event.idempotency_key == manifest_key)
+        .map(|event| {
+            event
+                .payload
+                .get("pin_receipt")
+                .cloned()
+                .ok_or_else(|| PinError::InvalidShape {
+                    field: "memory_pin_manifest.pin_receipt",
+                    message: format!(
+                        "manifest event {} does not contain pin_receipt",
+                        event.event_id
+                    ),
+                })
+                .and_then(|value| {
+                    serde_json::from_value::<PinReceipt>(value)
+                        .map_err(|error| PinError::Serialization(error.to_string()))
+                })
+        })
+        .transpose()
 }
 
 impl HygieneActionSubmitter for SurrealKernelActionSubmitter {

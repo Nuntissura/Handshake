@@ -4,26 +4,25 @@
 //! The CRUD/seq/geometry half is covered by
 //! `atelier_core_data_tests.rs::atelier_annotation_sequence_update_count_and_remove`;
 //! v2 flagged that no test asserts the acceptance criteria beyond CRUD. This
-//! file proves the remaining contract halves on Handshake-managed PostgreSQL:
+//! file proves the remaining contract halves on Handshake-managed embedded
+//! SurrealDB:
 //!
 //!   * every annotation mutation (add / note-update / remove) emits its
 //!     `atelier.annotation.*` EventLedger event, asserted via
-//!     `count_events_for_aggregate` against the real `atelier_event` table;
+//!     `count_events_for_aggregate` against the real embedded event projection;
 //!   * overlays are DECOUPLED from pose keypoints: ingesting a real pose rig
 //!     (OpenPose keypoints) over the same media asset leaves the overlay
-//!     bit-identical, and the live schema carries no foreign key from
+//!     bit-identical, and the embedded schema carries no reference from
 //!     `atelier_media_annotation` to any pose table — only to
 //!     `atelier_media_asset`;
 //!   * overlays SURVIVE export: after a real sheet-export request + result +
 //!     media manifest entry referencing the annotated asset, the re-read
 //!     overlay (ids, seq order, geometry) is unchanged.
 //!
-//! Gated on `atelier_pg_support::database_url()`; prints SKIP when no
-//! PostgreSQL is available. Never SQLite.
+//! Uses the embedded SurrealDB harness for an isolated schema and data root.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::annotation::{
     annotation_event_family, AnnotationKind, NewMediaAnnotation,
 };
@@ -32,17 +31,13 @@ use handshake_core::atelier::pose::{
     CanvasSize, DetectorStatus, NewPoseRig, BODY_KEYPOINT_COUNT, FACE_KEYPOINT_COUNT,
     HAND_KEYPOINT_COUNT,
 };
-use handshake_core::atelier::{
-    AtelierStore, NewCharacter, NewMediaAsset, NewSheetVersion,
-};
+use handshake_core::atelier::{AtelierStore, NewCharacter, NewMediaAsset, NewSheetVersion};
+use handshake_core::storage::surreal::SurrealTestInspector;
 use uuid::Uuid;
 
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// A valid OpenPose keypoint payload: body-18 plus zero-filled face/hands.
@@ -59,11 +54,7 @@ fn valid_keypoints() -> serde_json::Value {
 
 #[tokio::test]
 async fn mt198_annotation_overlays_emit_events_decouple_from_pose_and_survive_export() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt198_annotation_overlay_proof: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, harness) = connected_store().await;
     let marker = format!("mt-198-overlay-{}", Uuid::new_v4());
 
     // --- Seed: character + sheet version + the media asset to annotate. ---
@@ -84,7 +75,7 @@ async fn mt198_annotation_overlays_emit_events_decouple_from_pose_and_survive_ex
         .await
         .expect("append sheet version");
     let artifact =
-        atelier_pg_support::write_native_media_artifact(format!("{marker}-media").as_bytes());
+        atelier_surreal_support::write_native_media_artifact(format!("{marker}-media").as_bytes());
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash.clone(),
@@ -208,25 +199,24 @@ async fn mt198_annotation_overlays_emit_events_decouple_from_pose_and_survive_ex
         "pose keypoints over the same asset must leave the overlay bit-identical"
     );
 
-    // The live schema enforces the decoupling: the annotation table's only
-    // foreign key points at the media asset, never at a pose/rig table.
-    let fk_targets: Vec<(String,)> = sqlx::query_as(
-        r#"SELECT DISTINCT ccu.table_name
-           FROM information_schema.table_constraints tc
-           JOIN information_schema.constraint_column_usage ccu
-             ON ccu.constraint_name = tc.constraint_name
-            AND ccu.constraint_schema = tc.constraint_schema
-           WHERE tc.table_name = 'atelier_media_annotation'
-             AND tc.constraint_type = 'FOREIGN KEY'"#,
-    )
-    .fetch_all(store.pool())
-    .await
-    .expect("introspect atelier_media_annotation foreign keys");
-    assert_eq!(
-        fk_targets,
-        vec![("atelier_media_asset".to_string(),)],
-        "annotations must be keyed to media identity only (no pose/rig FK)"
-    );
+    // The embedded schema inspector enforces the decoupling: the annotation
+    // table references media identity only, never a pose/rig table.
+    let inspector: SurrealTestInspector = harness.storage.test_inspector();
+    let media_asset_table = inspector
+        .table_selector("atelier_media_asset")
+        .await
+        .expect("inspect media asset table");
+    let annotation_refs = inspector
+        .references_to(&media_asset_table)
+        .await
+        .expect("inspect embedded media references");
+    let annotation_refs = annotation_refs
+        .iter()
+        .filter(|reference| reference.source_table() == "atelier_media_annotation")
+        .collect::<Vec<_>>();
+    assert_eq!(annotation_refs.len(), 1);
+    assert_eq!(annotation_refs[0].source_field(), "asset_id");
+    assert_eq!(annotation_refs[0].target_table(), "atelier_media_asset");
 
     // --- Survives export: real export request + result + media manifest. --
     let export = store

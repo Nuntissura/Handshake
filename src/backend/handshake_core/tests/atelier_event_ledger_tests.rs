@@ -1,16 +1,16 @@
 //! WP-KERNEL-005 atelier EventLedger integration proof.
 //!
-//! This test uses a real `DATABASE_URL` Postgres backend and proves an atelier
-//! mutation appends to the canonical kernel `kernel_event_ledger`, not only the
-//! atelier compatibility projection table.
+//! This test uses the embedded SurrealDB backend and proves an atelier
+//! mutation appends to the canonical kernel EventLedger, not only the atelier
+//! compatibility projection.
 
 #[allow(dead_code)]
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use handshake_core::atelier::intake::{
-    IntakeBatchMode, IntakeProfileMode, NewIntakeBatch, intake_event_family,
+    intake_event_family, IntakeBatchMode, IntakeProfileMode, NewIntakeBatch,
 };
-use handshake_core::atelier::search::{TagType, search_event_family};
+use handshake_core::atelier::search::{search_event_family, TagType};
 use handshake_core::atelier::settings::{PreferenceScope, PreferenceType, SetPreference};
 use handshake_core::atelier::stealth_window::stealth_ref_event_family::{
     STEALTH_REF_ADDED, STEALTH_REF_CAPTURED, STEALTH_REF_REMOVED, STEALTH_REF_REORDERED,
@@ -19,13 +19,12 @@ use handshake_core::atelier::stealth_window::stealth_ref_event_family::{
 use handshake_core::atelier::stealth_window::{
     ContentRefKind, NewContentRef, NewStealthWindow, QuietFlags, VisibilityFlag,
 };
-use handshake_core::atelier::{AtelierStore, NewCharacter, NewSheetVersion, event_family};
+use handshake_core::atelier::{event_family, AtelierStore, NewCharacter, NewSheetVersion};
 use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderEvent, FlightRecorderEventType, RecorderError,
 };
 use handshake_core::kernel::{KernelActor, KernelEventType};
-use handshake_core::storage::{Database, postgres::PostgresDatabase};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
@@ -83,56 +82,34 @@ impl FlightRecorder for FailingFlightRecorder {
     }
 }
 
-async fn database_url() -> Option<String> {
-    atelier_pg_support::database_url().await
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
-}
-
-async fn connected_store_with_observability(
-    url: &str,
-) -> (AtelierStore, Arc<dyn Database>, Arc<MemoryFlightRecorder>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
+async fn connected_store_with_observability() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    Arc<MemoryFlightRecorder>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
     let flight_recorder = Arc::new(MemoryFlightRecorder::default());
-    let store = AtelierStore::with_observability(pool, database.clone(), flight_recorder.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database, flight_recorder)
+    let store = AtelierStore::with_observability(
+        harness.storage.clone(),
+        harness.database.clone(),
+        flight_recorder.clone(),
+    );
+    (store, harness.database.clone(), flight_recorder, harness)
 }
 
 #[tokio::test]
 async fn atelier_character_create_appends_kernel_event_ledger_row() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP atelier_character_create_appends_kernel_event_ledger_row: DATABASE_URL not set"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, harness) = connected_store_with_ledger().await;
 
     let public_id = format!("event-ledger-character-{}", Uuid::new_v4());
     let character = store
@@ -143,10 +120,15 @@ async fn atelier_character_create_appends_kernel_event_ledger_row() {
         .await
         .expect("create character");
 
-    let events = database
+    drop(store);
+    drop(database);
+    let data_dir = harness.close_for_reopen().await;
+    let reopened = atelier_surreal_support::AtelierSurrealHarness::open_existing(data_dir).await;
+    let events = reopened
+        .database
         .list_kernel_events_for_aggregate("atelier_character", &character.public_id)
         .await
-        .expect("list kernel events for atelier character");
+        .expect("list kernel events for atelier character after reopen");
 
     assert_eq!(events.len(), 1, "one kernel event for the new character");
     let event = &events[0];
@@ -193,17 +175,12 @@ async fn atelier_character_create_appends_kernel_event_ledger_row() {
         event.idempotency_key.starts_with("atelier-event:"),
         "kernel idempotency key is atelier-event scoped"
     );
+    reopened.shutdown().await;
 }
 
 #[tokio::test]
 async fn atelier_event_boundary_sanitizes_identity_source_and_author_payloads() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP atelier_event_boundary_sanitizes_identity_source_and_author_payloads: DATABASE_URL not set"
-        );
-        return;
-    };
-    let (store, database, flight_recorder) = connected_store_with_observability(&url).await;
+    let (store, database, flight_recorder, _harness) = connected_store_with_observability().await;
 
     let aggregate_id = format!("mt-007-boundary-{}", Uuid::new_v4());
     let character_internal_id = Uuid::new_v4();
@@ -276,21 +253,14 @@ async fn atelier_event_boundary_sanitizes_identity_source_and_author_payloads() 
         .await
         .expect("record sanitized boundary probe event");
 
-    let atelier_payload: serde_json::Value = sqlx::query_scalar(
-        r#"SELECT payload
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = $2
-             AND aggregate_id = $3
-           ORDER BY created_at_utc DESC
-           LIMIT 1"#,
-    )
-    .bind("atelier.mt007.boundary_probe")
-    .bind("atelier_mt007_probe")
-    .bind(&aggregate_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("read sanitized atelier payload");
+    let atelier_payload = database
+        .list_kernel_events_for_aggregate("atelier_mt007_probe", &aggregate_id)
+        .await
+        .expect("read sanitized atelier payload")
+        .into_iter()
+        .find(|event| event.payload["event_family"] == "atelier.mt007.boundary_probe")
+        .and_then(|event| event.payload.get("atelier_payload").cloned())
+        .expect("sanitized atelier payload event");
     assert_eq!(
         atelier_payload.get("character_internal_id"),
         None,
@@ -397,13 +367,7 @@ async fn atelier_event_boundary_sanitizes_identity_source_and_author_payloads() 
 
 #[tokio::test]
 async fn atelier_intake_batch_event_uses_batch_id_and_hashes_source_identity() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP atelier_intake_batch_event_uses_batch_id_and_hashes_source_identity: DATABASE_URL not set"
-        );
-        return;
-    };
-    let (store, database, flight_recorder) = connected_store_with_observability(&url).await;
+    let (store, database, flight_recorder, _harness) = connected_store_with_observability().await;
 
     let unique = Uuid::new_v4();
     let idempotency_key = format!("source-drop/Sensitive Character/{unique}");
@@ -443,20 +407,14 @@ async fn atelier_intake_batch_event_uses_batch_id_and_hashes_source_identity() {
         intake_event_family::INTAKE_BATCH_CREATED
     );
 
-    let atelier_payload: serde_json::Value = sqlx::query_scalar(
-        r#"SELECT payload
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_intake_batch'
-             AND aggregate_id = $2
-           ORDER BY created_at_utc DESC
-           LIMIT 1"#,
-    )
-    .bind(intake_event_family::INTAKE_BATCH_CREATED)
-    .bind(batch.batch_id.to_string())
-    .fetch_one(store.pool())
-    .await
-    .expect("read intake batch atelier event");
+    let atelier_payload = database
+        .list_kernel_events_for_aggregate("atelier_intake_batch", &batch.batch_id.to_string())
+        .await
+        .expect("read intake batch atelier event")
+        .into_iter()
+        .find(|event| event.payload["event_family"] == intake_event_family::INTAKE_BATCH_CREATED)
+        .and_then(|event| event.payload.get("atelier_payload").cloned())
+        .expect("intake batch atelier payload event");
     assert!(
         atelier_payload["idempotency_key_ref"]
             .as_str()
@@ -528,13 +486,7 @@ async fn atelier_intake_batch_event_uses_batch_id_and_hashes_source_identity() {
 
 #[tokio::test]
 async fn atelier_tag_events_use_ref_aggregates_and_hash_character_identity() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP atelier_tag_events_use_ref_aggregates_and_hash_character_identity: DATABASE_URL not set"
-        );
-        return;
-    };
-    let (store, database, flight_recorder) = connected_store_with_observability(&url).await;
+    let (store, database, flight_recorder, _harness) = connected_store_with_observability().await;
 
     let unique = Uuid::new_v4();
     let character = store
@@ -573,21 +525,21 @@ async fn atelier_tag_events_use_ref_aggregates_and_hash_character_identity() {
         "tag events must not use character internal_id as aggregate_id"
     );
 
-    let tag_events: Vec<serde_json::Value> = sqlx::query_scalar(
-        r#"SELECT payload
-           FROM atelier_event
-           WHERE event_family = ANY($1)
-             AND aggregate_type = 'atelier_character_tag'
-           ORDER BY created_at_utc ASC"#,
-    )
-    .bind(&[
-        search_event_family::CHARACTER_TAGGED,
-        search_event_family::CHARACTER_UNTAGGED,
-        search_event_family::DERIVED_TAGS_RECOMPUTED,
-    ])
-    .fetch_all(store.pool())
-    .await
-    .expect("read tag atelier events");
+    let tag_events: Vec<serde_json::Value> = database
+        .list_kernel_events_for_aggregate("atelier_character_tag", "bulk")
+        .await
+        .expect("read tag EventLedger events")
+        .into_iter()
+        .filter(|event| {
+            [
+                search_event_family::CHARACTER_TAGGED,
+                search_event_family::CHARACTER_UNTAGGED,
+                search_event_family::DERIVED_TAGS_RECOMPUTED,
+            ]
+            .contains(&event.payload["event_family"].as_str().unwrap_or_default())
+        })
+        .map(|event| event.payload["atelier_payload"].clone())
+        .collect();
     assert!(
         tag_events.iter().any(|payload| {
             payload
@@ -621,22 +573,8 @@ async fn atelier_tag_events_use_ref_aggregates_and_hash_character_identity() {
 }
 
 #[tokio::test]
-async fn atelier_connect_constructor_routes_mutations_to_kernel_event_ledger() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP atelier_connect_constructor_routes_mutations_to_kernel_event_ledger: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = AtelierStore::connect(&url)
-        .await
-        .expect("connect atelier store");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    let database = PostgresDatabase::new(store.pool().clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
+async fn atelier_embedded_constructor_routes_mutations_to_kernel_event_ledger() {
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let public_id = format!("connect-ledger-character-{}", Uuid::new_v4());
     let character = store
@@ -667,48 +605,27 @@ async fn atelier_connect_constructor_routes_mutations_to_kernel_event_ledger() {
             .and_then(|value| value.as_str()),
         Some(event_family::CHARACTER_CREATED)
     );
-    let projection: (Option<String>, Option<i64>) = sqlx::query_as(
-        r#"SELECT kernel_event_id, kernel_event_sequence
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = $2
-             AND aggregate_id = $3
-           ORDER BY created_at_utc DESC
-           LIMIT 1"#,
-    )
-    .bind(event_family::CHARACTER_CREATED)
-    .bind("atelier_character")
-    .bind(&character.public_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("read atelier projection linkage for connect constructor");
     assert_eq!(
-        projection.0.as_deref(),
-        Some(kernel_events[0].event_id.as_str())
+        store
+            .count_events_for_aggregate(
+                event_family::CHARACTER_CREATED,
+                "atelier_character",
+                &character.public_id,
+            )
+            .await
+            .expect("count embedded atelier projection linkage"),
+        1,
+        "embedded atelier projection must retain the canonical event linkage"
     );
-    assert_eq!(projection.1, Some(kernel_events[0].event_sequence));
+    assert_eq!(
+        kernel_events[0].payload["event_family"],
+        event_family::CHARACTER_CREATED
+    );
 }
 
 #[tokio::test]
-async fn atelier_new_constructor_routes_mutations_to_kernel_event_ledger() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP atelier_new_constructor_routes_mutations_to_kernel_event_ledger: DATABASE_URL not set"
-        );
-        return;
-    };
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let store = AtelierStore::new(pool);
-    store.ensure_schema().await.expect("ensure atelier schema");
+async fn atelier_embedded_new_constructor_routes_mutations_to_kernel_event_ledger() {
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let public_id = format!("new-ledger-character-{}", Uuid::new_v4());
     let character = store
@@ -739,37 +656,27 @@ async fn atelier_new_constructor_routes_mutations_to_kernel_event_ledger() {
             .and_then(|value| value.as_str()),
         Some(event_family::CHARACTER_CREATED)
     );
-    let projection: (Option<String>, Option<i64>) = sqlx::query_as(
-        r#"SELECT kernel_event_id, kernel_event_sequence
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = $2
-             AND aggregate_id = $3
-           ORDER BY created_at_utc DESC
-           LIMIT 1"#,
-    )
-    .bind(event_family::CHARACTER_CREATED)
-    .bind("atelier_character")
-    .bind(&character.public_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("read atelier projection linkage for new constructor");
     assert_eq!(
-        projection.0.as_deref(),
-        Some(kernel_events[0].event_id.as_str())
+        store
+            .count_events_for_aggregate(
+                event_family::CHARACTER_CREATED,
+                "atelier_character",
+                &character.public_id,
+            )
+            .await
+            .expect("count embedded atelier projection linkage"),
+        1,
+        "embedded atelier projection must retain the canonical event linkage"
     );
-    assert_eq!(projection.1, Some(kernel_events[0].event_sequence));
+    assert_eq!(
+        kernel_events[0].payload["event_family"],
+        event_family::CHARACTER_CREATED
+    );
 }
 
 #[tokio::test]
 async fn atelier_character_and_sheet_events_do_not_leak_identity_text() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP atelier_character_and_sheet_events_do_not_leak_identity_text: DATABASE_URL not set"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let unique = Uuid::new_v4();
     let public_id = format!("identity-decoupled-character-{unique}");
@@ -873,13 +780,7 @@ async fn atelier_character_and_sheet_events_do_not_leak_identity_text() {
 
 #[tokio::test]
 async fn atelier_settings_set_appends_kernel_event_and_flight_recorder_mirror() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP atelier_settings_set_appends_kernel_event_and_flight_recorder_mirror: DATABASE_URL not set"
-        );
-        return;
-    };
-    let (store, database, flight_recorder) = connected_store_with_observability(&url).await;
+    let (store, database, flight_recorder, _harness) = connected_store_with_observability().await;
 
     let key = format!("feature-toggles.atelier-diagnostics-{}", Uuid::new_v4());
     let receipt = store
@@ -927,7 +828,7 @@ async fn atelier_settings_set_appends_kernel_event_and_flight_recorder_mirror() 
                 && event.payload["event_family"] == "atelier.preference.set"
         })
         .expect("settings mutation has Flight Recorder diagnostic mirror");
-    assert_eq!(mirror.payload["authority_source"], "postgres_event_ledger");
+    assert_eq!(mirror.payload["authority_source"], "surreal_event_ledger");
     assert_eq!(mirror.payload["projection_only"], true);
     assert_eq!(mirror.payload["kernel_event_id"], kernel_event.event_id);
     assert_eq!(
@@ -943,13 +844,7 @@ async fn atelier_settings_set_appends_kernel_event_and_flight_recorder_mirror() 
 
 #[tokio::test]
 async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirrors() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirrors: DATABASE_URL not set"
-        );
-        return;
-    };
-    let (store, database, flight_recorder) = connected_store_with_observability(&url).await;
+    let (store, database, flight_recorder, _harness) = connected_store_with_observability().await;
 
     let window = store
         .create_stealth_window(&NewStealthWindow {
@@ -1120,7 +1015,7 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
                 && event.payload["diagnostic_id"] == "atelier_domain_event"
                 && event.payload["aggregate_type"] == "atelier_stealth_window"
                 && event.payload["aggregate_id"] == aggregate_id
-                && event.payload["authority_source"] == "postgres_event_ledger"
+                && event.payload["authority_source"] == "surreal_event_ledger"
                 && event.payload["projection_only"] == true
                 && event.payload["kernel_event_id"].is_string()
                 && event.payload["kernel_event_sequence"].is_i64()
@@ -1135,38 +1030,17 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
 
 #[tokio::test]
 async fn atelier_stealth_mutations_roll_back_when_flight_recorder_fails() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP atelier_stealth_mutations_roll_back_when_flight_recorder_fails: DATABASE_URL not set"
-        );
-        return;
-    };
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
     let good_store = AtelierStore::with_observability(
-        pool.clone(),
-        database.clone(),
+        harness.storage.clone(),
+        harness.database.clone(),
         Arc::new(MemoryFlightRecorder::default()),
     );
-    good_store
-        .ensure_schema()
-        .await
-        .expect("ensure atelier schema");
-    let failing_store =
-        AtelierStore::with_observability(pool.clone(), database, Arc::new(FailingFlightRecorder));
-    failing_store
-        .ensure_schema()
-        .await
-        .expect("ensure atelier schema");
+    let failing_store = AtelierStore::with_observability(
+        harness.storage.clone(),
+        harness.database.clone(),
+        Arc::new(FailingFlightRecorder),
+    );
 
     let owner_actor = format!("operator-{}", Uuid::new_v4());
     let title = format!("stealth-rollback-{}", Uuid::new_v4());
@@ -1183,52 +1057,29 @@ async fn atelier_stealth_mutations_roll_back_when_flight_recorder_fails() {
         create_result.is_err(),
         "create returns an error when Flight Recorder evidence fails"
     );
-    let leaked_windows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_stealth_window WHERE owner_actor = $1 AND title = $2",
-    )
-    .bind(&owner_actor)
-    .bind(&title)
-    .fetch_one(good_store.pool())
-    .await
-    .expect("count leaked windows");
+    let leaked_windows = good_store
+        .list_stealth_windows(&owner_actor, None, 100)
+        .await
+        .expect("list leaked windows")
+        .into_iter()
+        .filter(|window| window.owner_actor == owner_actor && window.title == title)
+        .count() as i64;
     assert_eq!(
         leaked_windows, 0,
         "failed create leaves no durable stealth window row"
     );
-    let orphan_kernel_events: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*)
-           FROM kernel_event_ledger
-           WHERE event_type = $1
-             AND aggregate_type = 'atelier_stealth_window'
-             AND payload->>'event_family' = $2
-             AND payload->'atelier_payload'->>'owner_actor' = $3
-             AND payload->'atelier_payload'->>'title' = $4"#,
-    )
-    .bind(KernelEventType::AtelierDomainEventRecorded.as_str())
-    .bind(STEALTH_REF_WINDOW_CREATED)
-    .bind(&owner_actor)
-    .bind(&title)
-    .fetch_one(good_store.pool())
-    .await
-    .expect("count orphan kernel events after failed create");
+    let orphan_kernel_events = good_store
+        .count_events(STEALTH_REF_WINDOW_CREATED)
+        .await
+        .expect("count orphan kernel events after failed create");
     assert_eq!(
         orphan_kernel_events, 0,
         "failed create must not leave a canonical kernel event without domain state"
     );
-    let orphan_projection_events: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*)
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_stealth_window'
-             AND payload->>'owner_actor' = $2
-             AND payload->>'title' = $3"#,
-    )
-    .bind(STEALTH_REF_WINDOW_CREATED)
-    .bind(&owner_actor)
-    .bind(&title)
-    .fetch_one(good_store.pool())
-    .await
-    .expect("count orphan projection events after failed create");
+    let orphan_projection_events = good_store
+        .count_events(STEALTH_REF_WINDOW_CREATED)
+        .await
+        .expect("count orphan projection events after failed create");
     assert_eq!(
         orphan_projection_events, 0,
         "failed create must not leave an atelier_event projection without domain state"

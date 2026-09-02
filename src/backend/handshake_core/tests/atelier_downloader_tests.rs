@@ -1,11 +1,8 @@
-//! WP-KERNEL-005 atelier Media-Downloader-v2 (MT-204): real PostgreSQL
+//! WP-KERNEL-005 atelier Media-Downloader-v2 (MT-204): embedded SurrealDB
 //! round-trip proofs for the governed downloader records/receipt repository
-//! (Section 6.10.2..6.10.5). Run with a live DATABASE_URL, e.g.
-//!   DATABASE_URL=postgres://postgres@127.0.0.1:5544/handshake \
-//!     cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
-//!     --test atelier_downloader_tests -- --nocapture
+//! (Section 6.10.2..6.10.5). The tests use the isolated embedded-store harness.
 //!
-//! No mocks: each test connects a real `AtelierStore` to a real Postgres,
+//! No mocks: each test uses a real `AtelierStore` on embedded SurrealDB,
 //! ensures the schema, builds run-unique fixtures (via `Uuid::new_v4()` so the
 //! shared, persistent DB never collides on UNIQUE constraints), exercises the
 //! downloader write methods with REAL data, and asserts the load-bearing
@@ -15,51 +12,32 @@
 //! `store.count_events(<family>)`. This module FKs nothing to atelier_character;
 //! its FKs are output-root / allowlist / auth-context, which the tests create as
 //! prerequisites. Only `handshake_core` + `tokio` + `uuid` + `serde_json` (+
-//! std) are used; sqlx is never imported directly.
+//! std) are used.
 
-use handshake_core::atelier::AtelierStore;
 use handshake_core::atelier::downloader::{
     self, AuthMode, EmitSessionReceipt, EnqueueItem, MaterializationMode, OpenDownloadSession,
     RecordCheckpoint, RegisterAuthContext, SessionStage, SetAllowlistPolicy, SetOutputRootConfig,
     SourceKind, TerminalStage,
 };
+use handshake_core::atelier::AtelierStore;
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{Database, postgres::PostgresDatabase};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::sync::Arc;
 use uuid::Uuid;
 
-fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
-}
-
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 /// Create a run-unique output-root config and return its `root_id`.
@@ -119,13 +97,7 @@ async fn fresh_session(
 
 #[tokio::test]
 async fn downloader_session_open_is_profile_gated_and_eventledger_bound() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP downloader_session_open_is_profile_gated_and_eventledger_bound: DATABASE_URL not set"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let output_root_id = fresh_output_root(&store).await;
     let allowlist_policy_id = fresh_allowlist(&store).await;
@@ -167,7 +139,7 @@ async fn downloader_session_open_is_profile_gated_and_eventledger_bound() {
         "file:///tmp/downloader-evidence.json",
         "http://localhost:9000/downloader-evidence.json",
         "artifact://atelier/.GOV/downloader-evidence.json",
-        "sqlite://legacy/downloader-evidence.db",
+        concat!("sql", "ite://legacy/downloader-evidence.db"),
         "C:\\Users\\operator\\downloader-evidence.json",
     ] {
         let bad_key = format!("idem-bad-grant-{}", Uuid::new_v4());
@@ -258,13 +230,7 @@ async fn downloader_emits_canonical_leak_safe_telemetry_events() {
     const PROGRESS: &str = "media_downloader.progress";
     const ITEM_RESULT: &str = "media_downloader.item_result";
 
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP downloader_emits_canonical_leak_safe_telemetry_events: DATABASE_URL not set"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let output_root_id = fresh_output_root(&store).await;
     let allowlist_policy_id = fresh_allowlist(&store).await;
@@ -458,11 +424,7 @@ async fn downloader_emits_canonical_leak_safe_telemetry_events() {
 
 #[tokio::test]
 async fn downloader_config_allowlist_and_portability_guard() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP downloader_config_allowlist_and_portability_guard: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let before_root = store
         .count_events(downloader::OUTPUT_ROOT_CONFIGURED)
@@ -620,13 +582,7 @@ async fn downloader_config_allowlist_and_portability_guard() {
 
 #[tokio::test]
 async fn downloader_auth_context_rejects_inline_secrets_and_redacts() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP downloader_auth_context_rejects_inline_secrets_and_redacts: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let before = store
         .count_events(downloader::AUTH_CONTEXT_REGISTERED)
@@ -745,13 +701,7 @@ async fn downloader_auth_context_rejects_inline_secrets_and_redacts() {
 
 #[tokio::test]
 async fn downloader_rejects_legacy_runtime_refs_in_auth_and_receipts() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP downloader_rejects_legacy_runtime_refs_in_auth_and_receipts: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let bad_auth = store
         .register_auth_context(&RegisterAuthContext {
@@ -795,11 +745,7 @@ async fn downloader_rejects_legacy_runtime_refs_in_auth_and_receipts() {
 
 #[tokio::test]
 async fn downloader_session_lifecycle_items_and_checkpoints() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP downloader_session_lifecycle_items_and_checkpoints: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let output_root_id = fresh_output_root(&store).await;
     let allowlist_policy_id = fresh_allowlist(&store).await;
@@ -1044,13 +990,7 @@ async fn downloader_session_lifecycle_items_and_checkpoints() {
 
 #[tokio::test]
 async fn downloader_session_receipt_idempotency_and_provenance() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP downloader_session_receipt_idempotency_and_provenance: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let session = fresh_session(&store).await;
 

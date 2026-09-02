@@ -267,7 +267,7 @@ mod safetensors_round_trip {
 
         // Set up a manual-mode LedgerBatcher so we can drain and
         // inspect what was registered. Production callers use
-        // LedgerBatcher::spawn with a Postgres store.
+        // LedgerBatcher::spawn with a durable process-ledger store.
         let overflow_concrete = Arc::new(RecordingOverflowSink::default());
         let overflow_sink: Arc<dyn ProcessLedgerOverflowSink> = overflow_concrete.clone();
         let (batcher, drain) =

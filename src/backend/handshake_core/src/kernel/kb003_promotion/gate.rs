@@ -132,7 +132,7 @@ pub struct PromotionGateInputs<'a> {
 /// Persisted output of `PromotionGate::evaluate`.
 #[derive(Debug, Clone)]
 // M-B1 fix: stored_receipt_id is Option<String>. `None` means the rejection
-// receipt was not persisted (e.g. PostgresFailure where storage refused
+// receipt was not persisted (e.g. StorageFailure where storage refused
 // both the decision row AND the receipt row). Callers MUST treat `None` as
 // a signal that the rejection only exists in the returned value and they
 // own logging it elsewhere (out-of-band event ledger, monitoring, etc.).
@@ -191,7 +191,7 @@ impl PromotionGate {
             // `payload_hash` is computed from a bucketed
             // `NormalisedStorageErrorKind` via
             // `PromotionRejectionReason::canonical_hash_projection`, so two
-            // retries of the same logical Postgres failure (worded differently)
+            // retries of the same logical storage failure (worded differently)
             // produce IDENTICAL payload_hash values and the idempotency dedup
             // fires correctly. The raw string is preserved on the receipt's
             // `storage_error_detail` for observability.
@@ -199,7 +199,7 @@ impl PromotionGate {
             let fallback = PromotionDecisionV1::rejected(
                 decision.sandbox_run_id.clone(),
                 inputs.validation_run_id.clone(),
-                PromotionRejectionReason::PostgresFailure {
+                PromotionRejectionReason::StorageFailure {
                     storage_error: raw_error.clone(),
                 },
             );
@@ -213,7 +213,7 @@ impl PromotionGate {
             );
             // H-B2 fix: try to persist the rejection receipt anyway. The
             // decision-row insert failed, but the receipt row table may still
-            // be writable (e.g. partial Postgres outage scoped to one table).
+            // be writable (e.g. a partial storage outage scoped to one table).
             // If the receipt insert also fails, we surface `None` for
             // `stored_receipt_id` so the caller knows the rejection only exists
             // in-memory and owns out-of-band logging.

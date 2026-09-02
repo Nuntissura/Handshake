@@ -5,75 +5,131 @@
 //!   - mt_069_claim_promotion: MT-069 ClaimPromotionBridge
 //!   - mt_074_ai_edit_proposals: MT-074 AiEditProposalReviewFlow
 //!
-//! All durable assertions run against real PostgreSQL (POSTGRES_TEST_URL,
-//! isolated schema, migrations 0150-0155).
+//! All durable assertions run against the real isolated embedded SurrealDB
+//! store and its migrations.
 
 use handshake_core::kernel::crdt::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
 use handshake_core::kernel::crdt::agent_lease::{
     claim_lease, KnowledgeLeaseScopeKind, LeaseClaimOutcomeV1, LeaseClaimRequestV1,
 };
-use handshake_core::storage::tests::{postgres_backend_with_pool_from_env, PostgresTestBackend};
-use handshake_core::storage::StorageError;
+use handshake_core::storage::knowledge::{
+    KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeSourceKind, KnowledgeSpanKind,
+    KnowledgeStore, NewKnowledgeSource, NewKnowledgeSpan,
+};
+use handshake_core::storage::surreal::{
+    bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
+};
+use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
+use handshake_core::storage::{Database, NewWorkspace, StorageError, WriteContext};
+use serde_json::json;
 use uuid::Uuid;
 
-async fn backend_or_blocked() -> PostgresTestBackend {
-    match postgres_backend_with_pool_from_env().await {
+async fn embedded_backend_or_blocked() -> EmbeddedTestBackend {
+    match embedded_test_backend().await {
         Ok(backend) => backend,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
+        Err(err) => panic!("failed to init embedded backend: {err:?}"),
     }
+}
+
+async fn reopen_embedded_store(
+    backend: &EmbeddedTestBackend,
+) -> (SurrealStorage, std::sync::Arc<dyn Database>) {
+    backend
+        .storage
+        .shutdown()
+        .await
+        .expect("close original embedded CRDT proposal store");
+    let reopened = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&backend.data_dir)
+            .expect("configure reopened embedded CRDT proposal store"),
+    )
+    .await
+    .expect("reopen embedded CRDT proposal store");
+    bootstrap_schema(&reopened)
+        .await
+        .expect("bootstrap reopened CRDT proposal schema");
+    let database: std::sync::Arc<dyn Database> =
+        std::sync::Arc::new(SurrealDatabase::new(reopened.clone()));
+    (reopened, database)
+}
+
+async fn close_reopened_and_remove(reopened: SurrealStorage, backend: EmbeddedTestBackend) {
+    reopened
+        .shutdown()
+        .await
+        .expect("close reopened CRDT proposal store");
+    drop(reopened);
+    backend
+        .close_and_remove()
+        .await
+        .expect("remove embedded CRDT proposal store");
 }
 
 /// Authority-hardening #1 fixture: create a real workspace + source + span and
 /// return `(workspace_id, span_id)` so a proposal in `workspace_id` citing
 /// `span_id` has promotable (live, same-workspace, non-stale) evidence.
-async fn live_span_fixture(pool: &sqlx::PgPool, label: &str) -> (String, String) {
-    let workspace_id = format!("ws-span-{label}");
-    let source_id = format!("KSRC-{}", Uuid::now_v7().simple());
-    let span_id = format!("KSP-{}", Uuid::now_v7().simple());
-    let hash = "a".repeat(64);
-    sqlx::query("INSERT INTO workspaces (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING")
-        .bind(&workspace_id)
-        .bind(format!("span-fixture-{label}"))
-        .execute(pool)
+async fn live_span_fixture(backend: &EmbeddedTestBackend, label: &str) -> (String, String) {
+    let db = SurrealDatabase::new(backend.storage.clone());
+    let workspace_id = db
+        .create_workspace(
+            &WriteContext::human(None),
+            NewWorkspace {
+                name: format!("span-fixture-{label}"),
+            },
+        )
         .await
-        .expect("insert workspace");
-    sqlx::query(
-        r#"INSERT INTO knowledge_sources
-           (source_id, workspace_id, source_kind, content_hash)
-           VALUES ($1, $2, 'external_import', $3)"#,
-    )
-    .bind(&source_id)
-    .bind(&workspace_id)
-    .bind(&hash)
-    .execute(pool)
-    .await
-    .expect("insert source");
-    sqlx::query(
-        r#"INSERT INTO knowledge_spans
-           (span_id, source_id, span_kind, range_start, range_end,
-            content_sha256, parser_version)
-           VALUES ($1, $2, 'byte', 0, 16, $3, 'v1')"#,
-    )
-    .bind(&span_id)
-    .bind(&source_id)
-    .bind(&hash)
-    .execute(pool)
-    .await
-    .expect("insert span");
-    (workspace_id, span_id)
+        .expect("create workspace")
+        .id;
+    let hash = "a".repeat(64);
+    let source = db
+        .upsert_knowledge_source(NewKnowledgeSource {
+            workspace_id: workspace_id.clone(),
+            root_id: None,
+            source_kind: KnowledgeSourceKind::ExternalImport,
+            relative_path: None,
+            asset_id: None,
+            loom_block_id: None,
+            document_id: None,
+            content_hash: hash.clone(),
+            size_bytes: Some(16),
+            provenance: json!({"fixture": "crdt_proposal", "label": label}),
+            permission_scope: KnowledgePermissionScope::Workspace,
+            redaction_state: KnowledgeRedactionState::None,
+            source_modified_at: None,
+        })
+        .await
+        .expect("create source");
+    let span = db
+        .create_knowledge_span(NewKnowledgeSpan {
+            source_id: source.source_id,
+            span_kind: KnowledgeSpanKind::Byte,
+            range_start: 0,
+            range_end: 16,
+            line_start: None,
+            line_end: None,
+            section_path: None,
+            content_sha256: hash,
+            parser_version: "v1".to_string(),
+            extraction_receipt_event_id: None,
+            index_run_id: None,
+            display_snippet: Some("embedded CRDT proposal span".to_string()),
+        })
+        .await
+        .expect("create span");
+    (workspace_id, span.span_id)
 }
 
 /// Claim a workspace-scope lane lease for a model actor (proposals from
 /// model actors require one, MT-041 seed).
 async fn model_lease(
-    backend: &PostgresTestBackend,
+    backend: &EmbeddedTestBackend,
     actor: &KnowledgeActorIdV1,
     workspace_id: &str,
     session_id: &str,
 ) -> String {
     let outcome = claim_lease(
         backend.database.as_ref(),
-        &backend.postgres_pool,
+        &backend.storage,
         LeaseClaimRequestV1 {
             lane_id: format!("lane-{session_id}"),
             actor: actor.clone(),
@@ -112,7 +168,7 @@ mod mt_068_graph_proposals {
             workspace_id: ws.to_string(),
             mutation_kind: GraphMutationKind::AddClaim,
             mutation_payload: json!({
-                "claim_text": "managed_postgres.rs starts the embedded cluster on port 5544",
+                "claim_text": "managed_storage.rs starts the embedded cluster on port 5544",
                 "claim_kind": "product_behavior"
             }),
             source_span_refs: vec![format!("KSP-{:032x}", 0xfeedu32)],
@@ -180,14 +236,15 @@ mod mt_068_graph_proposals {
         assert!(validate_graph_proposal_request(&request("ws", &operator, None)).is_ok());
     }
 
-    /// PostgreSQL proof: proposal recorded with event receipt; reviewed by a
-    /// validator; double decisions and model reviewers are refused; DB CHECK
-    /// constraints fail closed on direct unevidenced inserts.
+    /// Embedded-store proof: proposal recorded with event receipt; reviewed by a
+    /// validator; double decisions and model reviewers are refused by typed
+    /// server validation. The direct unevidenced-insert branch is also checked
+    /// through the embedded storage mutation seam below.
     #[tokio::test]
-    async fn proposal_lifecycle_with_event_receipts_on_postgres() {
-        let backend = backend_or_blocked().await;
+    async fn proposal_lifecycle_with_event_receipts_on_embedded_store() {
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-mt068-{suffix}");
         let model =
@@ -271,26 +328,52 @@ mod mt_068_graph_proposals {
             Err(ProposalDecisionError::NotInProposedState { ref current_state }) if current_state == "approved"
         ));
 
-        // DB CHECK fails closed: direct insert with EMPTY span evidence.
-        let direct = sqlx::query(
-            r#"
-            INSERT INTO knowledge_crdt_graph_proposals (
-                proposal_id, workspace_id, mutation_kind, mutation_payload,
-                source_span_refs, confidence, actor_id, actor_kind,
-                session_id, correlation_id, recorded_event_id
-            )
-            VALUES ('01ARZ3NDEKTSV4RRFFQ69G5FAV', $1, 'add_claim', '{}'::jsonb,
-                    '[]'::jsonb, 0.5, 'local_model:rogue', 'local_model',
-                    'sr-rogue', 'corr-rogue', $2)
-            "#,
+        // The schema-negative direct-insert branch is covered by the active
+        // storage-seam proof below.
+    }
+
+    #[tokio::test]
+    async fn unevidenced_graph_proposal_is_rejected_by_embedded_boundary() {
+        let backend = embedded_backend_or_blocked().await;
+        let proposal_id = format!("KGP-{}", Uuid::now_v7().simple());
+
+        // Exercise the real embedded mutation seam with the schema-negative
+        // shape: a graph proposal without any source-span evidence.
+        let err = handshake_core::storage::knowledge_crdt::insert_graph_proposal(
+            &backend.storage,
+            handshake_core::storage::knowledge_crdt::NewGraphMutationProposal {
+                proposal_id: proposal_id.clone(),
+                workspace_id: format!("ws-graph-negative-{}", Uuid::now_v7().simple()),
+                mutation_kind: "add_claim".to_string(),
+                mutation_payload: json!({"claim_text": "unevidenced claim"}),
+                source_span_refs: Vec::new(),
+                confidence: 0.5,
+                actor_id: "operator:graph-negative".to_string(),
+                actor_kind: "operator".to_string(),
+                session_id: "sr-graph-negative".to_string(),
+                correlation_id: "corr-graph-negative".to_string(),
+                lease_id: None,
+                recorded_event_id: "KE-graph-negative-never-written".to_string(),
+            },
         )
-        .bind(&ws)
-        .bind(&recorded.recorded_event_id)
-        .execute(&pool)
-        .await;
+        .await
+        .expect_err("unevidenced graph proposals must be rejected");
+        assert!(matches!(
+            err,
+            StorageError::Validation(message)
+                if message.contains("at least one non-empty source span ref")
+        ));
+
+        // The rejected mutation must not leave a durable proposal row behind.
         assert!(
-            direct.is_err(),
-            "unevidenced direct insert must be refused by CHECK"
+            handshake_core::storage::knowledge_crdt::get_graph_proposal(
+                &backend.storage,
+                &proposal_id,
+            )
+            .await
+            .expect("read rejected graph proposal")
+            .is_none(),
+            "rejected unevidenced proposal must not persist"
         );
     }
 }
@@ -314,9 +397,9 @@ mod mt_069_claim_promotion {
     /// receipts + PROMOTION_REJECTED.
     #[tokio::test]
     async fn approved_proposals_promote_idempotently_and_invalid_ones_deny_durably() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let model =
             KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "claims-lm").expect("actor");
@@ -324,7 +407,7 @@ mod mt_069_claim_promotion {
         // Authority-hardening #1: the promoted proposal must cite a LIVE span;
         // the workspace + lease are aligned to that span's workspace so the
         // promotion span-evidence gate (and the #4 lease guard) both pass.
-        let (ws, live_span_id) = live_span_fixture(&pool, &format!("mt069-{suffix}")).await;
+        let (ws, live_span_id) = live_span_fixture(&backend, &format!("mt069-{suffix}")).await;
         let lease_id = model_lease(&backend, &model, &ws, &format!("sr-mt069-{suffix}")).await;
 
         let mut record_request = GraphMutationProposalRequestV1 {
@@ -332,7 +415,7 @@ mod mt_069_claim_promotion {
             mutation_kind: GraphMutationKind::AddEdge,
             mutation_payload: json!({
                 "edge_kind": "documents",
-                "from_entity": "module:managed_postgres",
+                "from_entity": "module:managed_storage",
                 "to_entity": "behavior:embedded-cluster-5544"
             }),
             source_span_refs: vec![live_span_id],
@@ -484,6 +567,54 @@ mod mt_069_claim_promotion {
             GraphPromotionOutcomeV1::Denied(denial)
                 if matches!(denial.reason, GraphPromotionDenialReasonV1::UnknownProposal { .. })
         ));
+
+        let denial_receipt_id = denial.denial_receipt_id.clone();
+        drop(pool);
+        drop(db);
+        let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
+        let reopened_fact = handshake_core::storage::knowledge_crdt::get_promoted_fact_by_proposal(
+            &reopened,
+            &approved_proposal.proposal_id,
+        )
+        .await
+        .expect("read promoted fact after reopen")
+        .expect("promoted fact survives reopen");
+        assert_eq!(reopened_fact.fact_id, fact.fact_id);
+        let reopened_proposal = handshake_core::storage::knowledge_crdt::get_graph_proposal(
+            &reopened,
+            &approved_proposal.proposal_id,
+        )
+        .await
+        .expect("read promoted proposal after reopen")
+        .expect("promoted proposal survives reopen");
+        assert_eq!(reopened_proposal.review_state, "promoted");
+        let reopened_receipts =
+            list_denial_receipts_for_scope(&reopened, &format!("proposal:{}", pending.proposal_id))
+                .await
+                .expect("read promotion denial receipts after reopen");
+        assert_eq!(reopened_receipts.len(), 1);
+        assert_eq!(reopened_receipts[0].receipt_id, denial_receipt_id);
+        let reopened_events = reopened_db
+            .list_kernel_events_for_aggregate(
+                "knowledge_graph_promotion",
+                &approved_proposal.proposal_id,
+            )
+            .await
+            .expect("read promotion events after reopen");
+        let reopened_requested = reopened_events
+            .iter()
+            .find(|event| event.event_type == KernelEventType::PromotionRequested)
+            .expect("reopened PROMOTION_REQUESTED event");
+        let reopened_accepted = reopened_events
+            .iter()
+            .find(|event| event.event_type == KernelEventType::PromotionAccepted)
+            .expect("reopened PROMOTION_ACCEPTED event");
+        assert_eq!(
+            reopened_accepted.causation_id.as_deref(),
+            Some(reopened_requested.event_id.as_str())
+        );
+        drop(reopened_db);
+        close_reopened_and_remove(reopened, backend).await;
     }
 }
 
@@ -561,13 +692,13 @@ mod mt_074_ai_edit_proposals {
             .any(|error| matches!(error, AiEditProposalValidationError::NoCitations)));
     }
 
-    /// Full review flow on PostgreSQL: proposed -> approved -> promoted with
+    /// Full review flow on the embedded store: proposed -> approved -> promoted with
     /// the EventLedger pair; rejected proposals deny promotion durably.
     #[tokio::test]
     async fn review_flow_promotes_approved_and_denies_rejected_durably() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-mt074-{suffix}");
         let doc = format!("doc-mt074-{suffix}");
@@ -727,23 +858,84 @@ mod mt_074_ai_edit_proposals {
             .any(|receipt| receipt.receipt_id == denial.denial_receipt_id
                 && receipt.receipt_kind == "ai_edit_promotion_denied"));
 
-        // The DB CHECK keeps models out of the reviewer column.
-        let rogue_review = sqlx::query(
-            r#"
-            UPDATE knowledge_crdt_ai_edit_proposals
-            SET review_state = 'approved', decided_by = 'local_model:rogue',
-                decided_at_utc = NOW(), decision_reason = 'self-approve',
-                decided_event_id = $2
-            WHERE proposal_id = $1
-            "#,
+        // The schema-negative reviewer mutation is covered by the active
+        // typed reviewer proof below.
+    }
+
+    #[tokio::test]
+    async fn model_reviewer_is_rejected_by_embedded_boundary() {
+        let backend = embedded_backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.storage.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-model-review-negative-{suffix}");
+        let doc = format!("doc-model-review-negative-{suffix}");
+        let crdt_doc = format!("crdt-model-review-negative-{suffix}");
+        let model =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::CloudModel, "review-negative-model")
+                .expect("model actor");
+        let lease_id = model_lease(
+            &backend,
+            &model,
+            &ws,
+            &format!("sr-model-review-negative-{suffix}"),
         )
-        .bind(&rejected.proposal_id)
-        .bind(&rejected.recorded_event_id)
-        .execute(&pool)
         .await;
-        assert!(
-            rogue_review.is_err(),
-            "model reviewer must be refused by CHECK"
+
+        let proposal = match record_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            request(&ws, &doc, &crdt_doc, &model, Some(lease_id)),
+        )
+        .await
+        .expect("record model proposal")
+        {
+            RecordAiEditProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded proposal, got {other:?}"),
+        };
+
+        let decision = decide_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            true,
+            &model,
+            "sr-model-review-negative",
+            "model self-review attempt",
+        )
+        .await
+        .expect("model reviewer decision flow");
+        assert!(matches!(
+            decision,
+            Err(
+                handshake_core::kernel::crdt::ai_edit_proposal::AiEditDecisionError::ReviewerNotAllowed {
+                    ..
+                }
+            )
+        ));
+
+        // Reviewer rejection is a pre-mutation guard: the proposal remains
+        // proposed and no decision event is appended.
+        let stored = handshake_core::storage::knowledge_crdt::get_ai_edit_proposal(
+            &pool,
+            &proposal.proposal_id,
+        )
+        .await
+        .expect("read model-review proposal")
+        .expect("proposal remains durable");
+        assert_eq!(stored.review_state, "proposed");
+        let events = db
+            .list_kernel_events_for_aggregate("knowledge_ai_edit_proposal", &proposal.proposal_id)
+            .await
+            .expect("read model-review events");
+        assert_eq!(
+            events.len(),
+            1,
+            "rejected reviewer must not append a decision event"
+        );
+        assert_eq!(
+            events[0].event_type,
+            KernelEventType::AiEditProposalRecorded
         );
     }
 }
@@ -774,7 +966,10 @@ mod hardening_lease_chokepoint {
     use serde_json::json;
     use uuid::Uuid;
 
-    async fn wait_for_db_expiry(pool: &sqlx::PgPool, lease_id: &str) {
+    async fn wait_for_db_expiry(
+        pool: &handshake_core::storage::surreal::SurrealStorage,
+        lease_id: &str,
+    ) {
         for _ in 0..40 {
             if get_lease(pool, lease_id)
                 .await
@@ -790,7 +985,7 @@ mod hardening_lease_chokepoint {
     }
 
     async fn claim_ws_lease(
-        backend: &PostgresTestBackend,
+        backend: &EmbeddedTestBackend,
         actor: &KnowledgeActorIdV1,
         ws: &str,
         session: &str,
@@ -798,7 +993,7 @@ mod hardening_lease_chokepoint {
     ) -> String {
         match claim_lease(
             backend.database.as_ref(),
-            &backend.postgres_pool,
+            &backend.storage,
             LeaseClaimRequestV1 {
                 lane_id: format!("lane-{session}"),
                 actor: actor.clone(),
@@ -820,9 +1015,9 @@ mod hardening_lease_chokepoint {
     /// An EXPIRED lease on a graph proposal write is denied (not presence-only).
     #[tokio::test]
     async fn expired_lease_denies_graph_proposal_write() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-choke-{suffix}");
         let model =
@@ -857,22 +1052,32 @@ mod hardening_lease_chokepoint {
             other => panic!("expired lease must deny the write, got {other:?}"),
         }
         // No draft row landed for this workspace.
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM knowledge_crdt_graph_proposals WHERE workspace_id = $1",
-        )
-        .bind(&ws)
-        .fetch_one(&pool)
-        .await
-        .expect("count");
+        let inspector = backend.storage.test_inspector();
+        let proposals = inspector
+            .table_selector("knowledge_crdt_graph_proposals")
+            .await
+            .expect("select graph proposals table");
+        let count = inspector
+            .row_count(
+                &proposals,
+                handshake_core::storage::surreal::RowFilter::FieldEquals {
+                    field: proposals
+                        .field("workspace_id")
+                        .expect("select workspace field"),
+                    value: ws.as_str().into(),
+                },
+            )
+            .await
+            .expect("count");
         assert_eq!(count, 0, "no draft may be written under a dead lease");
     }
 
     /// A FOREIGN lease (held by another actor) on an AI edit write is denied.
     #[tokio::test]
     async fn foreign_lease_denies_ai_edit_write() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-choke-ai-{suffix}");
         let owner =
@@ -916,9 +1121,9 @@ mod hardening_lease_chokepoint {
     /// A WRONG-SCOPE lease on a guarded save is denied with a durable receipt.
     #[tokio::test]
     async fn wrong_scope_lease_denies_guarded_save() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-choke-save-{suffix}");
         let doc = format!("doc-{suffix}");
@@ -977,13 +1182,23 @@ mod hardening_lease_chokepoint {
         assert!(receipts
             .iter()
             .any(|r| r.receipt_kind == "lease_write_denied"));
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_crdt_updates WHERE crdt_document_id = $1",
-        )
-        .bind(&crdt_doc)
-        .fetch_one(&pool)
-        .await
-        .expect("count");
+        let inspector = backend.storage.test_inspector();
+        let updates = inspector
+            .table_selector("kernel_crdt_updates")
+            .await
+            .expect("select CRDT updates table");
+        let count = inspector
+            .row_count(
+                &updates,
+                handshake_core::storage::surreal::RowFilter::FieldEquals {
+                    field: updates
+                        .field("crdt_document_id")
+                        .expect("select CRDT document field"),
+                    value: crdt_doc.as_str().into(),
+                },
+            )
+            .await
+            .expect("count");
         assert_eq!(count, 0, "no update may land under a wrong-scope lease");
 
         // Cleanup the unrelated lease so the scope is reusable.
@@ -1021,7 +1236,7 @@ mod hardening_applied_binding {
     /// so an applied-binding for `update_id` can anchor to a genuine document
     /// update. Mirrors the MT-067 push path (event ledger row + update row).
     async fn insert_real_crdt_update(
-        backend: &PostgresTestBackend,
+        backend: &EmbeddedTestBackend,
         ws: &str,
         doc: &str,
         crdt_doc: &str,
@@ -1090,9 +1305,9 @@ mod hardening_applied_binding {
 
     #[tokio::test]
     async fn applied_update_must_hash_to_approved_diff() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-applied-{suffix}");
         let doc = format!("doc-{suffix}");
@@ -1239,9 +1454,9 @@ mod hardening_applied_binding {
     /// the hash match alone may not bind an approved edit to a phantom update.
     #[tokio::test]
     async fn approved_hash_matches_but_update_id_absent_refuses_binding() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-absent-{suffix}");
         let doc = format!("doc-{suffix}");

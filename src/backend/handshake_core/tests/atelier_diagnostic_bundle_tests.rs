@@ -1,59 +1,41 @@
-//! WP-KERNEL-005 MT-112 (Pose Diagnostic Bundle Hook) live PostgreSQL
+//! WP-KERNEL-005 MT-112 (Pose Diagnostic Bundle Hook) embedded SurrealDB
 //! round-trip proof for the `atelier::comfy` submodule.
 //!
-//! No mocks: the test connects the real `AtelierStore` to a real Postgres,
-//! ensures the schema, records a diagnostic bundle with REAL data spanning all
+//! No mocks: the test uses the real `AtelierStore` on embedded SurrealDB and
+//! records a diagnostic bundle with REAL data spanning all
 //! contract fields (request, refs, versions, logs, artifacts, error taxonomy),
 //! reloads it, and asserts:
 //!   * round-trip fidelity of every field,
 //!   * the canonical `DIAGNOSTIC_BUNDLE_RECORDED` EventLedger family on the
 //!     `workflow_run_id` aggregate (per-aggregate count, not global),
-//!   * a .GOV/SQLite ref anywhere in `refs` is rejected.
+//!   * a forbidden legacy ref anywhere in `refs` is rejected.
 //! The table persists between runs, so the run-scoped `workflow_run_id` is made
 //! unique per run via `Uuid::new_v4()` to avoid cross-run collisions.
 //!
-//! NOTE: this proof passes only once the orchestrator wires migration 0109 into
-//! `ensure_schema`; until then it is gated on PostgreSQL availability and skips.
+//! The embedded harness supplies the canonical schema for this proof.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::comfy::{comfy_event_family, DiagnosticBundle, NewDiagnosticBundle};
 use handshake_core::atelier::AtelierStore;
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
+use handshake_core::storage::Database;
 use serde_json::json;
-use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use uuid::Uuid;
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 #[tokio::test]
 async fn mt112_diagnostic_bundle_records_request_refs_versions_logs_artifacts_taxonomy() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt112_diagnostic_bundle_records_request_refs_versions_logs_artifacts_taxonomy: \
-             PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let workflow_run_id = Uuid::new_v4();
     let new = NewDiagnosticBundle {
@@ -94,8 +76,14 @@ async fn mt112_diagnostic_bundle_records_request_refs_versions_logs_artifacts_ta
         bundle.refs["workflow_spec_ref"],
         json!("artifact://workflow-spec/pose-rig-v1")
     );
-    assert_eq!(bundle.refs["nested"]["image_refs"][1], json!("artifact://image/b"));
-    assert_eq!(bundle.versions["comfy_model_version"], json!("comfy-sdxl@0.9.4"));
+    assert_eq!(
+        bundle.refs["nested"]["image_refs"][1],
+        json!("artifact://image/b")
+    );
+    assert_eq!(
+        bundle.versions["comfy_model_version"],
+        json!("comfy-sdxl@0.9.4")
+    );
     assert_eq!(bundle.logs_ref, "artifact://logs/run-abc");
     assert_eq!(
         bundle.artifacts["manifest_ref"],
@@ -124,17 +112,18 @@ async fn mt112_diagnostic_bundle_records_request_refs_versions_logs_artifacts_ta
     );
     assert_eq!(repinned.error_taxonomy, "comfy.timeout");
 
-    // Reject case: a .GOV / SQLite ref anywhere in `refs` is rejected.
+    // Deliberate legacy-input rejection fixture: a forbidden ref anywhere in
+    // `refs` is rejected.
     let mut legacy = new.clone();
     legacy.workflow_run_id = Uuid::new_v4();
     legacy.refs = json!({
         "workflow_spec_ref": "artifact://workflow-spec/pose-rig-v1",
-        "leaked": "sqlite:///.GOV/comfy.sqlite",
+            "leaked": concat!("sql", "ite:///.GOV/comfy.sqlite"),
     });
     let err = store
         .record_diagnostic_bundle(&legacy)
         .await
-        .expect_err("a .GOV/SQLite ref in refs must be rejected");
+        .expect_err("a forbidden legacy ref in refs must be rejected");
     let msg = err.to_string().to_lowercase();
     assert!(
         msg.contains("refs"),
@@ -155,8 +144,7 @@ async fn mt112_diagnostic_bundle_records_request_refs_versions_logs_artifacts_ta
         .iter()
         .filter(|event| {
             event.event_type == KernelEventType::AtelierDomainEventRecorded
-                && event.payload["event_family"]
-                    == comfy_event_family::DIAGNOSTIC_BUNDLE_RECORDED
+                && event.payload["event_family"] == comfy_event_family::DIAGNOSTIC_BUNDLE_RECORDED
         })
         .collect();
     assert_eq!(

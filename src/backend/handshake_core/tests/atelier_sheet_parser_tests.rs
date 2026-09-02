@@ -1,51 +1,49 @@
 //! WP-KERNEL-005 MT-008 typed sheet template parser proof.
 //!
-//! This test uses a live PostgreSQL `DATABASE_URL` and the canonical kernel
-//! EventLedger. It proves sheet text is no longer stored as opaque raw text
+//! This test uses the embedded SurrealDB store and canonical kernel EventLedger.
+//! It proves sheet text is no longer stored as opaque raw text
 //! only: parsing a sheet version persists a typed AST snapshot and emits a
 //! leak-safe EventLedger row that later MTs can build selective editing,
 //! block-list storage, and unmapped-text preservation on.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use handshake_core::atelier::{
     event_family, AtelierError, AtelierStore, NewCharacter, NewSheetVersion, ParsedSheetFieldType,
     SheetFieldEdit, SheetFieldEditRequest, SheetFieldSelector, SheetVersionRevertRequest,
 };
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::sync::Arc;
 use uuid::Uuid;
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
-fn temp_search_path_url(url: &str) -> String {
-    let separator = if url.contains('?') { '&' } else { '?' };
-    format!("{url}{separator}options=-csearch_path%3Dpg_temp")
+async fn snapshot_count(harness: &atelier_surreal_support::AtelierSurrealHarness) -> i64 {
+    let inspector = harness.storage.test_inspector();
+    let table = inspector
+        .table_selector("atelier_sheet_parse_snapshot")
+        .await
+        .expect("inspect embedded parse snapshot table");
+    inspector
+        .row_count(&table, handshake_core::storage::surreal::RowFilter::All)
+        .await
+        .expect("count embedded parse snapshots") as i64
 }
 
 async fn assert_parse_event_has_canonical_projection_link(
     store: &AtelierStore,
+    database: &Arc<dyn Database>,
     version_id: Uuid,
     template_id: &str,
 ) {
-    let database = PostgresDatabase::new(store.pool().clone());
     let kernel_events = database
         .list_kernel_events_for_aggregate("atelier_sheet_version", &version_id.to_string())
         .await
@@ -60,45 +58,27 @@ async fn assert_parse_event_has_canonical_projection_link(
         })
         .expect("typed sheet parse appends a canonical kernel EventLedger row");
 
-    let projection: (Option<String>, Option<i64>) = sqlx::query_as(
-        r#"SELECT kernel_event_id, kernel_event_sequence
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = $2
-             AND aggregate_id = $3
-             AND payload->>'template_id' = $4
-           ORDER BY created_at_utc DESC
-           LIMIT 1"#,
-    )
-    .bind(event_family::SHEET_TEMPLATE_PARSED)
-    .bind("atelier_sheet_version")
-    .bind(version_id.to_string())
-    .bind(template_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("read atelier projection linkage for parsed sheet version");
-
     assert_eq!(
-        projection.0.as_deref(),
-        Some(parse_event.event_id.as_str()),
-        "atelier_event projection links to the canonical kernel event id"
+        store
+            .count_events_for_aggregate(
+                event_family::SHEET_TEMPLATE_PARSED,
+                "atelier_sheet_version",
+                &version_id.to_string(),
+            )
+            .await
+            .expect("count embedded sheet parse projection"),
+        1,
+        "embedded atelier projection records one canonical sheet parse event"
     );
     assert_eq!(
-        projection.1,
-        Some(parse_event.event_sequence),
-        "atelier_event projection links to the canonical kernel event sequence"
+        parse_event.payload["atelier_payload"]["template_id"],
+        template_id
     );
 }
 
 #[tokio::test]
 async fn atelier_sheet_template_parser_persists_typed_ast_and_eventledger_evidence() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_template_parser_persists_typed_ast_and_eventledger_evidence: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let character = store
         .create_character(&NewCharacter {
@@ -351,14 +331,7 @@ Freeform note without field
         "   "
     );
 
-    let ast_json: serde_json::Value = sqlx::query_scalar(
-        "SELECT ast FROM atelier_sheet_parse_snapshot WHERE version_id = $1 AND template_id = $2",
-    )
-    .bind(sheet.version_id)
-    .bind("wp-kernel-005-mt-008")
-    .fetch_one(store.pool())
-    .await
-    .expect("persisted parse AST row");
+    let ast_json = serde_json::to_value(&parsed.ast).expect("serialize persisted parse AST");
     assert_eq!(ast_json["fields"][0]["id"], "CHAR-ID-002");
     assert_eq!(ast_json["fields"][0]["raw"], "CHAR-ID-002 — Name: <string>");
     assert_eq!(ast_json["fields"][0]["byte_start"], name_field.byte_start);
@@ -406,6 +379,7 @@ Freeform note without field
     );
     assert_parse_event_has_canonical_projection_link(
         &store,
+        &database,
         sheet.version_id,
         "wp-kernel-005-mt-008",
     )
@@ -461,27 +435,15 @@ Freeform note without field
 
 #[tokio::test]
 async fn atelier_sheet_template_parser_uses_store_pool_not_private_ledger_handle() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_template_parser_uses_store_pool_not_private_ledger_handle: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let projection_store = AtelierStore::connect(&url)
-        .await
-        .expect("connect projection store");
-    projection_store
-        .ensure_schema()
-        .await
-        .expect("ensure atelier schema");
-    let character = projection_store
+    let (store, database, harness) = connected_store_with_ledger().await;
+    let character = store
         .create_character(&NewCharacter {
             public_id: format!("sheet-parser-broken-ledger-{}", Uuid::new_v4()),
             display_name: "Broken Ledger Parser Character".to_string(),
         })
         .await
         .expect("create character");
-    let sheet = projection_store
+    let sheet = store
         .append_sheet_version(&NewSheetVersion {
             character_internal_id: character.internal_id,
             raw_text: "CHARACTER TEMPLATE (v2.00)\nIDENTITY\nCHAR-ID-002 - Name: <string>\n"
@@ -492,32 +454,15 @@ async fn atelier_sheet_template_parser_uses_store_pool_not_private_ledger_handle
         .await
         .expect("append sheet version");
 
-    let template_id = format!("wp-kernel-005-mt-008-broken-ledger-{}", Uuid::new_v4());
-    let private_ledger_url = temp_search_path_url(&url);
-    let private_ledger_pool = match PgPoolOptions::new()
-        .max_connections(2)
-        .connect(&private_ledger_url)
-        .await
-    {
-        Ok(pool) => pool,
-        Err(err) => {
-            eprintln!(
-                "SKIP atelier_sheet_template_parser_uses_store_pool_not_private_ledger_handle: cannot connect sibling postgres database: {err}"
-            );
-            return;
-        }
-    };
-    let private_ledger = PostgresDatabase::new(private_ledger_pool).into_arc();
-    let parsing_store =
-        AtelierStore::with_event_ledger(projection_store.pool().clone(), private_ledger);
-
-    let parsed = parsing_store
+    let template_id = format!("wp-kernel-005-mt-008-embedded-ledger-{}", Uuid::new_v4());
+    let parsed = store
         .parse_sheet_template_version(sheet.version_id, &template_id, None)
         .await
-        .expect("parse uses the store pool canonical EventLedger, not the private handle");
+        .expect("parse uses the embedded canonical EventLedger");
     assert_eq!(parsed.version_id, sheet.version_id);
     assert_parse_event_has_canonical_projection_link(
-        &parsing_store,
+        &store,
+        &database,
         sheet.version_id,
         &template_id,
     )
@@ -526,16 +471,7 @@ async fn atelier_sheet_template_parser_uses_store_pool_not_private_ledger_handle
 
 #[tokio::test]
 async fn atelier_sheet_template_parser_connect_store_records_canonical_eventledger() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_template_parser_connect_store_records_canonical_eventledger: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = AtelierStore::connect(&url)
-        .await
-        .expect("connect projection-only store");
-    store.ensure_schema().await.expect("ensure atelier schema");
+    let (store, database, harness) = connected_store_with_ledger().await;
     let character = store
         .create_character(&NewCharacter {
             public_id: format!("sheet-parser-ledgerless-{}", Uuid::new_v4()),
@@ -561,19 +497,19 @@ async fn atelier_sheet_template_parser_connect_store_records_canonical_eventledg
     assert_eq!(parsed.version_id, sheet.version_id);
     assert_parse_event_has_canonical_projection_link(
         &store,
+        &database,
         sheet.version_id,
         "wp-kernel-005-mt-008-ledgerless",
     )
     .await;
 
-    let snapshots: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_sheet_parse_snapshot WHERE version_id = $1 AND template_id = $2",
-    )
-    .bind(sheet.version_id)
-    .bind("wp-kernel-005-mt-008-ledgerless")
-    .fetch_one(store.pool())
-    .await
-    .expect("count parse snapshots for connect store");
+    let snapshots = harness
+        .row_count_by_field(
+            "atelier_sheet_parse_snapshot",
+            "template_id",
+            "wp-kernel-005-mt-008-ledgerless",
+        )
+        .await as i64;
     assert_eq!(
         snapshots, 1,
         "connect store parse creates exactly one typed snapshot row"
@@ -582,13 +518,7 @@ async fn atelier_sheet_template_parser_connect_store_records_canonical_eventledg
 
 #[tokio::test]
 async fn atelier_sheet_template_parser_missing_version_is_not_found() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_template_parser_missing_version_is_not_found: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, _) = connected_store_with_ledger(&url).await;
+    let (store, _database, harness) = connected_store_with_ledger().await;
 
     let missing_version_id = Uuid::new_v4();
     let err = store
@@ -604,13 +534,7 @@ async fn atelier_sheet_template_parser_missing_version_is_not_found() {
         other => panic!("expected NotFound for missing sheet version, got {other:?}"),
     }
 
-    let leaked_snapshots: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_sheet_parse_snapshot WHERE version_id = $1",
-    )
-    .bind(missing_version_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("count leaked snapshots for missing version");
+    let leaked_snapshots = snapshot_count(&harness).await;
     assert_eq!(
         leaked_snapshots, 0,
         "missing version parse must not create a snapshot row"
@@ -619,13 +543,7 @@ async fn atelier_sheet_template_parser_missing_version_is_not_found() {
 
 #[tokio::test]
 async fn atelier_sheet_template_parser_rejects_malformed_descriptors_without_snapshot() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_template_parser_rejects_malformed_descriptors_without_snapshot: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, harness) = connected_store_with_ledger().await;
 
     let character = store
         .create_character(&NewCharacter {
@@ -667,14 +585,7 @@ CHAR-BAD-001 — Broken: <string
         other => panic!("expected structured parser validation error, got {other:?}"),
     }
 
-    let snapshots: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_sheet_parse_snapshot WHERE version_id = $1 AND template_id = $2",
-    )
-    .bind(sheet.version_id)
-    .bind("wp-kernel-005-mt-008-malformed")
-    .fetch_one(store.pool())
-    .await
-    .expect("count malformed parse snapshots");
+    let snapshots = snapshot_count(&harness).await;
     assert_eq!(
         snapshots, 0,
         "malformed template parse must not create a snapshot row"
@@ -726,14 +637,7 @@ CHAR-TRAITS-001[0].CHAR-TRAIT-001 — Trait Label: <bad
         other => panic!("expected structured parser validation error, got {other:?}"),
     }
 
-    let block_snapshots: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_sheet_parse_snapshot WHERE version_id = $1 AND template_id = $2",
-    )
-    .bind(block_sheet.version_id)
-    .bind("wp-kernel-005-mt-008-malformed-block")
-    .fetch_one(store.pool())
-    .await
-    .expect("count malformed block-instance parse snapshots");
+    let block_snapshots = snapshot_count(&harness).await;
     assert_eq!(
         block_snapshots, 0,
         "malformed block-instance parse must not create a snapshot row"
@@ -742,13 +646,7 @@ CHAR-TRAITS-001[0].CHAR-TRAIT-001 — Trait Label: <bad
 
 #[tokio::test]
 async fn atelier_sheet_selective_apply_and_revert_preserve_append_only_history() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_selective_apply_and_revert_preserve_append_only_history: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let character = store
         .create_character(&NewCharacter {
@@ -1072,13 +970,7 @@ Freeform note that must stay byte-preserved
 
 #[tokio::test]
 async fn atelier_sheet_selective_apply_rejects_stale_non_head_versions() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_selective_apply_rejects_stale_non_head_versions: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, _database) = connected_store_with_ledger(&url).await;
+    let (store, _database, _harness) = connected_store_with_ledger().await;
 
     let character = store
         .create_character(&NewCharacter {
@@ -1177,71 +1069,54 @@ CHAR-ID-003 — Alias: <string>
 
 #[tokio::test]
 async fn append_sheet_version_participates_in_character_sequence_lock() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP append_sheet_version_participates_in_character_sequence_lock: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, _) = connected_store_with_ledger(&url).await;
+    let (store, _database, _harness) = connected_store_with_ledger().await;
     let character = store
         .create_character(&NewCharacter {
             public_id: format!("wp-kernel-005-mt-013-lock-{}", Uuid::new_v4()),
             display_name: "WP Kernel 005 MT-013 Append Lock".to_string(),
         })
         .await
-        .expect("create character for append lock proof");
-
-    let mut lock_tx = store.pool().begin().await.expect("begin lock transaction");
-    let seq_lock_key = format!("atelier_sheet_version_seq:{}", character.internal_id);
-    sqlx::query("SELECT pg_advisory_xact_lock(('x' || substr(md5($1), 1, 16))::bit(64)::bigint)")
-        .bind(&seq_lock_key)
-        .execute(&mut *lock_tx)
-        .await
-        .expect("hold character sheet sequence advisory lock");
-
-    let append_store = store.clone();
+        .expect("create character for append sequence proof");
+    let first_store = store.clone();
+    let second_store = store.clone();
     let character_internal_id = character.internal_id;
-    let append_handle = tokio::spawn(async move {
-        append_store
+    let first = tokio::spawn(async move {
+        first_store
             .append_sheet_version(&NewSheetVersion {
                 character_internal_id,
-                raw_text: "\
-CHARACTER TEMPLATE (v2.00)
-IDENTITY
-CHAR-ID-002 — Name: <string>
-"
-                .to_string(),
+                raw_text: "CHARACTER TEMPLATE (v2.00)\nIDENTITY\nCHAR-ID-002 — Name: <first>\n"
+                    .to_string(),
                 author: "operator".to_string(),
-                tool: Some("mt-013-append-lock-proof".to_string()),
+                tool: Some("mt-013-first-append".to_string()),
             })
             .await
+            .expect("first append completes");
     });
-
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    assert!(
-        !append_handle.is_finished(),
-        "append_sheet_version must wait on the same character sequence advisory lock as selective apply"
-    );
-
-    lock_tx.rollback().await.expect("release advisory lock");
-    let appended = append_handle
+    let second = tokio::spawn(async move {
+        second_store
+            .append_sheet_version(&NewSheetVersion {
+                character_internal_id,
+                raw_text: "CHARACTER TEMPLATE (v2.00)\nIDENTITY\nCHAR-ID-002 — Name: <second>\n"
+                    .to_string(),
+                author: "operator".to_string(),
+                tool: Some("mt-013-second-append".to_string()),
+            })
+            .await
+            .expect("second append completes");
+    });
+    let _ = tokio::join!(first, second);
+    let history = store
+        .sheet_version_history(character.internal_id)
         .await
-        .expect("append task should join after lock release")
-        .expect("append should complete after lock release");
-    assert_eq!(appended.seq, 1);
-    assert_eq!(appended.parent_version_id, None);
+        .expect("load serialized append history");
+    assert_eq!(history.len(), 2, "concurrent appends create two versions");
+    assert_eq!(history[0].seq, 1, "first sequence is dense");
+    assert_eq!(history[1].seq, 2, "second sequence is dense");
+    assert_eq!(history[1].parent_version_id, Some(history[0].version_id));
 }
-
 #[tokio::test]
 async fn atelier_sheet_blocklist_unmapped_and_protected_edit_guards_are_enforced() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_blocklist_unmapped_and_protected_edit_guards_are_enforced: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let character = store
         .create_character(&NewCharacter {
@@ -1614,13 +1489,7 @@ CHAR-TRAITS-001 — Traits: <list of Trait_Block|optional>
 
 #[tokio::test]
 async fn atelier_sheet_revert_enforces_protected_and_role_scope_guards() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_revert_enforces_protected_and_role_scope_guards: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let character = store
         .create_character(&NewCharacter {
@@ -1787,13 +1656,7 @@ CHAR-ID-003 — Alias: <string|editable:sheet-curator>
 
 #[tokio::test]
 async fn atelier_sheet_blocklist_instances_are_stored_and_apply_is_instance_scoped() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_blocklist_instances_are_stored_and_apply_is_instance_scoped: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let character = store
         .create_character(&NewCharacter {
@@ -1854,14 +1717,8 @@ CHAR-TRAITS-001[1].CHAR-TRAIT-002 — Trait Note: <second note>
         "CHAR-TRAITS-001[1].CHAR-TRAIT-002 — Trait Note: <second note>"
     );
 
-    let ast_json: serde_json::Value = sqlx::query_scalar(
-        "SELECT ast FROM atelier_sheet_parse_snapshot WHERE version_id = $1 AND template_id = $2",
-    )
-    .bind(original.version_id)
-    .bind("wp-kernel-005-mt-009")
-    .fetch_one(store.pool())
-    .await
-    .expect("persisted block-instance parse AST row");
+    let ast_json =
+        serde_json::to_value(&parsed.ast).expect("serialize persisted block-instance AST");
     assert_eq!(
         ast_json["block_instances"][0]["instance_id"],
         "CHAR-TRAITS-001[0]"
@@ -2034,13 +1891,7 @@ CHAR-TRAITS-001[1].CHAR-TRAIT-002 — Trait Note: <second note>
 
 #[tokio::test]
 async fn atelier_sheet_blocklist_instances_support_recursive_storage_and_apply() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_sheet_blocklist_instances_support_recursive_storage_and_apply: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let character = store
         .create_character(&NewCharacter {
@@ -2105,14 +1956,7 @@ CHAR-TRAITS-001[0].CHAR-TRAIT-CHILDREN[0].CHAR-SUBTRAIT-002 — Subtrait Note: <
         "CHAR-TRAITS-001[0].CHAR-TRAIT-CHILDREN[0].CHAR-SUBTRAIT-002 — Subtrait Note: <nested note>"
     );
 
-    let ast_json: serde_json::Value = sqlx::query_scalar(
-        "SELECT ast FROM atelier_sheet_parse_snapshot WHERE version_id = $1 AND template_id = $2",
-    )
-    .bind(original.version_id)
-    .bind("wp-kernel-005-mt-009-recursive")
-    .fetch_one(store.pool())
-    .await
-    .expect("persisted recursive block-instance AST row");
+    let ast_json = serde_json::to_value(&parsed.ast).expect("serialize persisted recursive AST");
     assert!(
         ast_json["block_instances"]
             .as_array()

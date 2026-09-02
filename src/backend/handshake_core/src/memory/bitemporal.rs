@@ -122,9 +122,9 @@ struct BitemporalManifestPointerPayload {
     item_event_sequence: Option<i64>,
 }
 
-/// In-memory bi-temporal index. The Postgres adapter below persists the same
-/// item shape into `kernel_event_ledger`; this type keeps unit coverage of the
-/// filter semantics without requiring a database.
+/// In-memory bi-temporal index. The embedded SurrealDB adapter below persists
+/// the same item shape into `kernel_event_ledger`; this type keeps unit coverage
+/// of the filter semantics without requiring a database.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct BitemporalIndex {
     pub items: Vec<BitemporalItem>,
@@ -165,16 +165,16 @@ impl BitemporalIndex {
     }
 }
 
-/// Postgres-backed bitemporal memory index over the real append-only
+/// Embedded-SurrealDB-backed bitemporal memory index over the real append-only
 /// `kernel_event_ledger`. It deliberately keeps `memory_item` nonexistent:
 /// the item aggregate stores bitemporal snapshots and the manifest aggregate
 /// stores item pointers so replay can enumerate items without a side table.
 #[derive(Clone)]
-pub struct PostgresBitemporalMemoryIndex {
+pub struct SurrealBitemporalMemoryIndex {
     db: Arc<dyn Database>,
 }
 
-impl PostgresBitemporalMemoryIndex {
+impl SurrealBitemporalMemoryIndex {
     pub fn with_db(db: Arc<dyn Database>) -> Self {
         Self { db }
     }

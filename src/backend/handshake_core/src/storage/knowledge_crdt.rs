@@ -33,6 +33,8 @@ use serde_json::Value;
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
 use uuid::Uuid;
 
+use crate::kernel::crdt::actor_site::KnowledgeActorIdV1;
+
 use super::surreal::{SurrealStorage, SurrealStorageError};
 use super::{StorageError, StorageResult};
 
@@ -233,6 +235,14 @@ pub async fn insert_denial_receipt(
     if !KNOWLEDGE_CRDT_DENIAL_KINDS.contains(&receipt.receipt_kind.as_str()) {
         return Err(StorageError::Validation(
             "unknown knowledge CRDT denial receipt kind",
+        ));
+    }
+    let actor = KnowledgeActorIdV1::parse(&receipt.actor_id).map_err(|_| {
+        StorageError::Validation("knowledge CRDT denial receipt actor id is not typed")
+    })?;
+    if actor.kind().as_str() != receipt.actor_kind {
+        return Err(StorageError::Validation(
+            "knowledge CRDT denial receipt actor kind does not match actor id",
         ));
     }
     let content = DenialReceiptCreate {

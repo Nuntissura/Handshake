@@ -1,9 +1,9 @@
-//! WP-KERNEL-005 MT-171..MT-180, MT-182, MT-195: real PostgreSQL round-trip
+//! WP-KERNEL-005 MT-171..MT-180, MT-182, MT-195: embedded SurrealDB round-trip
 //! proofs for the typed diagnostics "validation matrix".
 //!
 //! Each MT is "record the required checks for a model-workflow diagnostic
 //! surface" as TYPED RUNTIME RECORDS, not governance markdown. Each test
-//! connects the real `AtelierStore` to a live Postgres, ensures the schema,
+//! connects the real `AtelierStore` to embedded SurrealDB with the canonical schema,
 //! records the catalog (idempotent upsert), reloads the rows for that MT's
 //! `matrix_kind`, and asserts the required surface checks are present with their
 //! requirement text + status. A negative test proves a blank `requirement` is
@@ -13,12 +13,10 @@
 //! and the MT's `matrix_kind`; no global row counts are asserted, so the test is
 //! safe against rows left by other runs (the table persists between runs).
 //!
-//! Gated on `atelier_pg_support::database_url()`: when no PostgreSQL is available
-//! the test prints SKIP and returns (never SQLite).
+//! The isolated harness supplies the canonical schema for every test.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::state_probe::{
     diagnostics_validation_matrix_catalog, diagnostics_validation_matrix_kind as kind,
     state_probe_event_family, DiagnosticsValidationRow, DiagnosticsValidationStatus,
@@ -26,41 +24,28 @@ use handshake_core::atelier::state_probe::{
 };
 use handshake_core::atelier::{AtelierError, AtelierStore};
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres. The matrix table has no character FK, so no fixture entity is
-/// needed.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+/// Create the shared isolated embedded-store preamble. The matrix table has no
+/// character link, so no fixture entity is needed.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
-/// Connect with the kernel EventLedger wired (mirrors
+/// Create the kernel EventLedger-wired embedded harness (mirrors
 /// `atelier_state_probe_tests::connected_store_with_ledger`), so the
 /// MT-176..MT-195 proofs can assert the `DIAGNOSTICS_VALIDATION_ROW_RECORDED`
 /// kernel events alongside the persisted rows.
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 /// Assert that recording `row_id` left canonical EventLedger evidence: an
@@ -78,8 +63,7 @@ async fn assert_row_recorded_event(database: &Arc<dyn Database>, row_id: &str, m
                 && event.payload["event_family"]
                     == state_probe_event_family::DIAGNOSTICS_VALIDATION_ROW_RECORDED
                 && event.payload["atelier_payload"]["row_id"] == serde_json::json!(row_id)
-                && event.payload["atelier_payload"]["matrix_kind"]
-                    == serde_json::json!(matrix_kind)
+                && event.payload["atelier_payload"]["matrix_kind"] == serde_json::json!(matrix_kind)
         }),
         "recording matrix row {row_id} must emit canonical EventLedger evidence"
     );
@@ -148,11 +132,7 @@ fn assert_required_rows(
 /// MT-171: model manual + action catalog validation rows.
 #[tokio::test]
 async fn mt171_manual_and_action_catalog_matrix_persists() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt171_manual_and_action_catalog_matrix_persists: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let by_id = record_and_reload_kind(&store, kind::MANUAL_ACTION_CATALOG).await;
 
     let expected = [
@@ -173,11 +153,7 @@ async fn mt171_manual_and_action_catalog_matrix_persists() {
 /// MT-172: session lease + heartbeat validation rows.
 #[tokio::test]
 async fn mt172_session_lease_and_heartbeat_matrix_persists() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt172_session_lease_and_heartbeat_matrix_persists: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let by_id = record_and_reload_kind(&store, kind::SESSION_LEASE_HEARTBEAT).await;
 
     let expected = [
@@ -192,13 +168,7 @@ async fn mt172_session_lease_and_heartbeat_matrix_persists() {
 /// MT-173: command log + error class + state probe validation rows.
 #[tokio::test]
 async fn mt173_command_log_error_and_state_probe_matrix_persists() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt173_command_log_error_and_state_probe_matrix_persists: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let by_id = record_and_reload_kind(&store, kind::COMMAND_LOG_ERROR_STATE_PROBE).await;
 
     let expected = [
@@ -212,11 +182,7 @@ async fn mt173_command_log_error_and_state_probe_matrix_persists() {
 /// MT-174: DCC + Flight Recorder projection validation rows.
 #[tokio::test]
 async fn mt174_dcc_and_flight_recorder_matrix_persists() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt174_dcc_and_flight_recorder_matrix_persists: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let by_id = record_and_reload_kind(&store, kind::DCC_FLIGHT_RECORDER).await;
 
     let expected = [
@@ -229,11 +195,7 @@ async fn mt174_dcc_and_flight_recorder_matrix_persists() {
 /// MT-175: visual evidence validation rows (capture, diff, ADR, STEER, comparison).
 #[tokio::test]
 async fn mt175_visual_evidence_matrix_persists() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt175_visual_evidence_matrix_persists: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let by_id = record_and_reload_kind(&store, kind::VISUAL_EVIDENCE).await;
 
     let expected = [
@@ -250,11 +212,7 @@ async fn mt175_visual_evidence_matrix_persists() {
 /// blank check can never be persisted.
 #[tokio::test]
 async fn empty_requirement_is_rejected() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP empty_requirement_is_rejected: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let blank = NewDiagnosticsValidationRow {
         row_id: "mt-171.model-manual.blank-requirement-probe".to_string(),
@@ -276,16 +234,10 @@ async fn empty_requirement_is_rejected() {
 }
 
 /// MT-176: diagnostic-bundle validation rows (creation + contents) persist in
-/// PostgreSQL, reload by `matrix_kind`, and leave EventLedger evidence.
+/// embedded storage, reload by `matrix_kind`, and leave EventLedger evidence.
 #[tokio::test]
 async fn mt176_diagnostic_bundle_matrix_persists_with_ledger_evidence() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt176_diagnostic_bundle_matrix_persists_with_ledger_evidence: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
     let by_id = record_and_reload_kind(&store, kind::DIAGNOSTIC_BUNDLE).await;
 
     let expected = [
@@ -304,11 +256,7 @@ async fn mt176_diagnostic_bundle_matrix_persists_with_ledger_evidence() {
 /// persist, reload, and leave EventLedger evidence.
 #[tokio::test]
 async fn mt177_local_llm_and_chat_proposal_matrix_persists() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt177_local_llm_and_chat_proposal_matrix_persists: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
     let by_id = record_and_reload_kind(&store, kind::LOCAL_LLM_CHAT_PROPOSAL).await;
 
     let expected = [
@@ -330,11 +278,7 @@ async fn mt177_local_llm_and_chat_proposal_matrix_persists() {
 /// persist, reload, and leave EventLedger evidence.
 #[tokio::test]
 async fn mt178_ai_tagging_matrix_persists() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt178_ai_tagging_matrix_persists: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
     let by_id = record_and_reload_kind(&store, kind::AI_TAGGING).await;
 
     let expected = [
@@ -348,7 +292,9 @@ async fn mt178_ai_tagging_matrix_persists() {
     // tagging never touches media bytes.
     let mutation_row = &by_id["mt-178.tagging.no-silent-media-mutation"];
     assert!(
-        mutation_row.requirement.contains("never mutate media bytes"),
+        mutation_row
+            .requirement
+            .contains("never mutate media bytes"),
         "MT-178 must forbid silent media mutation, got: {}",
         mutation_row.requirement
     );
@@ -361,11 +307,7 @@ async fn mt178_ai_tagging_matrix_persists() {
 /// output leakage) persist, reload, and leave EventLedger evidence.
 #[tokio::test]
 async fn mt179_build_and_package_matrix_persists() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt179_build_and_package_matrix_persists: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
     let by_id = record_and_reload_kind(&store, kind::BUILD_PACKAGE).await;
 
     let expected = [
@@ -385,26 +327,34 @@ async fn mt179_build_and_package_matrix_persists() {
 /// evidence.
 #[tokio::test]
 async fn mt180_no_focus_synthetic_input_and_parallel_matrix_persists() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt180_no_focus_synthetic_input_and_parallel_matrix_persists: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
     let by_id = record_and_reload_kind(&store, kind::SYNTHETIC_INPUT_PARALLEL_COORDINATION).await;
 
     let expected = [
         ("mt-180.no-focus.stealth-window", "no_focus_automation"),
         ("mt-180.no-focus.focus-audit", "no_focus_automation"),
-        ("mt-180.synthetic-input.injection-flagged", "synthetic_input"),
-        ("mt-180.parallel.lease-coordination", "parallel_coordination"),
+        (
+            "mt-180.synthetic-input.injection-flagged",
+            "synthetic_input",
+        ),
+        (
+            "mt-180.parallel.lease-coordination",
+            "parallel_coordination",
+        ),
         ("mt-180.parallel.session-broker", "parallel_coordination"),
     ];
-    assert_required_rows(&by_id, kind::SYNTHETIC_INPUT_PARALLEL_COORDINATION, &expected);
+    assert_required_rows(
+        &by_id,
+        kind::SYNTHETIC_INPUT_PARALLEL_COORDINATION,
+        &expected,
+    );
     for (row_id, _) in &expected {
-        assert_row_recorded_event(&database, row_id, kind::SYNTHETIC_INPUT_PARALLEL_COORDINATION)
-            .await;
+        assert_row_recorded_event(
+            &database,
+            row_id,
+            kind::SYNTHETIC_INPUT_PARALLEL_COORDINATION,
+        )
+        .await;
     }
 }
 
@@ -413,19 +363,19 @@ async fn mt180_no_focus_synthetic_input_and_parallel_matrix_persists() {
 /// synthetic input), reload, and leave EventLedger evidence.
 #[tokio::test]
 async fn mt182_red_team_automation_authority_negative_checks_persist() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt182_red_team_automation_authority_negative_checks_persist: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
     let by_id = record_and_reload_kind(&store, kind::RED_TEAM_AUTOMATION_AUTHORITY).await;
 
     let expected = [
-        ("mt-182.red-team.hidden-ui-automation", "automation_authority"),
+        (
+            "mt-182.red-team.hidden-ui-automation",
+            "automation_authority",
+        ),
         ("mt-182.red-team.focus-steal", "automation_authority"),
-        ("mt-182.red-team.direct-llm-execution", "automation_authority"),
+        (
+            "mt-182.red-team.direct-llm-execution",
+            "automation_authority",
+        ),
         (
             "mt-182.red-team.unbounded-synthetic-input",
             "automation_authority",
@@ -451,13 +401,7 @@ async fn mt182_red_team_automation_authority_negative_checks_persist() {
 /// were a feature claim.
 #[tokio::test]
 async fn mt182_positively_phrased_red_team_row_is_rejected() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt182_positively_phrased_red_team_row_is_rejected: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let positive = NewDiagnosticsValidationRow {
         row_id: "mt-182.red-team.positive-phrasing-probe".to_string(),
@@ -482,13 +426,7 @@ async fn mt182_positively_phrased_red_team_row_is_rejected() {
 /// persist, reload, and leave EventLedger evidence.
 #[tokio::test]
 async fn mt195_stale_source_and_path_portability_matrix_persists() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt195_stale_source_and_path_portability_matrix_persists: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
     let by_id = record_and_reload_kind(&store, kind::STALE_SOURCE_PATH_PORTABILITY).await;
 
     let expected = [
@@ -514,11 +452,7 @@ async fn mt195_stale_source_and_path_portability_matrix_persists() {
 /// probe, so the matrix can never certify portability with a machine-local ref.
 #[tokio::test]
 async fn mt195_nonportable_evidence_refs_are_rejected() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt195_nonportable_evidence_refs_are_rejected: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // Layering: drive-letter, `~/`, and rooted `/home/...` refs are stopped by
     // the canonical machine-local boundary (`reject_legacy_runtime_ref` ->

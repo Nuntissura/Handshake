@@ -1,7 +1,7 @@
-//! WP-KERNEL-009 MT-178 BacklinkComputation — REAL PostgreSQL authority proof.
+//! WP-KERNEL-009 MT-178 BacklinkComputation — real embedded authority proof.
 //!
 //! Proves the Heaper/Obsidian backlink payoff (Master Spec §10.12
-//! [LM-BACK-001..003] / Pattern H-5) over the loom_edges + loom_blocks Postgres
+//! [LM-BACK-001..003] / Pattern H-5) over the loom_edges + loom_blocks embedded
 //! store (no parallel index):
 //!   * linked backlinks: every incoming MENTION/TAG edge surfaces the source
 //!     block + a surrounding-text context snippet;
@@ -10,21 +10,22 @@
 //!     conversion, and a block that IS linked is excluded;
 //!   * fail-closed on a missing viewed block.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod knowledge_ingestion_support;
 
 use handshake_core::storage::{
-    Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy, LoomEdgeType, NewLoomBlock,
-    NewLoomEdge, WriteContext,
+    Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy, LoomEdgeType,
+    NewLoomBlock, NewLoomEdge, WriteContext,
 };
-use knowledge_pg_support::knowledge_pg;
+use knowledge_ingestion_support::open_embedded_store;
 use uuid::Uuid;
 
-macro_rules! pg_or_skip {
+macro_rules! embedded_or_skip {
     () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
+        match open_embedded_store().await {
+            Some(store) => store,
             None => {
-                eprintln!("SKIP MT-178 loom backlink proof: PostgreSQL unavailable");
+                eprintln!("SKIP MT-178 loom backlink proof: embedded store unavailable");
                 return;
             }
         }
@@ -32,7 +33,7 @@ macro_rules! pg_or_skip {
 }
 
 async fn make_block(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ws: &str,
     title: &str,
     full_text: Option<&str>,
@@ -64,7 +65,7 @@ async fn make_block(
 }
 
 async fn link(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ws: &str,
     source: &str,
     target: &str,
@@ -90,20 +91,20 @@ async fn link(
 
 #[tokio::test]
 async fn linked_backlinks_carry_source_block_and_context_snippet() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_skip!();
+    let ws = store.create_workspace().await;
 
-    let target = make_block(&pg.db, &ws, "Roadmap", None).await;
+    let target = make_block(&store.db, &ws, "Roadmap", None).await;
     let source = make_block(
-        &pg.db,
+        &store.db,
         &ws,
         "Quarterly Planning",
         Some("We must align the Roadmap with the budget before the review meeting."),
     )
     .await;
-    link(&pg.db, &ws, &source, &target, LoomEdgeType::Mention).await;
+    link(&store.db, &ws, &source, &target, LoomEdgeType::Mention).await;
 
-    let backlinks = pg
+    let backlinks = store
         .db
         .get_backlinks_with_context(&ws, &target)
         .await
@@ -124,14 +125,14 @@ async fn linked_backlinks_carry_source_block_and_context_snippet() {
 
 #[tokio::test]
 async fn unlinked_mentions_surface_only_unlinked_word_boundary_matches() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_skip!();
+    let ws = store.create_workspace().await;
 
-    let target = make_block(&pg.db, &ws, "Roadmap", None).await;
+    let target = make_block(&store.db, &ws, "Roadmap", None).await;
 
     // (a) An UNLINKED block whose text mentions "Roadmap" -> should surface.
     let unlinked = make_block(
-        &pg.db,
+        &store.db,
         &ws,
         "Notes",
         Some("The Roadmap needs a second pass after planning."),
@@ -141,7 +142,7 @@ async fn unlinked_mentions_surface_only_unlinked_word_boundary_matches() {
     // (b) A block that mentions "Roadmaps" only as part of a larger word ->
     //     must NOT surface (word-boundary rule).
     let _substring_only = make_block(
-        &pg.db,
+        &store.db,
         &ws,
         "Glossary",
         Some("Roadmapping is a discipline."),
@@ -151,22 +152,28 @@ async fn unlinked_mentions_surface_only_unlinked_word_boundary_matches() {
     // (c) A LINKED block that also mentions "Roadmap" -> must NOT surface as
     //     unlinked (it already has a formal edge).
     let linked = make_block(
-        &pg.db,
+        &store.db,
         &ws,
         "Strategy",
         Some("Our Roadmap is set for the year."),
     )
     .await;
-    link(&pg.db, &ws, &linked, &target, LoomEdgeType::Mention).await;
+    link(&store.db, &ws, &linked, &target, LoomEdgeType::Mention).await;
 
-    let mentions = pg
+    let mentions = store
         .db
         .scan_unlinked_mentions(&ws, &target, &[], 100)
         .await
         .expect("scan unlinked");
 
-    let ids: Vec<&str> = mentions.iter().map(|m| m.source_block.block_id.as_str()).collect();
-    assert!(ids.contains(&unlinked.as_str()), "unlinked mention surfaces");
+    let ids: Vec<&str> = mentions
+        .iter()
+        .map(|m| m.source_block.block_id.as_str())
+        .collect();
+    assert!(
+        ids.contains(&unlinked.as_str()),
+        "unlinked mention surfaces"
+    );
     assert!(
         !ids.contains(&linked.as_str()),
         "already-linked block is not an unlinked mention"
@@ -188,12 +195,12 @@ async fn unlinked_mentions_surface_only_unlinked_word_boundary_matches() {
 
 #[tokio::test]
 async fn unlinked_mentions_scan_aliases_too() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_skip!();
+    let ws = store.create_workspace().await;
 
-    let target = make_block(&pg.db, &ws, "Roadmap", None).await;
+    let target = make_block(&store.db, &ws, "Roadmap", None).await;
     let by_alias = make_block(
-        &pg.db,
+        &store.db,
         &ws,
         "Plan",
         Some("The Plan-of-Record covers Q3; see the OKRs."),
@@ -201,7 +208,7 @@ async fn unlinked_mentions_scan_aliases_too() {
     .await;
 
     // No mention of "Roadmap", but mentions the alias "Plan-of-Record".
-    let mentions = pg
+    let mentions = store
         .db
         .scan_unlinked_mentions(&ws, &target, &["Plan-of-Record".to_string()], 100)
         .await
@@ -216,15 +223,18 @@ async fn unlinked_mentions_scan_aliases_too() {
 
 #[tokio::test]
 async fn backlinks_fail_closed_on_missing_block() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_skip!();
+    let ws = store.create_workspace().await;
 
     let missing = format!("loom-missing-{}", Uuid::now_v7());
-    let err = pg
+    let err = store
         .db
         .get_backlinks_with_context(&ws, &missing)
         .await
         .expect_err("missing block fails closed");
     let msg = format!("{err}");
-    assert!(msg.contains("not found") || msg.contains("not_found"), "{msg}");
+    assert!(
+        msg.contains("not found") || msg.contains("not_found"),
+        "{msg}"
+    );
 }

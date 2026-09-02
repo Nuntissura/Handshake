@@ -3,13 +3,14 @@ use std::sync::{
     Arc,
 };
 
+use handshake_core::storage::surreal::RowFilter;
+use handshake_core::storage::tests::embedded_test_backend;
 use handshake_core::{
     process_ledger::idempotency::{
         ApplyOutcome, IdempotencyKey, IdempotencyLedger, SideEffectKind,
     },
     session_checkpoint::{CheckpointStateKind, EventLedgerRow, SessionCheckpoint, StateReplayer},
 };
-use sqlx::Connection;
 use uuid::Uuid;
 
 fn key(session_id: Uuid, event_seq: i64, side_effect_kind: SideEffectKind) -> IdempotencyKey {
@@ -40,44 +41,6 @@ fn event(session_id: Uuid, seq: i64) -> EventLedgerRow {
         payload: serde_json::json!({ "by": 1 }),
         created_at: chrono::Utc::now(),
     }
-}
-
-async fn postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL test URL");
-    let mut conn = sqlx::PgConnection::connect(&url)
-        .await
-        .expect("connect PostgreSQL test URL");
-    let schema = format!("mt194_test_{}", Uuid::now_v7().simple());
-    sqlx::query(&format!(r#"CREATE SCHEMA "{schema}""#))
-        .execute(&mut conn)
-        .await
-        .expect("create isolated schema");
-    drop(conn);
-
-    let sep = if url.contains('?') { "&" } else { "?" };
-    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(2)
-        .connect(&schema_url)
-        .await
-        .expect("connect isolated schema");
-    sqlx::query(
-        r#"
-        CREATE TABLE kernel_idempotency_ledger (
-            session_id UUID NOT NULL,
-            event_seq BIGINT NOT NULL,
-            side_effect_kind TEXT NOT NULL,
-            applied_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            PRIMARY KEY (session_id, event_seq, side_effect_kind)
-        )
-        "#,
-    )
-    .execute(&pool)
-    .await
-    .expect("create idempotency ledger");
-    pool
 }
 
 #[tokio::test]
@@ -156,7 +119,7 @@ async fn mt194_parallel_try_apply_allows_exactly_one_apply() {
 #[tokio::test]
 async fn mt194_failed_op_rolls_back_so_retry_can_succeed() {
     let ledger = IdempotencyLedger::in_memory();
-    let idempotency_key = key(Uuid::now_v7(), 3, SideEffectKind::PostgresWrite);
+    let idempotency_key = key(Uuid::now_v7(), 3, SideEffectKind::StoreWrite);
 
     let failed = ledger
         .try_apply(idempotency_key.clone(), || async {
@@ -174,19 +137,19 @@ async fn mt194_failed_op_rolls_back_so_retry_can_succeed() {
 }
 
 #[tokio::test]
-async fn mt194_postgres_write_idempotency_is_specific_to_table() {
+async fn mt194_store_write_idempotency_is_specific_to_table() {
     let ledger = IdempotencyLedger::in_memory();
     let session_id = Uuid::now_v7();
     let applied = Arc::new(AtomicUsize::new(0));
     let primary_table = key(
         session_id,
         11,
-        SideEffectKind::postgres_write_table("kernel_events"),
+        SideEffectKind::store_write_table("kernel_events"),
     );
     let archive_table = key(
         session_id,
         11,
-        SideEffectKind::postgres_write_table("kernel_events_archive"),
+        SideEffectKind::store_write_table("kernel_events_archive"),
     );
 
     let first_primary = ledger
@@ -307,17 +270,17 @@ fn mt194_targeted_side_effect_storage_key_is_deterministic_text() {
     let primary_table = key(
         session_id,
         13,
-        SideEffectKind::postgres_write_table("kernel_events"),
+        SideEffectKind::store_write_table("kernel_events"),
     );
     let archive_table = key(
         session_id,
         13,
-        SideEffectKind::postgres_write_table("kernel_events_archive"),
+        SideEffectKind::store_write_table("kernel_events_archive"),
     );
     let tricky_table = key(
         session_id,
         13,
-        SideEffectKind::postgres_write_table("kernel_events|table:13:shadow"),
+        SideEffectKind::store_write_table("kernel_events|table:13:shadow"),
     );
     let report_path_key = key(
         session_id,
@@ -327,15 +290,15 @@ fn mt194_targeted_side_effect_storage_key_is_deterministic_text() {
 
     assert_eq!(
         primary_table.side_effect_storage_key(),
-        "postgres_write|table:len=13:hex=6b65726e656c5f6576656e7473"
+        "store_write|table:len=13:hex=6b65726e656c5f6576656e7473"
     );
     assert_eq!(
         archive_table.side_effect_storage_key(),
-        "postgres_write|table:len=21:hex=6b65726e656c5f6576656e74735f61726368697665"
+        "store_write|table:len=21:hex=6b65726e656c5f6576656e74735f61726368697665"
     );
     assert_eq!(
         tricky_table.side_effect_storage_key(),
-        "postgres_write|table:len=29:hex=6b65726e656c5f6576656e74737c7461626c653a31333a736861646f77"
+        "store_write|table:len=29:hex=6b65726e656c5f6576656e74737c7461626c653a31333a736861646f77"
     );
     assert_eq!(
         report_path_key.side_effect_storage_key(),
@@ -404,21 +367,22 @@ async fn mt194_replay_reuses_ledger_and_does_not_repeat_side_effects() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test idempotency_tests -- --ignored`"]
-async fn mt194_postgres_ledger_distinguishes_side_effect_targets_and_dedupes_duplicates() {
-    let pool = postgres_pool().await;
-    let ledger = IdempotencyLedger::new(pool.clone());
+async fn mt194_store_ledger_distinguishes_side_effect_targets_and_dedupes_duplicates() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated embedded idempotency backend");
+    let ledger = IdempotencyLedger::new(backend.storage.clone());
     let session_id = Uuid::now_v7();
     let applied = Arc::new(AtomicUsize::new(0));
     let primary_table = key(
         session_id,
         1,
-        SideEffectKind::postgres_write_table("kernel_events"),
+        SideEffectKind::store_write_table("kernel_events"),
     );
     let archive_table = key(
         session_id,
         1,
-        SideEffectKind::postgres_write_table("kernel_events_archive"),
+        SideEffectKind::store_write_table("kernel_events_archive"),
     );
     let report_path_key = key(
         session_id,
@@ -458,19 +422,37 @@ async fn mt194_postgres_ledger_distinguishes_side_effect_targets_and_dedupes_dup
 
     assert_eq!(applied.load(Ordering::SeqCst), 3);
 
-    let rows: Vec<(String,)> = sqlx::query_as(
-        r#"SELECT side_effect_kind
-           FROM kernel_idempotency_ledger
-           WHERE session_id = $1
-           ORDER BY side_effect_kind"#,
-    )
-    .bind(session_id)
-    .fetch_all(&pool)
-    .await
-    .unwrap();
-    let stored_keys: Vec<_> = rows.into_iter().map(|row| row.0).collect();
+    let inspector = backend.storage.test_inspector();
+    let table = inspector
+        .table_selector("kernel_idempotency_ledger")
+        .await
+        .expect("select idempotency ledger table");
+    let side_effect_kind = table
+        .field("side_effect_kind")
+        .expect("select idempotency side-effect field");
+    let rows = inspector
+        .project(&table, &[side_effect_kind], RowFilter::All)
+        .await
+        .expect("project persisted idempotency keys");
+    let stored_keys: Vec<_> = rows
+        .into_iter()
+        .map(|row| {
+            row.values
+                .get("side_effect_kind")
+                .and_then(|value| value.as_str())
+                .expect("stored side-effect key text")
+                .to_owned()
+        })
+        .collect();
     assert_eq!(stored_keys.len(), 3);
     assert!(stored_keys.contains(&primary_table.side_effect_storage_key()));
     assert!(stored_keys.contains(&archive_table.side_effect_storage_key()));
     assert!(stored_keys.contains(&report_path_key.side_effect_storage_key()));
+
+    drop(inspector);
+    drop(ledger);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded idempotency backend");
 }

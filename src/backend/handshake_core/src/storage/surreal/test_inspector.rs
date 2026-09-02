@@ -18,6 +18,16 @@ pub struct SurrealTestInspector {
     storage: SurrealStorage,
 }
 
+/// Feature-gated mutation support for storage-boundary and recovery proofs.
+///
+/// Callers can only address catalog-selected tables and direct fields, and all
+/// values are bound through the SDK. No caller-authored SurrealQL, namespace
+/// changes, or SDK client escapes this facade.
+#[derive(Clone)]
+pub struct SurrealTestMutator {
+    storage: SurrealStorage,
+}
+
 #[derive(Debug, Error)]
 pub enum SurrealTestInspectorError {
     #[error(transparent)]
@@ -34,6 +44,14 @@ pub enum SurrealTestInspectorError {
     SelectorTableMismatch { expected: String, actual: String },
     #[error("projection must include at least one catalog field")]
     EmptyProjection,
+    #[error("mutation must include at least one catalog field")]
+    EmptyMutation,
+    #[error("mutation repeats field `{field}` on table `{table}`")]
+    DuplicateMutationField { table: String, field: String },
+    #[error("mutation source row `{table}:{record_id}` does not exist")]
+    MissingMutationSource { table: String, record_id: String },
+    #[error("live definition for mutation field `{table}.{field}` is unavailable")]
+    MissingMutationFieldDefinition { table: String, field: String },
     #[error("field `{field}` on table `{table}` is not a record reference")]
     NotAReference { table: String, field: String },
     #[error("required reference `{table}.{field}` returned NONE or NULL")]
@@ -229,9 +247,133 @@ pub struct ProjectedRow {
     pub values: BTreeMap<String, serde_json::Value>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TestRecordKey {
+    String(String),
+    Uuid(uuid::Uuid),
+}
+
+impl TestRecordKey {
+    fn into_record_id(self, table: &TableSelector) -> RecordId {
+        let key = match self {
+            Self::String(value) => RecordIdKey::String(value),
+            Self::Uuid(value) => RecordIdKey::Uuid(value.into()),
+        };
+        RecordId::new(table.name.clone(), key)
+    }
+
+    fn display(&self) -> String {
+        match self {
+            Self::String(value) => value.clone(),
+            Self::Uuid(value) => value.to_string(),
+        }
+    }
+}
+
+impl From<String> for TestRecordKey {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<&str> for TestRecordKey {
+    fn from(value: &str) -> Self {
+        Self::String(value.to_owned())
+    }
+}
+
+impl From<uuid::Uuid> for TestRecordKey {
+    fn from(value: uuid::Uuid) -> Self {
+        Self::Uuid(value)
+    }
+}
+
+/// A closed, typed value accepted by [`SurrealTestMutator`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct TestMutationValue(SurrealValueData);
+
+impl TestMutationValue {
+    pub fn none() -> Self {
+        Self(SurrealValueData::None)
+    }
+
+    pub fn null() -> Self {
+        Self(SurrealValueData::Null)
+    }
+
+    pub fn string(value: impl Into<String>) -> Self {
+        Self(value.into().into_value())
+    }
+
+    pub fn bool(value: bool) -> Self {
+        Self(value.into_value())
+    }
+
+    pub fn i64(value: i64) -> Self {
+        Self(value.into_value())
+    }
+
+    pub fn f64(value: f64) -> Self {
+        Self(value.into_value())
+    }
+
+    pub fn uuid(value: uuid::Uuid) -> Self {
+        Self(value.into_value())
+    }
+
+    pub fn json(value: serde_json::Value) -> Self {
+        Self(value.into_value())
+    }
+
+    pub fn record(table: &TableSelector, record_id: impl Into<TestRecordKey>) -> Self {
+        Self(SurrealValueData::RecordId(
+            record_id.into().into_record_id(table),
+        ))
+    }
+
+    pub fn array(values: impl IntoIterator<Item = TestMutationValue>) -> Self {
+        Self(SurrealValueData::Array(
+            values
+                .into_iter()
+                .map(|value| value.0)
+                .collect::<Vec<_>>()
+                .into(),
+        ))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TestFieldMutation {
+    field: FieldSelector,
+    value: TestMutationValue,
+}
+
+impl TestFieldMutation {
+    pub fn new(field: FieldSelector, value: TestMutationValue) -> Self {
+        Self { field, value }
+    }
+}
+
 #[derive(Debug, SurrealValue)]
 struct CountRow {
     count: i64,
+}
+
+#[derive(Debug, SurrealValue)]
+struct RecordBinding {
+    record: RecordId,
+}
+
+#[derive(Debug, SurrealValue)]
+struct RecordContentBindings {
+    record: RecordId,
+    content: SurrealValueData,
+}
+
+#[derive(Debug, SurrealValue)]
+struct RecordPatchBindings {
+    record: RecordId,
+    patch: SurrealValueData,
 }
 
 impl SurrealTestInspector {
@@ -568,6 +710,285 @@ impl SurrealTestInspector {
             .await
             .map_err(Into::into)
     }
+}
+
+impl SurrealTestMutator {
+    pub(super) fn new(storage: SurrealStorage) -> Self {
+        Self { storage }
+    }
+
+    /// Attempt a schema-governed row creation. Invalid rows surface the live
+    /// database rejection; successful calls are intended only for test setup.
+    pub async fn create_row(
+        &self,
+        table: &TableSelector,
+        record_id: impl Into<TestRecordKey>,
+        fields: &[TestFieldMutation],
+    ) -> Result<(), SurrealTestInspectorError> {
+        let record = record_id.into().into_record_id(table);
+        let content = mutation_object(table, fields)?;
+        self.storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query_bound(
+                            "CREATE $record CONTENT $content RETURN AFTER;",
+                            RecordContentBindings {
+                                record,
+                                content: SurrealValueData::Object(content),
+                            },
+                        )
+                        .await?;
+                    let _: Vec<SurrealValueData> = response.take(0)?;
+                    Ok(())
+                })
+            })
+            .await
+            .map_err(Into::into)
+    }
+
+    /// Clone one real row and override selected fields before attempting a new
+    /// schema-governed insert. This keeps invalid-row proofs narrowly focused
+    /// on the intended invariant instead of reconstructing unrelated fields.
+    pub async fn duplicate_row(
+        &self,
+        table: &TableSelector,
+        source_record_id: impl Into<TestRecordKey>,
+        target_record_id: impl Into<TestRecordKey>,
+        overrides: &[TestFieldMutation],
+    ) -> Result<(), SurrealTestInspectorError> {
+        let source_record_id = source_record_id.into();
+        let source_record_id_display = source_record_id.display();
+        let source_record = source_record_id.into_record_id(table);
+        let mut source = self
+            .storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query_bound(
+                            "SELECT * FROM ONLY $record;",
+                            RecordBinding {
+                                record: source_record,
+                            },
+                        )
+                        .await?;
+                    Ok(response.take::<Option<SurrealValueData>>(0)?)
+                })
+            })
+            .await?
+            .ok_or_else(|| SurrealTestInspectorError::MissingMutationSource {
+                table: table.name.clone(),
+                record_id: source_record_id_display,
+            })?;
+        let SurrealValueData::Object(ref mut source_object) = source else {
+            return Err(SurrealTestInspectorError::InvalidRow(
+                "mutation source projection did not return an object".to_owned(),
+            ));
+        };
+        source_object.remove("id");
+        for (field, value) in mutation_entries(table, overrides, false)? {
+            source_object.insert(field, value);
+        }
+        let target_record = target_record_id.into().into_record_id(table);
+        self.storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query_bound(
+                            "CREATE $record CONTENT $content RETURN AFTER;",
+                            RecordContentBindings {
+                                record: target_record,
+                                content: source,
+                            },
+                        )
+                        .await?;
+                    let _: Vec<SurrealValueData> = response.take(0)?;
+                    Ok(())
+                })
+            })
+            .await
+            .map_err(Into::into)
+    }
+
+    /// Apply a controlled in-place mutation for corruption-detection and
+    /// recovery proofs. Live schema assertions still execute.
+    pub async fn update_row(
+        &self,
+        table: &TableSelector,
+        record_id: impl Into<TestRecordKey>,
+        fields: &[TestFieldMutation],
+    ) -> Result<(), SurrealTestInspectorError> {
+        let record_id = record_id.into();
+        let record_id_display = record_id.display();
+        let record = record_id.into_record_id(table);
+        let patch = mutation_object(table, fields)?;
+        let updated = self
+            .storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query_bound(
+                            "UPDATE ONLY $record MERGE $patch RETURN AFTER;",
+                            RecordPatchBindings {
+                                record,
+                                patch: SurrealValueData::Object(patch),
+                            },
+                        )
+                        .await?;
+                    Ok(response.take::<Option<SurrealValueData>>(0)?)
+                })
+            })
+            .await?;
+        if updated.is_none() {
+            return Err(SurrealTestInspectorError::MissingMutationSource {
+                table: table.name.clone(),
+                record_id: record_id_display,
+            });
+        }
+        Ok(())
+    }
+
+    /// Corrupt exactly one direct field while restoring its live schema
+    /// definition before this call returns. Use only when the invalid persisted
+    /// state itself is the recovery-path fixture; rejection proofs should use
+    /// [`Self::create_row`] or [`Self::duplicate_row`] instead.
+    pub async fn corrupt_row_field(
+        &self,
+        table: &TableSelector,
+        record_id: impl Into<TestRecordKey>,
+        mutation: &TestFieldMutation,
+    ) -> Result<(), SurrealTestInspectorError> {
+        validate_field_for_table(table, &mutation.field)?;
+        let table_name = table.name.clone();
+        let field_name = mutation.field.name.clone();
+        let info_statement = format!("INFO FOR TABLE `{table_name}`;");
+        let definition_field = field_name.clone();
+        let definition: Option<String> = self
+            .storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database.query(info_statement).await?.check()?;
+                    let info: SurrealValueData = response.take(0)?;
+                    let SurrealValueData::Object(info) = info else {
+                        return Ok(None);
+                    };
+                    let definition = optional_object(&info, "fields")
+                        .and_then(|fields| optional_string(fields, &definition_field));
+                    Ok(definition)
+                })
+            })
+            .await?;
+        let definition = definition.ok_or_else(|| {
+            SurrealTestInspectorError::MissingMutationFieldDefinition {
+                table: table_name.clone(),
+                field: field_name.clone(),
+            }
+        })?;
+
+        let record_id = record_id.into();
+        let record_id_display = record_id.display();
+        let record = record_id.into_record_id(table);
+        let relax_statement =
+            format!("DEFINE FIELD OVERWRITE `{field_name}` ON TABLE `{table_name}` TYPE any;");
+        let restore_statement =
+            format!("REMOVE FIELD `{field_name}` ON TABLE `{table_name}`; {definition};");
+        let patch: surrealdb::types::Object = [(field_name.clone(), mutation.value.0.clone())]
+            .into_iter()
+            .collect();
+        let updated = self
+            .storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database.query(relax_statement).await?.check()?;
+                    let mutation_result = async {
+                        let mut response = database
+                            .query_bound(
+                                "UPDATE ONLY $record MERGE $patch RETURN AFTER;",
+                                RecordPatchBindings {
+                                    record,
+                                    patch: SurrealValueData::Object(patch),
+                                },
+                            )
+                            .await?;
+                        Ok::<_, SurrealStorageError>(response.take::<Option<SurrealValueData>>(0)?)
+                    }
+                    .await;
+                    database.query(restore_statement).await?.check()?;
+                    mutation_result.map_err(Into::into)
+                })
+            })
+            .await?;
+        if updated.is_none() {
+            return Err(SurrealTestInspectorError::MissingMutationSource {
+                table: table.name.clone(),
+                record_id: record_id_display,
+            });
+        }
+        Ok(())
+    }
+
+    /// Delete exactly one catalog-selected row for a corruption/recovery proof.
+    pub async fn delete_row(
+        &self,
+        table: &TableSelector,
+        record_id: impl Into<TestRecordKey>,
+    ) -> Result<(), SurrealTestInspectorError> {
+        let record_id = record_id.into();
+        let record_id_display = record_id.display();
+        let record = record_id.into_record_id(table);
+        let deleted = self
+            .storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query_bound(
+                            "DELETE ONLY $record RETURN BEFORE;",
+                            RecordBinding { record },
+                        )
+                        .await?;
+                    Ok(response.take::<Option<SurrealValueData>>(0)?)
+                })
+            })
+            .await?;
+        if deleted.is_none() {
+            return Err(SurrealTestInspectorError::MissingMutationSource {
+                table: table.name.clone(),
+                record_id: record_id_display,
+            });
+        }
+        Ok(())
+    }
+}
+
+fn mutation_object(
+    table: &TableSelector,
+    fields: &[TestFieldMutation],
+) -> Result<surrealdb::types::Object, SurrealTestInspectorError> {
+    Ok(mutation_entries(table, fields, true)?.into_iter().collect())
+}
+
+fn mutation_entries(
+    table: &TableSelector,
+    fields: &[TestFieldMutation],
+    require_non_empty: bool,
+) -> Result<Vec<(String, SurrealValueData)>, SurrealTestInspectorError> {
+    if require_non_empty && fields.is_empty() {
+        return Err(SurrealTestInspectorError::EmptyMutation);
+    }
+    let mut names = BTreeSet::new();
+    fields
+        .iter()
+        .map(|mutation| {
+            validate_field_for_table(table, &mutation.field)?;
+            if !names.insert(mutation.field.name.clone()) {
+                return Err(SurrealTestInspectorError::DuplicateMutationField {
+                    table: table.name.clone(),
+                    field: mutation.field.name.clone(),
+                });
+            }
+            Ok((mutation.field.name.clone(), mutation.value.0.clone()))
+        })
+        .collect()
 }
 
 #[derive(Serialize)]

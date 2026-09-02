@@ -1,68 +1,84 @@
-//! WP-KERNEL-009 MT-257 DailyNotesJournal route-level proof against REAL
-//! PostgreSQL over a quiet loopback listener.
+//! WP-KERNEL-009 MT-257 DailyNotesJournal route-level proof against the real
+//! embedded store over a quiet loopback listener.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 #[allow(dead_code)]
 mod user_manual_support;
 
 use handshake_core::api;
-use knowledge_pg_support::KnowledgePg;
+use handshake_core::storage::{
+    LoomBlockContentType, LoomViewFilters, LoomViewResponse, LoomViewType,
+};
+use knowledge_ingestion_support::EmbeddedKnowledgeStore;
 use serde_json::{json, Value};
-use sqlx::{Connection, Row};
 use user_manual_support::{app_state_for, start_server};
 
 struct ApiFixture {
-    kpg: KnowledgePg,
+    store: EmbeddedKnowledgeStore,
     base: String,
     _server: tokio::task::JoinHandle<()>,
     http: reqwest::Client,
 }
 
 async fn fixture() -> Option<ApiFixture> {
-    let kpg = knowledge_pg_support::knowledge_pg().await?;
-    let state = app_state_for(&kpg.schema_url).await;
+    let store = embedded_knowledge_support::open_embedded_store().await?;
+    let state = app_state_for(&store.db).await;
     let (base, server) = start_server(api::loom::routes(state)).await;
     Some(ApiFixture {
-        kpg,
+        store,
         base,
         _server: server,
         http: reqwest::Client::new(),
     })
 }
 
-async fn journal_row_count(kpg: &KnowledgePg, workspace_id: &str, journal_date: &str) -> i64 {
-    let mut conn = kpg.raw_connection().await;
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*)::BIGINT FROM loom_blocks \
-         WHERE workspace_id = $1 AND content_type = 'journal' AND journal_date = $2",
-    )
-    .bind(workspace_id)
-    .bind(journal_date)
-    .fetch_one(&mut conn)
-    .await
-    .expect("journal row count");
-    conn.close().await.ok();
-    count
+async fn journal_row_count(
+    store: &EmbeddedKnowledgeStore,
+    workspace_id: &str,
+    journal_date: &str,
+) -> i64 {
+    let from = chrono::DateTime::parse_from_rfc3339(&format!("{journal_date}T00:00:00Z"))
+        .expect("canonical journal date")
+        .with_timezone(&chrono::Utc);
+    let to = chrono::DateTime::parse_from_rfc3339(&format!("{journal_date}T23:59:59Z"))
+        .expect("canonical journal date")
+        .with_timezone(&chrono::Utc);
+    let response = store
+        .db
+        .query_loom_view(
+            workspace_id,
+            LoomViewType::All,
+            LoomViewFilters {
+                content_type: Some(LoomBlockContentType::Journal),
+                date_from: Some(from),
+                date_to: Some(to),
+                ..Default::default()
+            },
+            100,
+            0,
+        )
+        .await
+        .expect("journal row count");
+    match response {
+        LoomViewResponse::All { blocks } => blocks.len() as i64,
+        _ => 0,
+    }
 }
 
-async fn knowledge_bridge_count(kpg: &KnowledgePg, workspace_id: &str, block_id: &str) -> i64 {
-    let mut conn = kpg.raw_connection().await;
-    let row = sqlx::query(
-        "SELECT COUNT(*)::BIGINT AS bridge_count \
-         FROM loom_block_knowledge_bridge b \
-         JOIN knowledge_entities e ON e.entity_id = b.entity_id \
-         WHERE b.workspace_id = $1 \
-           AND b.block_id = $2 \
-           AND e.entity_kind = 'loom_block' \
-           AND e.entity_key = $2",
+async fn knowledge_bridge_count(
+    store: &EmbeddedKnowledgeStore,
+    workspace_id: &str,
+    block_id: &str,
+) -> i64 {
+    i64::from(
+        store
+            .db
+            .get_loom_block_knowledge_bridge(workspace_id, block_id)
+            .await
+            .expect("journal knowledge bridge count")
+            .is_some(),
     )
-    .bind(workspace_id)
-    .bind(block_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("journal knowledge bridge count");
-    conn.close().await.ok();
-    row.get("bridge_count")
 }
 
 async fn open_journal(fx: &ApiFixture, workspace_id: &str, journal_date: &str) -> Value {
@@ -128,10 +144,10 @@ async fn create_mention_edge(
 #[tokio::test]
 async fn daily_journal_open_is_idempotent_and_bridged() {
     let Some(fx) = fixture().await else {
-        eprintln!("SKIP MT-257 daily journal proof: PostgreSQL unavailable");
+        eprintln!("SKIP MT-257 daily journal proof: embedded store unavailable");
         return;
     };
-    let workspace_id = fx.kpg.create_workspace().await;
+    let workspace_id = fx.store.create_workspace().await;
     let journal_date = "2026-06-16";
     let first = open_journal(&fx, &workspace_id, journal_date).await;
     let second = open_journal(&fx, &workspace_id, journal_date).await;
@@ -141,7 +157,7 @@ async fn daily_journal_open_is_idempotent_and_bridged() {
     assert_eq!(first["journal_date"], journal_date);
     assert_eq!(first["title"], "Daily Note 2026-06-16");
     assert_eq!(
-        journal_row_count(&fx.kpg, &workspace_id, journal_date).await,
+        journal_row_count(&fx.store, &workspace_id, journal_date).await,
         1
     );
 
@@ -149,7 +165,7 @@ async fn daily_journal_open_is_idempotent_and_bridged() {
         .as_str()
         .expect("daily journal block id is a string");
     assert_eq!(
-        knowledge_bridge_count(&fx.kpg, &workspace_id, block_id).await,
+        knowledge_bridge_count(&fx.store, &workspace_id, block_id).await,
         1,
         "daily journal is resolved through the LoomBlock knowledge bridge"
     );
@@ -158,10 +174,10 @@ async fn daily_journal_open_is_idempotent_and_bridged() {
 #[tokio::test]
 async fn journal_date_filters_all_and_sorted_views() {
     let Some(fx) = fixture().await else {
-        eprintln!("SKIP MT-257 journal date view proof: PostgreSQL unavailable");
+        eprintln!("SKIP MT-257 journal date view proof: embedded store unavailable");
         return;
     };
-    let workspace_id = fx.kpg.create_workspace().await;
+    let workspace_id = fx.store.create_workspace().await;
 
     let june15 = open_journal(&fx, &workspace_id, "2026-06-15").await;
     let june16 = open_journal(&fx, &workspace_id, "2026-06-16").await;
@@ -227,10 +243,10 @@ async fn journal_date_filters_all_and_sorted_views() {
 #[tokio::test]
 async fn journal_mentions_surface_as_backlinks() {
     let Some(fx) = fixture().await else {
-        eprintln!("SKIP MT-257 journal backlink proof: PostgreSQL unavailable");
+        eprintln!("SKIP MT-257 journal backlink proof: embedded store unavailable");
         return;
     };
-    let workspace_id = fx.kpg.create_workspace().await;
+    let workspace_id = fx.store.create_workspace().await;
 
     let journal = open_journal(&fx, &workspace_id, "2026-06-16").await;
     let target = create_note(&fx, &workspace_id, "Roadmap").await;
@@ -262,10 +278,10 @@ async fn journal_mentions_surface_as_backlinks() {
 #[tokio::test]
 async fn daily_journal_rejects_non_canonical_dates() {
     let Some(fx) = fixture().await else {
-        eprintln!("SKIP MT-257 journal date validation proof: PostgreSQL unavailable");
+        eprintln!("SKIP MT-257 journal date validation proof: embedded store unavailable");
         return;
     };
-    let workspace_id = fx.kpg.create_workspace().await;
+    let workspace_id = fx.store.create_workspace().await;
 
     let response = fx
         .http
@@ -279,7 +295,7 @@ async fn daily_journal_rejects_non_canonical_dates() {
 
     assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
     assert_eq!(
-        journal_row_count(&fx.kpg, &workspace_id, "2026-06-16").await,
+        journal_row_count(&fx.store, &workspace_id, "2026-06-16").await,
         0,
         "invalid date does not create a canonical journal row"
     );

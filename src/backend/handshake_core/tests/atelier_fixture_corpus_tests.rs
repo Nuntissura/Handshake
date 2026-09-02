@@ -1,7 +1,8 @@
 //! WP-KERNEL-005 atelier fixture corpus: portable JSON fixtures round-tripped
-//! through the real `AtelierStore` against live PostgreSQL (no SQLite, ever).
+//! through the real `AtelierStore` against an isolated embedded SurrealDB
+//! harness.
 //!
-//! Each fixture (MT-061..066, MT-076..079) is a portable, non-SQLite JSON document under
+//! Each fixture (MT-061..066, MT-076..079) is a portable JSON document under
 //! `tests/fixtures/atelier_core_data/`. The loader reads each fixture via
 //! `include_str!`, deserializes it with serde, makes every public id / slug /
 //! `{{NONCE}}` marker run-unique, persists it through the real store APIs, then
@@ -16,7 +17,7 @@
 //!     mt061_character_sheet_fixture_corpus_round_trips \
 //!     --target-dir ../Handshake_Artifacts/handshake-cargo-target
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use handshake_core::atelier::collections::NewCollection;
 use handshake_core::atelier::documents::{
@@ -49,12 +50,9 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 /// Connect + ensure schema, the shared preamble every fixture test runs.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// A short, run-unique suffix used to scope every public id / slug / nonce so
@@ -105,11 +103,7 @@ fn load_character_sheet_fixture() -> CharacterSheetFixture {
 
 #[tokio::test]
 async fn mt061_character_sheet_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt061_character_sheet_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let fixture = load_character_sheet_fixture();
     assert!(
@@ -165,10 +159,16 @@ async fn mt061_character_sheet_fixture_corpus_round_trips() {
             fixture_char.sheet_versions.len(),
             "all fixture sheet versions preserved (append-only)"
         );
-        for (idx, (persisted, fixture_sv)) in
-            history.iter().zip(fixture_char.sheet_versions.iter()).enumerate()
+        for (idx, (persisted, fixture_sv)) in history
+            .iter()
+            .zip(fixture_char.sheet_versions.iter())
+            .enumerate()
         {
-            assert_eq!(persisted.seq, (idx as i64) + 1, "seq is 1-based and ordered");
+            assert_eq!(
+                persisted.seq,
+                (idx as i64) + 1,
+                "seq is 1-based and ordered"
+            );
             assert_eq!(
                 persisted.raw_text, fixture_sv.raw_text,
                 "raw sheet bytes round-trip exactly"
@@ -176,7 +176,10 @@ async fn mt061_character_sheet_fixture_corpus_round_trips() {
             assert_eq!(persisted.author, fixture_sv.author);
             assert_eq!(persisted.tool, fixture_sv.tool);
             if idx == 0 {
-                assert_eq!(persisted.parent_version_id, None, "first version has no parent");
+                assert_eq!(
+                    persisted.parent_version_id, None,
+                    "first version has no parent"
+                );
             } else {
                 assert_eq!(
                     persisted.parent_version_id,
@@ -263,11 +266,7 @@ fn load_media_intake_fixture() -> MediaIntakeFixture {
 
 #[tokio::test]
 async fn mt062_media_intake_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt062_media_intake_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let fixture = load_media_intake_fixture();
     assert!(!fixture.media.is_empty(), "fixture must define media");
@@ -278,7 +277,7 @@ async fn mt062_media_intake_fixture_corpus_round_trips() {
     let mut review_updates = Vec::new();
     for fixture_media in &fixture.media {
         let seed = run_unique(&fixture_media.payload_seed, &suffix);
-        let artifact = atelier_pg_support::write_native_media_artifact(seed.as_bytes());
+        let artifact = atelier_surreal_support::write_native_media_artifact(seed.as_bytes());
         let asset = store
             .materialize_media_asset(&NewMediaAsset {
                 content_hash: artifact.content_hash.clone(),
@@ -436,11 +435,7 @@ fn load_collection_contact_sheet_fixture() -> CollectionContactSheetFixture {
 
 #[tokio::test]
 async fn mt063_collection_contact_sheet_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt063_collection_contact_sheet_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let fixture = load_collection_contact_sheet_fixture();
 
@@ -448,7 +443,7 @@ async fn mt063_collection_contact_sheet_fixture_corpus_round_trips() {
     let mut asset_ids = Vec::new();
     for seed in &fixture.media_seeds {
         let seeded = run_unique(seed, &suffix);
-        let artifact = atelier_pg_support::write_native_media_artifact(seeded.as_bytes());
+        let artifact = atelier_surreal_support::write_native_media_artifact(seeded.as_bytes());
         let asset = store
             .materialize_media_asset(&NewMediaAsset {
                 content_hash: artifact.content_hash.clone(),
@@ -512,10 +507,16 @@ async fn mt063_collection_contact_sheet_fixture_corpus_round_trips() {
     assert_eq!(members.len(), member_assets.len());
     for (member, expected_asset) in members.iter().zip(member_assets.iter()) {
         assert_eq!(member.collection_id, collection.collection_id);
-        assert_eq!(member.asset_id, *expected_asset, "membership order preserved");
+        assert_eq!(
+            member.asset_id, *expected_asset,
+            "membership order preserved"
+        );
     }
     for (idx, member) in members.iter().enumerate() {
-        assert_eq!(member.sort_order, idx as i64, "membership sort order is dense");
+        assert_eq!(
+            member.sort_order, idx as i64,
+            "membership sort order is dense"
+        );
     }
 
     // Contact sheet snapshots membership by content hash (immutable manifest).
@@ -627,11 +628,7 @@ fn load_docs_moodboard_relations_fixture() -> DocsMoodboardRelationsFixture {
 
 #[tokio::test]
 async fn mt064_docs_moodboard_relations_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt064_docs_moodboard_relations_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let fixture = load_docs_moodboard_relations_fixture();
 
@@ -800,7 +797,10 @@ async fn mt064_docs_moodboard_relations_fixture_corpus_round_trips() {
             .await
             .expect("create relationship from fixture");
         // Store trims kind/label/notes; round-trip is the trimmed value.
-        assert_eq!(created.relationship_kind, fixture_rel.relationship_kind.trim());
+        assert_eq!(
+            created.relationship_kind,
+            fixture_rel.relationship_kind.trim()
+        );
         assert_eq!(created.label.as_deref(), Some(fixture_rel.label.trim()));
         assert_eq!(created.notes, fixture_rel.notes.trim());
 
@@ -817,7 +817,10 @@ async fn mt064_docs_moodboard_relations_fixture_corpus_round_trips() {
             fetched.target_character_id,
             character_ids[fixture_rel.target_character_index]
         );
-        assert_eq!(fetched.relationship_kind, fixture_rel.relationship_kind.trim());
+        assert_eq!(
+            fetched.relationship_kind,
+            fixture_rel.relationship_kind.trim()
+        );
     }
 }
 
@@ -887,11 +890,7 @@ fn nonce(value: &str, suffix: &str) -> String {
 
 #[tokio::test]
 async fn mt065_search_tags_similarity_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt065_search_tags_similarity_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let fixture = load_search_tags_similarity_fixture();
 
@@ -948,8 +947,9 @@ async fn mt065_search_tags_similarity_fixture_corpus_round_trips() {
 
         let rules = store.list_tag_rules().await.expect("list tag rules");
         assert!(
-            rules.iter().any(|r| r.rule_id == created.rule_id
-                && r.emit_tag == emit_tag.to_ascii_lowercase()),
+            rules.iter().any(
+                |r| r.rule_id == created.rule_id && r.emit_tag == emit_tag.to_ascii_lowercase()
+            ),
             "created tag rule round-trips in the rule list"
         );
     }
@@ -1032,8 +1032,8 @@ async fn mt065_search_tags_similarity_fixture_corpus_round_trips() {
     // Similarity projections from dHash seeds + dominant color.
     let near_seed = run_unique(&fixture.similarity.near_payload_seed, &suffix);
     let far_seed = run_unique(&fixture.similarity.far_payload_seed, &suffix);
-    let near_artifact = atelier_pg_support::write_native_media_artifact(near_seed.as_bytes());
-    let far_artifact = atelier_pg_support::write_native_media_artifact(far_seed.as_bytes());
+    let near_artifact = atelier_surreal_support::write_native_media_artifact(near_seed.as_bytes());
+    let far_artifact = atelier_surreal_support::write_native_media_artifact(far_seed.as_bytes());
     let near_asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: near_artifact.content_hash.clone(),
@@ -1086,7 +1086,10 @@ async fn mt065_search_tags_similarity_fixture_corpus_round_trips() {
         .expect("reload near similarity projection")
         .expect("near projection present");
     assert_eq!(near_projection.asset_internal_id, near_asset.asset_id);
-    assert_eq!(near_projection.dhash_hex.as_deref(), Some(near_dhash.as_str()));
+    assert_eq!(
+        near_projection.dhash_hex.as_deref(),
+        Some(near_dhash.as_str())
+    );
     assert_eq!(
         near_projection.palette_json["dominant"][0]["hex"]
             .as_str()
@@ -1098,7 +1101,10 @@ async fn mt065_search_tags_similarity_fixture_corpus_round_trips() {
         .await
         .expect("reload far similarity projection")
         .expect("far projection present");
-    assert_eq!(far_projection.dhash_hex.as_deref(), Some(far_dhash.as_str()));
+    assert_eq!(
+        far_projection.dhash_hex.as_deref(),
+        Some(far_dhash.as_str())
+    );
 }
 
 // =====================================================================
@@ -1217,11 +1223,7 @@ fn reset_mode_from_token(token: &str) -> AtelierResetMode {
 
 #[tokio::test]
 async fn mt066_reset_orphan_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt066_reset_orphan_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let fixture = load_reset_orphan_fixture();
     assert!(
@@ -1230,11 +1232,11 @@ async fn mt066_reset_orphan_fixture_corpus_round_trips() {
     );
 
     // Materialize the fixture's original media into real ArtifactStore-backed
-    // PostgreSQL rows so the reset has originals to preserve.
+    // Persisted rows so the reset has originals to preserve.
     let mut assets = Vec::new();
     for fixture_media in &fixture.original_media {
         let seed = run_unique(&fixture_media.payload_seed, &suffix);
-        let artifact = atelier_pg_support::write_native_media_artifact(seed.as_bytes());
+        let artifact = atelier_surreal_support::write_native_media_artifact(seed.as_bytes());
         let asset = store
             .materialize_media_asset(&NewMediaAsset {
                 content_hash: artifact.content_hash.clone(),
@@ -1310,7 +1312,7 @@ async fn mt066_reset_orphan_fixture_corpus_round_trips() {
         .orphan_manifest_id
         .expect("full reset records an orphan manifest");
 
-    // RE-READ the orphan manifest items from PostgreSQL and assert checksums,
+    // RE-READ the orphan manifest items from the embedded store and assert checksums,
     // relocatable artifact roots, and no drive-letter paths per the fixture.
     let manifest_items = store
         .list_orphan_manifest_items(manifest_id)
@@ -1334,7 +1336,7 @@ async fn mt066_reset_orphan_fixture_corpus_round_trips() {
         fixture_items.push(item.clone());
     }
 
-    // RE-READ both reset operations from PostgreSQL via the diagnostics
+    // RE-READ both reset operations from the embedded store via the diagnostics
     // projection (canonical atelier_reset_operation rows).
     let diagnostics = store
         .list_reset_orphan_diagnostics()
@@ -1345,7 +1347,10 @@ async fn mt066_reset_orphan_fixture_corpus_round_trips() {
         .iter()
         .find(|row| row.reset_id == preferences_reset.reset_id)
         .expect("preferences-only reset row persisted");
-    assert_eq!(persisted_pref_reset.mode, fixture.preferences_only_reset.mode);
+    assert_eq!(
+        persisted_pref_reset.mode,
+        fixture.preferences_only_reset.mode
+    );
     assert_eq!(
         persisted_pref_reset.requested_by,
         fixture.preferences_only_reset.requested_by
@@ -1367,7 +1372,10 @@ async fn mt066_reset_orphan_fixture_corpus_round_trips() {
         })
         .await
         .expect("adopt orphan manifest item from fixture");
-    assert_eq!(adoption.manifest_item.adoption_status, OrphanAdoptionStatus::Adopted);
+    assert_eq!(
+        adoption.manifest_item.adoption_status,
+        OrphanAdoptionStatus::Adopted
+    );
     assert_eq!(
         adoption.item.content_hash.as_deref(),
         Some(adopt_target.content_hash.as_str()),
@@ -1479,11 +1487,7 @@ fn load_web_portfolio_export_fixture() -> WebPortfolioExportFixture {
 
 #[tokio::test]
 async fn mt076_web_portfolio_export_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt076_web_portfolio_export_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let fixture = load_web_portfolio_export_fixture();
     assert!(!fixture.media.is_empty(), "fixture must define media");
@@ -1492,7 +1496,7 @@ async fn mt076_web_portfolio_export_fixture_corpus_round_trips() {
     let mut content_hashes = Vec::new();
     for fixture_media in &fixture.media {
         let seed = run_unique(&fixture_media.payload_seed, &suffix);
-        let artifact = atelier_pg_support::write_native_media_artifact(seed.as_bytes());
+        let artifact = atelier_surreal_support::write_native_media_artifact(seed.as_bytes());
         let asset = store
             .materialize_media_asset(&NewMediaAsset {
                 content_hash: artifact.content_hash.clone(),
@@ -1507,7 +1511,7 @@ async fn mt076_web_portfolio_export_fixture_corpus_round_trips() {
     }
 
     // RE-READ the persisted assets so the manifest items are built from
-    // PostgreSQL rows, not in-memory values.
+    // Persisted rows, not in-memory values.
     let mut persisted_assets = Vec::new();
     for hash in &content_hashes {
         let asset = store
@@ -1553,14 +1557,17 @@ async fn mt076_web_portfolio_export_fixture_corpus_round_trips() {
         .map(|(asset, fixture_media)| WebPortfolioManifestItem {
             asset_id: asset.asset_id,
             artifact_ref: asset.artifact_ref.clone(),
-            pack_path: format!("images/{}-{}", asset.asset_id, fixture_media.pack_path_suffix),
+            pack_path: format!(
+                "images/{}-{}",
+                asset.asset_id, fixture_media.pack_path_suffix
+            ),
             content_hash: asset.content_hash.clone(),
             byte_len: asset.byte_len,
         })
         .collect();
     let manifest_seed = run_unique(&fixture.manifest_payload_seed, &suffix);
     let manifest_artifact =
-        atelier_pg_support::write_native_media_artifact(manifest_seed.as_bytes());
+        atelier_surreal_support::write_native_media_artifact(manifest_seed.as_bytes());
     let result = store
         .record_web_portfolio_export_result(
             request.portfolio_export_id,
@@ -1572,7 +1579,7 @@ async fn mt076_web_portfolio_export_fixture_corpus_round_trips() {
         .await
         .expect("record web portfolio export result from fixture");
 
-    // RE-READ the rendered result from PostgreSQL and assert the full manifest
+    // RE-READ the rendered result from the embedded store and assert the full manifest
     // contract round-trips: schema, slug, output checksums, portable items.
     let reloaded = store
         .get_web_portfolio_export_result(request.portfolio_export_id)
@@ -1742,11 +1749,7 @@ fn load_share_pack_export_fixture() -> SharePackExportFixture {
 
 #[tokio::test]
 async fn mt077_share_pack_export_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt077_share_pack_export_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let fixture = load_share_pack_export_fixture();
 
@@ -1780,7 +1783,8 @@ async fn mt077_share_pack_export_fixture_corpus_round_trips() {
         .expect("request share-pack export from fixture");
 
     let sheet_seed = run_unique(&fixture.sheet_payload_seed, &suffix);
-    let sheet_artifact = atelier_pg_support::write_native_media_artifact(sheet_seed.as_bytes());
+    let sheet_artifact =
+        atelier_surreal_support::write_native_media_artifact(sheet_seed.as_bytes());
     store
         .record_export_result(
             export.export_id,
@@ -1794,7 +1798,7 @@ async fn mt077_share_pack_export_fixture_corpus_round_trips() {
     let mut selected_assets = Vec::new();
     for seed_slug in &fixture.selected_media_payload_seeds {
         let seed = run_unique(seed_slug, &suffix);
-        let artifact = atelier_pg_support::write_native_media_artifact(seed.as_bytes());
+        let artifact = atelier_surreal_support::write_native_media_artifact(seed.as_bytes());
         let asset = store
             .materialize_media_asset(&NewMediaAsset {
                 content_hash: artifact.content_hash.clone(),
@@ -1810,7 +1814,7 @@ async fn mt077_share_pack_export_fixture_corpus_round_trips() {
     let mut unselected_assets = Vec::new();
     for seed_slug in &fixture.unselected_media_payload_seeds {
         let seed = run_unique(seed_slug, &suffix);
-        let artifact = atelier_pg_support::write_native_media_artifact(seed.as_bytes());
+        let artifact = atelier_surreal_support::write_native_media_artifact(seed.as_bytes());
         let asset = store
             .materialize_media_asset(&NewMediaAsset {
                 content_hash: artifact.content_hash.clone(),
@@ -1825,7 +1829,8 @@ async fn mt077_share_pack_export_fixture_corpus_round_trips() {
     }
 
     let readme_seed = run_unique(&fixture.usage_readme_payload_seed, &suffix);
-    let readme_artifact = atelier_pg_support::write_native_media_artifact(readme_seed.as_bytes());
+    let readme_artifact =
+        atelier_surreal_support::write_native_media_artifact(readme_seed.as_bytes());
     let build = store
         .build_share_pack_manifest(&SharePackBuildRequest {
             export_id: export.export_id,
@@ -1846,7 +1851,7 @@ async fn mt077_share_pack_export_fixture_corpus_round_trips() {
     assert_eq!(build.entries.len(), expected_entries);
     assert_eq!(build.selected_media_count, selected_assets.len() as i64);
 
-    // RE-READ the manifest from PostgreSQL: manifest completeness (sheet +
+    // RE-READ the manifest from the embedded store: manifest completeness (sheet +
     // every selected media + usage README) and subset safety (no unselected
     // media), all on portable non-CKC pack paths.
     let manifest = store
@@ -2013,11 +2018,7 @@ fn evidence_file_kind_from_token(token: &str) -> LlmEvidencePackFileKind {
 
 #[tokio::test]
 async fn mt078_llm_evidence_pack_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt078_llm_evidence_pack_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let fixture = load_llm_evidence_pack_fixture();
     assert_eq!(
@@ -2027,13 +2028,13 @@ async fn mt078_llm_evidence_pack_fixture_corpus_round_trips() {
     );
 
     // Persist every evidence-pack file payload through the real store, then
-    // RE-READ the rows from PostgreSQL and build the strict manifest from the
+    // RE-READ the rows from the embedded store and build the strict manifest from the
     // re-read values (never from in-memory literals).
     let mut files = Vec::new();
     let mut file_hashes = Vec::new();
     for fixture_file in &fixture.files {
         let seed = run_unique(&fixture_file.payload_seed, &suffix);
-        let artifact = atelier_pg_support::write_native_media_artifact(seed.as_bytes());
+        let artifact = atelier_surreal_support::write_native_media_artifact(seed.as_bytes());
         store
             .materialize_media_asset(&NewMediaAsset {
                 content_hash: artifact.content_hash.clone(),
@@ -2137,8 +2138,7 @@ async fn mt078_llm_evidence_pack_fixture_corpus_round_trips() {
 
     // Machine-local .GOV anchor paths are forbidden.
     let mut gov_files = files.clone();
-    gov_files[0].source_anchors[0].source_path =
-        fixture.invalid_machine_local_pack_path.clone();
+    gov_files[0].source_anchors[0].source_path = fixture.invalid_machine_local_pack_path.clone();
     let gov_err =
         build_llm_evidence_pack_manifest(Uuid::new_v4(), fixture.requested_by.clone(), gov_files)
             .expect_err(".GOV machine-local anchor paths are rejected");
@@ -2239,21 +2239,17 @@ fn preflight_status_from_token(token: &str) -> BackupRestorePreflightStatus {
 
 #[tokio::test]
 async fn mt079_backup_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt079_backup_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let fixture = load_backup_restore_preflight_fixture();
     assert!(!fixture.backups.is_empty(), "fixture must define backups");
 
-    // Record every fixture backup manifest, then RE-READ it from PostgreSQL
+    // Record every fixture backup manifest, then RE-READ it from the embedded store
     // and assert version traceability, checksums, and portable refs.
     let mut backups_by_key = std::collections::HashMap::new();
     for fixture_backup in &fixture.backups {
         let seed = run_unique(&fixture_backup.payload_seed, &suffix);
-        let artifact = atelier_pg_support::write_native_media_artifact(seed.as_bytes());
+        let artifact = atelier_surreal_support::write_native_media_artifact(seed.as_bytes());
         let mut backup_files = vec![BackupManifestFile {
             logical_path: "manifest/atelier.json".to_string(),
             content_hash: artifact.content_hash.clone(),

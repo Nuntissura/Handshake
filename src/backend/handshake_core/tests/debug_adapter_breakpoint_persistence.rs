@@ -1,16 +1,15 @@
 //! WP-KERNEL-009 / MT-254 DebugAdapterCore — durable breakpoint persistence
-//! against REAL Handshake-managed PostgreSQL + EventLedger.
+//! against the embedded SurrealDB store + EventLedger.
 //!
 //! Proves the per-document breakpoint round-trip: set a breakpoint set on a real
 //! RichDocument, read it back, replace it (PUT semantics), and confirm each write
 //! left a real kernel_event_ledger receipt. No mock store.
 
-mod knowledge_pg_support;
-
 use handshake_core::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
-use handshake_core::storage::{Database, DebugBreakpointInput};
-use knowledge_pg_support::knowledge_pg;
+use handshake_core::storage::tests::embedded_test_backend;
+use handshake_core::storage::{Database, DebugBreakpointInput, NewWorkspace, WriteContext};
 use serde_json::json;
+use uuid::Uuid;
 
 fn rich_doc(workspace_id: &str) -> NewKnowledgeRichDocument {
     NewKnowledgeRichDocument {
@@ -31,32 +30,35 @@ fn rich_doc(workspace_id: &str) -> NewKnowledgeRichDocument {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn breakpoints_round_trip_with_real_event_ledger_receipt() {
-    // Real-PG proof is contract-mandated (DEC-007): do NOT soft-pass when PG is
-    // absent. If the Handshake-managed PostgreSQL is not reachable the test fails
-    // loudly with ENVIRONMENT_BLOCKED rather than counting green on a silent skip.
-    let pg = knowledge_pg().await.expect(
-        "ENVIRONMENT_BLOCKED: MT-254 breakpoint persistence requires Handshake-managed PostgreSQL \
-         (set DATABASE_URL or ensure managed PG is running)",
-    );
-    let workspace_id = pg.create_workspace().await;
-    let doc = pg
-        .db
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated embedded breakpoint backend");
+    let db = std::sync::Arc::clone(&backend.database);
+    let workspace_id = db
+        .create_workspace(
+            &WriteContext::system(Some("debug-breakpoint-test".to_owned())),
+            NewWorkspace {
+                name: format!("debug-breakpoint-{}", Uuid::now_v7()),
+            },
+        )
+        .await
+        .expect("create breakpoint workspace")
+        .id;
+    let doc = db
         .create_knowledge_rich_document(rich_doc(&workspace_id))
         .await
         .expect("create rich document");
     let doc_id = doc.rich_document_id;
 
     // Initially empty.
-    let empty = pg
-        .db
+    let empty = db
         .list_debug_breakpoints(&doc_id)
         .await
         .expect("list empty");
     assert!(empty.is_empty(), "no breakpoints before any are set");
 
     // Set two breakpoints; the write must return a real EventLedger receipt id.
-    let stored = pg
-        .db
+    let stored = db
         .set_debug_breakpoints(
             &doc_id,
             &workspace_id,
@@ -86,8 +88,7 @@ async fn breakpoints_round_trip_with_real_event_ledger_receipt() {
     let receipt_id = stored[0].event_ledger_event_id.clone();
 
     // Read back: durable across a fresh query.
-    let read = pg
-        .db
+    let read = db
         .list_debug_breakpoints(&doc_id)
         .await
         .expect("list after set");
@@ -98,8 +99,7 @@ async fn breakpoints_round_trip_with_real_event_ledger_receipt() {
     assert_eq!(read[1].condition.as_deref(), Some("a > 1"));
 
     // The receipt is a real kernel event in the ledger, found by aggregate.
-    let events = pg
-        .db
+    let events = db
         .list_kernel_events_for_aggregate("debug_breakpoints", &doc_id)
         .await
         .expect("query ledger by aggregate");
@@ -113,8 +113,7 @@ async fn breakpoints_round_trip_with_real_event_ledger_receipt() {
     );
 
     // PUT semantics: replacing the set removes line 7 and keeps only line 2.
-    let replaced = pg
-        .db
+    let replaced = db
         .set_debug_breakpoints(
             &doc_id,
             &workspace_id,
@@ -130,8 +129,7 @@ async fn breakpoints_round_trip_with_real_event_ledger_receipt() {
     assert_eq!(replaced.len(), 1, "PUT replaced the whole set");
     assert_eq!(replaced[0].line, 2);
 
-    let after_replace = pg
-        .db
+    let after_replace = db
         .list_debug_breakpoints(&doc_id)
         .await
         .expect("list after replace");
@@ -142,16 +140,20 @@ async fn breakpoints_round_trip_with_real_event_ledger_receipt() {
     );
 
     // Clearing breakpoints (empty set) leaves the doc with none.
-    let cleared = pg
-        .db
+    let cleared = db
         .set_debug_breakpoints(&doc_id, &workspace_id, vec![])
         .await
         .expect("clear breakpoints");
     assert!(cleared.is_empty());
-    assert!(pg
-        .db
+    assert!(db
         .list_debug_breakpoints(&doc_id)
         .await
         .expect("list after clear")
         .is_empty());
+
+    drop(db);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded breakpoint backend");
 }

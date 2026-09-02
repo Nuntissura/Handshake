@@ -11,7 +11,7 @@ use handshake_core::kernel::{
 };
 
 #[test]
-fn locus_reset_preserves_tracking_surfaces_without_sqlite_authority() {
+fn locus_reset_preserves_tracking_surfaces_with_current_production_contract() {
     let contract = sample_contract();
 
     validate_locus_work_tracking_reset_contract(&contract)
@@ -34,6 +34,16 @@ fn locus_reset_preserves_tracking_surfaces_without_sqlite_authority() {
     assert!(contract
         .product_authority_refs
         .contains(&"kernel.event_ledger".to_string()));
+    assert!(contract
+        .capabilities
+        .iter()
+        .any(|capability| capability.authority_mode
+            == LocusAuthorityMode::EmbeddedSurrealDbAuthority));
+    assert_eq!(
+        serde_json::to_value(LocusAuthorityMode::EmbeddedSurrealDbAuthority)
+            .expect("serialize embedded SurrealDB authority mode"),
+        serde_json::json!("EmbeddedSurrealDbAuthority")
+    );
 }
 
 #[test]
@@ -60,7 +70,7 @@ fn locus_ready_query_respects_dependencies_and_task_board_projection_keeps_occup
 }
 
 #[test]
-fn locus_reset_rejects_sqlite_authority_and_unknown_flight_recorder_events() {
+fn locus_reset_rejects_legacy_local_authority_and_unknown_flight_recorder_events() {
     let mut contract = sample_contract();
     contract.capabilities[0].authority_mode = LocusAuthorityMode::LegacyLocalStoreAuthority;
 
@@ -104,7 +114,7 @@ fn sample_contract() -> LocusWorkTrackingResetContractV1 {
             capability(
                 "locus-wp-tracking",
                 LocusTrackingCapabilityKind::WorkPacketTracking,
-                LocusAuthorityMode::PostgresAuthority,
+                LocusAuthorityMode::EmbeddedSurrealDbAuthority,
                 &[
                     "locus_create_wp",
                     "locus_update_wp",
@@ -147,7 +157,7 @@ fn sample_contract() -> LocusWorkTrackingResetContractV1 {
             capability(
                 "locus-ready-query",
                 LocusTrackingCapabilityKind::ReadyQuery,
-                LocusAuthorityMode::PostgresAuthority,
+                LocusAuthorityMode::EmbeddedSurrealDbAuthority,
                 &[
                     "locus_query_ready",
                     "locus_get_status",
@@ -222,7 +232,7 @@ fn sample_contract() -> LocusWorkTrackingResetContractV1 {
             "locus.query.ready".to_string(),
         ],
         product_authority_refs: vec![
-            "kernel.postgres_control_plane".to_string(),
+            "kernel.embedded_surreal_store".to_string(),
             "kernel.event_ledger".to_string(),
             "kernel.crdt_workspace".to_string(),
         ],
@@ -263,7 +273,7 @@ fn capability(
             .collect(),
         flight_recorder_event_types: events.iter().map(|value| (*value).to_string()).collect(),
         authority_refs: vec![
-            "kernel.postgres_control_plane".to_string(),
+            "kernel.embedded_surreal_store".to_string(),
             "kernel.event_ledger".to_string(),
             "kernel.crdt_workspace".to_string(),
         ],

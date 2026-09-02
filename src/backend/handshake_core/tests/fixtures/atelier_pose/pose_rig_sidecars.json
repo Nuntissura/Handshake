@@ -1,5 +1,5 @@
 {
-  "_comment": "MT-113 portable non-SQLite fixture corpus: Pose rig ingest + typed OpenPose/conditioning sidecars. Pure JSON, no SQLite, no CKC namespace. source_ref_slug / content_hash_slug are made run-unique by the loader. Keypoint cardinalities are body-18/face-70/hand-21 (filled by the loader from BODY/FACE/HAND_KEYPOINT_COUNT). Each sidecar's payload bytes are materialized through the real native ArtifactStore so artifact_ref/manifest_ref/content_hash come out exactly like production.",
+  "_comment": "MT-113 portable JSON fixture corpus: Pose rig ingest + typed OpenPose/conditioning sidecars backed by embedded SurrealDB/EventLedger. No CKC namespace. source_ref_slug / content_hash_slug are made run-unique by the loader. Keypoint cardinalities are body-18/face-70/hand-21 (filled by the loader from BODY/FACE/HAND_KEYPOINT_COUNT). Each sidecar's payload bytes are materialized through the real native ArtifactStore so artifact_ref/manifest_ref/content_hash come out exactly like production.",
   "rigs": [
     {
       "source_ref_slug": "portrait-mt113-rig-a",

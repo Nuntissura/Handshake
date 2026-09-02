@@ -1,5 +1,5 @@
 {
-  "_comment": "MT-078 portable non-SQLite fixture corpus: LLM evidence pack export only. Each pack file payload seed is materialized into the real ArtifactStore and persisted to PostgreSQL before the strict manifest is built from the RE-READ rows; every file carries source anchors, the four required files must be present in deterministic order, and SQLite/machine-local paths are rejected. All ids are made run-unique at load time.",
+  "_comment": "MT-078 embedded SurrealDB/EventLedger authority fixture corpus: LLM evidence pack export only. Each pack file payload seed is materialized into the native ArtifactStore, persisted through typed embedded SurrealDB operations, and evidenced through EventLedger before the strict manifest is built from re-read rows. Every file carries source anchors, the four required files must be present in deterministic order, and forbidden legacy source or machine-local paths are rejected. invalid_sqlite_source_id is deliberately invalid rejection-tripwire input and is not storage authority. All ids are made run-unique at load time.",
   "requested_by": "mt-078-evidence-exporter",
   "files": [
     {

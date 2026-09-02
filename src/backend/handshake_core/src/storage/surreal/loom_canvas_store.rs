@@ -11,6 +11,17 @@ use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+#[cfg(any(test, feature = "surreal-test-support"))]
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, LazyLock, Mutex as StdMutex,
+    },
+};
+#[cfg(any(test, feature = "surreal-test-support"))]
+use tokio::sync::Notify;
+
 use super::{event_ledger, loom_store, SurrealStorage, SurrealStorageError};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{knowledge_canonical_json_sha256, rich_document_loom_projection};
@@ -38,6 +49,232 @@ const EXTRACTOR_VERSION: &str = "loom_block_knowledge_bridge_v1";
 /// transaction-advisory-lock domain and serializes every Canvas mutation that
 /// can interact with a Stage provenance key or compensation-owned placement.
 static CANVAS_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+struct StageCompensationBarrierState {
+    entered: AtomicBool,
+    writer_waiting: AtomicBool,
+    released: AtomicBool,
+    changed: Notify,
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+static STAGE_COMPENSATION_BARRIERS: LazyLock<
+    StdMutex<HashMap<String, Arc<StageCompensationBarrierState>>>,
+> = LazyLock::new(|| StdMutex::new(HashMap::new()));
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+impl SurrealStorage {
+    /// Arms a deterministic pause after compensation has validated ownership
+    /// and references while it still owns the Canvas mutation lock.
+    pub fn test_arm_stage_compensation_barrier(&self, placed_block_id: &str) {
+        STAGE_COMPENSATION_BARRIERS
+            .lock()
+            .expect("stage compensation barrier registry poisoned")
+            .insert(
+                placed_block_id.to_owned(),
+                Arc::new(StageCompensationBarrierState {
+                    entered: AtomicBool::new(false),
+                    writer_waiting: AtomicBool::new(false),
+                    released: AtomicBool::new(false),
+                    changed: Notify::new(),
+                }),
+            );
+    }
+
+    pub async fn test_wait_for_stage_compensation_barrier(&self, placed_block_id: &str) {
+        let state = STAGE_COMPENSATION_BARRIERS
+            .lock()
+            .expect("stage compensation barrier registry poisoned")
+            .get(placed_block_id)
+            .cloned()
+            .expect("stage compensation barrier was not armed");
+        loop {
+            let changed = state.changed.notified();
+            if state.entered.load(Ordering::Acquire) {
+                return;
+            }
+            changed.await;
+        }
+    }
+
+    pub fn test_release_stage_compensation_barrier(&self, placed_block_id: &str) {
+        if let Some(state) = STAGE_COMPENSATION_BARRIERS
+            .lock()
+            .expect("stage compensation barrier registry poisoned")
+            .get(placed_block_id)
+            .cloned()
+        {
+            state.released.store(true, Ordering::Release);
+            state.changed.notify_waiters();
+        }
+    }
+
+    pub async fn test_wait_for_stage_reference_writer(&self, placed_block_id: &str) {
+        let state = STAGE_COMPENSATION_BARRIERS
+            .lock()
+            .expect("stage compensation barrier registry poisoned")
+            .get(placed_block_id)
+            .cloned()
+            .expect("stage compensation barrier was not armed");
+        loop {
+            let changed = state.changed.notified();
+            if state.writer_waiting.load(Ordering::Acquire) {
+                return;
+            }
+            changed.await;
+        }
+    }
+
+    pub fn test_reset_stage_compensation_barrier(&self, placed_block_id: &str) {
+        self.test_release_stage_compensation_barrier(placed_block_id);
+        STAGE_COMPENSATION_BARRIERS
+            .lock()
+            .expect("stage compensation barrier registry poisoned")
+            .remove(placed_block_id);
+    }
+
+    /// Late failure inside the production compensation transaction. The block
+    /// delete is last, after the audit append and four earlier deletes.
+    pub async fn test_set_stage_compensation_delete_failpoint(
+        &self,
+        enabled: bool,
+    ) -> StorageResult<()> {
+        let statement = if enabled {
+            "DEFINE EVENT OVERWRITE mt141_stage_compensation_delete_failpoint \
+             ON TABLE loom_blocks WHEN $event = 'DELETE' \
+             THEN { THROW 'MT141-STAGE-COMPENSATION-DELETE'; };"
+        } else {
+            "REMOVE EVENT mt141_stage_compensation_delete_failpoint ON TABLE loom_blocks;"
+        };
+        self.with_data_operation(move |database| {
+            Box::pin(async move {
+                database.client.query(statement).await?.check()?;
+                Ok(())
+            })
+        })
+        .await
+        .map_err(map_err)
+    }
+
+    /// Attempts a typed persisted Stage provenance replacement through the
+    /// real schema boundary. Invalid objects must be rejected by the current
+    /// SCHEMAFULL fields or `enforce_loom_canvas_stage_provenance` event.
+    pub async fn test_try_set_stage_provenance_json(
+        &self,
+        placement_id: &str,
+        stage_provenance: Value,
+    ) -> StorageResult<()> {
+        let bindings = StageProvenanceJsonTestBindings {
+            placement: RecordId::new(PLACEMENTS, placement_id.to_owned()),
+            stage_provenance,
+        };
+        let rows: Vec<RecordId> = self
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values(
+                            "UPDATE $placement SET stage_provenance = $stage_provenance \
+                             RETURN VALUE id;",
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await
+            .map_err(map_err)?;
+        if rows.len() != 1 {
+            return Err(StorageError::NotFound("loom_canvas_placement"));
+        }
+        Ok(())
+    }
+
+    pub async fn test_try_clear_stage_provenance(&self, placement_id: &str) -> StorageResult<()> {
+        self.test_try_clear_stage_provenance_field(
+            placement_id,
+            "UPDATE $placement SET stage_provenance = NONE RETURN VALUE id;",
+        )
+        .await
+    }
+
+    pub async fn test_try_clear_stage_provenance_key(
+        &self,
+        placement_id: &str,
+    ) -> StorageResult<()> {
+        self.test_try_clear_stage_provenance_field(
+            placement_id,
+            "UPDATE $placement SET stage_provenance_key = NONE RETURN VALUE id;",
+        )
+        .await
+    }
+
+    async fn test_try_clear_stage_provenance_field(
+        &self,
+        placement_id: &str,
+        statement: &'static str,
+    ) -> StorageResult<()> {
+        let bindings = StageProvenanceRecordTestBindings {
+            placement: RecordId::new(PLACEMENTS, placement_id.to_owned()),
+        };
+        let rows: Vec<RecordId> = self
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_values(statement, bindings).await })
+            })
+            .await
+            .map_err(map_err)?;
+        if rows.len() != 1 {
+            return Err(StorageError::NotFound("loom_canvas_placement"));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+async fn pause_stage_compensation_after_validation(placed_block_id: &str) {
+    let state = STAGE_COMPENSATION_BARRIERS
+        .lock()
+        .expect("stage compensation barrier registry poisoned")
+        .get(placed_block_id)
+        .cloned();
+    let Some(state) = state else {
+        return;
+    };
+    state.entered.store(true, Ordering::Release);
+    state.changed.notify_waiters();
+    loop {
+        let changed = state.changed.notified();
+        if state.released.load(Ordering::Acquire) {
+            break;
+        }
+        changed.await;
+    }
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+fn mark_stage_reference_writer_waiting(placed_block_id: &str) {
+    if let Some(state) = STAGE_COMPENSATION_BARRIERS
+        .lock()
+        .expect("stage compensation barrier registry poisoned")
+        .get(placed_block_id)
+        .cloned()
+    {
+        state.writer_waiting.store(true, Ordering::Release);
+        state.changed.notify_waiters();
+    }
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+#[derive(SurrealValue)]
+struct StageProvenanceJsonTestBindings {
+    placement: RecordId,
+    stage_provenance: Value,
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+#[derive(SurrealValue)]
+struct StageProvenanceRecordTestBindings {
+    placement: RecordId,
+}
 
 #[derive(SurrealValue)]
 struct BoardLookupBindings {
@@ -892,6 +1129,8 @@ pub(crate) async fn place_block_on_canvas(
     }
     let placement_id = format!("LCP-{}", Uuid::now_v7().simple());
     validate_write(storage, ctx, &placement_id).await?;
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    mark_stage_reference_writer_waiting(&placement.placed_block_id);
     let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
     let bindings = PlacementWriteBindings {
         placement: RecordId::new(PLACEMENTS, placement_id.clone()),
@@ -1704,6 +1943,9 @@ pub(crate) async fn compensate_stage_canvas_card(
             "Canvas Stage compensation refuses a modified search projection",
         ));
     }
+
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pause_stage_compensation_after_validation(&card.placed_block_id).await;
 
     let run_id = format!("LOOM-STAGE-COMPENSATE-{}", card.placement_id);
     let event = NewKernelEvent::builder(

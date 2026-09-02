@@ -73,7 +73,7 @@
 //!       across multiple sibling registrations on the same job (no
 //!       double-fire).
 //!
-//! Postgres-gated (`#[ignore]` until `POSTGRES_TEST_URL` is set):
+//! Embedded-store integration coverage:
 //!   (o) Cancelled job is marked terminal in the queue: a job that
 //!       transitions to `MicroTaskJobState::Cancelled` is no longer
 //!       returned by `claim_next` and `get_state` returns `Cancelled`.
@@ -1133,28 +1133,20 @@ async fn mt_186_force_cancel_session_override_used_for_reclaim() {
 }
 
 // ============================================================================
-// Postgres-gated integration assertions
+// Embedded-store integration assertions
 // ============================================================================
-
-#[cfg(test)]
-async fn postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL test URL");
-    sqlx::PgPool::connect(&url).await.expect("postgres connect")
-}
 
 fn unique_wp_id(label: &str) -> String {
     format!("WP-MT186-{}-{}", label, Uuid::now_v7().simple())
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_186_pg_cancelled_job_is_terminal_in_queue() {
+async fn mt_186_cancelled_job_is_terminal_in_queue() {
     use handshake_core::mt_executor::queue::MicroTaskQueue;
-    let pool = postgres_pool().await;
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure schema");
+    let backend = handshake_core::storage::tests::embedded_test_backend()
+        .await
+        .expect("open isolated cancellation backend");
+    let queue = MicroTaskQueue::new(backend.storage.clone());
 
     let wp = unique_wp_id("terminal");
     let job = MicroTaskJob::queue(&wp, "MT-CXL-1", PathBuf::from("a.json"), 6, vec![]);
@@ -1183,7 +1175,7 @@ async fn mt_186_pg_cancelled_job_is_terminal_in_queue() {
     assert_eq!(
         state_after,
         MicroTaskJobState::Cancelled,
-        "Cancelled persisted in DB"
+        "Cancelled persisted in the embedded store"
     );
 
     // Cancelled rows are not re-claimable (the claim_next filter is
@@ -1192,21 +1184,15 @@ async fn mt_186_pg_cancelled_job_is_terminal_in_queue() {
     // We verify by inspecting the row state again after a no-op pass.
     let state_again = queue.get_state(job_id).await.expect("get_state").unwrap();
     assert_eq!(state_again, MicroTaskJobState::Cancelled);
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_186_pg_cooperative_to_cancelled_transition_with_hook_side_effect() {
+async fn mt_186_cooperative_to_cancelled_transition_with_hook_side_effect() {
     use handshake_core::mt_executor::queue::MicroTaskQueue;
-    let pool = postgres_pool().await;
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure schema");
+    let backend = handshake_core::storage::tests::embedded_test_backend()
+        .await
+        .expect("open isolated cancellation backend");
+    let queue = MicroTaskQueue::new(backend.storage.clone());
 
     let wp = unique_wp_id("transition");
     let job = MicroTaskJob::queue(&wp, "MT-CXL-2", PathBuf::from("a.json"), 6, vec![]);
@@ -1258,21 +1244,15 @@ async fn mt_186_pg_cooperative_to_cancelled_transition_with_hook_side_effect() {
 
     let terminal = queue.get_state(job_id).await.expect("get_state").unwrap();
     assert_eq!(terminal, MicroTaskJobState::Cancelled);
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_186_pg_cleanup_hook_runs_even_when_cancellation_interrupts_mid_loop() {
+async fn mt_186_cleanup_hook_runs_even_when_cancellation_interrupts_mid_loop() {
     use handshake_core::mt_executor::queue::MicroTaskQueue;
-    let pool = postgres_pool().await;
-    let queue = Arc::new(MicroTaskQueue::new(pool.clone()));
-    queue.ensure_schema().await.expect("ensure schema");
+    let backend = handshake_core::storage::tests::embedded_test_backend()
+        .await
+        .expect("open isolated cancellation backend");
+    let queue = Arc::new(MicroTaskQueue::new(backend.storage.clone()));
 
     let wp = unique_wp_id("interrupt");
     let job = MicroTaskJob::queue(&wp, "MT-CXL-3", PathBuf::from("a.json"), 6, vec![]);
@@ -1329,10 +1309,4 @@ async fn mt_186_pg_cleanup_hook_runs_even_when_cancellation_interrupts_mid_loop(
 
     let final_state = queue.get_state(job_id).await.expect("get_state").unwrap();
     assert_eq!(final_state, MicroTaskJobState::Cancelled);
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }

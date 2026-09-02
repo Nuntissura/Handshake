@@ -3,7 +3,7 @@
 //!
 //! Spec-Realism Gate compliance:
 //!  - Pure-Rust assertions on the exporter API (no `#[ignore]`).
-//!  - Postgres-gated round-trip tests `#[ignore]`-on `POSTGRES_TEST_URL`.
+//!  - Embedded SurrealDB round-trip tests use isolated per-test stores.
 //!  - No `LiveXxxUnavailable` / `todo!()` / `unimplemented!()` paths.
 //!
 //! Adversarial coverage (per MT-178 `red_team.minimum_controls` plus the
@@ -26,13 +26,15 @@
 //!   7. Always-on semantics: exporter has no opt-out switch on its public
 //!      surface — it always writes a thread_index.json (even for an empty
 //!      repo, where it writes `[]\n`).
-//!   8. Postgres-gated round-trip: pump a real Postgres mailbox repo into
+//!   8. embedded SurrealDB-gated round-trip: pump a real embedded SurrealDB mailbox repo into
 //!      the exporter; assert (a) byte-identical output across two runs of
 //!      the same state, (b) every message exported (no silent drops),
 //!      (c) deterministic ordering by (thread_id, created_at, message_id).
-//!   9. Postgres-gated incremental append: insert N more messages between
+//!   9. embedded SurrealDB-gated incremental append: insert N more messages between
 //!      two exporter runs; assert the second run appends exactly N lines
 //!      to the affected thread file and zero to unaffected files.
+
+mod atelier_surreal_support;
 
 use chrono::{Duration, Utc};
 use handshake_core::role_mailbox::RoleId;
@@ -533,14 +535,12 @@ fn mt_178_always_on_constructor_takes_config_only() {
     let _ctor: fn(MailboxExporterConfig) -> MailboxExporter = MailboxExporter::new;
 }
 
-// ===== Postgres-gated integration tests =====
+// ===== embedded SurrealDB-gated integration tests =====
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_178_postgres_round_trip_byte_identical_two_runs() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_178_surreal_round_trip_byte_identical_two_runs() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     // Seed three threads with two messages each.
     let mut thread_ids = Vec::new();
@@ -598,11 +598,9 @@ async fn mt_178_postgres_round_trip_byte_identical_two_runs() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_178_postgres_no_silent_drops_index_count_matches_repo_count() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_178_surreal_no_silent_drops_index_count_matches_repo_count() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let t = sample_open_thread("pg-no-drops");
     let id = t.thread_id;
@@ -660,11 +658,9 @@ async fn mt_178_postgres_no_silent_drops_index_count_matches_repo_count() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_178_postgres_deterministic_ordering_thread_created_at_message() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_178_surreal_deterministic_ordering_thread_created_at_message() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     // Two threads with interleaved appends; we then assert that within
     // each thread file the message order is (created_at_utc, message_id)
@@ -731,11 +727,9 @@ async fn mt_178_postgres_deterministic_ordering_thread_created_at_message() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_178_postgres_incremental_append_only_new_messages() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_178_surreal_incremental_append_only_new_messages() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let t_target = sample_open_thread("pg-incr-target");
     let t_other = sample_open_thread("pg-incr-other");
@@ -836,11 +830,9 @@ async fn mt_178_postgres_incremental_append_only_new_messages() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_178_postgres_archived_thread_excluded_from_index_but_messages_preserved() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_178_surreal_archived_thread_excluded_from_index_but_messages_preserved() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let t = sample_open_thread("pg-archived");
     let id = t.thread_id;
@@ -987,16 +979,9 @@ async fn snapshot_from_repo(
     }
 }
 
-async fn postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL for role_mailbox_exporter_tests");
-    sqlx::PgPool::connect(&url).await.expect("postgres connect")
-}
-
 // Silence unused-import warnings in the pure-Rust default test run. The
 // `MailboxError` and `RoleMailboxMessageId` types are pulled in for the
-// Postgres-gated tests; the default test run must not warn on them.
+// embedded SurrealDB-gated tests; the default test run must not warn on them.
 #[allow(dead_code)]
 fn _unused_imports_pin() {
     let _ = std::mem::size_of::<MailboxError>();

@@ -1,37 +1,19 @@
-//! WP-KERNEL-005 atelier foundation: real PostgreSQL round-trip proof.
-//! Run with a live DATABASE_URL, e.g.
-//!   DATABASE_URL=postgres://postgres@127.0.0.1:5544/handshake \
-//!     cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
-//!     --test atelier_foundation_tests -- --nocapture
+//! WP-KERNEL-005 atelier foundation: embedded SurrealDB round-trip proof.
 //!
-//! No mocks: this exercises the actual atelier store against a real Postgres,
+//! No mocks: this exercises the actual atelier store against a real embedded
+//! SurrealDB store,
 //! proving stable identity (MT-006), append-only sheet versions (MT-012),
 //! content-hash media dedup (MT-015), and event recording (MT-005).
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use handshake_core::atelier::{
-    AtelierStore, NewCharacter, NewMediaAsset, NewSheetVersion, event_family,
-};
+use handshake_core::atelier::{event_family, NewCharacter, NewMediaAsset, NewSheetVersion};
 use uuid::Uuid;
 
-fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-}
-
 #[tokio::test]
-async fn atelier_foundation_postgres_round_trip() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_foundation_postgres_round_trip: DATABASE_URL not set");
-        return;
-    };
-
-    let store = AtelierStore::connect(&url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
+async fn atelier_foundation_embedded_round_trip() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let store = harness.atelier.clone();
 
     // --- stable identity (MT-006): public_id is distinct from internal_id ---
     let public_id = format!("test-char-{}", Uuid::new_v4());
@@ -93,7 +75,7 @@ async fn atelier_foundation_postgres_round_trip() {
     assert_eq!(latest.seq, 2);
 
     // --- media dedup on content hash (MT-015): idempotent materialize ---
-    let artifact = atelier_pg_support::write_native_media_artifact(b"foundation-media");
+    let artifact = atelier_surreal_support::write_native_media_artifact(b"foundation-media");
     let content_hash = artifact.content_hash.clone();
     let asset_first = store
         .materialize_media_asset(&NewMediaAsset {
@@ -142,4 +124,5 @@ async fn atelier_foundation_postgres_round_trip() {
             .expect("count media events")
             >= 1
     );
+    harness.shutdown().await;
 }

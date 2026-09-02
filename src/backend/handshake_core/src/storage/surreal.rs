@@ -131,7 +131,8 @@ pub async fn run_mt136_registry_integrity_proof() -> StorageResult<()> {
 pub use test_inspector::{
     FieldCatalog, FieldSelector, IndexCatalog, ProjectedRow, RecordIdentity, ReferenceCatalog,
     RowFilter, ScalarValue, SchemaCatalogSnapshot, SurrealTestInspector, SurrealTestInspectorError,
-    TableCatalog, TableSelector,
+    SurrealTestMutator, TableCatalog, TableSelector, TestFieldMutation, TestMutationValue,
+    TestRecordKey,
 };
 
 pub const HANDSHAKE_DATA_DIR_ENV: &str = "HANDSHAKE_DATA_DIR";
@@ -615,6 +616,12 @@ impl SurrealStorage {
     #[cfg(feature = "surreal-test-support")]
     pub fn test_inspector(&self) -> SurrealTestInspector {
         SurrealTestInspector::new(self.clone())
+    }
+
+    /// Closed, catalog-validated mutation support for storage-boundary tests.
+    #[cfg(feature = "surreal-test-support")]
+    pub fn test_mutator(&self) -> SurrealTestMutator {
+        SurrealTestMutator::new(self.clone())
     }
 
     pub async fn open(config: SurrealStorageConfig) -> Result<Self, SurrealStorageError> {

@@ -1,8 +1,8 @@
 //! WP-KERNEL-005 MT-113 atelier POSE fixture corpus: portable JSON fixtures
-//! round-tripped through the real `AtelierStore` pose APIs against live
-//! PostgreSQL (no SQLite, ever, no CKC namespace).
+//! round-tripped through the real `AtelierStore` pose APIs against an isolated
+//! embedded SurrealDB harness (no CKC namespace).
 //!
-//! Each fixture under `tests/fixtures/atelier_pose/` is a portable, non-SQLite
+//! Each fixture under `tests/fixtures/atelier_pose/` is a portable
 //! JSON document covering one pose area: rig ingest + typed OpenPose/conditioning
 //! sidecars, append-only context/workspace state, BLOCKED calibration + head
 //! pose, and append-only versioned identity profiles. The loader reads each
@@ -13,7 +13,7 @@
 //! `record_head_pose`, `set_pose_calibration`, `append_identity_profile`),
 //! reloads, and asserts round-trip fidelity. Every assertion is run-scoped: the
 //! test owns its own character / rig / workspace / profile ids and never uses a
-//! global table count. Gated on `atelier_pg_support::database_url()`.
+//! a global table count.
 //!
 //! Run:
 //!   cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
@@ -21,27 +21,24 @@
 //!     mt113_pose_fixture_corpus_round_trips \
 //!     --target-dir ../Handshake_Artifacts/handshake-cargo-target
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use handshake_core::atelier::collections::NewCollection;
 use handshake_core::atelier::pose::{
     CalibrationHandKind, CalibrationHandRow, CalibrationMarkerColors, CalibrationMarkerVisibility,
     CalibrationState, CanvasSize, DetectorStatus, IdentityProfileKind, NewIdentityProfile,
-    NewPoseCalibration, NewPoseContextState, NewPoseRig, NewPoseSidecar,
-    NewPoseWorkspaceRigState, PoseContextKind, PoseRig, PoseSidecarKind, PoseSidecarStatus,
-    BODY_KEYPOINT_COUNT, FACE_KEYPOINT_COUNT, HAND_KEYPOINT_COUNT,
+    NewPoseCalibration, NewPoseContextState, NewPoseRig, NewPoseSidecar, NewPoseWorkspaceRigState,
+    PoseContextKind, PoseRig, PoseSidecarKind, PoseSidecarStatus, BODY_KEYPOINT_COUNT,
+    FACE_KEYPOINT_COUNT, HAND_KEYPOINT_COUNT,
 };
 use handshake_core::atelier::{AtelierStore, NewCharacter, NewMediaAsset};
 use serde::Deserialize;
 use uuid::Uuid;
 
 /// Connect + ensure schema, the shared preamble every fixture test runs.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// A short, run-unique suffix used to scope every public id / source ref so the
@@ -259,11 +256,7 @@ async fn ingest_fixture_rig(
 
 #[tokio::test]
 async fn mt113_pose_fixture_corpus_round_trips() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt113_pose_fixture_corpus_round_trips: no PostgreSQL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let suffix = run_suffix();
     let character = fresh_character(&store, &suffix).await;
 
@@ -313,7 +306,7 @@ async fn mt113_pose_fixture_corpus_round_trips() {
             let kind = PoseSidecarKind::from_token(&fixture_sidecar.kind)
                 .expect("fixture sidecar kind is a valid token");
             let seed = run_unique(&fixture_sidecar.payload_seed, &suffix);
-            let artifact = atelier_pg_support::write_native_media_artifact(seed.as_bytes());
+            let artifact = atelier_surreal_support::write_native_media_artifact(seed.as_bytes());
             let status = PoseSidecarStatus::from_token(&fixture_sidecar.status)
                 .expect("fixture sidecar status is a valid token");
             let recorded = store
@@ -366,8 +359,9 @@ async fn mt113_pose_fixture_corpus_round_trips() {
     let ctx_fixture = load_context_workspace_fixture();
 
     // Source-linked media + rig are needed for single_image / collection modes.
-    let media_artifact =
-        atelier_pg_support::write_native_media_artifact(run_unique("mt113-ctx-source", &suffix).as_bytes());
+    let media_artifact = atelier_surreal_support::write_native_media_artifact(
+        run_unique("mt113-ctx-source", &suffix).as_bytes(),
+    );
     let media = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: media_artifact.content_hash.clone(),
@@ -418,8 +412,8 @@ async fn mt113_pose_fixture_corpus_round_trips() {
     let workspace_ref = format!("pose-workspace://{}", Uuid::new_v4());
     let mut applied_modes: Vec<PoseContextKind> = Vec::new();
     for mode_token in &ctx_fixture.context_modes {
-        let kind = PoseContextKind::from_token(mode_token)
-            .expect("fixture context mode is a valid token");
+        let kind =
+            PoseContextKind::from_token(mode_token).expect("fixture context mode is a valid token");
         let new_state = match kind {
             PoseContextKind::Blank => NewPoseContextState {
                 workspace_ref: workspace_ref.clone(),
@@ -526,7 +520,11 @@ async fn mt113_pose_fixture_corpus_round_trips() {
         states.iter().filter(|s| s.active).count() <= 1,
         "workspace state keeps at most one active rig"
     );
-    let expected_active_tabs = ctx_fixture.workspace_tabs.iter().filter(|t| t.active).count();
+    let expected_active_tabs = ctx_fixture
+        .workspace_tabs
+        .iter()
+        .filter(|t| t.active)
+        .count();
     assert_eq!(
         states.iter().filter(|s| s.active).count(),
         expected_active_tabs.min(1),
@@ -604,8 +602,7 @@ async fn mt113_pose_fixture_corpus_round_trips() {
         .expect("set fixture pose calibration");
     assert_eq!(calibration.state, CalibrationState::Unresolved);
     assert_eq!(
-        calibration.block_reason,
-        calib_fixture.calibration.block_reason,
+        calibration.block_reason, calib_fixture.calibration.block_reason,
         "BLOCKED calibration preserves its block_reason, never faked"
     );
     let fetched_calib = store
@@ -657,7 +654,11 @@ async fn mt113_pose_fixture_corpus_round_trips() {
             .await
             .expect("append fixture identity profile");
         // Append-only seq is 1-based and increments per character.
-        assert_eq!(profile.seq, (idx as i64) + 1, "identity seq is 1-based per character");
+        assert_eq!(
+            profile.seq,
+            (idx as i64) + 1,
+            "identity seq is 1-based per character"
+        );
         assert_eq!(profile.kind, kind);
         assert_eq!(profile.name, fixture_profile.name);
         assert_eq!(
@@ -667,7 +668,9 @@ async fn mt113_pose_fixture_corpus_round_trips() {
 
         // Secret material in provenance is redacted before storage; clean lines survive.
         assert!(
-            profile.provenance.contains(&fixture_profile.provenance_clean),
+            profile
+                .provenance
+                .contains(&fixture_profile.provenance_clean),
             "clean provenance line round-trips"
         );
         if fixture_profile.provenance_secret_line.is_some() {
@@ -676,7 +679,10 @@ async fn mt113_pose_fixture_corpus_round_trips() {
                 "secret-looking provenance line is redacted before storage"
             );
             assert!(
-                !profile.provenance.to_ascii_lowercase().contains("bearer mt113"),
+                !profile
+                    .provenance
+                    .to_ascii_lowercase()
+                    .contains("bearer mt113"),
                 "raw bearer token must never be stored"
             );
         }

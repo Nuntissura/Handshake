@@ -4,8 +4,8 @@
 //!   - mt_076_agent_lease: MT-076 AgentLeaseExpiration (MT-041 seed)
 //!   - mt_079_recovery_receipt: MT-079 CrdtRecoveryReceiptFormat
 //!
-//! Expiry is enforced on the DATABASE clock; the expiry tests claim 1-second
-//! leases and wait them out against real PostgreSQL.
+//! Expiry is enforced on the embedded database clock; the expiry tests claim
+//! 1-second leases and wait them out against the real store.
 
 use handshake_core::kernel::crdt::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
 use handshake_core::kernel::crdt::agent_lease::{
@@ -14,14 +14,52 @@ use handshake_core::kernel::crdt::agent_lease::{
     LeaseTakeoverOutcomeV1, LeaseWriteDenialReasonV1, LeaseWriteGuardOutcomeV1,
 };
 use handshake_core::storage::knowledge_crdt::{get_lease, LeaseTakeoverFailure};
-use handshake_core::storage::tests::{postgres_backend_with_pool_from_env, PostgresTestBackend};
-use handshake_core::storage::StorageError;
+use handshake_core::storage::surreal::{
+    bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig, TestFieldMutation,
+    TestMutationValue,
+};
+use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
+use handshake_core::storage::Database;
 
-async fn backend_or_blocked() -> PostgresTestBackend {
-    match postgres_backend_with_pool_from_env().await {
+async fn embedded_backend_or_blocked() -> EmbeddedTestBackend {
+    match embedded_test_backend().await {
         Ok(backend) => backend,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
+        Err(err) => panic!("failed to init embedded backend: {err:?}"),
     }
+}
+
+async fn reopen_embedded_store(
+    backend: &EmbeddedTestBackend,
+) -> (SurrealStorage, std::sync::Arc<dyn Database>) {
+    backend
+        .storage
+        .shutdown()
+        .await
+        .expect("close original embedded CRDT lease store");
+    let reopened = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&backend.data_dir)
+            .expect("configure reopened embedded CRDT lease store"),
+    )
+    .await
+    .expect("reopen embedded CRDT lease store");
+    bootstrap_schema(&reopened)
+        .await
+        .expect("bootstrap reopened CRDT lease schema");
+    let database: std::sync::Arc<dyn Database> =
+        std::sync::Arc::new(SurrealDatabase::new(reopened.clone()));
+    (reopened, database)
+}
+
+async fn close_reopened_and_remove(reopened: SurrealStorage, backend: EmbeddedTestBackend) {
+    reopened
+        .shutdown()
+        .await
+        .expect("close reopened CRDT lease store");
+    drop(reopened);
+    backend
+        .close_and_remove()
+        .await
+        .expect("remove embedded CRDT lease store");
 }
 
 fn claim_request(
@@ -43,7 +81,10 @@ fn claim_request(
 }
 
 /// Wait (bounded) until the database clock reports the lease as expired.
-async fn wait_for_db_expiry(pool: &sqlx::PgPool, lease_id: &str) {
+async fn wait_for_db_expiry(
+    pool: &handshake_core::storage::surreal::SurrealStorage,
+    lease_id: &str,
+) {
     for _ in 0..40 {
         let lease = get_lease(pool, lease_id)
             .await
@@ -81,15 +122,15 @@ mod mt_076_agent_lease {
         assert!(twin_a < twin_b);
     }
 
-    /// Full transition battery on PostgreSQL: claim -> renew -> release with
+    /// Full transition battery on embedded storage: claim -> renew -> release with
     /// EventLedger receipts and idempotency keys; foreign renewals refused;
     /// expiry enforced server-side; takeover with lineage; every denial
     /// leaves a durable receipt.
     #[tokio::test]
     async fn lease_transitions_expiry_and_takeover_with_event_receipts() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-mt076-{suffix}");
         let holder =
@@ -353,6 +394,41 @@ mod mt_076_agent_lease {
         assert!(sweep_events
             .iter()
             .any(|event| event.event_type == KernelEventType::KnowledgeCrdtLeaseExpired));
+
+        let takeover_lease_id = new_lease.lease_id.clone();
+        let sweep_lease_id = sweep_lease.lease_id.clone();
+        drop(pool);
+        drop(db);
+        let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
+        let reopened_takeover = get_lease(&reopened, &takeover_lease_id)
+            .await
+            .expect("get takeover lease after reopen")
+            .expect("takeover lease survives reopen");
+        assert_eq!(
+            reopened_takeover.takeover_of.as_deref(),
+            Some(short.lease_id.as_str())
+        );
+        let reopened_sweep = get_lease(&reopened, &sweep_lease_id)
+            .await
+            .expect("get swept lease after reopen")
+            .expect("swept lease survives reopen");
+        assert!(reopened_sweep.is_expired);
+        let reopened_takeover_events = reopened_db
+            .list_kernel_events_for_aggregate("knowledge_agent_lease", &takeover_lease_id)
+            .await
+            .expect("list takeover events after reopen");
+        assert!(reopened_takeover_events
+            .iter()
+            .any(|event| event.event_type == KernelEventType::KnowledgeCrdtLeaseTakenOver));
+        let reopened_sweep_events = reopened_db
+            .list_kernel_events_for_aggregate("knowledge_agent_lease", &sweep_lease_id)
+            .await
+            .expect("list expiry events after reopen");
+        assert!(reopened_sweep_events
+            .iter()
+            .any(|event| event.event_type == KernelEventType::KnowledgeCrdtLeaseExpired));
+        drop(reopened_db);
+        close_reopened_and_remove(reopened, backend).await;
     }
 }
 
@@ -370,12 +446,12 @@ mod mt_079_recovery_receipt {
     /// Seed scenario: a session checkpoints its work, dies (lease expires),
     /// a new session takes over the lease and recovers from the checkpoint.
     /// The recovery receipt links new session -> checkpoint -> lease lineage
-    /// and everything reconstructs from PostgreSQL alone.
+    /// and everything reconstructs from embedded storage alone.
     #[tokio::test]
-    async fn session_loss_recovery_emits_linked_receipt_reconstructable_from_postgres() {
-        let backend = backend_or_blocked().await;
+    async fn session_loss_recovery_emits_linked_receipt_reconstructable_from_embedded_store() {
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let scope_id = format!("crdt-mt079-{suffix}");
         let lane_id = format!("lane-mt079-{suffix}");
@@ -508,14 +584,15 @@ mod mt_079_recovery_receipt {
         }));
 
         // No-chat-history reconstruction: a fresh reader sees the same
-        // receipt purely from PostgreSQL rows.
+        // receipt purely from embedded-store rows.
         let receipts = list_recovery_receipts_for_checkpoint(&pool, &checkpoint.checkpoint_id)
             .await
             .expect("receipts");
         assert_eq!(receipts.len(), 1);
         assert_eq!(receipts[0], recovery.receipt);
 
-        // Failure paths: unknown checkpoint, tampered payload.
+        // Failure path: unknown checkpoint. The tampered-payload branch is
+        // covered by the active corruption-seam proof below.
         let unknown = recover_from_checkpoint(
             db.as_ref(),
             &pool,
@@ -531,27 +608,176 @@ mod mt_079_recovery_receipt {
             Err(RecoveryFailureV1::CheckpointNotFound { .. })
         ));
 
-        sqlx::query(
-            "UPDATE knowledge_crdt_swarm_checkpoints SET checkpoint_payload = '{\"tampered\": true}'::jsonb WHERE checkpoint_id = $1",
+        drop(pool);
+        drop(db);
+        let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
+        let reopened_receipts =
+            list_recovery_receipts_for_checkpoint(&reopened, &checkpoint.checkpoint_id)
+                .await
+                .expect("read recovery receipts after reopen");
+        assert_eq!(reopened_receipts, vec![recovery.receipt.clone()]);
+        let reopened_events = reopened_db
+            .list_kernel_events_for_aggregate(
+                "knowledge_swarm_checkpoint",
+                &checkpoint.checkpoint_id,
+            )
+            .await
+            .expect("read checkpoint events after reopen");
+        assert!(reopened_events
+            .iter()
+            .any(|event| event.event_type == KernelEventType::KnowledgeCrdtCheckpointRecorded));
+        assert!(reopened_events.iter().any(|event| {
+            event.event_type == KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded
+        }));
+        let reopened_lease = get_lease(&reopened, &lease_two.lease_id)
+            .await
+            .expect("read recovery lease after reopen")
+            .expect("recovery lease survives reopen");
+        assert_eq!(reopened_lease.takeover_of, Some(lease_one.lease_id));
+        drop(reopened_db);
+        close_reopened_and_remove(reopened, backend).await;
+
+        // The active tamper proof below uses the catalog-validated embedded
+        // mutation seam and remains separate from the successful recovery path.
+    }
+
+    #[tokio::test]
+    async fn tampered_checkpoint_payload_is_rejected_after_reopen() {
+        let backend = embedded_backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.storage.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let scope_id = format!("crdt-mt079-tamper-{suffix}");
+        let actor = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "tamper-owner-lm")
+            .expect("actor");
+        let session_id = format!("sr-tamper-{suffix}");
+        let lease = match claim_lease(
+            db.as_ref(),
+            &pool,
+            claim_request(
+                &actor,
+                &session_id,
+                KnowledgeLeaseScopeKind::Document,
+                &scope_id,
+                600,
+            ),
         )
-        .bind(&checkpoint.checkpoint_id)
-        .execute(&pool)
         .await
-        .expect("tamper for negative test");
-        let tampered = recover_from_checkpoint(
+        .expect("claim flow")
+        {
+            LeaseClaimOutcomeV1::Claimed(lease) => lease,
+            other => panic!("expected claim, got {other:?}"),
+        };
+        let checkpoint = write_swarm_checkpoint(
+            db.as_ref(),
+            &pool,
+            SwarmCheckpointRequestV1 {
+                session_id: session_id.clone(),
+                actor: actor.clone(),
+                lane_id: format!("lane-{session_id}"),
+                lease_id: lease.lease_id.clone(),
+                scope_ref: format!("document:{scope_id}"),
+                resume_pointer: SwarmResumePointerV1::MicroTask {
+                    mt_id: "MT-079".to_owned(),
+                },
+                checkpoint_payload: json!({
+                    "pending_block_ids": ["blk-original"],
+                    "draft_summary": "authentic checkpoint payload"
+                }),
+            },
+        )
+        .await
+        .expect("checkpoint written");
+        assert_eq!(checkpoint.payload_sha256.len(), 64);
+
+        let checkpoints = pool
+            .test_inspector()
+            .table_selector("knowledge_crdt_swarm_checkpoints")
+            .await
+            .expect("select checkpoint table through the test catalog");
+        let payload_field = checkpoints
+            .field("checkpoint_payload")
+            .expect("select checkpoint payload field through the test catalog");
+        pool.test_mutator()
+            .corrupt_row_field(
+                &checkpoints,
+                checkpoint.checkpoint_id.as_str(),
+                &TestFieldMutation::new(
+                    payload_field,
+                    TestMutationValue::json(json!({
+                        "pending_block_ids": ["blk-tampered"],
+                        "draft_summary": "tampered checkpoint payload"
+                    })),
+                ),
+            )
+            .await
+            .expect("tamper only the persisted checkpoint payload through the mutation seam");
+
+        let before = list_recovery_receipts_for_checkpoint(&pool, &checkpoint.checkpoint_id)
+            .await
+            .expect("read recovery receipts before rejection");
+        assert!(before.is_empty());
+        let result = recover_from_checkpoint(
             db.as_ref(),
             &pool,
             &checkpoint.checkpoint_id,
-            "sr-y",
-            &recovering,
-            &lease_two.lease_id,
+            "sr-tamper-recovery",
+            &actor,
+            &lease.lease_id,
         )
         .await
         .expect("recovery flow");
         assert!(matches!(
-            tampered,
-            Err(RecoveryFailureV1::PayloadHashMismatch { .. })
+            result,
+            Err(RecoveryFailureV1::PayloadHashMismatch { checkpoint_id, .. })
+                if checkpoint_id == checkpoint.checkpoint_id
         ));
+        let after = list_recovery_receipts_for_checkpoint(&pool, &checkpoint.checkpoint_id)
+            .await
+            .expect("read recovery receipts after rejection");
+        assert!(
+            after.is_empty(),
+            "tampered payload must not emit a recovery receipt"
+        );
+        let events = db
+            .list_kernel_events_for_aggregate(
+                "knowledge_swarm_checkpoint",
+                &checkpoint.checkpoint_id,
+            )
+            .await
+            .expect("read checkpoint EventLedger rows");
+        assert!(events
+            .iter()
+            .any(|event| event.event_type == KernelEventType::KnowledgeCrdtCheckpointRecorded));
+        assert!(!events.iter().any(|event| {
+            event.event_type == KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded
+        }));
+
+        drop(pool);
+        drop(db);
+        let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
+        let reopened_result = recover_from_checkpoint(
+            reopened_db.as_ref(),
+            &reopened,
+            &checkpoint.checkpoint_id,
+            "sr-tamper-recovery-after-reopen",
+            &actor,
+            &lease.lease_id,
+        )
+        .await
+        .expect("recovery flow after reopen");
+        assert!(matches!(
+            reopened_result,
+            Err(RecoveryFailureV1::PayloadHashMismatch { checkpoint_id, .. })
+                if checkpoint_id == checkpoint.checkpoint_id
+        ));
+        let reopened_receipts =
+            list_recovery_receipts_for_checkpoint(&reopened, &checkpoint.checkpoint_id)
+                .await
+                .expect("read reopened recovery receipts");
+        assert!(reopened_receipts.is_empty());
+        drop(reopened_db);
+        close_reopened_and_remove(reopened, backend).await;
     }
 
     /// Authority-hardening #3: recovery is only authorized under a lease that
@@ -560,9 +786,9 @@ mod mt_079_recovery_receipt {
     /// recovery receipt. Previously recovery checked lease existence alone.
     #[tokio::test]
     async fn recovery_refuses_released_expired_foreign_or_wrong_scope_lease() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let scope_id = format!("crdt-mt079neg-{suffix}");
         let lane_id = format!("lane-mt079neg-{suffix}");
@@ -607,7 +833,10 @@ mod mt_079_recovery_receipt {
         .await
         .expect("checkpoint written");
 
-        async fn receipt_count(pool: &sqlx::PgPool, checkpoint_id: &str) -> usize {
+        async fn receipt_count(
+            pool: &handshake_core::storage::surreal::SurrealStorage,
+            checkpoint_id: &str,
+        ) -> usize {
             list_recovery_receipts_for_checkpoint(pool, checkpoint_id)
                 .await
                 .expect("receipts")

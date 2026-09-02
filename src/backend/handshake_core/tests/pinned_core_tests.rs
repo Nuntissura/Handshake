@@ -9,7 +9,6 @@ use handshake_core::kernel::action_catalog::kernel002_action_catalog;
 use handshake_core::memory::outcome_feedback::{
     CapsuleOutcome, FailureClass, MemoryPackItemRef, OutcomeScoringTuner, TuningParams,
 };
-use handshake_core::memory::persistence_postgres::PostgresKernelActionSubmitter;
 use handshake_core::memory::pinned_core::{
     PinError, PinIpcService, PinReceipt, PinSubmitter, PinnedBudget, PinnedCoreSelector,
     PinnedItem, SetPinRequest, FR_EVT_MEMORY_PIN, FR_EVT_MEMORY_UNPIN, PIN_MEMORY_ACTION_ID,
@@ -17,10 +16,13 @@ use handshake_core::memory::pinned_core::{
 };
 use handshake_core::memory::{
     BuildContext, BuilderError, CapsuleBuilder, CapsulePolicyTable, DegradationTier, FemsError,
-    FemsRetriever, RetrievalPolicy, RetrievedItem, TaskType, RETRIEVAL_SCORING_FORMULA_V0,
+    FemsRetriever, RetrievalPolicy, RetrievedItem, SurrealKernelActionSubmitter, TaskType,
+    RETRIEVAL_SCORING_FORMULA_V0,
 };
-use handshake_core::storage::{postgres::PostgresDatabase, Database, StorageError, StorageResult};
-use sqlx::{Connection, PgPool, Row};
+use handshake_core::storage::surreal::{
+    bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
+};
+use handshake_core::storage::Database;
 use uuid::Uuid;
 
 struct TestFemsRetriever {
@@ -266,7 +268,7 @@ fn pin_ipc_rejects_empty_reason_before_submitter_or_fr_side_effects() {
 }
 
 #[test]
-fn pinned_migration_is_postgres_only_and_guarded_for_memory_item_table() {
+fn pinned_migration_source_scan_is_guarded_for_memory_item_table() {
     let migration = std::fs::read_to_string("migrations/2026_05_18_fems_pinned.sql")
         .expect("MT-159 pinned migration must exist");
 
@@ -281,7 +283,7 @@ fn pinned_migration_is_postgres_only_and_guarded_for_memory_item_table() {
 }
 
 #[test]
-fn pin_tauri_commands_are_registered_and_postgres_only() {
+fn pin_tauri_commands_are_registered_and_legacy_adapter_source_scan_is_explicit() {
     let repo = repo_root();
     let memory_pin_rs =
         std::fs::read_to_string(repo.join("app/src-tauri/src/commands/memory_pin.rs"))
@@ -305,26 +307,32 @@ fn pin_tauri_commands_are_registered_and_postgres_only() {
     }
     assert!(lib_rs.contains("pub mod memory_pin"));
     assert!(lib_rs.contains("MemoryPinIpcState::from_env_or_unavailable()"));
-    assert!(memory_pin_rs.contains("PostgresKernelActionSubmitter"));
-    assert!(memory_pin_rs.contains("memory_pin_postgres_unavailable"));
+    assert!(memory_pin_rs.contains("MemoryPinIpcState"));
     assert!(!memory_pin_rs.contains("InMemory"));
 }
 
 #[test]
-fn pin_postgres_submitter_uses_atomic_action_and_manifest_append() {
-    let source =
-        std::fs::read_to_string("src/memory/persistence_postgres.rs").expect("read persistence");
+fn pin_embedded_adapter_source_scan_preserves_atomic_action_and_manifest_append() {
+    let source = std::fs::read_to_string("src/memory/persistence.rs").expect("read persistence");
     assert!(source.contains("append_kernel_events_atomic"));
     assert!(source.contains("vec![action_event, manifest_event]"));
     assert!(source.contains("memory_pin_atomic_append_failed"));
     assert!(source.contains("existing_pin_submission_matches"));
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
-async fn postgres_pin_submitter_persists_pin_unpin_events_and_list_replays_latest_pin_state() {
-    let (db, pool) = isolated_postgres().await.expect("isolated postgres");
-    let submitter = PostgresKernelActionSubmitter::with_db(db);
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn embedded_pin_submitter_durable_event_replay_proof() {
+    let root = tempfile::tempdir().expect("create isolated embedded pin store root");
+    let config = SurrealStorageConfig::for_data_dir(root.path().join("data"))
+        .expect("configure isolated embedded pin store");
+    let storage = SurrealStorage::open(config.clone())
+        .await
+        .expect("open isolated embedded pin store");
+    bootstrap_schema(&storage)
+        .await
+        .expect("bootstrap embedded pin schema");
+    let db: Arc<dyn Database> = Arc::new(SurrealDatabase::new(storage.clone()));
+    let submitter = SurrealKernelActionSubmitter::with_db(Arc::clone(&db));
     let memory_id = Uuid::now_v7();
 
     let receipt = PinSubmitter::set_pin(
@@ -338,72 +346,67 @@ async fn postgres_pin_submitter_persists_pin_unpin_events_and_list_replays_lates
             set_at_utc: Utc::now(),
         },
     )
-    .expect("persist pin");
-
+    .expect("persist embedded pin");
     assert_eq!(receipt.action_id, PIN_MEMORY_ACTION_ID);
     assert_eq!(receipt.fr_event_kind, FR_EVT_MEMORY_PIN);
 
-    let pinned = PinSubmitter::list_pinned(&submitter).expect("list pinned items");
+    let pinned = PinSubmitter::list_pinned(&submitter).expect("replay pinned manifest");
     assert_eq!(pinned.len(), 1);
     assert_eq!(pinned[0].memory_id, memory_id);
     assert!(pinned[0].pinned);
     assert_eq!(pinned[0].actor_id, "KERNEL_BUILDER");
     assert_eq!(pinned[0].session_id, "session-159");
 
-    let row = sqlx::query(
-        r#"
-        SELECT payload
-        FROM kernel_event_ledger
-        WHERE aggregate_type = 'memory_item'
-          AND aggregate_id = $1
-        ORDER BY event_sequence DESC
-        LIMIT 1
-        "#,
-    )
-    .bind(memory_id.to_string())
-    .fetch_one(&pool)
-    .await
-    .expect("pin event row");
-    let payload: serde_json::Value = row.get("payload");
-
+    let pin_events = db
+        .list_kernel_events_for_aggregate("memory_item", &memory_id.to_string())
+        .await
+        .expect("read embedded pin EventLedger events");
+    assert_eq!(pin_events.len(), 1);
     assert_eq!(
-        payload["catalog_action_id"].as_str(),
+        pin_events[0].payload["catalog_action_id"].as_str(),
         Some(PIN_MEMORY_ACTION_ID)
     );
     assert_eq!(
-        payload["write_box_envelope"]["payload"]["flight_recorder_event_id"].as_str(),
+        pin_events[0].payload["write_box_envelope"]["payload"]["flight_recorder_event_id"].as_str(),
         Some(FR_EVT_MEMORY_PIN)
     );
     assert_eq!(
-        payload["write_box_envelope"]["payload"]["pinned_item"]["memory_id"].as_str(),
+        pin_events[0].payload["write_box_envelope"]["payload"]["pinned_item"]["memory_id"].as_str(),
         Some(memory_id.to_string().as_str())
     );
     assert_eq!(
-        payload["request"]["actor"]["actor_id"].as_str(),
+        pin_events[0].payload["request"]["actor"]["actor_id"].as_str(),
         Some("KERNEL_BUILDER")
     );
     assert_eq!(
-        payload["request"]["session"]["session_id"].as_str(),
+        pin_events[0].payload["request"]["session"]["session_id"].as_str(),
         Some("session-159")
     );
+    assert_eq!(
+        db.list_kernel_events_for_aggregate("memory_pin_manifest", "memory_pin_manifest_v1")
+            .await
+            .expect("read embedded pin manifest")
+            .len(),
+        1
+    );
 
-    let manifest_count: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_event_ledger
-        WHERE aggregate_type = 'memory_pin_manifest'
-          AND aggregate_id = 'memory_pin_manifest_v1'
-          AND payload->>'memory_id' = $1
-        "#,
-    )
-    .bind(memory_id.to_string())
-    .fetch_one(&pool)
-    .await
-    .expect("pin manifest row count");
-    assert_eq!(manifest_count, 1);
+    storage.shutdown().await.expect("close embedded pin store");
+    drop(submitter);
+    drop(db);
+    drop(storage);
+
+    let reopened_storage = SurrealStorage::open(config.clone())
+        .await
+        .expect("reopen embedded pin store");
+    let reopened_db: Arc<dyn Database> = Arc::new(SurrealDatabase::new(reopened_storage.clone()));
+    let reopened_submitter = SurrealKernelActionSubmitter::with_db(Arc::clone(&reopened_db));
+    let reopened_pinned =
+        PinSubmitter::list_pinned(&reopened_submitter).expect("replay pin after close/reopen");
+    assert_eq!(reopened_pinned.len(), 1);
+    assert_eq!(reopened_pinned[0].memory_id, memory_id);
 
     let unpin = PinSubmitter::set_pin(
-        &submitter,
+        &reopened_submitter,
         PinnedItem {
             memory_id,
             pinned: false,
@@ -413,28 +416,66 @@ async fn postgres_pin_submitter_persists_pin_unpin_events_and_list_replays_lates
             set_at_utc: Utc::now(),
         },
     )
-    .expect("persist unpin");
+    .expect("persist embedded unpin");
     assert_eq!(unpin.action_id, UNPIN_MEMORY_ACTION_ID);
     assert_eq!(unpin.fr_event_kind, FR_EVT_MEMORY_UNPIN);
+    assert!(PinSubmitter::list_pinned(&reopened_submitter)
+        .expect("replay unpinned manifest")
+        .is_empty());
 
-    let pinned = PinSubmitter::list_pinned(&submitter).expect("list pinned after unpin");
-    assert!(pinned.is_empty());
+    let action_events = reopened_db
+        .list_kernel_events_for_aggregate("memory_item", &memory_id.to_string())
+        .await
+        .expect("read pin and unpin EventLedger events");
+    assert_eq!(action_events.len(), 2);
+    let latest = action_events
+        .iter()
+        .max_by_key(|event| event.event_sequence)
+        .expect("latest embedded pin action");
+    assert_eq!(
+        latest.payload["catalog_action_id"].as_str(),
+        Some(UNPIN_MEMORY_ACTION_ID)
+    );
+    assert_eq!(
+        reopened_db
+            .list_kernel_events_for_aggregate("memory_pin_manifest", "memory_pin_manifest_v1")
+            .await
+            .expect("read pin and unpin manifest events")
+            .len(),
+        2
+    );
 
-    let latest_action: String = sqlx::query_scalar(
-        r#"
-        SELECT payload->>'catalog_action_id'
-        FROM kernel_event_ledger
-        WHERE aggregate_type = 'memory_item'
-          AND aggregate_id = $1
-        ORDER BY event_sequence DESC
-        LIMIT 1
-        "#,
-    )
-    .bind(memory_id.to_string())
-    .fetch_one(&pool)
-    .await
-    .expect("latest pin action");
-    assert_eq!(latest_action, UNPIN_MEMORY_ACTION_ID);
+    reopened_storage
+        .shutdown()
+        .await
+        .expect("close embedded pin store after unpin");
+    drop(reopened_submitter);
+    drop(reopened_db);
+    drop(reopened_storage);
+
+    let final_storage = SurrealStorage::open(config)
+        .await
+        .expect("reopen embedded pin store after unpin");
+    let final_db: Arc<dyn Database> = Arc::new(SurrealDatabase::new(final_storage.clone()));
+    let final_submitter = SurrealKernelActionSubmitter::with_db(Arc::clone(&final_db));
+    assert!(PinSubmitter::list_pinned(&final_submitter)
+        .expect("replay durable unpin after close/reopen")
+        .is_empty());
+    assert_eq!(
+        final_db
+            .list_kernel_events_for_aggregate("memory_item", &memory_id.to_string())
+            .await
+            .expect("read durable pin and unpin EventLedger events")
+            .len(),
+        2
+    );
+    final_storage
+        .shutdown()
+        .await
+        .expect("close final embedded pin store");
+    drop(final_submitter);
+    drop(final_db);
+    drop(final_storage);
 }
 
 fn build_context() -> BuildContext {
@@ -482,23 +523,6 @@ fn retrieved(id: &str, score: f64, capsule_bytes: u64, pinned: bool) -> Retrieve
         token_estimate: capsule_bytes as u32,
         pinned,
     }
-}
-
-async fn isolated_postgres() -> StorageResult<(Arc<dyn Database>, PgPool)> {
-    let url = handshake_core::storage::tests::postgres_test_base_url().await?;
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("mt159_pinned_core_{}", Uuid::now_v7().simple());
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    drop(conn);
-
-    let sep = if url.contains('?') { "&" } else { "?" };
-    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-    let db = PostgresDatabase::connect(&schema_url, 5).await?;
-    db.run_migrations().await?;
-    let pool = PgPool::connect(&schema_url).await?;
-    Ok((db.into_arc(), pool))
 }
 
 fn repo_root() -> PathBuf {

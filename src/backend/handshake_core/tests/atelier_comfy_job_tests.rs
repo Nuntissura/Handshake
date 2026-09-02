@@ -1,8 +1,8 @@
-//! WP-KERNEL-005 MT-126/MT-127/MT-128 live PostgreSQL round-trip proofs for the
+//! WP-KERNEL-005 MT-126/MT-127/MT-128 embedded SurrealDB round-trip proofs for the
 //! ComfyUI job lifecycle in the `atelier::comfy` submodule.
 //!
-//! No mocks: each test connects the real `AtelierStore` to a real Postgres,
-//! ensures the schema, exercises the job-queue records with REAL data, and
+//! No mocks: each test uses the real `AtelierStore` on an isolated embedded
+//! store, exercises the job-queue records with REAL data, and
 //! asserts the load-bearing invariants:
 //!   * MT-126: a job request enqueues to QUEUED (the queued receipt), round-trips
 //!     by id and via list, persists the scrubbed request body, and emits
@@ -16,9 +16,8 @@
 //! every job/run id is run-scoped via `Uuid::new_v4()` and assertions are
 //! per-aggregate (NO global counts).
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::comfy::{
     comfy_event_family, ComfyJobPollState, ComfyJobStatus, NewComfyJobRequest,
 };
@@ -26,12 +25,9 @@ use handshake_core::atelier::AtelierStore;
 use serde_json::json;
 use uuid::Uuid;
 
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 fn new_job(run_id: Uuid) -> NewComfyJobRequest {
@@ -49,11 +45,7 @@ fn new_job(run_id: Uuid) -> NewComfyJobRequest {
 
 #[tokio::test]
 async fn mt126_comfy_job_enqueues_with_receipt_and_round_trips() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt126_comfy_job_enqueues_with_receipt_and_round_trips: no DATABASE_URL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let run_id = Uuid::new_v4();
 
     // Enqueue builds + persists a QUEUED job (the queued receipt) and emits the event.
@@ -106,11 +98,7 @@ async fn mt126_comfy_job_enqueues_with_receipt_and_round_trips() {
 
 #[tokio::test]
 async fn mt127_comfy_job_polling_maps_status_transitions() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt127_comfy_job_polling_maps_status_transitions: no DATABASE_URL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let run_id = Uuid::new_v4();
 
     let job = store
@@ -131,7 +119,10 @@ async fn mt127_comfy_job_polling_maps_status_transitions() {
         .expect("mark running");
     assert_eq!(running.status, ComfyJobStatus::Running);
     assert!(running.started_at.is_some());
-    let poll = store.poll_comfy_job(job.job_id).await.expect("poll running");
+    let poll = store
+        .poll_comfy_job(job.job_id)
+        .await
+        .expect("poll running");
     assert_eq!(poll.poll_state, ComfyJobPollState::Running);
     assert!(!poll.terminal);
 
@@ -191,11 +182,7 @@ async fn mt127_comfy_job_polling_maps_status_transitions() {
 
 #[tokio::test]
 async fn mt128_cancel_and_timeout_preserve_partial_evidence() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt128_cancel_and_timeout_preserve_partial_evidence: no DATABASE_URL");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // --- Cancel from RUNNING preserves partial evidence. ---
     let cancel_run = Uuid::new_v4();

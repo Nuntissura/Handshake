@@ -1,57 +1,49 @@
-//! WP-KERNEL-009 MT-064 PostgresUnavailableFailClosed.
+//! WP-KERNEL-009 MT-064 EmbeddedStoreFailClosed.
 //!
-//! Negative tests with an unreachable database URL: every knowledge storage
-//! API must fail CLOSED with a typed `StorageError` when PostgreSQL is
-//! unavailable. There is no in-memory, SQLite, fixture, or cache fallback to
-//! observe — `KnowledgeStore` is implemented for `PostgresDatabase` only,
-//! and `PostgresDatabase` is constructible only over a real PgPool
-//! (`connect`/`connect_with_guard`/`new`). These tests prove the runtime
-//! behavior of that boundary:
-//!   * eager connection to an unreachable URL is a typed error, not a panic
-//!     and not a silent success;
-//!   * a lazily-pooled handle (connection deferred to first use) surfaces a
-//!     typed `StorageError::Database` from EVERY representative knowledge
-//!     API — reads, writes, audits, and idempotent writes alike — instead of
-//!     inventing state.
-//!
-//! No PostgreSQL is required to run these tests; the URL points at a closed
-//! port on localhost, so they are true negatives and always execute.
-
-use std::time::Duration;
+//! Negative tests after the embedded store is closed: every knowledge storage
+//! API must fail CLOSED with a typed `StorageError`. There is no in-memory,
+//! fixture, or cache fallback to observe. These tests prove the runtime
+//! behavior of that boundary across reads, writes, audits, and idempotent
+//! writes alike instead of inventing state.
 
 use handshake_core::storage::knowledge::{
     KnowledgeCompactionPolicy, KnowledgePassageEvidenceRef, KnowledgeProjectionKind,
     KnowledgeRetrievalMode, KnowledgeStore, NewKnowledgeMemoryPassage, NewKnowledgeRetrievalTrace,
     NewKnowledgeRichDocument, NewKnowledgeWikiProjection,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
-use handshake_core::storage::StorageError;
+use handshake_core::storage::surreal::SurrealDatabase;
+use handshake_core::storage::{Database, StorageError};
 use serde_json::json;
-use sqlx::postgres::PgPoolOptions;
 
-/// Nothing listens on TCP port 1 (tcpmux) on localhost; connections are
-/// refused immediately, which is exactly the "PostgreSQL unavailable" shape.
-const UNREACHABLE_URL: &str = "postgres://hsk:invalid@127.0.0.1:1/hsk_unreachable";
+#[path = "knowledge_ingestion_support.rs"]
+mod knowledge_embedded_support;
+use knowledge_embedded_support::open_embedded_store as embedded_knowledge;
 
 fn assert_fails_closed<T: std::fmt::Debug>(api: &str, result: Result<T, StorageError>) {
     match result {
-        Ok(value) => panic!(
-            "{api} must fail closed when PostgreSQL is unavailable, got Ok({value:?}) — \
-             a success here means some non-PostgreSQL state answered"
-        ),
+        Ok(value) => {
+            panic!("{api} must fail closed when the embedded store is closed, got Ok({value:?})")
+        }
         Err(StorageError::Database(_)) => {}
         Err(other) => panic!(
-            "{api} must surface the infrastructure failure as the typed \
+            "{api} must surface the closed-store failure as the typed \
              StorageError::Database, got {other:?}"
         ),
     }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn eager_connect_to_unreachable_postgres_is_a_typed_error() {
-    let result = PostgresDatabase::connect(UNREACHABLE_URL, 1).await;
+async fn closed_embedded_store_ping_is_a_typed_error() {
+    let store = embedded_knowledge()
+        .await
+        .expect("embedded knowledge store must be available for the negative probe");
+    store
+        .shutdown()
+        .await
+        .expect("closing the embedded knowledge store");
+    let result = store.db.ping().await;
     match result {
-        Ok(_) => panic!("connecting to an unreachable PostgreSQL must fail"),
+        Ok(_) => panic!("pinging a closed embedded store must fail"),
         Err(StorageError::Database(message)) => {
             assert!(
                 !message.is_empty(),
@@ -63,17 +55,15 @@ async fn eager_connect_to_unreachable_postgres_is_a_typed_error() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn every_knowledge_api_fails_closed_when_postgres_is_unavailable() {
-    // Lazy pool: construction succeeds, the connection failure surfaces at
-    // FIRST USE — the dangerous window where a fallback could hide. The
-    // short acquire timeout only bounds retry time; the refused connection
-    // errors immediately.
-    let pool = PgPoolOptions::new()
-        .max_connections(1)
-        .acquire_timeout(Duration::from_millis(700))
-        .connect_lazy(UNREACHABLE_URL)
-        .expect("lazy pool construction parses the URL");
-    let db = PostgresDatabase::new(pool);
+async fn every_knowledge_api_fails_closed_when_embedded_store_is_closed() {
+    let store = embedded_knowledge()
+        .await
+        .expect("embedded knowledge store must be available for the negative probe");
+    store
+        .shutdown()
+        .await
+        .expect("closing the embedded knowledge store");
+    let db = SurrealDatabase::new(store.storage.clone());
 
     // Reads and audits.
     assert_fails_closed(
@@ -105,8 +95,8 @@ async fn every_knowledge_api_fails_closed_when_postgres_is_unavailable() {
             .await,
     );
 
-    // Writes (payloads pass Rust-side validation so the call genuinely
-    // reaches the unavailable pool).
+    // Writes pass Rust-side validation so the call genuinely reaches the
+    // closed store.
     let passage = NewKnowledgeMemoryPassage {
         workspace_id: "ws-unreachable".to_string(),
         passage_text: "fail closed".to_string(),
@@ -170,7 +160,7 @@ async fn every_knowledge_api_fails_closed_when_postgres_is_unavailable() {
     );
 
     // Idempotent writes fail closed too — a replay engine that "remembers"
-    // results without PostgreSQL would be an in-memory authority violation.
+    // results after shutdown would be an in-memory authority violation.
     assert_fails_closed(
         "create_knowledge_memory_passage_idempotent",
         db.create_knowledge_memory_passage_idempotent("idem-unreachable-1", passage)

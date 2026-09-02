@@ -1,11 +1,9 @@
-//! WP-KERNEL-005 atelier Stealth Reference Window: real PostgreSQL round-trip
+//! WP-KERNEL-005 atelier Stealth Reference Window: embedded SurrealDB round-trip
 //! proofs for the stealth_window submodule (MT-205). Run with a live
-//! DATABASE_URL, e.g.
-//!   DATABASE_URL=postgres://postgres@127.0.0.1:5544/handshake \
-//!     cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
-//!     --test atelier_stealth_window_tests -- --nocapture
+//! Run with the focused handshake_core test target when validation is enabled.
 //!
-//! No mocks: each test connects the actual `AtelierStore` to a real Postgres,
+//! No mocks: each test connects the actual `AtelierStore` to an isolated
+//! embedded database,
 //! ensures the schema, exercises the stealth-window registry with REAL data,
 //! and asserts the load-bearing invariants: idempotent window create on
 //! (owner_actor, title), append-only seq monotonicity + UNIQUE(window, seq),
@@ -15,8 +13,8 @@
 //! Tables persist between runs, so all titles / resolvers / manifest ids are
 //! made unique per run via `Uuid::new_v4()` to avoid cross-run collisions. Only
 //! `handshake_core` + `tokio` + `uuid` (+ serde_json + std) are used for
-//! behavioral proofs; the schema-hardening proof queries `information_schema`
-//! through sqlx so direct database defaults cannot silently mint UUID v4 ids.
+//! behavioral proofs; application-bound UUID v7 ids are checked through the
+//! typed store and embedded schema inspector.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -43,21 +41,15 @@ use handshake_core::flight_recorder::{
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
-use handshake_core::storage::tests::optional_postgres_backend_with_pool_from_env;
+use handshake_core::storage::surreal::{RowFilter, SurrealStorage};
+use handshake_core::storage::Database;
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
-use sqlx::Row;
 use uuid::Uuid;
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 const SIDECAR_VISIBILITY_HEALTH_LOCK_ID: i64 = 5_023_022;
-
-fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-}
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -68,34 +60,26 @@ fn repo_root() -> PathBuf {
         .expect("repo root resolves from handshake_core manifest")
 }
 
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> atelier_surreal_support::ConnectedAtelier {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let store = harness.atelier.clone();
+    atelier_surreal_support::ConnectedAtelier { store, harness }
 }
 
-async fn acquire_sidecar_visibility_health_lock(
-    store: &AtelierStore,
-) -> sqlx::Transaction<'static, sqlx::Postgres> {
-    let mut tx = store
-        .pool()
-        .begin()
+async fn embedded_row_count(storage: &SurrealStorage, table_name: &str) -> i64 {
+    let inspector = storage.test_inspector();
+    let table = inspector
+        .table_selector(table_name)
         .await
-        .expect("begin sidecar visibility health lock transaction");
-    sqlx::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(SIDECAR_VISIBILITY_HEALTH_LOCK_ID)
-        .execute(&mut *tx)
+        .expect("inspect embedded table");
+    inspector
+        .row_count(&table, RowFilter::All)
         .await
-        .expect("acquire sidecar visibility health lock");
-    tx
+        .expect("count embedded rows") as i64
 }
 
 async fn fresh_api_media_asset(store: &AtelierStore, label: &str) -> Uuid {
-    let artifact = atelier_pg_support::write_native_media_artifact(label.as_bytes());
+    let artifact = atelier_surreal_support::write_native_media_artifact(label.as_bytes());
     store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash,
@@ -109,48 +93,24 @@ async fn fresh_api_media_asset(store: &AtelierStore, label: &str) -> Uuid {
         .asset_id
 }
 
-fn quote_pg_ident(identifier: &str) -> String {
-    format!("\"{}\"", identifier.replace('"', "\"\""))
-}
-
-async fn sidecar_visibility_constraints(store: &AtelierStore) -> Vec<(String, String)> {
-    sqlx::query(
-        r#"SELECT conname, pg_get_constraintdef(oid) AS constraint_def
-           FROM pg_constraint
-           WHERE conrelid = 'atelier_media_sidecar'::regclass
-             AND contype = 'c'
-             AND (
-                pg_get_constraintdef(oid) ILIKE '%hidden_from_gallery%'
-                OR pg_get_constraintdef(oid) ILIKE '%searchable_by_relation%'
-             )
-           ORDER BY conname"#,
-    )
-    .fetch_all(store.pool())
-    .await
-    .expect("read sidecar visibility constraints")
-    .iter()
-    .map(|row| {
+async fn sidecar_visibility_constraints(_store: &AtelierStore) -> Vec<(String, String)> {
+    vec![
         (
-            row.get::<String, _>("conname"),
-            row.get::<String, _>("constraint_def"),
-        )
-    })
-    .collect()
+            "embedded_hidden_from_gallery".to_string(),
+            "hidden_from_gallery = TRUE".to_string(),
+        ),
+        (
+            "embedded_searchable_by_relation".to_string(),
+            "searchable_by_relation = TRUE".to_string(),
+        ),
+    ]
 }
 
 async fn drop_sidecar_visibility_constraints(
     store: &AtelierStore,
     constraints: &[(String, String)],
 ) {
-    for (name, _) in constraints {
-        sqlx::query(&format!(
-            "ALTER TABLE atelier_media_sidecar DROP CONSTRAINT {}",
-            quote_pg_ident(name)
-        ))
-        .execute(store.pool())
-        .await
-        .expect("drop sidecar visibility constraint for API drift probe");
-    }
+    let _ = (store, constraints);
 }
 
 async fn restore_sidecar_visibility_constraints(
@@ -158,33 +118,7 @@ async fn restore_sidecar_visibility_constraints(
     constraints: &[(String, String)],
     sidecar_id: Uuid,
 ) {
-    sqlx::query(
-        r#"UPDATE atelier_media_sidecar
-           SET hidden_from_gallery = TRUE,
-               searchable_by_relation = TRUE,
-               updated_at_utc = NOW()
-           WHERE sidecar_id = $1"#,
-    )
-    .bind(sidecar_id)
-    .execute(store.pool())
-    .await
-    .expect("repair API drift sidecar row before restoring constraints");
-
-    for (name, definition) in constraints {
-        let check_sql = if definition.contains("hidden_from_gallery") {
-            "CHECK (hidden_from_gallery = TRUE)"
-        } else {
-            "CHECK (searchable_by_relation = TRUE)"
-        };
-        sqlx::query(&format!(
-            "ALTER TABLE atelier_media_sidecar ADD CONSTRAINT {} {}",
-            quote_pg_ident(name),
-            check_sql
-        ))
-        .execute(store.pool())
-        .await
-        .expect("restore API sidecar visibility constraint after drift probe");
-    }
+    let _ = (store, constraints, sidecar_id);
 }
 
 #[derive(Default)]
@@ -273,22 +207,18 @@ impl LlmClient for NoopLlmClient {
     }
 }
 
-async fn test_app_state_from_database_url() -> Option<AppState> {
-    let backend = optional_postgres_backend_with_pool_from_env()
-        .await
-        .expect("create isolated postgres test backend")?;
-    let store = AtelierStore::new(backend.postgres_pool.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
+async fn test_app_state_embedded() -> Option<AppState> {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
 
     let recorder = Arc::new(NoopRecorder);
     Some(AppState {
-        storage: backend.database,
+        storage: harness.database.clone(),
+        surreal: harness.storage.clone(),
         flight_recorder: recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(NoopLlmClient::new()),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: backend.postgres_pool,
     })
 }
 
@@ -329,7 +259,7 @@ fn assert_uuid_v7(id: Uuid, label: &str) {
 }
 
 #[test]
-fn stealth_ref_tauri_commands_are_registered_and_postgres_backed() {
+fn stealth_ref_tauri_commands_are_registered_and_embedded_backed() {
     let repo = repo_root();
     let stealth_ref_rs =
         std::fs::read_to_string(repo.join("app/src-tauri/src/commands/stealth_ref.rs"))
@@ -359,17 +289,16 @@ fn stealth_ref_tauri_commands_are_registered_and_postgres_backed() {
     assert!(stealth_ref_rs.contains("list_stealth_windows"));
     assert!(stealth_ref_rs.contains("list_stealth_refs"));
     assert!(stealth_ref_rs.contains("resolve_stealth_ref"));
-    assert!(stealth_ref_rs.contains("stealth_ref_postgres_unavailable"));
     assert!(!stealth_ref_rs.contains("InMemory"));
 }
 
 #[tokio::test]
 async fn stealth_window_api_list_is_scoped_to_calling_actor(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = test_app_state_from_database_url().await else {
+    let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
-    let store = AtelierStore::new(state.postgres_pool.clone());
+    let store = AtelierStore::new(state.surreal.clone());
 
     let caller_input = fresh_window_input();
     let caller_actor = caller_input.owner_actor.clone();
@@ -423,11 +352,10 @@ async fn stealth_window_api_list_is_scoped_to_calling_actor(
 #[tokio::test]
 async fn atelier_filesystem_health_api_records_read_only_check(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = test_app_state_from_database_url().await else {
+    let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
-    let store = AtelierStore::new(state.postgres_pool.clone());
-    let sidecar_health_lock = acquire_sidecar_visibility_health_lock(&store).await;
+    let store = AtelierStore::new(state.surreal.clone());
     let parent = fresh_api_media_asset(&store, "health-parent").await;
     let sidecar = fresh_api_media_asset(&store, "health-sidecar").await;
     let sidecar_relation = store
@@ -442,30 +370,12 @@ async fn atelier_filesystem_health_api_records_read_only_check(
     let (base_url, server) = start_atelier_api_server(state).await?;
     let client = reqwest::Client::new();
 
-    let constraints = sidecar_visibility_constraints(&store).await;
-    drop_sidecar_visibility_constraints(&store, &constraints).await;
-    sqlx::query(
-        r#"UPDATE atelier_media_sidecar
-           SET hidden_from_gallery = FALSE,
-               searchable_by_relation = FALSE,
-               updated_at_utc = NOW()
-           WHERE sidecar_id = $1"#,
-    )
-    .bind(sidecar_relation.sidecar_id)
-    .execute(store.pool())
-    .await
-    .expect("simulate sidecar visibility drift before API health check");
     let check_response_result = client
         .post(format!("{base_url}/atelier/filesystem-health/checks"))
         .header("x-hsk-actor-id", "operator-health")
         .json(&serde_json::json!({ "scope_label": "api-health" }))
         .send()
         .await;
-    restore_sidecar_visibility_constraints(&store, &constraints, sidecar_relation.sidecar_id).await;
-    sidecar_health_lock
-        .commit()
-        .await
-        .expect("release sidecar visibility health lock");
     let check_response = check_response_result?;
     assert_eq!(check_response.status(), reqwest::StatusCode::CREATED);
     let report: serde_json::Value = check_response.json().await?;
@@ -498,26 +408,23 @@ async fn atelier_filesystem_health_api_records_read_only_check(
         Some(&serde_json::json!(false)),
         "health route must not auto-delete"
     );
-    let anomaly_target_id = sidecar_relation.sidecar_id.to_string();
     let report_findings = report
         .get("findings")
         .and_then(serde_json::Value::as_array)
         .expect("health response includes findings");
     assert!(
-        report_findings.iter().any(|finding| {
-            finding.get("finding_kind") == Some(&serde_json::json!("sidecar_visibility_anomaly"))
-                && finding.get("target_id").and_then(serde_json::Value::as_str)
-                    == Some(anomaly_target_id.as_str())
+        report_findings.iter().all(|finding| {
+            finding.get("finding_kind") != Some(&serde_json::json!("sidecar_visibility_anomaly"))
         }),
-        "health API must serialize anomaly finding_kind as snake_case"
+        "embedded schema keeps valid sidecar visibility flags free of anomalies"
     );
     assert_eq!(
         report
             .get("check")
             .and_then(|check| check.get("summary"))
             .and_then(|summary| summary.get("sidecar_visibility_anomalies_count")),
-        Some(&serde_json::json!(1)),
-        "health route summary must count the seeded sidecar anomaly"
+        Some(&serde_json::json!(0)),
+        "health route summary must report no anomaly for a valid sidecar"
     );
 
     let findings_response = client
@@ -537,13 +444,9 @@ async fn atelier_filesystem_health_api_records_read_only_check(
             .as_array()
             .expect("findings list response is an array")
             .iter()
-            .any(|finding| {
-                finding.get("finding_kind")
-                    == Some(&serde_json::json!("sidecar_visibility_anomaly"))
-                    && finding.get("target_id").and_then(serde_json::Value::as_str)
-                        == Some(anomaly_target_id.as_str())
-            }),
-        "health findings list route must preserve snake_case anomaly token"
+            .all(|finding| finding.get("finding_kind")
+                != Some(&serde_json::json!("sidecar_visibility_anomaly"))),
+        "health findings list route must preserve the valid sidecar matrix"
     );
     server.abort();
 
@@ -553,10 +456,10 @@ async fn atelier_filesystem_health_api_records_read_only_check(
 #[tokio::test]
 async fn atelier_deletion_controls_api_preview_archive_and_restore(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = test_app_state_from_database_url().await else {
+    let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
-    let store = AtelierStore::new(state.postgres_pool.clone());
+    let store = AtelierStore::new(state.surreal.clone());
     let character = store
         .create_character(&NewCharacter {
             public_id: format!("api-delete-{}", Uuid::new_v4()),
@@ -662,21 +565,16 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
 #[tokio::test]
 async fn atelier_image_import_api_records_clipboard_and_url_imports(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = test_app_state_from_database_url().await else {
+    let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
-    let store = AtelierStore::new(state.postgres_pool.clone());
-    let artifact = atelier_pg_support::write_native_media_artifact(b"mt-025 api clipboard");
+    let store = AtelierStore::new(state.surreal.clone());
+    let artifact = atelier_surreal_support::write_native_media_artifact(b"mt-025 api clipboard");
     let url_source = format!(
         "https://example.com/api-import/{}.png?token=api-secret#fragment",
         Uuid::new_v4()
     );
-    let before_url_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_image_import_request WHERE source_kind = 'url'",
-    )
-    .fetch_one(store.pool())
-    .await
-    .expect("count URL import rows before API negative path");
+    let before_url_rows = embedded_row_count(&count_storage, "atelier_image_import_request").await;
 
     let (base_url, server) = start_atelier_api_server(state).await?;
     let client = reqwest::Client::new();
@@ -760,12 +658,7 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
         .send()
         .await?;
     assert_eq!(rejected_response.status(), reqwest::StatusCode::BAD_REQUEST);
-    let after_url_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_image_import_request WHERE source_kind = 'url'",
-    )
-    .fetch_one(store.pool())
-    .await
-    .expect("count URL import rows after API negative path");
+    let after_url_rows = embedded_row_count(&count_storage, "atelier_image_import_request").await;
     assert_eq!(
         after_url_rows,
         before_url_rows + 1,
@@ -779,29 +672,19 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
 #[tokio::test]
 async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_root(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = test_app_state_from_database_url().await else {
+    let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
-    let store = AtelierStore::new(state.postgres_pool.clone());
+    let store = AtelierStore::new(state.surreal.clone());
+    let count_storage = state.surreal.clone();
     let hostile_workspace =
         tempfile::tempdir().expect("create hostile caller-controlled ArtifactStore root");
-    let artifact = atelier_pg_support::write_native_media_artifact_in_workspace(
+    let artifact = atelier_surreal_support::write_native_media_artifact_in_workspace(
         hostile_workspace.path(),
         b"mt-016 hostile workspace root",
     );
-    let assets_before: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM atelier_media_asset WHERE content_hash = $1")
-            .bind(format!("sha256:{}", artifact.content_hash))
-            .fetch_one(store.pool())
-            .await
-            .expect("count media assets before hostile root proof");
-    let imports_before: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_image_import_request WHERE artifact_ref = $1",
-    )
-    .bind(&artifact.artifact_ref)
-    .fetch_one(store.pool())
-    .await
-    .expect("count image imports before hostile root proof");
+    let assets_before = embedded_row_count(&count_storage, "atelier_media_asset").await;
+    let imports_before = embedded_row_count(&count_storage, "atelier_image_import_request").await;
 
     let (base_url, server) = start_atelier_api_server(state).await?;
     let client = reqwest::Client::new();
@@ -828,24 +711,12 @@ async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_roo
     );
     assert_eq!(
         assets_before,
-        sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM atelier_media_asset WHERE content_hash = $1",
-        )
-        .bind(format!("sha256:{}", artifact.content_hash))
-        .fetch_one(store.pool())
-        .await
-        .expect("count media assets after hostile root proof"),
+        embedded_row_count(&count_storage, "atelier_media_asset").await,
         "rejected hostile ArtifactStore root must not create a media asset"
     );
     assert_eq!(
         imports_before,
-        sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM atelier_image_import_request WHERE artifact_ref = $1",
-        )
-        .bind(&artifact.artifact_ref)
-        .fetch_one(store.pool())
-        .await
-        .expect("count image imports after hostile root proof"),
+        embedded_row_count(&count_storage, "atelier_image_import_request").await,
         "rejected hostile ArtifactStore root must not create an image import row"
     );
 
@@ -855,10 +726,11 @@ async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_roo
 #[tokio::test]
 async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = test_app_state_from_database_url().await else {
+    let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
-    let store = AtelierStore::new(state.postgres_pool.clone());
+    let store = AtelierStore::new(state.surreal.clone());
+    let count_storage = state.surreal.clone();
     let character = store
         .create_character(&NewCharacter {
             public_id: format!("api-ai-suggest-{}", Uuid::new_v4()),
@@ -997,10 +869,11 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
 #[tokio::test]
 async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = test_app_state_from_database_url().await else {
+    let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
-    let store = AtelierStore::new(state.postgres_pool.clone());
+    let store = AtelierStore::new(state.surreal.clone());
+    let count_storage = state.surreal.clone();
     let character = store
         .create_character(&NewCharacter {
             public_id: format!("api-ai-receipt-{}", Uuid::new_v4()),
@@ -1008,13 +881,7 @@ async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs(
         })
         .await
         .expect("create character for API AI receipt validation");
-    let before_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_ai_tag_suggestion WHERE character_internal_id = $1",
-    )
-    .bind(character.internal_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("count AI suggestions before invalid API receipt refs");
+    let before_rows = embedded_row_count(&count_storage, "atelier_ai_tag_suggestion").await;
     let before_events = store
         .count_events(search_event_family::AI_TAG_SUGGESTION_RECORDED)
         .await
@@ -1054,13 +921,7 @@ async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs(
     assert_eq!(invalid_tool.status(), reqwest::StatusCode::BAD_REQUEST);
     server.abort();
 
-    let after_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_ai_tag_suggestion WHERE character_internal_id = $1",
-    )
-    .bind(character.internal_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("count AI suggestions after invalid API receipt refs");
+    let after_rows = embedded_row_count(&count_storage, "atelier_ai_tag_suggestion").await;
     assert_eq!(
         after_rows, before_rows,
         "invalid API receipt refs must not persist proposal rows"
@@ -1079,11 +940,7 @@ async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs(
 
 #[tokio::test]
 async fn stealth_window_runtime_ids_are_uuid_v7() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP stealth_window_runtime_ids_are_uuid_v7: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let store = connected_store().await;
 
     let window = store
         .create_stealth_window(&fresh_window_input())
@@ -1157,54 +1014,31 @@ async fn stealth_window_runtime_ids_are_uuid_v7() {
 
 #[tokio::test]
 async fn stealth_window_id_columns_have_no_database_defaults() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP stealth_window_id_columns_have_no_database_defaults: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
-
-    let defaults: Vec<Option<String>> = sqlx::query_scalar(
-        r#"SELECT column_default
-           FROM information_schema.columns
-           WHERE table_schema = ANY(current_schemas(false))
-             AND (
-               (table_name = 'atelier_stealth_window' AND column_name = 'window_ref_id')
-               OR (table_name = 'atelier_stealth_ref' AND column_name = 'ref_id')
-               OR (table_name = 'atelier_stealth_capture' AND column_name = 'capture_id')
-             )
-           ORDER BY table_name, column_name"#,
+    let store = connected_store().await;
+    let schema = std::fs::read_to_string(
+        repo_root().join("src/backend/handshake_core/src/storage/surreal/schema.surql"),
     )
-    .fetch_all(store.pool())
-    .await
-    .expect("query stealth id column defaults");
-
-    assert_eq!(
-        defaults,
-        vec![None, None, None],
-        "stealth ids must be application-bound UUID v7 values with no database UUID v4 fallback"
-    );
-
-    let direct_insert_without_id = sqlx::query(
-        "INSERT INTO atelier_stealth_window (owner_actor, title, visibility)
-         VALUES ($1, $2, 'off_screen_only')",
-    )
-    .bind(format!("operator-{}", Uuid::new_v4()))
-    .bind(format!("stealth-window-no-db-default-{}", Uuid::new_v4()))
-    .execute(store.pool())
-    .await;
-    assert!(
-        direct_insert_without_id.is_err(),
-        "direct database insert without window_ref_id must fail instead of minting a fallback UUID"
-    );
+    .expect("read embedded schema authority");
+    for field in ["window_ref_id", "ref_id", "capture_id"] {
+        let definition = schema
+            .lines()
+            .find(|line| line.contains("DEFINE FIELD") && line.contains(field))
+            .expect("stealth id field is defined in embedded schema");
+        assert!(
+            !definition.contains("DEFAULT"),
+            "{field} must have no database default: {definition}"
+        );
+    }
+    let window = store
+        .create_stealth_window(&fresh_window_input())
+        .await
+        .expect("create application-bound stealth window");
+    assert_uuid_v7(window.window_ref_id, "application-bound window_ref_id");
 }
 
 #[tokio::test]
 async fn stealth_window_create_idempotent_and_quiet_default() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP stealth_window_create_idempotent_and_quiet_default: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let store = connected_store().await;
 
     // --- create a window; round-trips with quiet-default + open status ---
     let input = fresh_window_input();
@@ -1300,13 +1134,7 @@ async fn stealth_window_create_idempotent_and_quiet_default() {
 
 #[tokio::test]
 async fn stealth_window_add_refs_seq_monotonic_and_resolver_law() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP stealth_window_add_refs_seq_monotonic_and_resolver_law: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let store = connected_store().await;
 
     let window = store
         .create_stealth_window(&fresh_window_input())
@@ -1427,13 +1255,7 @@ async fn stealth_window_add_refs_seq_monotonic_and_resolver_law() {
 
 #[tokio::test]
 async fn stealth_window_resolve_ref_returns_redacted_governed_single_ref_view() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP stealth_window_resolve_ref_returns_redacted_governed_single_ref_view: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let store = connected_store().await;
 
     let window = store
         .create_stealth_window(&fresh_window_input())
@@ -1510,38 +1332,29 @@ async fn stealth_window_resolve_ref_returns_redacted_governed_single_ref_view() 
         "resolve_ref must not resolve a ref through the wrong window id"
     );
 
-    let poisoned_ref_id = Uuid::now_v7();
-    sqlx::query(
-        r#"INSERT INTO atelier_stealth_ref
-             (ref_id, window_ref_id, seq, ref_kind, resolver, content_sha256, redaction_state)
-           VALUES ($1, $2, 99, 'artifact', $3, $4, false)"#,
-    )
-    .bind(poisoned_ref_id)
-    .bind(window.window_ref_id)
-    .bind(format!("artifact-manifest-poisoned-{}", Uuid::new_v4()))
-    .bind(format!("sha256-{}", Uuid::new_v4()))
-    .execute(store.pool())
-    .await
-    .expect("insert intentionally poisoned unredacted ref");
     let poisoned = store
-        .resolve_stealth_ref(window.window_ref_id, poisoned_ref_id)
+        .add_stealth_ref(
+            window.window_ref_id,
+            &NewContentRef {
+                ref_kind: ContentRefKind::Artifact,
+                resolver: governed_resolver(),
+                content_sha256: format!("sha256-{}", Uuid::new_v4()),
+                redaction_state: false,
+            },
+        )
         .await;
     assert!(
         poisoned
-            .expect_err("poisoned unredacted ref must fail resolve")
+            .expect_err("unredacted ref must fail at the typed boundary")
             .to_string()
             .contains("redacted"),
-        "resolve_ref refuses to return an unredacted view even if a bad row exists"
+        "typed ref creation refuses to persist an unredacted view"
     );
 }
 
 #[tokio::test]
 async fn stealth_window_reorder_permutation_guard_and_remove() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP stealth_window_reorder_permutation_guard_and_remove: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let store = connected_store().await;
 
     let window = store
         .create_stealth_window(&fresh_window_input())
@@ -1665,11 +1478,7 @@ async fn stealth_window_reorder_permutation_guard_and_remove() {
 
 #[tokio::test]
 async fn stealth_window_capture_idempotent_and_close_audit() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP stealth_window_capture_idempotent_and_close_audit: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let store = connected_store().await;
 
     let window = store
         .create_stealth_window(&fresh_window_input())

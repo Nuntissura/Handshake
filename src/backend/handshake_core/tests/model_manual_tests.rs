@@ -172,7 +172,7 @@ fn process_ledger_wired_surface_is_manualized() {
         .expect("process ledger command");
     assert_eq!(process_ledger.status, CommandStatus::Wired);
     assert!(process_ledger.schema_fields.contains(&"process_uuid"));
-    assert!(process_ledger.expected_output.contains("Postgres"));
+    assert!(process_ledger.expected_output.contains("SurrealDB"));
 
     let overflow = manual
         .command_reference
@@ -627,7 +627,10 @@ fn manual_covers_pose_comfy_surfaces() {
             CommandStatus::Planned,
             "{planned_id} must be Planned (no Axum route exists for it)"
         );
-        assert_eq!(command.ipc_channel, None, "{planned_id} must not claim a route");
+        assert_eq!(
+            command.ipc_channel, None,
+            "{planned_id} must not claim a route"
+        );
     }
 }
 
@@ -883,7 +886,9 @@ fn manual_covers_diagnostics_surfaces() {
             .command_reference
             .iter()
             .find(|command| command.id == wired_library_id)
-            .unwrap_or_else(|| panic!("missing diagnostics merge/guard command {wired_library_id}"));
+            .unwrap_or_else(|| {
+                panic!("missing diagnostics merge/guard command {wired_library_id}")
+            });
         assert_eq!(
             command.status,
             CommandStatus::Wired,

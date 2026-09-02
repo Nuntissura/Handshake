@@ -1,31 +1,32 @@
-//! WP-KERNEL-009 MT-189 LoomRetrievalBiasVisibility -- real PostgreSQL proof.
+//! WP-KERNEL-009 MT-189 LoomRetrievalBiasVisibility -- real embedded-store proof.
 //!
 //! Graph-search hits must expose why Loom-native graph signals changed
 //! retrieval order, so no-context models can see tag, backlink, and pin
 //! influence instead of guessing from opaque ranking.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod knowledge_ingestion_support;
 
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy, LoomEdgeType,
     LoomSearchFilters, LoomSearchSourceKind, NewLoomBlock, NewLoomEdge, WriteContext,
 };
-use knowledge_pg_support::knowledge_pg;
+use knowledge_ingestion_support::open_embedded_store;
 use serde_json::Value;
 
-macro_rules! pg_or_fail {
+macro_rules! embedded_or_fail {
     () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
+        match open_embedded_store().await {
+            Some(store) => store,
             None => {
-                panic!("MT-189 loom retrieval-bias proof requires real PostgreSQL");
+                panic!("MT-189 loom retrieval-bias proof requires the embedded store");
             }
         }
     }};
 }
 
 async fn insert_loom_block(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ctx: &WriteContext,
     ws: &str,
     content_type: LoomBlockContentType,
@@ -59,7 +60,7 @@ async fn insert_loom_block(
 }
 
 async fn create_edge(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ctx: &WriteContext,
     ws: &str,
     source_block_id: &str,
@@ -101,12 +102,12 @@ fn reason_codes(metadata: &Value) -> Vec<String> {
 
 #[tokio::test]
 async fn mt189_graph_search_exposes_loom_retrieval_bias_reasons() {
-    let pg = pg_or_fail!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_fail!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     let biased = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::Note,
@@ -116,7 +117,7 @@ async fn mt189_graph_search_exposes_loom_retrieval_bias_reasons() {
     )
     .await;
     let plain = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::Note,
@@ -126,7 +127,7 @@ async fn mt189_graph_search_exposes_loom_retrieval_bias_reasons() {
     )
     .await;
     let tag = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::TagHub,
@@ -136,7 +137,7 @@ async fn mt189_graph_search_exposes_loom_retrieval_bias_reasons() {
     )
     .await;
     let backlink_source = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::Note,
@@ -146,9 +147,9 @@ async fn mt189_graph_search_exposes_loom_retrieval_bias_reasons() {
     )
     .await;
 
-    create_edge(&pg.db, &ctx, &ws, &biased, &tag, LoomEdgeType::Tag).await;
+    create_edge(&store.db, &ctx, &ws, &biased, &tag, LoomEdgeType::Tag).await;
     create_edge(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         &backlink_source,
@@ -157,7 +158,7 @@ async fn mt189_graph_search_exposes_loom_retrieval_bias_reasons() {
     )
     .await;
 
-    let hits = pg
+    let hits = store
         .db
         .search_loom_graph(
             &ws,
@@ -216,7 +217,7 @@ async fn mt189_graph_search_exposes_loom_retrieval_bias_reasons() {
         "plain hit should expose an empty reason list, not hidden or stale bias"
     );
 
-    let snapshot = pg
+    let snapshot = store
         .db
         .loom_visual_debug_snapshot(&ws, &biased, "BiasBeacon", 20)
         .await

@@ -1,4 +1,4 @@
-//! WP-KERNEL-009 MT-243 WikiIncrementalIngestFanOut — REAL PostgreSQL proof.
+//! WP-KERNEL-009 MT-243 WikiIncrementalIngestFanOut — embedded SurrealDB proof.
 //!
 //! Proves LM-PWIKI-010..012 over a wiki bootstrapped from REAL handshake_core
 //! sources:
@@ -16,7 +16,7 @@
 //!     duplicate links, no duplicate per-page receipts;
 //!   * a changed Loom block fans out to the MT-184 topic pages citing it.
 
-mod knowledge_pg_support;
+mod user_manual_support;
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -34,25 +34,13 @@ use handshake_core::storage::knowledge::{
     KnowledgeRootKind, KnowledgeStore, KnowledgeWikiProjection, NewKnowledgeEntity,
     NewKnowledgeSourceRoot,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, NewLoomBlock, WriteContext,
 };
-use knowledge_pg_support::{KnowledgePg, knowledge_pg};
-use serde_json::json;
+use serde_json::{json, Value};
+use user_manual_support::{manual_test_backend, ManualTestBackend};
 use uuid::Uuid;
-
-macro_rules! pg_or_skip {
-    () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
-            None => {
-                eprintln!("SKIP MT-243 wiki fan-out proof: PostgreSQL unavailable");
-                return;
-            }
-        }
-    }};
-}
 
 const CORE_FILES: [&str; 3] = [
     "src/knowledge_code_index/mod.rs",
@@ -93,13 +81,10 @@ struct Seeded {
     edit_target_source_id: String,
 }
 
-async fn seed_workspace(pg: &KnowledgePg) -> Seeded {
-    let workspace_id = pg.create_workspace().await;
-    let db = PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect engine handle");
-    let engine = CodeIndexEngine::new(Arc::new(db));
-    let root_id = pg
+async fn seed_workspace(backend: &ManualTestBackend) -> Seeded {
+    let workspace_id = backend.create_workspace().await;
+    let engine = CodeIndexEngine::new(Arc::new(backend.db.clone()));
+    let root_id = backend
         .db
         .create_knowledge_source_root(NewKnowledgeSourceRoot {
             workspace_id: workspace_id.clone(),
@@ -136,12 +121,8 @@ async fn seed_workspace(pg: &KnowledgePg) -> Seeded {
     }
 }
 
-async fn pg_handle(pg: &KnowledgePg) -> Arc<PostgresDatabase> {
-    Arc::new(
-        PostgresDatabase::connect(&pg.schema_url, 5)
-            .await
-            .expect("pg handle"),
-    )
+fn embedded_handle(backend: &ManualTestBackend) -> Arc<SurrealDatabase> {
+    Arc::new(backend.db.clone())
 }
 
 async fn edit_and_reindex(seeded: &Seeded) {
@@ -172,17 +153,17 @@ async fn edit_and_reindex(seeded: &Seeded) {
         .expect("re-index edited source");
 }
 
-async fn ledger_kind_count(pg: &KnowledgePg, kind: &str) -> i64 {
-    let mut conn = pg.raw_connection().await;
-    sqlx::query_scalar("SELECT COUNT(*) FROM kernel_event_ledger WHERE payload ->> 'kind' = $1")
-        .bind(kind)
-        .fetch_one(&mut conn)
+async fn ledger_kind_count(db: &SurrealDatabase, workspace_id: &str, kind: &str) -> i64 {
+    db.list_kernel_events_for_aggregate("knowledge_wiki", workspace_id)
         .await
         .expect("ledger count")
+        .iter()
+        .filter(|event| event.payload.get("kind").and_then(Value::as_str) == Some(kind))
+        .count() as i64
 }
 
 async fn create_source_backed_decision_entity(
-    pg: &KnowledgePg,
+    pg: &ManualTestBackend,
     workspace_id: &str,
     source_id: &str,
     entity_key: &str,
@@ -204,7 +185,7 @@ async fn create_source_backed_decision_entity(
 }
 
 async fn decision_pages_for_entity(
-    handle: &PostgresDatabase,
+    handle: &SurrealDatabase,
     workspace_id: &str,
     entity_id: &str,
 ) -> Vec<KnowledgeWikiProjection> {
@@ -225,9 +206,9 @@ async fn decision_pages_for_entity(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt243_single_source_edit_regenerates_exactly_the_stale_set() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let seeded = seed_workspace(&pg).await;
-    let handle = pg_handle(&pg).await;
+    let handle = embedded_handle(&pg);
     let compiler = ProjectWikiCompiler::new(handle.clone());
     compiler
         .bootstrap(
@@ -329,15 +310,21 @@ async fn mt243_single_source_edit_regenerates_exactly_the_stale_set() {
     }
 
     // Per-page EventLedger receipts (LM-PWIKI-012) + page rows reference them.
-    let mut conn = pg.raw_connection().await;
     for entry in &outcome.regenerated {
-        let kind: Option<String> = sqlx::query_scalar(
-            "SELECT payload ->> 'kind' FROM kernel_event_ledger WHERE event_id = $1",
-        )
-        .bind(&entry.receipt_event_id)
-        .fetch_optional(&mut conn)
-        .await
-        .expect("receipt lookup");
+        let kind = pg
+            .db
+            .list_kernel_events_for_aggregate("knowledge_wiki", &seeded.workspace_id)
+            .await
+            .expect("receipt lookup")
+            .into_iter()
+            .find(|event| event.event_id == entry.receipt_event_id)
+            .and_then(|event| {
+                event
+                    .payload
+                    .get("kind")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            });
         assert_eq!(
             kind.as_deref(),
             Some("wiki_page_fanout_regenerated"),
@@ -365,9 +352,9 @@ async fn mt243_single_source_edit_regenerates_exactly_the_stale_set() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt243_source_fanout_includes_source_backed_decision_pages() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let seeded = seed_workspace(&pg).await;
-    let handle = pg_handle(&pg).await;
+    let handle = embedded_handle(&pg);
     let decision = create_source_backed_decision_entity(
         &pg,
         &seeded.workspace_id,
@@ -448,9 +435,9 @@ async fn mt243_source_fanout_includes_source_backed_decision_pages() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt243_entity_display_name_change_updates_decision_without_duplicate() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let seeded = seed_workspace(&pg).await;
-    let handle = pg_handle(&pg).await;
+    let handle = embedded_handle(&pg);
     let decision = create_source_backed_decision_entity(
         &pg,
         &seeded.workspace_id,
@@ -550,9 +537,9 @@ async fn mt243_entity_display_name_change_updates_decision_without_duplicate() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt243_budget_truncation_is_loud_and_resumable() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let seeded = seed_workspace(&pg).await;
-    let handle = pg_handle(&pg).await;
+    let handle = embedded_handle(&pg);
     ProjectWikiCompiler::new(handle.clone())
         .bootstrap(
             &wiki_ctx(),
@@ -586,14 +573,15 @@ async fn mt243_budget_truncation_is_loud_and_resumable() {
         .truncation_receipt_event_id
         .clone()
         .expect("truncation receipt id");
-    let mut conn = pg.raw_connection().await;
-    let payload: Option<serde_json::Value> =
-        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
-            .bind(&truncation_receipt)
-            .fetch_optional(&mut conn)
-            .await
-            .expect("truncation receipt lookup");
-    let payload = payload.expect("truncation receipt payload");
+    let payload = pg
+        .db
+        .list_kernel_events_for_aggregate("knowledge_wiki", &seeded.workspace_id)
+        .await
+        .expect("truncation receipt lookup")
+        .into_iter()
+        .find(|event| event.event_id == truncation_receipt)
+        .map(|event| event.payload)
+        .expect("truncation receipt payload");
     assert_eq!(payload["kind"], "wiki_fanout_truncated");
     assert_eq!(
         payload["skipped_total"].as_u64().unwrap() as usize,
@@ -655,9 +643,9 @@ async fn mt243_budget_truncation_is_loud_and_resumable() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt243_rerun_is_idempotent_no_duplicates() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let seeded = seed_workspace(&pg).await;
-    let handle = pg_handle(&pg).await;
+    let handle = embedded_handle(&pg);
     ProjectWikiCompiler::new(handle.clone())
         .bootstrap(
             &wiki_ctx(),
@@ -684,8 +672,10 @@ async fn mt243_rerun_is_idempotent_no_duplicates() {
         .list_knowledge_wiki_pages(&seeded.workspace_id, None, true, 2_000, 0)
         .await
         .expect("list pages");
-    let regen_receipts_before = ledger_kind_count(&pg, "wiki_page_fanout_regenerated").await;
-    let truncation_receipts_before = ledger_kind_count(&pg, "wiki_fanout_truncated").await;
+    let regen_receipts_before =
+        ledger_kind_count(&pg.db, &seeded.workspace_id, "wiki_page_fanout_regenerated").await;
+    let truncation_receipts_before =
+        ledger_kind_count(&pg.db, &seeded.workspace_id, "wiki_fanout_truncated").await;
 
     // RE-RUN the same fan-out.
     let second = engine
@@ -736,12 +726,12 @@ async fn mt243_rerun_is_idempotent_no_duplicates() {
         );
     }
     assert_eq!(
-        ledger_kind_count(&pg, "wiki_page_fanout_regenerated").await,
+        ledger_kind_count(&pg.db, &seeded.workspace_id, "wiki_page_fanout_regenerated").await,
         regen_receipts_before,
         "no duplicate per-page regeneration receipts"
     );
     assert_eq!(
-        ledger_kind_count(&pg, "wiki_fanout_truncated").await,
+        ledger_kind_count(&pg.db, &seeded.workspace_id, "wiki_fanout_truncated").await,
         truncation_receipts_before,
         "no spurious truncation receipts"
     );
@@ -749,9 +739,9 @@ async fn mt243_rerun_is_idempotent_no_duplicates() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt243_loom_block_change_fans_out_to_topic_pages() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let workspace_id = pg.create_workspace().await;
-    let handle = pg_handle(&pg).await;
+    let handle = embedded_handle(&pg);
     let ctx = WriteContext::human(None);
 
     // Two blocks; a loom topic page citing both (the MT-184 path, stamped).

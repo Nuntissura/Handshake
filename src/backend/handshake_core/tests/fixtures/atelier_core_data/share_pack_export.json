@@ -1,5 +1,5 @@
 {
-  "_comment": "MT-077 portable non-SQLite fixture corpus: share-pack export only. The selector bundles exactly the sheet + selected media + usage README (subset safety + manifest completeness); unselected media must never leak into the manifest, and no pack path or artifact ref may use the CKC/CastKit namespace or .GOV. All slugs are made run-unique at load time.",
+  "_comment": "MT-077 portable JSON fixture corpus: share-pack export backed by embedded SurrealDB/EventLedger. The selector bundles exactly the sheet + selected media + usage README (subset safety + manifest completeness); unselected media must never leak into the manifest, and no pack path or artifact ref may use the CKC/CastKit namespace or .GOV. All slugs are made run-unique at load time.",
   "character": {
     "public_id_slug": "mt-077-share-subject",
     "display_name": "Share Pack Fixture Subject"

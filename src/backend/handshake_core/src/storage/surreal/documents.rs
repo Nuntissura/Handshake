@@ -194,3 +194,112 @@ impl SurrealStorage {
 fn map_storage_error(error: SurrealStorageError) -> StorageError {
     StorageError::Database(error.to_string())
 }
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+#[derive(SurrealValue)]
+struct RichDocumentLoomIdentityMutation {
+    record: RecordId,
+    content_type: String,
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+#[derive(SurrealValue)]
+struct RichDocumentSearchIdentityMutation {
+    record: RecordId,
+    workspace: RecordId,
+    content_type: String,
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+impl SurrealStorage {
+    /// Resettable embedded-store fault at the RichDocument search-projection
+    /// write. The event runs inside the production create/import transaction,
+    /// after the RichDocument and same-id LoomBlock writes, so its failure
+    /// proves those earlier writes roll back together.
+    pub async fn test_set_rich_document_projection_failpoint(
+        &self,
+        enabled: bool,
+    ) -> StorageResult<()> {
+        let statement = if enabled {
+            "DEFINE EVENT OVERWRITE mt141_rich_document_projection_failpoint \
+             ON TABLE loom_block_search_index \
+             WHEN ($event = 'CREATE' OR $event = 'UPDATE') \
+             THEN { THROW 'MT141-RICH-DOCUMENT-PROJECTION-FAILPOINT'; };"
+        } else {
+            "REMOVE EVENT mt141_rich_document_projection_failpoint \
+             ON TABLE loom_block_search_index;"
+        };
+        self.with_data_operation(move |database| {
+            Box::pin(async move {
+                database.client.query(statement).await?.check()?;
+                Ok(())
+            })
+        })
+        .await
+        .map_err(map_storage_error)
+    }
+
+    /// Typed corruption seam for a same-id RichDocument LoomBlock collision.
+    /// Tests must restore the identity explicitly after observing fail-closed
+    /// behavior; ordinary product callers cannot alter `content_type`.
+    pub async fn test_set_rich_document_loom_identity(
+        &self,
+        rich_document_id: &str,
+        content_type: crate::storage::LoomBlockContentType,
+    ) -> StorageResult<()> {
+        let bindings = RichDocumentLoomIdentityMutation {
+            record: RecordId::new("loom_blocks", rich_document_id.to_owned()),
+            content_type: content_type.as_str().to_owned(),
+        };
+        let rows: Vec<RecordId> = self
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values(
+                            "UPDATE $record SET content_type = $content_type RETURN VALUE id;",
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await
+            .map_err(map_storage_error)?;
+        if rows.len() != 1 {
+            return Err(StorageError::NotFound("loom_block"));
+        }
+        Ok(())
+    }
+
+    /// Typed corruption/setup seam for the search projection identity checked
+    /// by RichDocument save, rename, and atomic delete transactions.
+    pub async fn test_set_rich_document_search_identity(
+        &self,
+        rich_document_id: &str,
+        workspace_id: &str,
+        content_type: crate::storage::LoomBlockContentType,
+    ) -> StorageResult<()> {
+        let bindings = RichDocumentSearchIdentityMutation {
+            record: RecordId::new("loom_block_search_index", rich_document_id.to_owned()),
+            workspace: RecordId::new(WORKSPACES_TABLE, workspace_id.to_owned()),
+            content_type: content_type.as_str().to_owned(),
+        };
+        let rows: Vec<RecordId> = self
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values(
+                            "UPDATE $record SET workspace_id = $workspace, \
+                             content_type = $content_type RETURN VALUE id;",
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await
+            .map_err(map_storage_error)?;
+        if rows.len() != 1 {
+            return Err(StorageError::NotFound("loom_block_search_index"));
+        }
+        Ok(())
+    }
+}

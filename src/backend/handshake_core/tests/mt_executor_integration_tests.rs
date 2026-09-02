@@ -10,7 +10,7 @@ use handshake_core::mt_executor::{
 };
 use handshake_core::process_ledger::mt_executor::{
     AuthorizedMtCoder, CoderAuthorizationToken, MtExecutorIo, MtExecutorRunConfig,
-    MtExecutorRunError, MtExecutorRunOutcome, PostgresMtExecutorIo,
+    MtExecutorRunError, MtExecutorRunOutcome, SurrealMtExecutorIo,
 };
 use handshake_core::process_ledger::mt_loop_control::{MtLoopCheckpoint, MtLoopCheckpointRepo};
 use handshake_core::role_mailbox::RoleId;
@@ -21,6 +21,7 @@ use handshake_core::role_mailbox_v1::{
     MicroTaskVerificationNeededBody, ResponseAuthorityScope, RoleMailboxClaimLeaseV1,
     RoleMailboxRepository, RoleMailboxThread, RoleMailboxThreadId, TakeoverPolicy,
 };
+use handshake_core::storage::tests::embedded_test_backend;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -693,26 +694,26 @@ fn mt_189_message_family_bodies_encode_bounded() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
-async fn mt_189_postgres_orchestrator_persists_completion_and_releases_claim() {
-    let pool = mt_189_postgres_pool().await;
-    ensure_mt_189_postgres_schema(&pool).await;
+async fn mt_189_embedded_orchestrator_persists_completion_and_releases_claim() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated executor backend");
 
-    let queue = handshake_core::mt_executor::MicroTaskQueue::new(pool.clone());
+    let queue = handshake_core::mt_executor::MicroTaskQueue::new(backend.storage.clone());
     let scheduler = FairScheduler::new(StarvationConfig::default());
-    let mailbox_repo = RoleMailboxRepository::new(pool.clone());
-    let checkpoint_repo = MtLoopCheckpointRepo::new(pool.clone());
+    let mailbox_repo = RoleMailboxRepository::new(backend.storage.clone());
+    let checkpoint_repo = MtLoopCheckpointRepo::new(backend.storage.clone());
     let backpressure = BackpressureGuard::new(BackpressureConfig {
         inbox_cap: 100_000,
         tokens_per_second: 100_000,
         burst_capacity: 100_000,
     });
 
-    let wp = mt_189_unique_wp_id("pg-orchestrator");
+    let wp = mt_189_unique_wp_id("embedded-orchestrator");
     let session_id = Uuid::now_v7();
     let executor_identity = identity(session_id);
     let thread = RoleMailboxThread::open(
-        format!("mt-189-postgres-{session_id}"),
+        format!("mt-189-embedded-{session_id}"),
         LinkedRecordKind::Mt,
         Some("MT-189".to_string()),
         vec![ExecutorKind::LocalSmallModel],
@@ -731,7 +732,7 @@ async fn mt_189_postgres_orchestrator_persists_completion_and_releases_claim() {
         "MT-189",
         PathBuf::from("task_packets/WP-KERNEL-004/MT-189.json"),
         6,
-        vec!["postgres".to_string(), "orchestrator".to_string()],
+        vec!["embedded-store".to_string(), "orchestrator".to_string()],
     );
     job.mailbox_thread_id = Some(thread_id.as_uuid());
     job.escalation_tier = EscalationTier::HardGate;
@@ -740,7 +741,7 @@ async fn mt_189_postgres_orchestrator_persists_completion_and_releases_claim() {
     let job_id = job.job_id;
     queue.enqueue(&job).await.expect("enqueue job");
 
-    let postgres_io = PostgresMtExecutorIo::new(
+    let surreal_io = SurrealMtExecutorIo::new(
         &queue,
         &scheduler,
         &mailbox_repo,
@@ -752,11 +753,11 @@ async fn mt_189_postgres_orchestrator_persists_completion_and_releases_claim() {
         .run(
             executor_identity.clone(),
             MtExecutorRunConfig::new(
-                &postgres_io,
+                &surreal_io,
                 AuthorizedMtCoder::new(
                     Arc::new(SuccessCoder {
-                        summary: "postgres completion persisted",
-                        evidence: vec!["artifact://mt-189/postgres-output".to_string()],
+                        summary: "embedded completion persisted",
+                        evidence: vec!["artifact://mt-189/embedded-output".to_string()],
                     }),
                     CoderAuthorizationToken::for_executor_identity(&executor_identity),
                 ),
@@ -769,7 +770,7 @@ async fn mt_189_postgres_orchestrator_persists_completion_and_releases_claim() {
         MtExecutorRunOutcome::Completed {
             job_id: job_id.as_uuid(),
             signal: handshake_core::mt_executor::CompletionSignal::Success {
-                summary: "postgres completion persisted".to_string()
+                summary: "embedded completion persisted".to_string()
             }
         }
     );
@@ -782,14 +783,14 @@ async fn mt_189_postgres_orchestrator_persists_completion_and_releases_claim() {
     assert_eq!(stored_job.state, MicroTaskJobState::Completed);
     assert_eq!(stored_job.claimed_by_session, Some(session_id));
 
-    let outcomes = MtOutcomeRecorder::list_for_job(&pool, job_id)
+    let outcomes = MtOutcomeRecorder::list_for_job(&backend.storage, job_id)
         .await
         .expect("list persisted outcomes");
     assert_eq!(outcomes.len(), 1);
     assert_eq!(outcomes[0].outcome_kind, MtOutcomeKind::Success);
     assert_eq!(
         outcomes[0].evidence_pointers,
-        vec!["artifact://mt-189/postgres-output".to_string()]
+        vec!["artifact://mt-189/embedded-output".to_string()]
     );
 
     let checkpoint = checkpoint_repo
@@ -815,10 +816,10 @@ async fn mt_189_postgres_orchestrator_persists_completion_and_releases_claim() {
     match completion_family {
         MessageFamily::MicroTaskCompletionReport(body) => {
             assert_eq!(body.mt_ref.mt_id, "MT-189");
-            assert_eq!(body.outcome_summary, "postgres completion persisted");
+            assert_eq!(body.outcome_summary, "embedded completion persisted");
             assert_eq!(body.completion_state, CompletionState::Completed);
             assert_eq!(body.artifacts.len(), 1);
-            assert_eq!(body.artifacts[0].uri, "artifact://mt-189/postgres-output");
+            assert_eq!(body.artifacts[0].uri, "artifact://mt-189/embedded-output");
         }
         other => panic!("expected completion report family, got {other:?}"),
     }
@@ -831,56 +832,17 @@ async fn mt_189_postgres_orchestrator_persists_completion_and_releases_claim() {
             .is_none(),
         "executor must release its active mailbox lease"
     );
-    let (released_leases,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM role_mailbox_claim_lease WHERE thread_id = $1 AND released_at_utc IS NOT NULL",
-    )
-    .bind(thread_id.as_uuid())
-    .fetch_one(&pool)
-    .await
-    .expect("count released leases");
+    let lease_chain = mailbox_repo
+        .list_lease_chain_for_thread(thread_id)
+        .await
+        .expect("list lease chain");
+    let released_leases = lease_chain
+        .iter()
+        .filter(|lease| lease.released_at_utc.is_some())
+        .count();
     assert_eq!(released_leases, 1);
-
-    cleanup_mt_189_postgres_rows(&pool, &wp, thread_id).await;
-}
-
-async fn mt_189_postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL test URL");
-    sqlx::PgPool::connect(&url).await.expect("postgres connect")
-}
-
-async fn ensure_mt_189_postgres_schema(pool: &sqlx::PgPool) {
-    let queue = handshake_core::mt_executor::MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure queue schema");
-    FairScheduler::new(StarvationConfig::default())
-        .ensure_schema(pool)
-        .await
-        .expect("ensure scheduler schema");
-    RoleMailboxRepository::new(pool.clone())
-        .ensure_schema()
-        .await
-        .expect("ensure mailbox schema");
-    MtOutcomeRecorder::ensure_schema(pool)
-        .await
-        .expect("ensure outcome schema");
 }
 
 fn mt_189_unique_wp_id(test_label: &str) -> String {
     format!("WP-MT189-{}-{}", test_label, Uuid::now_v7().simple())
-}
-
-async fn cleanup_mt_189_postgres_rows(
-    pool: &sqlx::PgPool,
-    wp: &str,
-    thread_id: RoleMailboxThreadId,
-) {
-    let _ = sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(wp)
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("DELETE FROM role_mailbox_thread WHERE thread_id = $1")
-        .bind(thread_id.as_uuid())
-        .execute(pool)
-        .await;
 }

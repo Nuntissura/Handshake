@@ -13,7 +13,7 @@
 //! possible, plus a durable `index_run_slot_rejected` denial receipt.
 //!
 //! Relationship to `knowledge_index_runs` (migration 0133): that table is
-//! owned by the PostgresEventLedgerCore lane (MT-052) and is NOT modified
+//! owned by the SurrealEventLedgerCore lane (MT-052) and is NOT modified
 //! here. When a run row exists, callers thread its id through
 //! `index_run_ref` so lease receipts and run rows correlate; the guard
 //! itself only depends on committed WP-009 surfaces (leases 0151, denial

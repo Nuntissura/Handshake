@@ -1,4 +1,4 @@
-//! WP-KERNEL-009 UserManual route-level proof against REAL PostgreSQL over a
+//! WP-KERNEL-009 UserManual route-level proof against the embedded SurrealDB over a
 //! loopback listener (quiet; no foreground window):
 //! * MT-201 UserManualBackendApi — list / read / search / link routes.
 //! * MT-199 UserManualModelQuickstartBundles — per-area bundles.
@@ -12,55 +12,100 @@
 //!   the REAL full product router (`api::routes`) — a documented route the
 //!   router does not serve fails the suite.
 
-mod knowledge_pg_support;
 #[allow(dead_code)]
 mod user_manual_support;
 
 use handshake_core::api;
+use handshake_core::kernel::KernelEventType;
+use handshake_core::storage::surreal::SurrealDatabase;
+use handshake_core::storage::Database;
 use handshake_core::user_manual::fixtures::{
     restore_page_content_hash, tamper_page_content_hash, unreachable_pages,
 };
 use handshake_core::user_manual::registry::{probe_path, wp009_surface_registry};
 use handshake_core::user_manual::seed::{ensure_seeded, QUICKSTART_AREAS};
+use handshake_core::user_manual::store::UserManualStore;
 use handshake_core::user_manual::USER_MANUAL_VERSION;
-use knowledge_pg_support::KnowledgePg;
 use serde_json::Value;
-use sqlx::Connection;
 use std::collections::BTreeSet;
-use user_manual_support::{app_state_for, start_server};
+use surrealdb::types::{RecordId, SurrealValue};
+use user_manual_support::{app_state_for, manual_test_backend, start_server, ManualTestBackend};
 
 struct ApiFixture {
-    kpg: KnowledgePg,
+    backend: ManualTestBackend,
     base: String,
     _server: tokio::task::JoinHandle<()>,
     http: reqwest::Client,
 }
 
-async fn fixture() -> Option<ApiFixture> {
-    let kpg = knowledge_pg_support::knowledge_pg().await?;
-    ensure_seeded(&kpg.db).await.expect("seed corpus");
-    let state = app_state_for(&kpg.schema_url).await;
+async fn fixture() -> ApiFixture {
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    ensure_seeded(&backend.db).await.expect("seed corpus");
+    let state = app_state_for(&backend.db).await;
     let (base, server) = start_server(api::user_manual::routes(state)).await;
-    Some(ApiFixture {
-        kpg,
+    ApiFixture {
+        backend,
         base,
         _server: server,
         http: reqwest::Client::new(),
-    })
+    }
 }
 
-async fn receipt_exists(kpg: &KnowledgePg, event_id: &str) -> bool {
-    let mut conn = kpg.raw_connection().await;
-    let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM kernel_event_ledger \
-         WHERE event_id = $1 AND event_type = 'KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED')",
-    )
-    .bind(event_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("receipt lookup");
-    conn.close().await.ok();
-    exists
+async fn receipt_exists(db: &SurrealDatabase, subject: &str, event_id: &str) -> bool {
+    db.list_kernel_events_for_aggregate("user_manual_entry", subject)
+        .await
+        .expect("receipt lookup")
+        .iter()
+        .any(|event| {
+            event.event_id == event_id
+                && event.event_type == KernelEventType::KnowledgeUserManualEntryRecorded
+        })
+}
+
+async fn tamper_quickstart_page_link(db: &SurrealDatabase) -> String {
+    let store = UserManualStore::new(db);
+    let (_, _, anchors) = store
+        .get_page_by_slug("quickstart-index")
+        .await
+        .expect("read quickstart anchors")
+        .expect("seeded quickstart page");
+    let anchor = anchors
+        .into_iter()
+        .filter(|anchor| anchor.anchor_kind == "page_link")
+        .min_by(|left, right| left.anchor_value.cmp(&right.anchor_value))
+        .expect("seeded quickstart page_link anchor");
+    let anchor_id = anchor.anchor_id.clone();
+
+    #[derive(SurrealValue)]
+    struct Bindings {
+        anchor: RecordId,
+        replacement: String,
+    }
+
+    let record_id = anchor_id.clone();
+    let changed: Vec<Value> = db
+        .storage()
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "UPDATE $anchor SET anchor_value = $replacement RETURN AFTER;",
+                        Bindings {
+                            anchor: RecordId::new("user_manual_anchors", record_id),
+                            replacement: "missing-linked-page-for-mt199".to_owned(),
+                        },
+                    )
+                    .await
+            })
+        })
+        .await
+        .expect("tamper quickstart page_link");
+    assert_eq!(
+        changed.len(),
+        1,
+        "tamper must update one quickstart page_link"
+    );
+    anchor_id
 }
 
 fn loom_router_surfaces_from_source() -> BTreeSet<(String, String)> {
@@ -166,7 +211,7 @@ fn mt027_results_manual_matches_required_json_extractor_contract() {
 /// RETURNS a real, persisted bootstrap receipt.
 #[tokio::test]
 async fn mt201_pages_list_and_read_with_bootstrap_receipt() {
-    let fx = skip_if_no_pg!(fixture().await, "mt201_pages");
+    let fx = fixture().await;
     let list: Value = fx
         .http
         .get(format!("{}/usermanual/pages", fx.base))
@@ -198,7 +243,7 @@ async fn mt201_pages_list_and_read_with_bootstrap_receipt() {
         .as_str()
         .expect("receipt id");
     assert!(
-        receipt_exists(&fx.kpg, receipt).await,
+        receipt_exists(&fx.backend.db, "manual-toc", receipt).await,
         "bootstrap receipt {receipt} must be persisted in the EventLedger"
     );
 
@@ -215,8 +260,8 @@ async fn mt201_pages_list_and_read_with_bootstrap_receipt() {
 }
 
 #[tokio::test]
-async fn mt027_notes_manual_seeds_block_collection_workflow_in_real_postgres() {
-    let fx = skip_if_no_pg!(fixture().await, "mt027_block_collection_manual");
+async fn mt027_notes_manual_seeds_block_collection_workflow_in_embedded_surrealdb() {
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!("{}/usermanual/pages/notes-loom-surface", fx.base))
@@ -248,7 +293,7 @@ async fn mt027_notes_manual_seeds_block_collection_workflow_in_real_postgres() {
         "bcv.calendar.apply-range",
         "No blocks match this view.",
         "bcv.retry",
-        "transactional PostgreSQL outbox",
+        "transactional embedded SurrealDB outbox",
         "tests/run_mt027_argus_proof.ps1",
     ] {
         assert!(
@@ -261,7 +306,7 @@ async fn mt027_notes_manual_seeds_block_collection_workflow_in_real_postgres() {
 /// MT-201: search hits pages/sections/tools; an empty query is a typed 400.
 #[tokio::test]
 async fn mt201_search_finds_pages_and_tools() {
-    let fx = skip_if_no_pg!(fixture().await, "mt201_search");
+    let fx = fixture().await;
     let found: Value = fx
         .http
         .get(format!("{}/usermanual/search?q=backlinks", fx.base))
@@ -292,7 +337,7 @@ async fn mt201_search_finds_pages_and_tools() {
 /// routes are manual-registered and readable.
 #[tokio::test]
 async fn mt201_tools_list_and_read_resolve() {
-    let fx = skip_if_no_pg!(fixture().await, "mt201_tools");
+    let fx = fixture().await;
     let tools: Value = fx
         .http
         .get(format!("{}/usermanual/tools?origin=wp009_surface", fx.base))
@@ -365,7 +410,7 @@ async fn mt201_tools_list_and_read_resolve() {
 /// MT-201: page linking — outbound page links and inbound backlinks resolve.
 #[tokio::test]
 async fn mt201_page_links_resolve() {
-    let fx = skip_if_no_pg!(fixture().await, "mt201_links");
+    let fx = fixture().await;
     let links: Value = fx
         .http
         .get(format!("{}/usermanual/pages/manual-toc/links", fx.base))
@@ -412,7 +457,7 @@ async fn mt201_page_links_resolve() {
 /// pages inlined; an unknown area is a typed 404.
 #[tokio::test]
 async fn mt199_quickstart_bundles_resolve_all_areas() {
-    let fx = skip_if_no_pg!(fixture().await, "mt199_quickstarts");
+    let fx = fixture().await;
     for area in QUICKSTART_AREAS {
         let bundle: Value = fx
             .http
@@ -436,7 +481,8 @@ async fn mt199_quickstart_bundles_resolve_all_areas() {
             "{area} quickstart inlines its linked pages"
         );
         let receipt = bundle["bootstrap_receipt_event_id"].as_str().unwrap();
-        assert!(receipt_exists(&fx.kpg, receipt).await);
+        let subject = format!("quickstart-{area}");
+        assert!(receipt_exists(&fx.backend.db, &subject, receipt).await);
     }
     let missing = fx
         .http
@@ -452,29 +498,8 @@ async fn mt199_quickstart_bundles_resolve_all_areas() {
 /// page would hand a no-context model an incomplete bootstrap bundle.
 #[tokio::test]
 async fn mt199_quickstart_fails_when_linked_page_is_missing() {
-    let fx = skip_if_no_pg!(fixture().await, "mt199_quickstart_missing_link");
-    let mut conn = fx.kpg.raw_connection().await;
-    let changed_anchor: String = sqlx::query_scalar(
-        r#"
-        WITH victim AS (
-            SELECT a.anchor_id
-            FROM user_manual_anchors a
-            JOIN user_manual_pages p ON p.page_id = a.page_id
-            WHERE p.slug = 'quickstart-index'
-              AND a.anchor_kind = 'page_link'
-            ORDER BY a.anchor_value
-            LIMIT 1
-        )
-        UPDATE user_manual_anchors
-        SET anchor_value = 'missing-linked-page-for-mt199'
-        WHERE anchor_id = (SELECT anchor_id FROM victim)
-        RETURNING anchor_id
-        "#,
-    )
-    .fetch_one(&mut conn)
-    .await
-    .expect("tamper quickstart page_link");
-    conn.close().await.ok();
+    let fx = fixture().await;
+    let changed_anchor = tamper_quickstart_page_link(&fx.backend.db).await;
 
     let response = fx
         .http
@@ -502,7 +527,7 @@ async fn mt199_quickstart_fails_when_linked_page_is_missing() {
 /// target slug resolves against the LIVE database.
 #[tokio::test]
 async fn mt200_access_points_resolve() {
-    let fx = skip_if_no_pg!(fixture().await, "mt200_access_points");
+    let fx = fixture().await;
     let payload: Value = fx
         .http
         .get(format!("{}/usermanual/access-points", fx.base))
@@ -542,7 +567,7 @@ async fn mt200_access_points_resolve() {
 /// persisted compatibility receipt (spec 10.15.8 bridge law).
 #[tokio::test]
 async fn mt203_legacy_bridge_route_maps_and_emits_compat_receipt() {
-    let fx = skip_if_no_pg!(fixture().await, "mt203_legacy_bridge");
+    let fx = fixture().await;
     let bridge: Value = fx
         .http
         .get(format!("{}/usermanual/legacy/model-manual", fx.base))
@@ -557,7 +582,7 @@ async fn mt203_legacy_bridge_route_maps_and_emits_compat_receipt() {
     assert_eq!(bridge["canonical"]["route_namespace"], "/usermanual");
     let receipt = bridge["compatibility_receipt_event_id"].as_str().unwrap();
     assert!(
-        receipt_exists(&fx.kpg, receipt).await,
+        receipt_exists(&fx.backend.db, "model_manual", receipt).await,
         "compatibility receipt must be persisted (spec 10.15.8)"
     );
 
@@ -589,7 +614,7 @@ async fn mt203_legacy_bridge_route_maps_and_emits_compat_receipt() {
 /// stale_content; restoring heals. The check itself is receipted.
 #[tokio::test]
 async fn mt204_freshness_current_then_stale_fixture() {
-    let fx = skip_if_no_pg!(fixture().await, "mt204_freshness");
+    let fx = fixture().await;
     let fresh: Value = fx
         .http
         .get(format!("{}/usermanual/freshness", fx.base))
@@ -609,10 +634,10 @@ async fn mt204_freshness_current_then_stale_fixture() {
             .collect::<Vec<_>>())
     );
     let receipt = fresh["receipt_event_id"].as_str().unwrap();
-    assert!(receipt_exists(&fx.kpg, receipt).await);
+    assert!(receipt_exists(&fx.backend.db, USER_MANUAL_VERSION, receipt).await);
 
     // Stale fixture (MT-208 family): tamper one stored page hash.
-    let previous = tamper_page_content_hash(&fx.kpg.db, "core-workflows")
+    let previous = tamper_page_content_hash(&fx.backend.db, "core-workflows")
         .await
         .expect("tamper");
     let stale: Value = fx
@@ -634,7 +659,7 @@ async fn mt204_freshness_current_then_stale_fixture() {
         "tampered page must yield stale_content"
     );
 
-    restore_page_content_hash(&fx.kpg.db, "core-workflows", &previous)
+    restore_page_content_hash(&fx.backend.db, "core-workflows", &previous)
         .await
         .expect("restore");
     let healed: Value = fx
@@ -654,7 +679,7 @@ async fn mt204_freshness_current_then_stale_fixture() {
 /// reachable from the TOC.
 #[tokio::test]
 async fn mt205_projection_renders_readable_navigable_html() {
-    let fx = skip_if_no_pg!(fixture().await, "mt205_projection");
+    let fx = fixture().await;
     let projection: Value = fx
         .http
         .get(format!(
@@ -706,7 +731,7 @@ async fn mt205_projection_renders_readable_navigable_html() {
     assert_eq!(bad.status(), 400);
 
     // Visual navigation law: no stored page is orphaned from the TOC.
-    let orphans = unreachable_pages(&fx.kpg.db).await.expect("nav audit");
+    let orphans = unreachable_pages(&fx.backend.db).await.expect("nav audit");
     assert!(orphans.is_empty(), "orphan manual pages: {orphans:?}");
 }
 
@@ -714,7 +739,7 @@ async fn mt205_projection_renders_readable_navigable_html() {
 /// with stable reasons; unknown tokens are 400; local_model succeeds.
 #[tokio::test]
 async fn mt201_resync_permission_gate_fails_closed() {
-    let fx = skip_if_no_pg!(fixture().await, "mt201_resync_gate");
+    let fx = fixture().await;
 
     let anonymous = fx
         .http
@@ -772,12 +797,11 @@ async fn mt201_resync_permission_gate_fails_closed() {
 /// does not serve (spec 10.15.8: stale docs are a build defect).
 #[tokio::test]
 async fn mtdoc_every_registry_surface_exists_on_the_real_router() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mtdoc_router_probe"
-    );
-    ensure_seeded(&kpg.db).await.expect("seed");
-    let state = app_state_for(&kpg.schema_url).await;
+    let backend = manual_test_backend()
+        .await
+        .expect("open embedded backend for router probe");
+    ensure_seeded(&backend.db).await.expect("seed");
+    let state = app_state_for(&backend.db).await;
     let (base, _server) = start_server(api::routes(state)).await;
     let http = reqwest::Client::new();
 

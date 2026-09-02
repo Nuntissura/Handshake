@@ -1,13 +1,12 @@
-//! WP-KERNEL-009 MT-177 LoomBlockKnowledgeBridge — REAL PostgreSQL + EventLedger
+//! WP-KERNEL-009 MT-177 LoomBlockKnowledgeBridge — embedded store + EventLedger
 //! authority proof.
 //!
 //! Proves the foundational WP-009 Loom supersession (Master Spec §10.12 #9.1.1):
 //! a LoomBlock resolves to the ProjectKnowledgeIndex (`knowledge_entities`,
 //! entity_kind=`loom_block`) and carries a `KNOWLEDGE_LOOM_BLOCK_INDEXED`
 //! EventLedger receipt. There is NO SQLite path: the storage crate compiles no
-//! `sqlite` module, and these tests run against the same isolated schema the
-//! full migration chain ran in (`knowledge_pg`), driving the real
-//! `PostgresDatabase` (which implements both `Database` and `KnowledgeStore`).
+//! `sqlite` module, and these tests run against an isolated embedded store
+//! through the typed `Database` and `KnowledgeStore` contracts.
 //!
 //! Covered:
 //!  * bridge upserts a knowledge entity with stable identity (ws, loom_block,
@@ -16,27 +15,28 @@
 //!  * bridge is idempotent (re-bridge => same entity, re-pointed receipt, no
 //!    duplicate authority rows);
 //!  * get/list bridge read back the authority binding;
-//!  * the authority backend is Postgres+EventLedger (the only variant);
+//!  * the authority backend is embedded SurrealDB + EventLedger;
 //!  * fail-closed when bridging a non-existent / foreign block.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
+use embedded_knowledge_support::open_embedded_store;
 use handshake_core::storage::knowledge::{KnowledgeEntityKind, KnowledgeStore};
 use handshake_core::storage::{
     Database, LoomAuthorityBackend, LoomBlockContentType, LoomBlockDerived, NewLoomBlock,
     WriteContext,
 };
-use knowledge_pg_support::knowledge_pg;
 use uuid::Uuid;
 
-/// Macro: skip loudly (never silently green) when PostgreSQL binaries are
-/// absent. Mirrors the knowledge_pg_support contract.
-macro_rules! pg_or_skip {
+/// Macro: retain the former loud-return shape while using the mandatory
+/// embedded fixture. Setup failures panic in `open_embedded_store`.
+macro_rules! embedded_store_or_return {
     () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
+        match open_embedded_store().await {
+            Some(store) => store,
             None => {
-                eprintln!("SKIP MT-177 loom knowledge bridge proof: PostgreSQL unavailable");
+                eprintln!("SKIP MT-177 loom knowledge bridge proof: embedded store unavailable");
                 return;
             }
         }
@@ -44,7 +44,7 @@ macro_rules! pg_or_skip {
 }
 
 async fn make_block(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     workspace_id: &str,
     title: Option<&str>,
     content_type: LoomBlockContentType,
@@ -75,19 +75,19 @@ async fn make_block(
 
 #[tokio::test]
 async fn bridge_binds_loom_block_to_knowledge_entity_and_event_ledger() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     let block_id = make_block(
-        &pg.db,
+        &store.db,
         &ws,
         Some("Design Notes"),
         LoomBlockContentType::Note,
     )
     .await;
 
-    let bridge = pg
+    let bridge = store
         .db
         .bridge_loom_block_to_knowledge(&ctx, &ws, &block_id)
         .await
@@ -103,7 +103,7 @@ async fn bridge_binds_loom_block_to_knowledge_entity_and_event_ledger() {
 
     // The ProjectKnowledgeIndex entity exists with the stable natural identity
     // (workspace, loom_block, block_id) — the block id IS the entity key.
-    let entity = pg
+    let entity = store
         .db
         .get_knowledge_entity_by_identity(&ws, KnowledgeEntityKind::LoomBlock, &block_id)
         .await
@@ -116,7 +116,7 @@ async fn bridge_binds_loom_block_to_knowledge_entity_and_event_ledger() {
 
     // The EventLedger receipt is a real KNOWLEDGE_LOOM_BLOCK_INDEXED event,
     // aggregated on the entity, and the bridge row points at it.
-    let events = pg
+    let events = store
         .db
         .list_kernel_events_for_aggregate("knowledge_loom_block", &bridge.entity_id)
         .await
@@ -142,20 +142,20 @@ async fn bridge_binds_loom_block_to_knowledge_entity_and_event_ledger() {
 
 #[tokio::test]
 async fn bridge_display_name_falls_back_when_title_absent() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     // No title, no filename: display_name must still be non-empty (0135 CHECK)
     // and stable/human-meaningful — never an absolute path.
-    let block_id = make_block(&pg.db, &ws, None, LoomBlockContentType::Note).await;
-    let bridge = pg
+    let block_id = make_block(&store.db, &ws, None, LoomBlockContentType::Note).await;
+    let bridge = store
         .db
         .bridge_loom_block_to_knowledge(&ctx, &ws, &block_id)
         .await
         .expect("bridge untitled block");
 
-    let entity = pg
+    let entity = store
         .db
         .get_knowledge_entity(&bridge.entity_id)
         .await
@@ -174,18 +174,24 @@ async fn bridge_display_name_falls_back_when_title_absent() {
 
 #[tokio::test]
 async fn bridge_is_idempotent_no_duplicate_authority_rows() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
-    let block_id = make_block(&pg.db, &ws, Some("Reindex Me"), LoomBlockContentType::Note).await;
+    let block_id = make_block(
+        &store.db,
+        &ws,
+        Some("Reindex Me"),
+        LoomBlockContentType::Note,
+    )
+    .await;
 
-    let first = pg
+    let first = store
         .db
         .bridge_loom_block_to_knowledge(&ctx, &ws, &block_id)
         .await
         .expect("first bridge");
-    let second = pg
+    let second = store
         .db
         .bridge_loom_block_to_knowledge(&ctx, &ws, &block_id)
         .await
@@ -198,7 +204,7 @@ async fn bridge_is_idempotent_no_duplicate_authority_rows() {
     );
 
     // Exactly one loom_block entity for this block: no parallel/duplicate rows.
-    let entities = pg
+    let entities = store
         .db
         .list_knowledge_entities_by_kind(&ws, KnowledgeEntityKind::LoomBlock)
         .await
@@ -214,7 +220,7 @@ async fn bridge_is_idempotent_no_duplicate_authority_rows() {
     );
 
     // Exactly one bridge row for the block (PK on block_id guarantees it).
-    let bridges = pg
+    let bridges = store
         .db
         .list_loom_block_knowledge_bridges(&ws)
         .await
@@ -223,7 +229,7 @@ async fn bridge_is_idempotent_no_duplicate_authority_rows() {
     assert_eq!(bridge_rows.len(), 1, "exactly one bridge row per block");
 
     // The re-index appended a fresh receipt and the bridge re-points to it.
-    let events = pg
+    let events = store
         .db
         .list_kernel_events_for_aggregate("knowledge_loom_block", &first.entity_id)
         .await
@@ -244,29 +250,29 @@ async fn bridge_is_idempotent_no_duplicate_authority_rows() {
 
 #[tokio::test]
 async fn get_and_list_bridge_read_back_authority_binding() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     // Un-bridged read is None (the block exists but was never bridged via this
     // direct-storage path).
-    let manual_block = make_block(&pg.db, &ws, Some("Manual"), LoomBlockContentType::Note).await;
+    let manual_block = make_block(&store.db, &ws, Some("Manual"), LoomBlockContentType::Note).await;
     // (create_loom_block at the storage layer does NOT auto-bridge; the API
     // layer does. So this block is initially un-bridged.)
-    let unbridged = pg
+    let unbridged = store
         .db
         .get_loom_block_knowledge_bridge(&ws, &manual_block)
         .await
         .expect("get bridge");
     assert!(unbridged.is_none(), "block is not bridged until bridged");
 
-    let bridge = pg
+    let bridge = store
         .db
         .bridge_loom_block_to_knowledge(&ctx, &ws, &manual_block)
         .await
         .expect("bridge");
 
-    let fetched = pg
+    let fetched = store
         .db
         .get_loom_block_knowledge_bridge(&ws, &manual_block)
         .await
@@ -275,7 +281,7 @@ async fn get_and_list_bridge_read_back_authority_binding() {
     assert_eq!(fetched.entity_id, bridge.entity_id);
     assert_eq!(fetched.index_event_id, bridge.index_event_id);
 
-    let listed = pg
+    let listed = store
         .db
         .list_loom_block_knowledge_bridges(&ws)
         .await
@@ -285,22 +291,21 @@ async fn get_and_list_bridge_read_back_authority_binding() {
 
 #[tokio::test]
 async fn authority_backend_is_surreal_event_ledger() {
-    let pg = pg_or_skip!();
+    let store = embedded_store_or_return!();
     // §10.12 #9.1.1: the only Loom authority is SurrealDB + EventLedger.
     assert_eq!(
-        pg.db.loom_authority_backend(),
+        store.db.loom_authority_backend(),
         LoomAuthorityBackend::SurrealEventLedger
     );
-    assert!(pg.db.loom_authority_backend().is_authority());
-    let wire = serde_json::to_string(&pg.db.loom_authority_backend())
+    assert!(store.db.loom_authority_backend().is_authority());
+    let wire = serde_json::to_string(&store.db.loom_authority_backend())
         .expect("Loom authority backend must serialize");
     assert_eq!(wire, "\"surreal_event_ledger\"");
-    assert!(!wire.contains("postgres"));
-    let legacy_read: LoomAuthorityBackend = serde_json::from_str("\"postgres_event_ledger\"")
-        .expect("legacy Loom authority wire remains readable");
-    assert_eq!(legacy_read, LoomAuthorityBackend::SurrealEventLedger);
+    let canonical_read: LoomAuthorityBackend = serde_json::from_str("\"surreal_event_ledger\"")
+        .expect("canonical Loom authority wire remains readable");
+    assert_eq!(canonical_read, LoomAuthorityBackend::SurrealEventLedger);
     assert_eq!(
-        serde_json::to_string(&legacy_read).expect("canonical Loom authority reserialization"),
+        serde_json::to_string(&canonical_read).expect("canonical Loom authority reserialization"),
         "\"surreal_event_ledger\""
     );
 }
@@ -337,19 +342,25 @@ fn sqlite_is_unreachable_from_the_loom_runtime_path() {
         );
     }
 
-    // 3. sqlx is built WITHOUT the `sqlite` feature: a SQLite pool cannot even
-    //    be constructed in this crate. (Postgres is the sole durable backend.)
+    // 3. The crate selects the embedded SurrealDB RocksDB engine. The former
+    //    relational client is absent from the active dependency surface.
     let cargo_toml =
         std::fs::read_to_string(format!("{crate_dir}/Cargo.toml")).expect("read Cargo.toml");
-    let sqlx_line = cargo_toml
+    let surreal_line = cargo_toml
         .lines()
-        .find(|line| line.trim_start().starts_with("sqlx ="))
-        .expect("sqlx dependency line");
+        .find(|line| line.trim_start().starts_with("surrealdb ="))
+        .expect("surrealdb dependency line");
     assert!(
-        !sqlx_line.contains("\"sqlite\""),
-        "sqlx must not enable the sqlite feature: {sqlx_line}"
+        surreal_line.contains("\"kv-rocksdb\""),
+        "embedded authority must enable the RocksDB engine: {surreal_line}"
     );
-    assert!(sqlx_line.contains("\"postgres\""), "sqlx enables postgres");
+    let retired_relational_client = ["sq", "lx", " ="].concat();
+    assert!(
+        !cargo_toml
+            .lines()
+            .any(|line| line.trim_start().starts_with(&retired_relational_client)),
+        "retired relational client must not remain an active dependency"
+    );
 
     // 4. The Loom storage API surface references no SQLite type.
     let loom_storage =
@@ -367,12 +378,12 @@ fn sqlite_is_unreachable_from_the_loom_runtime_path() {
 
 #[tokio::test]
 async fn bridge_fails_closed_on_missing_block() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     let missing = format!("loom-missing-{}", Uuid::now_v7());
-    let err = pg
+    let err = store
         .db
         .bridge_loom_block_to_knowledge(&ctx, &ws, &missing)
         .await
@@ -387,16 +398,16 @@ async fn bridge_fails_closed_on_missing_block() {
 
 /// MT-177 adversarial: a LoomBlock with an un-bridgeable id (empty / surrounded
 /// by whitespace) must be rejected at create time, so it can never exist as an
-/// orphan block outside Postgres/EventLedger authority. (The block id becomes
+/// orphan block outside embedded SurrealDB/EventLedger authority. (The block id becomes
 /// the knowledge_entities entity_key, which forbids surrounding whitespace.)
 #[tokio::test]
 async fn create_rejects_unbridgeable_block_id() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     for bad_id in ["", "   ", " leading", "trailing ", "\tmixed\n"] {
-        let result = pg
+        let result = store
             .db
             .create_loom_block(
                 &ctx,
@@ -423,7 +434,7 @@ async fn create_rejects_unbridgeable_block_id() {
     }
 
     // No orphan blocks were created (none can be listed in the All view).
-    let view = pg
+    let view = store
         .db
         .query_loom_view(
             &ws,

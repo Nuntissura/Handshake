@@ -1,12 +1,14 @@
-//! WP-KERNEL-009 MT-186 GraphSearchAndFilters -- real PostgreSQL proof.
+//! WP-KERNEL-009 MT-186 GraphSearchAndFilters -- real embedded SurrealDB proof.
 //!
 //! MT-186 extends Loom search from block-only search into the Obsidian-style
 //! graph search surface: one bounded query must find Loom blocks, code symbols,
 //! work packets, microtasks, UserManual pages, and project wiki pages from
-//! PostgreSQL authority.
+//! embedded SurrealDB authority.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
+use embedded_knowledge_support::open_embedded_store;
 use handshake_core::storage::knowledge::{
     KnowledgeEntityKind, KnowledgeStore, NewKnowledgeEntity, NewKnowledgeRichDocument,
 };
@@ -18,22 +20,21 @@ use handshake_core::user_manual::{
     store::{NewManualAnchor, NewManualSection, NewUserManualPage},
     USER_MANUAL_VERSION,
 };
-use knowledge_pg_support::knowledge_pg;
 use serde_json::json;
 
-macro_rules! pg_or_skip {
+macro_rules! embedded_store_or_return {
     () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
+        match open_embedded_store().await {
+            Some(store) => store,
             None => {
-                panic!("MT-186 loom graph search proof requires real PostgreSQL");
+                panic!("MT-186 loom graph search proof requires real embedded SurrealDB");
             }
         }
     }};
 }
 
 async fn insert_entity(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ws: &str,
     entity_kind: KnowledgeEntityKind,
     entity_key: &str,
@@ -57,7 +58,7 @@ async fn insert_entity(
 }
 
 async fn insert_user_manual_page(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     slug: &str,
     title: &str,
     body: &str,
@@ -91,7 +92,7 @@ async fn insert_user_manual_page(
 }
 
 async fn insert_loom_block(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ctx: &WriteContext,
     ws: &str,
     content_type: LoomBlockContentType,
@@ -124,7 +125,7 @@ async fn insert_loom_block(
 }
 
 async fn insert_rich_document(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ws: &str,
     title: &str,
     body: &str,
@@ -154,11 +155,11 @@ async fn insert_rich_document(
 
 #[tokio::test]
 async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
-    let loom_block = pg
+    let loom_block = store
         .db
         .create_loom_block(
             &ctx,
@@ -184,12 +185,13 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
         )
         .await
         .expect("insert loom block");
-    pg.db
+    store
+        .db
         .bridge_loom_block_to_knowledge(&ctx, &ws, &loom_block.block_id)
         .await
         .expect("bridge loom block");
     insert_entity(
-        &pg.db,
+        &store.db,
         &ws,
         KnowledgeEntityKind::Symbol,
         "rust:src/backend/graph_search.rs#GraphSearchAlpha",
@@ -197,7 +199,7 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
     )
     .await;
     insert_entity(
-        &pg.db,
+        &store.db,
         &ws,
         KnowledgeEntityKind::WorkPacket,
         "WP-KERNEL-009-GraphSearchAlpha",
@@ -205,7 +207,7 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
     )
     .await;
     insert_entity(
-        &pg.db,
+        &store.db,
         &ws,
         KnowledgeEntityKind::MicroTask,
         "MT-186-GraphSearchAlpha",
@@ -213,13 +215,13 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
     )
     .await;
     insert_user_manual_page(
-        &pg.db,
+        &store.db,
         "graph-search-alpha",
         "GraphSearchAlpha UserManual page",
         "Models use GraphSearchAlpha to find Loom notes, symbols, WPs, and MTs.",
     )
     .await;
-    let wiki_projection = pg
+    let wiki_projection = store
         .db
         .compile_loom_wiki_projection(
             &ws,
@@ -229,7 +231,7 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
         .await
         .expect("compile wiki projection");
 
-    let all_hits = pg
+    let all_hits = store
         .db
         .search_loom_graph(&ws, "GraphSearchAlpha", LoomSearchFilters::default(), 20, 0)
         .await
@@ -279,7 +281,7 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
         "heterogeneous graph search must include matching project wiki pages: {hit_keys:?}"
     );
 
-    let symbol_only = pg
+    let symbol_only = store
         .db
         .search_loom_graph(
             &ws,
@@ -296,7 +298,7 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
     assert_eq!(symbol_only.len(), 1);
     assert_eq!(symbol_only[0].source_kind.as_str(), "symbol");
 
-    let literal_wildcard = pg
+    let literal_wildcard = store
         .db
         .search_loom_graph(&ws, "%", LoomSearchFilters::default(), 20, 0)
         .await
@@ -306,7 +308,7 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
         "LIKE wildcards in user queries must be literal, not broadened into every graph hit"
     );
 
-    let empty = pg
+    let empty = store
         .db
         .search_loom_graph(&ws, "   ", LoomSearchFilters::default(), 20, 0)
         .await
@@ -316,11 +318,11 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
 
 #[tokio::test]
 async fn mt256_graph_search_matches_three_letter_abbreviations() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
-    let loom_block = pg
+    let loom_block = store
         .db
         .create_loom_block(
             &ctx,
@@ -347,7 +349,7 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
         .await
         .expect("insert loom block");
     let file_block = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::File,
@@ -356,7 +358,7 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
     )
     .await;
     let tag_hub = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::TagHub,
@@ -365,19 +367,20 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
     )
     .await;
     let rich_document = insert_rich_document(
-        &pg.db,
+        &store.db,
         &ws,
         "GraphSearchAlpha standalone document",
         "GraphSearchAlpha appears in a standalone RichDocument authority record",
     )
     .await;
 
-    pg.db
+    store
+        .db
         .bridge_loom_block_to_knowledge(&ctx, &ws, &loom_block.block_id)
         .await
         .expect("bridge loom block");
     insert_entity(
-        &pg.db,
+        &store.db,
         &ws,
         KnowledgeEntityKind::Symbol,
         "rust:src/backend/graph_search.rs#GraphSearchAlpha",
@@ -385,7 +388,7 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
     )
     .await;
     insert_entity(
-        &pg.db,
+        &store.db,
         &ws,
         KnowledgeEntityKind::WorkPacket,
         "WP-KERNEL-009-GraphSearchAlpha",
@@ -393,7 +396,7 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
     )
     .await;
     insert_entity(
-        &pg.db,
+        &store.db,
         &ws,
         KnowledgeEntityKind::MicroTask,
         "MT-186-GraphSearchAlpha",
@@ -401,13 +404,13 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
     )
     .await;
     insert_user_manual_page(
-        &pg.db,
+        &store.db,
         "graph-search-alpha",
         "GraphSearchAlpha UserManual page",
         "Models use GraphSearchAlpha to find Loom notes, symbols, WPs, and MTs.",
     )
     .await;
-    let wiki_projection = pg
+    let wiki_projection = store
         .db
         .compile_loom_wiki_projection(
             &ws,
@@ -417,7 +420,7 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
         .await
         .expect("compile wiki projection");
 
-    let abbreviation_hits = pg
+    let abbreviation_hits = store
         .db
         .search_loom_graph(&ws, "GSA", LoomSearchFilters::default(), 20, 0)
         .await
@@ -476,7 +479,7 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
         "abbreviation hit must preserve direct-open wiki projection id: {hit_keys:?}"
     );
 
-    let typo_hits = pg
+    let typo_hits = store
         .db
         .search_loom_graph(&ws, "GraphSearxh", LoomSearchFilters::default(), 20, 0)
         .await
@@ -526,12 +529,12 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
 
 #[tokio::test]
 async fn mt256_graph_search_exposes_file_tag_hub_and_document_source_filters() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     let file_block = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::File,
@@ -540,7 +543,7 @@ async fn mt256_graph_search_exposes_file_tag_hub_and_document_source_filters() {
     )
     .await;
     let tag_hub = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::TagHub,
@@ -549,14 +552,14 @@ async fn mt256_graph_search_exposes_file_tag_hub_and_document_source_filters() {
     )
     .await;
     let document = insert_rich_document(
-        &pg.db,
+        &store.db,
         &ws,
         "BreadthProofAlpha standalone document",
         "BreadthProofAlpha appears in a standalone rich document",
     )
     .await;
 
-    let hits = pg
+    let hits = store
         .db
         .search_loom_graph(
             &ws,
@@ -610,7 +613,7 @@ async fn mt256_graph_search_exposes_file_tag_hub_and_document_source_filters() {
         (LoomSearchSourceKind::TagHub, tag_hub.as_str()),
         (LoomSearchSourceKind::Document, document.as_str()),
     ] {
-        let filtered = pg
+        let filtered = store
             .db
             .search_loom_graph(
                 &ws,
@@ -636,13 +639,13 @@ async fn mt256_graph_search_exposes_file_tag_hub_and_document_source_filters() {
 
 #[tokio::test]
 async fn mt256_graph_search_all_source_limit_does_not_starve_documents() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     for index in 0..30 {
         insert_loom_block(
-            &pg.db,
+            &store.db,
             &ctx,
             &ws,
             LoomBlockContentType::Note,
@@ -652,14 +655,14 @@ async fn mt256_graph_search_all_source_limit_does_not_starve_documents() {
         .await;
     }
     let document = insert_rich_document(
-        &pg.db,
+        &store.db,
         &ws,
         "LimitFairnessAlpha standalone document",
         "LimitFairnessAlpha appears in a standalone rich document.",
     )
     .await;
 
-    let hits = pg
+    let hits = store
         .db
         .search_loom_graph(
             &ws,
@@ -692,12 +695,12 @@ async fn mt256_graph_search_all_source_limit_does_not_starve_documents() {
 
 #[tokio::test]
 async fn mt256_graph_search_block_group_limit_does_not_starve_file_or_tag_hub() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     let file_block = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::File,
@@ -706,7 +709,7 @@ async fn mt256_graph_search_block_group_limit_does_not_starve_file_or_tag_hub() 
     )
     .await;
     let tag_hub = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::TagHub,
@@ -717,7 +720,7 @@ async fn mt256_graph_search_block_group_limit_does_not_starve_file_or_tag_hub() 
 
     for index in 0..30 {
         insert_loom_block(
-            &pg.db,
+            &store.db,
             &ctx,
             &ws,
             LoomBlockContentType::Note,
@@ -729,7 +732,7 @@ async fn mt256_graph_search_block_group_limit_does_not_starve_file_or_tag_hub() 
         .await;
     }
 
-    let hits = pg
+    let hits = store
         .db
         .search_loom_graph(
             &ws,
@@ -768,11 +771,11 @@ async fn mt256_graph_search_block_group_limit_does_not_starve_file_or_tag_hub() 
 
 #[tokio::test]
 async fn mt256_graph_search_knowledge_group_limit_does_not_starve_wp_or_mt() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
 
     insert_entity(
-        &pg.db,
+        &store.db,
         &ws,
         KnowledgeEntityKind::WorkPacket,
         "WP-GROUPED-FAIRNESS",
@@ -780,7 +783,7 @@ async fn mt256_graph_search_knowledge_group_limit_does_not_starve_wp_or_mt() {
     )
     .await;
     insert_entity(
-        &pg.db,
+        &store.db,
         &ws,
         KnowledgeEntityKind::MicroTask,
         "MT-GROUPED-FAIRNESS",
@@ -790,7 +793,7 @@ async fn mt256_graph_search_knowledge_group_limit_does_not_starve_wp_or_mt() {
 
     for index in 0..30 {
         insert_entity(
-            &pg.db,
+            &store.db,
             &ws,
             KnowledgeEntityKind::Symbol,
             &format!("symbol.grouped.fairness.{index:02}"),
@@ -799,7 +802,7 @@ async fn mt256_graph_search_knowledge_group_limit_does_not_starve_wp_or_mt() {
         .await;
     }
 
-    let hits = pg
+    let hits = store
         .db
         .search_loom_graph(
             &ws,
@@ -831,18 +834,18 @@ async fn mt256_graph_search_knowledge_group_limit_does_not_starve_wp_or_mt() {
 
 #[tokio::test]
 async fn mt256_document_fuzzy_search_matches_body_only_terms() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
 
     let document = insert_rich_document(
-        &pg.db,
+        &store.db,
         &ws,
         "Reference standalone document",
         "Needle appears only in the rich document body.",
     )
     .await;
 
-    let hits = pg
+    let hits = store
         .db
         .search_loom_graph(
             &ws,
@@ -866,12 +869,12 @@ async fn mt256_document_fuzzy_search_matches_body_only_terms() {
 
 #[tokio::test]
 async fn mt256_graph_search_fuzzy_recall_is_not_capped_to_newest_candidates() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     let matching_block = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::Note,
@@ -882,7 +885,7 @@ async fn mt256_graph_search_fuzzy_recall_is_not_capped_to_newest_candidates() {
 
     for index in 0..520 {
         insert_loom_block(
-            &pg.db,
+            &store.db,
             &ctx,
             &ws,
             LoomBlockContentType::Note,
@@ -892,7 +895,7 @@ async fn mt256_graph_search_fuzzy_recall_is_not_capped_to_newest_candidates() {
         .await;
     }
 
-    let hits = pg
+    let hits = store
         .db
         .search_loom_graph(
             &ws,
@@ -912,7 +915,7 @@ async fn mt256_graph_search_fuzzy_recall_is_not_capped_to_newest_candidates() {
         "fuzzy search must not miss a valid old match outside the newest candidate window: {hits:?}"
     );
 
-    let block_hits = pg
+    let block_hits = store
         .db
         .search_loom_blocks(&ws, "GSA", LoomSearchFilters::default(), 5, 0)
         .await
@@ -927,13 +930,13 @@ async fn mt256_graph_search_fuzzy_recall_is_not_capped_to_newest_candidates() {
 
 #[tokio::test]
 async fn mt186_graph_search_offsets_after_prefetching_each_source() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     for index in 0..15 {
         insert_loom_block(
-            &pg.db,
+            &store.db,
             &ctx,
             &ws,
             LoomBlockContentType::Note,
@@ -943,7 +946,7 @@ async fn mt186_graph_search_offsets_after_prefetching_each_source() {
         .await;
     }
 
-    let page = pg
+    let page = store
         .db
         .search_loom_graph(
             &ws,
@@ -968,12 +971,12 @@ async fn mt186_graph_search_offsets_after_prefetching_each_source() {
 
 #[tokio::test]
 async fn mt186_block_scoped_filters_do_not_leak_non_block_hits() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     let tag = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::TagHub,
@@ -982,7 +985,7 @@ async fn mt186_block_scoped_filters_do_not_leak_non_block_hits() {
     )
     .await;
     let tagged = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::Note,
@@ -991,7 +994,7 @@ async fn mt186_block_scoped_filters_do_not_leak_non_block_hits() {
     )
     .await;
     let _untagged = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         LoomBlockContentType::Note,
@@ -999,7 +1002,8 @@ async fn mt186_block_scoped_filters_do_not_leak_non_block_hits() {
         Some("FilterLeakAlpha should be excluded by the tag filter"),
     )
     .await;
-    pg.db
+    store
+        .db
         .create_loom_edge(
             &ctx,
             NewLoomEdge {
@@ -1016,7 +1020,7 @@ async fn mt186_block_scoped_filters_do_not_leak_non_block_hits() {
         .await
         .expect("tag edge");
     insert_entity(
-        &pg.db,
+        &store.db,
         &ws,
         KnowledgeEntityKind::Symbol,
         "rust:filter_leak#FilterLeakAlpha",
@@ -1024,14 +1028,14 @@ async fn mt186_block_scoped_filters_do_not_leak_non_block_hits() {
     )
     .await;
     insert_user_manual_page(
-        &pg.db,
+        &store.db,
         "filter-leak-alpha",
         "FilterLeakAlpha UserManual page",
         "FilterLeakAlpha appears in manual content but cannot satisfy a Loom tag filter.",
     )
     .await;
 
-    let filtered = pg
+    let filtered = store
         .db
         .search_loom_graph(
             &ws,
@@ -1049,7 +1053,7 @@ async fn mt186_block_scoped_filters_do_not_leak_non_block_hits() {
     assert_eq!(filtered[0].source_kind, LoomSearchSourceKind::LoomBlock);
     assert_eq!(filtered[0].ref_id, tagged);
 
-    let impossible_symbol = pg
+    let impossible_symbol = store
         .db
         .search_loom_graph(
             &ws,

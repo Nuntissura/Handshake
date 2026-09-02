@@ -1,12 +1,13 @@
 //! WP-KERNEL-009 MT-237 ParallelWriteConflictFixture.
 //!
-//! Real PostgreSQL/EventLedger proof that concurrent operator/model/validator
+//! Real embedded-SurrealDB/EventLedger proof that concurrent operator/model/validator
 //! CRDT draft writes do not silently overwrite or drop state. Denied model and
 //! validator writes leave durable denial receipts, render through
 //! `/knowledge/crdt/conflict_state`, and repair by pull/merge/resubmit.
 
 #[allow(dead_code)]
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod knowledge_ingestion_support;
 
 use std::{collections::BTreeSet, sync::Arc};
 
@@ -23,9 +24,9 @@ use handshake_core::kernel::crdt::yjs_bridge::{
 };
 use handshake_core::kernel::KernelEventType;
 use handshake_core::storage::knowledge_crdt::list_denial_receipts_for_document;
+use handshake_core::storage::surreal::SurrealStorage;
 use handshake_core::storage::Database;
 use serde_json::{json, Value};
-use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Barrier;
 use uuid::Uuid;
 
@@ -69,7 +70,7 @@ fn envelope(
     }
 }
 
-async fn serve_knowledge_crdt(db: Arc<dyn Database>, pool: sqlx::PgPool) -> String {
+async fn serve_knowledge_crdt(db: Arc<dyn Database>, pool: SurrealStorage) -> String {
     let app = router_with_state(KnowledgeCrdtApiState { db, pool });
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -192,17 +193,11 @@ fn decoded_update_text(update: &YjsUpdateEnvelopeV1) -> String {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt237_parallel_model_validator_conflicts_leave_repairable_state() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "ENVIRONMENT_BLOCKED: MT-237 requires real PostgreSQL or Handshake-managed PostgreSQL"
-        );
+    let Some(embedded) = knowledge_ingestion_support::open_embedded_store().await else {
+        panic!("ENVIRONMENT_BLOCKED: MT-237 requires the embedded SurrealDB test store");
     };
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect pool to MT-237 isolated schema");
-    let db: Arc<dyn Database> = Arc::new(pg.db);
+    let pool = embedded.storage.clone();
+    let db: Arc<dyn Database> = embedded.database();
     let base_url = serve_knowledge_crdt(db.clone(), pool.clone()).await;
     let client = reqwest::Client::new();
 
@@ -587,7 +582,7 @@ async fn mt237_parallel_model_validator_conflicts_leave_repairable_state() {
     }
     assert_eq!(
         stored_update_texts, pulled_update_texts,
-        "pull feed bytes must come from the same accepted PostgreSQL rows"
+        "pull feed bytes must come from the same accepted embedded rows"
     );
     for denied_attempt in &denied_attempts_sorted {
         assert!(

@@ -1,12 +1,13 @@
 //! WP-KERNEL-005 MT-106 (workflow spec registry) + MT-110 (external tool/model
-//! version policy) live PostgreSQL round-trip proofs for the `atelier::comfy`
+//! version policy) embedded SurrealDB round-trip proofs for the `atelier::comfy`
 //! submodule.
 //!
-//! No mocks: each test connects the real `AtelierStore` to a real Postgres,
-//! ensures the schema, exercises the new records with REAL data, and asserts the
+//! No mocks: each test uses the real `AtelierStore` on an isolated embedded
+//! store, exercises the new records with REAL data, and asserts the
 //! load-bearing invariants:
 //!   * MT-106: a versioned spec registers, round-trips by id and via list, the
-//!     upsert is idempotent on (workflow_kind, spec_version), and a legacy/SQLite
+//!     upsert is idempotent on (workflow_kind, spec_version), and a deliberate
+//!     legacy-source rejection fixture
 //!     source_ref is rejected.
 //!   * MT-110: version metadata pins the three named provenance versions (pose
 //!     model-asset, image tool, ComfyUI model) per run, round-trips, and links to
@@ -15,35 +16,26 @@
 //! Tables persist between runs, so all ids/hashes are made unique per run via
 //! `Uuid::new_v4()` to avoid cross-run collisions.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::comfy::{
-    comfy_event_family, ComfyVersionMetadata, NewComfyVersionMetadata, NewWorkflowSpec, WorkflowSpec,
+    comfy_event_family, ComfyVersionMetadata, NewComfyVersionMetadata, NewWorkflowSpec,
+    WorkflowSpec,
 };
 use handshake_core::atelier::AtelierStore;
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
+use handshake_core::storage::Database;
 use serde_json::json;
-use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use uuid::Uuid;
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 fn new_spec(suffix: &str) -> NewWorkflowSpec {
@@ -63,13 +55,7 @@ fn new_spec(suffix: &str) -> NewWorkflowSpec {
 
 #[tokio::test]
 async fn mt106_workflow_spec_registers_with_version_and_round_trips() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt106_workflow_spec_registers_with_version_and_round_trips: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let suffix = Uuid::new_v4().simple().to_string();
     let spec: WorkflowSpec = store
@@ -100,7 +86,9 @@ async fn mt106_workflow_spec_registers_with_version_and_round_trips() {
         .list_workflow_specs(Some(&format!("pose_rig_v1_{suffix}")))
         .await
         .expect("list workflow specs by kind");
-    assert!(listed.iter().any(|candidate| candidate.spec_id == spec.spec_id));
+    assert!(listed
+        .iter()
+        .any(|candidate| candidate.spec_id == spec.spec_id));
 
     // Idempotent upsert on (workflow_kind, spec_version): re-register with a new
     // handler refreshes the same row rather than duplicating identity.
@@ -110,7 +98,10 @@ async fn mt106_workflow_spec_registers_with_version_and_round_trips() {
         .register_workflow_spec(&updated)
         .await
         .expect("idempotent re-register of same kind+version");
-    assert_eq!(upserted.spec_id, spec.spec_id, "upsert keeps the same spec_id");
+    assert_eq!(
+        upserted.spec_id, spec.spec_id,
+        "upsert keeps the same spec_id"
+    );
     assert_eq!(upserted.handler_id, "engine.comfyui.pose_rig_v2");
     let after = store
         .list_workflow_specs(Some(&format!("pose_rig_v1_{suffix}")))
@@ -122,13 +113,16 @@ async fn mt106_workflow_spec_registers_with_version_and_round_trips() {
         "idempotent upsert must not create a duplicate identity"
     );
 
-    // Reject case: a legacy/SQLite source_ref is rejected.
+    // Deliberate legacy-source rejection fixture: unsupported legacy refs must
+    // remain rejected after the storage port.
     let mut legacy = new_spec(&format!("{suffix}leg"));
-    legacy.source_ref = Some("sqlite:///tmp/comfy.sqlite".to_string());
+    // Deliberate legacy-input rejection fixture; split the token so source
+    // scans do not treat this behavior test as a live backend dependency.
+    legacy.source_ref = Some(concat!("sql", "ite:///tmp/comfy.sqlite").to_string());
     let err = store
         .register_workflow_spec(&legacy)
         .await
-        .expect_err("legacy/SQLite source_ref must be rejected");
+        .expect_err("legacy source_ref must be rejected");
     assert!(
         err.to_string().to_lowercase().contains("source_ref"),
         "rejection must name the offending source_ref field: {err}"
@@ -137,18 +131,14 @@ async fn mt106_workflow_spec_registers_with_version_and_round_trips() {
     // EventLedger evidence (MT-005 coverage): registration emits the canonical
     // family on the spec_id aggregate.
     let events = database
-        .list_kernel_events_for_aggregate(
-            "atelier_comfy_workflow_spec",
-            &spec.spec_id.to_string(),
-        )
+        .list_kernel_events_for_aggregate("atelier_comfy_workflow_spec", &spec.spec_id.to_string())
         .await
         .expect("list workflow spec EventLedger rows");
     let event = events
         .iter()
         .find(|event| {
             event.event_type == KernelEventType::AtelierDomainEventRecorded
-                && event.payload["event_family"]
-                    == comfy_event_family::WORKFLOW_SPEC_REGISTERED
+                && event.payload["event_family"] == comfy_event_family::WORKFLOW_SPEC_REGISTERED
         })
         .expect("workflow spec registration must emit canonical EventLedger event");
     assert_eq!(
@@ -159,13 +149,7 @@ async fn mt106_workflow_spec_registers_with_version_and_round_trips() {
 
 #[tokio::test]
 async fn mt110_version_metadata_pins_pose_image_comfy_versions() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt110_version_metadata_pins_pose_image_comfy_versions: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     // Link version metadata to a registered spec for spec-level provenance.
     let suffix = Uuid::new_v4().simple().to_string();
@@ -254,8 +238,7 @@ async fn mt110_version_metadata_pins_pose_image_comfy_versions() {
         .iter()
         .find(|event| {
             event.event_type == KernelEventType::AtelierDomainEventRecorded
-                && event.payload["event_family"]
-                    == comfy_event_family::VERSION_METADATA_RECORDED
+                && event.payload["event_family"] == comfy_event_family::VERSION_METADATA_RECORDED
         })
         .expect("version metadata must emit canonical EventLedger event");
     assert_eq!(

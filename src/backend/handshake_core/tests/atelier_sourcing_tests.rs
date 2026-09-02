@@ -1,12 +1,10 @@
-//! WP-KERNEL-005 atelier Sourcing-Spec + Handler Version Matrix: live
-//! PostgreSQL round-trip proofs for the spec-to-handler binding pipeline
-//! (sourcing.rs, MT-201 / MT-005). Run with a live DATABASE_URL, e.g.
-//!   DATABASE_URL=postgres://postgres@127.0.0.1:5544/handshake \
-//!     cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
-//!     --test atelier_sourcing_tests -- --nocapture
+//! WP-KERNEL-005 atelier Sourcing-Spec + Handler Version Matrix: embedded
+//! SurrealDB round-trip proofs for the spec-to-handler binding pipeline
+//! (sourcing.rs, MT-201 / MT-005). The tests use the isolated embedded-store
+//! harness and the canonical Atelier APIs.
 //!
-//! No mocks: each test connects the real `AtelierStore` to a live Postgres,
-//! ensures the schema, registers real sourcing specs / publishes real handler
+//! No mocks: each test uses the real `AtelierStore` on embedded SurrealDB,
+//! registers real sourcing specs / publishes real handler
 //! matrix entries, exercises the binding + ingestion methods, and asserts the
 //! load-bearing invariants: spec_hash idempotency, matrix immutability, the
 //! bound-vs-mismatch binding decision, the version-mismatch receipt on a
@@ -14,7 +12,9 @@
 //! redaction in the stored spec, and event emission via `count_events`.
 //! Tables persist between runs, so spec ids / pins / handler families are made
 //! unique per run via `Uuid::new_v4()`. Only `handshake_core` + `tokio` +
-//! `uuid` + `serde_json` (+ std) are used; sqlx is never imported directly.
+//! `uuid` + `serde_json` (+ std) are used.
+
+mod atelier_surreal_support;
 
 use handshake_core::atelier::sourcing::{
     sourcing_event_family, HandlerStatus, IdempotencyClass, IngestionOutcome, MismatchReason,
@@ -23,20 +23,10 @@ use handshake_core::atelier::sourcing::{
 use handshake_core::atelier::AtelierStore;
 use uuid::Uuid;
 
-fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-}
-
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// Register a run-unique sourcing spec pinned to `pin` for the given family.
@@ -68,11 +58,7 @@ async fn register_spec(
 
 #[tokio::test]
 async fn atelier_sourcing_rejects_legacy_runtime_source_refs() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_sourcing_rejects_legacy_runtime_source_refs: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let err = store
         .register_sourcing_spec(&NewSourcingSpec {
@@ -92,13 +78,7 @@ async fn atelier_sourcing_rejects_legacy_runtime_source_refs() {
 
 #[tokio::test]
 async fn atelier_sourcing_spec_idempotency_and_secret_redaction() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_sourcing_spec_idempotency_and_secret_redaction: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let family = format!("media_downloader-{}", Uuid::new_v4());
     let before = store
@@ -195,13 +175,7 @@ async fn atelier_sourcing_spec_idempotency_and_secret_redaction() {
 
 #[tokio::test]
 async fn atelier_sourcing_yaml_authoring_validates_schema_and_canonicalizes() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_sourcing_yaml_authoring_validates_schema_and_canonicalizes: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let sourcing_spec_id = format!("spec-{}", Uuid::new_v4());
     let source_ref = format!("artifact://atelier/source/{}", Uuid::new_v4());
@@ -353,11 +327,7 @@ surprise: true
 
 #[tokio::test]
 async fn atelier_handler_matrix_immutability_and_event() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_handler_matrix_immutability_and_event: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let family = format!("asr-{}", Uuid::new_v4());
 
@@ -479,11 +449,7 @@ async fn atelier_handler_matrix_immutability_and_event() {
 
 #[tokio::test]
 async fn atelier_binding_bound_path_and_idempotent_ingestion() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_binding_bound_path_and_idempotent_ingestion: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let family = format!("export-{}", Uuid::new_v4());
     // Publish an ACTIVE handler version 2.1.0 supporting schema [2.0.0, 2.9.9].
@@ -642,13 +608,7 @@ async fn atelier_binding_bound_path_and_idempotent_ingestion() {
 
 #[tokio::test]
 async fn atelier_binding_mismatch_produces_receipt_and_blocks_ingestion() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_binding_mismatch_produces_receipt_and_blocks_ingestion: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // A family with a published 1.x handler, but the spec pins ^3.0.0 -> no
     // version satisfies the pin -> NoMatchingVersion rejection.

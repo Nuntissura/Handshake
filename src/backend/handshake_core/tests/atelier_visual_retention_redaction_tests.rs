@@ -9,19 +9,17 @@
 //!     manifest, and an unredacted capture must never be exportable;
 //!   * storage layer (`atelier_screenshot_artifact_storage`, migration 0129):
 //!     retention_class / exportable / redaction_applied round-trip through
-//!     PostgreSQL, the exportable-without-redaction invariant is enforced on
+//!     the embedded store, the exportable-without-redaction invariant is enforced on
 //!     the row, and `cleanup_expired_screenshot_artifacts` prunes expired,
 //!     unpinned rows while emitting `SCREENSHOT_ARTIFACT_RETENTION_CLEANED`
 //!     EventLedger events (pinned / no-TTL rows survive).
 //!
-//! PG tests are gated on `atelier_pg_support::database_url()` (Handshake-
-//! managed PostgreSQL; never SQLite).
+//! The integration test uses the isolated embedded SurrealDB harness.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use std::io::Cursor;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::state_probe::{
     diagnostics_projection_event_family, NewScreenshotArtifactStorage,
 };
@@ -69,9 +67,7 @@ fn mt158_redaction_blacks_out_sensitive_regions_before_storage() {
 
     // The stored payload differs from the unredacted capture: sensitive pixels
     // never reach disk.
-    let payload_path = workspace_root
-        .path()
-        .join(&result.artifact.screenshot_path);
+    let payload_path = workspace_root.path().join(&result.artifact.screenshot_path);
     let stored_bytes = std::fs::read(&payload_path).expect("stored payload bytes");
     assert_ne!(
         stored_bytes, png_bytes,
@@ -175,33 +171,29 @@ fn mt158_unredacted_export_and_out_of_bounds_regions_rejected() {
     );
 }
 
-/// MT-158 (retention + cleanup, PostgreSQL): retention/redaction metadata
+/// MT-158 (retention + cleanup, embedded store): retention/redaction metadata
 /// round-trips through the real store, the exportable-without-redaction
 /// invariant is enforced on the row, and the cleanup pass prunes expired
 /// unpinned rows (emitting EventLedger events) while pinned / no-TTL rows
 /// survive.
 #[tokio::test]
 async fn mt158_retention_cleanup_prunes_expired_unpinned_rows() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt158_retention_cleanup_prunes_expired_unpinned_rows: PostgreSQL unavailable");
-        return;
-    };
-    let store = AtelierStore::connect(&url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let store = harness.atelier.clone();
 
     // An exportable row without redaction_applied is rejected before any write.
     let rejected = store
-        .record_screenshot_artifact_storage(&stored_capture_input(
-            &store,
-            "unredacted-exportable",
-            Some(30),
-            false,
-            true,
-            false,
+        .record_screenshot_artifact_storage(
+            &stored_capture_input(
+                &store,
+                "unredacted-exportable",
+                Some(30),
+                false,
+                true,
+                false,
+            )
+            .await,
         )
-        .await)
         .await
         .expect_err("exportable-without-redaction row must be rejected");
     assert!(
@@ -238,11 +230,15 @@ async fn mt158_retention_cleanup_prunes_expired_unpinned_rows() {
         .await
         .expect("run retention cleanup");
     assert!(
-        cleaned.iter().any(|row| row.storage_id == expired.storage_id),
+        cleaned
+            .iter()
+            .any(|row| row.storage_id == expired.storage_id),
         "the expired unpinned row must be pruned"
     );
     assert!(
-        cleaned.iter().all(|row| row.storage_id != pinned.storage_id),
+        cleaned
+            .iter()
+            .all(|row| row.storage_id != pinned.storage_id),
         "a pinned row must never be pruned"
     );
     assert!(
@@ -252,14 +248,16 @@ async fn mt158_retention_cleanup_prunes_expired_unpinned_rows() {
         "a row without a TTL must never be pruned"
     );
 
-    // Re-read from PostgreSQL: the expired row is gone, the survivors remain
+    // Re-read from the embedded store: the expired row is gone, the survivors remain
     // with their retention metadata intact.
     let remaining = store
         .list_screenshot_artifact_storage()
         .await
         .expect("list screenshot artifact storage after cleanup");
     assert!(
-        remaining.iter().all(|row| row.storage_id != expired.storage_id),
+        remaining
+            .iter()
+            .all(|row| row.storage_id != expired.storage_id),
         "the pruned row must not be readable after cleanup"
     );
     let surviving_pinned = remaining
@@ -269,7 +267,9 @@ async fn mt158_retention_cleanup_prunes_expired_unpinned_rows() {
     assert!(surviving_pinned.pinned);
     assert_eq!(surviving_pinned.retention_ttl_days, Some(0));
     assert!(
-        remaining.iter().any(|row| row.storage_id == unbounded.storage_id),
+        remaining
+            .iter()
+            .any(|row| row.storage_id == unbounded.storage_id),
         "the no-ttl row must survive cleanup"
     );
 

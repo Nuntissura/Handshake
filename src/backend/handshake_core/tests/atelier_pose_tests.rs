@@ -1,12 +1,9 @@
-//! WP-KERNEL-005 atelier PoseKit: real PostgreSQL round-trip proofs for the
+//! WP-KERNEL-005 atelier PoseKit: embedded SurrealDB round-trip proofs for the
 //! pose submodule (rig ingest / head pose / calibration / identity profiles).
-//! Run with a live DATABASE_URL, e.g.
-//!   DATABASE_URL=postgres://postgres@127.0.0.1:5544/handshake \
-//!     cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
-//!     --test atelier_pose_tests -- --nocapture
+//! The tests use the isolated embedded-store harness and canonical Atelier APIs.
 //!
-//! No mocks: each test connects the real `AtelierStore` to a live Postgres,
-//! ensures the schema, creates a fresh character (pose rows FK to
+//! No mocks: each test uses the real `AtelierStore` on embedded SurrealDB,
+//! creates a fresh character (pose rows link to
 //! atelier_character), exercises the pose API with REAL data, and asserts the
 //! load-bearing invariants: content-hash idempotency, append-only seq
 //! monotonicity, BLOCKED/unresolved calibration preservation + block_reason
@@ -14,9 +11,9 @@
 //! and per-mutation event emission via `count_events`. Tables persist between
 //! runs, so all source refs / hashes / public ids are made unique per run via
 //! `Uuid::new_v4()`. Only `handshake_core` + `tokio` + `uuid` + `serde_json`
-//! (+ std) are used; sqlx is never imported directly.
+//! (+ std) are used.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use handshake_core::atelier::collections::NewCollection;
 use handshake_core::atelier::pose::{
@@ -30,16 +27,13 @@ use handshake_core::atelier::pose::{
     UpdateIdentityProfile, BODY_KEYPOINT_COUNT, FACE_KEYPOINT_COUNT, HAND_KEYPOINT_COUNT,
 };
 use handshake_core::atelier::{AtelierStore, NewCharacter, NewMediaAsset};
+use handshake_core::storage::Database;
 use uuid::Uuid;
 
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// Materialize a fresh, run-unique character and return its internal_id. Pose
@@ -132,13 +126,10 @@ async fn expect_pose_source_ref_rejected(
 
 #[tokio::test]
 async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP atelier_pose_rig_ingest_idempotency_and_roundtrip: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, harness) = connected_store().await;
     let character = fresh_character(&store).await;
-    let source_artifact = atelier_pg_support::write_native_media_artifact(b"mt-087-source-image");
+    let source_artifact =
+        atelier_surreal_support::write_native_media_artifact(b"mt-087-source-image");
     let source_asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: source_artifact.content_hash.clone(),
@@ -439,7 +430,7 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
     assert_eq!(
         fetched_fallback.error_reason.as_deref(),
         Some(fallback_reason.as_str()),
-        "fallback error_reason must round-trip through Postgres"
+        "fallback error_reason must round-trip through the embedded store"
     );
 
     let failed_reason = "detector job failed: no visible body landmarks".to_string();
@@ -519,20 +510,18 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
         events_after, 2,
         "two successful ingests (original + idempotent re-ingest) each emit one event; rejected ingests emit none"
     );
-    let rig_event_payload: serde_json::Value = sqlx::query_scalar(
-        r#"SELECT payload
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_pose_rig'
-             AND aggregate_id = $2
-           ORDER BY created_at_utc ASC
-           LIMIT 1"#,
-    )
-    .bind(pose_event_family::POSE_RIG_INGESTED)
-    .bind(rig.rig_id.to_string())
-    .fetch_one(store.pool())
-    .await
-    .expect("read pose rig ingest event payload");
+    let rig_events = harness
+        .database
+        .list_kernel_events_for_aggregate("atelier_pose_rig", &rig.rig_id.to_string())
+        .await
+        .expect("read pose rig ingest event payload");
+    let rig_event_payload = rig_events
+        .iter()
+        .find(|event| {
+            event.payload["event_family"] == serde_json::json!(pose_event_family::POSE_RIG_INGESTED)
+        })
+        .map(|event| event.payload["atelier_payload"].clone())
+        .expect("pose rig ingest event payload is present");
     assert_eq!(
         rig_event_payload["detector_model"],
         serde_json::json!("BlazePose GHUM")
@@ -555,20 +544,18 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
     );
     assert_eq!(rig_event_payload["error_reason"], serde_json::json!(null));
 
-    let fallback_event_payload: serde_json::Value = sqlx::query_scalar(
-        r#"SELECT payload
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_pose_rig'
-             AND aggregate_id = $2
-           ORDER BY created_at_utc ASC
-           LIMIT 1"#,
-    )
-    .bind(pose_event_family::POSE_RIG_INGESTED)
-    .bind(fallback_rig.rig_id.to_string())
-    .fetch_one(store.pool())
-    .await
-    .expect("read fallback pose rig ingest event payload");
+    let fallback_events = harness
+        .database
+        .list_kernel_events_for_aggregate("atelier_pose_rig", &fallback_rig.rig_id.to_string())
+        .await
+        .expect("read fallback pose rig ingest event payload");
+    let fallback_event_payload = fallback_events
+        .iter()
+        .find(|event| {
+            event.payload["event_family"] == serde_json::json!(pose_event_family::POSE_RIG_INGESTED)
+        })
+        .map(|event| event.payload["atelier_payload"].clone())
+        .expect("fallback pose rig ingest event payload is present");
     assert_eq!(
         fallback_event_payload["error_reason"],
         serde_json::json!(fallback_reason)
@@ -587,20 +574,14 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
 
 #[tokio::test]
 async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, harness) = connected_store().await;
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
 
-    let json_artifact = atelier_pg_support::write_native_media_artifact(b"openpose-json");
-    let preview_png = atelier_pg_support::write_native_media_artifact(b"openpose-preview-png");
+    let json_artifact = atelier_surreal_support::write_native_media_artifact(b"openpose-json");
+    let preview_png = atelier_surreal_support::write_native_media_artifact(b"openpose-preview-png");
     let conditioning_png =
-        atelier_pg_support::write_native_media_artifact(b"openpose-conditioning-png");
+        atelier_surreal_support::write_native_media_artifact(b"openpose-conditioning-png");
 
     let json_sidecar = store
         .record_pose_sidecar(&NewPoseSidecar {
@@ -756,20 +737,22 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
         .await
         .expect("count pose sidecar event");
     assert_eq!(preview_events, 1);
-    let json_sidecar_event: serde_json::Value = sqlx::query_scalar(
-        r#"SELECT payload
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_pose_sidecar'
-             AND aggregate_id = $2
-           ORDER BY created_at_utc ASC
-           LIMIT 1"#,
-    )
-    .bind(pose_event_family::POSE_SIDECAR_RECORDED)
-    .bind(json_sidecar.sidecar_id.to_string())
-    .fetch_one(store.pool())
-    .await
-    .expect("read OpenPose JSON sidecar event payload");
+    let sidecar_events = harness
+        .database
+        .list_kernel_events_for_aggregate(
+            "atelier_pose_sidecar",
+            &json_sidecar.sidecar_id.to_string(),
+        )
+        .await
+        .expect("read OpenPose JSON sidecar event payload");
+    let json_sidecar_event = sidecar_events
+        .iter()
+        .find(|event| {
+            event.payload["event_family"]
+                == serde_json::json!(pose_event_family::POSE_SIDECAR_RECORDED)
+        })
+        .map(|event| event.payload["atelier_payload"].clone())
+        .expect("OpenPose JSON sidecar event payload is present");
     assert_eq!(
         json_sidecar_event["role"],
         serde_json::json!("openpose_json")
@@ -782,13 +765,7 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
 
 #[tokio::test]
 async fn atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
 
@@ -809,7 +786,7 @@ async fn atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection() 
             "lookup-conditioning-png",
         ),
     ] {
-        let artifact = atelier_pg_support::write_native_media_artifact(payload.as_bytes());
+        let artifact = atelier_surreal_support::write_native_media_artifact(payload.as_bytes());
         store
             .record_pose_sidecar(&NewPoseSidecar {
                 rig_id: rig.rig_id,
@@ -868,16 +845,11 @@ async fn atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection() 
 #[tokio::test]
 async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecars_for_diagnostics()
 {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecars_for_diagnostics: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let character = fresh_character(&store).await;
 
-    let media_artifact = atelier_pg_support::write_native_media_artifact(b"strip-source-image");
+    let media_artifact =
+        atelier_surreal_support::write_native_media_artifact(b"strip-source-image");
     let media = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: media_artifact.content_hash.clone(),
@@ -933,7 +905,7 @@ async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecar
             "strip-conditioning-png",
         ),
     ] {
-        let artifact = atelier_pg_support::write_native_media_artifact(payload.as_bytes());
+        let artifact = atelier_surreal_support::write_native_media_artifact(payload.as_bytes());
         store
             .record_pose_sidecar(&NewPoseSidecar {
                 rig_id: rig.rig_id,
@@ -952,7 +924,7 @@ async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecar
             .expect("record strip sidecar");
     }
     let failed_json_artifact =
-        atelier_pg_support::write_native_media_artifact(b"strip-json-failed");
+        atelier_surreal_support::write_native_media_artifact(b"strip-json-failed");
     let failed_json_message = "openpose renderer unavailable";
     store
         .record_pose_sidecar(&NewPoseSidecar {
@@ -1056,17 +1028,12 @@ async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecar
 
 #[tokio::test]
 async fn atelier_pose_context_state_switches_without_deleting_rigs_media_or_links() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_pose_context_state_switches_without_deleting_rigs_media_or_links: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let character = fresh_character(&store).await;
     let workspace_ref = format!("pose-workspace://{}", Uuid::new_v4());
 
-    let media_artifact = atelier_pg_support::write_native_media_artifact(b"context-source-image");
+    let media_artifact =
+        atelier_surreal_support::write_native_media_artifact(b"context-source-image");
     let media = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: media_artifact.content_hash.clone(),
@@ -1290,13 +1257,7 @@ async fn atelier_pose_context_state_switches_without_deleting_rigs_media_or_link
 
 #[tokio::test]
 async fn atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, harness) = connected_store().await;
     let character = fresh_character(&store).await;
     let rig_a = fresh_rig(&store, character).await;
     let rig_b = fresh_rig(&store, character).await;
@@ -1437,41 +1398,39 @@ async fn atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_p
         rig_c_deactivation_events, 2,
         "activating rig B emits a deactivation event for prior active rig C"
     );
-    let rig_b_activation_payload: serde_json::Value = sqlx::query_scalar(
-        r#"SELECT payload
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_pose_workspace_rig_state'
-             AND aggregate_id = $2
-           ORDER BY created_at_utc DESC
-           LIMIT 1"#,
-    )
-    .bind(pose_event_family::POSE_WORKSPACE_RIG_STATE_SET)
-    .bind(format!(
-        "{}:{}:{}",
-        workspace_ref, session_ref, rig_b.rig_id
-    ))
-    .fetch_one(store.pool())
-    .await
-    .expect("read rig B activation event payload");
-    let rig_c_deactivation_payload: serde_json::Value = sqlx::query_scalar(
-        r#"SELECT payload
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_pose_workspace_rig_state'
-             AND aggregate_id = $2
-             AND payload->>'reason' = 'deactivated_by_active_rig_switch'
-           ORDER BY created_at_utc DESC
-           LIMIT 1"#,
-    )
-    .bind(pose_event_family::POSE_WORKSPACE_RIG_STATE_SET)
-    .bind(format!(
-        "{}:{}:{}",
-        workspace_ref, session_ref, rig_c.rig_id
-    ))
-    .fetch_one(store.pool())
-    .await
-    .expect("read rig C deactivation event payload");
+    let rig_b_events = harness
+        .database
+        .list_kernel_events_for_aggregate(
+            "atelier_pose_workspace_rig_state",
+            &format!("{}:{}:{}", workspace_ref, session_ref, rig_b.rig_id),
+        )
+        .await
+        .expect("read rig B activation event payload");
+    let rig_b_activation_payload = rig_b_events
+        .iter()
+        .find(|event| {
+            event.payload["event_family"]
+                == serde_json::json!(pose_event_family::POSE_WORKSPACE_RIG_STATE_SET)
+        })
+        .map(|event| event.payload["atelier_payload"].clone())
+        .expect("rig B activation event payload is present");
+    let rig_c_events = harness
+        .database
+        .list_kernel_events_for_aggregate(
+            "atelier_pose_workspace_rig_state",
+            &format!("{}:{}:{}", workspace_ref, session_ref, rig_c.rig_id),
+        )
+        .await
+        .expect("read rig C deactivation event payload");
+    let rig_c_deactivation_payload = rig_c_events
+        .iter()
+        .filter(|event| {
+            event.payload["event_family"]
+                == serde_json::json!(pose_event_family::POSE_WORKSPACE_RIG_STATE_SET)
+        })
+        .map(|event| event.payload["atelier_payload"].clone())
+        .find(|payload| payload["reason"] == serde_json::json!("deactivated_by_active_rig_switch"))
+        .expect("rig C deactivation event payload is present");
     assert!(rig_c_deactivation_payload.get("requested_by").is_none());
     assert_eq!(
         rig_c_deactivation_payload["requested_by_ref"],
@@ -1595,13 +1554,7 @@ async fn atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_p
 
 #[tokio::test]
 async fn atelier_pose_workspace_route_and_keyboard_navigation_are_durable() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_pose_workspace_route_and_keyboard_navigation_are_durable: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let character = fresh_character(&store).await;
     let rig_a = fresh_rig(&store, character).await;
     let rig_b = fresh_rig(&store, character).await;
@@ -1741,11 +1694,7 @@ async fn atelier_pose_workspace_route_and_keyboard_navigation_are_durable() {
 
 #[tokio::test]
 async fn atelier_pose_head_pose_upsert_and_limits() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP atelier_pose_head_pose_upsert_and_limits: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
 
@@ -1856,11 +1805,7 @@ async fn atelier_pose_head_pose_upsert_and_limits() {
 
 #[tokio::test]
 async fn atelier_pose_calibration_blocked_preservation() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP atelier_pose_calibration_blocked_preservation: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
 
@@ -1980,7 +1925,7 @@ async fn atelier_pose_calibration_blocked_preservation() {
         .expect("typed calibration present");
     assert_eq!(
         fetched_typed, typed,
-        "typed calibration fields round-trip through Postgres"
+        "typed calibration fields round-trip through the embedded store"
     );
 
     let bad_history_ref = store
@@ -2017,13 +1962,7 @@ async fn atelier_pose_calibration_blocked_preservation() {
 
 #[tokio::test]
 async fn atelier_identity_profile_append_only_seq_and_redaction() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_identity_profile_append_only_seq_and_redaction: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let character = fresh_character(&store).await;
 
     // --- append the first identity profile; seq starts at 1 for a new character ---
@@ -2268,13 +2207,7 @@ async fn atelier_identity_profile_append_only_seq_and_redaction() {
 
 #[tokio::test]
 async fn atelier_identity_crop_artifact_links_profile_version_and_manifest() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP atelier_identity_crop_artifact_links_profile_version_and_manifest: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let character = fresh_character(&store).await;
 
     let profile = store
@@ -2306,7 +2239,8 @@ async fn atelier_identity_crop_artifact_links_profile_version_and_manifest() {
         .expect("bump profile version before crop registration");
     assert_eq!(profile.version, 2);
 
-    let crop_payload = atelier_pg_support::write_native_media_artifact(b"mt-099-face-crop-512");
+    let crop_payload =
+        atelier_surreal_support::write_native_media_artifact(b"mt-099-face-crop-512");
     let crop = store
         .record_identity_crop_artifact(&NewIdentityCropArtifact {
             profile_id: profile.profile_id,

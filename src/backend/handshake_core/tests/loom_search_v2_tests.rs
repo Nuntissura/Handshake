@@ -1,13 +1,12 @@
-//! WP-KERNEL-009 MT-264 UnifiedWorkSurface-264-LoomSearchV2 -- real PostgreSQL
-//! proof. Postgres-native, graph-blended ES-class search over the Loom corpus
+//! WP-KERNEL-009 MT-264 UnifiedWorkSurface-264-LoomSearchV2 -- real embedded
+//! SurrealDB proof for graph-blended ES-class search over the Loom corpus
 //! (DEC-008: NOT Elasticsearch / no external search daemon).
 //!
-//! Every modality is proven against the Handshake-managed PostgreSQL with the
-//! pg_trgm + pgvector extensions, the derived `loom_block_search_index`
-//! projection, and the hybrid search query:
+//! Every modality is proven against the isolated embedded authority, the
+//! derived `loom_block_search_index` projection, and the hybrid search query:
 //!   * FTS: ts_rank ordering + ts_headline highlight,
-//!   * fuzzy: pg_trgm near-match on a misspelled query,
-//!   * semantic: pgvector HNSW kNN over REAL embeddings + hybrid keyword+vector,
+//!   * fuzzy: near-match scoring on a misspelled query,
+//!   * semantic: REAL embeddings plus hybrid keyword/vector scoring,
 //!   * graph-blend: content_type facets + loom_edges degree ranking,
 //!   * reindex consistency: edit -> reflected, delete -> gone (NEGATIVE proof),
 //!   * no-model: typed keyword/trigram fallback with NO fabricated semantic.
@@ -15,28 +14,29 @@
 //! The semantic modality uses `InMemoryLlmClient::with_embedding_dim(768)`, an
 //! HONEST embedding substitute: the vector is a REAL deterministic function of
 //! the text (the same `LlmClient::embedding` trait the production Ollama
-//! `/api/embeddings` path implements), so pgvector kNN returns the genuinely
+//! `/api/embeddings` path implements), so vector similarity returns the genuinely
 //! closest block -- it is NOT a fabricated search result. The no-model negative
 //! uses `DisabledLlmClient`, which declines the embedding call with a typed
 //! error exactly like a runtime with no embedding model configured.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
+use embedded_knowledge_support::open_embedded_store;
 use handshake_core::llm::ollama::InMemoryLlmClient;
 use handshake_core::llm::DisabledLlmClient;
 use handshake_core::loom_search;
 use handshake_core::storage::{
-    Database, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomEdgeCreatedBy,
-    LoomEdgeType, LoomSearchV2Request, NewLoomBlock, NewLoomEdge, WriteContext,
+    Database, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate,
+    LoomEdgeCreatedBy, LoomEdgeType, LoomSearchV2Request, NewLoomBlock, NewLoomEdge, WriteContext,
 };
-use knowledge_pg_support::knowledge_pg;
 
-macro_rules! pg_or_skip {
+macro_rules! embedded_store_or_return {
     () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
+        match open_embedded_store().await {
+            Some(store) => store,
             None => {
-                eprintln!("SKIP MT-264 LoomSearchV2 proof: PostgreSQL binaries not found");
+                eprintln!("SKIP MT-264 LoomSearchV2 proof: embedded store unavailable");
                 return;
             }
         }
@@ -44,7 +44,7 @@ macro_rules! pg_or_skip {
 }
 
 async fn make_block(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ctx: &WriteContext,
     ws: &str,
     title: &str,
@@ -85,14 +85,14 @@ fn req(query: &str) -> LoomSearchV2Request {
 /// FTS: ts_rank-ordered, ts_headline-highlighted results over real content.
 #[tokio::test]
 async fn mt264_fulltext_rank_and_highlight() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
     // No embedding model -> keyword/trigram only.
     let llm = DisabledLlmClient::new("none".into(), "no embedding model".into());
 
     make_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         "Migration runbook",
@@ -100,7 +100,7 @@ async fn mt264_fulltext_rank_and_highlight() {
     )
     .await;
     make_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         "Holiday notes",
@@ -108,7 +108,7 @@ async fn mt264_fulltext_rank_and_highlight() {
     )
     .await;
 
-    let resp = loom_search::search(&pg.db, &llm, &ws, req("database migration"))
+    let resp = loom_search::search(&store.db, &llm, &ws, req("database migration"))
         .await
         .expect("search");
     assert!(!resp.hits.is_empty(), "expected FTS hits");
@@ -125,19 +125,22 @@ async fn mt264_fulltext_rank_and_highlight() {
         "expected ts_headline highlight markers, got {:?}",
         resp.hits[0].highlight
     );
-    assert!(!resp.semantic_available, "no embedding model -> not available");
+    assert!(
+        !resp.semantic_available,
+        "no embedding model -> not available"
+    );
 }
 
-/// Fuzzy/substring: a misspelled query returns the near-match via pg_trgm.
+/// Fuzzy/substring: a misspelled query returns the near-match.
 #[tokio::test]
 async fn mt264_trigram_fuzzy_match() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
     let llm = DisabledLlmClient::new("none".into(), "no embedding model".into());
 
     make_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         "Kubernetes deployment guide",
@@ -146,13 +149,13 @@ async fn mt264_trigram_fuzzy_match() {
     .await;
 
     // Misspelled query: "kubernates deploymnet" -- no exact FTS lexeme match,
-    // but pg_trgm similarity finds the near-match.
-    let resp = loom_search::search(&pg.db, &llm, &ws, req("kubernates deploymnet"))
+    // but fuzzy similarity finds the near-match.
+    let resp = loom_search::search(&store.db, &llm, &ws, req("kubernates deploymnet"))
         .await
         .expect("search");
     assert!(
         !resp.hits.is_empty(),
-        "pg_trgm should fuzzy-match the misspelled query"
+        "fuzzy scoring should match the misspelled query"
     );
     assert!(
         resp.hits[0].trgm_sim > 0.0,
@@ -160,18 +163,18 @@ async fn mt264_trigram_fuzzy_match() {
     );
 }
 
-/// Semantic: pgvector HNSW kNN over REAL embeddings + hybrid keyword+vector;
+/// Semantic: REAL embeddings plus hybrid keyword/vector scoring;
 /// the semantic modality surfaces a block whose TEXT does not lexically match
 /// the query but whose embedding is closest.
 #[tokio::test]
-async fn mt264_pgvector_semantic_and_hybrid() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+async fn mt264_semantic_and_hybrid() {
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
     let llm = InMemoryLlmClient::new(String::new()).with_embedding_dim(768);
 
     let canine = make_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         "Pet care",
@@ -179,7 +182,7 @@ async fn mt264_pgvector_semantic_and_hybrid() {
     )
     .await;
     let finance = make_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         "Finance",
@@ -189,25 +192,26 @@ async fn mt264_pgvector_semantic_and_hybrid() {
 
     // Reindex both blocks WITH real embeddings via the configured model.
     for block in [&canine, &finance] {
-        let wrote = loom_search::reindex_block(&pg.db, &llm, &ctx, block)
+        let wrote = loom_search::reindex_block(&store.db, &llm, &ctx, block)
             .await
             .expect("reindex with embedding");
-        assert!(wrote, "an embedding model is configured -> embedding written");
+        assert!(
+            wrote,
+            "an embedding model is configured -> embedding written"
+        );
     }
 
     // Query embedding overlaps the canine block's tokens => closest neighbour.
-    let resp = loom_search::search(
-        &pg.db,
-        &llm,
-        &ws,
-        req("the dog runs fast in the park"),
-    )
-    .await
-    .expect("search");
-    assert!(resp.semantic_available, "embedding model -> semantic available");
+    let resp = loom_search::search(&store.db, &llm, &ws, req("the dog runs fast in the park"))
+        .await
+        .expect("search");
+    assert!(
+        resp.semantic_available,
+        "embedding model -> semantic available"
+    );
     assert_eq!(
         resp.hits[0].block.block_id, canine.block_id,
-        "pgvector kNN should rank the semantically-closest block first"
+        "vector similarity should rank the semantically-closest block first"
     );
     assert!(
         resp.hits[0].vector_sim > 0.0,
@@ -218,13 +222,13 @@ async fn mt264_pgvector_semantic_and_hybrid() {
 /// Graph-blend: content_type facets + loom_edges degree boosts a linked block.
 #[tokio::test]
 async fn mt264_graph_blend_facets_and_edges() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
     let llm = DisabledLlmClient::new("none".into(), "no embedding model".into());
 
     let hub = make_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         "Alpha project hub",
@@ -232,7 +236,7 @@ async fn mt264_graph_blend_facets_and_edges() {
     )
     .await;
     let leaf = make_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         "Alpha project notes",
@@ -242,7 +246,7 @@ async fn mt264_graph_blend_facets_and_edges() {
     // A third (non-matching) block that links INTO the hub, so the hub's edge
     // degree (3) strictly exceeds the leaf's (1) -> graph blend ranks hub first.
     let satellite = make_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         "Beta satellite",
@@ -251,7 +255,8 @@ async fn mt264_graph_blend_facets_and_edges() {
     .await;
     // leaf -> hub, satellite -> hub, hub -> satellite : hub degree = 3, leaf = 1.
     for (src, tgt) in [(&leaf, &hub), (&satellite, &hub), (&hub, &satellite)] {
-        pg.db
+        store
+            .db
             .create_loom_edge(
                 &ctx,
                 NewLoomEdge {
@@ -271,7 +276,7 @@ async fn mt264_graph_blend_facets_and_edges() {
 
     let mut request = req("alpha project");
     request.graph_boost = 5.0;
-    let resp = loom_search::search(&pg.db, &llm, &ws, request)
+    let resp = loom_search::search(&store.db, &llm, &ws, request)
         .await
         .expect("search");
     assert!(resp.hits.len() >= 2, "both alpha blocks match");
@@ -292,13 +297,13 @@ async fn mt264_graph_blend_facets_and_edges() {
 /// Reindex consistency: edit -> reflected, delete -> GONE (negative proof).
 #[tokio::test]
 async fn mt264_reindex_consistency_edit_and_delete() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
     let llm = DisabledLlmClient::new("none".into(), "no embedding model".into());
 
     let block = make_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         "Original aardvark title",
@@ -307,13 +312,14 @@ async fn mt264_reindex_consistency_edit_and_delete() {
     .await;
 
     // Initially findable by its original term.
-    let resp = loom_search::search(&pg.db, &llm, &ws, req("aardvark"))
+    let resp = loom_search::search(&store.db, &llm, &ws, req("aardvark"))
         .await
         .expect("search");
     assert_eq!(resp.hits.len(), 1, "block found by original term");
 
     // EDIT the title -> the new term is reflected immediately.
-    pg.db
+    store
+        .db
         .update_loom_block(
             &ctx,
             &ws,
@@ -325,7 +331,7 @@ async fn mt264_reindex_consistency_edit_and_delete() {
         )
         .await
         .expect("update");
-    let after_edit = loom_search::search(&pg.db, &llm, &ws, req("platypus"))
+    let after_edit = loom_search::search(&store.db, &llm, &ws, req("platypus"))
         .await
         .expect("search");
     assert_eq!(
@@ -335,11 +341,12 @@ async fn mt264_reindex_consistency_edit_and_delete() {
     );
 
     // DELETE the block -> it is GONE from results (negative proof, no stale hit).
-    pg.db
+    store
+        .db
         .delete_loom_block(&ctx, &ws, &block.block_id)
         .await
         .expect("delete");
-    let after_delete = loom_search::search(&pg.db, &llm, &ws, req("platypus"))
+    let after_delete = loom_search::search(&store.db, &llm, &ws, req("platypus"))
         .await
         .expect("search");
     assert!(
@@ -348,7 +355,7 @@ async fn mt264_reindex_consistency_edit_and_delete() {
         after_delete.hits.len()
     );
     // And the original term is also gone.
-    let orig = loom_search::search(&pg.db, &llm, &ws, req("aardvark"))
+    let orig = loom_search::search(&store.db, &llm, &ws, req("aardvark"))
         .await
         .expect("search");
     assert!(orig.hits.is_empty(), "no stale hit for the deleted block");
@@ -357,14 +364,14 @@ async fn mt264_reindex_consistency_edit_and_delete() {
 /// No-model: typed keyword/trigram fallback, NO fabricated semantic results.
 #[tokio::test]
 async fn mt264_no_model_typed_fallback_no_fabrication() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
     // DisabledLlmClient declines the embedding call with a typed error.
     let disabled = DisabledLlmClient::new("none".into(), "no embedding model".into());
 
     let block = make_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &ws,
         "Searchable note",
@@ -374,15 +381,18 @@ async fn mt264_no_model_typed_fallback_no_fabrication() {
 
     // reindex_block must NOT write an embedding (typed decline), but MUST keep
     // the keyword/trigram projection.
-    let wrote = loom_search::reindex_block(&pg.db, &disabled, &ctx, &block)
+    let wrote = loom_search::reindex_block(&store.db, &disabled, &ctx, &block)
         .await
         .expect("reindex");
     assert!(!wrote, "no model -> NO embedding written (no fabrication)");
 
-    let resp = loom_search::search(&pg.db, &disabled, &ws, req("searchable keyword"))
+    let resp = loom_search::search(&store.db, &disabled, &ws, req("searchable keyword"))
         .await
         .expect("search");
-    assert!(!resp.semantic_available, "no model -> semantic not available");
+    assert!(
+        !resp.semantic_available,
+        "no model -> semantic not available"
+    );
     assert_eq!(resp.hits.len(), 1, "keyword fallback still finds the block");
     assert_eq!(
         resp.hits[0].vector_sim, 0.0,

@@ -1,20 +1,16 @@
 //! MT-195 crash recovery e2e evidence suite.
 //!
-//! These tests run serially (`--test-threads=1`) because the contract's
-//! Postgres-backed variant will share one external database/container. The
-//! current suite is a deterministic in-process harness over the cluster X.3
-//! primitives; every scenario compares exact counts and FR event order
-//! against a canonical golden evidence file.
+//! The deterministic scenarios compare exact counts and FR event order against
+//! canonical golden evidence. Runtime scenarios exercise the owner-local
+//! embedded SurrealDB/EventLedger boundary in the sibling runtime modules.
 
 mod clean_shutdown;
 mod event_seq_gap;
 mod idempotency_conflict;
 mod operator_cancel_during_recovery;
 mod orphan_process;
-mod postgres_loss;
 mod runtime_chaos;
 mod runtime_child;
-mod runtime_postgres;
 mod sigkill_mid_iteration;
 
 use std::{
@@ -38,6 +34,47 @@ use handshake_core::{
 use serde::Serialize;
 use uuid::Uuid;
 
+const RETIRED_EXTERNAL_BACKEND_NON_TEST_DISPOSITIONS: &[(&str, &str, &str)] = &[
+    (
+        "external shared-backend termination",
+        "runtime_chaos::mt195_runtime_backend_termination_records_db_loss_without_shared_db_damage",
+        "NO_EMBEDDED_EQUIVALENT: the product has no external database service or foreign backend process to terminate; owner-local shutdown/backoff is covered by the executable embedded runtime tests",
+    ),
+    (
+        "external shared-backend non-damage",
+        "runtime_chaos::mt195_runtime_transient_db_unavailable_backs_off_and_resumes_after_db_return_without_shared_db_damage",
+        "NO_EMBEDDED_EQUIVALENT: isolated embedded data directories and the single-writer engine lock eliminate shared multi-tenant backend state; close-reopen durability and per-directory isolation are the applicable proofs",
+    ),
+];
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EvidenceScenario {
+    CleanShutdown,
+    SigkillMidIteration,
+    OrphanProcess,
+    EventSeqGap,
+    IdempotencyConflict,
+    OperatorCancelDuringRecovery,
+}
+
+impl EvidenceScenario {
+    fn from_public(scenario: CrashRecoveryScenario) -> Self {
+        match scenario {
+            CrashRecoveryScenario::CleanShutdown => Self::CleanShutdown,
+            CrashRecoveryScenario::SigkillMidIteration => Self::SigkillMidIteration,
+            CrashRecoveryScenario::OrphanProcess => Self::OrphanProcess,
+            CrashRecoveryScenario::EventSeqGap => Self::EventSeqGap,
+            CrashRecoveryScenario::IdempotencyConflict => Self::IdempotencyConflict,
+            CrashRecoveryScenario::OperatorCancelDuringRecovery => {
+                Self::OperatorCancelDuringRecovery
+            }
+            _ => panic!(
+                "external-backend scenarios are mapped explicitly by runtime_chaos::mt141_runtime_chaos_retirement_mappings_are_explicit"
+            ),
+        }
+    }
+}
+
 #[derive(Clone)]
 struct Candidate {
     session_id: Uuid,
@@ -54,7 +91,7 @@ enum CandidateState {
 }
 
 struct ScenarioBroker {
-    scenario: CrashRecoveryScenario,
+    scenario: EvidenceScenario,
     candidates: Mutex<Vec<Candidate>>,
     fr_events: Mutex<Vec<String>>,
     decision_requests: AtomicUsize,
@@ -79,6 +116,7 @@ pub struct CanonicalRecoveryEvidence {
 }
 
 pub fn assert_scenario_matches_golden(scenario: CrashRecoveryScenario) {
+    let scenario = EvidenceScenario::from_public(scenario);
     let evidence = ScenarioHarness::new(scenario).run();
     assert_exact_counts(&evidence);
     let actual = serde_json::to_string_pretty(&evidence).unwrap();
@@ -87,19 +125,16 @@ pub fn assert_scenario_matches_golden(scenario: CrashRecoveryScenario) {
 }
 
 struct ScenarioHarness {
-    scenario: CrashRecoveryScenario,
+    scenario: EvidenceScenario,
 }
 
 impl ScenarioHarness {
-    fn new(scenario: CrashRecoveryScenario) -> Self {
+    fn new(scenario: EvidenceScenario) -> Self {
         Self { scenario }
     }
 
     fn run(&self) -> CanonicalRecoveryEvidence {
         let broker = ScenarioBroker::new(self.scenario);
-        if self.scenario == CrashRecoveryScenario::PostgresLoss {
-            broker.push_fr_event(FrEventId::RestartResumeDbUnavailable);
-        }
         let report = RestartResumeOrchestrator::run(&broker);
         let fr_event_order = broker.fr_events.lock().unwrap().clone();
         CanonicalRecoveryEvidence {
@@ -124,7 +159,7 @@ impl ScenarioHarness {
 }
 
 impl ScenarioBroker {
-    fn new(scenario: CrashRecoveryScenario) -> Self {
+    fn new(scenario: EvidenceScenario) -> Self {
         Self {
             scenario,
             candidates: Mutex::new(candidates_for(scenario)),
@@ -176,7 +211,7 @@ impl ResumableSession for ScenarioBroker {
             + 1;
         *state = serde_json::json!({ "counter": counter });
 
-        if self.scenario == CrashRecoveryScenario::IdempotencyConflict {
+        if self.scenario == EvidenceScenario::IdempotencyConflict {
             let key = IdempotencyKey {
                 session_id: event.session_id,
                 event_seq: event.event_sequence,
@@ -216,13 +251,13 @@ impl ResumableSession for ScenarioBroker {
 
     fn reclaim_orphan_processes(&self, _session_id: Uuid) -> Result<u32, String> {
         Ok(match self.scenario {
-            CrashRecoveryScenario::OrphanProcess => 2,
+            EvidenceScenario::OrphanProcess => 2,
             _ => 0,
         })
     }
 
     fn resume(&self, session_id: Uuid, _final_state: serde_json::Value) -> Result<(), String> {
-        if self.scenario == CrashRecoveryScenario::OperatorCancelDuringRecovery {
+        if self.scenario == EvidenceScenario::OperatorCancelDuringRecovery {
             self.operator_cancellations.fetch_add(1, Ordering::SeqCst);
             return Err("operator_cancel_during_recovery".to_string());
         }
@@ -259,17 +294,16 @@ impl ResumableSession for ScenarioBroker {
     }
 }
 
-fn candidates_for(scenario: CrashRecoveryScenario) -> Vec<Candidate> {
+fn candidates_for(scenario: EvidenceScenario) -> Vec<Candidate> {
     match scenario {
-        CrashRecoveryScenario::CleanShutdown => {
+        EvidenceScenario::CleanShutdown => {
             vec![candidate(0, &[1]), candidate(0, &[1, 2]), candidate(0, &[])]
         }
-        CrashRecoveryScenario::SigkillMidIteration
-        | CrashRecoveryScenario::PostgresLoss
-        | CrashRecoveryScenario::OrphanProcess
-        | CrashRecoveryScenario::IdempotencyConflict
-        | CrashRecoveryScenario::OperatorCancelDuringRecovery => candidate_vec(0, &[1, 2]),
-        CrashRecoveryScenario::EventSeqGap => candidate_vec(0, &[1, 3]),
+        EvidenceScenario::SigkillMidIteration
+        | EvidenceScenario::OrphanProcess
+        | EvidenceScenario::IdempotencyConflict
+        | EvidenceScenario::OperatorCancelDuringRecovery => candidate_vec(0, &[1, 2]),
+        EvidenceScenario::EventSeqGap => candidate_vec(0, &[1, 3]),
     }
 }
 
@@ -308,24 +342,33 @@ fn event(session_id: Uuid, seq: i64) -> EventLedgerRow {
     }
 }
 
-fn scenario_slug(scenario: CrashRecoveryScenario) -> &'static str {
+fn scenario_slug(scenario: EvidenceScenario) -> &'static str {
     match scenario {
-        CrashRecoveryScenario::CleanShutdown => "clean_shutdown",
-        CrashRecoveryScenario::SigkillMidIteration => "sigkill_mid_iteration",
-        CrashRecoveryScenario::PostgresLoss => "postgres_loss",
-        CrashRecoveryScenario::OrphanProcess => "orphan_process",
-        CrashRecoveryScenario::EventSeqGap => "event_seq_gap",
-        CrashRecoveryScenario::IdempotencyConflict => "idempotency_conflict",
-        CrashRecoveryScenario::OperatorCancelDuringRecovery => "operator_cancel_during_recovery",
+        EvidenceScenario::CleanShutdown => "clean_shutdown",
+        EvidenceScenario::SigkillMidIteration => "sigkill_mid_iteration",
+        EvidenceScenario::OrphanProcess => "orphan_process",
+        EvidenceScenario::EventSeqGap => "event_seq_gap",
+        EvidenceScenario::IdempotencyConflict => "idempotency_conflict",
+        EvidenceScenario::OperatorCancelDuringRecovery => "operator_cancel_during_recovery",
     }
 }
 
-fn golden_path(scenario: CrashRecoveryScenario) -> PathBuf {
+fn golden_path(scenario: EvidenceScenario) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
         .join("crash_recovery_evidence")
         .join(format!("{}.json", scenario_slug(scenario)))
+}
+
+#[test]
+fn mt141_retired_external_backend_scenarios_have_current_embedded_mappings() {
+    assert_eq!(RETIRED_EXTERNAL_BACKEND_NON_TEST_DISPOSITIONS.len(), 2);
+    for (behavior, retired_test, rationale) in RETIRED_EXTERNAL_BACKEND_NON_TEST_DISPOSITIONS {
+        assert!(!behavior.is_empty());
+        assert!(retired_test.starts_with("runtime_chaos::mt195_runtime_"));
+        assert!(rationale.starts_with("NO_EMBEDDED_EQUIVALENT:"));
+    }
 }
 
 fn assert_exact_counts(evidence: &CanonicalRecoveryEvidence) {
@@ -335,7 +378,7 @@ fn assert_exact_counts(evidence: &CanonicalRecoveryEvidence) {
             assert_eq!(evidence.sessions_resumed, 3);
             assert_eq!(evidence.sessions_recovery_failed, 0);
         }
-        "sigkill_mid_iteration" | "postgres_loss" | "orphan_process" => {
+        "sigkill_mid_iteration" | "orphan_process" => {
             assert_eq!(evidence.sessions_examined, 1);
             assert_eq!(evidence.sessions_resumed, 1);
             assert_eq!(evidence.sessions_recovery_failed, 0);

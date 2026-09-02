@@ -1,5 +1,5 @@
 {
-  "_comment": "MT-063 portable non-SQLite fixture corpus: collections + contact-sheet artifacts only. No raster export, no CKC namespace. Media payload_seeds are materialized into a portable ArtifactStore at load time; the contact sheet snapshots membership by content hash.",
+  "_comment": "MT-063 portable JSON fixture corpus: collections + contact-sheet artifacts backed by embedded SurrealDB/EventLedger. No raster export, no CKC namespace. Media payload_seeds are materialized into a portable ArtifactStore at load time; the contact sheet snapshots membership by content hash.",
   "media_seeds": [
     "mt-063-collection-a",
     "mt-063-collection-b",

@@ -2,29 +2,22 @@
 //! pending intake items with a max-file bound, duplicate skip, and no source
 //! folder mutation.
 
+mod atelier_surreal_support;
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
 use handshake_core::atelier::intake::{
-    InboxFolderScanRequest, IntakeBatchMode, IntakeLane, IntakeProfileMode, NewIntakeBatch,
-    intake_event_family,
+    intake_event_family, InboxFolderScanRequest, IntakeBatchMode, IntakeLane, IntakeProfileMode,
+    NewIntakeBatch,
 };
-use handshake_core::atelier::{AtelierStore, event_family};
+use handshake_core::atelier::{event_family, AtelierStore};
 use uuid::Uuid;
 
-fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-}
-
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 fn write_fixture(path: &Path, bytes: &[u8]) {
@@ -57,13 +50,7 @@ fn source_snapshot(root: &Path) -> BTreeMap<String, Option<Vec<u8>>> {
 #[tokio::test]
 async fn mt026_folder_scan_imports_pending_images_with_bound_duplicate_skip_and_no_source_mutation()
 {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP mt026_folder_scan_imports_pending_images_with_bound_duplicate_skip_and_no_source_mutation: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     assert!(
         event_family::ALL.contains(&intake_event_family::INTAKE_FOLDER_SCAN_COMPLETED),
         "folder scan events must be discoverable through the parent atelier event registry"
@@ -103,12 +90,10 @@ async fn mt026_folder_scan_imports_pending_images_with_bound_duplicate_skip_and_
     assert_eq!(first.skipped_non_image_count, 1);
     assert_eq!(first.skipped_subdir_count, 1);
     assert_eq!(first.items.len(), 2);
-    assert!(
-        first
-            .items
-            .iter()
-            .all(|item| item.lane == IntakeLane::Pending)
-    );
+    assert!(first
+        .items
+        .iter()
+        .all(|item| item.lane == IntakeLane::Pending));
     assert_eq!(
         first
             .items
@@ -173,13 +158,7 @@ async fn mt026_folder_scan_imports_pending_images_with_bound_duplicate_skip_and_
 
 #[tokio::test]
 async fn mt026_folder_scan_rejects_missing_directory_without_creating_batch() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP mt026_folder_scan_rejects_missing_directory_without_creating_batch: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let temp = tempfile::tempdir().expect("create temp dir");
     let missing = temp.path().join("missing");
     let idempotency_key = format!("mt-026-missing-inbox-{}", Uuid::new_v4());
@@ -211,13 +190,7 @@ async fn mt026_folder_scan_rejects_missing_directory_without_creating_batch() {
 
 #[tokio::test]
 async fn mt026_folder_scan_rejects_same_key_different_root_replay() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP mt026_folder_scan_rejects_same_key_different_root_replay: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let first_dir = tempfile::tempdir().expect("create first inbox fixture dir");
     let second_dir = tempfile::tempdir().expect("create second inbox fixture dir");
     write_fixture(&first_dir.path().join("a.png"), b"first-root-image");
@@ -255,13 +228,7 @@ async fn mt026_folder_scan_rejects_same_key_different_root_replay() {
 
 #[tokio::test]
 async fn mt026_folder_scan_rejects_preexisting_same_key_incompatible_batch_before_writes() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP mt026_folder_scan_rejects_preexisting_same_key_incompatible_batch_before_writes: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let temp = tempfile::tempdir().expect("create inbox fixture dir");
     write_fixture(&temp.path().join("a.png"), b"preexisting-mismatch-image");
     let idempotency_key = format!("mt-026-preexisting-mismatch-{}", Uuid::new_v4());
@@ -317,33 +284,21 @@ async fn mt026_folder_scan_rejects_preexisting_same_key_incompatible_batch_befor
         0,
         "rejected folder scan must not write scan-completed evidence"
     );
-    let item_added_events: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*)
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_intake_item'
-             AND payload->>'batch_id' = $2"#,
-    )
-    .bind(intake_event_family::INTAKE_ITEM_ADDED)
-    .bind(preexisting.batch_id.to_string())
-    .fetch_one(store.pool())
-    .await
-    .expect("count rejected item-added events");
-    assert_eq!(
-        item_added_events, 0,
+    // The typed item listing is the embedded-store successor to the former
+    // payload-filtered event query and proves that no item write occurred.
+    assert!(
+        store
+            .list_intake_items(preexisting.batch_id, None)
+            .await
+            .expect("re-read rejected batch items")
+            .is_empty(),
         "rejected folder scan must not write item-added evidence"
     );
 }
 
 #[tokio::test]
 async fn mt026_folder_scan_rejects_over_cap_max_files_before_creating_batch() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP mt026_folder_scan_rejects_over_cap_max_files_before_creating_batch: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let temp = tempfile::tempdir().expect("create inbox fixture dir");
     write_fixture(&temp.path().join("a.png"), b"over-cap-image");
     let idempotency_key = format!("mt-026-over-cap-{}", Uuid::new_v4());
@@ -375,13 +330,7 @@ async fn mt026_folder_scan_rejects_over_cap_max_files_before_creating_batch() {
 
 #[tokio::test]
 async fn mt026_concurrent_same_folder_scans_count_only_true_inserts() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP mt026_concurrent_same_folder_scans_count_only_true_inserts: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let temp = tempfile::tempdir().expect("create inbox fixture dir");
     write_fixture(&temp.path().join("a.png"), b"concurrent-a");
     write_fixture(&temp.path().join("b.png"), b"concurrent-b");

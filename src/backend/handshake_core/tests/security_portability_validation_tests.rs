@@ -14,7 +14,10 @@ use handshake_core::knowledge_ingestion::paths::normalize_source_relative_path;
 use handshake_core::knowledge_ingestion::secrets::{
     redact_text as redact_ingested_text, scan_text as scan_ingested_text,
 };
-use handshake_core::storage::{ControlPlaneStorageConfig, StorageError};
+use handshake_core::storage::surreal::{
+    SurrealStorageConfig, SurrealStorageError, DEFAULT_DATABASE, DEFAULT_NAMESPACE,
+    DEFAULT_STORE_DIRECTORY,
+};
 use serde_json::json;
 
 fn allowlist() -> RuntimeDependencyAllowlist {
@@ -28,7 +31,7 @@ fn mt_225_redacts_secrets_from_bundle_wiki_log_and_usermanual_payloads() {
     let github_suffix_59 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456";
     let github_pat = format!("github_pat_{github_suffix_22}_{github_suffix_59}");
     let slack_app_token = "xapp-1-A012BCDEFGH-1234567890-abcdef0123456789";
-    let credential_url = "postgres://svc_user:superpostgrespass@db.internal:5432/app";
+    let credential_url = "https://svc_user:superstoragepass@storage.internal/app";
     let payload = json!({
         "debug_bundle": {
             "trace_jsonl": format!("cloud helper saw token {github_pat}")
@@ -47,7 +50,7 @@ fn mt_225_redacts_secrets_from_bundle_wiki_log_and_usermanual_payloads() {
         github_suffix_59,
         slack_app_token,
         credential_url,
-        "superpostgrespass",
+        "superstoragepass",
         "q7Xz2pLm9KvR4tNw8YbD3cFgH6sJaUeP",
     ] {
         assert!(
@@ -76,7 +79,7 @@ fn mt_225_redacts_secrets_from_bundle_wiki_log_and_usermanual_payloads() {
         "source-ingestion preflight must detect shaped secret fixtures"
     );
     let ingested_redacted = redact_ingested_text(&source_text, &ingestion_report);
-    for raw in [github_pat.as_str(), credential_url, "superpostgrespass"] {
+    for raw in [github_pat.as_str(), credential_url, "superstoragepass"] {
         assert!(
             !ingested_redacted.contains(raw),
             "source-ingestion redaction leaked raw secret: {raw}"
@@ -374,31 +377,17 @@ fn mt_226_safe_default_bundle_validator_rejects_bare_tmp_root_tokens() {
 }
 
 #[test]
-fn mt_227_missing_postgres_authority_fails_closed_without_sqlite_fallback() {
-    let cases = [
-        (None, None, None),
-        (Some("postgres_primary"), Some("true"), None),
-        (
-            Some("postgres_primary"),
-            Some("true"),
-            Some("sqlite://tmp/cache.sqlite3"),
-        ),
-        (Some("sqlite"), None, Some("sqlite://tmp/cache.sqlite3")),
-    ];
+fn mt_227_embedded_authority_config_is_explicit_portable_and_fail_closed() {
+    let empty = SurrealStorageConfig::for_data_dir("")
+        .expect_err("an empty embedded authority root must fail closed");
+    assert!(matches!(empty, SurrealStorageError::EmptyDataDirectory));
 
-    for (mode, requires_postgres, database_url) in cases {
-        let err = ControlPlaneStorageConfig::resolve(mode, requires_postgres, database_url)
-            .expect_err("missing/non-PostgreSQL authority must fail closed");
-        match err {
-            StorageError::Validation(message) => {
-                assert!(
-                    message.contains("postgres") || message.contains("unsupported storage mode"),
-                    "unexpected fail-closed message: {message}"
-                );
-            }
-            other => panic!("expected validation failure, got {other:?}"),
-        }
-    }
+    let root = tempfile::tempdir().expect("isolated embedded authority root");
+    let config = SurrealStorageConfig::for_data_dir(root.path())
+        .expect("build embedded authority config from an explicit root");
+    assert_eq!(config.namespace(), DEFAULT_NAMESPACE);
+    assert_eq!(config.database(), DEFAULT_DATABASE);
+    assert_eq!(config.path(), root.path().join(DEFAULT_STORE_DIRECTORY));
 }
 
 #[test]

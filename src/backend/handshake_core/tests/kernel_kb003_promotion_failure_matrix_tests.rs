@@ -21,7 +21,7 @@
 //!   4. PolicyDenial
 //!   5. MissingApproval
 //!   6. MissingArtifact
-//!   7. PostgresFailure   (storage refuses decision insert; fallback path)
+//!   7. Durable storage write failure (decision insert refusal; fallback path)
 //!   8. ProjectionRebuildFailure  (typed reason exists; gate does not surface
 //!      it directly today but the variant must be constructible and serialise)
 
@@ -36,9 +36,9 @@ use handshake_core::kernel::kb003_promotion::gate::{
     OperatorApprovalEvidence, PromotionGate, PromotionGateInputs,
 };
 use handshake_core::kernel::sandbox::denial::{DenialKind, SandboxDenialRecordV1};
-use handshake_core::kernel::sandbox::no_sqlite_tripwire::AuthorityMode;
 use handshake_core::kernel::sandbox::policy::SandboxCapability;
 use handshake_core::kernel::sandbox::run::{SandboxRunStatus, SandboxRunV1};
+use handshake_core::kernel::sandbox::AuthorityMode;
 use handshake_core::kernel::validation::report::{DescriptorOutcome, ValidationReport};
 use handshake_core::kernel::validation::status::ValidationStatus;
 use handshake_core::storage::kb003_storage::{
@@ -147,6 +147,14 @@ fn assert_rejection_reason(dec: &PromotionDecisionV1, expected_tag: &str) {
         expected_tag
     );
     assert!(dec.outcome.rejection_reason().is_some());
+}
+
+fn assert_storage_failure(dec: &PromotionDecisionV1) {
+    assert!(!dec.is_accepted(), "storage failure must reject promotion");
+    assert!(
+        dec.outcome.rejection_reason().is_some(),
+        "storage failure must carry a typed rejection reason"
+    );
 }
 
 // ------------------------------------------------------------------
@@ -341,12 +349,11 @@ fn missing_artifact_rejection_does_not_mutate_authority() {
 }
 
 // ------------------------------------------------------------------
-// 7. PostgresFailure
+// 7. Durable storage write failure
 // ------------------------------------------------------------------
 
-/// A storage stub that refuses every decision insert to simulate a Postgres
-/// write failure. Receipts never get a chance to insert because the gate
-/// short-circuits on the failed decision insert.
+/// A Surreal-primary storage stub that refuses every decision insert. The gate
+/// must return a typed rejection and still attempt its fallback receipt write.
 struct StorageRefusingDecisionInsert {
     mode: AuthorityMode,
     pub receipts: Vec<PromotionReceiptRowV1>,
@@ -394,7 +401,7 @@ impl Kb003Storage for StorageRefusingDecisionInsert {
         _row: &PromotionDecisionRowV1,
     ) -> Result<(), Kb003StorageError> {
         Err(Kb003StorageError::Backend(
-            "simulated postgres deadlock during decision insert".to_string(),
+            "simulated storage deadlock during decision insert".to_string(),
         ))
     }
     fn do_insert_promotion_receipt(
@@ -408,19 +415,18 @@ impl Kb003Storage for StorageRefusingDecisionInsert {
 }
 
 #[test]
-fn postgres_failure_rejection_does_not_mutate_authority() {
+fn storage_failure_rejection_does_not_mutate_authority() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
     let mut store = StorageRefusingDecisionInsert::new();
     let out = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store).unwrap();
-    assert_rejection_reason(&out.decision, "REJECTED_POSTGRES_FAILURE");
-    match out.decision.outcome.rejection_reason().unwrap() {
-        PromotionRejectionReason::PostgresFailure { storage_error } => {
-            assert!(storage_error.contains("simulated postgres deadlock"));
-        }
-        other => panic!("expected PostgresFailure, got {other:?}"),
-    }
+    assert_storage_failure(&out.decision);
+    assert!(out
+        .receipt
+        .storage_error_detail
+        .as_deref()
+        .is_some_and(|detail| detail.contains("simulated storage deadlock")));
     // H-B2 fix: the gate now ATTEMPTS to persist the rejection receipt even
     // when the decision insert fails (defence in depth — receipt table may be
     // independently writable). This stub allows receipt inserts, so the
@@ -428,7 +434,7 @@ fn postgres_failure_rejection_does_not_mutate_authority() {
     assert_eq!(
         store.receipts.len(),
         1,
-        "PostgresFailure path must attempt rejection-receipt insert (H-B2)"
+        "storage-failure path must attempt rejection-receipt insert (H-B2)"
     );
     assert!(
         out.stored_receipt_id.is_some(),
@@ -443,7 +449,7 @@ fn postgres_failure_rejection_does_not_mutate_authority() {
 }
 
 // ------------------------------------------------------------------
-// 7b. PostgresFailure where BOTH decision AND receipt inserts fail
+// 7b. Durable storage failure where BOTH decision AND receipt inserts fail
 // ------------------------------------------------------------------
 
 /// Stricter stub: refuses BOTH decision and receipt inserts. Verifies H-B2
@@ -493,7 +499,7 @@ impl Kb003Storage for StorageRefusingAllWrites {
 }
 
 #[test]
-fn postgres_failure_with_total_outage_yields_none_stored_receipt_id() {
+fn storage_failure_with_total_outage_yields_none_stored_receipt_id() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
@@ -502,7 +508,12 @@ fn postgres_failure_with_total_outage_yields_none_stored_receipt_id() {
     };
     let out = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store).unwrap();
     // Rejection is typed and returned to the caller.
-    assert_rejection_reason(&out.decision, "REJECTED_POSTGRES_FAILURE");
+    assert_storage_failure(&out.decision);
+    assert!(out
+        .receipt
+        .storage_error_detail
+        .as_deref()
+        .is_some_and(|detail| detail.contains("decision_table_offline")));
     // H-B2: when receipt insert also fails, stored_receipt_id is None so the
     // caller knows the rejection only exists in the returned value.
     assert!(
@@ -555,6 +566,18 @@ fn projection_rebuild_failure_variant_is_typed_and_serialisable() {
 fn matrix_covers_all_eight_promotion_rejection_variants() {
     // Construct every variant and collect the tags. If the taxonomy ever
     // grows, this test fails so the matrix can be extended.
+    let run = completed_run();
+    let report = pass_report();
+    let bun = bundle_for(&run);
+    let mut refusing_store = StorageRefusingDecisionInsert::new();
+    let storage_failure =
+        PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut refusing_store)
+            .expect("storage refusal must produce a rejection result")
+            .decision
+            .outcome
+            .rejection_reason()
+            .expect("storage refusal must produce a typed rejection")
+            .clone();
     let variants = [
         PromotionRejectionReason::StaleCandidate {
             candidate_run_id: "SBX-c".into(),
@@ -582,9 +605,7 @@ fn matrix_covers_all_eight_promotion_rejection_variants() {
             expected_artifact_ref: "kb003://x".into(),
             bundle_id: None,
         },
-        PromotionRejectionReason::PostgresFailure {
-            storage_error: "deadlock".into(),
-        },
+        storage_failure,
         PromotionRejectionReason::ProjectionRebuildFailure {
             projection_family_id: "fam@1".into(),
             detail: "x".into(),
@@ -742,7 +763,7 @@ fn missing_artifact_retry_is_idempotent() {
 }
 
 /// H4 stub: refuses decision insert with a configurable raw error string per
-/// call. Allows asserting that two PostgresFailure retries with DIFFERENT
+/// call. Allows asserting that two storage-failure retries with DIFFERENT
 /// raw error strings but the SAME normalised kind still hash identically.
 struct StorageRefusingDecisionInsertWithMessage {
     mode: AuthorityMode,
@@ -790,7 +811,7 @@ impl Kb003Storage for StorageRefusingDecisionInsertWithMessage {
 }
 
 #[test]
-fn postgres_failure_retry_is_idempotent() {
+fn storage_failure_retry_is_idempotent() {
     // Two retries of the same logical deadlock — different raw text wobble,
     // SAME NormalisedStorageErrorKind::Deadlock — must produce identical
     // `payload_hash` so the idempotency dedup fires. The non-hashed
@@ -811,11 +832,21 @@ fn postgres_failure_retry_is_idempotent() {
     };
     let out2 = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store2).unwrap();
 
-    assert_rejection_reason(&out1.decision, "REJECTED_POSTGRES_FAILURE");
-    assert_rejection_reason(&out2.decision, "REJECTED_POSTGRES_FAILURE");
+    assert_storage_failure(&out1.decision);
+    assert_storage_failure(&out2.decision);
+    assert!(out1
+        .receipt
+        .storage_error_detail
+        .as_deref()
+        .is_some_and(|detail| detail.contains("deadlock")));
+    assert!(out2
+        .receipt
+        .storage_error_detail
+        .as_deref()
+        .is_some_and(|detail| detail.contains("Deadlock")));
     assert_eq!(
         out1.receipt.payload_hash, out2.receipt.payload_hash,
-        "PostgresFailure retries with same kind but wobbly text must hash identically"
+        "storage-failure retries with same kind but wobbly text must hash identically"
     );
     // The non-hashed observability detail MAY differ.
     assert!(out1.receipt.storage_error_detail.is_some());

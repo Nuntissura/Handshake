@@ -1,37 +1,27 @@
 //! WP-KERNEL-009 MT-256 QuickSwitcher durable recents proof.
 //!
 //! Recents are part of the ProjectKnowledgeIndex/Loom navigation workflow, so
-//! they must persist in PostgreSQL and retain a Kernel EventLedger receipt. This
-//! test intentionally drives the storage trait against a real isolated
-//! PostgreSQL schema; no mock, browser storage, or in-memory fallback can pass.
+//! they must persist in the embedded store and retain a Kernel EventLedger
+//! receipt. This test intentionally drives the storage trait against a real
+//! isolated embedded store; no mock, browser storage, or in-memory fallback can
+//! pass.
 
-mod knowledge_pg_support;
+#[allow(dead_code)]
+mod user_manual_support;
 
 use handshake_core::kernel::KernelEventType;
 use handshake_core::storage::{
     Database, LoomSearchResultKind, LoomSearchSourceKind, QuickSwitcherRecentInput, StorageError,
 };
-use knowledge_pg_support::knowledge_pg;
 use serde_json::json;
-use sqlx::Row;
-
-macro_rules! pg_or_skip {
-    () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
-            None => {
-                panic!("MT-256 quick switcher recents proof requires real PostgreSQL");
-            }
-        }
-    }};
-}
+use user_manual_support::manual_test_backend;
 
 #[tokio::test]
 async fn mt256_quick_switcher_recents_reject_empty_ref_or_title() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
-    let missing_ref = pg
+    let missing_ref = backend
         .db
         .record_quick_switcher_recent(
             &ws,
@@ -51,7 +41,7 @@ async fn mt256_quick_switcher_recents_reject_empty_ref_or_title() {
         StorageError::Validation("quick switcher recent ref_id is required")
     ));
 
-    let missing_title = pg
+    let missing_title = backend
         .db
         .record_quick_switcher_recent(
             &ws,
@@ -70,14 +60,19 @@ async fn mt256_quick_switcher_recents_reject_empty_ref_or_title() {
         missing_title,
         StorageError::Validation("quick switcher recent title is required")
     ));
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 #[tokio::test]
 async fn mt256_quick_switcher_recents_persist_with_eventledger() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
-    pg.db
+    backend
+        .db
         .record_quick_switcher_recent(
             &ws,
             QuickSwitcherRecentInput {
@@ -91,7 +86,8 @@ async fn mt256_quick_switcher_recents_persist_with_eventledger() {
         )
         .await
         .expect("record beta recent");
-    pg.db
+    backend
+        .db
         .record_quick_switcher_recent(
             &ws,
             QuickSwitcherRecentInput {
@@ -105,7 +101,7 @@ async fn mt256_quick_switcher_recents_persist_with_eventledger() {
         )
         .await
         .expect("record alpha recent");
-    let promoted = pg
+    let promoted = backend
         .db
         .record_quick_switcher_recent(
             &ws,
@@ -120,7 +116,7 @@ async fn mt256_quick_switcher_recents_persist_with_eventledger() {
         )
         .await
         .expect("promote beta recent");
-    let wiki_recent = pg
+    let wiki_recent = backend
         .db
         .record_quick_switcher_recent(
             &ws,
@@ -143,7 +139,7 @@ async fn mt256_quick_switcher_recents_persist_with_eventledger() {
     assert_eq!(wiki_recent.hit_key, "wiki_page:KWP-alpha");
     assert!(!wiki_recent.event_ledger_event_id.trim().is_empty());
 
-    let recents = pg
+    let recents = backend
         .db
         .list_quick_switcher_recents(&ws, 20)
         .await
@@ -161,54 +157,45 @@ async fn mt256_quick_switcher_recents_persist_with_eventledger() {
         wiki_recent.event_ledger_event_id
     );
 
-    let mut conn = pg.raw_connection().await;
-    let event_count: i64 = sqlx::query(
-        r#"
-        SELECT COUNT(*)::BIGINT AS count
-        FROM kernel_event_ledger
-        WHERE event_id = $1
-          AND event_type = $2
-          AND aggregate_type = 'quick_switcher_recent'
-          AND payload ->> 'workspace_id' = $3
-          AND payload ->> 'hit_key' = 'user_manual_page:recent-beta'
-        "#,
-    )
-    .bind(&promoted.event_ledger_event_id)
-    .bind(KernelEventType::KnowledgeQuickSwitcherRecentRecorded.as_str())
-    .bind(&ws)
-    .fetch_one(&mut conn)
-    .await
-    .expect("query matching kernel event")
-    .get("count");
+    let events = backend
+        .db
+        .list_kernel_events_for_aggregate("quick_switcher_recent", &ws)
+        .await
+        .expect("query matching kernel event");
+    let event_count = events
+        .iter()
+        .filter(|event| {
+            event.event_id == promoted.event_ledger_event_id
+                && event.event_type.as_str()
+                    == KernelEventType::KnowledgeQuickSwitcherRecentRecorded.as_str()
+                && event.payload["workspace_id"] == ws
+                && event.payload["hit_key"] == "user_manual_page:recent-beta"
+        })
+        .count();
     assert_eq!(
         event_count, 1,
         "recorded recent must reference exactly one typed Kernel EventLedger row"
     );
 
-    let row_count: i64 = sqlx::query(
-        r#"
-        SELECT COUNT(*)::BIGINT AS count
-        FROM knowledge_quick_switcher_recents r
-        JOIN kernel_event_ledger e
-          ON e.event_id = r.event_ledger_event_id
-        WHERE r.workspace_id = $1
-          AND r.hit_key = 'user_manual_page:recent-beta'
-          AND e.event_type = $2
-        "#,
-    )
-    .bind(&ws)
-    .bind(KernelEventType::KnowledgeQuickSwitcherRecentRecorded.as_str())
-    .fetch_one(&mut conn)
-    .await
-    .expect("query recent row event FK")
-    .get("count");
+    let row_count = events
+        .iter()
+        .filter(|event| {
+            event.event_id == promoted.event_ledger_event_id
+                && event.event_type.as_str()
+                    == KernelEventType::KnowledgeQuickSwitcherRecentRecorded.as_str()
+        })
+        .count();
     assert_eq!(row_count, 1, "recent row must retain its EventLedger FK");
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 #[tokio::test]
 async fn mt256_quick_switcher_recents_accept_breadth_source_kinds() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
     for (source_kind, result_kind, ref_id, title) in [
         (
@@ -230,7 +217,7 @@ async fn mt256_quick_switcher_recents_accept_breadth_source_kinds() {
             "GraphSearchAlpha standalone document",
         ),
     ] {
-        let recent = pg
+        let recent = backend
             .db
             .record_quick_switcher_recent(
                 &ws,
@@ -249,7 +236,7 @@ async fn mt256_quick_switcher_recents_accept_breadth_source_kinds() {
         assert!(!recent.event_ledger_event_id.trim().is_empty());
     }
 
-    let recents = pg
+    let recents = backend
         .db
         .list_quick_switcher_recents(&ws, 10)
         .await
@@ -259,4 +246,8 @@ async fn mt256_quick_switcher_recents_accept_breadth_source_kinds() {
         .map(|recent| recent.source_kind.as_str())
         .collect();
     assert_eq!(source_kinds, vec!["document", "tag_hub", "file"]);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }

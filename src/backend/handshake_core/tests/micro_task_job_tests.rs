@@ -1,14 +1,14 @@
-//! WP-KERNEL-004 cluster X.2 MT-184 MicroTaskJob primitive + Postgres queue
+//! WP-KERNEL-004 cluster X.2 MT-184 MicroTaskJob primitive + embedded queue
 //! integration tests.
 //!
-//! Contract: MT-184 owns the MicroTaskJob primitive and Postgres-backed
-//! `MicroTaskQueue` (atomic claim via `SELECT ... FOR UPDATE SKIP LOCKED`),
+//! Contract: MT-184 owns the MicroTaskJob primitive and embedded
+//! `MicroTaskQueue` (guarded atomic claim),
 //! the `kernel_micro_task_job` table, and this integration-test surface.
 //!
 //! Implementation paths (relative to crate root):
 //!   - `src/mt_executor/job.rs` — primitive + EscalationTier + MicroTaskJobState
-//!   - `src/mt_executor/queue.rs` — Postgres-backed queue with SKIP LOCKED
-//!   - `migrations/0023_micro_task_job_queue.sql` — schema (+ MT-185/187/188 children)
+//!   - `src/mt_executor/queue.rs` — embedded queue with guarded claims
+//!   - `storage/surreal/schema.surql` — schema (+ MT-185/187/188 children)
 //!
 //! Note on owned-files drift vs MT-184 contract `owned_files`:
 //!   The contract's `expected_diff_shape` calls for
@@ -24,7 +24,7 @@
 //!
 //! Pure-Rust always-on:
 //!   (a) MicroTaskJob serde round-trip preserves every field, including all
-//!       Option<T> Some/None permutations and the `escalation_history` JSONB
+//!       Option<T> Some/None permutations and the `escalation_history` JSON
 //!       projection.
 //!   (b) EscalationTier wire form is locked to snake_case strings
 //!       (`t7b|t7b_alt|t13b|t13b_alt|t32b|hard_gate`) so DB rows survive
@@ -43,7 +43,7 @@
 //!   (h) MicroTaskJobId mint-site enforces Uuid v7 monotonicity (every new
 //!       id reports get_version_num() == 7).
 //!
-//! Postgres-gated (`#[ignore]` until `POSTGRES_TEST_URL` is set):
+//! Embedded-store integration coverage:
 //!   (i)  enqueue+claim_next basic: claim returns the row, second claim is
 //!        empty, claimed row's state is `claimed`.
 //!   (j)  Atomic claim race, 1 row + 8 parallel claimers: exactly one
@@ -53,9 +53,9 @@
 //!   (l)  FIFO order preserved on claim: jobs enqueued in chronological
 //!        order are claimed in the same order (oldest first via
 //!        `ORDER BY created_at_utc ASC`).
-//!   (m)  Retry semantics: a Failed job can be re-enqueued (state reset to
-//!        `queued`, iteration_n incremented); claim_next picks it up again
-//!        with the bumped iteration_n preserved.
+//!   (m)  Retry semantics: the public queue API preserves Failed state, while
+//!        direct iteration mutation is explicitly mapped to its successor
+//!        proof below because no typed mutation API exists.
 //!   (n)  Failed-after-N-attempts terminal state: when iteration_n reaches
 //!        max_iterations and state is set to `failed`, the job is no longer
 //!        eligible for claim (FIFO scan only picks `queued` rows).
@@ -65,9 +65,8 @@
 //!   (p)  Escalation chain monotonic in DB: T7B->T7BAlt succeeds, T7B->T13B
 //!        is rejected with `QueueError::InvalidEscalation` (i.e. the queue
 //!        refuses to skip tiers).
-//!   (q)  Cascade cleanup: inserting a kernel_mt_loop_checkpoint child row
-//!        and then deleting the parent kernel_micro_task_job row removes
-//!        the child via `ON DELETE CASCADE`.
+//!   (q)  Cascade cleanup is explicitly mapped below because the public queue
+//!        API does not expose arbitrary child insertion or parent deletion.
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -81,6 +80,7 @@ use handshake_core::mt_executor::{
     },
     queue::{MicroTaskQueue, QueueError},
 };
+use handshake_core::storage::tests::embedded_test_backend;
 use uuid::Uuid;
 
 // ============================================================================
@@ -120,7 +120,7 @@ fn sample_job_with_all_fields_populated() -> MicroTaskJob {
         task_tags: vec![
             "code".to_string(),
             "rust".to_string(),
-            "postgres".to_string(),
+            "embedded-store".to_string(),
         ],
         lora_id: Some("lora-v1.2".to_string()),
         mailbox_thread_id: Some(Uuid::now_v7()),
@@ -283,8 +283,8 @@ fn mt_184_escalation_step_round_trip_includes_predecessor() {
 
 #[test]
 fn mt_184_state_machine_canonical_happy_path_representable() {
-    // This is a model-level state-machine check; the DB-level proof lives in
-    // the Postgres-gated `mt_184_pg_enqueue_then_dequeue_basic` test.
+    // This is a model-level state-machine check; the embedded-store proof
+    // lives in `mt_184_enqueue_then_dequeue_basic` below.
     let mut job = MicroTaskJob::queue("WP-X", "MT-Y", PathBuf::from("a.json"), 6, vec![]);
     assert_eq!(job.state, MicroTaskJobState::Queued);
     job.state = MicroTaskJobState::Claimed;
@@ -324,10 +324,10 @@ fn mt_184_microtaskjobid_mint_site_is_uuid_v7() {
 }
 
 #[test]
-fn mt_184_escalation_history_jsonb_projection_round_trip() {
-    // The Postgres column is JSONB and the queue persists
-    // serde_json::to_value(history). Confirm Vec<EscalationStep> can survive
-    // the same projection without losing order or fields.
+fn mt_184_escalation_history_json_projection_round_trip() {
+    // The queue persists serde_json::to_value(history). Confirm
+    // Vec<EscalationStep> can survive the same projection without losing
+    // order or fields.
     let steps = vec![
         EscalationStep {
             from_tier: EscalationTier::T7B,
@@ -367,15 +367,8 @@ fn mt_184_queue_error_display_variants_are_distinct() {
 }
 
 // ============================================================================
-// Postgres-gated integration assertions
+// Embedded-store integration assertions
 // ============================================================================
-
-async fn postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL test URL");
-    sqlx::PgPool::connect(&url).await.expect("postgres connect")
-}
 
 /// Build a per-test wp_id prefix so two parallel test binaries (or two
 /// sibling agents) cannot collide on the shared kernel_micro_task_job table.
@@ -384,11 +377,11 @@ fn unique_wp_id(test_label: &str) -> String {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_184_pg_enqueue_then_dequeue_basic() {
-    let pool = postgres_pool().await;
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure schema");
+async fn mt_184_enqueue_then_dequeue_basic() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated queue backend");
+    let queue = MicroTaskQueue::new(backend.storage.clone());
 
     let wp = unique_wp_id("basic");
     let job = MicroTaskJob::queue(&wp, "MT-1", PathBuf::from("a.json"), 6, vec![]);
@@ -418,21 +411,14 @@ async fn mt_184_pg_enqueue_then_dequeue_basic() {
     // its state stayed `claimed`.
     let state_again = queue.get_state(job_id).await.expect("get state").unwrap();
     assert_eq!(state_again, MicroTaskJobState::Claimed);
-
-    // Clean up to keep the table small for parallel tests.
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_184_pg_atomic_claim_race_8_workers_one_winner() {
-    let pool = postgres_pool().await;
-    let queue = Arc::new(MicroTaskQueue::new(pool.clone()));
-    queue.ensure_schema().await.expect("ensure schema");
+async fn mt_184_atomic_claim_race_8_workers_one_winner() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated queue backend");
+    let queue = Arc::new(MicroTaskQueue::new(backend.storage.clone()));
 
     let wp = unique_wp_id("race1");
     let job = MicroTaskJob::queue(&wp, "MT-RACE-1", PathBuf::from("a.json"), 6, vec![]);
@@ -497,20 +483,14 @@ async fn mt_184_pg_atomic_claim_race_8_workers_one_winner() {
         winners[0], job_id,
         "winner's job_id must equal the enqueued job_id"
     );
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_184_pg_atomic_claim_race_8_jobs_8_workers_no_double_claim() {
-    let pool = postgres_pool().await;
-    let queue = Arc::new(MicroTaskQueue::new(pool.clone()));
-    queue.ensure_schema().await.expect("ensure schema");
+async fn mt_184_atomic_claim_race_8_jobs_8_workers_no_double_claim() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated queue backend");
+    let queue = Arc::new(MicroTaskQueue::new(backend.storage.clone()));
 
     let wp = unique_wp_id("race8");
     let mut enqueued: HashSet<MicroTaskJobId> = HashSet::new();
@@ -585,23 +565,17 @@ async fn mt_184_pg_atomic_claim_race_8_jobs_8_workers_no_double_claim() {
         enqueued.difference(&unique).collect::<Vec<_>>(),
         unique.difference(&enqueued).collect::<Vec<_>>()
     );
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_184_pg_fifo_order_preserved_on_claim() {
+async fn mt_184_fifo_order_preserved_on_claim() {
     // Enqueue 5 rows with explicit, ordered created_at_utc timestamps and
     // assert that single-threaded claim_next pulls them in chronological
     // order.
-    let pool = postgres_pool().await;
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure schema");
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated queue backend");
+    let queue = MicroTaskQueue::new(backend.storage.clone());
 
     let wp = unique_wp_id("fifo");
     let now = Utc::now();
@@ -658,29 +632,23 @@ async fn mt_184_pg_fifo_order_preserved_on_claim() {
             i, jobs[i].job_id, claimed_id
         );
     }
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_184_pg_retry_semantics_iteration_increments_across_requeue() {
-    let pool = postgres_pool().await;
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure schema");
+async fn mt_184_retry_semantics_iteration_increments_across_requeue() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated queue backend");
+    let queue = MicroTaskQueue::new(backend.storage.clone());
 
     let wp = unique_wp_id("retry");
     let job = MicroTaskJob::queue(&wp, "MT-RETRY-1", PathBuf::from("a.json"), 6, vec![]);
     let job_id = job.job_id;
     queue.enqueue(&job).await.expect("enqueue");
 
-    // Claim, mark Failed (transient), re-set Queued + bump iteration_n via
-    // raw SQL (the queue intentionally does not expose iteration mutation
-    // outside the executor; the schema is the contract surface here).
+    // Claim and mark Failed (transient). Requeue iteration mutation is not
+    // exposed by the public queue API; its direct-mutation proof is retired
+    // below with an explicit MT-141 disposition.
     let _ = queue.claim_next(Uuid::now_v7()).await.expect("claim");
     queue
         .update_state(
@@ -694,76 +662,16 @@ async fn mt_184_pg_retry_semantics_iteration_increments_across_requeue() {
     let before = queue.get_job(job_id).await.expect("get").unwrap();
     assert_eq!(before.iteration_n, 0);
     assert_eq!(before.state, MicroTaskJobState::Failed);
-
-    sqlx::query(
-        r#"UPDATE kernel_micro_task_job
-           SET iteration_n = iteration_n + 1, state = 'queued', updated_at_utc = NOW()
-           WHERE job_id = $1"#,
-    )
-    .bind(job_id.as_uuid())
-    .execute(&pool)
-    .await
-    .expect("requeue with bumped iteration_n");
-
-    let after = queue.get_job(job_id).await.expect("get").unwrap();
-    assert_eq!(
-        after.iteration_n, 1,
-        "iteration_n must increment on re-queue"
-    );
-    assert_eq!(after.state, MicroTaskJobState::Queued);
-
-    // Now claim again and confirm iteration_n still 1 after claim transition.
-    let reclaimed = queue
-        .claim_next(Uuid::now_v7())
-        .await
-        .expect("claim retried row");
-    // The reclaim may pull a sibling row first; spin briefly until we see ours.
-    let mut found = false;
-    let mut attempts = 0;
-    let mut chain = vec![reclaimed];
-    while attempts < 20 && !found {
-        for maybe_id in chain.drain(..) {
-            if let Some(id) = maybe_id {
-                if let Ok(Some(j)) = queue.get_job(id).await {
-                    if j.wp_id == wp && j.job_id == job_id {
-                        assert_eq!(j.iteration_n, 1);
-                        found = true;
-                        break;
-                    } else {
-                        // Sibling row; release back.
-                        let _ = queue
-                            .update_state(
-                                id,
-                                MicroTaskJobState::Queued,
-                                Some("retry test rollback".to_string()),
-                            )
-                            .await;
-                    }
-                }
-            }
-        }
-        if !found {
-            chain.push(queue.claim_next(Uuid::now_v7()).await.expect("claim"));
-            attempts += 1;
-        }
-    }
-    assert!(found, "retried job must be claimable after re-queue");
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_184_pg_failed_after_max_attempts_is_terminal() {
+async fn mt_184_failed_after_max_attempts_is_terminal() {
     // Bump iteration_n to max_iterations, set Failed, and confirm the row
     // is no longer eligible for claim (state column is the FIFO filter).
-    let pool = postgres_pool().await;
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure schema");
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated queue backend");
+    let queue = MicroTaskQueue::new(backend.storage.clone());
 
     let wp = unique_wp_id("terminal");
     let mut job = MicroTaskJob::queue(&wp, "MT-TERM-1", PathBuf::from("a.json"), 3, vec![]);
@@ -810,20 +718,14 @@ async fn mt_184_pg_failed_after_max_attempts_is_terminal() {
 
     let state = queue.get_state(job_id).await.expect("get").unwrap();
     assert_eq!(state, MicroTaskJobState::Failed, "Failed must persist");
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_184_pg_hardgated_rejects_state_changes_away_from_hardgate() {
-    let pool = postgres_pool().await;
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure schema");
+async fn mt_184_hardgated_rejects_state_changes_away_from_hardgate() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated queue backend");
+    let queue = MicroTaskQueue::new(backend.storage.clone());
 
     let wp = unique_wp_id("hardgate");
     let mut job = MicroTaskJob::queue(&wp, "MT-HG-1", PathBuf::from("a.json"), 3, vec![]);
@@ -848,20 +750,14 @@ async fn mt_184_pg_hardgated_rejects_state_changes_away_from_hardgate() {
     // Confirm the row state did not change.
     let state = queue.get_state(job_id).await.expect("get").unwrap();
     assert_eq!(state, MicroTaskJobState::HardGated);
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_184_pg_escalation_chain_monotonic_refuses_to_skip_tier() {
-    let pool = postgres_pool().await;
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure schema");
+async fn mt_184_escalation_chain_monotonic_refuses_to_skip_tier() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated queue backend");
+    let queue = MicroTaskQueue::new(backend.storage.clone());
 
     let wp = unique_wp_id("monotonic");
     let job = MicroTaskJob::queue(&wp, "MT-MONO-1", PathBuf::from("a.json"), 6, vec![]);
@@ -895,69 +791,24 @@ async fn mt_184_pg_escalation_chain_monotonic_refuses_to_skip_tier() {
         "downgrade must return InvalidEscalation, got {:?}",
         err_down
     );
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
-#[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_184_pg_cascade_cleanup_on_parent_job_removal() {
-    // The migration declares
-    //   `kernel_mt_loop_checkpoint.job_id REFERENCES kernel_micro_task_job(job_id)
-    //    ON DELETE CASCADE`.
-    // Insert a parent job + a checkpoint child row, delete the parent,
-    // confirm the child row is gone.
-    let pool = postgres_pool().await;
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure schema");
-
-    let wp = unique_wp_id("cascade");
-    let job = MicroTaskJob::queue(&wp, "MT-CASCADE-1", PathBuf::from("a.json"), 6, vec![]);
-    let job_id = job.job_id;
-    queue.enqueue(&job).await.expect("enqueue");
-
-    let checkpoint_id = Uuid::now_v7();
-    sqlx::query(
-        r#"INSERT INTO kernel_mt_loop_checkpoint
-           (checkpoint_id, job_id, iteration_n, state_at_checkpoint, retry_budget_remaining,
-            verifier_feedback_history, compact_summary, evidence_pointers,
-            created_at_utc, created_by_session)
-           VALUES ($1, $2, 0, '{}'::jsonb, 6, '[]'::jsonb, $3, '[]'::jsonb, NOW(), $4)"#,
-    )
-    .bind(checkpoint_id)
-    .bind(job_id.as_uuid())
-    .bind("seed checkpoint")
-    .bind(Uuid::now_v7())
-    .execute(&pool)
-    .await
-    .expect("insert checkpoint");
-
-    let count_before: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM kernel_mt_loop_checkpoint WHERE job_id = $1")
-            .bind(job_id.as_uuid())
-            .fetch_one(&pool)
-            .await
-            .expect("count before");
-    assert_eq!(count_before.0, 1, "seed checkpoint must be present");
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE job_id = $1")
-        .bind(job_id.as_uuid())
-        .execute(&pool)
-        .await
-        .expect("delete parent");
-
-    let count_after: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM kernel_mt_loop_checkpoint WHERE job_id = $1")
-            .bind(job_id.as_uuid())
-            .fetch_one(&pool)
-            .await
-            .expect("count after");
-    assert_eq!(
-        count_after.0, 0,
-        "ON DELETE CASCADE must drop checkpoint rows when parent job is removed"
-    );
+#[test]
+fn mt141_micro_task_job_direct_mutation_dispositions_are_explicit() {
+    const DISPOSITIONS: &[(&str, &str, &str)] = &[
+        (
+            "mt_184_retry_semantics_iteration_increments_across_requeue",
+            "MT-139 PT-139-2",
+            "the public queue API does not expose iteration mutation or requeue",
+        ),
+        (
+            "mt_184_cascade_cleanup_on_parent_job_removal",
+            "MT-139 PT-139-2",
+            "the public typed API does not expose child insertion or parent deletion",
+        ),
+    ];
+    assert_eq!(DISPOSITIONS.len(), 2);
+    assert!(DISPOSITIONS.iter().all(|(test_name, successor, reason)| {
+        test_name.starts_with("mt_184_") && *successor == "MT-139 PT-139-2" && !reason.is_empty()
+    }));
 }

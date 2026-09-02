@@ -254,7 +254,7 @@ pub enum KernelEventType {
     GraphMutationProposalDecided,
     AiEditProposalRecorded,
     AiEditProposalDecided,
-    // WP-KERNEL-009 PostgresEventLedgerCore (MT-061) event families.
+    // WP-KERNEL-009 SurrealEventLedgerCore (MT-061) event families.
     // Spec 2.3.13.11: index runs, claim lifecycle/conflicts, retrieval
     // traces, editor (RichDocument) saves/promotions, Loom blocks,
     // projections, UserManual entries, and knowledge validation MUST leave

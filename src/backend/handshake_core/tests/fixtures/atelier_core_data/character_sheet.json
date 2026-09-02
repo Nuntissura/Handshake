@@ -1,5 +1,5 @@
 {
-  "_comment": "MT-061 portable non-SQLite fixture corpus: character identity + sheet parsing/versioning. Pure JSON, no SQLite. public_id_slug is made run-unique by the loader; raw_text carries exact bytes (including whitespace) that the sheet parser must preserve.",
+  "_comment": "MT-061 portable JSON fixture corpus: character identity + sheet parsing/versioning backed by embedded SurrealDB/EventLedger. public_id_slug is made run-unique by the loader; raw_text carries exact bytes (including whitespace) that the sheet parser must preserve.",
   "characters": [
     {
       "public_id_slug": "mt-061-mentor",

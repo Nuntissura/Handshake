@@ -1,7 +1,7 @@
-//! WP-KERNEL-005 MT-147 / MT-148 / MT-153 / MT-167: real PostgreSQL round-trip
+//! WP-KERNEL-005 MT-147 / MT-148 / MT-153 / MT-167: embedded SurrealDB round-trip
 //! proofs for the typed Model-Workflow-Diagnostics projection surfaces.
 //!
-//! These MTs are TYPED RUNTIME surfaces (Postgres rows + EventLedger events),
+//! These MTs are TYPED RUNTIME surfaces (embedded rows + EventLedger events),
 //! never governance markdown:
 //!   * MT-147 -- model work-state projection (active MT, owner, status, blocker,
 //!     receipts, next action, evidence) into a Locus/MT diagnostics row.
@@ -12,23 +12,16 @@
 //!   * MT-167 -- stale README/spec drift detector: a typed drift finding recorded
 //!     only when a doc-claimed surface differs from the code/spec surface.
 //!
-//! Gated on `atelier_pg_support::database_url()`: when no PostgreSQL is
-//! available the test prints SKIP and returns (never SQLite).
+//! Each test uses an isolated embedded store.
 //!
 //! Migrations 0115 (tables) and 0129 (MT-158 retention/redaction columns) are
-//! wired into `AtelierStore::ensure_schema`, and every `record_*` write emits
+//! wired into the embedded schema bootstrap, and every `record_*` write emits
 //! its `diagnostics_projection_event_family` event in the same transaction;
-//! these tests assert both the PostgreSQL row round-trip AND the emitted
+//! these tests assert both the durable row round-trip AND the emitted
 //! EventLedger event (`count_events_for_aggregate`).
 //!
-//! Proof command (all four tests):
-//!   DATABASE_URL=postgres://postgres@127.0.0.1:5544/handshake \
-//!     cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
-//!     --test atelier_diagnostics_projections_tests -- --nocapture
+mod atelier_surreal_support;
 
-mod atelier_pg_support;
-
-use atelier_pg_support::database_url;
 use handshake_core::atelier::state_probe::{
     diagnostics_projection_event_family, DccPanelKind, NewDccPanelProjection,
     NewScreenshotArtifactStorage, NewWorkStateProjection,
@@ -38,23 +31,16 @@ use handshake_core::atelier::{AtelierError, AtelierStore};
 use uuid::Uuid;
 
 /// Connect and ensure the wired schema (0115 + 0129 included). Idempotent.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
-/// MT-147: a model work-state projection round-trips through Postgres with all
+/// MT-147: a model work-state projection round-trips through the embedded store with all
 /// fields preserved.
 #[tokio::test]
 async fn mt147_work_state_projection_round_trips() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt147_work_state_projection_round_trips: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let projection_id = format!("wsp-{}", Uuid::new_v4());
     let input = NewWorkStateProjection {
@@ -169,11 +155,7 @@ async fn mt147_work_state_projection_round_trips() {
 /// MT-148: a DCC panel projection round-trips for each of the four panel kinds.
 #[tokio::test]
 async fn mt148_dcc_panel_projection_round_trips_each_kind() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt148_dcc_panel_projection_round_trips_each_kind: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     for kind in DccPanelKind::ALL.iter().copied() {
         let panel_id = format!("dcc-{}-{}", kind.as_token(), Uuid::new_v4());
@@ -224,7 +206,7 @@ async fn mt148_dcc_panel_projection_round_trips_each_kind() {
 }
 
 /// MT-153: a stealth screenshot capture is promoted to a governed, retained
-/// screenshot artifact with metadata, and round-trips through Postgres.
+/// screenshot artifact with metadata, and round-trips through the embedded store.
 ///
 /// This proves the MT-153 EXTENSION of the existing stealth capture receipt:
 /// the base `record_stealth_capture` only proves a capture happened, with no
@@ -232,11 +214,7 @@ async fn mt148_dcc_panel_projection_round_trips_each_kind() {
 /// and a retention policy (ttl + pinned) keyed to the capture.
 #[tokio::test]
 async fn mt153_stealth_capture_extension() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt153_stealth_capture_extension: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // Base: create a real stealth window + capture receipt (existing surface).
     let window = store
@@ -398,11 +376,7 @@ async fn mt153_stealth_capture_extension() {
 /// nothing for a match.
 #[tokio::test]
 async fn mt167_spec_drift_detector_records_mismatch_only() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt167_spec_drift_detector_records_mismatch_only: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // MATCH: doc surface equals code surface -> no finding recorded.
     let match_finding_id = format!("drift-match-{}", Uuid::new_v4());
@@ -417,7 +391,10 @@ async fn mt167_spec_drift_detector_records_mismatch_only() {
         )
         .await
         .expect("run drift detector on a match");
-    assert!(none.is_none(), "a matching doc/code surface records no finding");
+    assert!(
+        none.is_none(),
+        "a matching doc/code surface records no finding"
+    );
 
     // MISMATCH: doc claims a stale surface -> a finding is recorded.
     let drift_finding_id = format!("drift-mismatch-{}", Uuid::new_v4());

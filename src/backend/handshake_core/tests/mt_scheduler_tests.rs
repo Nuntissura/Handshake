@@ -2,7 +2,7 @@
 //! (age-based priority + fair scheduling) integration tests.
 //!
 //! Contract: MT-187 owns `FairScheduler` (priority + `claim_next_priority`
-//! Postgres CTE), `StarvationGuard` (in-memory + DB-watermarked monotonic
+//! embedded-store query), `StarvationGuard` (in-memory + store-watermarked monotonic
 //! emission of FR-EVT-MT-STARVED), `StarvationConfig`, the
 //! `starvation_watermark_at_utc` column on `kernel_micro_task_job`, the
 //! per-wp claim-window index, and this integration-test surface.
@@ -10,8 +10,8 @@
 //! Implementation paths (relative to crate root):
 //!   - `src/mt_executor/scheduler.rs` — FairScheduler + StarvationGuard
 //!     (extends `queue.rs::MicroTaskQueue` from MT-184)
-//!   - `migrations/0026_mt_scheduler_starvation_watermark.sql` — adds the
-//!     watermark column + claim-window index
+//!   - `storage/surreal/schema.surql` — defines the watermark field and
+//!     claim-window index
 //!
 //! Note on owned-files drift vs MT-187 contract `owned_files`:
 //!   The contract's `expected_diff_shape` calls for
@@ -55,7 +55,7 @@
 //!   (o) StarvationConfig default is field-stable (defends against silent
 //!       cfg drift on later MT changes).
 //!
-//! Postgres-gated (`#[ignore]` until `POSTGRES_TEST_URL` is set):
+//! Embedded-store integration coverage:
 //!   (p) claim_next_priority claims the highest-priority job from a
 //!       realistic queue mix (100 fresh T7B + 1 old T32B → old T32B
 //!       claimed within the first 5 picks; in practice claimed first
@@ -322,40 +322,22 @@ fn mt_187_starvation_config_default_is_field_stable() {
 }
 
 // ============================================================================
-// Postgres-gated integration assertions
+// Embedded-store integration assertions
 // ============================================================================
-
-async fn postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL test URL");
-    sqlx::PgPool::connect(&url).await.expect("postgres connect")
-}
 
 fn unique_wp_id(test_label: &str) -> String {
     format!("WP-MT187-{}-{}", test_label, Uuid::now_v7().simple())
 }
 
-/// Set up the cluster X.2 schema (kernel_micro_task_job + children + MT-187
-/// watermark column). Idempotent; safe to call from every test.
-async fn ensure_full_schema(pool: &sqlx::PgPool) {
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure queue schema");
-    let sched = FairScheduler::new(StarvationConfig::default());
-    sched
-        .ensure_schema(pool)
-        .await
-        .expect("ensure scheduler schema");
-}
-
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_187_pg_claim_next_priority_picks_old_t32b_over_fresh_fleet() {
+async fn mt_187_claim_next_priority_picks_old_t32b_over_fresh_fleet() {
     // Realistic queue mix: 100 fresh T7B from many wp_ids + 1 old T32B
     // from a different wp. The old T32B must be claimed before any fresh
     // T7B because the priority CTE ranks it higher.
-    let pool = postgres_pool().await;
-    ensure_full_schema(&pool).await;
+    let backend = handshake_core::storage::tests::embedded_test_backend()
+        .await
+        .expect("open scheduler backend");
+    let pool = backend.storage.clone();
     let queue = MicroTaskQueue::new(pool.clone());
     let sched = FairScheduler::new(StarvationConfig::default());
 
@@ -396,7 +378,7 @@ async fn mt_187_pg_claim_next_priority_picks_old_t32b_over_fresh_fleet() {
     let mut claims: Vec<MicroTaskJobId> = Vec::new();
     for _ in 0..5 {
         if let Some(id) = sched
-            .claim_next_priority(&pool, session)
+            .claim_next_priority(&queue, session)
             .await
             .expect("claim_next_priority")
         {
@@ -415,29 +397,18 @@ async fn mt_187_pg_claim_next_priority_picks_old_t32b_over_fresh_fleet() {
         claims[0], old_id,
         "old T32B must be the very first pick (priority 110 > fresh T7B 20)"
     );
-
-    // Cleanup: delete everything we inserted under our labels.
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp_old)
-        .execute(&pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id LIKE $1")
-        .bind(format!("{}-fresh-%", label))
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_187_pg_fair_scheduling_rotates_across_wps_under_imbalance() {
+async fn mt_187_fair_scheduling_rotates_across_wps_under_imbalance() {
     // Pre-populate claimed_at_utc for 50 BUSY-wp claims inside the
     // fairness window, then enqueue 1 BUSY + 1 OTHER fresh T7B job.
     // OTHER must be claimed first because BUSY gets the -200 penalty cap
     // (priority 20 - 200 = -180) and OTHER gets none (priority 20).
-    let pool = postgres_pool().await;
-    ensure_full_schema(&pool).await;
+    let backend = handshake_core::storage::tests::embedded_test_backend()
+        .await
+        .expect("open scheduler backend");
+    let pool = backend.storage.clone();
     let queue = MicroTaskQueue::new(pool.clone());
     let sched = FairScheduler::new(StarvationConfig::default());
 
@@ -487,7 +458,7 @@ async fn mt_187_pg_fair_scheduling_rotates_across_wps_under_imbalance() {
     let mut first_wp_claim: Option<MicroTaskJobId> = None;
     for _ in 0..20 {
         match sched
-            .claim_next_priority(&pool, session)
+            .claim_next_priority(&queue, session)
             .await
             .expect("claim")
         {
@@ -518,26 +489,18 @@ async fn mt_187_pg_fair_scheduling_rotates_across_wps_under_imbalance() {
         Some(other_id),
         "OTHER wp must be claimed before BUSY wp (BUSY has -200 penalty, OTHER has 0)"
     );
-
-    // Cleanup.
-    for wp in [&wp_busy, &wp_other] {
-        sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-            .bind(wp)
-            .execute(&pool)
-            .await
-            .ok();
-    }
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_187_pg_starvation_watermark_is_monotonic_across_process_restart() {
+async fn mt_187_starvation_watermark_is_monotonic_across_process_restart() {
     // Insert a stale job, run check_with_watermark on a fresh guard
     // (process-1), expect a signal. Drop the guard, build a new one
     // (process-2 simulated by re-instantiation), call again — must be
     // None because the watermark column is persisted.
-    let pool = postgres_pool().await;
-    ensure_full_schema(&pool).await;
+    let backend = handshake_core::storage::tests::embedded_test_backend()
+        .await
+        .expect("open scheduler backend");
+    let pool = backend.storage.clone();
     let queue = MicroTaskQueue::new(pool.clone());
 
     let wp = unique_wp_id("watermark");
@@ -553,7 +516,7 @@ async fn mt_187_pg_starvation_watermark_is_monotonic_across_process_restart() {
     };
     let g1 = StarvationGuard::new(cfg);
     let s1 = g1
-        .check_with_watermark(&pool, job_id, Utc::now())
+        .check_with_watermark(&queue, job_id, Utc::now())
         .await
         .expect("check 1");
     assert!(
@@ -567,7 +530,7 @@ async fn mt_187_pg_starvation_watermark_is_monotonic_across_process_restart() {
     // remembers the previous emission.
     let g2 = StarvationGuard::new(cfg);
     let s2 = g2
-        .check_with_watermark(&pool, job_id, Utc::now())
+        .check_with_watermark(&queue, job_id, Utc::now())
         .await
         .expect("check 2");
     assert!(
@@ -575,31 +538,25 @@ async fn mt_187_pg_starvation_watermark_is_monotonic_across_process_restart() {
         "second call on a fresh guard must observe the persisted watermark and stay silent"
     );
 
-    // Verify the DB row carries a watermark.
-    let row: (Option<chrono::DateTime<chrono::Utc>>,) = sqlx::query_as(
-        "SELECT starvation_watermark_at_utc FROM kernel_micro_task_job WHERE job_id = $1",
-    )
-    .bind(job_id.as_uuid())
-    .fetch_one(&pool)
-    .await
-    .expect("select watermark");
+    // Verify the typed job projection carries a watermark.
+    let row = queue
+        .get_job(job_id)
+        .await
+        .expect("read watermarked job")
+        .expect("watermarked job exists");
     assert!(
-        row.0.is_some(),
+        row.starvation_watermark_at_utc.is_some(),
         "watermark column must be populated after first emission"
     );
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_187_pg_claim_next_priority_returns_none_on_empty_queue() {
-    let pool = postgres_pool().await;
-    ensure_full_schema(&pool).await;
+async fn mt_187_claim_next_priority_returns_none_on_empty_queue() {
+    let backend = handshake_core::storage::tests::embedded_test_backend()
+        .await
+        .expect("open scheduler backend");
+    let pool = backend.storage.clone();
+    let queue = MicroTaskQueue::new(pool.clone());
     let sched = FairScheduler::new(StarvationConfig::default());
     // We cannot guarantee the table is globally empty because parallel
     // tests may have queued rows. But we can quiesce our own slice: claim
@@ -610,7 +567,7 @@ async fn mt_187_pg_claim_next_priority_returns_none_on_empty_queue() {
     let mut iters = 0;
     while consecutive_nones < 2 && iters < 200 {
         match sched
-            .claim_next_priority(&pool, session)
+            .claim_next_priority(&queue, session)
             .await
             .expect("claim")
         {
@@ -627,13 +584,14 @@ async fn mt_187_pg_claim_next_priority_returns_none_on_empty_queue() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_187_pg_claim_next_priority_no_double_claim_under_8_parallel_workers() {
+async fn mt_187_claim_next_priority_no_double_claim_under_8_parallel_workers() {
     // 8 rows + 8 parallel claimers using claim_next_priority. Every row
     // must be claimed at most once — the SKIP LOCKED contract still
     // holds for the priority claim path.
-    let pool = postgres_pool().await;
-    ensure_full_schema(&pool).await;
+    let backend = handshake_core::storage::tests::embedded_test_backend()
+        .await
+        .expect("open scheduler backend");
+    let pool = backend.storage.clone();
     let queue = MicroTaskQueue::new(pool.clone());
     let sched = Arc::new(FairScheduler::new(StarvationConfig::default()));
 
@@ -664,7 +622,7 @@ async fn mt_187_pg_claim_next_priority_no_double_claim_under_8_parallel_workers(
             let mut my_claims: Vec<MicroTaskJobId> = Vec::new();
             let session = Uuid::now_v7();
             for _ in 0..64 {
-                match sched.claim_next_priority(&pool, session).await {
+                match sched.claim_next_priority(&queue, session).await {
                     Ok(Some(id)) => {
                         if let Ok(Some(j)) = queue.get_job(id).await {
                             if j.wp_id == wp {
@@ -712,10 +670,4 @@ async fn mt_187_pg_claim_next_priority_no_double_claim_under_8_parallel_workers(
         unique.len()
     );
     assert_eq!(unique, enqueued, "claimed set must equal enqueued set");
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }

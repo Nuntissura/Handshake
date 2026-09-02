@@ -453,11 +453,7 @@ fn authority_str(authority: CrdtStorageAuthorityPosture) -> &'static str {
 
 fn parse_authority(value: &str) -> StorageResult<CrdtStorageAuthorityPosture> {
     match value {
-        // Read-only compatibility for rows written before the embedded-store
-        // authority wire was corrected. `authority_str` never emits the alias.
-        "surreal_event_ledger" | "postgres_event_ledger" => {
-            Ok(CrdtStorageAuthorityPosture::SurrealEventLedger)
-        }
+        "surreal_event_ledger" => Ok(CrdtStorageAuthorityPosture::SurrealEventLedger),
         "filesystem_authority" => Ok(CrdtStorageAuthorityPosture::FileSystemAuthority),
         "memory_only" => Ok(CrdtStorageAuthorityPosture::MemoryOnly),
         _ => Err(StorageError::Validation("invalid CRDT storage authority")),

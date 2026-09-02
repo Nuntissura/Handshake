@@ -1,19 +1,16 @@
-//! WP-KERNEL-005 atelier command-corpus parity: real PostgreSQL round-trip
+//! WP-KERNEL-005 atelier command-corpus parity: embedded SurrealDB round-trip
 //! proofs for the command-corpus / action-catalog parity submodule (MT-206).
-//! Run with a live DATABASE_URL, e.g.
-//!   DATABASE_URL=postgres://postgres@127.0.0.1:5544/handshake \
-//!     cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
-//!     --test atelier_command_corpus_tests -- --nocapture
+//! The tests use the isolated embedded-store harness and canonical Atelier APIs.
 //!
-//! No mocks: each test connects the actual `AtelierStore` to a real Postgres,
+//! No mocks: each test uses the actual `AtelierStore` on embedded SurrealDB,
 //! ensures the schema, exercises the command-corpus module with REAL data, and
 //! asserts the load-bearing invariants from Section 10.19 (parity contract).
 //! Tables persist between runs, so all action ids / manual ids are made unique
 //! per run via `Uuid::new_v4()` to avoid cross-run UNIQUE collisions. Only
-//! `handshake_core` + `tokio` + `uuid` + `serde_json` (+ std) are used; sqlx is
-//! never imported directly. This module has no character FK.
+//! `handshake_core` + `tokio` + `uuid` + `serde_json` (+ std) are used. This
+//! module has no character FK.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use handshake_core::atelier::command_corpus::{
     builtin_command_corpus, command_corpus_event_family, BlockedReason, CorpusErrorVariant,
@@ -22,36 +19,23 @@ use handshake_core::atelier::command_corpus::{
 };
 use handshake_core::atelier::{AtelierError, AtelierStore};
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 /// A run-unique, valid (non-blocked, non-governed) catalog descriptor input.
@@ -100,13 +84,7 @@ fn assert_blocked_invocation_denial(err: AtelierError, action_id: &str, detail: 
 
 #[tokio::test]
 async fn corpus_entry_upsert_roundtrip_idempotency_and_event() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP corpus_entry_upsert_roundtrip_idempotency_and_event: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // --- register a fresh descriptor with a live manual anchor ---
     let manual_anchor = format!("manual.cmd-{}", Uuid::new_v4());
@@ -191,13 +169,7 @@ async fn corpus_entry_upsert_roundtrip_idempotency_and_event() {
 
 #[tokio::test]
 async fn corpus_external_execution_requires_evidence_invariant() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP corpus_external_execution_requires_evidence_invariant: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // (5) DOMAIN INVARIANT (LAW-CORPUS-PARITY-004 / EVIDENCE-001): an external
     // governed-execution descriptor (workflow_job / ai_job) with no
@@ -232,13 +204,7 @@ async fn corpus_external_execution_requires_evidence_invariant() {
 
 #[tokio::test]
 async fn corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // Project a descriptor first so we can prove the anchor flips its
     // manual_anchor between the BLOCKED sentinel and a live id.
@@ -386,13 +352,7 @@ async fn corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events() {
 
 #[tokio::test]
 async fn corpus_invocation_guard_denies_blocked_actions_until_anchor_is_supplied() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP corpus_invocation_guard_denies_blocked_actions_until_anchor_is_supplied: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let input = unique_entry_input(MANUAL_ANCHOR_BLOCKED);
     let action_id = input.action_id.clone();
@@ -439,13 +399,7 @@ async fn corpus_invocation_guard_denies_blocked_actions_until_anchor_is_supplied
 
 #[tokio::test]
 async fn corpus_invocation_emits_declared_eventledger_event_and_denies_blocked() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP corpus_invocation_emits_declared_eventledger_event_and_denies_blocked: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let declared_event_family = "atelier.workflow.command_invoked";
     let mut input = unique_entry_input(&format!("manual.cmd-{}", Uuid::new_v4()));
@@ -596,11 +550,7 @@ async fn corpus_invocation_emits_declared_eventledger_event_and_denies_blocked()
 
 #[tokio::test]
 async fn corpus_parity_report_projection_counts_and_event() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP corpus_parity_report_projection_counts_and_event: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // Seed a covered (live-anchored, not blocked) descriptor and a blocked one
     // so the projection has at least one of each to count.
@@ -705,20 +655,14 @@ async fn corpus_parity_report_projection_counts_and_event() {
 
 /// MT-206 headline proof: the FULL builtin CKC command corpus (~100+ commands,
 /// one descriptor per handler registered in `handshake_invoke_handlers!`) is
-/// enumerated, projected into PostgreSQL, RE-READ from PostgreSQL, and
+/// enumerated, projected into the embedded store, RE-READ from the embedded store, and
 /// cross-checked descriptor-by-descriptor against the live ModelManual --
 /// covered commands carry their manual id, uncovered commands are BLOCKED with
 /// a durable `no_manual_anchor` record, and the parity report counts the full
 /// enumeration (never `>= 2` synthetic rows).
 #[tokio::test]
 async fn corpus_full_builtin_enumeration_bootstraps_and_parity_checks_against_manual() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP corpus_full_builtin_enumeration_bootstraps_and_parity_checks_against_manual: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // --- the const enumeration itself: the full ~100+ corpus headline ---
     let builtin = builtin_command_corpus();
@@ -743,8 +687,7 @@ async fn corpus_full_builtin_enumeration_bootstraps_and_parity_checks_against_ma
             input.action_id
         );
         assert!(
-            !input.params_schema_ref.trim().is_empty()
-                && !input.receipt_shape.trim().is_empty(),
+            !input.params_schema_ref.trim().is_empty() && !input.receipt_shape.trim().is_empty(),
             "{}: typed params/receipt schema refs are mandatory (10.19.2)",
             input.action_id
         );
@@ -764,7 +707,7 @@ async fn corpus_full_builtin_enumeration_bootstraps_and_parity_checks_against_ma
         }
     }
 
-    // --- bootstrap: project the FULL corpus into PostgreSQL ---
+    // --- bootstrap: project the FULL corpus into the embedded store ---
     let receipt = store
         .bootstrap_builtin_command_corpus()
         .await
@@ -781,15 +724,13 @@ async fn corpus_full_builtin_enumeration_bootstraps_and_parity_checks_against_ma
          silently omitted (BLOCKED-001)"
     );
 
-    // --- RE-READ from PostgreSQL: the whole catalog, then index by action_id ---
+    // --- RE-READ from the embedded store: the whole catalog, then index by action_id ---
     let listed = store
         .list_command_corpus_entries(None)
         .await
         .expect("list the persisted catalog");
-    let persisted: std::collections::BTreeMap<&str, _> = listed
-        .iter()
-        .map(|e| (e.action_id.as_str(), e))
-        .collect();
+    let persisted: std::collections::BTreeMap<&str, _> =
+        listed.iter().map(|e| (e.action_id.as_str(), e)).collect();
 
     // --- live ModelManual cross-check, descriptor by descriptor ---
     // The covering rule mirrors the bootstrap contract: a manual
@@ -804,13 +745,17 @@ async fn corpus_full_builtin_enumeration_bootstraps_and_parity_checks_against_ma
     for input in &builtin {
         let entry = persisted.get(input.action_id.as_str()).unwrap_or_else(|| {
             panic!(
-                "builtin command {} must be persisted in the PostgreSQL catalog",
+                "builtin command {} must be persisted in the embedded catalog",
                 input.action_id
             )
         });
         // Re-read field fidelity: the persisted descriptor matches the
         // enumerated one.
-        assert_eq!(entry.owner, input.owner, "{}: owner persists", input.action_id);
+        assert_eq!(
+            entry.owner, input.owner,
+            "{}: owner persists",
+            input.action_id
+        );
         assert_eq!(
             entry.corpus_source, input.corpus_source,
             "{}: corpus_source persists",

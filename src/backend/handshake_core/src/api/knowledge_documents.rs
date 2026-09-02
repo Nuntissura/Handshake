@@ -44,6 +44,17 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+#[cfg(any(test, feature = "surreal-test-support"))]
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, LazyLock, Mutex as StdMutex,
+    },
+};
+#[cfg(any(test, feature = "surreal-test-support"))]
+use tokio::sync::Notify;
+
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::knowledge_document::backlink::DocumentLinkReferences;
 use crate::knowledge_document::block_tree::BlockTree;
@@ -85,6 +96,138 @@ pub const SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD: &str = "minted_by_principal";
 /// The actor-id namespace `stage::capture_context` mints (`handshake-native:{pid}:{fingerprint}`).
 /// A client may not declare an id in this namespace unless it authenticated AS that exact principal.
 const RESERVED_NATIVE_PRINCIPAL_PREFIX: &str = "handshake-native:";
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum KnowledgeDocumentTestPausePoint {
+    SaveBeforeMutation,
+    DeleteBeforeMutation,
+    BacklinkRebuildBeforeMutation,
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum KnowledgeDocumentPostCommitFailpoint {
+    Receipt,
+    Backlinks,
+    Embeds,
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+struct KnowledgeDocumentPauseState {
+    entered: AtomicBool,
+    released: AtomicBool,
+    changed: Notify,
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+type KnowledgeDocumentPauseKey = (String, KnowledgeDocumentTestPausePoint);
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+static KNOWLEDGE_DOCUMENT_TEST_PAUSES: LazyLock<
+    StdMutex<HashMap<KnowledgeDocumentPauseKey, Arc<KnowledgeDocumentPauseState>>>,
+> = LazyLock::new(|| StdMutex::new(HashMap::new()));
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+static KNOWLEDGE_DOCUMENT_POST_COMMIT_FAILPOINTS: LazyLock<
+    StdMutex<HashSet<(String, KnowledgeDocumentPostCommitFailpoint)>>,
+> = LazyLock::new(|| StdMutex::new(HashSet::new()));
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+pub fn test_arm_document_pause(rich_document_id: &str, point: KnowledgeDocumentTestPausePoint) {
+    KNOWLEDGE_DOCUMENT_TEST_PAUSES
+        .lock()
+        .expect("knowledge document pause registry poisoned")
+        .insert(
+            (rich_document_id.to_owned(), point),
+            Arc::new(KnowledgeDocumentPauseState {
+                entered: AtomicBool::new(false),
+                released: AtomicBool::new(false),
+                changed: Notify::new(),
+            }),
+        );
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+pub async fn test_wait_for_document_pause(
+    rich_document_id: &str,
+    point: KnowledgeDocumentTestPausePoint,
+) {
+    let state = KNOWLEDGE_DOCUMENT_TEST_PAUSES
+        .lock()
+        .expect("knowledge document pause registry poisoned")
+        .get(&(rich_document_id.to_owned(), point))
+        .cloned()
+        .expect("knowledge document pause was not armed");
+    loop {
+        let changed = state.changed.notified();
+        if state.entered.load(Ordering::Acquire) {
+            return;
+        }
+        changed.await;
+    }
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+pub fn test_release_document_pause(rich_document_id: &str, point: KnowledgeDocumentTestPausePoint) {
+    if let Some(state) = KNOWLEDGE_DOCUMENT_TEST_PAUSES
+        .lock()
+        .expect("knowledge document pause registry poisoned")
+        .get(&(rich_document_id.to_owned(), point))
+        .cloned()
+    {
+        state.released.store(true, Ordering::Release);
+        state.changed.notify_waiters();
+    }
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+pub fn test_arm_document_post_commit_failpoint(
+    rich_document_id: &str,
+    point: KnowledgeDocumentPostCommitFailpoint,
+) {
+    KNOWLEDGE_DOCUMENT_POST_COMMIT_FAILPOINTS
+        .lock()
+        .expect("knowledge document failpoint registry poisoned")
+        .insert((rich_document_id.to_owned(), point));
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+async fn pause_document_test_point(rich_document_id: &str, point: KnowledgeDocumentTestPausePoint) {
+    let key = (rich_document_id.to_owned(), point);
+    let state = KNOWLEDGE_DOCUMENT_TEST_PAUSES
+        .lock()
+        .expect("knowledge document pause registry poisoned")
+        .get(&key)
+        .cloned();
+    let Some(state) = state else {
+        return;
+    };
+    state.entered.store(true, Ordering::Release);
+    state.changed.notify_waiters();
+    loop {
+        let changed = state.changed.notified();
+        if state.released.load(Ordering::Acquire) {
+            break;
+        }
+        changed.await;
+    }
+    KNOWLEDGE_DOCUMENT_TEST_PAUSES
+        .lock()
+        .expect("knowledge document pause registry poisoned")
+        .remove(&key);
+}
+
+#[cfg(any(test, feature = "surreal-test-support"))]
+fn take_document_post_commit_failpoint(
+    rich_document_id: &str,
+    point: KnowledgeDocumentPostCommitFailpoint,
+) -> bool {
+    KNOWLEDGE_DOCUMENT_POST_COMMIT_FAILPOINTS
+        .lock()
+        .expect("knowledge document failpoint registry poisoned")
+        .remove(&(rich_document_id.to_owned(), point))
+}
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -385,6 +528,16 @@ async fn record_receipt_non_fatal(
     rich_document_id: &str,
     payload: Value,
 ) -> (Option<String>, Option<String>) {
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    if take_document_post_commit_failpoint(
+        rich_document_id,
+        KnowledgeDocumentPostCommitFailpoint::Receipt,
+    ) {
+        return (
+            None,
+            Some("MT-141 injected post-commit receipt failure".to_owned()),
+        );
+    }
     match record_receipt(db, ctx, event_type, rich_document_id, payload).await {
         Ok(event_id) => (Some(event_id), None),
         Err(err) => {
@@ -976,6 +1129,12 @@ async fn delete_document(
             "title": document.title.clone(),
         }),
     )?;
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pause_document_test_point(
+        &document.rich_document_id,
+        KnowledgeDocumentTestPausePoint::DeleteBeforeMutation,
+    )
+    .await;
     let outcome = db
         .delete_knowledge_rich_document_atomic(&document, event)
         .await
@@ -1208,6 +1367,12 @@ async fn save_document(
         validated_save_crdt_document_id(&db, &document_id, body.crdt_document_id.as_deref())
             .await?;
 
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pause_document_test_point(
+        &document_id,
+        KnowledgeDocumentTestPausePoint::SaveBeforeMutation,
+    )
+    .await;
     let saved = db
         .save_knowledge_rich_document_version(
             &document_id,
@@ -1278,37 +1443,59 @@ async fn save_document(
                     block_id: r.block_id.clone(),
                 })
                 .collect();
-            match db
-                .replace_knowledge_document_backlinks(&saved.rich_document_id, upserts)
-                .await
-            {
-                Ok(persisted) => backlinks_persisted = persisted.len(),
-                Err(err) => {
-                    tracing::error!(
-                        target: "handshake_core::knowledge_documents_api",
-                        rich_document_id = %saved.rich_document_id,
-                        error = %err,
-                        "rich_document_backlink_index_failed_post_commit"
-                    );
-                    backlinks_error = Some(err.to_string());
+            #[cfg(any(test, feature = "surreal-test-support"))]
+            let inject_backlink_failure = take_document_post_commit_failpoint(
+                &saved.rich_document_id,
+                KnowledgeDocumentPostCommitFailpoint::Backlinks,
+            );
+            #[cfg(not(any(test, feature = "surreal-test-support")))]
+            let inject_backlink_failure = false;
+            if inject_backlink_failure {
+                backlinks_error = Some("MT-141 injected post-commit backlink failure".to_owned());
+            } else {
+                match db
+                    .replace_knowledge_document_backlinks(&saved.rich_document_id, upserts)
+                    .await
+                {
+                    Ok(persisted) => backlinks_persisted = persisted.len(),
+                    Err(err) => {
+                        tracing::error!(
+                            target: "handshake_core::knowledge_documents_api",
+                            rich_document_id = %saved.rich_document_id,
+                            error = %err,
+                            "rich_document_backlink_index_failed_post_commit"
+                        );
+                        backlinks_error = Some(err.to_string());
+                    }
                 }
             }
-            match db
-                .replace_knowledge_document_embeds(
-                    &saved.rich_document_id,
-                    embed_upserts(&saved.rich_document_id, &validated_embeds),
-                )
-                .await
-            {
-                Ok(persisted) => embeds_persisted = persisted.len(),
-                Err(err) => {
-                    tracing::error!(
-                        target: "handshake_core::knowledge_documents_api",
-                        rich_document_id = %saved.rich_document_id,
-                        error = %err,
-                        "rich_document_embed_sync_failed_post_commit"
-                    );
-                    embeds_error = Some(err.to_string());
+            #[cfg(any(test, feature = "surreal-test-support"))]
+            let inject_embed_failure = take_document_post_commit_failpoint(
+                &saved.rich_document_id,
+                KnowledgeDocumentPostCommitFailpoint::Embeds,
+            );
+            #[cfg(not(any(test, feature = "surreal-test-support")))]
+            let inject_embed_failure = false;
+            if inject_embed_failure {
+                embeds_error = Some("MT-141 injected post-commit embed failure".to_owned());
+            } else {
+                match db
+                    .replace_knowledge_document_embeds(
+                        &saved.rich_document_id,
+                        embed_upserts(&saved.rich_document_id, &validated_embeds),
+                    )
+                    .await
+                {
+                    Ok(persisted) => embeds_persisted = persisted.len(),
+                    Err(err) => {
+                        tracing::error!(
+                            target: "handshake_core::knowledge_documents_api",
+                            rich_document_id = %saved.rich_document_id,
+                            error = %err,
+                            "rich_document_embed_sync_failed_post_commit"
+                        );
+                        embeds_error = Some(err.to_string());
+                    }
                 }
             }
             // MT-154: the document is indexed into the Project Knowledge
@@ -1686,6 +1873,12 @@ async fn rebuild_backlinks(
             block_id: r.block_id.clone(),
         })
         .collect();
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pause_document_test_point(
+        &document.rich_document_id,
+        KnowledgeDocumentTestPausePoint::BacklinkRebuildBeforeMutation,
+    )
+    .await;
     let persisted = db
         .replace_knowledge_document_backlinks(&document.rich_document_id, upserts)
         .await

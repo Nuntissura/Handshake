@@ -1,7 +1,7 @@
-//! WP-KERNEL-005 MT-160 / MT-163 / MT-169: real PostgreSQL round-trip proofs
+//! WP-KERNEL-005 MT-160 / MT-163 / MT-169: embedded SurrealDB round-trip proofs
 //! for the typed Model-Workflow-Diagnostics runtime surfaces.
 //!
-//! These MTs are TYPED RUNTIME surfaces (Postgres rows + EventLedger events),
+//! These MTs are TYPED RUNTIME surfaces (persisted rows + EventLedger events),
 //! never governance markdown:
 //!   * MT-160 -- a governed local/remote OpenAI-compatible model config whose
 //!     api key is stored ONLY as a redacted ref and never echoed into an event.
@@ -10,50 +10,30 @@
 //!   * MT-169 -- the synthetic-input guard: an authorized op records a row;
 //!     an unauthorized op is rejected (but still leaves an audit row).
 //!
-//! Gated on `atelier_pg_support::database_url()`: when no PostgreSQL is
-//! available the test prints SKIP and returns (never SQLite).
-//!
-//! NOTE: migration 0114 is not yet wired into `ensure_schema` (the orchestrator
-//! wires it after this MT lands). The shared preamble therefore applies the
-//! 0114 migration itself; `CREATE TABLE IF NOT EXISTS` makes this idempotent and
-//! safe once the orchestrator has wired it in.
+//! The isolated harness supplies the canonical schema for every test.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::settings::{
     model_workflow_event_family, ModelApplyState, NewModelConfig, NewSyntheticInput,
     SyntheticInputOp,
 };
 use handshake_core::atelier::{AtelierError, AtelierStore};
+use handshake_core::storage::Database;
 use uuid::Uuid;
 
-/// Connect, ensure the wired schema, then apply the (not-yet-wired) 0114
-/// model-config / apply / synthetic-input migration. Idempotent.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    sqlx::raw_sql(include_str!(
-        "../migrations/0114_atelier_model_config_apply.sql"
-    ))
-    .execute(store.pool())
-    .await
-    .expect("apply 0114 model-config/apply migration");
-    store
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
-/// MT-160: a governed model config round-trips through Postgres with the api
+/// MT-160: a governed model config round-trips through the embedded store with the api
 /// key stored ONLY as a redacted ref, and the emitted event never contains the
 /// raw key.
 #[tokio::test]
 async fn mt160_model_config_round_trips_with_redacted_api_key() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt160_model_config_round_trips_with_redacted_api_key: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, harness) = connected_store().await;
 
     let config_id = format!("model-config-{}", Uuid::now_v7());
     let raw_api_key = "sk-super-secret-key-value-do-not-leak";
@@ -82,7 +62,7 @@ async fn mt160_model_config_round_trips_with_redacted_api_key() {
         recorded.api_key_ref
     );
 
-    // Round-trips through Postgres unchanged.
+    // Round-trips through the embedded store unchanged.
     let reloaded = store
         .get_model_config(&config_id)
         .await
@@ -106,20 +86,17 @@ async fn mt160_model_config_round_trips_with_redacted_api_key() {
     assert_eq!(count, 1, "exactly one MODEL_CONFIG_RECORDED event");
 
     let raw_secret = raw_api_key.to_string();
-    let leaked: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*)
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_id = $2
-             AND payload::text LIKE '%' || $3 || '%'"#,
-    )
-    .bind(model_workflow_event_family::MODEL_CONFIG_RECORDED)
-    .bind(&config_id)
-    .bind(&raw_secret)
-    .fetch_one(store.pool())
-    .await
-    .expect("scan event payload for leaked secret");
-    assert_eq!(leaked, 0, "raw api key must never appear in the event payload");
+    let events = harness
+        .database
+        .list_kernel_events_for_aggregate("atelier_model_config", &config_id)
+        .await
+        .expect("scan event payload for leaked secret");
+    assert!(
+        events
+            .iter()
+            .all(|event| !event.payload.to_string().contains(&raw_secret)),
+        "raw api key must never appear in the event payload"
+    );
 }
 
 /// MT-163: the apply state machine accepts the legal transition chain
@@ -128,11 +105,7 @@ async fn mt160_model_config_round_trips_with_redacted_api_key() {
 /// state).
 #[tokio::test]
 async fn mt163_apply_state_machine_enforces_legal_transitions() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt163_apply_state_machine_enforces_legal_transitions: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // ---- legal chain succeeds ----
     let apply_id = format!("model-apply-{}", Uuid::now_v7());
@@ -217,11 +190,7 @@ async fn mt163_apply_state_machine_enforces_legal_transitions() {
 /// unauthorized op is rejected by the guard but still leaves an audit row.
 #[tokio::test]
 async fn mt169_synthetic_input_guard_records_and_rejects_unauthorized() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt169_synthetic_input_guard_records_and_rejects_unauthorized: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // ---- authorized op records and passes the guard ----
     let authorized = NewSyntheticInput {
@@ -252,6 +221,10 @@ async fn mt169_synthetic_input_guard_records_and_rejects_unauthorized() {
         target_ref: "synthetic-input-target://panel/danger-field".to_string(),
         authorized: false,
     };
+    let audit_events_before = store
+        .count_events(model_workflow_event_family::SYNTHETIC_INPUT_RECORDED)
+        .await
+        .expect("count synthetic-input audit events before rejection");
     let err = store
         .guard_synthetic_input(&unauthorized)
         .await
@@ -263,19 +236,12 @@ async fn mt169_synthetic_input_guard_records_and_rejects_unauthorized() {
 
     // ...but the rejection still left a governed, auditable row (record before
     // reject), so unauthorized synthetic input is never silent.
-    let audit_rows: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*)
-           FROM atelier_synthetic_input_guard
-           WHERE op = 'INJECT_KEY'
-             AND target_ref = $1
-             AND authorized = FALSE"#,
-    )
-    .bind(&unauthorized.target_ref)
-    .fetch_one(store.pool())
-    .await
-    .expect("scan synthetic-input guard rows");
+    let audit_events_after = store
+        .count_events(model_workflow_event_family::SYNTHETIC_INPUT_RECORDED)
+        .await
+        .expect("count synthetic-input audit events after rejection");
     assert!(
-        audit_rows >= 1,
+        audit_events_after > audit_events_before,
         "an unauthorized op must still leave a governed audit row"
     );
 }

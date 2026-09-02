@@ -20,7 +20,7 @@
 //! - PolicyDenial              — sandbox policy denied a required capability.
 //! - MissingApproval           — operator approval evidence missing or invalid.
 //! - MissingArtifact           — referenced artifact handle is absent from the bundle.
-//! - PostgresFailure           — durable storage write failed.
+//! - StorageFailure            — durable storage write failed.
 //! - ProjectionRebuildFailure  — DCC projection refresh failed after a decision.
 
 use chrono::{DateTime, Utc};
@@ -108,8 +108,8 @@ pub enum PromotionRejectionReason {
         expected_artifact_ref: String,
         bundle_id: Option<Uuid>,
     },
-    /// Durable storage write failed (Postgres or compatible backend).
-    PostgresFailure { storage_error: String },
+    /// Durable embedded storage write failed.
+    StorageFailure { storage_error: String },
     /// DCC projection refresh failed after the decision was recorded; the
     /// decision still exists in durable storage but the operator surface did
     /// not update. Surfaces as a soft rejection that the orchestrator should
@@ -130,7 +130,7 @@ impl PromotionRejectionReason {
             Self::PolicyDenial { .. } => "REJECTED_POLICY_DENIAL",
             Self::MissingApproval { .. } => "REJECTED_MISSING_APPROVAL",
             Self::MissingArtifact { .. } => "REJECTED_MISSING_ARTIFACT",
-            Self::PostgresFailure { .. } => "REJECTED_POSTGRES_FAILURE",
+            Self::StorageFailure { .. } => "REJECTED_STORAGE_FAILURE",
             Self::ProjectionRebuildFailure { .. } => "REJECTED_PROJECTION_REBUILD_FAILURE",
         }
     }
@@ -169,8 +169,8 @@ impl PromotionRejectionReason {
                 expected_artifact_ref,
                 ..
             } => format!("artifact {expected_artifact_ref} not present in bundle"),
-            Self::PostgresFailure { storage_error } => {
-                format!("postgres write failed: {storage_error}")
+            Self::StorageFailure { storage_error } => {
+                format!("storage write failed: {storage_error}")
             }
             Self::ProjectionRebuildFailure {
                 projection_family_id,
@@ -182,13 +182,13 @@ impl PromotionRejectionReason {
     /// H4 fix (KB003 remediation): return a deterministic, hash-stable
     /// projection of this rejection reason. The full `PromotionRejectionReason`
     /// embeds ephemeral/non-deterministic fields (PolicyDenial.denial_id,
-    /// MissingArtifact.bundle_id, PostgresFailure.storage_error string) that
+    /// MissingArtifact.bundle_id, StorageFailure.storage_error string) that
     /// caused two retries of the same logical rejection to produce different
     /// `payload_hash` values and thus false `IdempotencyConflict` reports.
     ///
     /// This projection KEEPS only the fields whose identity defines the
     /// logical rejection (so attackers cannot swap reason without changing
-    /// the hash) and STRIPS the rest. For PostgresFailure the raw error
+    /// the hash) and STRIPS the rest. For StorageFailure the raw error
     /// string is bucketed into a `NormalisedStorageErrorKind` so transient
     /// message-text wobble (line numbers, timestamps) does not change the
     /// hash but a deadlock vs unique-violation DOES.
@@ -232,7 +232,7 @@ impl PromotionRejectionReason {
             } => CanonicalRejectionPayload::MissingArtifact {
                 expected_artifact_ref: expected_artifact_ref.clone(),
             },
-            Self::PostgresFailure { storage_error } => CanonicalRejectionPayload::PostgresFailure {
+            Self::StorageFailure { storage_error } => CanonicalRejectionPayload::StorageFailure {
                 error_kind: NormalisedStorageErrorKind::classify_message(storage_error),
             },
             Self::ProjectionRebuildFailure {
@@ -274,7 +274,7 @@ pub enum CanonicalRejectionPayload {
     MissingArtifact {
         expected_artifact_ref: String,
     },
-    PostgresFailure {
+    StorageFailure {
         error_kind: NormalisedStorageErrorKind,
     },
     ProjectionRebuildFailure {
@@ -374,7 +374,7 @@ mod tests {
                 expected_artifact_ref: "kb003://x/abc".into(),
                 bundle_id: None,
             },
-            PromotionRejectionReason::PostgresFailure {
+            PromotionRejectionReason::StorageFailure {
                 storage_error: "deadlock".into(),
             },
             PromotionRejectionReason::ProjectionRebuildFailure {
@@ -391,6 +391,11 @@ mod tests {
             tags.len(),
             8,
             "every rejection variant must carry a unique tag"
+        );
+        assert_eq!(
+            serde_json::to_value(&reasons[6]).expect("serialize storage failure reason")
+                ["reason_kind"],
+            "STORAGE_FAILURE"
         );
     }
 

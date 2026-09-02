@@ -1,5 +1,5 @@
 //! WP-KERNEL-009 MT-106 CodeNavigationApi route-level integration proof against
-//! REAL Handshake-managed PostgreSQL.
+//! the real Handshake-managed embedded SurrealDB.
 //!
 //! Drives the actual Axum routes (`api::knowledge_code_nav::routes`) over a
 //! loopback listener (quiet: no foreground window, no focus steal). It indexes a
@@ -10,146 +10,32 @@
 //! absent) and leave a `KNOWLEDGE_RETRIEVAL_TRACE_RECORDED` receipt (the response
 //! returns its event id).
 //!
-//! No SQLite, no mock store: the AppState pool and the engine handle both point
-//! at the SAME isolated schema the migrations ran in.
+//! The AppState and engine handle both point at the same isolated embedded
+//! store where the migrations ran; no mock or fallback authority is involved.
 
-mod knowledge_pg_support;
+#[allow(dead_code)]
+mod user_manual_support;
 
 use std::sync::Arc;
 use std::time::Instant;
 
-use async_trait::async_trait;
-use handshake_core::api::knowledge_code_nav as nav_api;
 use handshake_core::api::code_nav_index as index_api;
-use handshake_core::capabilities::CapabilityRegistry;
-use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
-use handshake_core::flight_recorder::{
-    EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
-};
+use handshake_core::api::knowledge_code_nav as nav_api;
 use handshake_core::kernel::KernelActor;
 use handshake_core::knowledge_code_index::engine::{CodeIndexContext, CodeIndexEngine};
 use handshake_core::knowledge_code_index::parser::{CodeLanguage, CodeParserAdapter};
-use handshake_core::llm::{
-    CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
-};
 use handshake_core::storage::knowledge::{
-    KnowledgeIndexingEligibility, KnowledgeRootKind, KnowledgeStore, NewKnowledgeSourceRoot,
+    KnowledgeCodeParseStatus, KnowledgeIndexingEligibility, KnowledgeRootKind, KnowledgeStore,
+    NewKnowledgeSourceRoot,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
-use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
-use handshake_core::AppState;
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
+use handshake_core::storage::surreal::SurrealDatabase;
+use handshake_core::swarm_orchestration::state_recovery::{
+    AgentLaneIdentity, AgentLaneKind, LocalCloudAttribution, ParallelSwarmStateRecoveryStore,
+    QuietBackgroundWorkKind, SwarmEvidenceInspectionRequest,
+};
 use serde_json::{json, Value};
+use user_manual_support::{app_state_for, manual_test_backend, start_server, ManualTestBackend};
 use uuid::Uuid;
-
-#[derive(Default)]
-struct NoopRecorder;
-
-#[async_trait]
-impl FlightRecorder for NoopRecorder {
-    async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
-        Ok(())
-    }
-    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
-        Ok(0)
-    }
-    async fn list_events(
-        &self,
-        _filter: EventFilter,
-    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
-        Ok(Vec::new())
-    }
-}
-
-#[async_trait]
-impl DiagnosticsStore for NoopRecorder {
-    async fn record_diagnostic(
-        &self,
-        _diag: Diagnostic,
-    ) -> Result<(), handshake_core::storage::StorageError> {
-        Ok(())
-    }
-    async fn list_problems(
-        &self,
-        _filter: DiagFilter,
-    ) -> Result<Vec<ProblemGroup>, handshake_core::storage::StorageError> {
-        Ok(Vec::new())
-    }
-    async fn get_diagnostic(
-        &self,
-        _id: Uuid,
-    ) -> Result<Diagnostic, handshake_core::storage::StorageError> {
-        Err(handshake_core::storage::StorageError::NotFound(
-            "diagnostic",
-        ))
-    }
-    async fn list_diagnostics(
-        &self,
-        _filter: DiagFilter,
-    ) -> Result<Vec<Diagnostic>, handshake_core::storage::StorageError> {
-        Ok(Vec::new())
-    }
-}
-
-struct NoopLlmClient {
-    profile: ModelProfile,
-}
-
-#[async_trait]
-impl LlmClient for NoopLlmClient {
-    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        Ok(CompletionResponse {
-            text: String::new(),
-            usage: TokenUsage {
-                prompt_tokens: 0,
-                completion_tokens: 0,
-                total_tokens: 0,
-            },
-            latency_ms: 0,
-        })
-    }
-    fn profile(&self) -> &ModelProfile {
-        &self.profile
-    }
-}
-
-async fn app_state_for(schema_url: &str) -> AppState {
-    let storage = PostgresDatabase::connect(schema_url, 5)
-        .await
-        .expect("connect AppState storage to isolated schema")
-        .into_arc();
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(schema_url)
-        .await
-        .expect("connect AppState pool to isolated schema");
-    let recorder = Arc::new(NoopRecorder);
-    AppState {
-        storage,
-        flight_recorder: recorder.clone(),
-        diagnostics: recorder,
-        llm_client: Arc::new(NoopLlmClient {
-            profile: ModelProfile::new("code-nav-api-test".to_string(), 4096),
-        }),
-        capability_registry: Arc::new(CapabilityRegistry::new()),
-        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
-    }
-}
-
-async fn start_server(state: AppState) -> (String, tokio::task::JoinHandle<()>) {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind loopback listener");
-    let addr = listener.local_addr().expect("local addr");
-    let app = nav_api::routes(state);
-    let server = tokio::spawn(async move {
-        axum::serve(listener, app)
-            .await
-            .expect("code nav api server");
-    });
-    (format!("http://{addr}"), server)
-}
 
 fn nav_headers(client: reqwest::RequestBuilder, label: &str) -> reqwest::RequestBuilder {
     client
@@ -174,19 +60,16 @@ mod tests {
 }
 "#;
 
-async fn index_fixture(pg: &KnowledgePg) -> String {
-    let workspace_id = pg.create_workspace().await;
-    let db = PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect engine handle");
-    let eng = CodeIndexEngine::new(Arc::new(db));
+async fn index_fixture(backend: &ManualTestBackend) -> String {
+    let workspace_id = backend.create_workspace().await;
+    let eng = CodeIndexEngine::new(Arc::new(backend.db.clone()));
     let context = CodeIndexContext {
         actor: KernelActor::System("code-nav-fixture".to_string()),
         kernel_task_run_id: "KTR-fixture".to_string(),
         session_run_id: "SR-fixture".to_string(),
         correlation_id: None,
     };
-    let root = pg
+    let root = backend
         .db
         .create_knowledge_source_root(NewKnowledgeSourceRoot {
             workspace_id: workspace_id.clone(),
@@ -217,11 +100,11 @@ async fn index_fixture(pg: &KnowledgePg) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn mt045_lc06_500_file_code_nav_index_is_postgres_bounded() {
-    let pg = knowledge_pg()
+async fn mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded() {
+    let backend = manual_test_backend()
         .await
-        .expect("MT-045 LC-06 requires managed PostgreSQL");
-    let workspace_id = pg.create_workspace().await;
+        .expect("open embedded backend for MT-045 LC-06");
+    let workspace_id = backend.create_workspace().await;
     let fixture_root = std::env::var("HANDSHAKE_TEST_STAGE_BINDING_ROOT")
         .expect("MT-045 fixture root must be external Handshake_Artifacts")
         .into();
@@ -244,18 +127,8 @@ async fn mt045_lc06_500_file_code_nav_index_is_postgres_bounded() {
             .expect("write LC-06 fixture file");
     }
 
-    let state = app_state_for(&pg.schema_url).await;
-    let evidence_pool = state.postgres_pool.clone();
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind LC-06 loopback listener");
-    let addr = listener.local_addr().expect("LC-06 local addr");
-    let server = tokio::spawn(async move {
-        axum::serve(listener, index_api::routes(state))
-            .await
-            .expect("LC-06 code-nav index server");
-    });
-    let base = format!("http://{addr}");
+    let state = app_state_for(&backend.db).await;
+    let (base, server) = start_server(index_api::routes(state)).await;
     let http = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(45))
         .build()
@@ -282,31 +155,43 @@ async fn mt045_lc06_500_file_code_nav_index_is_postgres_bounded() {
         .unwrap_or(10_000);
     assert!(
         elapsed.as_millis() <= budget_ms,
-        "LC-06 exceeded {budget_ms}ms PostgreSQL route budget: {elapsed:?}; body={body}"
+        "LC-06 exceeded {budget_ms}ms embedded SurrealDB route budget: {elapsed:?}; body={body}"
     );
-    let source_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_sources WHERE workspace_id = $1 AND source_kind = 'file'",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&evidence_pool)
-    .await
-    .expect("query LC-06 source count");
-    let code_file_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_code_files WHERE workspace_id = $1 AND parse_status = 'parsed'",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&evidence_pool)
-    .await
-    .expect("query LC-06 code-file count");
-    let run_state: String = sqlx::query_scalar(
-        "SELECT run_state FROM knowledge_index_runs WHERE workspace_id = $1 ORDER BY started_at DESC LIMIT 1",
-    )
-    .bind(&workspace_id)
-    .fetch_one(&evidence_pool)
-    .await
-    .expect("query LC-06 run state");
-    assert_eq!(source_count, 500, "LC-06 must persist one file source per fixture file");
-    assert_eq!(code_file_count, 500, "LC-06 must parse one code file per fixture file");
+    let root_id = body["root_id"].as_str().expect("LC-06 root id");
+    let source_count = backend
+        .db
+        .list_knowledge_sources_for_root(root_id)
+        .await
+        .expect("query LC-06 source count")
+        .into_iter()
+        .filter(|source| source.workspace_id == workspace_id)
+        .count() as i64;
+    let code_file_count = backend
+        .db
+        .list_knowledge_code_files(&workspace_id)
+        .await
+        .expect("query LC-06 code-file count")
+        .into_iter()
+        .filter(|file| file.parse_status == KnowledgeCodeParseStatus::Parsed)
+        .count() as i64;
+    let index_run_id = body["index_run_id"].as_str().expect("LC-06 index run id");
+    let run_state = backend
+        .db
+        .get_knowledge_index_run(index_run_id)
+        .await
+        .expect("query LC-06 run state")
+        .expect("LC-06 index run exists")
+        .run_state
+        .as_str()
+        .to_string();
+    assert_eq!(
+        source_count, 500,
+        "LC-06 must persist one file source per fixture file"
+    );
+    assert_eq!(
+        code_file_count, 500,
+        "LC-06 must parse one code file per fixture file"
+    );
     assert!(
         matches!(run_state.as_str(), "completed" | "failed" | "cancelled"),
         "LC-06 index run must be terminal, got {run_state}"
@@ -328,14 +213,19 @@ async fn mt045_lc06_500_file_code_nav_index_is_postgres_bounded() {
     let evidence_root: std::path::PathBuf = std::env::var("HANDSHAKE_TEST_STAGE_BINDING_ROOT")
         .expect("MT-045 evidence root")
         .into();
-    std::fs::create_dir_all(evidence_root.join("wp-kernel-012").join("mt-045").join("measurements"))
-        .expect("create MT-045 evidence directory");
+    std::fs::create_dir_all(
+        evidence_root
+            .join("wp-kernel-012")
+            .join("mt-045")
+            .join("measurements"),
+    )
+    .expect("create MT-045 evidence directory");
     std::fs::write(
         evidence_root
             .join("wp-kernel-012")
             .join("mt-045")
             .join("measurements")
-            .join("mt045-lc06-sql-evidence.json"),
+            .join("mt045-lc06-embedded-evidence.json"),
         serde_json::to_vec_pretty(&json!({
             "workspace_id": workspace_id,
             "source_count": source_count,
@@ -345,25 +235,28 @@ async fn mt045_lc06_500_file_code_nav_index_is_postgres_bounded() {
             "budget_ms": budget_ms,
             "source_snapshot_sha256": source_snapshot
         }))
-        .expect("serialize MT-045 SQL evidence"),
+        .expect("serialize MT-045 embedded evidence"),
     )
-    .expect("write MT-045 SQL evidence");
+    .expect("write MT-045 embedded evidence");
     server.abort();
     tokio::time::timeout(std::time::Duration::from_secs(1), server)
         .await
         .expect("LC-06 server shutdown must be bounded")
         .expect_err("aborted LC-06 server must not complete normally");
     std::fs::remove_dir_all(&fixture_root).expect("cleanup LC-06 fixture root");
+    backend
+        .close_and_remove()
+        .await
+        .expect("close LC-06 embedded backend");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt106_nav_api: no PostgreSQL");
-        return;
-    };
-    let workspace_id = index_fixture(&pg).await;
-    let state = app_state_for(&pg.schema_url).await;
+    let backend = manual_test_backend()
+        .await
+        .expect("open embedded backend for MT-106");
+    let workspace_id = index_fixture(&backend).await;
+    let state = app_state_for(&backend.db).await;
     let (base, server) = start_server(state).await;
     let http = reqwest::Client::new();
 
@@ -391,7 +284,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
         lookup_body["nav_receipt_event_id"].is_string(),
         "lookup must leave a retrieval receipt"
     );
-    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &lookup_body, "lookup").await;
+    assert_backend_nav_quiet_receipt(&backend.db, &workspace_id, &lookup_body, "lookup").await;
     let matches = lookup_body["matches"].as_array().expect("matches array");
     let add_match = matches
         .iter()
@@ -425,7 +318,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     .expect("prefix lookup send");
     assert_eq!(prefix_lookup.status(), 200);
     let prefix_body: Value = prefix_lookup.json().await.expect("prefix lookup json");
-    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &prefix_body, "prefix").await;
+    assert_backend_nav_quiet_receipt(&backend.db, &workspace_id, &prefix_body, "prefix").await;
     assert!(
         prefix_body["matches"]
             .as_array()
@@ -445,7 +338,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     .expect("detail send");
     assert_eq!(detail.status(), 200);
     let detail_body: Value = detail.json().await.expect("detail json");
-    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &detail_body, "detail").await;
+    assert_backend_nav_quiet_receipt(&backend.db, &workspace_id, &detail_body, "detail").await;
     assert_eq!(detail_body["symbol"]["display_name"], "add");
     assert_eq!(
         detail_body["symbol"]["staleness"]["state"], "fresh",
@@ -462,7 +355,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     .expect("refs send");
     assert_eq!(refs.status(), 200);
     let refs_body: Value = refs.json().await.expect("refs json");
-    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &refs_body, "references").await;
+    assert_backend_nav_quiet_receipt(&backend.db, &workspace_id, &refs_body, "references").await;
     let callers = refs_body["callers"].as_array().expect("callers");
     assert!(
         callers
@@ -499,7 +392,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     .expect("tests send");
     assert_eq!(tests.status(), 200);
     let tests_body: Value = tests.json().await.expect("tests json");
-    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &tests_body, "tests").await;
+    assert_backend_nav_quiet_receipt(&backend.db, &workspace_id, &tests_body, "tests").await;
     let test_list = tests_body["tests"].as_array().expect("tests array");
     assert!(
         test_list
@@ -527,7 +420,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     .expect("spans send");
     assert_eq!(spans.status(), 200);
     let spans_body: Value = spans.json().await.expect("spans json");
-    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &spans_body, "spans").await;
+    assert_backend_nav_quiet_receipt(&backend.db, &workspace_id, &spans_body, "spans").await;
     let span_list = spans_body["spans"].as_array().expect("spans array");
     assert!(!span_list.is_empty(), "add must expose citation spans");
     assert!(span_list.iter().any(|s| s["span_kind"] == "ast"));
@@ -561,7 +454,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
         "lens should list add"
     );
     assert!(lens_body["nav_receipt_event_id"].is_string());
-    assert_backend_nav_quiet_receipt(&pg, &workspace_id, &lens_body, "lens").await;
+    assert_backend_nav_quiet_receipt(&backend.db, &workspace_id, &lens_body, "lens").await;
 
     // --- Unknown symbol id -> 404 ---------------------------------------------
     let missing = nav_headers(
@@ -595,6 +488,14 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     );
 
     server.abort();
+    tokio::time::timeout(std::time::Duration::from_secs(1), server)
+        .await
+        .expect("MT-106 server shutdown must be bounded")
+        .expect_err("aborted MT-106 server must not complete normally");
+    backend
+        .close_and_remove()
+        .await
+        .expect("close MT-106 embedded backend");
 }
 
 /// MT-106 (spec 2.3.13.11 "mark stale, never serve stale silently"): once the
@@ -603,26 +504,26 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
 /// review flagged (5 of 6 routes served stale silently) is closed.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt106_nav_api_flags_stale_symbols_on_every_route() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt106_nav_api_flags_stale_symbols_on_every_route: no PostgreSQL");
-        return;
-    };
-    let workspace_id = index_fixture(&pg).await;
+    let backend = manual_test_backend()
+        .await
+        .expect("open embedded backend for MT-106 stale proof");
+    let workspace_id = index_fixture(&backend).await;
 
     // Mark the indexed file stale directly in the code-file index state (this is
     // what MT-107 / the ingestion lifecycle does when the source changes).
-    let code_files = pg
+    let code_files = backend
         .db
         .list_knowledge_code_files(&workspace_id)
         .await
         .expect("list code files");
     let lib = code_files.first().expect("the fixture's one code file");
-    pg.db
+    backend
+        .db
         .mark_knowledge_code_file_stale(&lib.code_file_id)
         .await
         .expect("mark stale");
 
-    let state = app_state_for(&pg.schema_url).await;
+    let state = app_state_for(&backend.db).await;
     let (base, server) = start_server(state).await;
     let http = reqwest::Client::new();
 
@@ -664,6 +565,14 @@ async fn mt106_nav_api_flags_stale_symbols_on_every_route() {
     assert_eq!(detail_body["symbol"]["staleness"]["fresh"], false);
 
     server.abort();
+    tokio::time::timeout(std::time::Duration::from_secs(1), server)
+        .await
+        .expect("MT-106 stale server shutdown must be bounded")
+        .expect_err("aborted MT-106 stale server must not complete normally");
+    backend
+        .close_and_remove()
+        .await
+        .expect("close MT-106 stale embedded backend");
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -673,26 +582,40 @@ fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-async fn quiet_nav_receipt_count(pg: &KnowledgePg, workspace_id: &str, receipt_id: &str) -> i64 {
-    let mut conn = pg.raw_connection().await;
-    sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM knowledge_agent_quiet_background_work
-        WHERE workspace_id = $1
-          AND receipt_id = $2
-          AND work_kind = 'backend_navigation'
-        "#,
+async fn quiet_nav_receipt_count(
+    db: &SurrealDatabase,
+    workspace_id: &str,
+    receipt_id: &str,
+) -> usize {
+    let store = ParallelSwarmStateRecoveryStore::new(db.storage().clone());
+    let inspector = AgentLaneIdentity::new(
+        "code-nav-receipt-inspector",
+        "code-nav-receipt-inspector",
+        AgentLaneKind::Validator,
+        LocalCloudAttribution::local("embedded-test", "code-nav-test"),
     )
-    .bind(workspace_id)
-    .bind(receipt_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("count backend navigation quiet receipt")
+    .expect("valid embedded receipt inspector lane");
+    let snapshot = store
+        .inspect_swarm_evidence(SwarmEvidenceInspectionRequest {
+            lane: inspector,
+            workspace_id: workspace_id.to_string(),
+            limit: 100,
+        })
+        .await
+        .expect("inspect embedded backend navigation receipts");
+    snapshot
+        .quiet_background_work
+        .iter()
+        .filter(|row| {
+            row.workspace_id == workspace_id
+                && row.receipt_id == receipt_id
+                && row.work_kind == QuietBackgroundWorkKind::BackendNavigation
+        })
+        .count()
 }
 
 async fn assert_backend_nav_quiet_receipt(
-    pg: &KnowledgePg,
+    db: &SurrealDatabase,
     workspace_id: &str,
     body: &Value,
     route_label: &str,
@@ -701,8 +624,8 @@ async fn assert_backend_nav_quiet_receipt(
         .as_str()
         .unwrap_or_else(|| panic!("{route_label} must leave a quiet background-work receipt"));
     assert_eq!(
-        quiet_nav_receipt_count(pg, workspace_id, receipt).await,
+        quiet_nav_receipt_count(db, workspace_id, receipt).await,
         1,
-        "{route_label} route must persist backend-navigation quiet work through PostgreSQL"
+        "{route_label} route must persist one typed backend-navigation quiet-work receipt through embedded SurrealDB"
     );
 }

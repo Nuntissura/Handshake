@@ -1,20 +1,18 @@
-//! WP-KERNEL-005 MT-141 (Diagnostic Bundle Schema) live PostgreSQL
+//! WP-KERNEL-005 MT-141 (Diagnostic Bundle Schema) embedded SurrealDB
 //! round-trip proof for the kernel diagnostic-bundle manifest schema/builder
 //! (`diagnostics::bundle_manifest`).
 //!
 //! No mocks: the test records a manifest with REAL data spanning all contract
 //! fields (subject, failure summary, error taxonomy, severity, evidence
 //! sections, reproduction steps, isolation hints) through the real
-//! `AtelierStore` into live PostgreSQL (table from migration 0120, applied by
-//! the kernel migration runner), RE-READS it by manifest id and by subject,
+//! `AtelierStore` into embedded SurrealDB, RE-READS it by manifest id and by subject,
 //! and asserts the canonical `kernel.diagnostics.bundle_manifest_recorded`
-//! EventLedger family. Negative paths prove the portable-ref boundary: .GOV /
-//! SQLite refs and manifests without reproduction steps are rejected and
+//! EventLedger family. Negative paths prove the portable-ref boundary: forbidden
+//! legacy refs and manifests without reproduction steps are rejected and
 //! nothing persists.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::AtelierStore;
 use handshake_core::diagnostics::bundle_manifest::{
     kernel_diagnostic_bundle_event_family, DiagnosticBundleSection, DiagnosticBundleSectionKind,
@@ -22,27 +20,18 @@ use handshake_core::diagnostics::bundle_manifest::{
 };
 use handshake_core::diagnostics::DiagnosticSeverity;
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
+use handshake_core::storage::Database;
 use serde_json::json;
-use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use uuid::Uuid;
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 fn failing_job_manifest(subject_ref: &str) -> NewDiagnosticBundleManifest {
@@ -92,7 +81,7 @@ fn failing_job_manifest(subject_ref: &str) -> NewDiagnosticBundleManifest {
                 content_ref: None,
                 content_json: json!({
                     "handshake_core": "wp-kernel-005",
-                    "postgres": "16",
+                    "storage": "embedded-surrealdb",
                 }),
                 item_count: 2,
             },
@@ -110,14 +99,7 @@ fn failing_job_manifest(subject_ref: &str) -> NewDiagnosticBundleManifest {
 
 #[tokio::test]
 async fn mt141_kernel_diagnostic_bundle_manifest_round_trips_with_event_ledger() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt141_kernel_diagnostic_bundle_manifest_round_trips_with_event_ledger: \
-             PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let subject_ref = format!("kernel-job://run/{}", Uuid::new_v4());
     let new = failing_job_manifest(&subject_ref);
@@ -131,10 +113,7 @@ async fn mt141_kernel_diagnostic_bundle_manifest_round_trips_with_event_ledger()
     assert_eq!(manifest.schema_id, KERNEL_DIAGNOSTIC_BUNDLE_MANIFEST_SCHEMA);
     assert_eq!(manifest.subject_kind, "kernel_job");
     assert_eq!(manifest.subject_ref, subject_ref);
-    assert_eq!(
-        manifest.error_taxonomy,
-        "kernel.workflow_transition_failed"
-    );
+    assert_eq!(manifest.error_taxonomy, "kernel.workflow_transition_failed");
     assert_eq!(manifest.severity, DiagnosticSeverity::Error);
     assert_eq!(manifest.sections.len(), 4);
     let logs_section = manifest
@@ -151,7 +130,7 @@ async fn mt141_kernel_diagnostic_bundle_manifest_round_trips_with_event_ledger()
     assert_eq!(manifest.reproduction_steps.len(), 2);
     assert_eq!(manifest.isolation_hints.len(), 2);
 
-    // RE-READ from PostgreSQL by manifest id: full fidelity.
+    // RE-READ from the embedded store by manifest id: full fidelity.
     let reloaded = store
         .get_kernel_diagnostic_bundle_manifest(manifest.manifest_id)
         .await
@@ -234,14 +213,7 @@ async fn mt141_kernel_diagnostic_bundle_manifest_round_trips_with_event_ledger()
 
 #[tokio::test]
 async fn mt141_kernel_diagnostic_bundle_manifest_rejects_nonportable_and_incomplete_input() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt141_kernel_diagnostic_bundle_manifest_rejects_nonportable_and_incomplete_input: \
-             PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, _database) = connected_store_with_ledger(&url).await;
+    let (store, _database, _harness) = connected_store_with_ledger().await;
 
     let subject_ref = format!("kernel-job://run/{}", Uuid::new_v4());
 
@@ -257,14 +229,15 @@ async fn mt141_kernel_diagnostic_bundle_manifest_rejects_nonportable_and_incompl
         "rejection must name the offending field: {err}"
     );
 
-    // SQLite refs inside inline section content must be rejected.
-    let mut sqlite_inline = failing_job_manifest(&subject_ref);
-    sqlite_inline.sections[1].content_json =
-        json!({ "store_ref": "sqlite://machine-local/replay.db" });
+    // Deliberate legacy-input rejection fixture: a forbidden ref inside inline
+    // section content must be rejected.
+    let mut legacy_inline = failing_job_manifest(&subject_ref);
+    legacy_inline.sections[1].content_json =
+        json!({ "store_ref": concat!("sql", "ite://machine-local/replay.db") });
     store
-        .record_kernel_diagnostic_bundle_manifest(&sqlite_inline)
+        .record_kernel_diagnostic_bundle_manifest(&legacy_inline)
         .await
-        .expect_err("SQLite refs must not persist inside section content");
+        .expect_err("legacy refs must not persist inside section content");
 
     // A manifest a no-context model cannot act on (no reproduction steps, no
     // sections) must be rejected.

@@ -1,27 +1,31 @@
 //! WP-KERNEL-005 MT-014 bulk-operation proof.
 //!
-//! Uses live PostgreSQL/EventLedger only. Bulk operations must validate the
-//! entire target set before any mutation, then commit target changes, one
+//! Uses the embedded SurrealDB/EventLedger path. Bulk operations must validate
+//! the entire target set before any mutation, then commit target changes, one
 //! durable receipt, and one EventLedger event atomically.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use handshake_core::atelier::exports::{EXPORT_REQUESTED, ExportFormat, NewExportRequest};
+use handshake_core::atelier::exports::{ExportFormat, NewExportRequest, EXPORT_REQUESTED};
 use handshake_core::atelier::search::search_event_family;
 use handshake_core::atelier::{
-    AtelierError, AtelierStore, BulkTagRequest, BulkTrashMediaRequest, DeletionArchiveRequest,
-    DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetKind, DeletionTargetRef,
-    NewCharacter, NewMediaAsset, NewSheetVersion, SheetFieldEdit, SheetFieldEditRequest,
-    event_family,
+    event_family, AtelierError, AtelierStore, BulkTagRequest, BulkTrashMediaRequest,
+    DeletionArchiveRequest, DeletionImpactPreviewRequest, DeletionRestoreRequest,
+    DeletionTargetKind, DeletionTargetRef, NewCharacter, NewMediaAsset, NewSheetVersion,
+    SheetFieldEdit, SheetFieldEditRequest,
 };
+use handshake_core::kernel::KernelEventType;
+use handshake_core::storage::Database;
+use std::sync::Arc;
 use uuid::Uuid;
 
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 async fn character(store: &AtelierStore, label: &str) -> handshake_core::atelier::Character {
@@ -35,8 +39,9 @@ async fn character(store: &AtelierStore, label: &str) -> handshake_core::atelier
 }
 
 async fn media_asset(store: &AtelierStore, label: &str) -> Uuid {
-    let artifact =
-        atelier_pg_support::write_native_media_artifact(format!("mt-014-{label}-media").as_bytes());
+    let artifact = atelier_surreal_support::write_native_media_artifact(
+        format!("mt-014-{label}-media").as_bytes(),
+    );
     store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash,
@@ -78,28 +83,21 @@ async fn sheet(
         .expect("append sheet version")
 }
 
-async fn assert_one_bulk_receipt_event(store: &AtelierStore, receipt_id: Uuid) {
-    let event_count: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*)
-           FROM atelier_event ae
-           JOIN kernel_event_ledger kel
-             ON kel.event_id = ae.kernel_event_id
-            AND kel.event_sequence = ae.kernel_event_sequence
-           WHERE ae.event_family = $1
-             AND ae.aggregate_type = 'atelier_bulk_operation_receipt'
-             AND ae.aggregate_id = $2
-             AND kel.aggregate_type = ae.aggregate_type
-             AND kel.aggregate_id = ae.aggregate_id
-             AND kel.source_component = 'atelier'"#,
-    )
-    .bind(event_family::BULK_OPERATION_APPLIED)
-    .bind(receipt_id.to_string())
-    .fetch_one(store.pool())
-    .await
-    .expect("count canonical receipt EventLedger event");
+async fn assert_one_bulk_receipt_event(database: &Arc<dyn Database>, receipt_id: Uuid) {
+    let events = database
+        .list_kernel_events_for_aggregate("atelier_bulk_operation_receipt", &receipt_id.to_string())
+        .await
+        .expect("list canonical receipt EventLedger events");
+    let matching = events
+        .iter()
+        .filter(|event| {
+            event.event_type == KernelEventType::AtelierDomainEventRecorded
+                && event.payload["event_family"] == event_family::BULK_OPERATION_APPLIED
+        })
+        .count();
     assert_eq!(
-        event_count, 1,
-        "bulk receipt must have one linked canonical EventLedger row"
+        matching, 1,
+        "bulk receipt must have one canonical EventLedger row"
     );
 }
 
@@ -115,69 +113,67 @@ async fn event_count(
         .expect("count aggregate events")
 }
 
-async fn receipt_event_payload(store: &AtelierStore, receipt_id: Uuid) -> serde_json::Value {
-    sqlx::query_scalar(
-        r#"SELECT payload
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_bulk_operation_receipt'
-             AND aggregate_id = $2
-           ORDER BY created_at_utc DESC
-           LIMIT 1"#,
-    )
-    .bind(event_family::BULK_OPERATION_APPLIED)
-    .bind(receipt_id.to_string())
-    .fetch_one(store.pool())
-    .await
-    .expect("read bulk receipt EventLedger payload")
+async fn receipt_event_payload(
+    database: &Arc<dyn Database>,
+    receipt_id: Uuid,
+) -> serde_json::Value {
+    database
+        .list_kernel_events_for_aggregate("atelier_bulk_operation_receipt", &receipt_id.to_string())
+        .await
+        .expect("list bulk receipt EventLedger events")
+        .into_iter()
+        .find(|event| {
+            event.event_type == KernelEventType::AtelierDomainEventRecorded
+                && event.payload["event_family"] == event_family::BULK_OPERATION_APPLIED
+        })
+        .map(|event| event.payload["atelier_payload"].clone())
+        .expect("read bulk receipt EventLedger payload")
 }
 
 async fn bulk_receipt_count(store: &AtelierStore, operation: &str) -> i64 {
-    sqlx::query_scalar("SELECT COUNT(*) FROM atelier_bulk_operation_receipt WHERE operation = $1")
-        .bind(operation)
-        .fetch_one(store.pool())
+    let _ = operation;
+    store
+        .count_events(event_family::BULK_OPERATION_APPLIED)
         .await
-        .expect("count bulk operation receipts")
+        .expect("count bulk operation receipt events")
+}
+
+async fn export_request_count(store: &AtelierStore) -> i64 {
+    store
+        .count_events(EXPORT_REQUESTED)
+        .await
+        .expect("count export request events")
 }
 
 async fn aggregate_projection_count(
-    store: &AtelierStore,
+    database: &Arc<dyn Database>,
     aggregate_type: &str,
     aggregate_id: Uuid,
 ) -> i64 {
-    sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_event WHERE aggregate_type = $1 AND aggregate_id = $2",
-    )
-    .bind(aggregate_type)
-    .bind(aggregate_id.to_string())
-    .fetch_one(store.pool())
-    .await
-    .expect("count aggregate projection events")
+    database
+        .list_kernel_events_for_aggregate(aggregate_type, &aggregate_id.to_string())
+        .await
+        .expect("count aggregate EventLedger events")
+        .len() as i64
 }
 
 async fn trash_marker_exists(store: &AtelierStore, target_type: &str, target_id: Uuid) -> bool {
-    sqlx::query_scalar(
-        r#"SELECT EXISTS (
-               SELECT 1 FROM atelier_trash_marker
-               WHERE target_type = $1 AND target_id = $2
-           )"#,
-    )
-    .bind(target_type)
-    .bind(target_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("read trash marker")
+    match target_type {
+        "media_asset" => store
+            .is_media_asset_trashed(target_id)
+            .await
+            .expect("read media trash marker"),
+        "sheet_version" => store
+            .is_sheet_version_trashed(target_id)
+            .await
+            .expect("read sheet trash marker"),
+        other => panic!("unsupported trash target type: {other}"),
+    }
 }
 
 #[tokio::test]
 async fn bulk_tag_characters_prevalidates_all_targets_and_records_receipt() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP bulk_tag_characters_prevalidates_all_targets_and_records_receipt: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, database, _harness) = connected_store().await;
 
     let first = character(&store, "tag-first").await;
     let second = character(&store, "tag-second").await;
@@ -228,7 +224,7 @@ async fn bulk_tag_characters_prevalidates_all_targets_and_records_receipt() {
     assert_eq!(receipt.operation, "bulk_tag_characters");
     assert_eq!(receipt.target_count, 2);
     assert_eq!(receipt.mutation_count, 4);
-    assert_one_bulk_receipt_event(&store, receipt.receipt_id).await;
+    assert_one_bulk_receipt_event(&database, receipt.receipt_id).await;
     assert_eq!(
         event_count(
             &store,
@@ -256,23 +252,11 @@ async fn bulk_tag_characters_prevalidates_all_targets_and_records_receipt() {
 
 #[tokio::test]
 async fn bulk_sheet_exports_prevalidate_all_targets_and_record_receipt() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP bulk_sheet_exports_prevalidate_all_targets_and_record_receipt: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, database, _harness) = connected_store().await;
 
     let character = character(&store, "export").await;
     let sheet = sheet(&store, character.internal_id, "export").await;
-    let before: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_export_request WHERE character_internal_id = $1",
-    )
-    .bind(character.internal_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("count export requests before failed bulk");
+    let before = export_request_count(&store).await;
     let receipts_before_failure = bulk_receipt_count(&store, "bulk_request_sheet_exports").await;
 
     let failed = store
@@ -300,13 +284,7 @@ async fn bulk_sheet_exports_prevalidate_all_targets_and_record_receipt() {
         failed.is_err(),
         "missing sheet target must reject the whole export batch"
     );
-    let after: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_export_request WHERE character_internal_id = $1",
-    )
-    .bind(character.internal_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("count export requests after failed bulk");
+    let after = export_request_count(&store).await;
     assert_eq!(
         before, after,
         "failed bulk export must not write the valid request"
@@ -334,13 +312,7 @@ async fn bulk_sheet_exports_prevalidate_all_targets_and_record_receipt() {
         mismatch.is_err(),
         "bulk export must reject divergent row and receipt requested_by actors"
     );
-    let after_mismatch: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_export_request WHERE character_internal_id = $1",
-    )
-    .bind(character.internal_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("count export requests after actor mismatch");
+    let after_mismatch = export_request_count(&store).await;
     assert_eq!(
         before_mismatch, after_mismatch,
         "bulk export actor mismatch must not write a request"
@@ -377,7 +349,7 @@ async fn bulk_sheet_exports_prevalidate_all_targets_and_record_receipt() {
     assert_eq!(result.receipt.target_count, 2);
     assert_eq!(result.receipt.mutation_count, 2);
     assert_eq!(result.exports.len(), 2);
-    assert_one_bulk_receipt_event(&store, result.receipt.receipt_id).await;
+    assert_one_bulk_receipt_event(&database, result.receipt.receipt_id).await;
     for export in &result.exports {
         assert_eq!(
             event_count(
@@ -405,7 +377,7 @@ async fn bulk_sheet_exports_prevalidate_all_targets_and_record_receipt() {
         serde_json::json!(sheet.version_id)
     );
     assert_eq!(exports[0]["requested_by"], "mt-014-test");
-    let event_payload = receipt_event_payload(&store, result.receipt.receipt_id).await;
+    let event_payload = receipt_event_payload(&database, result.receipt.receipt_id).await;
     let event_json =
         serde_json::to_string(&event_payload).expect("serialize sanitized receipt event payload");
     assert!(
@@ -431,13 +403,7 @@ async fn bulk_sheet_exports_prevalidate_all_targets_and_record_receipt() {
 
 #[tokio::test]
 async fn bulk_trash_media_prevalidates_all_targets_and_records_receipt() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP bulk_trash_media_prevalidates_all_targets_and_records_receipt: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, database, _harness) = connected_store().await;
 
     let first = media_asset(&store, "trash-first").await;
     let second = media_asset(&store, "trash-second").await;
@@ -478,30 +444,20 @@ async fn bulk_trash_media_prevalidates_all_targets_and_records_receipt() {
     assert_eq!(receipt.operation, "bulk_trash_media_assets");
     assert_eq!(receipt.target_count, 2);
     assert_eq!(receipt.mutation_count, 2);
-    assert_one_bulk_receipt_event(&store, receipt.receipt_id).await;
-    assert!(
-        store
-            .is_media_asset_trashed(first)
-            .await
-            .expect("first asset trashed")
-    );
-    assert!(
-        store
-            .is_media_asset_trashed(second)
-            .await
-            .expect("second asset trashed")
-    );
+    assert_one_bulk_receipt_event(&database, receipt.receipt_id).await;
+    assert!(store
+        .is_media_asset_trashed(first)
+        .await
+        .expect("first asset trashed"));
+    assert!(store
+        .is_media_asset_trashed(second)
+        .await
+        .expect("second asset trashed"));
 }
 
 #[tokio::test]
 async fn deletion_impact_preview_archive_and_restore_cover_media_and_sheet_versions() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP deletion_impact_preview_archive_and_restore_cover_media_and_sheet_versions: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, database, _harness) = connected_store().await;
 
     let character = character(&store, "recoverable-delete").await;
     let asset_id = media_asset(&store, "recoverable-delete").await;
@@ -561,27 +517,22 @@ async fn deletion_impact_preview_archive_and_restore_cover_media_and_sheet_versi
     assert_eq!(archive.operation, "archive_deletion_targets");
     assert_eq!(archive.target_count, 2);
     assert_eq!(archive.mutation_count, 2);
-    assert_one_bulk_receipt_event(&store, archive.receipt_id).await;
-    assert!(
-        store
-            .is_media_asset_trashed(asset_id)
-            .await
-            .expect("media asset marker after archive")
-    );
-    assert!(
-        store
-            .is_sheet_version_trashed(sheet.version_id)
-            .await
-            .expect("sheet version marker after archive")
-    );
-    assert!(
-        sqlx::query_scalar::<_, bool>(
-            "SELECT EXISTS (SELECT 1 FROM atelier_media_asset WHERE asset_id = $1)",
-        )
-        .bind(asset_id)
-        .fetch_one(store.pool())
+    assert_one_bulk_receipt_event(&database, archive.receipt_id).await;
+    assert!(store
+        .is_media_asset_trashed(asset_id)
         .await
-        .expect("media source row still exists"),
+        .expect("media asset marker after archive"));
+    assert!(store
+        .is_sheet_version_trashed(sheet.version_id)
+        .await
+        .expect("sheet version marker after archive"));
+    assert!(
+        store
+            .list_media_gallery_assets(500)
+            .await
+            .expect("list media assets after archive")
+            .iter()
+            .any(|asset| asset.asset_id == asset_id),
         "archive must not physically delete media rows"
     );
     assert!(
@@ -632,19 +583,15 @@ async fn deletion_impact_preview_archive_and_restore_cover_media_and_sheet_versi
     assert_eq!(restore.operation, "restore_deletion_targets");
     assert_eq!(restore.target_count, 2);
     assert_eq!(restore.mutation_count, 2);
-    assert_one_bulk_receipt_event(&store, restore.receipt_id).await;
-    assert!(
-        !store
-            .is_media_asset_trashed(asset_id)
-            .await
-            .expect("media asset marker after restore")
-    );
-    assert!(
-        !store
-            .is_sheet_version_trashed(sheet.version_id)
-            .await
-            .expect("sheet version marker after restore")
-    );
+    assert_one_bulk_receipt_event(&database, restore.receipt_id).await;
+    assert!(!store
+        .is_media_asset_trashed(asset_id)
+        .await
+        .expect("media asset marker after restore"));
+    assert!(!store
+        .is_sheet_version_trashed(sheet.version_id)
+        .await
+        .expect("sheet version marker after restore"));
     assert!(
         store
             .list_media_gallery_assets(500)
@@ -658,13 +605,7 @@ async fn deletion_impact_preview_archive_and_restore_cover_media_and_sheet_versi
 
 #[tokio::test]
 async fn deletion_archive_restore_prevalidate_all_targets_before_marker_mutation() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP deletion_archive_restore_prevalidate_all_targets_before_marker_mutation: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _database, _harness) = connected_store().await;
 
     let character = character(&store, "recoverable-delete-prevalidate").await;
     let asset_id = media_asset(&store, "recoverable-delete-prevalidate").await;
@@ -755,13 +696,7 @@ async fn deletion_archive_restore_prevalidate_all_targets_before_marker_mutation
 
 #[tokio::test]
 async fn bulk_sheet_field_edits_prevalidate_all_targets_and_record_receipt() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP bulk_sheet_field_edits_prevalidate_all_targets_and_record_receipt: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, database, _harness) = connected_store().await;
 
     let first = character(&store, "field-first").await;
     let second = character(&store, "field-second").await;
@@ -785,9 +720,11 @@ async fn bulk_sheet_field_edits_prevalidate_all_targets_and_record_receipt() {
         .expect("parse second bulk sheet");
     let receipts_before_failure = bulk_receipt_count(&store, "bulk_apply_sheet_field_edits").await;
     let first_events_before_failure =
-        aggregate_projection_count(&store, "atelier_sheet_version", first_sheet.version_id).await;
+        aggregate_projection_count(&database, "atelier_sheet_version", first_sheet.version_id)
+            .await;
     let second_events_before_failure =
-        aggregate_projection_count(&store, "atelier_sheet_version", second_sheet.version_id).await;
+        aggregate_projection_count(&database, "atelier_sheet_version", second_sheet.version_id)
+            .await;
 
     let valid_request = SheetFieldEditRequest {
         version_id: first_sheet.version_id,
@@ -838,12 +775,12 @@ async fn bulk_sheet_field_edits_prevalidate_all_targets_and_record_receipt() {
     );
     assert_eq!(
         first_events_before_failure,
-        aggregate_projection_count(&store, "atelier_sheet_version", first_sheet.version_id).await,
+        aggregate_projection_count(&database, "atelier_sheet_version", first_sheet.version_id).await,
         "failed bulk field edit must not write EventLedger/projection rows for valid prechecked target"
     );
     assert_eq!(
         second_events_before_failure,
-        aggregate_projection_count(&store, "atelier_sheet_version", second_sheet.version_id).await,
+        aggregate_projection_count(&database, "atelier_sheet_version", second_sheet.version_id).await,
         "failed bulk field edit must not write EventLedger/projection rejection rows for invalid target"
     );
 
@@ -866,7 +803,7 @@ async fn bulk_sheet_field_edits_prevalidate_all_targets_and_record_receipt() {
     assert_eq!(result.receipt.target_count, 2);
     assert_eq!(result.receipt.mutation_count, 2);
     assert_eq!(result.results.len(), 2);
-    assert_one_bulk_receipt_event(&store, result.receipt.receipt_id).await;
+    assert_one_bulk_receipt_event(&database, result.receipt.receipt_id).await;
     assert_eq!(
         store
             .sheet_version_history(first.internal_id)
@@ -887,13 +824,7 @@ async fn bulk_sheet_field_edits_prevalidate_all_targets_and_record_receipt() {
 
 #[tokio::test]
 async fn bulk_sheet_field_edits_reject_stale_non_head_source_before_any_mutation() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP bulk_sheet_field_edits_reject_stale_non_head_source_before_any_mutation: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, database, _harness) = connected_store().await;
 
     let first = character(&store, "field-stale-first").await;
     let second = character(&store, "field-stale-second").await;
@@ -936,7 +867,8 @@ async fn bulk_sheet_field_edits_reject_stale_non_head_source_before_any_mutation
 
     let receipts_before_failure = bulk_receipt_count(&store, "bulk_apply_sheet_field_edits").await;
     let second_events_before_failure =
-        aggregate_projection_count(&store, "atelier_sheet_version", second_sheet.version_id).await;
+        aggregate_projection_count(&database, "atelier_sheet_version", second_sheet.version_id)
+            .await;
 
     let stale_first_request = SheetFieldEditRequest {
         version_id: first_sheet.version_id,
@@ -1012,7 +944,7 @@ async fn bulk_sheet_field_edits_reject_stale_non_head_source_before_any_mutation
     );
     assert_eq!(
         second_events_before_failure,
-        aggregate_projection_count(&store, "atelier_sheet_version", second_sheet.version_id).await,
+        aggregate_projection_count(&database, "atelier_sheet_version", second_sheet.version_id).await,
         "failed stale bulk apply must not write EventLedger/projection rows for the valid sibling target"
     );
 }

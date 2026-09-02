@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 use thiserror::Error;
 use uuid::Uuid;
 
-use super::bitemporal::{AsOfQuery, BitemporalIndex, PostgresBitemporalMemoryIndex};
+use super::bitemporal::{AsOfQuery, BitemporalIndex, SurrealBitemporalMemoryIndex};
 use super::persistence::{
     KernelActionSubmission, RecordReceipt, WriteBoxV1Envelope, KERNEL_ACTION_REQUEST_SCHEMA_ID,
     MEMORY_WRITE_BOX_SCHEMA_ID, WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
@@ -708,7 +708,7 @@ impl<'a> FemsAccessor for InMemoryFemsAccessor<'a> {
     }
 }
 
-impl FemsAccessor for PostgresBitemporalMemoryIndex {
+impl FemsAccessor for SurrealBitemporalMemoryIndex {
     fn list_items(&self) -> Result<Vec<HygieneItemView>, HygieneError> {
         let items =
             block_on_hygiene(self.items_visible_at(&AsOfQuery::now())).map_err(|error| {

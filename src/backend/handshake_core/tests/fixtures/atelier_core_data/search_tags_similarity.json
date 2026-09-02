@@ -1,5 +1,5 @@
 {
-  "_comment": "MT-065 portable non-SQLite fixture corpus: retrieval + visual-filter projections. Manual tags vs derived tag rules vs AI suggestions (kept separate from applied tags). Similarity projections use dHash hex seeds. {{NONCE}} markers are made run-unique by the loader. No SQLite FTS anywhere; retrieval is the Postgres-backed projection.",
+  "_comment": "MT-065 embedded SurrealDB/EventLedger authority fixture corpus: retrieval and visual-filter projections persist through typed embedded SurrealDB Atelier-store operations with EventLedger evidence. Manual tags, derived tag rules, and AI suggestions remain separate from applied tags. Similarity projections use dHash hex seeds. {{NONCE}} markers are made run-unique by the loader.",
   "character": {
     "public_id_slug": "mt-065-search-subject",
     "display_name": "Search Subject"

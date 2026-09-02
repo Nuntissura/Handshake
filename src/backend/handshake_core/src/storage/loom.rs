@@ -901,7 +901,6 @@ pub struct LoomVisualDebugSnapshot {
 #[serde(rename_all = "snake_case")]
 pub enum LoomAuthorityBackend {
     /// The embedded store + EventLedger — the sole WP-009 Loom authority.
-    #[serde(alias = "postgres_event_ledger")]
     SurrealEventLedger,
 }
 

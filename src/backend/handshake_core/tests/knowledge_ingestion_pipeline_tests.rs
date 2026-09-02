@@ -1,28 +1,30 @@
 //! WP-KERNEL-009 SourceIngestionAndEvidence extraction-pipeline proofs
-//! against REAL Handshake-managed PostgreSQL: MT-084 (ContentHashStrategy),
+//! against the REAL Handshake-managed embedded SurrealDB store: MT-084 (ContentHashStrategy),
 //! MT-085 (ExtractionReceiptModel), MT-086 (PdfTextLayerDetector), MT-087
 //! (PdfTranscriptImportPath), MT-088 (MediaTranscriptIngestion), MT-089
 //! (GovernanceArtifactIngestion), MT-090 (OperatorResearchNoteIngestion),
 //! MT-091 (SecretRedactionPreflight).
 //!
-//! No mocks, no SQLite: every test drives the real `IngestionEngine` into a
-//! fresh isolated schema and asserts durable receipts, spans, EventLedger
+//! No mocks or server database: every test drives the real `IngestionEngine`
+//! into a fresh isolated store and asserts durable receipts, spans, EventLedger
 //! events, and per-source rollups.
 
 mod knowledge_ingestion_support;
-mod knowledge_pg_support;
 
+use handshake_core::kernel::KernelEvent;
 use handshake_core::knowledge_ingestion::backpressure::IngestionLimits;
 use handshake_core::knowledge_ingestion::engine::FileIngestOutcome;
 use handshake_core::knowledge_ingestion::pdf::fixtures as pdf_fixtures;
 use handshake_core::knowledge_ingestion::receipts::{ExtractionStatus, IngestionErrorClass};
 use handshake_core::knowledge_ingestion::spans::SpanAnchor;
-use handshake_core::storage::knowledge::KnowledgeRootKind;
-use knowledge_ingestion_support::{ingestion_pg, register_root, test_ctx, IngestionPg};
-use sqlx::Row;
+use handshake_core::storage::knowledge::{KnowledgeRootKind, KnowledgeStore};
+use handshake_core::storage::Database;
+use knowledge_ingestion_support::{
+    open_embedded_ingestion_fixture, register_root, test_ctx, EmbeddedIngestionFixture,
+};
 
 async fn ingest(
-    env: &IngestionPg,
+    env: &EmbeddedIngestionFixture,
     ctx: &handshake_core::knowledge_ingestion::engine::IngestionContext,
     root: &handshake_core::storage::knowledge::KnowledgeSourceRoot,
     rel_path: &str,
@@ -42,17 +44,44 @@ async fn ingest(
         .expect("ingest file bytes")
 }
 
+async fn persisted_receipt(
+    env: &EmbeddedIngestionFixture,
+    receipt_id: &str,
+) -> handshake_core::knowledge_ingestion::receipts::ExtractionReceipt {
+    env.engine
+        .store()
+        .get_extraction_receipt(receipt_id)
+        .await
+        .expect("read embedded extraction receipt")
+        .expect("embedded extraction receipt exists")
+}
+
+async fn persisted_event(
+    env: &EmbeddedIngestionFixture,
+    source_id: &str,
+    event_id: &str,
+) -> KernelEvent {
+    env.store
+        .db
+        .list_kernel_events_for_aggregate("knowledge_ingestion_receipt", source_id)
+        .await
+        .expect("read embedded receipt EventLedger events")
+        .into_iter()
+        .find(|event| event.event_id == event_id)
+        .expect("embedded receipt EventLedger event exists")
+}
+
 // ---------------------------------------------------------------------------
 // MT-084 ContentHashStrategy
 // ---------------------------------------------------------------------------
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt084_same_content_two_paths_shares_fidelity_hash_and_records_text_hash() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt084_same_content_two_paths: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt084_same_content_two_paths: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt084");
     let root = register_root(
         &env,
@@ -109,11 +138,11 @@ async fn mt084_same_content_two_paths_shares_fidelity_hash_and_records_text_hash
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt085_mt090_markdown_note_persists_spans_receipt_ledger_event_and_rollup() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt085_mt090_markdown_note: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt085_mt090_markdown_note: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt085-note");
     let root = register_root(
         &env,
@@ -169,24 +198,12 @@ async fn mt085_mt090_markdown_note_persists_spans_receipt_ledger_event_and_rollu
         .receipt_event_id
         .as_deref()
         .expect("receipt must carry a ledger event");
-    let mut conn = env.pg.raw_connection().await;
-    let row = sqlx::query(
-        "SELECT actor_id, session_run_id, correlation_id, payload
-         FROM kernel_event_ledger WHERE event_id = $1",
-    )
-    .bind(event_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("ledger event exists");
-    assert_eq!(row.get::<String, _>("actor_id"), ctx.actor.actor_id());
-    assert_eq!(row.get::<String, _>("session_run_id"), ctx.session_run_id);
-    assert_eq!(
-        row.get::<Option<String>, _>("correlation_id"),
-        ctx.correlation_id
-    );
-    let payload: serde_json::Value = row.get("payload");
-    assert_eq!(payload["kind"], "extraction_receipt");
-    assert_eq!(payload["status"], "success");
+    let event = persisted_event(&env, &outcome.source.source_id, event_id).await;
+    assert_eq!(event.actor.actor_id(), ctx.actor.actor_id());
+    assert_eq!(event.session_run_id, ctx.session_run_id);
+    assert_eq!(event.correlation_id, ctx.correlation_id);
+    assert_eq!(event.payload["kind"], "extraction_receipt");
+    assert_eq!(event.payload["status"], "success");
 
     // Per-source rollup advanced (spec 2.3.13.11 last-index receipt).
     assert_eq!(outcome.source.parser_status.as_str(), "parsed");
@@ -203,11 +220,11 @@ async fn mt085_mt090_markdown_note_persists_spans_receipt_ledger_event_and_rollu
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt086_mt087_pdf_text_layer_extracts_page_spans() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt086_mt087_pdf_text_layer: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt086_mt087_pdf_text_layer: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt087-pdf");
     let root = register_root(
         &env,
@@ -238,11 +255,11 @@ async fn mt086_mt087_pdf_text_layer_extracts_page_spans() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt086_image_only_pdf_yields_typed_no_text_layer_and_repair_entry() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt086_image_only_pdf: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt086_image_only_pdf: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt086-imageonly");
     let root = register_root(
         &env,
@@ -294,11 +311,11 @@ async fn mt086_image_only_pdf_yields_typed_no_text_layer_and_repair_entry() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt087_mixed_pdf_extracts_partially_with_explicit_page_failures() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt087_mixed_pdf: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt087_mixed_pdf: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt087-mixed");
     let root = register_root(
         &env,
@@ -332,11 +349,11 @@ async fn mt087_mixed_pdf_extracts_partially_with_explicit_page_failures() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt230_weak_pdf_text_layer_receipts_and_repair_queue_are_durable() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt230_weak_pdf_text_layer: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt230_weak_pdf_text_layer: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt230-weak-pdf");
     let root = register_root(
         &env,
@@ -389,85 +406,50 @@ async fn mt230_weak_pdf_text_layer_receipts_and_repair_queue_are_durable() {
         Some(outcome.receipt.receipt_id.as_str())
     );
 
-    let mut conn = env.pg.raw_connection().await;
-    let row = sqlx::query(
-        "SELECT receipt_id, reason_class, reason_detail, state \
-         FROM knowledge_ingestion_repair_queue \
-         WHERE source_id = $1",
-    )
-    .bind(&outcome.source.source_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("durable repair queue row");
+    let repair = env
+        .engine
+        .store()
+        .list_repair_entries(&workspace_id, None, 10)
+        .await
+        .expect("durable repair queue row")
+        .into_iter()
+        .find(|entry| entry.source_id == outcome.source.source_id)
+        .expect("repair row for source");
     assert_eq!(
-        row.get::<Option<String>, _>("receipt_id").as_deref(),
+        repair.receipt_id.as_deref(),
         Some(outcome.receipt.receipt_id.as_str())
     );
-    assert_eq!(row.get::<String, _>("reason_class"), "NO_TEXT_LAYER");
-    assert_eq!(row.get::<String, _>("state"), "queued");
-    let reason_detail: serde_json::Value = row.get("reason_detail");
+    assert_eq!(repair.reason_class.as_str(), "NO_TEXT_LAYER");
+    assert_eq!(repair.state.as_str(), "queued");
+    let reason_detail = repair.reason_detail;
     assert_eq!(
         reason_detail["failed_pages"][0]["reason"],
         detail["failed_pages"][0]["reason"]
     );
 
-    let receipt_row = sqlx::query(
-        "SELECT status, error_class, error_detail, spans_produced, spans_failed, receipt_event_id \
-         FROM knowledge_ingestion_receipts \
-         WHERE receipt_id = $1",
-    )
-    .bind(&outcome.receipt.receipt_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("durable extraction receipt row");
-    assert_eq!(receipt_row.get::<String, _>("status"), "partial");
-    assert_eq!(
-        receipt_row
-            .get::<Option<String>, _>("error_class")
-            .as_deref(),
-        Some("NO_TEXT_LAYER")
-    );
-    assert_eq!(receipt_row.get::<i32, _>("spans_produced"), 1);
-    assert_eq!(receipt_row.get::<i32, _>("spans_failed"), 1);
-    let persisted_detail: serde_json::Value = receipt_row.get("error_detail");
+    let receipt = persisted_receipt(&env, &outcome.receipt.receipt_id).await;
+    assert_eq!(receipt.status, ExtractionStatus::Partial);
+    assert_eq!(receipt.error_class, Some(IngestionErrorClass::NoTextLayer));
+    assert_eq!(receipt.spans_produced, 1);
+    assert_eq!(receipt.spans_failed, 1);
+    let persisted_detail = receipt.error_detail.expect("durable receipt detail");
     assert_eq!(
         persisted_detail["failed_pages"][0]["reason"],
         detail["failed_pages"][0]["reason"]
     );
 
-    let event_id = receipt_row
-        .get::<Option<String>, _>("receipt_event_id")
+    let event_id = receipt
+        .receipt_event_id
+        .as_deref()
         .expect("receipt row must point at EventLedger");
-    let event = sqlx::query(
-        "SELECT actor_id, session_run_id, correlation_id, aggregate_type, aggregate_id, source_component, payload \
-         FROM kernel_event_ledger \
-         WHERE event_id = $1",
-    )
-    .bind(&event_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("receipt EventLedger row");
-    assert_eq!(event.get::<String, _>("actor_id"), ctx.actor.actor_id());
-    assert_eq!(event.get::<String, _>("session_run_id"), ctx.session_run_id);
-    assert_eq!(
-        event.get::<Option<String>, _>("correlation_id"),
-        ctx.correlation_id
-    );
-    assert_eq!(
-        event.get::<Option<String>, _>("aggregate_type").as_deref(),
-        Some("knowledge_ingestion_receipt")
-    );
-    assert_eq!(
-        event.get::<Option<String>, _>("aggregate_id").as_deref(),
-        Some(outcome.source.source_id.as_str())
-    );
-    assert_eq!(
-        event
-            .get::<Option<String>, _>("source_component")
-            .as_deref(),
-        Some("knowledge_ingestion")
-    );
-    let payload: serde_json::Value = event.get("payload");
+    let event = persisted_event(&env, &outcome.source.source_id, event_id).await;
+    assert_eq!(event.actor.actor_id(), ctx.actor.actor_id());
+    assert_eq!(event.session_run_id, ctx.session_run_id);
+    assert_eq!(event.correlation_id, ctx.correlation_id);
+    assert_eq!(event.aggregate_type, "knowledge_ingestion_receipt");
+    assert_eq!(event.aggregate_id, outcome.source.source_id);
+    assert_eq!(event.source_component, "knowledge_ingestion");
+    let payload = event.payload;
     assert_eq!(payload["kind"], "extraction_receipt");
     assert_eq!(payload["workspace_id"], workspace_id);
     assert_eq!(payload["source_id"], outcome.source.source_id);
@@ -483,11 +465,11 @@ async fn mt230_weak_pdf_text_layer_receipts_and_repair_queue_are_durable() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt088_transcripts_become_time_coded_spans_with_partial_on_malformed_cues() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt088_transcripts: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt088_transcripts: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt088");
     let root = register_root(
         &env,
@@ -564,11 +546,11 @@ async fn mt088_transcripts_become_time_coded_spans_with_partial_on_malformed_cue
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt089_governance_artifacts_get_json_pointer_spans_and_sub_kinds() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt089_governance_artifacts: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt089_governance_artifacts: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt089");
     let root = register_root(
         &env,
@@ -582,7 +564,7 @@ async fn mt089_governance_artifacts_get_json_pointer_spans_and_sub_kinds() {
     // Tiny SYNTHETIC contract-shaped artifact (never the live .GOV).
     let artifact = r#"{
         "mt_id": "MT-TEST",
-        "scope": {"constraints": ["no sqlite", "no docker"], "title": "synthetic"},
+        "scope": {"constraints": ["no alternate backend", "no docker"], "title": "synthetic"},
         "lifecycle": {"status": "PENDING"}
     }"#;
     let outcome = ingest(
@@ -645,11 +627,11 @@ async fn mt089_governance_artifacts_get_json_pointer_spans_and_sub_kinds() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt091_high_severity_secrets_block_the_file_and_store_no_raw_bytes() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt091_high_severity_secrets: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt091_high_severity_secrets: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt091-block");
     let root = register_root(
         &env,
@@ -679,23 +661,46 @@ async fn mt091_high_severity_secrets_block_the_file_and_store_no_raw_bytes() {
     // SECRET_BLOCKED is not machine-repairable: no repair-queue entry.
     assert!(outcome.repair.is_none());
 
-    // The raw secret never reaches ANY durable ingestion row.
-    let mut conn = env.pg.raw_connection().await;
-    for (table, column) in [
-        ("knowledge_ingestion_spans", "content"),
-        ("knowledge_ingestion_receipts", "error_detail::text"),
-        ("knowledge_sources", "provenance::text"),
-        ("kernel_event_ledger", "payload::text"),
-    ] {
-        let count: i64 = sqlx::query_scalar(&format!(
-            "SELECT count(*) FROM {table} WHERE {column} LIKE $1"
-        ))
-        .bind(format!("%{fake_aws_key}%"))
-        .fetch_one(&mut conn)
+    // The raw secret never reaches any durable ingestion row. Read every
+    // relevant surface through typed embedded-store APIs.
+    let spans = env
+        .engine
+        .store()
+        .list_source_spans(&outcome.source.source_id)
         .await
-        .expect("probe for raw secret");
-        assert_eq!(count, 0, "raw secret leaked into {table}");
-    }
+        .expect("read durable spans");
+    assert!(spans
+        .iter()
+        .all(|span| !span.content.contains(fake_aws_key)));
+    let receipts = env
+        .engine
+        .store()
+        .list_extraction_receipts(&outcome.source.source_id, 10)
+        .await
+        .expect("read durable receipts");
+    assert!(receipts
+        .iter()
+        .all(|receipt| !serde_json::to_string(receipt)
+            .unwrap()
+            .contains(fake_aws_key)));
+    let sources = env
+        .engine
+        .knowledge()
+        .list_knowledge_sources_for_root(&root.root_id)
+        .await
+        .expect("read durable source rows");
+    assert!(sources
+        .iter()
+        .all(|source| !source.provenance.to_string().contains(fake_aws_key)));
+    let events = env
+        .engine
+        .knowledge()
+        .list_kernel_events_for_aggregate("knowledge_ingestion_receipt", &outcome.source.source_id)
+        .await
+        .expect("read durable ledger events");
+    assert!(events
+        .iter()
+        .all(|event| !event.payload.to_string().contains(fake_aws_key)));
 
     // Receipt detail records findings WITHOUT content (kind + location only).
     let detail = outcome.receipt.error_detail.as_ref().expect("detail");
@@ -706,11 +711,11 @@ async fn mt091_high_severity_secrets_block_the_file_and_store_no_raw_bytes() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt091_medium_severity_secrets_redact_span_content_not_the_file() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt091_medium_severity_secrets: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt091_medium_severity_secrets: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt091-redact");
     let root = register_root(
         &env,
@@ -737,15 +742,16 @@ async fn mt091_medium_severity_secrets_redact_span_content_not_the_file() {
     assert_eq!(redacted_span.redaction_state.as_str(), "redacted");
     assert!(!redacted_span.content.contains(fake_token));
 
-    let mut conn = env.pg.raw_connection().await;
-    let count: i64 =
-        sqlx::query_scalar("SELECT count(*) FROM knowledge_ingestion_spans WHERE content LIKE $1")
-            .bind(format!("%{fake_token}%"))
-            .fetch_one(&mut conn)
-            .await
-            .expect("probe spans for raw token");
-    assert_eq!(
-        count, 0,
+    let persisted_spans = env
+        .engine
+        .store()
+        .list_source_spans(&outcome.source.source_id)
+        .await
+        .expect("read persisted spans");
+    assert!(
+        persisted_spans
+            .iter()
+            .all(|span| !span.content.contains(fake_token)),
         "raw medium-severity secret leaked into span content"
     );
 }
@@ -756,11 +762,11 @@ async fn mt091_medium_severity_secrets_redact_span_content_not_the_file() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unsupported_binary_is_skipped_typed_with_receipt() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP unsupported_binary_is_skipped: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP unsupported_binary_is_skipped: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("skip");
     let root = register_root(
         &env,

@@ -1,4 +1,4 @@
-//! WP-KERNEL-009 MT-242 WikiProjectionDriftAndStaleness — REAL PostgreSQL +
+//! WP-KERNEL-009 MT-242 WikiProjectionDriftAndStaleness — embedded SurrealDB +
 //! route-level proof.
 //!
 //! Proves LM-PWIKI-006..009 over a wiki bootstrapped from REAL handshake_core
@@ -13,16 +13,10 @@
 //!     unstamped legacy page serves as `unstamped`, never fresh;
 //!   * negative: a no-change recompile yields ZERO stale pages.
 
-mod knowledge_pg_support;
+mod user_manual_support;
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use handshake_core::capabilities::CapabilityRegistry;
-use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
-use handshake_core::flight_recorder::{
-    EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
-};
 use handshake_core::kernel::KernelActor;
 use handshake_core::knowledge_code_index::engine::{CodeIndexContext, CodeIndexEngine};
 use handshake_core::knowledge_wiki::compiler::{
@@ -30,35 +24,17 @@ use handshake_core::knowledge_wiki::compiler::{
 };
 use handshake_core::knowledge_wiki::drift::WikiDriftChecker;
 use handshake_core::knowledge_wiki::{CitedSourceKind, WikiCompileStamp, WikiStalenessVerdict};
-use handshake_core::llm::{
-    CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
-};
 use handshake_core::storage::knowledge::{
     KnowledgeIndexingEligibility, KnowledgeProjectionKind, KnowledgeRebuildStatus,
     KnowledgeRootKind, KnowledgeStore, NewKnowledgeSourceRoot, NewKnowledgeWikiProjection,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, NewLoomBlock, WriteContext,
 };
-use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
-use handshake_core::AppState;
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
+use user_manual_support::{app_state_for, manual_test_backend, start_server, ManualTestBackend};
 use uuid::Uuid;
-
-macro_rules! pg_or_skip {
-    () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
-            None => {
-                eprintln!("SKIP MT-242 wiki drift proof: PostgreSQL unavailable");
-                return;
-            }
-        }
-    }};
-}
 
 const CORE_FILES: [&str; 3] = [
     "src/knowledge_code_index/mod.rs",
@@ -101,13 +77,10 @@ struct Seeded {
     sources: std::collections::HashMap<String, String>,
 }
 
-async fn seed_workspace(pg: &KnowledgePg) -> Seeded {
-    let workspace_id = pg.create_workspace().await;
-    let db = PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect engine handle");
-    let engine = CodeIndexEngine::new(Arc::new(db));
-    let root_id = pg
+async fn seed_workspace(backend: &ManualTestBackend) -> Seeded {
+    let workspace_id = backend.create_workspace().await;
+    let engine = CodeIndexEngine::new(Arc::new(backend.db.clone()));
+    let root_id = backend
         .db
         .create_knowledge_source_root(NewKnowledgeSourceRoot {
             workspace_id: workspace_id.clone(),
@@ -142,20 +115,12 @@ async fn seed_workspace(pg: &KnowledgePg) -> Seeded {
     }
 }
 
-async fn compiler_for(pg: &KnowledgePg) -> ProjectWikiCompiler {
-    ProjectWikiCompiler::new(Arc::new(
-        PostgresDatabase::connect(&pg.schema_url, 5)
-            .await
-            .expect("compiler handle"),
-    ))
+fn compiler_for(backend: &ManualTestBackend) -> ProjectWikiCompiler {
+    ProjectWikiCompiler::new(Arc::new(backend.db.clone()))
 }
 
-async fn checker_for(pg: &KnowledgePg) -> WikiDriftChecker {
-    WikiDriftChecker::new(Arc::new(
-        PostgresDatabase::connect(&pg.schema_url, 5)
-            .await
-            .expect("checker handle"),
-    ))
+fn checker_for(backend: &ManualTestBackend) -> WikiDriftChecker {
+    WikiDriftChecker::new(Arc::new(backend.db.clone()))
 }
 
 /// Edit the real target source (append a probe symbol) and re-index it.
@@ -217,11 +182,15 @@ fn expected_affected_titles(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt242_stamps_record_ledger_version_and_cited_source_hashes() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let seeded = seed_workspace(&pg).await;
-    let compiler = compiler_for(&pg).await;
+    let compiler = compiler_for(&pg);
     let outcome = compiler
-        .bootstrap(&wiki_ctx(), &seeded.workspace_id, &WikiBootstrapOptions::default())
+        .bootstrap(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiBootstrapOptions::default(),
+        )
         .await
         .expect("bootstrap");
 
@@ -261,11 +230,15 @@ async fn mt242_stamps_record_ledger_version_and_cited_source_hashes() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt242_source_edit_flags_exactly_the_citing_pages_with_reasons() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let seeded = seed_workspace(&pg).await;
-    let compiler = compiler_for(&pg).await;
+    let compiler = compiler_for(&pg);
     let outcome = compiler
-        .bootstrap(&wiki_ctx(), &seeded.workspace_id, &WikiBootstrapOptions::default())
+        .bootstrap(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiBootstrapOptions::default(),
+        )
         .await
         .expect("bootstrap");
 
@@ -288,7 +261,7 @@ async fn mt242_source_edit_flags_exactly_the_citing_pages_with_reasons() {
     let (source_id, new_source_hash) = edit_and_reindex(&seeded).await;
 
     // Drift check: exactly the citing pages flag stale, with concrete reasons.
-    let checker = checker_for(&pg).await;
+    let checker = checker_for(&pg);
     let report = checker
         .check_workspace(&wiki_ctx(), &seeded.workspace_id, true)
         .await
@@ -320,7 +293,10 @@ async fn mt242_source_edit_flags_exactly_the_citing_pages_with_reasons() {
     else {
         panic!("module page must be stale");
     };
-    assert!(stamp_ledger_version < current_ledger_version, "version delta visible");
+    assert!(
+        stamp_ledger_version < current_ledger_version,
+        "version delta visible"
+    );
     let source_reason = reasons
         .iter()
         .find(|r| r.kind == CitedSourceKind::Source && r.id == source_id)
@@ -359,37 +335,54 @@ async fn mt242_source_edit_flags_exactly_the_citing_pages_with_reasons() {
 
     // The drift run left its staleness-verdict receipt (LM-PWIKI-012).
     let receipt_id = report.receipt_event_id.expect("drift receipt id");
-    let mut conn = pg.raw_connection().await;
-    let kind: Option<String> = sqlx::query_scalar(
-        "SELECT payload ->> 'kind' FROM kernel_event_ledger WHERE event_id = $1",
-    )
-    .bind(&receipt_id)
-    .fetch_optional(&mut conn)
-    .await
-    .expect("ledger query");
+    let kind = pg
+        .db
+        .list_kernel_events_for_aggregate("knowledge_wiki", &seeded.workspace_id)
+        .await
+        .expect("ledger query")
+        .into_iter()
+        .find(|event| event.event_id == receipt_id)
+        .and_then(|event| {
+            event
+                .payload
+                .get("kind")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        });
     assert_eq!(kind.as_deref(), Some("wiki_drift_check"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt242_no_change_recompile_yields_zero_stale() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let seeded = seed_workspace(&pg).await;
-    let compiler = compiler_for(&pg).await;
+    let compiler = compiler_for(&pg);
     compiler
-        .bootstrap(&wiki_ctx(), &seeded.workspace_id, &WikiBootstrapOptions::default())
+        .bootstrap(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiBootstrapOptions::default(),
+        )
         .await
         .expect("bootstrap");
 
-    let checker = checker_for(&pg).await;
+    let checker = checker_for(&pg);
     let first = checker
         .check_workspace(&wiki_ctx(), &seeded.workspace_id, true)
         .await
         .expect("drift check 1");
-    assert_eq!(first.stale_pages, 0, "freshly compiled wiki has zero stale pages");
+    assert_eq!(
+        first.stale_pages, 0,
+        "freshly compiled wiki has zero stale pages"
+    );
 
     // Recompile with NO source change…
     compiler
-        .bootstrap(&wiki_ctx(), &seeded.workspace_id, &WikiBootstrapOptions::default())
+        .bootstrap(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiBootstrapOptions::default(),
+        )
         .await
         .expect("recompile");
     // …and the negative gate holds: zero stale, zero unstamped, all fresh.
@@ -397,129 +390,25 @@ async fn mt242_no_change_recompile_yields_zero_stale() {
         .check_workspace(&wiki_ctx(), &seeded.workspace_id, true)
         .await
         .expect("drift check 2");
-    assert_eq!(second.stale_pages, 0, "no-change recompile yields zero stale pages");
+    assert_eq!(
+        second.stale_pages, 0,
+        "no-change recompile yields zero stale pages"
+    );
     assert_eq!(second.unstamped_pages, 0);
     assert_eq!(second.fresh_pages, second.pages.len());
 }
 
-// ---------------------------------------------------------------------------
-// Route-level proof: the verdict is attached on EVERY page-serve path.
-// ---------------------------------------------------------------------------
-
-#[derive(Default)]
-struct NoopRecorder;
-
-#[async_trait]
-impl FlightRecorder for NoopRecorder {
-    async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
-        Ok(())
-    }
-    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
-        Ok(0)
-    }
-    async fn list_events(
-        &self,
-        _filter: EventFilter,
-    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
-        Ok(Vec::new())
-    }
-}
-
-#[async_trait]
-impl DiagnosticsStore for NoopRecorder {
-    async fn record_diagnostic(
-        &self,
-        _diag: Diagnostic,
-    ) -> Result<(), handshake_core::storage::StorageError> {
-        Ok(())
-    }
-    async fn list_problems(
-        &self,
-        _filter: DiagFilter,
-    ) -> Result<Vec<ProblemGroup>, handshake_core::storage::StorageError> {
-        Ok(Vec::new())
-    }
-    async fn get_diagnostic(
-        &self,
-        _id: Uuid,
-    ) -> Result<Diagnostic, handshake_core::storage::StorageError> {
-        Err(handshake_core::storage::StorageError::NotFound(
-            "diagnostic",
-        ))
-    }
-    async fn list_diagnostics(
-        &self,
-        _filter: DiagFilter,
-    ) -> Result<Vec<Diagnostic>, handshake_core::storage::StorageError> {
-        Ok(Vec::new())
-    }
-}
-
-struct NoopLlmClient {
-    profile: ModelProfile,
-}
-
-#[async_trait]
-impl LlmClient for NoopLlmClient {
-    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        Ok(CompletionResponse {
-            text: String::new(),
-            usage: TokenUsage {
-                prompt_tokens: 0,
-                completion_tokens: 0,
-                total_tokens: 0,
-            },
-            latency_ms: 0,
-        })
-    }
-    fn profile(&self) -> &ModelProfile {
-        &self.profile
-    }
-}
-
-async fn app_state_for(schema_url: &str) -> AppState {
-    let storage = PostgresDatabase::connect(schema_url, 5)
-        .await
-        .expect("connect AppState storage")
-        .into_arc();
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(schema_url)
-        .await
-        .expect("connect AppState pool");
-    let recorder = Arc::new(NoopRecorder);
-    AppState {
-        storage,
-        flight_recorder: recorder.clone(),
-        diagnostics: recorder,
-        llm_client: Arc::new(NoopLlmClient {
-            profile: ModelProfile::new("wiki-drift-api-test".to_string(), 4096),
-        }),
-        capability_registry: Arc::new(CapabilityRegistry::new()),
-        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
-    }
-}
-
-async fn start_server(state: AppState) -> (String, tokio::task::JoinHandle<()>) {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind loopback listener");
-    let addr = listener.local_addr().expect("local addr");
-    let app = handshake_core::api::loom::routes(state);
-    let server = tokio::spawn(async move {
-        axum::serve(listener, app).await.expect("loom api server");
-    });
-    (format!("http://{addr}"), server)
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let seeded = seed_workspace(&pg).await;
-    let compiler = compiler_for(&pg).await;
+    let compiler = compiler_for(&pg);
     let outcome = compiler
-        .bootstrap(&wiki_ctx(), &seeded.workspace_id, &WikiBootstrapOptions::default())
+        .bootstrap(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiBootstrapOptions::default(),
+        )
         .await
         .expect("bootstrap");
     let ws = seeded.workspace_id.clone();
@@ -538,8 +427,8 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
         .await
         .expect("legacy unstamped row");
 
-    let state = app_state_for(&pg.schema_url).await;
-    let (base, _server) = start_server(state).await;
+    let state = app_state_for(&pg.db).await;
+    let (base, _server) = start_server(handshake_core::api::loom::routes(state)).await;
     let http = reqwest::Client::new();
 
     // ---- list serve path: EVERY page carries a verdict ----------------------

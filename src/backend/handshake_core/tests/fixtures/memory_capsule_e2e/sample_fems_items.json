@@ -56,11 +56,11 @@
       "pinned": true
     },
     {
-      "item_id": "mt147-pinned-no-sqlite-fixture-boundary",
+      "item_id": "mt147-pinned-embedded-surreal-fixture-boundary",
       "memory_class": "procedural",
       "type": "kernel_builder_note",
-      "summary": "Pinned no-SQLite boundary for fixture construction",
-      "content": "The MT-147 fixture is file-backed JSON only. Do not open, seed, migrate, or depend on SQLite when consuming this sample corpus.",
+      "summary": "Pinned embedded-SurrealDB boundary for fixture construction",
+      "content": "The MT-147 fixture is file-backed input only. Persisted authority for consumers is the embedded SurrealDB store.",
       "structured": {
         "corpus_style": "hbr_test_packet",
         "category": "fixture_boundary",
@@ -81,9 +81,9 @@
       "source_refs": [
         {
           "kind": "artifact",
-          "id": "packet://WP-KERNEL-004/MT-147/no-sqlite",
+          "id": "packet://WP-KERNEL-004/MT-147/embedded-surrealdb",
           "hash": "0000000000000000000000000000000000000000000000000000000000000002",
-          "selector": "$.task.constraints.no_sqlite",
+          "selector": "$.task.constraints.embedded_surrealdb_only",
           "created_at": "2026-05-19T00:00:00Z",
           "classification": "operator_constraint"
         }

@@ -1,45 +1,112 @@
-//! Shared support for the WP-KERNEL-009 SourceIngestionAndEvidence
-//! integration tests (MT-081..MT-096).
+//! Shared embedded-SurrealDB support for knowledge and Loom integration tests.
 //!
-//! Builds on `knowledge_pg_support` (real Handshake-managed PostgreSQL,
-//! per-test isolated schema, full migration chain — no SQLite, no mocks) and
-//! adds the ingestion engine wiring: a second `PostgresDatabase` handle into
-//! the SAME isolated schema feeds `IngestionEngine::from_database`, so the
-//! engine, the storage layer, and the raw assertion connection all see one
-//! durable state.
+//! Every fixture owns one real on-disk embedded store created by the canonical
+//! `embedded_test_backend` helper. The fixture names describe the embedded
+//! authority directly and expose no server URL or raw query connection.
 #![allow(dead_code)]
 
 use std::sync::Arc;
 
 use handshake_core::kernel::KernelActor;
 use handshake_core::knowledge_ingestion::engine::{IngestionContext, IngestionEngine};
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealStorageConfig;
+use handshake_core::storage::surreal::{SurrealDatabase, SurrealStorage};
+use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
+use handshake_core::storage::{Database, NewWorkspace, StorageError, StorageResult, WriteContext};
 use uuid::Uuid;
 
-use crate::knowledge_pg_support::{knowledge_pg, KnowledgePg};
+/// Embedded fixture for knowledge/Loom tests.
+///
+/// The store is real and on disk for the lifetime of this value. Its cleanup
+/// guard is retained in `backend`, so dropping the fixture closes and removes
+/// the isolated data directory after all derived handles have been dropped.
+pub struct EmbeddedKnowledgeStore {
+    pub db: SurrealDatabase,
+    pub storage: SurrealStorage,
+    pub data_dir: std::path::PathBuf,
+    backend: EmbeddedTestBackend,
+}
 
-/// One isolated ingestion test environment.
-pub struct IngestionPg {
-    pub pg: KnowledgePg,
+impl EmbeddedKnowledgeStore {
+    pub async fn create_workspace(&self) -> String {
+        self.db
+            .create_workspace(
+                &WriteContext::human(None),
+                NewWorkspace {
+                    name: format!("knowledge-ws-{}", Uuid::now_v7()),
+                },
+            )
+            .await
+            .expect("create workspace for embedded knowledge test")
+            .id
+    }
+
+    pub fn database(&self) -> Arc<dyn Database> {
+        Arc::new(self.db.clone())
+    }
+
+    /// Close the shared embedded handle before a durability/restart proof.
+    pub async fn shutdown(&self) -> StorageResult<()> {
+        self.storage
+            .shutdown()
+            .await
+            .map_err(|error| StorageError::Database(error.to_string()))
+    }
+
+    /// Reopen the same on-disk store after `shutdown`.
+    pub async fn reopen_database(&self) -> StorageResult<SurrealDatabase> {
+        let config = SurrealStorageConfig::for_data_dir(&self.data_dir)
+            .map_err(|error| StorageError::Database(error.to_string()))?;
+        let storage = handshake_core::storage::surreal::SurrealStorage::open(config)
+            .await
+            .map_err(|error| StorageError::Database(error.to_string()))?;
+        Ok(SurrealDatabase::new(storage))
+    }
+
+    pub async fn close_and_remove(self) -> StorageResult<()> {
+        let EmbeddedKnowledgeStore {
+            db,
+            storage,
+            backend,
+            ..
+        } = self;
+        drop(db);
+        drop(storage);
+        backend.close_and_remove().await
+    }
+}
+
+/// Open a mandatory real embedded store. The `None` shape is retained for
+/// callers whose old helper used loud skip branches; the embedded path either
+/// returns `Some` or panics with the setup failure.
+pub async fn open_embedded_store() -> Option<EmbeddedKnowledgeStore> {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated embedded knowledge test store");
+    let storage = backend.storage.clone();
+    let data_dir = backend.data_dir.clone();
+    let db = SurrealDatabase::new(storage.clone());
+    Some(EmbeddedKnowledgeStore {
+        db,
+        storage,
+        data_dir,
+        backend,
+    })
+}
+
+/// Shared ingestion test environment over the same embedded authority handle.
+pub struct EmbeddedIngestionFixture {
+    pub store: EmbeddedKnowledgeStore,
     pub engine: IngestionEngine,
 }
 
-/// Fresh isolated schema + migrations + ingestion engine. Returns `None`
-/// only when PostgreSQL binaries are absent (caller must SKIP loudly).
-pub async fn ingestion_pg() -> Option<IngestionPg> {
-    let pg = knowledge_pg().await?;
-    // Name the isolated schema in the test log so a failing run can be
-    // inspected directly on the cluster.
-    eprintln!("knowledge ingestion test schema: {}", pg.schema);
-    let db = PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect ingestion engine handle to isolated schema");
-    let engine = IngestionEngine::from_database(Arc::new(db));
-    Some(IngestionPg { pg, engine })
+pub async fn open_embedded_ingestion_fixture() -> Option<EmbeddedIngestionFixture> {
+    let store = open_embedded_store().await?;
+    let engine = IngestionEngine::from_database(Arc::new(store.db.clone()));
+    Some(EmbeddedIngestionFixture { store, engine })
 }
 
-/// Backend-navigation context for tests (spec 2.3.13.11: actor + session +
-/// correlation ids on every mutation receipt).
+/// Backend-navigation context for tests (actor/session/correlation metadata).
 pub fn test_ctx(label: &str) -> IngestionContext {
     let suffix = Uuid::now_v7();
     IngestionContext {
@@ -50,9 +117,9 @@ pub fn test_ctx(label: &str) -> IngestionContext {
     }
 }
 
-/// Register a root of the given kind under the default allowlist policy.
+/// Register a root under the default allowlist policy.
 pub async fn register_root(
-    env: &IngestionPg,
+    env: &EmbeddedIngestionFixture,
     ctx: &IngestionContext,
     workspace_id: &str,
     repo_relative_path: &str,
@@ -64,20 +131,19 @@ pub async fn register_root(
         .register_root(
             ctx,
             RootRegistrationRequest {
-                workspace_id: workspace_id.to_string(),
+                workspace_id: workspace_id.to_owned(),
                 display_name: if repo_relative_path.is_empty() {
-                    "test root (repo)".to_string()
+                    "test root (repo)".to_owned()
                 } else {
                     format!("test root {repo_relative_path}")
                 },
                 root_kind,
-                repo_relative_path: repo_relative_path.to_string(),
+                repo_relative_path: repo_relative_path.to_owned(),
                 file_allowlist_policy: serde_json::json!({"include": ["**/*"], "exclude": []}),
-                // Operator-gated kinds need the explicit wave-through.
                 operator_approved: true,
             },
         )
         .await
-        .expect("register test root");
+        .expect("register embedded test root");
     root
 }

@@ -1,10 +1,9 @@
-//! WP-KERNEL-009 CodeIndexingAndNavigation runtime proof against REAL
-//! Handshake-managed PostgreSQL (MT-097..MT-112).
+//! WP-KERNEL-009 CodeIndexingAndNavigation runtime proof against the real
+//! embedded Handshake store (MT-097..MT-112).
 //!
-//! Proof-path contract (operator-mandated): no SQLite, no mock, no in-memory
-//! fallback. Every durable assertion runs against the managed PostgreSQL cluster
-//! through `knowledge_pg()`; when the PG binaries are genuinely absent the test
-//! SKIPs loudly (never silently green).
+//! Proof-path contract (operator-mandated): no alternate backend, no mock, no
+//! in-memory fallback. Every durable assertion runs against the isolated embedded store
+//! through `open_embedded_store()`; setup failures remain loud (never silently green).
 //!
 //! These tests drive the real `CodeIndexEngine` (which writes symbols/spans/edges
 //! THROUGH `storage::knowledge::KnowledgeStore` and maintains the
@@ -22,8 +21,10 @@
 //!   * MT-110 the context bundle is bounded + cited;
 //!   * MT-112 a mixed rust/ts/js/config mini-tree indexes end to end.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
+use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};
 use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use handshake_core::knowledge_code_index::context_bridge::{
     build_code_context_bundle, DEFAULT_CODE_CONTEXT_TOKEN_BUDGET,
@@ -45,16 +46,15 @@ use handshake_core::storage::knowledge::{
     KnowledgeScipImportStatus, KnowledgeSpanKind, KnowledgeStore, NewKnowledgeScipImport,
     NewKnowledgeSourceRoot,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::Database;
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
 use serde_json::json;
 use std::sync::Arc;
 use uuid::Uuid;
 
 /// Create a project-repo root (FK target; file-kind sources require a root_id).
-async fn make_root(pg: &KnowledgePg, workspace_id: &str) -> String {
-    let root = pg
+async fn make_root(store: &EmbeddedKnowledgeStore, workspace_id: &str) -> String {
+    let root = store
         .db
         .create_knowledge_source_root(NewKnowledgeSourceRoot {
             workspace_id: workspace_id.to_string(),
@@ -89,8 +89,8 @@ fn ingestion_ctx() -> IngestionContext {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn event_ledger_idempotency_uses_payload_hash_not_jsonb_shape() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP event_ledger_idempotency_uses_payload_hash_not_jsonb_shape: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP event_ledger_idempotency_uses_payload_hash_not_jsonb_shape: embedded store unavailable");
         return;
     };
     let suffix = Uuid::now_v7();
@@ -113,12 +113,12 @@ async fn event_ledger_idempotency_uses_payload_hash_not_jsonb_shape() {
     .build()
     .expect("build event");
 
-    let first = pg
+    let first = store
         .db
         .append_kernel_event(event.clone())
         .await
         .expect("append first event");
-    let second = pg
+    let second = store
         .db
         .append_kernel_event(event)
         .await
@@ -130,8 +130,8 @@ async fn event_ledger_idempotency_uses_payload_hash_not_jsonb_shape() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn event_ledger_idempotency_conflict_reports_key_and_hashes() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP event_ledger_idempotency_conflict_reports_key_and_hashes: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP event_ledger_idempotency_conflict_reports_key_and_hashes: embedded store unavailable");
         return;
     };
     let suffix = Uuid::now_v7();
@@ -167,11 +167,12 @@ async fn event_ledger_idempotency_conflict_reports_key_and_hashes() {
     .build()
     .expect("build second event");
 
-    pg.db
+    store
+        .db
         .append_kernel_event(first)
         .await
         .expect("append first event");
-    let err = pg
+    let err = store
         .db
         .append_kernel_event(second)
         .await
@@ -184,21 +185,13 @@ async fn event_ledger_idempotency_conflict_reports_key_and_hashes() {
     assert!(message.contains("knowledge_code_index_file"), "{message}");
 }
 
-/// Build a code-index engine on a handle into the SAME isolated schema (the
-/// established ingestion-test pattern: connect a second handle to
-/// `pg.schema_url`, which shares the schema the migrations ran in).
-async fn engine(pg: &KnowledgePg) -> CodeIndexEngine {
-    let db = PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect code-index engine handle to isolated schema");
-    CodeIndexEngine::new(Arc::new(db))
+/// Build a code-index engine on a clone of the SAME isolated embedded store.
+async fn engine(store: &EmbeddedKnowledgeStore) -> CodeIndexEngine {
+    CodeIndexEngine::new(Arc::new(SurrealDatabase::new(store.storage.clone())))
 }
 
-async fn ingestion_engine(pg: &KnowledgePg) -> IngestionEngine {
-    let db = PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect ingestion engine handle to isolated schema");
-    IngestionEngine::from_database(Arc::new(db))
+async fn ingestion_engine(store: &EmbeddedKnowledgeStore) -> IngestionEngine {
+    IngestionEngine::from_database(Arc::new(SurrealDatabase::new(store.storage.clone())))
 }
 
 const RUST_SRC: &str = r#"
@@ -309,14 +302,16 @@ fn mt097_adapter_parses_each_language_and_versions() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt112_indexes_mixed_tree_with_symbols_spans_edges: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!(
+            "SKIP mt112_indexes_mixed_tree_with_symbols_spans_edges: embedded store unavailable"
+        );
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
 
     let run_id = eng
         .start_run(&context, &workspace_id, None)
@@ -374,7 +369,7 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
     );
 
     // --- Symbols (MT-098..100) ------------------------------------------------
-    let symbols = pg
+    let symbols = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Symbol)
         .await
@@ -423,13 +418,13 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
         .iter()
         .find(|s| s.entity_key == "rust:src/lib.rs#add")
         .expect("add symbol");
-    let add_span_ids = pg
+    let add_span_ids = store
         .db
         .list_knowledge_entity_span_ids(&add_symbol.entity_id)
         .await
         .expect("add span ids");
     assert!(!add_span_ids.is_empty(), "add must have an evidence span");
-    let add_span = pg
+    let add_span = store
         .db
         .get_knowledge_span(&add_span_ids[0])
         .await
@@ -439,7 +434,7 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
     assert!(add_span.line_start.unwrap_or(0) > 0);
 
     // --- Edges: a call edge (MT-104) caller -> add, with evidence + version ---
-    let add_edges = pg
+    let add_edges = store
         .db
         .list_knowledge_edges_for_entity(&add_symbol.entity_id)
         .await
@@ -454,7 +449,7 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
     assert_eq!(call_edge.extractor_version, "code_index_extractor_v1");
     assert!(call_edge.confidence > 0.0 && call_edge.confidence <= 1.0);
     assert!(!call_edge.relationship_id.is_empty());
-    let call_edge_spans = pg
+    let call_edge_spans = store
         .db
         .list_knowledge_edge_span_ids(&call_edge.edge_id)
         .await
@@ -465,7 +460,7 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
     );
 
     // --- Import edge (MT-104): file depends_on a module concept ----------------
-    let concepts = pg
+    let concepts = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Concept)
         .await
@@ -479,7 +474,7 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
     );
 
     // --- Config facts (MT-101): package.json scripts become entities ----------
-    let commands = pg
+    let commands = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Command)
         .await
@@ -491,7 +486,7 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
         "package script should be a command entity: {:?}",
         commands.iter().map(|c| &c.entity_key).collect::<Vec<_>>()
     );
-    let schemas = pg
+    let schemas = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Schema)
         .await
@@ -531,7 +526,7 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
     // produces a knowledge_code_files
     // row, so staleness (MT-107) and the lens cover config sources too. The
     // config row carries language 'config'.
-    let code_files = pg
+    let code_files = store
         .db
         .list_knowledge_code_files(&workspace_id)
         .await
@@ -565,14 +560,14 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt112_ingestion_allowlist_excludes_generated_files_before_indexing() {
-    let Some(pg) = knowledge_pg().await else {
+    let Some(store) = open_embedded_store().await else {
         eprintln!(
-            "SKIP mt112_ingestion_allowlist_excludes_generated_files_before_indexing: no PostgreSQL"
+            "SKIP mt112_ingestion_allowlist_excludes_generated_files_before_indexing: embedded store unavailable"
         );
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let ing = ingestion_engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let ing = ingestion_engine(&store).await;
     let context = ingestion_ctx();
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::create_dir_all(dir.path().join("src")).expect("src dir");
@@ -617,7 +612,7 @@ async fn mt112_ingestion_allowlist_excludes_generated_files_before_indexing() {
     );
     assert_eq!(summary.outcomes.len(), 1);
 
-    let sources = pg
+    let sources = store
         .db
         .list_knowledge_sources_for_root(&root.root_id)
         .await
@@ -639,14 +634,14 @@ async fn mt112_ingestion_allowlist_excludes_generated_files_before_indexing() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt102_test_validates_edge_to_tested_symbol() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt102_test_validates_edge_to_tested_symbol: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt102_test_validates_edge_to_tested_symbol: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let source_id = eng
         .register_code_source(&workspace_id, Some(&root), "src/lib.rs", RUST_SRC)
         .await
@@ -662,7 +657,7 @@ async fn mt102_test_validates_edge_to_tested_symbol() {
     .await
     .expect("index");
 
-    let symbols = pg
+    let symbols = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Symbol)
         .await
@@ -671,7 +666,7 @@ async fn mt102_test_validates_edge_to_tested_symbol() {
         .iter()
         .find(|s| s.entity_key == "rust:src/lib.rs#add")
         .expect("add symbol");
-    let edges = pg
+    let edges = store
         .db
         .list_knowledge_edges_for_entity(&add.entity_id)
         .await
@@ -687,16 +682,16 @@ async fn mt102_test_validates_edge_to_tested_symbol() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt102_typescript_test_runner_blocks_validate_called_symbols() {
-    let Some(pg) = knowledge_pg().await else {
+    let Some(store) = open_embedded_store().await else {
         eprintln!(
-            "SKIP mt102_typescript_test_runner_blocks_validate_called_symbols: no PostgreSQL"
+            "SKIP mt102_typescript_test_runner_blocks_validate_called_symbols: embedded store unavailable"
         );
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let src = r#"
 import { describe, it, test, expect } from "vitest";
 
@@ -727,7 +722,7 @@ describe("math", () => {
     .await
     .expect("index");
 
-    let symbols = pg
+    let symbols = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Symbol)
         .await
@@ -756,7 +751,7 @@ describe("math", () => {
     );
 
     for target in [compute, helper] {
-        let edges = pg
+        let edges = store
             .db
             .list_knowledge_edges_for_entity(&target.entity_id)
             .await
@@ -774,16 +769,16 @@ describe("math", () => {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt102_duplicate_typescript_test_titles_keep_distinct_validates_edges() {
-    let Some(pg) = knowledge_pg().await else {
+    let Some(store) = open_embedded_store().await else {
         eprintln!(
-            "SKIP mt102_duplicate_typescript_test_titles_keep_distinct_validates_edges: no PostgreSQL"
+            "SKIP mt102_duplicate_typescript_test_titles_keep_distinct_validates_edges: embedded store unavailable"
         );
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let src = r#"
 import { describe, it } from "vitest";
 
@@ -814,7 +809,7 @@ describe("math", () => {
     .await
     .expect("index");
 
-    let symbols = pg
+    let symbols = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Symbol)
         .await
@@ -836,12 +831,12 @@ describe("math", () => {
         .find(|s| s.entity_key == "typescript:app/duplicate.test.ts#test.math.duplicates~test.dup1")
         .expect("second duplicate-title test symbol");
 
-    let first_test_edges = pg
+    let first_test_edges = store
         .db
         .list_knowledge_edges_for_entity(&first_test.entity_id)
         .await
         .expect("first test edges");
-    let second_test_edges = pg
+    let second_test_edges = store
         .db
         .list_knowledge_edges_for_entity(&second_test.entity_id)
         .await
@@ -879,14 +874,14 @@ describe("math", () => {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt103_doc_comment_indexed_as_documents_edge() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt103_doc_comment_indexed_as_documents_edge: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt103_doc_comment_indexed_as_documents_edge: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let source_id = eng
         .register_code_source(&workspace_id, Some(&root), "src/lib.rs", RUST_SRC)
         .await
@@ -903,7 +898,7 @@ async fn mt103_doc_comment_indexed_as_documents_edge() {
     .expect("index");
 
     // The "Adds two numbers." doc comment precedes `add`; a text span exists.
-    let spans = pg
+    let spans = store
         .db
         .list_knowledge_spans_for_source(&source_id)
         .await
@@ -916,19 +911,19 @@ async fn mt103_doc_comment_indexed_as_documents_edge() {
 
 /// MT-103 V1 remediation: operator-facing string literals are indexed as their
 /// OWN concept entities (passage_kind `operator_string`), end-to-end in real
-/// PostgreSQL, SEPARATE from doc-comment and TODO concept entities. This is the
+/// embedded store, SEPARATE from doc-comment and TODO concept entities. This is the
 /// "missing operator-facing string extraction coverage" the WP validator FAILed
 /// MT-103 on.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt103_operator_strings_indexed_separately_from_markers() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt103_operator_strings_indexed_separately_from_markers: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt103_operator_strings_indexed_separately_from_markers: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
 
     // One file carrying all three: a doc comment, a TODO marker, and a
     // user-visible println! string.
@@ -948,7 +943,7 @@ pub fn run() {
         .expect("index");
 
     // Concept entities of this workspace, partitioned by passage kind.
-    let concepts = pg
+    let concepts = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Concept)
         .await
@@ -1016,7 +1011,7 @@ pub fn run() {
     }
 
     // The operator string is anchored to a `text` span (citeable evidence).
-    let op_span_ids = pg
+    let op_span_ids = store
         .db
         .list_knowledge_entity_span_ids(&op_string.entity_id)
         .await
@@ -1030,14 +1025,14 @@ pub fn run() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt108_partial_failure_keeps_run_useful() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt108_partial_failure_keeps_run_useful: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt108_partial_failure_keeps_run_useful: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let run_id = eng
         .start_run(&context, &workspace_id, None)
         .await
@@ -1087,7 +1082,7 @@ async fn mt108_partial_failure_keeps_run_useful() {
     assert!(!good_outcome.failed);
 
     // The good symbol is present despite the broken sibling.
-    let symbols = pg
+    let symbols = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Symbol)
         .await
@@ -1108,16 +1103,16 @@ async fn mt108_partial_failure_keeps_run_useful() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful() {
-    let Some(pg) = knowledge_pg().await else {
+    let Some(store) = open_embedded_store().await else {
         eprintln!(
-            "SKIP mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful: no PostgreSQL"
+            "SKIP mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful: embedded store unavailable"
         );
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let run_id = eng
         .start_run(&context, &workspace_id, None)
         .await
@@ -1184,7 +1179,7 @@ async fn mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful() {
 
     // The durable repair surface holds the binary file for re-processing with a
     // typed READ_ERROR class (this is what makes MT-108 a recovery surface).
-    let open = pg
+    let open = store
         .db
         .get_open_knowledge_code_repair(&binary_id)
         .await
@@ -1208,7 +1203,7 @@ async fn mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful() {
     )
     .await
     .expect("re-read binary");
-    let all = pg
+    let all = store
         .db
         .list_knowledge_code_repairs(&workspace_id)
         .await
@@ -1220,7 +1215,7 @@ async fn mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful() {
     );
 
     // The good symbol is present despite the binary sibling.
-    let symbols = pg
+    let symbols = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Symbol)
         .await
@@ -1228,13 +1223,13 @@ async fn mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful() {
     assert!(symbols.iter().any(|s| s.entity_key == "rust:ok.rs#ok"));
 
     // Resolving the entry after a (hypothetical) fixed re-index is terminal.
-    let resolved = pg
+    let resolved = store
         .db
         .resolve_knowledge_code_repair(&open.code_repair_id, &good_outcome.receipt_event_id)
         .await
         .expect("resolve repair");
     assert_eq!(resolved.state, "resolved");
-    assert!(pg
+    assert!(store
         .db
         .get_open_knowledge_code_repair(&binary_id)
         .await
@@ -1248,14 +1243,14 @@ async fn mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt107_staleness_detected_on_content_change() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt107_staleness_detected_on_content_change: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt107_staleness_detected_on_content_change: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let source_id = eng
         .register_code_source(&workspace_id, Some(&root), "src/lib.rs", "pub fn a() {}")
         .await
@@ -1304,14 +1299,16 @@ async fn mt107_staleness_detected_on_content_change() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt107_reindex_replaces_moved_symbol_definition_span() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt107_reindex_replaces_moved_symbol_definition_span: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!(
+            "SKIP mt107_reindex_replaces_moved_symbol_definition_span: embedded store unavailable"
+        );
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let v1 = "pub fn target() -> i32 { 1 }\n";
     let source_id = eng
         .register_code_source(&workspace_id, Some(&root), "src/lib.rs", v1)
@@ -1322,13 +1319,13 @@ async fn mt107_reindex_replaces_moved_symbol_definition_span() {
         .expect("index v1");
 
     let symbol_key = "rust:src/lib.rs#target";
-    let symbol = pg
+    let symbol = store
         .db
         .get_knowledge_entity_by_identity(&workspace_id, KnowledgeEntityKind::Symbol, symbol_key)
         .await
         .expect("lookup symbol")
         .expect("target symbol");
-    let v1_span_ids = pg
+    let v1_span_ids = store
         .db
         .list_knowledge_entity_span_ids(&symbol.entity_id)
         .await
@@ -1353,7 +1350,7 @@ async fn mt107_reindex_replaces_moved_symbol_definition_span() {
         .await
         .expect("index v2");
 
-    let span_ids = pg
+    let span_ids = store
         .db
         .list_knowledge_entity_span_ids(&symbol.entity_id)
         .await
@@ -1364,7 +1361,7 @@ async fn mt107_reindex_replaces_moved_symbol_definition_span() {
     );
     let mut ast_spans = Vec::new();
     for span_id in span_ids {
-        let span = pg
+        let span = store
             .db
             .get_knowledge_span(&span_id)
             .await
@@ -1411,14 +1408,14 @@ async fn mt107_reindex_replaces_moved_symbol_definition_span() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt109_monaco_payload_has_entries_with_ranges() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt109_monaco_payload_has_entries_with_ranges: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt109_monaco_payload_has_entries_with_ranges: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let source_id = eng
         .register_code_source(&workspace_id, Some(&root), "src/lib.rs", RUST_SRC)
         .await
@@ -1454,7 +1451,7 @@ async fn mt109_monaco_payload_has_entries_with_ranges() {
     // `add` has at least one caller (`caller`).
     assert!(add.caller_count >= 1, "add should have a caller");
 
-    let add_symbol = pg
+    let add_symbol = store
         .db
         .get_knowledge_entity_by_identity(
             &workspace_id,
@@ -1464,7 +1461,7 @@ async fn mt109_monaco_payload_has_entries_with_ranges() {
         .await
         .expect("lookup add symbol")
         .expect("add symbol");
-    let validates_edge = pg
+    let validates_edge = store
         .db
         .list_knowledge_edges_for_entity(&add_symbol.entity_id)
         .await
@@ -1475,7 +1472,7 @@ async fn mt109_monaco_payload_has_entries_with_ranges() {
                 && edge.target_entity_id == add_symbol.entity_id
         })
         .expect("validates edge targeting add");
-    let validates_span_id = pg
+    let validates_span_id = store
         .db
         .list_knowledge_edge_span_ids(&validates_edge.edge_id)
         .await
@@ -1483,7 +1480,7 @@ async fn mt109_monaco_payload_has_entries_with_ranges() {
         .into_iter()
         .next()
         .expect("validates edge carries span");
-    let validates_span = pg
+    let validates_span = store
         .db
         .get_knowledge_span(&validates_span_id)
         .await
@@ -1508,14 +1505,14 @@ async fn mt109_monaco_payload_has_entries_with_ranges() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt110_context_bundle_is_bounded_and_cited() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt110_context_bundle_is_bounded_and_cited: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt110_context_bundle_is_bounded_and_cited: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let source_id = eng
         .register_code_source(&workspace_id, Some(&root), "src/lib.rs", RUST_SRC)
         .await
@@ -1568,14 +1565,16 @@ async fn mt110_context_bundle_is_bounded_and_cited() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt110_context_bundle_rejects_symbol_path_mismatch() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt110_context_bundle_rejects_symbol_path_mismatch: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!(
+            "SKIP mt110_context_bundle_rejects_symbol_path_mismatch: embedded store unavailable"
+        );
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let a_src = "pub fn focus() {}\n";
     let b_src = "pub fn other() {}\n";
     for (path, text) in [("src/a.rs", a_src), ("src/b.rs", b_src)] {
@@ -1610,14 +1609,16 @@ async fn mt110_context_bundle_rejects_symbol_path_mismatch() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt110_context_bundle_reports_over_budget_focus_doc() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt110_context_bundle_reports_over_budget_focus_doc: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!(
+            "SKIP mt110_context_bundle_reports_over_budget_focus_doc: embedded store unavailable"
+        );
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let long_doc_line = "/// ".to_string() + &"long documented behavior ".repeat(80);
     let src = format!("{long_doc_line}\npub fn documented() {{}}\n");
     let source_id = eng
@@ -1666,11 +1667,11 @@ async fn mt110_context_bundle_reports_over_budget_focus_doc() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt105_scip_import_ledger_records_outcomes() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt105_scip_import_ledger_records_outcomes: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt105_scip_import_ledger_records_outcomes: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
+    let workspace_id = store.create_workspace().await;
 
     // A valid artifact parses (boundary parses; never spawns an indexer).
     let good = br#"{
@@ -1687,7 +1688,7 @@ async fn mt105_scip_import_ledger_records_outcomes() {
     assert_eq!(artifact.symbol_count(), 1);
 
     // Record an imported outcome.
-    let imported = pg
+    let imported = store
         .db
         .record_knowledge_scip_import(NewKnowledgeScipImport {
             workspace_id: workspace_id.clone(),
@@ -1711,7 +1712,7 @@ async fn mt105_scip_import_ledger_records_outcomes() {
     // A rejected artifact (no documents) is recorded WITH a reason.
     let rejected_reason = parse_scip_artifact(br#"{ "format": "scip", "documents": [] }"#)
         .expect_err("empty documents rejected");
-    let rejected = pg
+    let rejected = store
         .db
         .record_knowledge_scip_import(NewKnowledgeScipImport {
             workspace_id: workspace_id.clone(),
@@ -1733,7 +1734,7 @@ async fn mt105_scip_import_ledger_records_outcomes() {
     assert_eq!(rejected.status, KnowledgeScipImportStatus::Rejected);
     assert!(rejected.reason.is_some());
 
-    let all = pg
+    let all = store
         .db
         .list_knowledge_scip_imports(&workspace_id)
         .await
@@ -1743,14 +1744,14 @@ async fn mt105_scip_import_ledger_records_outcomes() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt111_runtime_index_receipt_records_perf_budget_verdict() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt111_runtime_index_receipt_records_perf_budget_verdict: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt111_runtime_index_receipt_records_perf_budget_verdict: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let source_id = eng
         .register_code_source(&workspace_id, Some(&root), "src/lib.rs", RUST_SRC)
         .await
@@ -1767,7 +1768,7 @@ async fn mt111_runtime_index_receipt_records_perf_budget_verdict() {
         .await
         .expect("index");
 
-    let code_file = pg
+    let code_file = store
         .db
         .get_knowledge_code_file_by_source(&source_id)
         .await
@@ -1777,7 +1778,7 @@ async fn mt111_runtime_index_receipt_records_perf_budget_verdict() {
         code_file.last_index_receipt_event_id.as_deref(),
         Some(outcome.receipt_event_id.as_str())
     );
-    let events = pg
+    let events = store
         .db
         .list_kernel_events_for_aggregate("knowledge_code_index_file", &source_id)
         .await
@@ -1805,14 +1806,16 @@ async fn mt111_runtime_index_receipt_records_perf_budget_verdict() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt104_reindex_is_idempotent_on_relationship_id() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt104_reindex_is_idempotent_on_relationship_id: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!(
+            "SKIP mt104_reindex_is_idempotent_on_relationship_id: embedded store unavailable"
+        );
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let eng = engine(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let eng = engine(&store).await;
     let context = ctx();
-    let root = make_root(&pg, &workspace_id).await;
+    let root = make_root(&store, &workspace_id).await;
     let src = "pub fn helper() -> i32 { 1 }\npub fn caller() -> i32 { helper() }\n";
     let source_id = eng
         .register_code_source(&workspace_id, Some(&root), "src/lib.rs", src)
@@ -1822,7 +1825,7 @@ async fn mt104_reindex_is_idempotent_on_relationship_id() {
     eng.index_code_source(&context, &workspace_id, &source_id, "src/lib.rs", src, None)
         .await
         .expect("index 1");
-    let symbols1 = pg
+    let symbols1 = store
         .db
         .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Symbol)
         .await
@@ -1831,7 +1834,7 @@ async fn mt104_reindex_is_idempotent_on_relationship_id() {
         .iter()
         .find(|s| s.entity_key == "rust:src/lib.rs#helper")
         .expect("helper");
-    let edges1 = pg
+    let edges1 = store
         .db
         .list_knowledge_edges_for_entity(&helper.entity_id)
         .await
@@ -1841,7 +1844,7 @@ async fn mt104_reindex_is_idempotent_on_relationship_id() {
     eng.index_code_source(&context, &workspace_id, &source_id, "src/lib.rs", src, None)
         .await
         .expect("index 2");
-    let edges2 = pg
+    let edges2 = store
         .db
         .list_knowledge_edges_for_entity(&helper.entity_id)
         .await

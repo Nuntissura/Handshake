@@ -1,5 +1,5 @@
 {
-  "_comment": "MT-066 portable non-SQLite fixture corpus: reset + orphan-adoption behavior. payload seeds materialize real ArtifactStore originals before the resets; the orphan manifest must preserve them with checksums and relocatable artifact:// roots (no drive-letter paths, no .GOV), and adoption must rehydrate the preserved handle into intake. All slugs are made run-unique at load time.",
+  "_comment": "MT-066 portable JSON fixture corpus: reset + orphan-adoption behavior backed by embedded SurrealDB/EventLedger. payload seeds materialize real ArtifactStore originals before the resets; the orphan manifest must preserve them with checksums and relocatable artifact:// roots (no drive-letter paths, no .GOV), and adoption must rehydrate the preserved handle into intake. All slugs are made run-unique at load time.",
   "original_media": [
     {
       "payload_seed": "mt-066-original-keyframe",

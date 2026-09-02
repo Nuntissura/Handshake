@@ -1,5 +1,5 @@
 //! WP-KERNEL-009 MT-126 MemoryGraphBackendApi route-level integration proof
-//! against REAL Handshake-managed PostgreSQL.
+//! against the real embedded Handshake store.
 //!
 //! Drives the actual Axum routes (`api::knowledge_memory::routes`) over a
 //! loopback listener (quiet: no foreground window, no focus steal). Builds a
@@ -28,7 +28,8 @@ use handshake_core::storage::knowledge::KnowledgeStore;
 use handshake_core::storage::knowledge_memory::{
     create_memory_fact, MemoryClaimAuthorityLabel, MemoryFactObject, NewMemoryFact,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
+use handshake_core::storage::surreal::SurrealStorage;
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
 use knowledge_memory_fixtures::{pool_for, MemoryFixture};
@@ -105,15 +106,12 @@ impl LlmClient for NoopLlmClient {
     }
 }
 
-async fn app_state_for(schema_url: &str) -> AppState {
-    let storage = PostgresDatabase::connect(schema_url, 5)
-        .await
-        .expect("connect AppState storage")
-        .into_arc();
-    let pool = pool_for_url(schema_url).await;
+async fn app_state_for(storage: &SurrealStorage) -> AppState {
+    let db = SurrealDatabase::new(storage.clone());
     let recorder = Arc::new(NoopRecorder);
     AppState {
-        storage,
+        storage: Arc::new(db),
+        surreal: storage.clone(),
         flight_recorder: recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(NoopLlmClient {
@@ -121,16 +119,7 @@ async fn app_state_for(schema_url: &str) -> AppState {
         }),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
     }
-}
-
-async fn pool_for_url(schema_url: &str) -> sqlx::PgPool {
-    sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(schema_url)
-        .await
-        .expect("connect AppState pool")
 }
 
 async fn start_server(state: AppState) -> (String, tokio::task::JoinHandle<()>) {
@@ -157,19 +146,17 @@ fn nav_headers(client: reqwest::RequestBuilder, label: &str) -> reqwest::Request
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt126_memory_api_claim_conflict_fact_neighborhood_visualdebug_with_receipts() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP mt126_memory_api: no PostgreSQL");
+        eprintln!("SKIP mt126_memory_api: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
 
     // Build two facts (subject+predicate, different object) and a conflict.
-    let subject = fx
-        .entity("api", "managed_postgres", "ManagedPostgres")
-        .await;
-    let object = fx.entity("symbol", "crate::pg::Port", "Port").await;
-    let claim_a = fx.claim("managed PG port is 5544").await;
-    let claim_b = fx.claim("managed PG port is 5432").await;
+    let subject = fx.entity("api", "managed_store", "ManagedStore").await;
+    let object = fx.entity("symbol", "crate::store::Port", "Port").await;
+    let claim_a = fx.claim("embedded data directory is workspace-local").await;
+    let claim_b = fx.claim("embedded data directory is shared globally").await;
     let fact_a = create_memory_fact(
         &pool,
         NewMemoryFact {
@@ -199,7 +186,7 @@ async fn mt126_memory_api_claim_conflict_fact_neighborhood_visualdebug_with_rece
         .await
         .expect("conflict");
 
-    let state = app_state_for(&fx.pg.schema_url).await;
+    let state = app_state_for(&fx.store.storage).await;
     let (base, server) = start_server(state).await;
     let http = reqwest::Client::new();
 

@@ -2,9 +2,9 @@
 //!
 //! The contract requires durable model sessions carrying id, agent, purpose,
 //! metadata, timestamps, state, actor and close reason that SURVIVE RESTART.
-//! These tests prove exactly that against real PostgreSQL:
+//! These tests prove exactly that against a real embedded SurrealDB store:
 //!   * a session created with agent + purpose is re-read through a FRESH
-//!     connection pool (simulated process restart) with every identity field
+//!     storage handle (simulated process restart) with every identity field
 //!     intact;
 //!   * `close_model_session` records the close metadata (terminal state, close
 //!     reason, closing actor, closed-at) and that metadata survives another
@@ -12,15 +12,11 @@
 //!   * non-terminal close states, empty close reasons/actors and unknown
 //!     sessions are rejected.
 //!
-//! Gated on `atelier_pg_support::database_url()` (Handshake-managed
-//! PostgreSQL; never SQLite).
+//! Each phase uses a per-test on-disk data directory; no shared store is used.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
-use handshake_core::storage::{
-    postgres::PostgresDatabase, Database, ModelSessionState, NewModelSession, StorageError,
-};
+use handshake_core::storage::{Database, ModelSessionState, NewModelSession, StorageError};
 use uuid::Uuid;
 
 fn new_session(session_id: &str) -> NewModelSession {
@@ -51,23 +47,16 @@ fn new_session(session_id: &str) -> NewModelSession {
 }
 
 /// MT-142: identity (agent/purpose) and close metadata (close reason, actor,
-/// closed-at) survive a simulated restart (fresh PostgreSQL pool per phase).
+/// closed-at) survive a simulated restart (fresh embedded storage per phase).
 #[tokio::test]
 async fn mt142_model_session_survives_restart_with_close_metadata() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt142_model_session_survives_restart_with_close_metadata: PostgreSQL unavailable"
-        );
-        return;
-    };
-
     let session_id = format!("mt142-session-{}", Uuid::new_v4());
+    let data_dir;
 
-    // Phase 1: create the durable session, then drop the pool entirely.
+    // Phase 1: create the durable session, then close the real store entirely.
     {
-        let db = PostgresDatabase::connect(&url, 2)
-            .await
-            .expect("connect phase-1 pool");
+        let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+        let db = harness.database.clone();
         let created = db
             .upsert_model_session(new_session(&session_id))
             .await
@@ -82,15 +71,15 @@ async fn mt142_model_session_survives_restart_with_close_metadata() {
         assert_eq!(created.close_reason, None);
         assert_eq!(created.closed_by_actor, None);
         assert_eq!(created.closed_at, None);
+        data_dir = harness.close_for_reopen().await;
     }
 
-    // Phase 2 (simulated restart): a FRESH pool re-reads the full identity,
+    // Phase 2 (simulated restart): a fresh store re-reads the full identity,
     // then closes the session with close metadata.
     let closed_at;
     {
-        let db = PostgresDatabase::connect(&url, 2)
-            .await
-            .expect("connect phase-2 pool (restart)");
+        let harness = atelier_surreal_support::AtelierSurrealHarness::open_existing(data_dir).await;
+        let db = harness.database.clone();
         let reloaded = db
             .get_model_session(&session_id)
             .await
@@ -124,13 +113,13 @@ async fn mt142_model_session_survives_restart_with_close_metadata() {
         );
         closed_at = closed.closed_at.expect("closed_at must be recorded");
         assert!(closed.closed_at >= Some(closed.created_at));
+        data_dir = harness.close_for_reopen().await;
     }
 
     // Phase 3 (second restart): the close metadata is durable.
     {
-        let db = PostgresDatabase::connect(&url, 2)
-            .await
-            .expect("connect phase-3 pool (second restart)");
+        let harness = atelier_surreal_support::AtelierSurrealHarness::open_existing(data_dir).await;
+        let db = harness.database.clone();
         let after_restart = db
             .get_model_session(&session_id)
             .await
@@ -151,6 +140,7 @@ async fn mt142_model_session_survives_restart_with_close_metadata() {
             Some("MT-142 durable model-session restart proof")
         );
         assert!(after_restart.updated_at >= after_restart.created_at);
+        harness.shutdown().await;
     }
 }
 
@@ -158,15 +148,8 @@ async fn mt142_model_session_survives_restart_with_close_metadata() {
 /// reasons/actors and unknown sessions are rejected.
 #[tokio::test]
 async fn mt142_close_model_session_rejects_invalid_close_requests() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt142_close_model_session_rejects_invalid_close_requests: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let db = PostgresDatabase::connect(&url, 2)
-        .await
-        .expect("connect to PostgreSQL");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let db = harness.database.clone();
 
     let session_id = format!("mt142-guard-{}", Uuid::new_v4());
     db.upsert_model_session(new_session(&session_id))
@@ -175,7 +158,12 @@ async fn mt142_close_model_session_rejects_invalid_close_requests() {
 
     // (a) non-terminal close state -> Validation.
     let non_terminal = db
-        .close_model_session(&session_id, ModelSessionState::Paused, "still working", "op")
+        .close_model_session(
+            &session_id,
+            ModelSessionState::Paused,
+            "still working",
+            "op",
+        )
         .await;
     assert!(
         matches!(non_terminal, Err(StorageError::Validation(_))),
@@ -193,7 +181,12 @@ async fn mt142_close_model_session_rejects_invalid_close_requests() {
 
     // (c) empty actor -> Validation.
     let empty_actor = db
-        .close_model_session(&session_id, ModelSessionState::Cancelled, "operator stop", "")
+        .close_model_session(
+            &session_id,
+            ModelSessionState::Cancelled,
+            "operator stop",
+            "",
+        )
         .await;
     assert!(
         matches!(empty_actor, Err(StorageError::Validation(_))),
@@ -223,4 +216,5 @@ async fn mt142_close_model_session_rejects_invalid_close_requests() {
     assert_eq!(untouched.close_reason, None);
     assert_eq!(untouched.closed_by_actor, None);
     assert_eq!(untouched.closed_at, None);
+    harness.shutdown().await;
 }

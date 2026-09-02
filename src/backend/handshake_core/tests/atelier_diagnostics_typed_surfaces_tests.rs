@@ -1,7 +1,7 @@
-//! WP-KERNEL-005 MT-140 / MT-207 / MT-166: real PostgreSQL round-trip proofs
+//! WP-KERNEL-005 MT-140 / MT-207 / MT-166: embedded SurrealDB round-trip proofs
 //! for the typed Model-Workflow-Diagnostics runtime surfaces.
 //!
-//! These MTs are TYPED RUNTIME surfaces (Postgres rows + EventLedger events),
+//! These MTs are TYPED RUNTIME surfaces (persisted rows + EventLedger events),
 //! never governance markdown:
 //!   * MT-140 -- structured ErrorTaxonomy: 10 canonical error classes, each with
 //!     a recovery hint.
@@ -11,17 +11,10 @@
 //!   * MT-166 -- Installer Reset And Orphan Evidence Projection over the existing
 //!     reset/orphan tables (migration 0089).
 //!
-//! Gated on `atelier_pg_support::database_url()`: when no PostgreSQL is
-//! available the test prints SKIP and returns (never SQLite).
-//!
-//! NOTE: migration 0112 is not yet wired into `ensure_schema` (the orchestrator
-//! wires it after this MT lands). The shared preamble therefore applies the
-//! 0112 migration itself; `CREATE TABLE IF NOT EXISTS` makes this idempotent and
-//! safe once the orchestrator has wired it in.
+//! The isolated harness provides the canonical schema for each test.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::command_corpus::{
     diagnostics_event_family, error_taxonomy_catalog, prompt_response_matrix_catalog,
     DiagnosticsErrorClass, NewPromptResponseMatrixEntry, PromptResponseMatrixStatus,
@@ -33,33 +26,17 @@ use handshake_core::atelier::{AtelierError, AtelierStore, NewMediaAsset};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-/// Connect, ensure the wired schema, then apply the (not-yet-wired) 0112
-/// diagnostics migration. Idempotent.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    sqlx::raw_sql(include_str!(
-        "../migrations/0112_atelier_diagnostics_typed_surfaces.sql"
-    ))
-    .execute(store.pool())
-    .await
-    .expect("apply 0112 diagnostics migration");
-    store
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// MT-140: the error-taxonomy records all 10 classes, each with a non-empty
-/// recovery hint, and round-trips through Postgres.
+/// recovery hint, and round-trips through the embedded store.
 #[tokio::test]
 async fn mt140_error_taxonomy_covers_ten_classes_with_recovery() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt140_error_taxonomy_covers_ten_classes_with_recovery: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // The catalog is exactly the 10 required classes.
     let catalog = error_taxonomy_catalog();
@@ -136,16 +113,10 @@ async fn mt140_unknown_error_class_token_is_rejected() {
 
 /// MT-207: the WP-0118 prompt-response matrix is preserved as a DEFERRED
 /// contract -- prompt set + expected-response shape + scoring schema -- and
-/// round-trips through Postgres with status DEFERRED.
+/// round-trips through the embedded store with status DEFERRED.
 #[tokio::test]
 async fn mt207_prompt_response_matrix_preserved_as_deferred_contract() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt207_prompt_response_matrix_preserved_as_deferred_contract: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let catalog = prompt_response_matrix_catalog();
     assert!(
@@ -204,11 +175,7 @@ async fn mt207_prompt_response_matrix_preserved_as_deferred_contract() {
 /// scoring schema is a contract descriptor, never a scalar or live score).
 #[tokio::test]
 async fn mt207_non_object_scoring_schema_is_rejected() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt207_non_object_scoring_schema_is_rejected: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let bad = NewPromptResponseMatrixEntry {
         entry_id: "wp-0118.bad-scoring-probe".to_string(),
@@ -237,11 +204,7 @@ async fn mt207_non_object_scoring_schema_is_rejected() {
 /// those canonical rows — never just `>= 0` counts.
 #[tokio::test]
 async fn mt166_reset_orphan_diagnostics_projection() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt166_reset_orphan_diagnostics_projection: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     const PROJECTION_AGGREGATE: (&str, &str) = (
         "atelier_diagnostics_reset_orphan_projection",
@@ -260,8 +223,9 @@ async fn mt166_reset_orphan_diagnostics_projection() {
     // The reset writes a real atelier_reset_operation row and one orphaned
     // atelier_orphan_manifest_item per preserved original.
     let marker = format!("mt-166-reset-orphan-{}", Uuid::new_v4());
-    let artifact =
-        atelier_pg_support::write_native_media_artifact(format!("{marker}-original").as_bytes());
+    let artifact = atelier_surreal_support::write_native_media_artifact(
+        format!("{marker}-original").as_bytes(),
+    );
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash.clone(),

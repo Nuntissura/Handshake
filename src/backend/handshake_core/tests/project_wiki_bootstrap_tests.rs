@@ -1,4 +1,4 @@
-//! WP-KERNEL-009 MT-241 ProjectWikiBootstrapCompiler — REAL PostgreSQL proof.
+//! WP-KERNEL-009 MT-241 ProjectWikiBootstrapCompiler — embedded SurrealDB proof.
 //!
 //! Bootstraps the project wiki over REAL handshake_core sources (the files are
 //! read from this crate's own `src/` tree at test time — "bootstrap over
@@ -14,10 +14,10 @@
 //!     stale);
 //!   * token-aware clustering splits oversized clusters LOUDLY.
 //!
-//! Proof-path contract: real Handshake-managed PostgreSQL only (no SQLite, no
-//! mocks); SKIPs loudly when PG binaries are absent.
+//! Proof-path contract: real Handshake-managed embedded SurrealDB only; no
+//! external database or mocks.
 
-mod knowledge_pg_support;
+mod user_manual_support;
 
 use std::sync::Arc;
 
@@ -31,23 +31,11 @@ use handshake_core::storage::knowledge::{
     KnowledgeEntityKind, KnowledgeIndexingEligibility, KnowledgeRootKind, KnowledgeStore,
     NewKnowledgeEntity, NewKnowledgeRichDocument, NewKnowledgeSourceRoot,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::Database;
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
-use serde_json::json;
+use serde_json::{json, Value};
+use user_manual_support::{manual_test_backend, ManualTestBackend};
 use uuid::Uuid;
-
-macro_rules! pg_or_skip {
-    () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
-            None => {
-                eprintln!("SKIP MT-241 project wiki bootstrap proof: PostgreSQL unavailable");
-                return;
-            }
-        }
-    }};
-}
 
 /// REAL handshake_core sources indexed for the bootstrap (read from this
 /// crate's own src tree — never inline fixtures).
@@ -85,13 +73,10 @@ fn index_ctx() -> CodeIndexContext {
 /// Index the real handshake_core files + create one rich document (entity
 /// page input) and one work-packet entity (decision page input). Returns
 /// (workspace_id, engine, root_id).
-async fn seed_workspace(pg: &KnowledgePg) -> (String, CodeIndexEngine, String) {
-    let workspace_id = pg.create_workspace().await;
-    let db = PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect engine handle");
-    let engine = CodeIndexEngine::new(Arc::new(db));
-    let root = pg
+async fn seed_workspace(backend: &ManualTestBackend) -> (String, CodeIndexEngine, String) {
+    let workspace_id = backend.create_workspace().await;
+    let engine = CodeIndexEngine::new(Arc::new(backend.db.clone()));
+    let root = backend
         .db
         .create_knowledge_source_root(NewKnowledgeSourceRoot {
             workspace_id: workspace_id.clone(),
@@ -119,7 +104,8 @@ async fn seed_workspace(pg: &KnowledgePg) -> (String, CodeIndexEngine, String) {
     }
 
     // Entity-page input: a real rich document.
-    pg.db
+    backend
+        .db
         .create_knowledge_rich_document(NewKnowledgeRichDocument {
             workspace_id: workspace_id.clone(),
             document_id: None,
@@ -148,7 +134,8 @@ async fn seed_workspace(pg: &KnowledgePg) -> (String, CodeIndexEngine, String) {
         .expect("create rich document");
 
     // Decision-page input: a real work-packet entity.
-    pg.db
+    backend
+        .db
         .upsert_knowledge_entity(NewKnowledgeEntity {
             workspace_id: workspace_id.clone(),
             entity_kind: KnowledgeEntityKind::WorkPacket,
@@ -165,63 +152,194 @@ async fn seed_workspace(pg: &KnowledgePg) -> (String, CodeIndexEngine, String) {
     (workspace_id, engine, root)
 }
 
-/// md5 fingerprint over every AUTHORITY table's full row set (byte-identity
-/// proof surface). The wiki projection table is deliberately NOT included —
-/// it is the projection under test.
-async fn authority_fingerprint(pg: &KnowledgePg) -> String {
-    let mut conn = pg.raw_connection().await;
-    let tables = [
-        "workspaces",
-        "knowledge_sources",
-        "knowledge_entities",
-        "knowledge_spans",
-        "knowledge_entity_spans",
-        "knowledge_edges",
-        "knowledge_code_files",
-        "knowledge_rich_documents",
-        "loom_blocks",
-        // Operator annotations are AUTHORITY rows (MT-185) and must survive
-        // projection deletion (soft reference since migration 0301).
-        "loom_wiki_overlays",
-        "kernel_event_ledger",
-    ];
-    let mut out = String::new();
-    for table in tables {
-        let sql = format!(
-            "SELECT COALESCE(md5(string_agg(t::text, '|' ORDER BY t::text)), 'empty') FROM {table} t"
-        );
-        let hash: String = sqlx::query_scalar(&sql)
-            .fetch_one(&mut conn)
+/// Deterministic typed snapshot of the workspace authority. The wiki
+/// projection is deliberately excluded: it is the projection under test.
+/// Public embedded APIs do not expose a table-wide raw-row query, so this
+/// snapshot follows every authority relationship created by this fixture and
+/// serializes the typed records in sorted order.
+async fn authority_fingerprint(
+    db: &SurrealDatabase,
+    workspace_id: &str,
+    overlay_projection_id: &str,
+) -> String {
+    let mut rows = Vec::new();
+    let mut add = |label: &str, value: Value| {
+        rows.push(format!(
+            "{label}:{}",
+            serde_json::to_string(&value).expect("serialize authority row")
+        ));
+    };
+
+    add(
+        "workspace",
+        serde_json::to_value(
+            db.get_workspace(workspace_id)
+                .await
+                .expect("workspace query"),
+        )
+        .expect("serialize workspace"),
+    );
+    let roots = db
+        .list_knowledge_source_roots(workspace_id)
+        .await
+        .expect("source roots query");
+    add(
+        "roots",
+        serde_json::to_value(&roots).expect("serialize roots"),
+    );
+
+    let mut sources = Vec::new();
+    let mut spans = Vec::new();
+    let mut code_files = Vec::new();
+    for root in &roots {
+        let root_sources = db
+            .list_knowledge_sources_for_root(&root.root_id)
             .await
-            .unwrap_or_else(|err| panic!("fingerprint {table}: {err}"));
-        out.push_str(table);
-        out.push('=');
-        out.push_str(&hash);
-        out.push(';');
+            .expect("source query");
+        for source in &root_sources {
+            spans.extend(
+                db.list_knowledge_spans_for_source(&source.source_id)
+                    .await
+                    .expect("span query"),
+            );
+            if let Some(code_file) = db
+                .get_knowledge_code_file_by_source(&source.source_id)
+                .await
+                .expect("code file query")
+            {
+                code_files.push(code_file);
+            }
+        }
+        sources.extend(root_sources);
     }
-    out
+    add(
+        "sources",
+        serde_json::to_value(&sources).expect("serialize sources"),
+    );
+    add(
+        "spans",
+        serde_json::to_value(&spans).expect("serialize spans"),
+    );
+    add(
+        "code_files",
+        serde_json::to_value(&code_files).expect("serialize code files"),
+    );
+
+    let entity_kinds = [
+        KnowledgeEntityKind::Symbol,
+        KnowledgeEntityKind::Concept,
+        KnowledgeEntityKind::File,
+        KnowledgeEntityKind::Folder,
+        KnowledgeEntityKind::Project,
+        KnowledgeEntityKind::Person,
+        KnowledgeEntityKind::Role,
+        KnowledgeEntityKind::Task,
+        KnowledgeEntityKind::Api,
+        KnowledgeEntityKind::Schema,
+        KnowledgeEntityKind::Command,
+        KnowledgeEntityKind::Media,
+        KnowledgeEntityKind::ManualEntry,
+        KnowledgeEntityKind::ProductPrimitive,
+        KnowledgeEntityKind::SpecTopic,
+        KnowledgeEntityKind::WorkPacket,
+        KnowledgeEntityKind::MicroTask,
+        KnowledgeEntityKind::TaskboardRow,
+        KnowledgeEntityKind::RichDocument,
+        KnowledgeEntityKind::LoomBlock,
+        KnowledgeEntityKind::UserManualPage,
+    ];
+    let mut entities = Vec::new();
+    let mut entity_spans = Vec::new();
+    let mut edges = Vec::new();
+    for kind in entity_kinds {
+        for entity in db
+            .list_knowledge_entities_by_kind(workspace_id, kind)
+            .await
+            .expect("entity query")
+        {
+            entity_spans.push((
+                entity.entity_id.clone(),
+                db.list_knowledge_entity_span_ids(&entity.entity_id)
+                    .await
+                    .expect("entity span query"),
+            ));
+            edges.extend(
+                db.list_knowledge_edges_for_entity(&entity.entity_id)
+                    .await
+                    .expect("entity edge query"),
+            );
+            entities.push(entity);
+        }
+    }
+    add(
+        "entities",
+        serde_json::to_value(&entities).expect("serialize entities"),
+    );
+    add(
+        "entity_spans",
+        serde_json::to_value(&entity_spans).expect("serialize entity spans"),
+    );
+    add(
+        "edges",
+        serde_json::to_value(&edges).expect("serialize edges"),
+    );
+    add(
+        "rich_documents",
+        serde_json::to_value(
+            db.list_knowledge_rich_documents(workspace_id, None, None)
+                .await
+                .expect("rich document query"),
+        )
+        .expect("serialize rich documents"),
+    );
+    add(
+        "overlays",
+        serde_json::to_value(
+            db.list_loom_wiki_overlays(workspace_id, overlay_projection_id)
+                .await
+                .expect("overlay query"),
+        )
+        .expect("serialize overlays"),
+    );
+    for session in ["SR-project-wiki-test", "SR-project-wiki-index"] {
+        add(
+            session,
+            serde_json::to_value(
+                db.list_kernel_events_for_session(session)
+                    .await
+                    .expect("ledger query"),
+            )
+            .expect("serialize ledger rows"),
+        );
+    }
+    rows.sort();
+    rows.join("\n")
 }
 
-async fn ledger_event_kind(pg: &KnowledgePg, event_id: &str) -> Option<String> {
-    let mut conn = pg.raw_connection().await;
-    sqlx::query_scalar::<_, String>(
-        "SELECT payload ->> 'kind' FROM kernel_event_ledger WHERE event_id = $1",
-    )
-    .bind(event_id)
-    .fetch_optional(&mut conn)
-    .await
-    .expect("query ledger event")
+async fn ledger_event_kind(
+    db: &SurrealDatabase,
+    workspace_id: &str,
+    event_id: &str,
+) -> Option<String> {
+    db.list_kernel_events_for_aggregate("knowledge_wiki", workspace_id)
+        .await
+        .expect("query ledger event")
+        .into_iter()
+        .find(|event| event.event_id == event_id)
+        .and_then(|event| {
+            event
+                .payload
+                .get("kind")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let (workspace_id, _engine, _root) = seed_workspace(&pg).await;
-    let compiler = ProjectWikiCompiler::new(Arc::new(
-        PostgresDatabase::connect(&pg.schema_url, 5)
-            .await
-            .expect("compiler handle"),
-    ));
+    let compiler = ProjectWikiCompiler::new(Arc::new(pg.db.clone()));
 
     let outcome = compiler
         .bootstrap(&wiki_ctx(), &workspace_id, &WikiBootstrapOptions::default())
@@ -328,7 +446,6 @@ async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
 
     // Every cited entity resolves in authority; spans exist (id + hash —
     // never loose file paths).
-    let mut conn = pg.raw_connection().await;
     for cited in &stamp.cited_sources {
         match cited.kind {
             CitedSourceKind::Entity => {
@@ -340,27 +457,25 @@ async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
                     .expect("cited entity exists in authority");
                 assert_eq!(entity.workspace_id, workspace_id);
                 if let Some(span_id) = &cited.span_id {
-                    let span_count: i64 = sqlx::query_scalar(
-                        "SELECT COUNT(*) FROM knowledge_spans WHERE span_id = $1",
-                    )
-                    .bind(span_id)
-                    .fetch_one(&mut conn)
-                    .await
-                    .expect("span query");
-                    assert_eq!(span_count, 1, "cited span {span_id} exists");
+                    assert!(
+                        pg.db
+                            .get_knowledge_span(span_id)
+                            .await
+                            .expect("span query")
+                            .is_some(),
+                        "cited span {span_id} exists"
+                    );
                 }
             }
             CitedSourceKind::Source => {
-                let source_count: i64 = sqlx::query_scalar(
-                    "SELECT COUNT(*) FROM knowledge_sources WHERE source_id = $1 AND content_hash = $2",
-                )
-                .bind(&cited.id)
-                .bind(&cited.content_hash)
-                .fetch_one(&mut conn)
-                .await
-                .expect("source query");
+                let source = pg
+                    .db
+                    .get_knowledge_source(&cited.id)
+                    .await
+                    .expect("source query")
+                    .expect("cited source exists in authority");
                 assert_eq!(
-                    source_count, 1,
+                    source.content_hash, cited.content_hash,
                     "cited source {} resolves with its hash",
                     cited.id
                 );
@@ -404,14 +519,14 @@ async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
 
     // ---- EventLedger compile receipts (LM-PWIKI-012) ------------------------
     assert_eq!(
-        ledger_event_kind(&pg, &outcome.started_receipt_event_id)
+        ledger_event_kind(&pg.db, &workspace_id, &outcome.started_receipt_event_id)
             .await
             .as_deref(),
         Some("wiki_bootstrap_compile_started"),
         "started receipt exists in the EventLedger"
     );
     assert_eq!(
-        ledger_event_kind(&pg, &outcome.completed_receipt_event_id)
+        ledger_event_kind(&pg.db, &workspace_id, &outcome.completed_receipt_event_id)
             .await
             .as_deref(),
         Some("wiki_bootstrap_compile_completed"),
@@ -430,13 +545,9 @@ async fn mt241_bootstrap_over_handshake_core_produces_cited_typed_pages() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt241_delete_all_generated_pages_leaves_authority_byte_identical() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let (workspace_id, _engine, _root) = seed_workspace(&pg).await;
-    let compiler = ProjectWikiCompiler::new(Arc::new(
-        PostgresDatabase::connect(&pg.schema_url, 5)
-            .await
-            .expect("compiler handle"),
-    ));
+    let compiler = ProjectWikiCompiler::new(Arc::new(pg.db.clone()));
     let outcome = compiler
         .bootstrap(&wiki_ctx(), &workspace_id, &WikiBootstrapOptions::default())
         .await
@@ -457,8 +568,8 @@ async fn mt241_delete_all_generated_pages_leaves_authority_byte_identical() {
         .await
         .expect("add overlay");
 
-    // Snapshot EVERY authority table AFTER the compile (incl. the overlay).
-    let before = authority_fingerprint(&pg).await;
+    // Snapshot the typed workspace authority AFTER the compile (incl. overlay).
+    let before = authority_fingerprint(&pg.db, &workspace_id, &annotated.projection_id).await;
 
     // Delete every generated page (the projection-delete path).
     for page in &outcome.pages {
@@ -476,10 +587,10 @@ async fn mt241_delete_all_generated_pages_leaves_authority_byte_identical() {
         .expect("list pages");
     assert!(remaining.is_empty(), "all generated pages deleted");
 
-    // …and authority is BYTE-IDENTICAL (including the EventLedger: deleting
+    // …and the typed authority snapshot is BYTE-IDENTICAL (including the EventLedger: deleting
     // projections appends nothing and mutates nothing; including the operator
     // overlay: annotations survive projection churn).
-    let after = authority_fingerprint(&pg).await;
+    let after = authority_fingerprint(&pg.db, &workspace_id, &annotated.projection_id).await;
     assert_eq!(
         before, after,
         "authority byte-identical after deleting the whole wiki"
@@ -497,13 +608,9 @@ async fn mt241_delete_all_generated_pages_leaves_authority_byte_identical() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt241_recompile_is_idempotent() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let (workspace_id, _engine, _root) = seed_workspace(&pg).await;
-    let compiler = ProjectWikiCompiler::new(Arc::new(
-        PostgresDatabase::connect(&pg.schema_url, 5)
-            .await
-            .expect("compiler handle"),
-    ));
+    let compiler = ProjectWikiCompiler::new(Arc::new(pg.db.clone()));
 
     let first = compiler
         .bootstrap(&wiki_ctx(), &workspace_id, &WikiBootstrapOptions::default())
@@ -542,11 +649,8 @@ async fn mt241_recompile_is_idempotent() {
 
     // No-change recompile -> zero stale (the MT-242 negative gate holds from
     // the compiler side too).
-    let checker = handshake_core::knowledge_wiki::drift::WikiDriftChecker::new(Arc::new(
-        PostgresDatabase::connect(&pg.schema_url, 5)
-            .await
-            .expect("checker handle"),
-    ));
+    let checker =
+        handshake_core::knowledge_wiki::drift::WikiDriftChecker::new(Arc::new(pg.db.clone()));
     let report = checker
         .check_workspace(&wiki_ctx(), &workspace_id, false)
         .await
@@ -560,13 +664,9 @@ async fn mt241_recompile_is_idempotent() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt241_token_budget_splits_clusters_loudly() {
-    let pg = pg_or_skip!();
+    let pg = manual_test_backend().await.expect("embedded test backend");
     let (workspace_id, _engine, _root) = seed_workspace(&pg).await;
-    let compiler = ProjectWikiCompiler::new(Arc::new(
-        PostgresDatabase::connect(&pg.schema_url, 5)
-            .await
-            .expect("compiler handle"),
-    ));
+    let compiler = ProjectWikiCompiler::new(Arc::new(pg.db.clone()));
 
     // A deliberately tiny budget forces token-aware clustering to split the
     // real clusters (and to report single files that exceed the budget alone
@@ -609,6 +709,6 @@ async fn mt241_token_budget_splits_clusters_loudly() {
         );
     }
     // The completed receipt records the split/oversize facts (LOUD).
-    let kind = ledger_event_kind(&pg, &outcome.completed_receipt_event_id).await;
+    let kind = ledger_event_kind(&pg.db, &workspace_id, &outcome.completed_receipt_event_id).await;
     assert_eq!(kind.as_deref(), Some("wiki_bootstrap_compile_completed"));
 }

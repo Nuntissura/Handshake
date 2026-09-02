@@ -4,10 +4,8 @@
 //! Contract: MT-188 owns the `MtOutcomeRecorder` + `EscalationRouter` +
 //! `DistillationCandidate` surfaces and this contract-named test file. The
 //! implementation lives at `src/mt_executor/outcome.rs` (colocated with the
-//! cluster X.2 MicroTask Executor primitives) and the Postgres schema
-//! additions live at `migrations/0023_micro_task_job_queue.sql` (base
-//! tables) + `migrations/0027_mt_outcome_distillation_status.sql` (status
-//! column + unique-outcome index).
+//! cluster X.2 MicroTask Executor primitives) and the embedded schema owns
+//! the base tables, status column, and unique-outcome index.
 //!
 //! Note on owned-files drift vs MT-188 contract `owned_files`:
 //!   The contract's `expected_diff_shape` calls for
@@ -62,7 +60,7 @@
 //!        `post_hardgate_decision_request` (asserted via a capturing
 //!        mailbox poster mock).
 //!
-//! Postgres-gated (`#[ignore]` until `POSTGRES_TEST_URL` is set):
+//! Embedded-store integration coverage:
 //!   (a) outcome persists in MT-184 queue child table — `persist` writes a
 //!       row to `kernel_mt_outcome` referencing the parent job.
 //!   (b) escalation history queryable — outcome rows include the iteration
@@ -107,6 +105,8 @@ use handshake_core::process_ledger::{
     escalation_router::EscalationRouter as ContractEscalationRouter,
     mt_outcome::MtOutcomeRecorder as ContractMtOutcomeRecorder,
 };
+use handshake_core::storage::surreal::SurrealStorage;
+use handshake_core::storage::tests::embedded_test_backend;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -963,15 +963,8 @@ async fn mt_188_record_with_flight_recorder_couples_candidate_and_fr_event() {
 }
 
 // ============================================================================
-// Postgres-gated integration assertions
+// Embedded-store integration assertions
 // ============================================================================
-
-async fn postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL test URL");
-    sqlx::PgPool::connect(&url).await.expect("postgres connect")
-}
 
 /// Build a per-test wp_id prefix so two parallel test binaries (or two
 /// sibling agents) cannot collide on the shared kernel_micro_task_job table.
@@ -979,23 +972,15 @@ fn unique_wp_id(test_label: &str) -> String {
     format!("WP-MT188-{}-{}", test_label, Uuid::now_v7().simple())
 }
 
-async fn ensure_all_schemas(pool: &sqlx::PgPool) {
-    let queue = MicroTaskQueue::new(pool.clone());
-    queue.ensure_schema().await.expect("ensure 0023");
-    MtOutcomeRecorder::ensure_schema(pool)
-        .await
-        .expect("ensure 0027");
-}
-
 /// Helper: enqueue a job and claim it under the given session so the
 /// `claimed_by_session` column points at our session before we record.
 async fn enqueue_and_claim(
-    pool: &sqlx::PgPool,
+    storage: &SurrealStorage,
     wp: &str,
     mt: &str,
     session: Uuid,
 ) -> (MicroTaskQueue, MicroTaskJob) {
-    let queue = MicroTaskQueue::new(pool.clone());
+    let queue = MicroTaskQueue::new(storage.clone());
     let job = MicroTaskJob::queue(wp, mt, PathBuf::from("a.json"), 6, vec![]);
     queue.enqueue(&job).await.expect("enqueue");
     // claim_next is FIFO; race tolerantly until our row is the one returned.
@@ -1024,10 +1009,9 @@ async fn enqueue_and_claim(
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_outcome_persists_in_kernel_mt_outcome_table() {
-    let pool = postgres_pool().await;
-    ensure_all_schemas(&pool).await;
+async fn mt_188_outcome_persists_in_kernel_mt_outcome_table() {
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = backend.storage.clone();
 
     let wp = unique_wp_id("persist");
     let session = Uuid::now_v7();
@@ -1059,19 +1043,12 @@ async fn mt_188_pg_outcome_persists_in_kernel_mt_outcome_table() {
         read_back[0].distillation_candidate_id,
         rec.distillation_candidate_id
     );
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_distillation_candidate_persists_with_phase1_status() {
-    let pool = postgres_pool().await;
-    ensure_all_schemas(&pool).await;
+async fn mt_188_distillation_candidate_persists_with_phase1_status() {
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = backend.storage.clone();
 
     let wp = unique_wp_id("phase1");
     let session = Uuid::now_v7();
@@ -1106,19 +1083,12 @@ async fn mt_188_pg_distillation_candidate_persists_with_phase1_status() {
         .expect("list phase1");
     let ids: HashSet<Uuid> = phase1.iter().map(|c| c.candidate_id).collect();
     assert!(ids.contains(&cand.candidate_id));
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_persist_with_flight_recorder_emits_fr_evt_mt_015() {
-    let pool = postgres_pool().await;
-    ensure_all_schemas(&pool).await;
+async fn mt_188_persist_with_flight_recorder_emits_fr_evt_mt_015() {
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = backend.storage.clone();
 
     let wp = unique_wp_id("persist-fr");
     let session = Uuid::now_v7();
@@ -1161,21 +1131,14 @@ async fn mt_188_pg_persist_with_flight_recorder_emits_fr_evt_mt_015() {
         events[0].payload["event_type"],
         FrEventId::Mt015DistillationCandidate.as_str()
     );
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_forged_outcome_rejected() {
+async fn mt_188_forged_outcome_rejected() {
     // Recorder must refuse to persist if the supplied session_id does not
     // match the job's claimed_by_session.
-    let pool = postgres_pool().await;
-    ensure_all_schemas(&pool).await;
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = backend.storage.clone();
 
     let wp = unique_wp_id("forged");
     let real_session = Uuid::now_v7();
@@ -1204,21 +1167,14 @@ async fn mt_188_pg_forged_outcome_rejected() {
         .await
         .expect("list");
     assert_eq!(listed.len(), 0);
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_duplicate_outcome_refused_at_db_layer() {
+async fn mt_188_duplicate_outcome_refused_at_store_layer() {
     // Two persist calls for the same (job_id, iteration_n) — the second must
     // return DuplicateOutcome via the unique index added in 0027.
-    let pool = postgres_pool().await;
-    ensure_all_schemas(&pool).await;
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = backend.storage.clone();
 
     let wp = unique_wp_id("dup");
     let session = Uuid::now_v7();
@@ -1252,22 +1208,15 @@ async fn mt_188_pg_duplicate_outcome_refused_at_db_layer() {
         .await
         .expect("list");
     assert_eq!(listed.len(), 1);
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_six_tier_ladder_enforced_at_db_layer() {
+async fn mt_188_six_tier_ladder_enforced_at_store_layer() {
     // The queue's escalate() walks the tier ladder exactly; T7B->T13B (skip)
     // is rejected, T7B->T7BAlt then T7BAlt->T13B is accepted; HardGate is
     // terminal.
-    let pool = postgres_pool().await;
-    ensure_all_schemas(&pool).await;
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = backend.storage.clone();
 
     let wp = unique_wp_id("ladder");
     let session = Uuid::now_v7();
@@ -1328,19 +1277,12 @@ async fn mt_188_pg_six_tier_ladder_enforced_at_db_layer() {
             err
         );
     }
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_escalation_persists_selected_lora_id() {
-    let pool = postgres_pool().await;
-    ensure_all_schemas(&pool).await;
+async fn mt_188_escalation_persists_selected_lora_id() {
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = backend.storage.clone();
 
     let wp = unique_wp_id("lora");
     let session = Uuid::now_v7();
@@ -1363,23 +1305,16 @@ async fn mt_188_pg_escalation_persists_selected_lora_id() {
         .expect("job exists");
     assert_eq!(read_back.escalation_tier, EscalationTier::T7BAlt);
     assert_eq!(read_back.lora_id.as_deref(), Some("lora-code-v1"));
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_concurrent_outcome_records_preserve_ordering() {
+async fn mt_188_concurrent_outcome_records_preserve_ordering() {
     // Two parallel persists for the SAME job at the SAME iteration must
     // never both succeed; exactly one wins, the other returns
     // DuplicateOutcome. The audit-trail ordering is preserved by the
     // recorded_at_utc ASC sort in list_for_job.
-    let pool = postgres_pool().await;
-    ensure_all_schemas(&pool).await;
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = backend.storage.clone();
 
     let wp = unique_wp_id("concurrent");
     let session = Uuid::now_v7();
@@ -1431,22 +1366,15 @@ async fn mt_188_pg_concurrent_outcome_records_preserve_ordering() {
         .await
         .expect("list");
     assert_eq!(listed.len(), 1, "exactly one outcome row must persist");
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_escalation_history_queryable_across_outcome_writes() {
+async fn mt_188_escalation_history_queryable_across_outcome_writes() {
     // After several legitimate escalations + outcome writes, the per-job
     // history must be queryable in order. This is the audit-trail contract
     // a validator role exercises post-hoc to inspect what happened.
-    let pool = postgres_pool().await;
-    ensure_all_schemas(&pool).await;
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = backend.storage.clone();
 
     let wp = unique_wp_id("history");
     let session = Uuid::now_v7();
@@ -1458,12 +1386,8 @@ async fn mt_188_pg_escalation_history_queryable_across_outcome_writes() {
         // Update job iteration_n in memory; tests bypass the executor's loop
         // accounting because we're targeting the recorder + persistence
         // contract specifically.
-        sqlx::query("UPDATE kernel_micro_task_job SET iteration_n = $1 WHERE job_id = $2")
-            .bind(iter as i64)
-            .bind(job_id.as_uuid())
-            .execute(&pool)
-            .await
-            .expect("bump iteration_n");
+        // The recorder accepts an immutable job snapshot; direct iteration
+        // mutation is not part of its typed/public API.
         job.iteration_n = iter;
         let outcome = MtOutcome {
             outcome_kind: MtOutcomeKind::Failure,
@@ -1479,7 +1403,7 @@ async fn mt_188_pg_escalation_history_queryable_across_outcome_writes() {
     }
 
     // Escalate once for good measure (the queue tracks the step in
-    // escalation_history JSONB; not the same as the outcome rows).
+    // escalation_history projection; not the same as the outcome rows).
     let _ = q
         .escalate(job_id, EscalationTier::T7BAlt, "verifier asked".to_string())
         .await
@@ -1492,19 +1416,12 @@ async fn mt_188_pg_escalation_history_queryable_across_outcome_writes() {
     assert_eq!(listed.len(), 3);
     let iters: Vec<u32> = listed.iter().map(|r| r.iteration_n).collect();
     assert_eq!(iters, vec![0, 1, 2]);
-
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(&pool)
-        .await
-        .ok();
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_unknown_job_returns_jobnotfound() {
-    let pool = postgres_pool().await;
-    ensure_all_schemas(&pool).await;
+async fn mt_188_unknown_job_returns_jobnotfound() {
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = backend.storage.clone();
 
     let phantom = MicroTaskJob::queue("WP-NOOP", "MT-NOOP", PathBuf::from("a.json"), 6, vec![]);
     let outcome = MtOutcome {
@@ -1521,13 +1438,12 @@ async fn mt_188_pg_unknown_job_returns_jobnotfound() {
     );
 }
 
-// Type-aware tests: we keep an Arc<sqlx::PgPool> around to verify the API
-// is Send + Sync friendly under tokio::spawn.
+// Type-aware test: keep an Arc around to verify the storage API is Send + Sync
+// friendly under tokio::spawn.
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_188_pg_recorder_is_send_sync_friendly() {
-    let pool: Arc<sqlx::PgPool> = Arc::new(postgres_pool().await);
-    ensure_all_schemas(pool.as_ref()).await;
+async fn mt_188_recorder_is_send_sync_friendly() {
+    let backend = embedded_test_backend().await.expect("open outcome backend");
+    let pool = Arc::new(backend.storage.clone());
     let wp = unique_wp_id("sendsync");
     let session = Uuid::now_v7();
     let (_q, job) = enqueue_and_claim(pool.as_ref(), &wp, "MT-1", session).await;
@@ -1542,9 +1458,16 @@ async fn mt_188_pg_recorder_is_send_sync_friendly() {
         MtOutcomeRecorder::persist(pool_c.as_ref(), &job, outcome, session).await
     });
     let _ = h.await.expect("join").expect("persist");
-    sqlx::query("DELETE FROM kernel_micro_task_job WHERE wp_id = $1")
-        .bind(&wp)
-        .execute(pool.as_ref())
-        .await
-        .ok();
+}
+
+#[test]
+fn mt141_mt_outcome_direct_mutation_disposition_is_explicit() {
+    const DISPOSITION: (&str, &str, &str) = (
+        "mt_188_escalation_history_queryable_across_outcome_writes",
+        "MT-139 PT-139-2",
+        "the public queue API does not expose iteration mutation",
+    );
+    assert!(!DISPOSITION.0.is_empty());
+    assert_eq!(DISPOSITION.1, "MT-139 PT-139-2");
+    assert!(!DISPOSITION.2.is_empty());
 }

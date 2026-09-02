@@ -20,8 +20,7 @@ use handshake_core::mcp::transport::{
     ConnectedTransport, McpTransport, TransportIo, TransportTasks,
 };
 use handshake_core::storage::{
-    tests::optional_postgres_backend_from_env, AccessMode, Database, ModelSessionState,
-    NewModelSession,
+    tests::embedded_test_backend, AccessMode, Database, ModelSessionState, NewModelSession,
 };
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter, DuplexStream};
@@ -787,9 +786,8 @@ async fn mcp_tool_call_allows_when_session_scoped_grants_satisfy_required_caps(
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
 
-    let Some(db) = optional_postgres_backend_from_env().await? else {
-        return Ok(());
-    };
+    let backend = embedded_test_backend().await?;
+    let db = backend.database.clone();
 
     let job_id = Uuid::now_v7();
     let trace_id = Uuid::now_v7();
@@ -869,6 +867,9 @@ async fn mcp_tool_call_allows_when_session_scoped_grants_satisfy_required_caps(
         .await?;
     assert_eq!(result.get("echoed").and_then(|v| v.as_str()), Some("hi"));
 
+    drop(client);
+    drop(db);
+    backend.close_and_remove().await?;
     Ok(())
 }
 
@@ -879,9 +880,8 @@ async fn mcp_tool_call_denies_when_session_scoped_grants_do_not_satisfy_required
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
 
-    let Some(db) = optional_postgres_backend_from_env().await? else {
-        return Ok(());
-    };
+    let backend = embedded_test_backend().await?;
+    let db = backend.database.clone();
 
     let job_id = Uuid::now_v7();
     let trace_id = Uuid::now_v7();
@@ -967,6 +967,9 @@ async fn mcp_tool_call_denies_when_session_scoped_grants_do_not_satisfy_required
 
     assert_tool_call_denied_event(&flight_recorder, trace_id, "fs.read").await?;
 
+    drop(client);
+    drop(db);
+    backend.close_and_remove().await?;
     Ok(())
 }
 
@@ -1044,9 +1047,8 @@ async fn mcp_tool_call_denies_and_records_tool_call_when_child_session_widens_vs
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
 
-    let Some(db) = optional_postgres_backend_from_env().await? else {
-        return Ok(());
-    };
+    let backend = embedded_test_backend().await?;
+    let db = backend.database.clone();
 
     let job_id = Uuid::now_v7();
     let trace_id = Uuid::now_v7();
@@ -1160,6 +1162,9 @@ async fn mcp_tool_call_denies_and_records_tool_call_when_child_session_widens_vs
 
     assert_tool_call_denied_event(&flight_recorder, trace_id, "fs.read").await?;
 
+    drop(client);
+    drop(db);
+    backend.close_and_remove().await?;
     Ok(())
 }
 

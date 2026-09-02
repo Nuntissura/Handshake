@@ -33,6 +33,8 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+#[cfg(feature = "test-utils")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -47,10 +49,9 @@ use crate::storage::knowledge::{
     KnowledgeExtractionStatus, KnowledgeIndexRunCounts, KnowledgeIndexRunOutcome,
     KnowledgeParserStatus, KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeSourceKind,
     KnowledgeSpanKind, KnowledgeStore, NewKnowledgeCodeRepairEntry, NewKnowledgeEdge,
-    NewKnowledgeEntity, NewKnowledgeIndexRun, NewKnowledgeSource, NewKnowledgeSpan,
-    UpsertKnowledgeCodeFile,
+    NewKnowledgeEntity, NewKnowledgeSource, NewKnowledgeSpan, UpsertKnowledgeCodeFile,
 };
-use crate::storage::surreal::event_ledger::append;
+use crate::storage::surreal::event_ledger::{append, prepare_event, LedgerWrite};
 use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::swarm_orchestration::state_recovery::{
@@ -99,7 +100,74 @@ impl CodeIndexContext {
 /// The code-index engine. Cheap to construct; wraps a pooled handle.
 pub struct CodeIndexEngine {
     db: Arc<SurrealDatabase>,
+    #[cfg(feature = "test-utils")]
+    fail_start_after_event: AtomicBool,
 }
+
+#[derive(SurrealValue)]
+struct StartCodeIndexRunBindings {
+    event: LedgerWrite,
+    run: RecordId,
+    index_run_id: String,
+    workspace: RecordId,
+    root_id: Option<RecordId>,
+    scope: Value,
+    actor_kind: String,
+    actor_id: String,
+}
+
+#[derive(SurrealValue)]
+struct RollbackQuietIndexRunBindings {
+    run: RecordId,
+    lease: Option<RecordId>,
+}
+
+const START_CODE_INDEX_RUN_QUERY: &str = "BEGIN TRANSACTION; \
+     CREATE $event.record CONTENT { \
+         event_id: $event.event_id, event_version: $event.event_version, \
+         kernel_task_run_id: $event.kernel_task_run_id, \
+         session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, \
+         aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, \
+         event_type: $event.event_type, actor_kind: $event.actor_kind, \
+         actor_id: $event.actor_id, causation_id: $event.causation_id, \
+         correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
+         source_component: $event.source_component, payload: $event.payload, \
+         created_at: $event.created_at \
+     }; \
+     CREATE $run CONTENT { \
+         index_run_id: $index_run_id, workspace_id: $workspace, root_id: $root_id, \
+         scope: $scope, actor_kind: $actor_kind, actor_id: $actor_id, \
+         worktree_id: NONE, start_receipt_event_id: $event.record \
+     }; \
+     COMMIT TRANSACTION; \
+     RETURN $index_run_id;";
+
+#[cfg(feature = "test-utils")]
+const START_CODE_INDEX_RUN_FAIL_AFTER_EVENT_QUERY: &str = "BEGIN TRANSACTION; \
+     CREATE $event.record CONTENT { \
+         event_id: $event.event_id, event_version: $event.event_version, \
+         kernel_task_run_id: $event.kernel_task_run_id, \
+         session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, \
+         aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, \
+         event_type: $event.event_type, actor_kind: $event.actor_kind, \
+         actor_id: $event.actor_id, causation_id: $event.causation_id, \
+         correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
+         source_component: $event.source_component, payload: $event.payload, \
+         created_at: $event.created_at \
+     }; \
+     THROW 'HSK-TEST-FAIL-CODE-INDEX-RUN-AFTER-EVENT'; \
+     CREATE $run CONTENT { index_run_id: $index_run_id }; \
+     COMMIT TRANSACTION;";
+
+const ROLLBACK_QUIET_INDEX_RUN_QUERY: &str = "BEGIN TRANSACTION; \
+     LET $run_event = (SELECT VALUE start_receipt_event_id FROM $run)[0]; \
+     LET $lease_event = IF $lease = NONE { NONE } \
+         ELSE { (SELECT VALUE event_ledger_event_id FROM $lease)[0] }; \
+     IF $lease != NONE { DELETE $lease; }; \
+     DELETE $run; \
+     IF $lease_event != NONE { DELETE $lease_event; }; \
+     IF $run_event != NONE { DELETE $run_event; }; \
+     COMMIT TRANSACTION;";
 
 fn stage_error<E>(
     stage: &'static str,
@@ -403,11 +471,20 @@ pub struct QuietCodeIndexRun {
 
 impl CodeIndexEngine {
     pub fn new(db: Arc<SurrealDatabase>) -> Self {
-        Self { db }
+        Self {
+            db,
+            #[cfg(feature = "test-utils")]
+            fail_start_after_event: AtomicBool::new(false),
+        }
     }
 
     pub fn from_database(db: Arc<SurrealDatabase>) -> Self {
-        Self { db }
+        Self::new(db)
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub fn arm_start_run_after_event_failpoint(&self) {
+        self.fail_start_after_event.store(true, Ordering::Release);
     }
 
     pub fn db(&self) -> &SurrealDatabase {
@@ -584,33 +661,73 @@ impl CodeIndexEngine {
                 "extractor_version": CODE_EXTRACTOR_VERSION,
             }),
         )?;
-        let start_event_id = self
+        let (_, event) = prepare_event(start_event).map_err(|error| {
+            stage_error("start_run.prepare_start_receipt", workspace_id, None, error)
+        })?;
+        let index_run_id = new_knowledge_id("KIR");
+        let bindings = StartCodeIndexRunBindings {
+            event,
+            run: RecordId::new("knowledge_index_runs", index_run_id.clone()),
+            index_run_id: index_run_id.clone(),
+            workspace: RecordId::new("workspaces", workspace_id.to_string()),
+            root_id: root_id.map(|id| RecordId::new("knowledge_source_roots", id.to_string())),
+            scope: json!({
+                "index_kind": "code",
+                "extractor_version": CODE_EXTRACTOR_VERSION,
+            }),
+            actor_kind: ctx.actor.actor_kind().to_string(),
+            actor_id: ctx.actor.actor_id().to_string(),
+        };
+        let statement = START_CODE_INDEX_RUN_QUERY;
+        #[cfg(feature = "test-utils")]
+        let statement = if self.fail_start_after_event.swap(false, Ordering::AcqRel) {
+            START_CODE_INDEX_RUN_FAIL_AFTER_EVENT_QUERY
+        } else {
+            statement
+        };
+        let stored_id: Option<String> = self
             .db
-            .append_kernel_event(start_event)
-            .await
-            .map_err(|error| {
-                stage_error("start_run.append_start_receipt", workspace_id, None, error)
-            })?
-            .event_id;
-        let run = self
-            .db
-            .start_knowledge_index_run(NewKnowledgeIndexRun {
-                workspace_id: workspace_id.to_string(),
-                root_id: root_id.map(str::to_string),
-                scope: json!({
-                    "index_kind": "code",
-                    "extractor_version": CODE_EXTRACTOR_VERSION,
-                }),
-                actor_kind: ctx.actor.actor_kind().to_string(),
-                actor_id: ctx.actor.actor_id().to_string(),
-                worktree_id: None,
-                start_receipt_event_id: Some(start_event_id),
+            .storage()
+            .with_data_operation(move |database| {
+                Box::pin(async move { database.query_first(statement, bindings).await })
             })
             .await
-            .map_err(|error| {
-                stage_error("start_run.create_index_run", workspace_id, None, error)
-            })?;
-        Ok(run.index_run_id)
+            .map_err(StorageError::from)
+            .map_err(|error| stage_error("start_run.atomic_start", workspace_id, None, error))?;
+        stored_id.ok_or_else(|| {
+            stage_error(
+                "start_run.atomic_start",
+                workspace_id,
+                None,
+                StorageError::Database("atomic code-index start returned no run id".to_string()),
+            )
+        })
+    }
+
+    async fn rollback_quiet_run_start(
+        &self,
+        index_run_id: &str,
+        lease_id: Option<&str>,
+    ) -> CodeIndexResult<()> {
+        let bindings = RollbackQuietIndexRunBindings {
+            run: RecordId::new("knowledge_index_runs", index_run_id.to_string()),
+            lease: lease_id
+                .map(|id| RecordId::new("knowledge_parallel_indexing_lease_queue", id.to_string())),
+        };
+        let _: Vec<surrealdb::types::Value> = self
+            .db
+            .storage()
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values(ROLLBACK_QUIET_INDEX_RUN_QUERY, bindings)
+                        .await
+                })
+            })
+            .await
+            .map_err(StorageError::from)
+            .map_err(|error| stage_error("start_quiet_run.rollback", "", None, error))?;
+        Ok(())
     }
 
     /// Finish a code-index run with a terminal EventLedger receipt. Routes that
@@ -1220,29 +1337,13 @@ impl CodeIndexEngine {
         let indexing_lease = match swarm_state.try_acquire_indexing_lease(lease_request).await {
             Ok(Some(record)) => record,
             Ok(None) => {
-                let _ = self
-                    .finish_run_with_retry(
-                        ctx,
-                        &index_run_id,
-                        KnowledgeIndexRunOutcome::Cancelled {
-                            counts: KnowledgeIndexRunCounts::default(),
-                        },
-                    )
-                    .await;
+                self.rollback_quiet_run_start(&index_run_id, None).await?;
                 return Err(CodeIndexError::Validation(format!(
                     "quiet indexing run {index_run_id} did not acquire index lease"
                 )));
             }
             Err(error) => {
-                let _ = self
-                    .finish_run_with_retry(
-                        ctx,
-                        &index_run_id,
-                        KnowledgeIndexRunOutcome::Cancelled {
-                            counts: KnowledgeIndexRunCounts::default(),
-                        },
-                    )
-                    .await;
+                self.rollback_quiet_run_start(&index_run_id, None).await?;
                 return Err(CodeIndexError::Validation(format!(
                     "quiet indexing lease failed: {error}"
                 )));
@@ -1254,18 +1355,8 @@ impl CodeIndexEngine {
         {
             Ok(record) => record,
             Err(error) => {
-                let _ = swarm_state
-                    .complete_indexing_lease(&indexing_lease.lease_id, &lane)
-                    .await;
-                let _ = self
-                    .finish_run_with_retry(
-                        ctx,
-                        &index_run_id,
-                        KnowledgeIndexRunOutcome::Cancelled {
-                            counts: KnowledgeIndexRunCounts::default(),
-                        },
-                    )
-                    .await;
+                self.rollback_quiet_run_start(&index_run_id, Some(&indexing_lease.lease_id))
+                    .await?;
                 return Err(CodeIndexError::Validation(format!(
                     "quiet indexing receipt failed: {error}"
                 )));

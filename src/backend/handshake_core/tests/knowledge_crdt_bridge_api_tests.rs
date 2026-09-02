@@ -5,7 +5,7 @@
 //!   - mt_075_conflict_ui: MT-075 ConflictUiStateModel
 //!
 //! The HTTP tests serve the REAL axum router over a loopback TcpListener and
-//! drive it with reqwest — in-process Handshake backend, real PostgreSQL,
+//! drive it with reqwest — in-process Handshake backend, real embedded storage,
 //! no external relay (the MT-078 posture this surface must keep).
 
 use base64::Engine;
@@ -18,21 +18,21 @@ use handshake_core::kernel::crdt::state_vector::KnowledgeStateVectorV1;
 use handshake_core::kernel::crdt::yjs_bridge::{
     YjsUpdateEnvelopeV1, YJS_UPDATE_ENCODING_V1, YJS_UPDATE_ENVELOPE_SCHEMA_ID,
 };
-use handshake_core::storage::tests::{postgres_backend_with_pool_from_env, PostgresTestBackend};
+use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
 use handshake_core::storage::StorageError;
 
-async fn backend_or_blocked() -> PostgresTestBackend {
-    match postgres_backend_with_pool_from_env().await {
+async fn embedded_backend_or_blocked() -> EmbeddedTestBackend {
+    match embedded_test_backend().await {
         Ok(backend) => backend,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
+        Err(err) => panic!("failed to init embedded backend: {err:?}"),
     }
 }
 
 /// Serve the knowledge CRDT router on a loopback port; returns the base url.
-async fn serve_knowledge_crdt(backend: &PostgresTestBackend) -> String {
+async fn serve_knowledge_crdt(backend: &EmbeddedTestBackend) -> String {
     let app = router_with_state(KnowledgeCrdtApiState {
         db: backend.database.clone(),
-        pool: backend.postgres_pool.clone(),
+        pool: backend.storage.clone(),
     });
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -177,14 +177,14 @@ mod mt_067_yjs_bridge {
             )));
     }
 
-    /// Real HTTP push/pull cycle against PostgreSQL: push two updates from
+    /// Real HTTP push/pull cycle against embedded storage: push two updates from
     /// two actors, pull them back byte-identical and ordered, replay a
     /// duplicate push idempotently, and receive typed 409 denials for stale
     /// bases. Navigation receipts carry actor/session/correlation
     /// (spec 2.3.13.11 backend-navigation MUST).
     #[tokio::test]
     async fn http_push_pull_round_trip_with_navigation_receipts() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let base_url = serve_knowledge_crdt(&backend).await;
         let client = reqwest::Client::new();
         let suffix = Uuid::now_v7().simple().to_string();
@@ -371,9 +371,9 @@ mod mt_075_conflict_ui {
     /// theirs revisions, the conflicting actor, and resolution options.
     #[tokio::test]
     async fn conflict_state_endpoint_serves_typed_conflicts_from_receipts() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let base_url = serve_knowledge_crdt(&backend).await;
         let client = reqwest::Client::new();
         let suffix = Uuid::now_v7().simple().to_string();

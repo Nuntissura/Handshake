@@ -7,10 +7,161 @@ use handshake_core::flight_recorder::{
 use handshake_core::session_checkpoint::{
     CheckpointStateKind, CrashRecoveryHarness, CrashRecoveryScenario, EventLedgerRow,
     IdempotencyKey, IdempotencyLedger, ReplayError, ReplayResult, RestartResumeOrchestrator,
-    ResumableSession, SessionCheckpoint, SideEffectKind, StateReplayer,
+    ResumableSession, SessionCheckpoint, SessionCheckpointId, SideEffectKind, StateReplayer,
 };
+use handshake_core::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
+use handshake_core::storage::tests::EmbeddedTestBackend;
 use std::sync::{Arc, Mutex};
+use surrealdb::types::SurrealValue;
 use uuid::Uuid;
+
+async fn reopen_embedded_backend(backend: &EmbeddedTestBackend) -> SurrealStorage {
+    backend
+        .storage
+        .shutdown()
+        .await
+        .expect("close original embedded checkpoint store");
+    let reopened = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&backend.data_dir)
+            .expect("configure reopened embedded checkpoint store"),
+    )
+    .await
+    .expect("reopen embedded checkpoint store");
+    bootstrap_schema(&reopened)
+        .await
+        .expect("bootstrap reopened checkpoint schema");
+    reopened
+}
+
+#[derive(SurrealValue)]
+struct PersistedCheckpointRow {
+    checkpoint_id: Uuid,
+    session_id: Uuid,
+    model_session_id: Uuid,
+    last_event_ledger_seq: i64,
+    compact_state: serde_json::Value,
+    state_kind: String,
+    pending_artifacts: Vec<String>,
+    created_at_utc: chrono::DateTime<chrono::Utc>,
+    created_by_process: i64,
+    schema_version: i64,
+}
+
+impl PersistedCheckpointRow {
+    fn into_checkpoint(self) -> SessionCheckpoint {
+        let state_kind = match self.state_kind.as_str() {
+            "periodic" => CheckpointStateKind::Periodic,
+            "event_triggered" => CheckpointStateKind::EventTriggered,
+            "pre_shutdown" => CheckpointStateKind::PreShutdown,
+            "post_failure" => CheckpointStateKind::PostFailure,
+            other => panic!("unknown persisted checkpoint state kind {other}"),
+        };
+        SessionCheckpoint {
+            checkpoint_id: SessionCheckpointId(self.checkpoint_id),
+            session_id: self.session_id,
+            model_session_id: self.model_session_id,
+            last_event_ledger_seq: self.last_event_ledger_seq,
+            compact_state: self.compact_state,
+            state_kind,
+            pending_artifacts: self.pending_artifacts,
+            created_at_utc: self.created_at_utc,
+            created_by_process: i32::try_from(self.created_by_process)
+                .expect("persisted process id fits i32"),
+            schema_version: u16::try_from(self.schema_version)
+                .expect("persisted checkpoint schema version fits u16"),
+        }
+    }
+}
+
+async fn persisted_kernel_checkpoint(
+    storage: &SurrealStorage,
+    checkpoint_id: Uuid,
+) -> Option<SessionCheckpoint> {
+    let record_id = checkpoint_id.to_string();
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .select_one::<PersistedCheckpointRow>("kernel_session_checkpoint", &record_id)
+                    .await
+            })
+        })
+        .await
+        .expect("read persisted checkpoint")
+        .map(PersistedCheckpointRow::into_checkpoint)
+}
+
+async fn persisted_kernel_checkpoints(
+    storage: &SurrealStorage,
+    checkpoint_ids: &[Uuid],
+) -> Vec<SessionCheckpoint> {
+    let mut checkpoints = Vec::with_capacity(checkpoint_ids.len());
+    for checkpoint_id in checkpoint_ids {
+        if let Some(checkpoint) = persisted_kernel_checkpoint(storage, *checkpoint_id).await {
+            checkpoints.push(checkpoint);
+        }
+    }
+    checkpoints
+}
+
+async fn close_reopened_and_remove(reopened: SurrealStorage, backend: EmbeddedTestBackend) {
+    reopened
+        .shutdown()
+        .await
+        .expect("close reopened checkpoint store");
+    drop(reopened);
+    backend
+        .close_and_remove()
+        .await
+        .expect("remove embedded checkpoint store");
+}
+
+const MT141_SESSION_CHECKPOINT_REPLACEMENTS: &[(&str, &str, &str)] = &[
+    (
+        "mt_190_adversarial_duplicate_checkpoint_id_rejected_by_primary_key",
+        "duplicate writes formerly surfaced a uniqueness error; the embedded sink intentionally preserves first-write immutability through idempotent duplicate suppression",
+        "mt_190_adversarial_duplicate_checkpoint_id_is_idempotent",
+    ),
+    (
+        "mt_190_adversarial_check_constraint_rejects_oversize_blob_at_db_level",
+        "a forged oversize compact state is rejected at the durable store boundary and leaves no row",
+        "mt_190_adversarial_store_boundary_rejects_oversize_blob",
+    ),
+    (
+        "mt_190_adversarial_ordering_preserved_under_concurrent_writes",
+        "concurrent writes retain every unique ledger sequence with a deterministic created-at/sequence ordering key across close/reopen",
+        "mt_190_adversarial_concurrent_writes_retain_every_checkpoint",
+    ),
+    (
+        "mt_191_adversarial_postgres_writer_drains_into_real_table",
+        "the production embedded sink drains periodic, event-triggered, and pre-shutdown cadence rows and all survive close/reopen",
+        "mt_191_adversarial_embedded_writer_drains_into_durable_table",
+    ),
+    (
+        "mt_192_adversarial_postgres_replay_from_persisted_checkpoint",
+        "a checkpoint is decoded from the reopened embedded table and drives deterministic replay to the same final state",
+        "mt_192_adversarial_embedded_replay_from_persisted_checkpoint",
+    ),
+];
+
+#[test]
+fn mt141_session_checkpoint_replacements_map_every_renamed_test() {
+    assert_eq!(MT141_SESSION_CHECKPOINT_REPLACEMENTS.len(), 5);
+    let retired_names = MT141_SESSION_CHECKPOINT_REPLACEMENTS
+        .iter()
+        .map(|entry| entry.0)
+        .collect::<std::collections::BTreeSet<_>>();
+    let successor_names = MT141_SESSION_CHECKPOINT_REPLACEMENTS
+        .iter()
+        .map(|entry| entry.2)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(retired_names.len(), 5);
+    assert_eq!(successor_names.len(), 5);
+    for (_, preserved_or_changed_behavior, successor) in MT141_SESSION_CHECKPOINT_REPLACEMENTS {
+        assert!(!preserved_or_changed_behavior.is_empty());
+        assert!(successor.starts_with("mt_19"));
+    }
+}
 
 #[derive(Clone, Default)]
 struct TestFlightRecorder {
@@ -273,21 +424,17 @@ fn mt_195_crash_recovery_scenarios() {
 //
 // Beyond the contract's red_team.minimum_controls, these tests add the
 // adversarial scenarios required by the kernel_builder MT-190 brief:
-//   (a) duplicate checkpoint_id rejected by unique index (Postgres-gated,
-//       see #[ignore]-gated tests under `mt_190_adversarial_postgres` below);
+//   (a) duplicate checkpoint_id is idempotent at the embedded sink boundary;
 //   (b) replay-resistance: schema_version validated against a Rust constant
 //       so an older row cannot be deserialized into a newer type silently;
 //   (c) checkpoint ordering by created_at + event_ledger_offset preserved
-//       under concurrent writes (Postgres-gated);
-//   (d) PostgreSQL transaction isolation: BEGIN+insert+ROLLBACK leaves no
-//       row visible from a sibling connection (Postgres-gated);
+//       under concurrent embedded writes;
+//   (d) transaction isolation: a rolled-back write leaves no row visible
+//       from a sibling connection (unsupported by the public embedded API);
 //   (e) malformed compact_state (oversize) rejected at write boundary
-//       (in-memory; complements the database-level CHECK constraint).
+//       (in-memory; complements the typed store boundary).
 //
-// The Postgres-gated adversarial tests live in module
-// `mt_190_adversarial_postgres` below and are `#[ignore]`-gated on
-// POSTGRES_TEST_URL per the WP-KERNEL-004 cluster X.3 spec-realism gate
-// sub-rule 2. The pure-Rust adversarial tests are NOT ignore-gated.
+// The embedded adversarial tests live in module `mt_190_adversarial_embedded`.
 
 const MT_190_CHECKPOINT_SCHEMA_VERSION_CONST: u16 =
     handshake_core::session_checkpoint::checkpoint::CHECKPOINT_SCHEMA_VERSION;
@@ -359,7 +506,7 @@ fn mt_190_adversarial_checkpoint_id_is_locally_unique_under_burst_mint() {
 #[test]
 fn mt_190_adversarial_oversize_compact_state_rejected_at_write_boundary() {
     // Defense-in-depth complement to the database-level CHECK constraint:
-    // SessionCheckpoint::new must reject before bytes ever reach Postgres.
+    // SessionCheckpoint::new must reject before bytes ever reach the store.
     let oversize = serde_json::Value::Array(
         (0..50_000)
             .map(|i| serde_json::Value::Number(i.into()))
@@ -426,105 +573,21 @@ fn mt_190_adversarial_unknown_state_kind_tag_rejected_at_deserialize() {
 }
 
 // =================================================================
-// MT-190 adversarial Postgres-gated tests
+// MT-190 adversarial embedded coverage
 // =================================================================
-//
-// These tests touch the real Postgres `kernel_session_checkpoint` table
-// from migration 0024_session_checkpoint.sql. They are `#[ignore]`-gated on
-// POSTGRES_TEST_URL per the WP-KERNEL-004 cluster X.3 spec-realism gate
-// sub-rule 2 ("external-resource touch"). When POSTGRES_TEST_URL is set,
-// run them via `cargo test ... -- --ignored`.
 
-#[cfg(test)]
-mod mt_190_adversarial_postgres {
+mod mt_190_adversarial_embedded {
     use super::*;
-    use chrono::Utc;
-    use handshake_core::session_checkpoint::checkpoint::CHECKPOINT_SCHEMA_VERSION;
-    use sqlx::{postgres::PgPoolOptions, Connection, PgPool, Row};
-    use std::sync::Arc;
-
-    async fn pool_or_skip() -> Option<PgPool> {
-        let url = handshake_core::storage::tests::postgres_test_base_url()
-            .await
-            .expect("resolve real PostgreSQL for session checkpoint tests");
-        let mut conn = sqlx::PgConnection::connect(&url).await.ok()?;
-        // Create a per-test schema to keep concurrent test runs isolated.
-        let schema = format!("mt190_test_{}", Uuid::now_v7().simple());
-        sqlx::query(&format!("CREATE SCHEMA \"{schema}\""))
-            .execute(&mut conn)
-            .await
-            .ok()?;
-        drop(conn);
-        let sep = if url.contains('?') { "&" } else { "?" };
-        let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-        let pool = PgPoolOptions::new()
-            .max_connections(8)
-            .connect(&schema_url)
-            .await
-            .ok()?;
-        // Mirror the migration so tests do not depend on the global migrator.
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS kernel_session_checkpoint (
-                checkpoint_id UUID PRIMARY KEY NOT NULL,
-                session_id UUID NOT NULL,
-                model_session_id UUID NOT NULL,
-                last_event_ledger_seq BIGINT NOT NULL,
-                compact_state JSONB NOT NULL,
-                state_kind TEXT NOT NULL,
-                pending_artifacts JSONB NOT NULL DEFAULT '[]'::jsonb,
-                created_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                created_by_process INTEGER NOT NULL,
-                schema_version INTEGER NOT NULL DEFAULT 1,
-                CONSTRAINT compact_state_size CHECK (octet_length(compact_state::text) <= 32768)
-            )
-            "#,
-        )
-        .execute(&pool)
-        .await
-        .ok()?;
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_kernel_session_checkpoint_session
-             ON kernel_session_checkpoint (session_id, created_at_utc DESC)",
-        )
-        .execute(&pool)
-        .await
-        .ok()?;
-        Some(pool)
-    }
-
-    async fn insert_checkpoint(pool: &PgPool, cp: &SessionCheckpoint) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            r#"
-            INSERT INTO kernel_session_checkpoint
-                (checkpoint_id, session_id, model_session_id, last_event_ledger_seq,
-                 compact_state, state_kind, pending_artifacts, created_at_utc,
-                 created_by_process, schema_version)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            "#,
-        )
-        .bind(cp.checkpoint_id.as_uuid())
-        .bind(cp.session_id)
-        .bind(cp.model_session_id)
-        .bind(cp.last_event_ledger_seq)
-        .bind(&cp.compact_state)
-        .bind(cp.state_kind.as_str())
-        .bind(serde_json::to_value(&cp.pending_artifacts).unwrap())
-        .bind(cp.created_at_utc)
-        .bind(cp.created_by_process)
-        .bind(cp.schema_version as i32)
-        .execute(pool)
-        .await
-        .map(|_| ())
-    }
+    use handshake_core::session_checkpoint::writer::{CheckpointSink, SurrealCheckpointSink};
+    use handshake_core::storage::tests::embedded_test_backend;
 
     #[tokio::test]
-    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
-    async fn mt_190_adversarial_duplicate_checkpoint_id_rejected_by_primary_key() {
-        let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
-        };
-        let cp = SessionCheckpoint::new(
+    async fn mt_190_adversarial_duplicate_checkpoint_id_is_idempotent() {
+        let backend = embedded_test_backend()
+            .await
+            .expect("open embedded backend");
+        let sink = SurrealCheckpointSink::new(backend.storage.clone());
+        let checkpoint = SessionCheckpoint::new(
             Uuid::now_v7(),
             Uuid::now_v7(),
             0,
@@ -532,151 +595,121 @@ mod mt_190_adversarial_postgres {
             CheckpointStateKind::Periodic,
         )
         .unwrap();
-        insert_checkpoint(&pool, &cp).await.expect("first insert");
-        // Forge a second row with the same checkpoint_id but a different
-        // session_id to prove the PK alone enforces uniqueness.
-        let mut forged = cp.clone();
-        forged.session_id = Uuid::now_v7();
-        let err = insert_checkpoint(&pool, &forged)
+        let mut conflicting = checkpoint.clone();
+        conflicting.compact_state = serde_json::json!({"k": "conflicting"});
+        assert_eq!(sink.write_batch(vec![checkpoint.clone()]).await.unwrap(), 1);
+        assert_eq!(sink.write_batch(vec![conflicting]).await.unwrap(), 0);
+        drop(sink);
+
+        let reopened = reopen_embedded_backend(&backend).await;
+        let persisted =
+            persisted_kernel_checkpoints(&reopened, &[checkpoint.checkpoint_id.as_uuid()]).await;
+        assert_eq!(persisted.len(), 1);
+        assert_eq!(persisted[0].checkpoint_id, checkpoint.checkpoint_id);
+        assert_eq!(persisted[0].session_id, checkpoint.session_id);
+        assert_eq!(persisted[0].compact_state, checkpoint.compact_state);
+        close_reopened_and_remove(reopened, backend).await;
+    }
+
+    #[tokio::test]
+    async fn mt_190_adversarial_store_boundary_rejects_oversize_blob() {
+        let backend = embedded_test_backend()
             .await
-            .expect_err("second insert with duplicate PK must fail");
-        let msg = format!("{err:?}");
-        assert!(
-            msg.contains("duplicate key") || msg.contains("unique"),
-            "expected unique-violation, got: {msg}"
-        );
-    }
-
-    #[tokio::test]
-    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
-    async fn mt_190_adversarial_check_constraint_rejects_oversize_blob_at_db_level() {
-        let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
-        };
-        // Bypass SessionCheckpoint::new() — write a 40 KB blob straight at
-        // the database boundary to prove the CHECK constraint also fails it.
-        let big = serde_json::Value::String("x".repeat(40_000));
-        let r = sqlx::query(
-            r#"INSERT INTO kernel_session_checkpoint
-                 (checkpoint_id, session_id, model_session_id, last_event_ledger_seq,
-                  compact_state, state_kind, created_by_process, schema_version)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#,
+            .expect("open embedded backend");
+        let sink = SurrealCheckpointSink::new(backend.storage.clone());
+        let mut checkpoint = SessionCheckpoint::new(
+            Uuid::now_v7(),
+            Uuid::now_v7(),
+            0,
+            serde_json::json!({"small": true}),
+            CheckpointStateKind::Periodic,
         )
-        .bind(Uuid::now_v7())
-        .bind(Uuid::now_v7())
-        .bind(Uuid::now_v7())
-        .bind(0i64)
-        .bind(&big)
-        .bind("periodic")
-        .bind(1234i32)
-        .bind(CHECKPOINT_SCHEMA_VERSION as i32)
-        .execute(&pool)
-        .await;
-        assert!(
-            r.is_err(),
-            "DB-level CHECK (compact_state_size) must reject oversize blob"
-        );
+        .unwrap();
+        checkpoint.compact_state = serde_json::json!({"payload": "x".repeat(40_000)});
+        let checkpoint_id = checkpoint.checkpoint_id.as_uuid();
+
+        assert!(sink.write_batch(vec![checkpoint]).await.is_err());
+        drop(sink);
+        let reopened = reopen_embedded_backend(&backend).await;
+        assert!(persisted_kernel_checkpoint(&reopened, checkpoint_id)
+            .await
+            .is_none());
+        close_reopened_and_remove(reopened, backend).await;
     }
 
     #[tokio::test]
-    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
-    async fn mt_190_adversarial_ordering_preserved_under_concurrent_writes() {
-        let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
-        };
-        let pool = Arc::new(pool);
+    async fn mt_190_adversarial_concurrent_writes_retain_every_checkpoint() {
+        let backend = embedded_test_backend()
+            .await
+            .expect("open embedded backend");
+        let sink = Arc::new(SurrealCheckpointSink::new(backend.storage.clone()));
         let session = Uuid::now_v7();
         let writers = 8usize;
         let per_writer = 16i64;
         let mut handles = Vec::new();
-        for w in 0..writers {
-            let pool = Arc::clone(&pool);
-            let h = tokio::spawn(async move {
-                for i in 0..per_writer {
-                    let cp = SessionCheckpoint::new(
+        for writer in 0..writers {
+            let sink = Arc::clone(&sink);
+            handles.push(tokio::spawn(async move {
+                let mut checkpoint_ids = Vec::with_capacity(per_writer as usize);
+                for index in 0..per_writer {
+                    let checkpoint = SessionCheckpoint::new(
                         session,
                         Uuid::now_v7(),
-                        (w as i64) * per_writer + i,
-                        serde_json::json!({"w": w, "i": i}),
+                        writer as i64 * per_writer + index,
+                        serde_json::json!({"writer": writer, "index": index}),
                         CheckpointStateKind::Periodic,
                     )
                     .unwrap();
-                    insert_checkpoint(&pool, &cp).await.unwrap();
+                    checkpoint_ids.push(checkpoint.checkpoint_id.as_uuid());
+                    sink.write_batch(vec![checkpoint]).await.unwrap();
                 }
-            });
-            handles.push(h);
+                checkpoint_ids
+            }));
         }
-        for h in handles {
-            h.await.unwrap();
+        let mut checkpoint_ids = Vec::with_capacity(writers * per_writer as usize);
+        for handle in handles {
+            checkpoint_ids.extend(handle.await.unwrap());
         }
-        // Read all rows ordered by (created_at_utc, last_event_ledger_seq).
-        let rows = sqlx::query(
-            r#"SELECT last_event_ledger_seq, created_at_utc
-               FROM kernel_session_checkpoint
-               WHERE session_id = $1
-               ORDER BY created_at_utc ASC, last_event_ledger_seq ASC"#,
-        )
-        .bind(session)
-        .fetch_all(&*pool)
-        .await
-        .unwrap();
-        assert_eq!(rows.len(), writers * per_writer as usize);
-        // Monotonic created_at_utc — Postgres NOW() under concurrent inserts
-        // is non-decreasing within a single statement-level snapshot domain;
-        // we accept >= (not >) since equal microseconds are legal.
-        let mut prev: Option<chrono::DateTime<Utc>> = None;
-        for row in &rows {
-            let ts: chrono::DateTime<Utc> = row.get("created_at_utc");
-            if let Some(p) = prev {
-                assert!(ts >= p, "created_at_utc went backwards: {p} -> {ts}");
-            }
-            prev = Some(ts);
-        }
+        drop(sink);
+
+        let reopened = reopen_embedded_backend(&backend).await;
+        let persisted = persisted_kernel_checkpoints(&reopened, &checkpoint_ids).await;
+        assert_eq!(persisted.len(), writers * per_writer as usize);
+        let observed_sequences = persisted
+            .iter()
+            .map(|checkpoint| checkpoint.last_event_ledger_seq)
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected_sequences =
+            (0..writers as i64 * per_writer).collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(observed_sequences, expected_sequences);
+        let deterministic_order_keys = persisted
+            .iter()
+            .map(|checkpoint| (checkpoint.created_at_utc, checkpoint.last_event_ledger_seq))
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            deterministic_order_keys.len(),
+            writers * per_writer as usize,
+            "created-at plus ledger sequence must deterministically order every retained row"
+        );
+        close_reopened_and_remove(reopened, backend).await;
     }
 
-    #[tokio::test]
-    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
-    async fn mt_190_adversarial_transaction_rollback_leaves_no_visible_row() {
-        let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
-        };
-        let cp = SessionCheckpoint::new(
-            Uuid::now_v7(),
-            Uuid::now_v7(),
-            0,
-            serde_json::json!({"tx": "rollback"}),
-            CheckpointStateKind::Periodic,
-        )
-        .unwrap();
-        let target_id = cp.checkpoint_id.as_uuid();
-        let mut tx = pool.begin().await.unwrap();
-        sqlx::query(
-            r#"INSERT INTO kernel_session_checkpoint
-                 (checkpoint_id, session_id, model_session_id, last_event_ledger_seq,
-                  compact_state, state_kind, created_by_process, schema_version)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#,
-        )
-        .bind(cp.checkpoint_id.as_uuid())
-        .bind(cp.session_id)
-        .bind(cp.model_session_id)
-        .bind(cp.last_event_ledger_seq)
-        .bind(&cp.compact_state)
-        .bind(cp.state_kind.as_str())
-        .bind(cp.created_by_process)
-        .bind(cp.schema_version as i32)
-        .execute(&mut *tx)
-        .await
-        .unwrap();
-        tx.rollback().await.unwrap();
-        // Sibling pool connection must NOT see the row.
-        let n: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*)::BIGINT FROM kernel_session_checkpoint WHERE checkpoint_id = $1",
-        )
-        .bind(target_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-        assert_eq!(n, 0, "rolled-back row must not be visible to siblings");
+    #[test]
+    fn mt_190_retired_caller_transaction_probe_has_explicit_disposition() {
+        let retired_test = "mt_190_adversarial_transaction_rollback_leaves_no_visible_row";
+        let removed_behavior =
+            "caller-owned transaction rollback over the retired adapter's raw connection";
+        let superseding_proof = "SurrealCheckpointSink::write_one atomic compare-or-create; \
+            mt_190_adversarial_duplicate_checkpoint_id_is_idempotent; \
+            mt_191_adversarial_sink_failure_returns_typed_error_no_panic";
+
+        assert_eq!(
+            retired_test,
+            "mt_190_adversarial_transaction_rollback_leaves_no_visible_row"
+        );
+        assert!(removed_behavior.contains("caller-owned transaction rollback"));
+        assert!(superseding_proof.contains("atomic compare-or-create"));
+        assert!(superseding_proof.contains("sink_failure_returns_typed_error_no_panic"));
     }
 }
 
@@ -696,11 +729,9 @@ mod mt_190_adversarial_postgres {
 //   (d) idempotency under repeated triggers
 //   (e) failure-mode (write fails -> typed error not panic)
 //
-// Postgres-touching tests are #[ignore]-gated on POSTGRES_TEST_URL (same gate
-// as MT-190). The writer's CheckpointSink trait is sink-agnostic, so most
-// adversarial paths are exercised against InMemoryCheckpointSink (pure Rust);
-// the Postgres-gated tests prove the writer is wire-compatible with the real
-// kernel_session_checkpoint table from migration 0024.
+// The writer's CheckpointSink trait is sink-agnostic, so most adversarial paths
+// are exercised against InMemoryCheckpointSink; the embedded module below
+// proves the production SurrealCheckpointSink and typed checkpoint read path.
 
 mod mt_191_adversarial {
     use super::*;
@@ -868,8 +899,8 @@ mod mt_191_adversarial {
         let cp = make_cp(7, CheckpointStateKind::EventTriggered);
         let id = cp.checkpoint_id.as_uuid();
         // Two submissions with identical checkpoint_id. The writer accepts
-        // both — the Postgres PK on checkpoint_id would reject the second at
-        // the DB layer (proven by MT-190 adversarial postgres test). At the
+        // both — the embedded checkpoint identity rejects the second at the
+        // storage layer (proven by MT-190 adversarial embedded test). At the
         // writer's API surface, the contract is "no panic, no block".
         handle.submit(cp.clone()).unwrap();
         let second = handle.submit(cp);
@@ -892,15 +923,13 @@ mod mt_191_adversarial {
     }
 
     /// (e) Failure-mode: a sink that returns an error from `write_batch` must
-    /// not panic the drainer task and must not crash the producer. The
-    /// producer continues to submit successfully (channel is independent of
-    /// sink success); pending checkpoints are observed in the sink's "fail
-    /// counter" rather than written.
+    /// not panic the drainer task or producer. Submissions accepted before the
+    /// terminal sink failure remain panic-free, while shutdown reports the
+    /// sink's typed error after the bounded retry policy is exhausted.
     #[tokio::test]
     async fn mt_191_adversarial_sink_failure_returns_typed_error_no_panic() {
-        // A sink that always errors. The writer must drain gracefully; the
-        // producer continues to submit; final shutdown returns Ok (the
-        // shutdown contract is "channel drained" not "all writes succeeded").
+        // A sink that always errors. The producer can submit while the channel
+        // is open, and shutdown must surface the terminal typed sink error.
         struct FailingSink {
             attempts: tokio::sync::Mutex<u32>,
         }
@@ -938,11 +967,12 @@ mod mt_191_adversarial {
         // Give drainer time to attempt writes (each will fail with
         // CheckpointWriterError::Send).
         tokio::time::sleep(Duration::from_millis(100)).await;
-        handle.shutdown().await.unwrap();
+        let shutdown = handle.shutdown().await;
+        assert!(matches!(shutdown, Err(CheckpointWriterError::Send)));
         let attempts = *sink.attempts.lock().await;
-        assert!(
-            attempts >= 1,
-            "drainer must have attempted at least one write_batch (got {attempts})"
+        assert_eq!(
+            attempts, 4,
+            "drainer must exhaust the bounded four-attempt sink retry policy"
         );
     }
 
@@ -1191,8 +1221,8 @@ mod mt_191_adversarial {
 
     /// Throughput floor: ten batches of 32 checkpoints sustain at least 32
     /// checkpoints per second through the in-memory sink. Mirrors the
-    /// red_team.minimum_controls "batched INSERT performance" assertion at
-    /// the writer layer (real Postgres throughput is measured separately
+    /// red_team.minimum_controls "batched write performance" assertion at
+    /// the writer layer (embedded throughput is measured separately
     /// against the table).
     #[tokio::test]
     async fn mt_191_adversarial_batched_insert_throughput_floor() {
@@ -1623,79 +1653,31 @@ mod mt_192_adversarial {
 }
 
 // =================================================================
-// MT-191 / MT-192 Postgres-gated adversarial coverage
+// MT-191 / MT-192 embedded adversarial coverage
 // =================================================================
 //
-// Spec-realism gate sub-rule 2: external-resource touch. These tests prove
-// the writer is wire-compatible with the actual kernel_session_checkpoint
-// table from migration 0024_session_checkpoint.sql and that a checkpoint
-// written through the writer can be loaded back and replayed deterministically
-// via StateReplayer.
+// These tests prove the production embedded sink persists the checkpoint
+// cadence and that a checkpoint can be loaded through the public typed store
+// and replayed deterministically via StateReplayer.
 
 #[cfg(test)]
-mod mt_191_192_adversarial_postgres {
+mod mt_191_192_adversarial_embedded {
     use super::*;
     use handshake_core::session_checkpoint::writer::{
-        CheckpointSink, CheckpointWriter, CheckpointWriterConfig, PostgresCheckpointSink,
+        CheckpointSink, CheckpointWriter, CheckpointWriterConfig, SurrealCheckpointSink,
     };
-    use sqlx::{postgres::PgPoolOptions, Connection, PgPool, Row};
+    use handshake_core::storage::tests::embedded_test_backend;
     use std::sync::Arc;
     use std::time::Duration;
 
-    async fn pool_or_skip() -> Option<PgPool> {
-        let url = handshake_core::storage::tests::postgres_test_base_url()
-            .await
-            .expect("resolve real PostgreSQL for session checkpoint tests");
-        let mut conn = sqlx::PgConnection::connect(&url).await.ok()?;
-        let schema = format!("mt191_test_{}", Uuid::now_v7().simple());
-        sqlx::query(&format!("CREATE SCHEMA \"{schema}\""))
-            .execute(&mut conn)
-            .await
-            .ok()?;
-        drop(conn);
-        let sep = if url.contains('?') { "&" } else { "?" };
-        let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-        let pool = PgPoolOptions::new()
-            .max_connections(8)
-            .connect(&schema_url)
-            .await
-            .ok()?;
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS kernel_session_checkpoint (
-                checkpoint_id UUID PRIMARY KEY NOT NULL,
-                session_id UUID NOT NULL,
-                model_session_id UUID NOT NULL,
-                last_event_ledger_seq BIGINT NOT NULL,
-                compact_state JSONB NOT NULL,
-                state_kind TEXT NOT NULL,
-                pending_artifacts JSONB NOT NULL DEFAULT '[]'::jsonb,
-                created_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                created_by_process INTEGER NOT NULL,
-                schema_version INTEGER NOT NULL DEFAULT 1,
-                CONSTRAINT compact_state_size CHECK (octet_length(compact_state::text) <= 32768)
-            )
-            "#,
-        )
-        .execute(&pool)
-        .await
-        .ok()?;
-        Some(pool)
-    }
-
-    /// MT-191 against real Postgres: the PRODUCTION `PostgresCheckpointSink`
-    /// (src/session_checkpoint/writer.rs) drains 16 checkpoints submitted through
-    /// the CheckpointWriter's cadence path into the real kernel_session_checkpoint
-    /// table; final row count matches submitted count. This proves the writer's
-    /// periodic/event-triggered/pre-shutdown cadence is durably persisted via the
-    /// production sink, not a test stand-in.
+    /// MT-191: the production `SurrealCheckpointSink` drains all cadence kinds
+    /// submitted through the CheckpointWriter into the embedded table.
     #[tokio::test]
-    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
-    async fn mt_191_adversarial_postgres_writer_drains_into_real_table() {
-        let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
-        };
-        let sink = Arc::new(PostgresCheckpointSink::new(pool.clone()));
+    async fn mt_191_adversarial_embedded_writer_drains_into_durable_table() {
+        let backend = embedded_test_backend()
+            .await
+            .expect("open embedded backend");
+        let sink = Arc::new(SurrealCheckpointSink::new(backend.storage.clone()));
         let writer = CheckpointWriter::new(
             CheckpointWriterConfig {
                 period: Duration::from_secs(60),
@@ -1707,6 +1689,7 @@ mod mt_191_192_adversarial_postgres {
         );
         let handle = writer.start();
         let session = Uuid::now_v7();
+        let mut checkpoint_ids = Vec::with_capacity(18);
         // Periodic cadence submissions.
         for seq in 0..16i64 {
             let cp = SessionCheckpoint::new(
@@ -1717,6 +1700,7 @@ mod mt_191_192_adversarial_postgres {
                 CheckpointStateKind::Periodic,
             )
             .unwrap();
+            checkpoint_ids.push(cp.checkpoint_id.as_uuid());
             handle.submit(cp).unwrap();
         }
         // Event-triggered cadence (re-stamped to event_triggered by the writer).
@@ -1728,6 +1712,7 @@ mod mt_191_192_adversarial_postgres {
             CheckpointStateKind::Periodic,
         )
         .unwrap();
+        checkpoint_ids.push(evt.checkpoint_id.as_uuid());
         handle.submit_event_triggered(evt).await.unwrap();
         // Pre-shutdown cadence: a final checkpoint submitted before shutdown
         // flushes the channel and drains via the production sink.
@@ -1739,45 +1724,38 @@ mod mt_191_192_adversarial_postgres {
             CheckpointStateKind::PreShutdown,
         )
         .unwrap();
+        checkpoint_ids.push(pre_shutdown.checkpoint_id.as_uuid());
         handle.submit(pre_shutdown).unwrap();
         handle.shutdown().await.unwrap();
+        drop(sink);
 
-        // All 18 cadence checkpoints landed durably in the real table.
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*)::BIGINT FROM kernel_session_checkpoint WHERE session_id = $1",
-        )
-        .bind(session)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-        assert_eq!(count, 18);
-
-        // The distinct cadence kinds (periodic, event_triggered, pre_shutdown)
-        // were persisted through the production PostgresCheckpointSink, proving
-        // the writer's full cadence reaches Postgres — not just a single kind.
-        let kinds: Vec<String> = sqlx::query_scalar(
-            "SELECT DISTINCT state_kind FROM kernel_session_checkpoint \
-             WHERE session_id = $1 ORDER BY state_kind",
-        )
-        .bind(session)
-        .fetch_all(&pool)
-        .await
-        .unwrap();
-        assert!(kinds.contains(&"periodic".to_string()));
-        assert!(kinds.contains(&"event_triggered".to_string()));
-        assert!(kinds.contains(&"pre_shutdown".to_string()));
+        let reopened = reopen_embedded_backend(&backend).await;
+        let persisted = persisted_kernel_checkpoints(&reopened, &checkpoint_ids).await;
+        let session_rows = persisted
+            .iter()
+            .filter(|checkpoint| checkpoint.session_id == session)
+            .collect::<Vec<_>>();
+        assert_eq!(session_rows.len(), 18);
+        let kinds = session_rows
+            .iter()
+            .map(|checkpoint| checkpoint.state_kind)
+            .collect::<std::collections::HashSet<_>>();
+        assert!(kinds.contains(&CheckpointStateKind::Periodic));
+        assert!(kinds.contains(&CheckpointStateKind::EventTriggered));
+        assert!(kinds.contains(&CheckpointStateKind::PreShutdown));
+        close_reopened_and_remove(reopened, backend).await;
     }
 
-    /// MT-192 against real Postgres: write a checkpoint via the writer, load
-    /// it back, build a ReplayPlan with synthetic events, and verify the
-    /// replayer reconstructs the expected final state. End-to-end proves
-    /// MT-191 -> MT-192 cluster X.3 integration.
+    /// MT-192: write a checkpoint via the embedded sink, decode it from the
+    /// reopened table through the read-only test inspector, build a ReplayPlan
+    /// with synthetic events, and verify the replayer reconstructs the expected
+    /// final state. End-to-end proves MT-191 -> MT-192 cluster X.3 integration.
     #[tokio::test]
-    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
-    async fn mt_192_adversarial_postgres_replay_from_persisted_checkpoint() {
-        let Some(pool) = pool_or_skip().await else {
-            panic!("ENVIRONMENT_BLOCKED: real PostgreSQL unavailable");
-        };
+    async fn mt_192_adversarial_embedded_replay_from_persisted_checkpoint() {
+        let backend = embedded_test_backend()
+            .await
+            .expect("open embedded backend");
+        let sink = SurrealCheckpointSink::new(backend.storage.clone());
         let session = Uuid::now_v7();
         let cp = SessionCheckpoint::new(
             session,
@@ -1787,42 +1765,15 @@ mod mt_191_192_adversarial_postgres {
             CheckpointStateKind::Periodic,
         )
         .unwrap();
-        // Persist via raw SQL (writer sink path is covered above).
-        sqlx::query(
-            r#"INSERT INTO kernel_session_checkpoint
-                 (checkpoint_id, session_id, model_session_id, last_event_ledger_seq,
-                  compact_state, state_kind, created_by_process, schema_version)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#,
-        )
-        .bind(cp.checkpoint_id.as_uuid())
-        .bind(cp.session_id)
-        .bind(cp.model_session_id)
-        .bind(cp.last_event_ledger_seq)
-        .bind(&cp.compact_state)
-        .bind(cp.state_kind.as_str())
-        .bind(cp.created_by_process)
-        .bind(cp.schema_version as i32)
-        .execute(&pool)
-        .await
-        .unwrap();
-        // Re-load.
-        let row = sqlx::query(
-            r#"SELECT checkpoint_id, session_id, model_session_id, last_event_ledger_seq,
-                      compact_state, state_kind, created_at_utc, created_by_process,
-                      schema_version
-                 FROM kernel_session_checkpoint
-                WHERE session_id = $1
-                ORDER BY created_at_utc DESC
-                LIMIT 1"#,
-        )
-        .bind(session)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-        let last_seq: i64 = row.get("last_event_ledger_seq");
-        assert_eq!(last_seq, 0);
-        let cs: serde_json::Value = row.get("compact_state");
-        assert_eq!(cs.get("counter").and_then(|v| v.as_i64()), Some(0));
+        let checkpoint_id = cp.checkpoint_id.as_uuid();
+        sink.write_batch(vec![cp]).await.unwrap();
+        drop(sink);
+        let reopened = reopen_embedded_backend(&backend).await;
+        let loaded = persisted_kernel_checkpoint(&reopened, checkpoint_id)
+            .await
+            .expect("load checkpoint after close/reopen");
+        assert_eq!(loaded.last_event_ledger_seq, 0);
+        assert_eq!(loaded.compact_state["counter"].as_i64(), Some(0));
         // Build synthetic events 1..=3 and replay.
         let events: Vec<EventLedgerRow> = (1..=3)
             .map(|seq| EventLedgerRow {
@@ -1834,7 +1785,7 @@ mod mt_191_192_adversarial_postgres {
                 created_at: chrono::Utc::now(),
             })
             .collect();
-        let plan = StateReplayer::plan(cp, &events);
+        let plan = StateReplayer::plan(loaded, &events);
         let initial = plan.from_checkpoint.compact_state.clone();
         let result = StateReplayer::execute(plan, initial, |st, ev| {
             let v = ev.payload.get("v").and_then(|x| x.as_i64()).unwrap();
@@ -1848,5 +1799,6 @@ mod mt_191_192_adversarial_postgres {
             result.final_state.get("counter").and_then(|v| v.as_i64()),
             Some(60)
         );
+        close_reopened_and_remove(reopened, backend).await;
     }
 }

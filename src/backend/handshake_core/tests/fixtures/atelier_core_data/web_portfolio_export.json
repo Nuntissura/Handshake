@@ -1,5 +1,5 @@
 {
-  "_comment": "MT-076 portable non-SQLite fixture corpus: web portfolio export only. payload seeds materialize ArtifactStore-backed collection media; the rendered manifest must be relocatable (artifact:// refs), use no-space pack paths, and never emit .GOV output paths. Invalid probes assert the portability rejections. All slugs are made run-unique at load time.",
+  "_comment": "MT-076 portable JSON fixture corpus: web portfolio export backed by embedded SurrealDB/EventLedger. payload seeds materialize ArtifactStore-backed collection media; the rendered manifest must be relocatable (artifact:// refs), use no-space pack paths, and never emit .GOV output paths. Invalid probes assert the portability rejections. All slugs are made run-unique at load time.",
   "media": [
     {
       "payload_seed": "mt-076-hero",

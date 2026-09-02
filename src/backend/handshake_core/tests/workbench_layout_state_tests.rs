@@ -1,30 +1,19 @@
 //! WP-KERNEL-009 MT-246 durable workbench layout-state proof.
 //!
 //! This covers the backend foundation for split-editor/workbench restoration:
-//! layout UI state must persist in PostgreSQL and retain a typed Kernel
-//! EventLedger receipt. It intentionally uses a real isolated PostgreSQL schema;
+//! layout UI state must persist in the embedded store and retain a typed Kernel
+//! EventLedger receipt. It intentionally uses a real isolated embedded store;
 //! localStorage or process memory cannot pass.
 
-mod knowledge_pg_support;
+#[allow(dead_code)]
+mod user_manual_support;
 
 use handshake_core::kernel::KernelEventType;
 use handshake_core::storage::{
-    Database, StorageError, WORKBENCH_LAYOUT_SCHEMA_ID, WorkbenchLayoutStateInput,
+    Database, StorageError, WorkbenchLayoutStateInput, WORKBENCH_LAYOUT_SCHEMA_ID,
 };
-use knowledge_pg_support::knowledge_pg;
 use serde_json::json;
-use sqlx::Row;
-
-macro_rules! pg_or_skip {
-    () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
-            None => {
-                panic!("MT-246 workbench layout proof requires real PostgreSQL");
-            }
-        }
-    }};
-}
+use user_manual_support::manual_test_backend;
 
 fn layout_state(
     workspace_id: &str,
@@ -76,10 +65,10 @@ fn layout_state(
 
 #[tokio::test]
 async fn mt246_workbench_layout_rejects_non_object_state() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
-    let err = pg
+    let err = backend
         .db
         .save_workbench_layout_state(
             &ws,
@@ -94,14 +83,18 @@ async fn mt246_workbench_layout_rejects_non_object_state() {
         err,
         StorageError::Validation("workbench layout_state must be a JSON object")
     ));
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 #[tokio::test]
 async fn mt246_workbench_layout_rejects_wrong_schema_id() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
-    let err = pg
+    let err = backend
         .db
         .save_workbench_layout_state(
             &ws,
@@ -121,14 +114,18 @@ async fn mt246_workbench_layout_rejects_wrong_schema_id() {
             "workbench layout_state schema_id must be hsk.workbench_layout_state@1"
         )
     ));
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 #[tokio::test]
 async fn mt246_workbench_layout_rejects_schema_correct_malformed_state_before_eventledger() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
-    let err = pg
+    let err = backend
         .db
         .save_workbench_layout_state(
             &ws,
@@ -148,32 +145,28 @@ async fn mt246_workbench_layout_rejects_schema_correct_malformed_state_before_ev
         )
     ));
 
-    let mut conn = pg.raw_connection().await;
-    let event_count: i64 = sqlx::query(
-        r#"
-        SELECT COUNT(*)::BIGINT AS count
-        FROM kernel_event_ledger
-        WHERE aggregate_type = 'workbench_layout_state'
-          AND aggregate_id = $1
-        "#,
-    )
-    .bind(&ws)
-    .fetch_one(&mut conn)
-    .await
-    .expect("query layout event count")
-    .get("count");
+    let event_count = backend
+        .db
+        .list_kernel_events_for_aggregate("workbench_layout_state", &ws)
+        .await
+        .expect("query layout event count")
+        .len();
     assert_eq!(
         event_count, 0,
         "invalid layout must fail before EventLedger append"
     );
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 #[tokio::test]
 async fn mt246_workbench_layout_persists_with_eventledger() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
-    let initial = pg
+    let initial = backend
         .db
         .get_workbench_layout_state(&ws)
         .await
@@ -183,7 +176,7 @@ async fn mt246_workbench_layout_persists_with_eventledger() {
         "new workspace should not synthesize layout state"
     );
 
-    let first = pg
+    let first = backend
         .db
         .save_workbench_layout_state(
             &ws,
@@ -199,7 +192,7 @@ async fn mt246_workbench_layout_persists_with_eventledger() {
     assert_eq!(first.layout_state["activePaneId"], "pane-b");
     assert!(!first.event_ledger_event_id.trim().is_empty());
 
-    let updated = pg
+    let updated = backend
         .db
         .save_workbench_layout_state(
             &ws,
@@ -215,7 +208,7 @@ async fn mt246_workbench_layout_persists_with_eventledger() {
         "each layout mutation must retain its own EventLedger receipt"
     );
 
-    let loaded = pg
+    let loaded = backend
         .db
         .get_workbench_layout_state(&ws)
         .await
@@ -224,45 +217,37 @@ async fn mt246_workbench_layout_persists_with_eventledger() {
     assert_eq!(loaded.layout_state["activePaneId"], "pane-c");
     assert_eq!(loaded.event_ledger_event_id, updated.event_ledger_event_id);
 
-    let mut conn = pg.raw_connection().await;
-    let event_count: i64 = sqlx::query(
-        r#"
-        SELECT COUNT(*)::BIGINT AS count
-        FROM kernel_event_ledger
-        WHERE event_id = $1
-          AND event_type = $2
-          AND aggregate_type = 'workbench_layout_state'
-          AND payload ->> 'workspace_id' = $3
-          AND payload -> 'layout_state' ->> 'activePaneId' = 'pane-c'
-        "#,
-    )
-    .bind(&updated.event_ledger_event_id)
-    .bind(KernelEventType::KnowledgeWorkbenchLayoutStateRecorded.as_str())
-    .bind(&ws)
-    .fetch_one(&mut conn)
-    .await
-    .expect("query matching kernel event")
-    .get("count");
+    let events = backend
+        .db
+        .list_kernel_events_for_aggregate("workbench_layout_state", &ws)
+        .await
+        .expect("query matching kernel event");
+    let event_count = events
+        .iter()
+        .filter(|event| {
+            event.event_id == updated.event_ledger_event_id
+                && event.event_type.as_str()
+                    == KernelEventType::KnowledgeWorkbenchLayoutStateRecorded.as_str()
+                && event.payload["workspace_id"] == ws
+                && event.payload["layout_state"]["activePaneId"] == "pane-c"
+        })
+        .count();
     assert_eq!(event_count, 1);
 
-    let row_count: i64 = sqlx::query(
-        r#"
-        SELECT COUNT(*)::BIGINT AS count
-        FROM knowledge_workbench_layout_states s
-        JOIN kernel_event_ledger e
-          ON e.event_id = s.event_ledger_event_id
-        WHERE s.workspace_id = $1
-          AND e.event_type = $2
-        "#,
-    )
-    .bind(&ws)
-    .bind(KernelEventType::KnowledgeWorkbenchLayoutStateRecorded.as_str())
-    .fetch_one(&mut conn)
-    .await
-    .expect("query layout row event FK")
-    .get("count");
+    let row_count = events
+        .iter()
+        .filter(|event| {
+            event.event_id == loaded.event_ledger_event_id
+                && event.event_type.as_str()
+                    == KernelEventType::KnowledgeWorkbenchLayoutStateRecorded.as_str()
+        })
+        .count();
     assert_eq!(
         row_count, 1,
         "layout state row must retain its EventLedger FK"
     );
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }

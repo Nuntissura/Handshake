@@ -25,8 +25,9 @@ use crate::kernel::{
 };
 
 use super::persistence::{
-    KernelActionSubmission, RecordReceipt, WriteBoxV1Envelope, KERNEL_ACTION_REQUEST_SCHEMA_ID,
-    MEMORY_WRITE_BOX_SCHEMA_ID, WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
+    KernelActionSubmission, KernelActionSubmitter, RecordReceipt, SurrealKernelActionSubmitter,
+    WriteBoxV1Envelope, KERNEL_ACTION_REQUEST_SCHEMA_ID, MEMORY_WRITE_BOX_SCHEMA_ID,
+    WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
 };
 
 pub const OUTCOME_ATTACH_INPUT_SCHEMA_ID: &str = "hsk.kernel.memory_capsule_outcome_input@1";
@@ -186,6 +187,27 @@ pub trait OutcomeAttachSubmitter {
         &self,
         attribution: OutcomeAttribution,
     ) -> Result<OutcomeReceipt, OutcomeError>;
+}
+
+impl OutcomeAttachSubmitter for SurrealKernelActionSubmitter {
+    fn attach_outcome(
+        &self,
+        attribution: OutcomeAttribution,
+    ) -> Result<OutcomeReceipt, OutcomeError> {
+        let receipt = OutcomeReceipt {
+            receipt_id: Uuid::now_v7(),
+            capsule_id: attribution.capsule_id,
+            action_id: OUTCOME_ATTACH_ACTION_ID.to_owned(),
+            recorded_at_utc: Utc::now(),
+        };
+        let submission = outcome_attach_submission(&attribution, &receipt)?;
+        self.submit(submission)
+            .map_err(|error| OutcomeError::Rejected {
+                code: error.code,
+                reason: error.reason,
+            })?;
+        Ok(receipt)
+    }
 }
 
 /// OutcomeFeedbackLoop entry point.

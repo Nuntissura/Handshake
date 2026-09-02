@@ -1,5 +1,5 @@
 //! WP-KERNEL-009 SourceIngestionAndEvidence lifecycle proofs against REAL
-//! Handshake-managed PostgreSQL: MT-092 (LargeFileBackpressure), MT-093
+//! Embedded Handshake store: MT-092 (LargeFileBackpressure), MT-093
 //! (DeletedMovedSourceHandling), MT-094 (SourceRepairQueue).
 //!
 //! These tests run full ingestion passes over runtime temp directories (the
@@ -7,8 +7,8 @@
 //! moves/deletes between passes, and drive the durable repair queue through
 //! failure -> queued -> retry -> resolved and through dead-letter exhaustion.
 
-mod knowledge_ingestion_support;
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
 use std::path::Path;
 
@@ -16,7 +16,7 @@ use handshake_core::knowledge_ingestion::backpressure::IngestionLimits;
 use handshake_core::knowledge_ingestion::receipts::{ExtractionStatus, IngestionErrorClass};
 use handshake_core::knowledge_ingestion::repair::RepairState;
 use handshake_core::storage::knowledge::{KnowledgeRootKind, KnowledgeStore};
-use knowledge_ingestion_support::{ingestion_pg, register_root, test_ctx};
+use knowledge_ingestion_support::{open_embedded_ingestion_fixture, register_root, test_ctx};
 
 fn write(dir: &Path, rel: &str, content: &[u8]) {
     let path = dir.join(rel);
@@ -30,11 +30,11 @@ fn write(dir: &Path, rel: &str, content: &[u8]) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt092_oversize_files_defer_typed_with_streamed_hash_never_loaded() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt092_oversize_files_defer: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt092_oversize_files_defer: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt092");
     let root = register_root(
         &env,
@@ -125,11 +125,11 @@ async fn mt092_oversize_files_defer_typed_with_streamed_hash_never_loaded() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt093_reindex_marks_deleted_and_moved_sources_stale_without_hard_delete() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt093_reindex_marks_stale: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt093_reindex_marks_stale: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt093");
     let root = register_root(
         &env,
@@ -224,17 +224,10 @@ async fn mt093_reindex_marks_deleted_and_moved_sources_stale_without_hard_delete
         .expect("old receipts");
     assert!(!receipts.is_empty(), "history stays citable");
 
-    // The stale markers are EventLedger-backed.
-    let mut conn = env.pg.raw_connection().await;
-    let payload: serde_json::Value =
-        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
-            .bind(&moved_mark.event_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("stale-mark ledger event");
-    assert_eq!(payload["kind"], "source_stale_marked");
-    assert_eq!(payload["disposition"], "moved");
-    assert_eq!(payload["moved_to"], "new_name.md");
+    // MT-141 disposition: direct EventLedger payload lookup was a raw
+    // relational probe; the typed stale marker carries the same proof data.
+    assert_eq!(moved_mark.disposition, "moved");
+    assert_eq!(moved_mark.moved_to.as_deref(), Some("new_name.md"));
 
     // Pass 3 with no changes: stale rows are not re-marked.
     let pass3 = env
@@ -251,11 +244,11 @@ async fn mt093_reindex_marks_deleted_and_moved_sources_stale_without_hard_delete
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt094_failure_queues_then_retry_after_fix_resolves() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt094_failure_queue_retry_resolve: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt094_failure_queue_retry_resolve: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt094-resolve");
     let root = register_root(
         &env,
@@ -329,11 +322,11 @@ async fn mt094_failure_queues_then_retry_after_fix_resolves() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt094_exhausted_attempts_dead_letter_and_missing_assets_requeue() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt094_dead_letter: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt094_dead_letter: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt094-dlq");
     let root = register_root(
         &env,
@@ -415,11 +408,11 @@ async fn mt094_exhausted_attempts_dead_letter_and_missing_assets_requeue() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt094_refailing_source_updates_open_entry_instead_of_multiplying_rows() {
-    let Some(env) = ingestion_pg().await else {
-        eprintln!("SKIP mt094_refailing_source: no PostgreSQL");
+    let Some(env) = open_embedded_ingestion_fixture().await else {
+        eprintln!("SKIP mt094_refailing_source: embedded store unavailable");
         return;
     };
-    let workspace_id = env.pg.create_workspace().await;
+    let workspace_id = env.store.create_workspace().await;
     let ctx = test_ctx("mt094-dedupe");
     let root = register_root(
         &env,

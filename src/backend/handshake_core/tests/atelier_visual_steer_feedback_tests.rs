@@ -1,5 +1,5 @@
-//! WP-KERNEL-005 MT-156: STEER feedback from visual mismatch -- real
-//! PostgreSQL + EventLedger proofs.
+//! WP-KERNEL-005 MT-156: STEER feedback from visual mismatch -- embedded
+//! SurrealDB + EventLedger proofs.
 //!
 //! A visual threshold breach in a validated `VisualDebuggingLoopV1` must be
 //! converted into an actionable, durable STEER feedback record (table
@@ -7,12 +7,10 @@
 //! and never generic prose. Each record emits a
 //! `VISUAL_STEER_FEEDBACK_RECORDED` EventLedger event in the same transaction.
 //!
-//! Gated on `atelier_pg_support::database_url()` (Handshake-managed
-//! PostgreSQL; never SQLite).
+//! Each test uses an isolated embedded store.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::visual_steer_feedback::visual_steer_event_family;
 use handshake_core::atelier::{AtelierError, AtelierStore};
 use handshake_core::kernel::visual_debugging_loop::{
@@ -22,25 +20,17 @@ use handshake_core::kernel::visual_debugging_loop::{
 };
 use uuid::Uuid;
 
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// MT-156: a threshold breach becomes a durable, actionable STEER feedback
-/// record (PG row + EventLedger event), idempotent on (loop_id, evidence_id).
+/// record (embedded-store row + EventLedger event), idempotent on
+/// (loop_id, evidence_id).
 #[tokio::test]
 async fn mt156_threshold_breach_records_actionable_steer_feedback() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt156_threshold_breach_records_actionable_steer_feedback: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let loop_id = format!("visual-loop-{}", Uuid::new_v4());
     // mismatch 300 bps > threshold 250 bps -> exactly one breach.
@@ -70,7 +60,7 @@ async fn mt156_threshold_breach_records_actionable_steer_feedback() {
         .next_action
         .contains("artifact://visual-diffs/diff-1.png"));
 
-    // Re-read from PostgreSQL via the list path.
+    // Re-read from the embedded store via the list path.
     let reloaded = store
         .list_visual_steer_feedback_for_loop(&loop_id)
         .await
@@ -122,13 +112,7 @@ async fn mt156_threshold_breach_records_actionable_steer_feedback() {
 /// rejected (no silent failure) without persisting anything.
 #[tokio::test]
 async fn mt156_no_breach_records_nothing_and_invalid_loop_is_rejected() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt156_no_breach_records_nothing_and_invalid_loop_is_rejected: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // Within threshold (200 <= 250): nothing recorded.
     let quiet_loop_id = format!("visual-loop-quiet-{}", Uuid::new_v4());

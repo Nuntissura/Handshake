@@ -1,10 +1,11 @@
-//! WP-KERNEL-009 MT-191 LoomVisualDebugViews -- real PostgreSQL proof.
+//! WP-KERNEL-009 MT-191 LoomVisualDebugViews -- real embedded-store proof.
 //!
 //! The Loom visual-debug payload is a bounded backend projection over the
 //! existing Loom authority tables. It exposes graph/backlink/folder/search
 //! navigation state without becoming a parallel store or a full-content export.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod knowledge_ingestion_support;
 
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy, LoomEdgeType,
@@ -12,21 +13,21 @@ use handshake_core::storage::{
     LOOM_VISUAL_DEBUG_SCHEMA_ID,
 };
 use handshake_core::user_manual::registry::wp009_surface_registry;
-use knowledge_pg_support::knowledge_pg;
+use knowledge_ingestion_support::open_embedded_store;
 
-macro_rules! pg_or_skip {
+macro_rules! embedded_or_skip {
     () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
+        match open_embedded_store().await {
+            Some(store) => store,
             None => {
-                panic!("MT-191 Loom visual-debug proof requires real PostgreSQL");
+                panic!("MT-191 Loom visual-debug proof requires the embedded store");
             }
         }
     }};
 }
 
 async fn insert_loom_block(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ctx: &WriteContext,
     workspace_id: &str,
     content_type: LoomBlockContentType,
@@ -60,13 +61,13 @@ async fn insert_loom_block(
 }
 
 #[tokio::test]
-async fn mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_postgres() {
-    let pg = pg_or_skip!();
-    let workspace_id = pg.create_workspace().await;
+async fn mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_embedded_store() {
+    let store = embedded_store_or_return!();
+    let workspace_id = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 
     let start_block_id = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &workspace_id,
         LoomBlockContentType::Note,
@@ -76,7 +77,7 @@ async fn mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_pos
     )
     .await;
     let backlink_source_id = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &workspace_id,
         LoomBlockContentType::Note,
@@ -86,7 +87,7 @@ async fn mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_pos
     )
     .await;
     let tag_id = insert_loom_block(
-        &pg.db,
+        &store.db,
         &ctx,
         &workspace_id,
         LoomBlockContentType::TagHub,
@@ -97,13 +98,15 @@ async fn mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_pos
     .await;
 
     for block_id in [&start_block_id, &backlink_source_id, &tag_id] {
-        pg.db
+        store
+            .db
             .bridge_loom_block_to_knowledge(&ctx, &workspace_id, block_id)
             .await
             .expect("bridge Loom block to ProjectKnowledgeIndex");
     }
 
-    pg.db
+    store
+        .db
         .create_loom_edge(
             &ctx,
             NewLoomEdge {
@@ -119,7 +122,8 @@ async fn mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_pos
         )
         .await
         .expect("mention edge");
-    pg.db
+    store
+        .db
         .create_loom_edge(
             &ctx,
             NewLoomEdge {
@@ -136,7 +140,7 @@ async fn mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_pos
         .await
         .expect("tag edge");
 
-    let folder = pg
+    let folder = store
         .db
         .create_loom_folder(
             &workspace_id,
@@ -153,12 +157,13 @@ async fn mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_pos
         )
         .await
         .expect("create Loom folder");
-    pg.db
+    store
+        .db
         .add_block_to_loom_folder(&workspace_id, &folder.folder_id, &start_block_id, Some(1))
         .await
         .expect("add block to folder");
 
-    let snapshot = pg
+    let snapshot = store
         .db
         .loom_visual_debug_snapshot(&workspace_id, &start_block_id, "VisualDebugAlpha", 25)
         .await

@@ -10,7 +10,7 @@ use handshake_core::kernel::{
 };
 
 #[test]
-fn kernel_collaboration_memory_write_safeguards_run_mechanical_guard_report() {
+fn kernel_collaboration_memory_write_safeguards_preserve_positive_behavior() {
     let safeguards = sample_safeguards();
 
     validate_fems_write_time_safeguards(&safeguards).expect("safeguards validate");
@@ -61,13 +61,27 @@ fn kernel_collaboration_memory_write_safeguards_run_mechanical_guard_report() {
     );
     assert!(report
         .authoritative_storage_primitives
-        .contains(&FemsResetStoragePrimitive::Postgres));
+        .contains(&FemsResetStoragePrimitive::EmbeddedSurrealDb));
+    assert_eq!(
+        serde_json::to_value(FemsResetStoragePrimitive::EmbeddedSurrealDb)
+            .expect("serialize embedded SurrealDB storage primitive"),
+        serde_json::json!("EmbeddedSurrealDb")
+    );
     assert!(report
         .authoritative_storage_primitives
         .contains(&FemsResetStoragePrimitive::EventLedger));
     assert!(report
         .authoritative_storage_primitives
         .contains(&FemsResetStoragePrimitive::CrdtSearchIndex));
+    assert!(report
+        .authoritative_storage_primitives
+        .iter()
+        .all(|primitive| {
+            !matches!(
+                primitive,
+                FemsResetStoragePrimitive::LegacyLocalStore | FemsResetStoragePrimitive::LegacyFts5
+            )
+        }));
 }
 
 #[test]
@@ -249,7 +263,7 @@ fn sample_safeguards() -> FemsWriteTimeSafeguardsV1 {
             novelty_penalty_multiplier_x100: 30,
             max_latency_ms: 10,
             storage_primitives: vec![
-                FemsResetStoragePrimitive::Postgres,
+                FemsResetStoragePrimitive::EmbeddedSurrealDb,
                 FemsResetStoragePrimitive::EventLedger,
                 FemsResetStoragePrimitive::CrdtSearchIndex,
             ],

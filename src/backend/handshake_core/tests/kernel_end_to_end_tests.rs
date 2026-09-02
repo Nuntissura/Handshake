@@ -10,49 +10,25 @@ use handshake_core::kernel::{
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
+use handshake_core::storage::surreal::{
+    bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
+};
 use handshake_core::storage::{
-    postgres::PostgresDatabase, tests::postgres_backend_from_env, Database, SessionMessageRole,
-    StorageError,
+    tests::{embedded_test_backend, EmbeddedTestBackend},
+    Database, SessionMessageRole,
 };
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::{capabilities::CapabilityRegistry, AppState};
 use serde_json::json;
-use sqlx::Connection;
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
-use uuid::Uuid;
 
-async fn postgres_or_environment_blocked() -> Arc<dyn handshake_core::storage::Database> {
-    match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
-    }
-}
-
-async fn postgres_reopenable_or_environment_blocked() -> (String, Arc<dyn Database>) {
-    match postgres_reopenable_backend_from_env().await {
-        Ok(pair) => pair,
-        Err(err) => panic!("failed to init reopenable postgres backend: {err:?}"),
-    }
-}
-
-async fn postgres_reopenable_backend_from_env() -> Result<(String, Arc<dyn Database>), StorageError>
-{
-    let url = handshake_core::storage::tests::postgres_test_base_url().await?;
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("kernel_restart_{}", Uuid::now_v7().simple());
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    drop(conn);
-
-    let sep = if url.contains('?') { "&" } else { "?" };
-    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-    let db = PostgresDatabase::connect(&schema_url, 5).await?;
-    db.run_migrations().await?;
-    Ok((schema_url, db.into_arc()))
+async fn embedded_or_environment_blocked() -> EmbeddedTestBackend {
+    embedded_test_backend()
+        .await
+        .expect("failed to init embedded SurrealDB backend")
 }
 
 #[derive(Default)]
@@ -143,24 +119,17 @@ impl LlmClient for TestLlmClient {
 
 async fn test_app_state(
     db: Arc<dyn handshake_core::storage::Database>,
-    schema_url: &str,
+    surreal: SurrealStorage,
 ) -> AppState {
     let flight_recorder: Arc<dyn FlightRecorder> = Arc::new(CapturingFlightRecorder::default());
-    // Reuse the same isolated-schema URL the storage Arc was opened against so the
-    // shared pool (added to AppState by WP-KERNEL-005) sees identical state.
-    let postgres_pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(schema_url)
-        .await
-        .expect("connect AppState postgres pool to isolated schema");
     AppState {
         storage: db,
+        surreal,
         flight_recorder,
         diagnostics: Arc::new(EmptyDiagnosticsStore),
         llm_client: Arc::new(TestLlmClient::new()),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool,
     }
 }
 
@@ -206,15 +175,15 @@ fn write_trace_evidence(label: &str, result: &handshake_core::kernel::KernelProo
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn end_to_end_kernel_proof() {
-    let db = postgres_or_environment_blocked().await;
+    let backend = embedded_or_environment_blocked().await;
+    let db = backend.database.clone();
 
     let adapter = DummyEchoModelAdapter::new("dummy-echo");
     let result = KernelProofRunner::new(db.clone())
         .run_first_slice(
             "operator-import",
-            json!({"intent": "prove postgresql kernel authority"}),
+            json!({"intent": "prove embedded SurrealDB kernel authority"}),
             &adapter,
             OperatorPromotionApproval::new("operator-ilja", "approve kernel proof"),
         )
@@ -266,10 +235,10 @@ async fn end_to_end_kernel_proof() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn broker_dispatch_to_adapter_session_messages_ledger_link_toolgate_ledger_bridge_artifact_store_ledger_link(
 ) {
-    let db = postgres_or_environment_blocked().await;
+    let backend = embedded_or_environment_blocked().await;
+    let db = backend.database.clone();
 
     let adapter = DummyEchoModelAdapter::new("dummy-echo");
     let result = KernelProofRunner::new(db.clone())
@@ -327,9 +296,17 @@ async fn broker_dispatch_to_adapter_session_messages_ledger_link_toolgate_ledger
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn restart_reconstruction_proof() {
-    let (schema_url, db) = postgres_reopenable_or_environment_blocked().await;
+    let temp = tempfile::tempdir().expect("create restart test root");
+    let config = SurrealStorageConfig::for_data_dir(temp.path())
+        .expect("resolve embedded restart store path");
+    let storage = SurrealStorage::open(config.clone())
+        .await
+        .expect("open embedded restart store");
+    bootstrap_schema(&storage)
+        .await
+        .expect("bootstrap embedded restart store");
+    let db: Arc<dyn Database> = Arc::new(SurrealDatabase::new(storage.clone()));
 
     let adapter = DummyEchoModelAdapter::new("dummy-echo");
     let result = KernelProofRunner::new(db.clone())
@@ -347,11 +324,19 @@ async fn restart_reconstruction_proof() {
     let original_event_count = result.trace.event_count;
     drop(result);
     drop(db);
-
-    let reopened_db = PostgresDatabase::connect(&schema_url, 5)
+    storage
+        .shutdown()
         .await
-        .expect("reopen same postgres schema")
-        .into_arc();
+        .expect("close embedded restart store");
+    drop(storage);
+
+    let reopened_storage = SurrealStorage::open(config)
+        .await
+        .expect("reopen same embedded store");
+    bootstrap_schema(&reopened_storage)
+        .await
+        .expect("reverify embedded restart store");
+    let reopened_db: Arc<dyn Database> = Arc::new(SurrealDatabase::new(reopened_storage.clone()));
     let reopened_events = reopened_db
         .list_kernel_events_for_session(&session_run_id)
         .await
@@ -362,12 +347,16 @@ async fn restart_reconstruction_proof() {
     assert!(replay.contains_event_type(KernelEventType::PromotionDecided));
     assert!(replay.contains_event_type(KernelEventType::SessionCompleted));
     assert_eq!(replay.event_count, original_event_count);
+    reopened_storage
+        .shutdown()
+        .await
+        .expect("close reopened embedded store");
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_trace_inspector() {
-    let db = postgres_or_environment_blocked().await;
+    let backend = embedded_or_environment_blocked().await;
+    let db = backend.database.clone();
 
     let adapter = DummyEchoModelAdapter::new("dummy-echo");
     let result = KernelProofRunner::new(db.clone())
@@ -393,9 +382,9 @@ async fn kernel_trace_inspector() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_trace_inspector_api_route_returns_trace_projection() {
-    let (schema_url, db) = postgres_reopenable_or_environment_blocked().await;
+    let backend = embedded_or_environment_blocked().await;
+    let db = backend.database.clone();
 
     let adapter = DummyEchoModelAdapter::new("dummy-echo");
     let result = KernelProofRunner::new(db.clone())
@@ -412,7 +401,8 @@ async fn kernel_trace_inspector_api_route_returns_trace_projection() {
         .await
         .expect("bind test API listener");
     let addr = listener.local_addr().expect("test API listener addr");
-    let app = handshake_core::api::kernel::routes(test_app_state(db, &schema_url).await);
+    let app =
+        handshake_core::api::kernel::routes(test_app_state(db, backend.storage.clone()).await);
     let server = tokio::spawn(async move {
         axum::serve(listener, app)
             .await
@@ -440,14 +430,15 @@ async fn kernel_trace_inspector_api_route_returns_trace_projection() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_dcc_projection_api_route_returns_backend_validated_surface() {
-    let (schema_url, db) = postgres_reopenable_or_environment_blocked().await;
+    let backend = embedded_or_environment_blocked().await;
+    let db = backend.database.clone();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind test API listener");
     let addr = listener.local_addr().expect("test API listener addr");
-    let app = handshake_core::api::kernel::routes(test_app_state(db, &schema_url).await);
+    let app =
+        handshake_core::api::kernel::routes(test_app_state(db, backend.storage.clone()).await);
     let server = tokio::spawn(async move {
         axum::serve(listener, app)
             .await
@@ -479,9 +470,9 @@ async fn kernel_dcc_projection_api_route_returns_backend_validated_surface() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn kernel_proof_records_flight_recorder_diagnostic_mirrors() {
-    let db = postgres_or_environment_blocked().await;
+    let backend = embedded_or_environment_blocked().await;
+    let db = backend.database.clone();
     let recorder = Arc::new(CapturingFlightRecorder::default());
 
     let adapter = DummyEchoModelAdapter::new("dummy-echo");
@@ -509,9 +500,9 @@ async fn kernel_proof_records_flight_recorder_diagnostic_mirrors() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn adapter_replaceability_proof() {
-    let db = postgres_or_environment_blocked().await;
+    let backend = embedded_or_environment_blocked().await;
+    let db = backend.database.clone();
 
     let first = KernelProofRunner::new(db.clone())
         .run_first_slice(

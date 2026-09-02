@@ -1,5 +1,5 @@
 //! WP-KERNEL-005 MT-118 — cross-module Pose ↔ ComfyUI pipeline integration
-//! proof against live PostgreSQL/EventLedger.
+//! proof against embedded SurrealDB/EventLedger.
 //!
 //! This is the ONE end-to-end "Pose Integration Smoke Path" the MT-118 contract
 //! names (`acceptance_criteria`: source image -> rig -> sidecar -> workflow
@@ -16,13 +16,10 @@
 //!
 //! Run-scoped: every id/hash/ref is unique per run (`Uuid::new_v4()` /
 //! content-addressed artifacts), and every assertion is scoped to THIS run's own
-//! rows (rig_id, run_id, character_ref). No global counts are taken — tables
-//! persist between runs, so a global count would be flaky. Gated on
-//! `atelier_pg_support::database_url()`; SKIPs cleanly when PostgreSQL is
-//! unavailable. Only `handshake_core` + `tokio` + `uuid` + `serde_json` (+ std)
-//! are used; sqlx is never imported directly.
+//! rows (rig_id, run_id, character_ref). No global counts are taken. The
+//! isolated embedded-store harness supplies the canonical schema.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use handshake_core::atelier::comfy::{
     ComfyWorkflowHistoryQuery, ComfyWorkflowStatus, MediaKind, NewComfyWorkflowReceipt,
@@ -35,14 +32,10 @@ use handshake_core::atelier::pose::{
 use handshake_core::atelier::{AtelierStore, NewCharacter, NewMediaAsset};
 use uuid::Uuid;
 
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// A valid OpenPose keypoint payload (legacy `rigToOpenposeJson`): body-18 (the
@@ -66,16 +59,12 @@ fn artifact_manifest_ref(artifact_ref: &str) -> String {
 
 /// MT-118 — Pose ↔ ComfyUI pipeline integration chain.
 ///
-/// Proves one minimal pipeline end-to-end against live PostgreSQL/EventLedger,
+/// Proves one minimal pipeline end-to-end against embedded SurrealDB/EventLedger,
 /// asserting at every hop that the cross-module reference links back to the
 /// prior stage's persisted record.
 #[tokio::test]
 async fn mt118_pose_comfy_pipeline_integration_chain() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt118_pose_comfy_pipeline_integration_chain: PostgreSQL unavailable");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     // --- run-scoped identity: a fresh character (pose rows FK to character) ---
     let character = store
@@ -92,7 +81,8 @@ async fn mt118_pose_comfy_pipeline_integration_chain() {
     // ======================================================================
     // STAGE 1 — media: materialize the SOURCE IMAGE as a native media asset.
     // ======================================================================
-    let source_artifact = atelier_pg_support::write_native_media_artifact(b"mt118-source-image");
+    let source_artifact =
+        atelier_surreal_support::write_native_media_artifact(b"mt118-source-image");
     let source_asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: source_artifact.content_hash.clone(),
@@ -146,11 +136,11 @@ async fn mt118_pose_comfy_pipeline_integration_chain() {
         "STAGE 2: rig links back to the source image media asset"
     );
     assert_eq!(rig.source_ref, source_ref);
-    // Persistence proof: the rig is re-readable from Postgres.
+    // Persistence proof: the rig is re-readable from the embedded store.
     let fetched_rig = store
         .get_pose_rig(rig.rig_id)
         .await
-        .expect("re-read rig from Postgres");
+        .expect("re-read rig from embedded store");
     assert_eq!(fetched_rig.rig_id, rig.rig_id);
     assert_eq!(
         fetched_rig.source_asset_id,
@@ -162,7 +152,7 @@ async fn mt118_pose_comfy_pipeline_integration_chain() {
     // STAGE 3 — pose: register a conditioning SIDECAR that references the rig.
     // ======================================================================
     let conditioning_artifact =
-        atelier_pg_support::write_native_media_artifact(b"mt118-openpose-conditioning");
+        atelier_surreal_support::write_native_media_artifact(b"mt118-openpose-conditioning");
     let sidecar = store
         .record_pose_sidecar(&NewPoseSidecar {
             rig_id: rig.rig_id,

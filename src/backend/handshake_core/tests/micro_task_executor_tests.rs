@@ -16,8 +16,9 @@ use handshake_core::role_mailbox::{
 };
 use handshake_core::runtime_governance::RuntimeGovernancePaths;
 use handshake_core::storage::{
-    tests::optional_postgres_backend_from_env, AccessMode, AiJobListFilter, Database, JobKind,
-    JobMetrics, JobState, NewAiJob, SafetyMode, StorageError,
+    tests::{embedded_test_backend, EmbeddedTestBackend},
+    AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState, NewAiJob, SafetyMode,
+    StorageError,
 };
 use handshake_core::workflows::locus::{
     derive_governed_action_preview, derive_governed_action_previews,
@@ -188,15 +189,14 @@ impl LlmClient for QueuedLlmClient {
 
 async fn setup_state(
     llm_client: Arc<dyn LlmClient>,
-) -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-    let Some(storage) = optional_postgres_backend_from_env().await? else {
-        return Ok(None);
-    };
+) -> Result<Option<TestAppState>, Box<dyn std::error::Error>> {
+    let backend = embedded_test_backend().await?;
 
     let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
     let state = AppState {
-        storage,
+        storage: backend.database.clone(),
+        surreal: backend.storage.clone(),
         flight_recorder: flight_recorder.clone(),
         diagnostics: flight_recorder,
         llm_client,
@@ -204,26 +204,41 @@ async fn setup_state(
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
     };
     seed_locus_work_packet(&state, "WP-TEST").await?;
-    Ok(Some(state))
+    Ok(Some(TestAppState { state, backend }))
 }
 
 async fn setup_state_without_seed(
     llm_client: Arc<dyn LlmClient>,
-) -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-    let Some(storage) = optional_postgres_backend_from_env().await? else {
-        return Ok(None);
-    };
+) -> Result<Option<TestAppState>, Box<dyn std::error::Error>> {
+    let backend = embedded_test_backend().await?;
 
     let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
-    Ok(Some(AppState {
-        storage,
-        flight_recorder: flight_recorder.clone(),
-        diagnostics: flight_recorder,
-        llm_client,
-        capability_registry: Arc::new(CapabilityRegistry::new()),
-        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+    Ok(Some(TestAppState {
+        state: AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
+            flight_recorder: flight_recorder.clone(),
+            diagnostics: flight_recorder,
+            llm_client,
+            capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        },
+        backend,
     }))
+}
+
+struct TestAppState {
+    state: AppState,
+    backend: EmbeddedTestBackend,
+}
+
+impl std::ops::Deref for TestAppState {
+    type Target = AppState;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
 }
 
 async fn run_locus_job(

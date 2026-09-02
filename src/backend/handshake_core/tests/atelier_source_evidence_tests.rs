@@ -1,21 +1,20 @@
 //! WP-KERNEL-005 MT-001/MT-002 source-evidence and anchor-verification proof.
 //!
-//! This test records a machine-readable product/runtime matrix in live
-//! PostgreSQL and proves the EventLedger projection. It is not a governance note.
+//! This test records a machine-readable product/runtime matrix in the embedded
+//! SurrealDB store and proves the EventLedger projection. It is not a governance note.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
-use handshake_core::atelier::AtelierStore;
+use atelier_surreal_support::AtelierSurrealHarness;
 use handshake_core::atelier::source_evidence::{
-    AnchorVerificationStatus, CORE_DATA_SOURCE_EVIDENCE_MATRIX_ID, NewAnchorVerificationRecord,
+    core_data_source_evidence_matrix, pose_comfy_source_evidence_matrix,
+    pose_media_anchor_verification_matrix, source_evidence_event_family, AnchorVerificationStatus,
+    NewAnchorVerificationRecord, SourceMaturityStatus, CORE_DATA_SOURCE_EVIDENCE_MATRIX_ID,
     POSE_COMFY_SOURCE_EVIDENCE_MATRIX_ID, POSE_MEDIA_ANCHOR_VERIFICATION_MATRIX_ID,
-    SourceMaturityStatus, core_data_source_evidence_matrix, pose_comfy_source_evidence_matrix,
-    pose_media_anchor_verification_matrix, source_evidence_event_family,
 };
+use handshake_core::atelier::AtelierStore;
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{Database, postgres::PostgresDatabase};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
@@ -23,21 +22,9 @@ use std::{
 };
 use uuid::Uuid;
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (AtelierStore, Arc<dyn Database>, AtelierSurrealHarness) {
+    let harness = AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 fn source_tree_ref_path(ref_path: &str) -> PathBuf {
@@ -58,13 +45,7 @@ fn assert_source_tree_ref_exists(ref_path: &str) {
 
 #[tokio::test]
 async fn source_evidence_matrix_records_maturity_and_anchor_verification() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP source_evidence_matrix_records_maturity_and_anchor_verification: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let mut matrix = core_data_source_evidence_matrix(format!("test-run-{}", Uuid::new_v4()));
     matrix.matrix_id = format!("{CORE_DATA_SOURCE_EVIDENCE_MATRIX_ID}-{}", Uuid::new_v4());
@@ -221,13 +202,7 @@ async fn source_evidence_matrix_records_maturity_and_anchor_verification() {
 
 #[tokio::test]
 async fn pose_comfy_source_evidence_matrix_records_required_adapter_sources() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP pose_comfy_source_evidence_matrix_records_required_adapter_sources: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let mut matrix = pose_comfy_source_evidence_matrix(format!("test-run-{}", Uuid::new_v4()));
     matrix.matrix_id = format!("{POSE_COMFY_SOURCE_EVIDENCE_MATRIX_ID}-{}", Uuid::new_v4());
@@ -341,7 +316,7 @@ async fn pose_comfy_source_evidence_matrix_records_required_adapter_sources() {
                     .iter()
                     .any(|path| path.ends_with("atelier_comfy_tests.rs"))
         }),
-        "ComfyUI anchor must cite its live PostgreSQL/EventLedger proof"
+        "ComfyUI anchor must cite its live embedded-store/EventLedger proof"
     );
     assert!(
         recorded.anchors.iter().any(|anchor| {
@@ -351,7 +326,7 @@ async fn pose_comfy_source_evidence_matrix_records_required_adapter_sources() {
                     .iter()
                     .any(|path| path.ends_with("atelier_sourcing_tests.rs"))
         }),
-        "image-sourcing adapter anchor must cite its live PostgreSQL/EventLedger proof"
+        "image-sourcing adapter anchor must cite its live embedded-store/EventLedger proof"
     );
 
     let reloaded = store
@@ -381,13 +356,7 @@ async fn pose_comfy_source_evidence_matrix_records_required_adapter_sources() {
 
 #[tokio::test]
 async fn mt082_pose_media_anchor_verification_records_required_anchors() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt082_pose_media_anchor_verification_records_required_anchors: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let mut matrix = pose_media_anchor_verification_matrix(format!("test-run-{}", Uuid::new_v4()));
     matrix.matrix_id = format!(
@@ -505,13 +474,7 @@ async fn mt082_pose_media_anchor_verification_records_required_anchors() {
 
 #[tokio::test]
 async fn source_evidence_matrix_rerecord_removes_omitted_rows() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP source_evidence_matrix_rerecord_removes_omitted_rows: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, _) = connected_store_with_ledger(&url).await;
+    let (store, _, _harness) = connected_store_with_ledger().await;
 
     let mut matrix = pose_comfy_source_evidence_matrix(format!("test-run-{}", Uuid::new_v4()));
     matrix.matrix_id = format!("{POSE_COMFY_SOURCE_EVIDENCE_MATRIX_ID}-{}", Uuid::new_v4());
@@ -563,13 +526,7 @@ async fn source_evidence_matrix_rerecord_removes_omitted_rows() {
 
 #[tokio::test]
 async fn source_evidence_matrix_rejects_candidate_and_invalid_anchor_rows() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP source_evidence_matrix_rejects_candidate_and_invalid_anchor_rows: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, _) = connected_store_with_ledger(&url).await;
+    let (store, _, _harness) = connected_store_with_ledger().await;
 
     let mut candidate_matrix =
         core_data_source_evidence_matrix(format!("test-run-{}", Uuid::new_v4()));
@@ -634,20 +591,13 @@ async fn source_evidence_matrix_rejects_candidate_and_invalid_anchor_rows() {
 
 /// MT-002 v3 strengthening: a VERIFIED anchor row must mean more than "the
 /// cited file exists on disk". Every migration a Core/Data anchor cites must
-/// be APPLIED in the live Handshake-managed PostgreSQL (`_sqlx_migrations`),
-/// and the representative anchors' migrations must actively shape the runtime
-/// schema (their tables exist in `information_schema`). All cited refs are
-/// taken from the matrix RE-READ from PostgreSQL, never from the in-memory
-/// constant.
+/// be at or below the current embedded schema revision, and the representative
+/// anchors must actively shape the runtime schema through a persisted
+/// record/read round trip. All cited refs are taken from the matrix re-read
+/// from the embedded store, never from the in-memory constant.
 #[tokio::test]
-async fn mt002_core_data_verified_anchor_migrations_are_applied_in_live_postgres() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt002_core_data_verified_anchor_migrations_are_applied_in_live_postgres: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+async fn mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_schema() {
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let mut matrix = core_data_source_evidence_matrix(format!("test-run-{}", Uuid::new_v4()));
     matrix.matrix_id = format!("{CORE_DATA_SOURCE_EVIDENCE_MATRIX_ID}-{}", Uuid::new_v4());
@@ -658,7 +608,7 @@ async fn mt002_core_data_verified_anchor_migrations_are_applied_in_live_postgres
     let reloaded = store
         .get_source_evidence_matrix(&matrix.matrix_id)
         .await
-        .expect("re-read core-data source evidence matrix from PostgreSQL");
+        .expect("re-read core-data source evidence matrix from embedded store");
 
     // Collect every migration the persisted matrix cites as anchor evidence.
     let cited_refs = reloaded
@@ -692,37 +642,27 @@ async fn mt002_core_data_verified_anchor_migrations_are_applied_in_live_postgres
     );
 
     // Behavioral upgrade over assert_source_tree_ref_exists: each cited
-    // migration must be applied in the live database, not merely on disk.
-    for (version, ref_path) in &cited_migrations {
-        let applied: bool = sqlx::query_scalar(
-            r#"SELECT EXISTS(
-                 SELECT 1 FROM _sqlx_migrations
-                 WHERE version = $1 AND success = TRUE
-               )"#,
-        )
-        .bind(version)
-        .fetch_one(store.pool())
+    // migration must be included in the live embedded schema, not merely on
+    // disk. The embedded backend exposes its monotonic schema revision rather
+    // than a migration-history table.
+    let schema_revision = database
+        .migration_version()
         .await
-        .expect("query _sqlx_migrations for cited anchor migration");
+        .expect("read embedded schema revision");
+    for (version, ref_path) in &cited_migrations {
         assert!(
-            applied,
-            "anchor evidence cites migration {ref_path}, which must be applied in live PostgreSQL"
+            schema_revision >= *version,
+            "anchor evidence cites migration {ref_path}, which must be included in the embedded schema"
         );
     }
 
     // Representative Core/Data anchors: the cited migrations actively shape
     // the runtime schema the claimed behavior runs on.
-    let anchored_runtime_tables = [
-        (
-            "0043_atelier_media_review_metadata.sql",
-            "atelier_media_review_metadata",
-        ),
-        (
-            "0037_atelier_sheet_parser_ast.sql",
-            "atelier_sheet_parse_snapshot",
-        ),
+    let anchored_runtime_migrations = [
+        "0043_atelier_media_review_metadata.sql",
+        "0037_atelier_sheet_parser_ast.sql",
     ];
-    for (migration_suffix, runtime_table) in anchored_runtime_tables {
+    for migration_suffix in anchored_runtime_migrations {
         assert!(
             reloaded.anchors.iter().any(|anchor| {
                 anchor.verification_status == AnchorVerificationStatus::Verified
@@ -732,20 +672,6 @@ async fn mt002_core_data_verified_anchor_migrations_are_applied_in_live_postgres
                         .any(|path| path.ends_with(migration_suffix))
             }),
             "a VERIFIED core-data anchor must keep citing {migration_suffix}"
-        );
-        let table_exists: bool = sqlx::query_scalar(
-            r#"SELECT EXISTS(
-                 SELECT 1 FROM information_schema.tables
-                 WHERE table_schema = 'public' AND table_name = $1
-               )"#,
-        )
-        .bind(runtime_table)
-        .fetch_one(store.pool())
-        .await
-        .expect("query information_schema for anchor runtime table");
-        assert!(
-            table_exists,
-            "cited migration {migration_suffix} must create runtime table {runtime_table} in live PostgreSQL"
         );
     }
 

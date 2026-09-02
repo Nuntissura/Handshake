@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
-use super::bitemporal::{AsOfQuery, PostgresBitemporalMemoryIndex};
+use super::bitemporal::{AsOfQuery, SurrealBitemporalMemoryIndex};
 
 pub const MEMORY_CALIBRATION_SNAPSHOT_COMMAND: &str = "kernel.memory_calibration.snapshot";
 
@@ -392,7 +392,7 @@ impl CalibrationCollector {
     }
 }
 
-impl FemsCalibrationSource for PostgresBitemporalMemoryIndex {
+impl FemsCalibrationSource for SurrealBitemporalMemoryIndex {
     fn calibration_metrics(&self) -> Result<CalibrationMetrics, CalibrationError> {
         let now = Utc::now();
         let cutoff = now - Duration::days(30);

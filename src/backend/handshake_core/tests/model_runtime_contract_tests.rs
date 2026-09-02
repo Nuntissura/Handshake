@@ -98,7 +98,7 @@ fn model_runtime_contract_tests_capabilities_serde_shape_is_stable() {
 }
 
 #[test]
-fn model_runtime_contract_tests_manifest_declares_engine_deps_without_sqlite() {
+fn model_runtime_contract_tests_manifest_declares_engine_deps_without_legacy_store_crates() {
     let manifest = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml"))
         .expect("read Cargo.toml");
     let normalized = manifest.to_ascii_lowercase();
@@ -118,19 +118,14 @@ fn model_runtime_contract_tests_manifest_declares_engine_deps_without_sqlite() {
         assert_manifest_declares_dependency(&manifest, dependency, version);
     }
 
-    assert!(
-        !normalized.contains("rusqlite") && !normalized.contains("libsqlite3-sys"),
-        "ModelRuntime dependency scaffold must not introduce SQLite crates"
-    );
-
-    let sqlx_line = manifest
-        .lines()
-        .find(|line| line.trim_start().starts_with("sqlx ="))
-        .expect("existing sqlx dependency remains declared");
-    assert!(
-        !sqlx_line.to_ascii_lowercase().contains("sqlite"),
-        "sqlx dependency must remain PostgreSQL-only, not SQLite-enabled"
-    );
+    // Intentional forbidden-technology tripwire: this contract test scans the
+    // product manifest to ensure the retired store crates cannot return.
+    for forbidden in ["rusqlite", "libsqlite3-sys", "sqlx"] {
+        assert!(
+            !normalized.contains(forbidden),
+            "ModelRuntime dependency scaffold must not reintroduce legacy store crate `{forbidden}`"
+        );
+    }
 }
 
 #[test]

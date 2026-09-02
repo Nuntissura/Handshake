@@ -62,8 +62,10 @@ pub use promotion_floor::{
     FloorReason, MetricDelta, MultiMetricPromotionFloor, PromotionDecision, PromotionTolerances,
 };
 pub use promotion_gate_adapter::{
-    GateError, LoopPromotionGate, PromotionApproval, PromotionGateSubmitter, PromotionRejection,
-    PromotionRequest, PromotionStatus, PromotionTicket,
+    EventLedgerPromotionGate, GateError, LoopPromotionGate, PromotionApproval,
+    PromotionGateSubmitter, PromotionRejection, PromotionRequest, PromotionStatus, PromotionTicket,
+    PROMOTION_GATE_SOURCE_COMPONENT, PROMOTION_TICKET_AGGREGATE_TYPE,
+    PROMOTION_TICKET_PAYLOAD_SCHEMA_ID,
 };
 pub use scheduler::{
     IterationBudget, LoopScheduler, ScheduleDecision, SchedulerHistory, SchedulerHistoryEntry,

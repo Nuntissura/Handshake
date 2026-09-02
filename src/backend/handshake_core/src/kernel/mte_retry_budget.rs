@@ -6,7 +6,7 @@
 //! that decides whether to backoff-and-retry, escalate, or hold.
 //!
 //! Why this lives next to `mte_blocked_taxonomy.rs`: handled-by-retry
-//! reasons (`CapacityExceeded`, transient `PostgresFailure`) flow through
+//! reasons (`CapacityExceeded`, transient `StorageFailure`) flow through
 //! this budget; handled-by-gate or handled-by-escalation reasons do not.
 
 use serde::{Deserialize, Serialize};

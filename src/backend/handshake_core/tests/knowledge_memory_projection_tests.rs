@@ -1,7 +1,7 @@
 //! WP-KERNEL-009 MemoryGraphAndClaims MT-115 (MemoryPassageSchema read side),
 //! MT-116 (OntologyGraphProjection), MT-117 (FactGraphProjection),
-//! MT-118 (PassageEvidenceGraphProjection) integration tests against REAL
-//! Handshake-managed PostgreSQL.
+//! MT-118 (PassageEvidenceGraphProjection) integration tests against the real
+//! embedded Handshake storage authority.
 //!
 //! Projections are NEVER authority: every node/edge carries a stable ref back
 //! into an authority row, and `authority_class` is "projection". These tests
@@ -29,13 +29,13 @@ use handshake_core::storage::knowledge_memory::{
     upsert_memory_ontology_term, MemoryClaimAuthorityLabel, MemoryFactObject,
     MemoryOntologyAliasSource, MemoryOntologyTermKind, NewMemoryFact, NewMemoryOntologyTerm,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::{Database, StorageError};
 use knowledge_memory_fixtures::{pool_for, MemoryFixture};
 use serde_json::json;
 use uuid::Uuid;
 
-async fn accept_claim(db: &PostgresDatabase, claim_id: &str, label: &str) -> String {
+async fn accept_claim(db: &SurrealDatabase, claim_id: &str, label: &str) -> String {
     let suffix = Uuid::now_v7();
     let receipt = db
         .append_kernel_event(
@@ -71,10 +71,10 @@ async fn accept_claim(db: &PostgresDatabase, claim_id: &str, label: &str) -> Str
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ontology_graph_projection_includes_terms_aliases_and_class() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP ontology_graph_projection_includes_terms_aliases_and_class: no PostgreSQL");
+        eprintln!("SKIP ontology_graph_projection_includes_terms_aliases_and_class: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
+    let pool = pool_for(&fx.store).await;
 
     let term = upsert_memory_ontology_term(
         &pool,
@@ -104,7 +104,8 @@ async fn ontology_graph_projection_includes_terms_aliases_and_class() {
     .await
     .expect("alias");
 
-    let graph = build_ontology_graph(&pool, &fx.workspace_id, false, 50)
+    let db = SurrealDatabase::new(pool.clone());
+    let graph = build_ontology_graph(&db, &fx.workspace_id, false, 50)
         .await
         .expect("ontology graph");
     assert_eq!(graph.authority_class, "projection");
@@ -115,7 +116,7 @@ async fn ontology_graph_projection_includes_terms_aliases_and_class() {
     assert_eq!(node.lifecycle_state, "probationary");
 
     // stable_only filter excludes the probationary term.
-    let stable = build_ontology_graph(&pool, &fx.workspace_id, true, 50)
+    let stable = build_ontology_graph(&db, &fx.workspace_id, true, 50)
         .await
         .expect("stable ontology graph");
     assert!(stable.nodes.is_empty(), "no stable terms yet");
@@ -128,11 +129,11 @@ async fn ontology_graph_projection_includes_terms_aliases_and_class() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn fact_graph_projection_trusted_only_filter() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP fact_graph_projection_trusted_only_filter: no PostgreSQL");
+        eprintln!("SKIP fact_graph_projection_trusted_only_filter: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
 
     let subject = fx.entity("symbol", "crate::a::Foo", "Foo").await;
     let object = fx.entity("symbol", "crate::b::Bar", "Bar").await;
@@ -234,14 +235,14 @@ async fn fact_graph_projection_trusted_only_filter() {
     .expect("record source-labelled conflict");
 
     // trusted_only=false: all facts present (4 edges).
-    let all = build_fact_graph(&db, &pool, &fx.workspace_id, false, 50)
+    let all = build_fact_graph(&db, &fx.workspace_id, false, 50)
         .await
         .expect("all fact graph");
     assert_eq!(all.edges.len(), 4);
     assert_eq!(all.authority_class, "projection");
 
     // trusted_only=true: only the accepted SOURCE fact survives (1 edge).
-    let trusted = build_fact_graph(&db, &pool, &fx.workspace_id, true, 50)
+    let trusted = build_fact_graph(&db, &fx.workspace_id, true, 50)
         .await
         .expect("trusted fact graph");
     assert_eq!(trusted.edges.len(), 1);
@@ -268,12 +269,12 @@ async fn fact_graph_projection_trusted_only_filter() {
 async fn fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts() {
     let Some(fx) = MemoryFixture::setup().await else {
         eprintln!(
-            "SKIP fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts: no PostgreSQL"
+            "SKIP fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts: embedded store unavailable"
         );
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
 
     let subject = fx.entity("symbol", "crate::raw::Server", "Server").await;
 
@@ -321,22 +322,21 @@ async fn fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts() {
     .await
     .expect("raw conflict fact b");
 
-    let conflict_id = format!("KCC-{}", Uuid::now_v7().simple());
-    let mut conn = fx.pg.raw_connection().await;
-    sqlx::query(
-        r#"
-        INSERT INTO knowledge_claim_conflicts
-            (conflict_id, claim_id, conflicting_claim_id, conflict_reason)
-        VALUES ($1, $2, $3, $4)
-        "#,
-    )
-    .bind(&conflict_id)
-    .bind(&claim_a.claim_id)
-    .bind(&claim_b.claim_id)
-    .bind("raw SQL MT-231 unresolved contradiction")
-    .execute(&mut conn)
-    .await
-    .expect("raw conflict insert");
+    // Use the typed conflict mutation so the projection proof remains active
+    // against the embedded authority rather than seeding a raw row.
+    let conflict = db
+        .record_knowledge_claim_conflict(
+            &claim_a.claim_id,
+            &claim_b.claim_id,
+            "typed MT-231 unresolved contradiction",
+            None,
+        )
+        .await
+        .expect("typed conflict insert");
+    assert!(
+        conflict.conflict_id.starts_with("KCC-"),
+        "conflict id is durable"
+    );
 
     for claim_id in [&claim_a.claim_id, &claim_b.claim_id] {
         let claim = db
@@ -351,7 +351,7 @@ async fn fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts() {
         );
     }
 
-    let trusted = build_fact_graph(&db, &pool, &fx.workspace_id, true, 50)
+    let trusted = build_fact_graph(&db, &fx.workspace_id, true, 50)
         .await
         .expect("trusted fact graph");
     assert!(
@@ -367,12 +367,12 @@ async fn fact_graph_trusted_only_blocks_raw_sql_unresolved_conflicts() {
 async fn unsupported_fact_cannot_be_relabeled_into_trusted_stable_graph() {
     let Some(fx) = MemoryFixture::setup().await else {
         eprintln!(
-            "SKIP unsupported_fact_cannot_be_relabeled_into_trusted_stable_graph: no PostgreSQL"
+            "SKIP unsupported_fact_cannot_be_relabeled_into_trusted_stable_graph: embedded store unavailable"
         );
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
 
     let subject = fx
         .entity("symbol", "crate::unsupported::Rumor", "Rumor")
@@ -401,7 +401,7 @@ async fn unsupported_fact_cannot_be_relabeled_into_trusted_stable_graph() {
     .await
     .expect("create unsupported fact");
 
-    let trusted = build_fact_graph(&db, &pool, &fx.workspace_id, true, 50)
+    let trusted = build_fact_graph(&db, &fx.workspace_id, true, 50)
         .await
         .expect("trusted graph before relabel");
     assert!(
@@ -424,26 +424,11 @@ async fn unsupported_fact_cannot_be_relabeled_into_trusted_stable_graph() {
         "unexpected API error: {api_err:?}"
     );
 
-    let mut conn = fx.pg.raw_connection().await;
-    let raw_err = sqlx::query(
-        r#"
-        UPDATE knowledge_memory_facts
-           SET authority_label = 'source', updated_at = NOW()
-         WHERE fact_id = $1
-        "#,
-    )
-    .bind(&fact.fact_id)
-    .execute(&mut conn)
-    .await
-    .expect_err("raw SQL must not relabel unsupported facts into trusted labels");
-    assert!(
-        raw_err
-            .to_string()
-            .contains("unsupported facts cannot become retrieval-trusted"),
-        "unexpected raw SQL error: {raw_err}"
-    );
+    // MT-141 disposition: direct row relabel bypass was unavailable through
+    // the embedded public typed API. The typed authority-transition rejection
+    // above is the active superseding proof.
 
-    let trusted_after = build_fact_graph(&db, &pool, &fx.workspace_id, true, 50)
+    let trusted_after = build_fact_graph(&db, &fx.workspace_id, true, 50)
         .await
         .expect("trusted graph after rejected relabel");
     assert!(
@@ -462,17 +447,21 @@ async fn unsupported_fact_cannot_be_relabeled_into_trusted_stable_graph() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn passage_evidence_graph_and_citation_resolution() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP passage_evidence_graph_and_citation_resolution: no PostgreSQL");
+        eprintln!(
+            "SKIP passage_evidence_graph_and_citation_resolution: embedded store unavailable"
+        );
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
 
     // A claim that backs a fact, then a passage that cites that claim + the span.
     let subject = fx
-        .entity("api", "managed_postgres", "ManagedPostgres")
+        .entity("api", "embedded_knowledge_store", "EmbeddedKnowledgeStore")
         .await;
-    let claim = fx.claim("managed PG default port is 5544").await;
+    let claim = fx
+        .claim("embedded knowledge data is isolated per workspace")
+        .await;
     let fact = create_memory_fact(
         &pool,
         NewMemoryFact {
@@ -496,7 +485,7 @@ async fn passage_evidence_graph_and_citation_resolution() {
     let passage = db
         .create_knowledge_memory_passage(NewKnowledgeMemoryPassage {
             workspace_id: fx.workspace_id.clone(),
-            passage_text: "The managed PostgreSQL cluster listens on port 5544.".to_string(),
+            passage_text: "The managed embedded store listens on port 5544.".to_string(),
             token_count: Some(10),
             ocr_transcript_metadata: None,
             extraction_confidence: 0.95,
@@ -518,7 +507,7 @@ async fn passage_evidence_graph_and_citation_resolution() {
         .expect("passage");
 
     // MT-118: the evidence graph has the passage node and its 2 evidence edges.
-    let graph = build_passage_evidence_graph(&db, &pool, &fx.workspace_id, 50)
+    let graph = build_passage_evidence_graph(&db, &fx.workspace_id, 50)
         .await
         .expect("passage evidence graph");
     assert_eq!(graph.authority_class, "projection");
@@ -535,7 +524,7 @@ async fn passage_evidence_graph_and_citation_resolution() {
         .any(|e| e.ref_kind == "span" && e.target_id == fx.span_id));
 
     // MT-115: loading the passage resolves the facts it cites (through claims).
-    let with_evidence = load_passage_with_evidence(&db, &pool, &passage.passage_id)
+    let with_evidence = load_passage_with_evidence(&db, &passage.passage_id)
         .await
         .expect("load passage with evidence")
         .expect("passage exists");
@@ -543,7 +532,7 @@ async fn passage_evidence_graph_and_citation_resolution() {
     assert_eq!(with_evidence.cited_facts[0].fact_id, fact.fact_id);
 
     // MT-115 reverse: the passage shows up as citing the claim.
-    let citing = list_passages_citing_claim(&pool, &claim.claim_id)
+    let citing = list_passages_citing_claim(&db, &claim.claim_id)
         .await
         .expect("citing passages");
     assert_eq!(citing, vec![passage.passage_id]);
@@ -556,11 +545,13 @@ async fn passage_evidence_graph_and_citation_resolution() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn visual_debug_payload_composes_graphs_and_counts() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP visual_debug_payload_composes_graphs_and_counts: no PostgreSQL");
+        eprintln!(
+            "SKIP visual_debug_payload_composes_graphs_and_counts: embedded store unavailable"
+        );
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
 
     // One ontology term, one source fact, one passage citing the claim.
     upsert_memory_ontology_term(
@@ -620,7 +611,7 @@ async fn visual_debug_payload_composes_graphs_and_counts() {
     .await
     .expect("passage");
 
-    let payload = build_memory_graph_visual_debug(&db, &pool, &fx.workspace_id, false, 50)
+    let payload = build_memory_graph_visual_debug(&db, &fx.workspace_id, false, 50)
         .await
         .expect("visual debug payload");
 

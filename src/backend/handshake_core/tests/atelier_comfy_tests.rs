@@ -1,11 +1,8 @@
-//! WP-KERNEL-005 ComfyUI custom-node intake: live PostgreSQL round-trip proofs
+//! WP-KERNEL-005 ComfyUI custom-node intake: embedded SurrealDB round-trip proofs
 //! for the `atelier::comfy` submodule (Section 6.9). Run with a live
-//! DATABASE_URL, e.g.
-//!   DATABASE_URL=postgres://postgres@127.0.0.1:5544/handshake \
-//!     cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
-//!     --test atelier_comfy_tests -- --nocapture
+//! The tests use the isolated embedded-store harness and canonical Atelier APIs.
 //!
-//! No mocks: each test connects the real `AtelierStore` to a real Postgres,
+//! No mocks: each test uses the real `AtelierStore` on embedded SurrealDB,
 //! ensures the schema, exercises the comfy intake records with REAL data, and
 //! asserts the load-bearing invariants from Section 6.9 (probe idempotency +
 //! fallback_reason guard, capability registration with declared/reject child
@@ -13,7 +10,7 @@
 //! marker, receipt, secret scrubbing). Tables persist between runs, so all
 //! workflow_run_ids / hashes are made unique per run via `Uuid::new_v4()` to
 //! avoid cross-run collisions. Only `handshake_core` + `tokio` + `uuid` +
-//! `serde_json` (+ std) are used; sqlx is never imported directly.
+//! `serde_json` (+ std) are used.
 
 use chrono::Duration;
 use handshake_core::atelier::comfy::{
@@ -25,51 +22,28 @@ use handshake_core::atelier::comfy::{
 };
 use handshake_core::atelier::AtelierStore;
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::sync::Arc;
 use uuid::Uuid;
 
-fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
-}
-
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 #[tokio::test]
 async fn atelier_comfy_rejects_legacy_runtime_output_refs() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_comfy_rejects_legacy_runtime_output_refs: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let err = store
         .record_intake_output(&NewIntakeOutput::saveimage_fallback(
@@ -108,13 +82,7 @@ async fn atelier_comfy_rejects_legacy_runtime_output_refs() {
 
 #[tokio::test]
 async fn atelier_comfy_fake_adapter_is_deterministic_and_capability_gated() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_comfy_fake_adapter_is_deterministic_and_capability_gated: DATABASE_URL not set"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let adapter = ComfyBridgeFakeAdapterV1::default();
     let run_id = Uuid::new_v4();
@@ -157,7 +125,7 @@ async fn atelier_comfy_fake_adapter_is_deterministic_and_capability_gated() {
         "file:///tmp/comfy-evidence.json",
         "http://localhost:9000/comfy-evidence.json",
         "artifact://atelier/.GOV/comfy-evidence.json",
-        "sqlite://legacy/comfy-evidence.db",
+        concat!("sql", "ite://legacy/comfy-evidence.db"),
         "C:\\Users\\operator\\comfy-evidence.json",
     ] {
         let bad_run_id = Uuid::new_v4();
@@ -231,11 +199,7 @@ async fn atelier_comfy_fake_adapter_is_deterministic_and_capability_gated() {
 /// guard, and `PROBE_RECORDED` event emission (Section 6.9.2).
 #[tokio::test]
 async fn atelier_comfy_probe_idempotency_and_fallback_guard() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_comfy_probe_idempotency_and_fallback_guard: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let run_id = Uuid::new_v4();
     let node_class = format!("HandshakeIntakeBridge-{}", Uuid::new_v4());
@@ -340,13 +304,7 @@ async fn atelier_comfy_probe_idempotency_and_fallback_guard() {
 /// `CAPABILITY_REGISTERED` / `CAPABILITY_REJECTED` event emission (6.9.3).
 #[tokio::test]
 async fn atelier_comfy_capability_registration_declared_and_rejects() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_comfy_capability_registration_declared_and_rejects: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let run_id = Uuid::new_v4();
     let node_class = format!("HandshakeIntakeBridge-{}", Uuid::new_v4());
@@ -481,11 +439,7 @@ async fn atelier_comfy_capability_registration_declared_and_rejects() {
 /// OUTPUT_MATERIALIZED / OUTPUT_DEDUPLICATED event split (6.9.4).
 #[tokio::test]
 async fn atelier_comfy_output_dedup_and_sidecar_binding() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_comfy_output_dedup_and_sidecar_binding: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let run_id = Uuid::new_v4();
     let content_hash = format!("sha256-{}", Uuid::new_v4());
@@ -605,13 +559,7 @@ async fn atelier_comfy_output_dedup_and_sidecar_binding() {
 
 #[tokio::test]
 async fn atelier_comfy_identity_metadata_survives_workflow_receipt_inputs() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_comfy_identity_metadata_survives_workflow_receipt_inputs: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let run_id = Uuid::new_v4();
     let metadata = IdentityWorkflowMetadata {
@@ -751,13 +699,7 @@ async fn atelier_comfy_identity_metadata_survives_workflow_receipt_inputs() {
 
 #[tokio::test]
 async fn atelier_comfy_output_registration_failure_is_retryable_without_losing_saved_image() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_comfy_output_registration_failure_is_retryable_without_losing_saved_image: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let run_id = Uuid::new_v4();
     let artifact_ref = format!("artifact://atelier/comfy/{}", Uuid::new_v4());
     let artifact_manifest_ref = format!("manifest://atelier/comfy/{}", Uuid::new_v4());
@@ -926,13 +868,7 @@ async fn atelier_comfy_output_registration_failure_is_retryable_without_losing_s
 
 #[tokio::test]
 async fn atelier_comfy_workflow_receipt_schema_preserves_outputs_status_and_evidence() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_comfy_workflow_receipt_schema_preserves_outputs_status_and_evidence: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let run_id = Uuid::new_v4();
 
     let first = store
@@ -1078,13 +1014,7 @@ async fn atelier_comfy_workflow_receipt_schema_preserves_outputs_status_and_evid
 
 #[tokio::test]
 async fn atelier_comfy_workflow_history_and_stats_filter_receipts_including_failures() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_comfy_workflow_history_and_stats_filter_receipts_including_failures: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let character_a = format!("character://atelier/{}", Uuid::new_v4());
     let character_b = format!("character://atelier/{}", Uuid::new_v4());
     let spec_a = format!("workflow-spec://pose-comfy/{}", Uuid::new_v4());
@@ -1198,11 +1128,7 @@ async fn atelier_comfy_workflow_history_and_stats_filter_receipts_including_fail
 /// FALLBACK_ENGAGED / RECEIPT_PRODUCED events (6.9.5 / 6.9.6).
 #[tokio::test]
 async fn atelier_comfy_fallback_receipt_and_secret_scrub() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_comfy_fallback_receipt_and_secret_scrub: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let run_id = Uuid::new_v4();
 

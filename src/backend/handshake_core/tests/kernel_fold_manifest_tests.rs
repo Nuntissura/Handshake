@@ -66,19 +66,21 @@ fn kernel002_fold_manifest_preserves_all_source_stubs() {
         );
     }
 
-    let sqlite_boundary = manifest
+    let offline_boundary = manifest
         .source_stubs
         .iter()
         .find(|entry| entry.stub_id == LEGACY_CACHE_OFFLINE_BOUNDARY_STUB_ID)
-        .expect("SQLite boundary source must stay folded");
+        .expect("legacy offline-boundary source must stay folded");
     assert_eq!(
-        sqlite_boundary.fold_classification,
+        offline_boundary.fold_classification,
         FoldClassification::Transitive
     );
-    assert_eq!(sqlite_boundary.reset_override, Some("reset_invariant"));
-    assert!(sqlite_boundary
+    assert_eq!(offline_boundary.reset_override, Some("reset_invariant"));
+    assert!(offline_boundary.source_scope_import.contains("EventLedger"));
+    assert!(offline_boundary.source_scope_import.contains("CRDT"));
+    assert!(offline_boundary
         .source_scope_import
-        .contains("Postgres/EventLedger/CRDT"));
+        .contains("forbidding legacy local-store authority"));
 
     assert!(manifest
         .source_stubs
@@ -110,6 +112,8 @@ fn kernel002_fold_manifest_rejects_missing_or_mismatched_sources() {
 
     let bad_hash = "0000000000000000000000000000000000000000000000000000000000000000";
     let mut mismatched = observed;
+    let first_source_path = mismatched[0].0;
+    let first_expected_hash = manifest.source_stubs[0].pre_fold_sha256;
     mismatched[0].1 = bad_hash;
     let mismatch_errors = manifest
         .verify_observed_sources(&mismatched)
@@ -120,8 +124,8 @@ fn kernel002_fold_manifest_rejects_missing_or_mismatched_sources() {
             source_path,
             expected_sha256,
             observed_sha256,
-        } if *source_path == ".GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md"
-            && *expected_sha256 == "f160424f7dd05647fec455d6eee7acbd0f1774d58d4b948963d4af9c58cce5a7"
+        } if *source_path == first_source_path
+            && *expected_sha256 == first_expected_hash
             && *observed_sha256 == bad_hash
     )));
 }

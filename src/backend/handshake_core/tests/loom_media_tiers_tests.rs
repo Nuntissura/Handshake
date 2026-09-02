@@ -1,4 +1,4 @@
-//! WP-KERNEL-009 MT-259 MediaCacheTiers — REAL PostgreSQL + REAL HTTP proof.
+//! WP-KERNEL-009 MT-259 MediaCacheTiers — real embedded-store + HTTP proof.
 //!
 //! GAP-LM-009 (cache-tiered media) and the inherited MT-244 gaps:
 //!   * GAP-LM-009b — HTTP Range support on GET .../assets/:id/content (206 +
@@ -6,13 +6,15 @@
 //!   * GAP-LM-244a — a real backend album/slideshow list-source
 //!     (loom_collections + loom_collection_members), ordered enumeration.
 //!
-//! Authority = PostgreSQL (media_asset_tiers, loom_collections,
+//! Authority = the embedded store (media_asset_tiers, loom_collections,
 //! loom_collection_members) + the original asset blob on disk. Tiers are
-//! derived/regenerable; the original is authority. No SQLite, no mock, no
-//! synthetic proof. The HTTP routes are the actual `api::loom::routes` driven
-//! over a loopback listener (quiet — no foreground window).
+//! derived/regenerable; the original is authority. No mock, fallback authority,
+//! or synthetic proof is involved. The HTTP routes are the actual
+//! `api::loom::routes` driven over a loopback listener (quiet — no foreground
+//! window).
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
 use std::sync::Arc;
 
@@ -26,21 +28,21 @@ use handshake_core::flight_recorder::{
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::{
     Database, JobKind, JobState, LoomBlockContentType, LoomBlockDerived, MediaTier,
     MediaTierStatus, MediaTierUpsert, NewAsset, NewLoomBlock, WriteContext,
 };
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
+use knowledge_ingestion_support::{open_embedded_store, EmbeddedKnowledgeStore};
 
-macro_rules! pg_or_skip {
+macro_rules! embedded_or_skip {
     ($name:expr) => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
+        match open_embedded_store().await {
+            Some(store) => store,
             None => {
-                eprintln!("SKIP MT-259 {}: PostgreSQL unavailable", $name);
+                eprintln!("SKIP MT-259 {}: embedded store unavailable", $name);
                 return;
             }
         }
@@ -131,19 +133,11 @@ impl LlmClient for NoopLlmClient {
 
 /// Build a real AppState against the isolated schema, returning it plus the
 /// capturing recorder so tests can drive jobs AND assert receipts.
-async fn loom_state(pg: &KnowledgePg) -> (AppState, Arc<NoopRecorder>) {
-    let storage = PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect AppState storage")
-        .into_arc();
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect AppState pool");
+async fn loom_state(store: &EmbeddedKnowledgeStore) -> (AppState, Arc<NoopRecorder>) {
     let recorder = Arc::new(NoopRecorder::default());
     let state = AppState {
-        storage,
+        storage: Arc::new(store.db.clone()),
+        surreal: store.storage.clone(),
         flight_recorder: recorder.clone(),
         diagnostics: recorder.clone(),
         llm_client: Arc::new(NoopLlmClient {
@@ -151,14 +145,15 @@ async fn loom_state(pg: &KnowledgePg) -> (AppState, Arc<NoopRecorder>) {
         }),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
     };
     (state, recorder)
 }
 
 /// Boot the real loom routes over loopback against the isolated schema.
-async fn loom_server(pg: &KnowledgePg) -> (String, reqwest::Client, AppState, Arc<NoopRecorder>) {
-    let (state, recorder) = loom_state(pg).await;
+async fn loom_server(
+    store: &EmbeddedKnowledgeStore,
+) -> (String, reqwest::Client, AppState, Arc<NoopRecorder>) {
+    let (state, recorder) = loom_state(store).await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback listener");
@@ -167,13 +162,18 @@ async fn loom_server(pg: &KnowledgePg) -> (String, reqwest::Client, AppState, Ar
     tokio::spawn(async move {
         axum::serve(listener, app).await.expect("loom api server");
     });
-    (format!("http://{addr}"), reqwest::Client::new(), state, recorder)
+    (
+        format!("http://{addr}"),
+        reqwest::Client::new(),
+        state,
+        recorder,
+    )
 }
 
 /// Create an `original` asset row AND write its blob to disk under the configured
 /// HANDSHAKE_WORKSPACE_ROOT, returning (asset_id, content_hash, blob_path).
 async fn make_original_asset(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     root: &std::path::Path,
     ws: &str,
     mime: &str,
@@ -224,22 +224,23 @@ async fn make_original_asset(
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_tier_rows_persist_and_delete_tiers_never_touches_original() {
-    let pg = pg_or_skip!("tier_rows_persist");
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_skip!("tier_rows_persist");
+    let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
     let original_bytes = vec![7u8; 4096];
     let (asset_id, original_hash, blob_path) =
-        make_original_asset(&pg.db, tmp.path(), &ws, "image/png", &original_bytes).await;
+        make_original_asset(&store.db, tmp.path(), &ws, "image/png", &original_bytes).await;
 
     // Create a small derived thumb blob + asset so the thumb tier points at it.
     let thumb_bytes = vec![1u8; 64];
     let (thumb_asset_id, thumb_hash, _) =
-        make_original_asset(&pg.db, tmp.path(), &ws, "image/png", &thumb_bytes).await;
+        make_original_asset(&store.db, tmp.path(), &ws, "image/png", &thumb_bytes).await;
 
     let ctx = WriteContext::human(None);
-    pg.db
+    store
+        .db
         .upsert_media_tier(
             &ctx,
             MediaTierUpsert {
@@ -254,7 +255,8 @@ async fn mt259_tier_rows_persist_and_delete_tiers_never_touches_original() {
         )
         .await
         .expect("upsert thumb tier");
-    pg.db
+    store
+        .db
         .upsert_media_tier(
             &ctx,
             MediaTierUpsert {
@@ -270,26 +272,25 @@ async fn mt259_tier_rows_persist_and_delete_tiers_never_touches_original() {
         .await
         .expect("upsert full tier");
 
-    let tiers = pg
+    let tiers = store
         .db
         .list_media_tiers(&ws, &asset_id)
         .await
         .expect("list tiers");
     assert_eq!(tiers.len(), 2, "thumb + full tier rows persisted");
-    assert!(tiers
-        .iter()
-        .all(|t| t.status == MediaTierStatus::Ready));
+    assert!(tiers.iter().all(|t| t.status == MediaTierStatus::Ready));
 
     // Negative proof: deleting derived tiers must NOT touch the original blob.
     let original_before = std::fs::read(&blob_path).expect("read original before");
-    let deleted = pg
+    let deleted = store
         .db
         .delete_media_tiers(&ctx, &ws, &asset_id)
         .await
         .expect("delete tiers");
     assert_eq!(deleted, 2, "both tier rows removed");
     assert!(
-        pg.db
+        store
+            .db
             .list_media_tiers(&ws, &asset_id)
             .await
             .expect("relist")
@@ -302,7 +303,11 @@ async fn mt259_tier_rows_persist_and_delete_tiers_never_touches_original() {
         "ORIGINAL blob byte-identical after delete_media_tiers"
     );
     // And the original asset row still exists.
-    let still = pg.db.get_asset(&ws, &asset_id).await.expect("original asset");
+    let still = store
+        .db
+        .get_asset(&ws, &asset_id)
+        .await
+        .expect("original asset");
     assert_eq!(still.content_hash, original_hash);
 }
 
@@ -311,17 +316,18 @@ async fn mt259_tier_rows_persist_and_delete_tiers_never_touches_original() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_failed_tier_retry_bumps_attempt_count_and_is_in_failed_queue() {
-    let pg = pg_or_skip!("failed_tier_retry");
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_skip!("failed_tier_retry");
+    let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
     let (asset_id, _hash, _blob) =
-        make_original_asset(&pg.db, tmp.path(), &ws, "video/mp4", &vec![9u8; 1024]).await;
+        make_original_asset(&store.db, tmp.path(), &ws, "video/mp4", &vec![9u8; 1024]).await;
 
     let ctx = WriteContext::human(None);
     // Honest video poster failure (no decoder bundled).
-    pg.db
+    store
+        .db
         .upsert_media_tier(
             &ctx,
             MediaTierUpsert {
@@ -338,7 +344,7 @@ async fn mt259_failed_tier_retry_bumps_attempt_count_and_is_in_failed_queue() {
         .expect("upsert failed poster");
 
     // It is in the visible retry queue.
-    let failed = pg
+    let failed = store
         .db
         .list_failed_media_tiers(&ws)
         .await
@@ -348,7 +354,7 @@ async fn mt259_failed_tier_retry_bumps_attempt_count_and_is_in_failed_queue() {
     assert_eq!(failed[0].attempt_count, 0);
 
     // Retry: failed -> pending bumps attempt_count.
-    let after = pg
+    let after = store
         .db
         .set_media_tier_status(
             &ctx,
@@ -365,7 +371,7 @@ async fn mt259_failed_tier_retry_bumps_attempt_count_and_is_in_failed_queue() {
     assert!(after.failure_reason.is_none(), "failure cleared on retry");
 
     // No longer in failed queue.
-    assert!(pg
+    assert!(store
         .db
         .list_failed_media_tiers(&ws)
         .await
@@ -373,7 +379,8 @@ async fn mt259_failed_tier_retry_bumps_attempt_count_and_is_in_failed_queue() {
         .is_empty());
 
     // A second failure then retry -> attempt_count == 2.
-    pg.db
+    store
+        .db
         .set_media_tier_status(
             &ctx,
             &ws,
@@ -384,7 +391,7 @@ async fn mt259_failed_tier_retry_bumps_attempt_count_and_is_in_failed_queue() {
         )
         .await
         .expect("fail again");
-    let again = pg
+    let again = store
         .db
         .set_media_tier_status(
             &ctx,
@@ -404,20 +411,20 @@ async fn mt259_failed_tier_retry_bumps_attempt_count_and_is_in_failed_queue() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_collection_enumerates_ordered_members_from_backend() {
-    let pg = pg_or_skip!("collection_ordered");
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_skip!("collection_ordered");
+    let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
     let mut ids = Vec::new();
     for i in 0..4u8 {
         let (id, _h, _p) =
-            make_original_asset(&pg.db, tmp.path(), &ws, "image/png", &vec![i; 128]).await;
+            make_original_asset(&store.db, tmp.path(), &ws, "image/png", &vec![i; 128]).await;
         ids.push(id);
     }
 
     let ctx = WriteContext::human(None);
-    let collection = pg
+    let collection = store
         .db
         .create_loom_collection(&ctx, &ws, Some("Album".to_string()))
         .await
@@ -425,12 +432,16 @@ async fn mt259_collection_enumerates_ordered_members_from_backend() {
 
     // Set order: reversed.
     let order: Vec<String> = ids.iter().rev().cloned().collect();
-    let with_members = pg
+    let with_members = store
         .db
         .set_loom_collection_order(&ctx, &ws, &collection.collection_id, &order)
         .await
         .expect("set order");
-    let got: Vec<String> = with_members.members.iter().map(|m| m.asset_id.clone()).collect();
+    let got: Vec<String> = with_members
+        .members
+        .iter()
+        .map(|m| m.asset_id.clone())
+        .collect();
     assert_eq!(got, order, "members enumerated in the set order");
     // Positions densely 0..n.
     for (i, m) in with_members.members.iter().enumerate() {
@@ -438,24 +449,30 @@ async fn mt259_collection_enumerates_ordered_members_from_backend() {
     }
 
     // Re-fetch from backend (no in-memory cache) -> still ordered.
-    let refetched = pg
+    let refetched = store
         .db
         .get_loom_collection(&ws, &collection.collection_id)
         .await
         .expect("get collection");
-    let refetched_ids: Vec<String> =
-        refetched.members.iter().map(|m| m.asset_id.clone()).collect();
+    let refetched_ids: Vec<String> = refetched
+        .members
+        .iter()
+        .map(|m| m.asset_id.clone())
+        .collect();
     assert_eq!(refetched_ids, order, "ordered enumeration is durable");
 
     // Reorder again (densification): drop one, swap two.
     let new_order = vec![ids[1].clone(), ids[3].clone(), ids[0].clone()];
-    let reordered = pg
+    let reordered = store
         .db
         .set_loom_collection_order(&ctx, &ws, &collection.collection_id, &new_order)
         .await
         .expect("reorder");
-    let reordered_ids: Vec<String> =
-        reordered.members.iter().map(|m| m.asset_id.clone()).collect();
+    let reordered_ids: Vec<String> = reordered
+        .members
+        .iter()
+        .map(|m| m.asset_id.clone())
+        .collect();
     assert_eq!(reordered_ids, new_order);
     assert_eq!(reordered.members.len(), 3);
 }
@@ -466,22 +483,23 @@ async fn mt259_collection_enumerates_ordered_members_from_backend() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_range_endpoint_and_tier_serving_over_http() {
-    let pg = pg_or_skip!("range_endpoint");
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_skip!("range_endpoint");
+    let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
     // Original is a 1000-byte ramp so a Range slice is byte-checkable.
     let original_bytes: Vec<u8> = (0..1000u32).map(|i| (i % 256) as u8).collect();
     let (asset_id, _hash, _blob) =
-        make_original_asset(&pg.db, tmp.path(), &ws, "video/mp4", &original_bytes).await;
+        make_original_asset(&store.db, tmp.path(), &ws, "video/mp4", &original_bytes).await;
 
     // A small derived thumb blob + tier row pointing at it.
     let thumb_bytes = vec![5u8; 50];
     let (thumb_asset_id, thumb_hash, _) =
-        make_original_asset(&pg.db, tmp.path(), &ws, "image/png", &thumb_bytes).await;
+        make_original_asset(&store.db, tmp.path(), &ws, "image/png", &thumb_bytes).await;
     let ctx = WriteContext::human(None);
-    pg.db
+    store
+        .db
         .upsert_media_tier(
             &ctx,
             MediaTierUpsert {
@@ -497,7 +515,7 @@ async fn mt259_range_endpoint_and_tier_serving_over_http() {
         .await
         .expect("upsert thumb tier");
 
-    let (base, http, _state, _recorder) = loom_server(&pg).await;
+    let (base, http, _state, _recorder) = loom_server(&store).await;
     let content_url = format!("{base}/workspaces/{ws}/assets/{asset_id}/content");
 
     // (a) No Range -> 200 full + Accept-Ranges advertised.
@@ -617,7 +635,7 @@ fn real_png(width: u32, height: u32) -> Vec<u8> {
 /// pointing at it, so the preview-generate job has a (block, asset) to operate
 /// on. Returns (block_id, asset_id, content_hash).
 async fn make_image_block(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     root: &std::path::Path,
     ws: &str,
 ) -> (String, String, String) {
@@ -672,23 +690,26 @@ async fn wait_for_job_done(state: &AppState, job_id: &str) -> JobState {
 // ---------------------------------------------------------------------------
 // 5. The REAL background generation JOB produces the thumb+preview+full pyramid
 //    and emits a LoomPreviewGenerated receipt carrying the per-tier dimension.
-//    (acceptance #1: tier generation job real-PG proven + receipts.)
+//    (acceptance #1: tier generation job proven on the real embedded store + receipts.)
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers() {
-    let pg = pg_or_skip!("preview_generate_job");
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_skip!("preview_generate_job");
+    let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
-    let (block_id, asset_id, _hash) = make_image_block(&pg.db, tmp.path(), &ws).await;
+    let (block_id, asset_id, _hash) = make_image_block(&store.db, tmp.path(), &ws).await;
 
-    let (state, recorder) = loom_state(&pg).await;
+    let (state, recorder) = loom_state(&store).await;
     // Dispatch the REAL job through the production protocol (create_job +
     // start_workflow_for_job), exactly as import does — no direct storage write.
     let profile = state
         .capability_registry
-        .profile_for_job_request(JobKind::LoomPreviewGenerate.as_str(), "hsk.loom.preview_generate@v1")
+        .profile_for_job_request(
+            JobKind::LoomPreviewGenerate.as_str(),
+            "hsk.loom.preview_generate@v1",
+        )
         .expect("profile");
     let job = handshake_core::jobs::create_job(
         &state,
@@ -714,15 +735,29 @@ async fn mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers() {
 
     // The pyramid is real: thumb + preview + full tier rows, all ready, each
     // pointing at a derived (or original) asset.
-    let tiers = pg.db.list_media_tiers(&ws, &asset_id).await.expect("tiers");
+    let tiers = store
+        .db
+        .list_media_tiers(&ws, &asset_id)
+        .await
+        .expect("tiers");
     let mut by_tier: std::collections::HashMap<MediaTier, _> = std::collections::HashMap::new();
     for t in tiers {
         assert_eq!(t.status, MediaTierStatus::Ready, "tier {:?} ready", t.tier);
-        assert!(t.tier_asset_id.is_some(), "tier {:?} has a blob asset", t.tier);
+        assert!(
+            t.tier_asset_id.is_some(),
+            "tier {:?} has a blob asset",
+            t.tier
+        );
         by_tier.insert(t.tier, t);
     }
-    assert!(by_tier.contains_key(&MediaTier::Thumb), "thumb tier produced");
-    assert!(by_tier.contains_key(&MediaTier::Preview), "preview tier produced");
+    assert!(
+        by_tier.contains_key(&MediaTier::Thumb),
+        "thumb tier produced"
+    );
+    assert!(
+        by_tier.contains_key(&MediaTier::Preview),
+        "preview tier produced"
+    );
     assert!(by_tier.contains_key(&MediaTier::Full), "full tier produced");
     // full tier points back at the ORIGINAL asset (tiers derived; original auth).
     assert_eq!(
@@ -731,8 +766,14 @@ async fn mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers() {
         "full tier resolves to the original asset"
     );
     // thumb/preview point at DERIVED assets, not the original.
-    assert_ne!(by_tier[&MediaTier::Thumb].tier_asset_id.as_deref(), Some(asset_id.as_str()));
-    assert_ne!(by_tier[&MediaTier::Preview].tier_asset_id.as_deref(), Some(asset_id.as_str()));
+    assert_ne!(
+        by_tier[&MediaTier::Thumb].tier_asset_id.as_deref(),
+        Some(asset_id.as_str())
+    );
+    assert_ne!(
+        by_tier[&MediaTier::Preview].tier_asset_id.as_deref(),
+        Some(asset_id.as_str())
+    );
 
     // The receipt carries the tier dimension (thumb/preview/full), not a single
     // hardcoded slot.
@@ -740,7 +781,8 @@ async fn mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers() {
     let receipt = events
         .iter()
         .find(|e| {
-            e.event_type == handshake_core::flight_recorder::FlightRecorderEventType::LoomPreviewGenerated
+            e.event_type
+                == handshake_core::flight_recorder::FlightRecorderEventType::LoomPreviewGenerated
         })
         .expect("LoomPreviewGenerated receipt emitted");
     let receipt_tiers = receipt.payload["tiers"]
@@ -767,18 +809,19 @@ async fn mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_http_retry_endpoint_requeues_failed_tier() {
-    let pg = pg_or_skip!("http_retry");
-    let ws = pg.create_workspace().await;
+    let store = embedded_or_skip!("http_retry");
+    let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
     // A real image block so find_loom_block_by_asset_id resolves (the retry
     // endpoint requeues the job keyed by the owning block).
-    let (_block_id, asset_id, _hash) = make_image_block(&pg.db, tmp.path(), &ws).await;
+    let (_block_id, asset_id, _hash) = make_image_block(&store.db, tmp.path(), &ws).await;
 
     // Seed a FAILED poster tier (the honest video-poster failure shape).
     let ctx = WriteContext::human(None);
-    pg.db
+    store
+        .db
         .upsert_media_tier(
             &ctx,
             MediaTierUpsert {
@@ -794,17 +837,24 @@ async fn mt259_http_retry_endpoint_requeues_failed_tier() {
         .await
         .expect("seed failed poster");
 
-    let (base, http, _state, _recorder) = loom_server(&pg).await;
+    let (base, http, _state, _recorder) = loom_server(&store).await;
 
     // It is in the failed queue before retry.
     assert_eq!(
-        pg.db.list_failed_media_tiers(&ws).await.expect("failed").len(),
+        store
+            .db
+            .list_failed_media_tiers(&ws)
+            .await
+            .expect("failed")
+            .len(),
         1
     );
 
     // POST the retry endpoint.
     let resp = http
-        .post(format!("{base}/workspaces/{ws}/assets/{asset_id}/tiers/poster/retry"))
+        .post(format!(
+            "{base}/workspaces/{ws}/assets/{asset_id}/tiers/poster/retry"
+        ))
         .send()
         .await
         .expect("retry send");
@@ -816,7 +866,7 @@ async fn mt259_http_retry_endpoint_requeues_failed_tier() {
     assert_eq!(body["requeued"], true, "a real job was requeued");
 
     // No longer in the failed queue (it is pending / requeued).
-    assert!(pg
+    assert!(store
         .db
         .list_failed_media_tiers(&ws)
         .await
@@ -824,7 +874,7 @@ async fn mt259_http_retry_endpoint_requeues_failed_tier() {
         .is_empty());
 
     // The persisted row reflects pending + attempt_count == 1.
-    let row = pg
+    let row = store
         .db
         .get_media_tier(&ws, &asset_id, MediaTier::Poster)
         .await

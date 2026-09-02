@@ -1,9 +1,9 @@
-//! WP-KERNEL-009 MT-261 CanvasBoard — REAL PostgreSQL + EventLedger authority
-//! proof.
+//! WP-KERNEL-009 MT-261 CanvasBoard — embedded SurrealDB + EventLedger
+//! authority proof.
 //!
 //! Proves the Obsidian-canvas-class surface over LoomBlock authority
 //! (Master Spec §7.1.4.3 / §10.12). All assertions run against the same
-//! isolated schema the full migration chain ran in (`knowledge_pg`).
+//! isolated embedded store owned by the shared knowledge test support.
 //!
 //! Covered:
 //!  * the canvas IS a `LoomBlock(content_type='canvas')` with a knowledge bridge;
@@ -16,29 +16,33 @@
 //!  * a SEMANTIC edge appears in the local Loom graph; a VISUAL-ONLY edge does
 //!    NOT (it is never a loom_edge);
 //!  * a free-text card is a real note LoomBlock + RichDocument.
+//!  * compensation rollback and concurrency ordering use resettable embedded
+//!    failpoints/barriers at the production storage boundary.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
+use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};
+use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use handshake_core::storage::knowledge::{KnowledgeEntityKind, KnowledgeStore};
+use handshake_core::storage::stage_artifacts::{NewStageCaptureArtifact, StageArtifactStore};
+use handshake_core::storage::surreal::{RowFilter, ScalarValue, SurrealDatabase};
 use handshake_core::storage::{
     CompensateLoomCanvasStageCard, Database, LoomBlockContentType, LoomBlockDerived,
     LoomBlockUpdate, LoomCanvasPlacementUpdate, LoomCanvasStageProvenance, LoomEdgeCreatedBy,
-    LoomEdgeType, LoomSearchResultKind, LoomSearchSourceKind, NewLoomBlock,
-    NewLoomCanvasPlacement, NewLoomCanvasStageCard, NewLoomEdge, QuickSwitcherRecentInput,
-    WriteContext, LOOM_CANVAS_BOARD_SCHEMA_ID, LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
+    LoomEdgeType, LoomSearchResultKind, LoomSearchSourceKind, NewLoomBlock, NewLoomCanvasPlacement,
+    NewLoomCanvasStageCard, NewLoomEdge, QuickSwitcherRecentInput, WriteContext,
+    LOOM_CANVAS_BOARD_SCHEMA_ID, LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
 };
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
-use serde_json::{json, Value};
+use serde_json::json;
 use sha2::{Digest, Sha256};
-use sqlx::Connection;
-use std::time::Duration;
 
-macro_rules! pg_or_skip {
+macro_rules! embedded_store_or_return {
     () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
+        match open_embedded_store().await {
+            Some(store) => store,
             None => {
-                eprintln!("SKIP MT-261 loom canvas board proof: PostgreSQL unavailable");
+                eprintln!("SKIP MT-261 loom canvas board proof: embedded store unavailable");
                 return;
             }
         }
@@ -46,7 +50,7 @@ macro_rules! pg_or_skip {
 }
 
 async fn make_block(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &SurrealDatabase,
     workspace_id: &str,
     title: &str,
     content_type: LoomBlockContentType,
@@ -88,58 +92,71 @@ fn board_state(pan_x: f64, pan_y: f64, zoom: f64) -> serde_json::Value {
 }
 
 async fn stage_provenance(
-    pg: &KnowledgePg,
+    store: &EmbeddedKnowledgeStore,
     workspace_id: &str,
     suffix: &str,
 ) -> LoomCanvasStageProvenance {
-    let artifact_digest = format!("{:x}", Sha256::digest(suffix.as_bytes()));
-    let artifact_id = format!("STGA-{}", &artifact_digest[..32]);
     let content_bytes = suffix.as_bytes();
     let sha256 = format!("{:x}", Sha256::digest(content_bytes));
-    let manifest_ref = format!("manifest://{artifact_id}");
     let causal_action_id = format!("stage-causal-{suffix}");
+    let artifact = StageArtifactStore::new(store.storage.clone())
+        .insert_stage_artifact(NewStageCaptureArtifact {
+            workspace_id: workspace_id.to_owned(),
+            content_kind: "canvas_node".to_owned(),
+            label: suffix.to_owned(),
+            content_type: "text/plain".to_owned(),
+            content_json: json!({"text": suffix}),
+            content_bytes: content_bytes.to_vec(),
+            source_ref: None,
+            idempotency_key: format!("loom-canvas-stage-{suffix}"),
+            request_hash: sha256.clone(),
+            actor_kind: "operator".to_owned(),
+            actor_id: "loom-canvas-stage-test".to_owned(),
+            correlation_id: causal_action_id.clone(),
+            approval_id: "test-approval".to_owned(),
+            decision_receipt: stage_receipt(
+                KernelEventType::ToolDecisionRecorded,
+                &format!("loom-canvas-stage-decision-{suffix}"),
+                &causal_action_id,
+            ),
+            receipt: stage_receipt(
+                KernelEventType::ArtifactStored,
+                &format!("loom-canvas-stage-receipt-{suffix}"),
+                &causal_action_id,
+            ),
+        })
+        .await
+        .expect("seed authoritative Stage capture artifact")
+        .artifact;
+    assert_eq!(artifact.content_sha256.as_str(), sha256.as_str());
     let provenance = LoomCanvasStageProvenance {
         schema_id: LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA.to_owned(),
-        artifact_id: artifact_id.clone(),
-        sha256: sha256.clone(),
-        manifest_ref: manifest_ref.clone(),
-        causal_action_id: causal_action_id.clone(),
+        artifact_id: artifact.artifact_id,
+        sha256: artifact.content_sha256,
+        manifest_ref: artifact.manifest_ref,
+        causal_action_id: artifact.correlation_id,
     };
-    let mut conn = pg.raw_connection().await;
-    sqlx::query(
-        r#"
-        INSERT INTO stage_capture_artifacts (
-            artifact_id, workspace_id, content_kind, label, content_type,
-            content_json, content_bytes, size_bytes, content_sha256, manifest,
-            manifest_ref, source_ref, idempotency_key, request_hash,
-            actor_kind, actor_id, correlation_id, approval_id
-        ) VALUES (
-            $1, $2, 'canvas_node', $3, 'text/plain',
-            jsonb_build_object('text', $3::text), $4, $5, $6,
-            jsonb_build_object(
-                'schema', 'hsk.stage.capture_manifest@1',
-                'sha256', $6::text,
-                'manifest_ref', $7::text,
-                'content_type', 'text/plain',
-                'size_bytes', $5::bigint
-            ),
-            $7, NULL, $8, $6, 'operator', 'loom-canvas-stage-test', $9, 'test-approval'
-        )
-        "#,
-    )
-    .bind(&artifact_id)
-    .bind(workspace_id)
-    .bind(suffix)
-    .bind(content_bytes)
-    .bind(content_bytes.len() as i64)
-    .bind(&sha256)
-    .bind(&manifest_ref)
-    .bind(format!("loom-canvas-stage-{suffix}"))
-    .bind(&causal_action_id)
-    .execute(&mut conn)
-    .await
-    .expect("seed authoritative Stage capture artifact");
     provenance
+}
+
+fn stage_receipt(
+    event_type: KernelEventType,
+    idempotency_key: &str,
+    correlation_id: &str,
+) -> NewKernelEvent {
+    NewKernelEvent::builder(
+        "loom-canvas-stage-test",
+        "loom-canvas-stage-session",
+        event_type,
+        KernelActor::Operator("loom-canvas-stage-test".to_owned()),
+    )
+    .aggregate("stage_capture_artifact", "pending")
+    .idempotency_key(idempotency_key)
+    .correlation_id(correlation_id)
+    .source_component("loom_canvas_board_tests")
+    .payload(json!({"proof": "embedded_stage_authority"}))
+    .build()
+    .expect("valid Stage authority receipt")
 }
 
 fn stage_provenance_key(provenance: &LoomCanvasStageProvenance) -> String {
@@ -149,11 +166,94 @@ fn stage_provenance_key(provenance: &LoomCanvasStageProvenance) -> String {
     )
 }
 
-async fn make_canvas(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+async fn create_stage_card_receipt(
+    store: &EmbeddedKnowledgeStore,
     workspace_id: &str,
-    title: &str,
-) -> String {
+    canvas_block_id: &str,
+    suffix: &str,
+) -> CompensateLoomCanvasStageCard {
+    let ctx = WriteContext::human(None);
+    let provenance = stage_provenance(store, workspace_id, suffix).await;
+    let stage_provenance_key = stage_provenance_key(&provenance);
+    let created = store
+        .db
+        .create_stage_canvas_card(
+            &ctx,
+            NewLoomCanvasStageCard {
+                canvas_block_id: canvas_block_id.to_owned(),
+                workspace_id: workspace_id.to_owned(),
+                title: format!("Stage capture {}", provenance.artifact_id),
+                markdown: serde_json::to_string(&provenance).expect("serialize Stage provenance"),
+                stage_provenance_key: stage_provenance_key.clone(),
+                stage_provenance: provenance.clone(),
+                x: 0.0,
+                y: 0.0,
+                w: 300.0,
+                h: 180.0,
+                z_index: 0,
+            },
+        )
+        .await
+        .expect("create Stage Canvas card");
+    CompensateLoomCanvasStageCard {
+        canvas_block_id: canvas_block_id.to_owned(),
+        workspace_id: workspace_id.to_owned(),
+        placement_id: created.placement.placement_id,
+        placed_block_id: created.block.block_id,
+        stage_provenance_key,
+        stage_provenance: provenance,
+    }
+}
+
+async fn embedded_row_count_by_id(store: &EmbeddedKnowledgeStore, table: &str, id: &str) -> u64 {
+    let inspector = store.storage.test_inspector();
+    let table = inspector
+        .table_selector(table)
+        .await
+        .expect("select embedded table");
+    inspector
+        .row_count(&table, RowFilter::IdEquals(id.to_owned()))
+        .await
+        .expect("count embedded row")
+}
+
+async fn embedded_row_count(store: &EmbeddedKnowledgeStore, table: &str) -> u64 {
+    let inspector = store.storage.test_inspector();
+    let table = inspector
+        .table_selector(table)
+        .await
+        .expect("select embedded table");
+    inspector
+        .row_count(&table, RowFilter::All)
+        .await
+        .expect("count embedded rows")
+}
+
+async fn embedded_row_count_by_field(
+    store: &EmbeddedKnowledgeStore,
+    table: &str,
+    field: &str,
+    value: &str,
+) -> u64 {
+    let inspector = store.storage.test_inspector();
+    let table = inspector
+        .table_selector(table)
+        .await
+        .expect("select embedded table");
+    let field = table.field(field).expect("select embedded field");
+    inspector
+        .row_count(
+            &table,
+            RowFilter::FieldEquals {
+                field,
+                value: ScalarValue::String(value.to_owned()),
+            },
+        )
+        .await
+        .expect("count embedded rows")
+}
+
+async fn make_canvas(db: &SurrealDatabase, workspace_id: &str, title: &str) -> String {
     let ctx = WriteContext::human(None);
     let block = db
         .create_loom_block(
@@ -178,30 +278,39 @@ async fn make_canvas(
     db.bridge_loom_block_to_knowledge(&ctx, workspace_id, &block.block_id)
         .await
         .expect("bridge canvas block");
-    db.create_canvas_board(&ctx, workspace_id, &block.block_id, board_state(0.0, 0.0, 1.0))
-        .await
-        .expect("create canvas board");
+    db.create_canvas_board(
+        &ctx,
+        workspace_id,
+        &block.block_id,
+        board_state(0.0, 0.0, 1.0),
+    )
+    .await
+    .expect("create canvas board");
     block.block_id
 }
 
 #[tokio::test]
 async fn canvas_is_a_loom_block_with_knowledge_bridge() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
-    let canvas_id = make_canvas(&pg.db, &ws, "Project map").await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
+    let canvas_id = make_canvas(&store.db, &ws, "Project map").await;
 
     // The canvas board's block IS a content_type='canvas' LoomBlock.
-    let block = pg.db.get_loom_block(&ws, &canvas_id).await.expect("get block");
+    let block = store
+        .db
+        .get_loom_block(&ws, &canvas_id)
+        .await
+        .expect("get block");
     assert!(matches!(block.content_type, LoomBlockContentType::Canvas));
 
     // It is authority-resolved through the ProjectKnowledgeIndex bridge.
-    let bridge = pg
+    let bridge = store
         .db
         .get_loom_block_knowledge_bridge(&ws, &canvas_id)
         .await
         .expect("read bridge")
         .expect("bridge exists for canvas block");
-    let entity = pg
+    let entity = store
         .db
         .get_knowledge_entity(&bridge.entity_id)
         .await
@@ -210,24 +319,31 @@ async fn canvas_is_a_loom_block_with_knowledge_bridge() {
     assert!(matches!(entity.entity_kind, KnowledgeEntityKind::LoomBlock));
 
     // The board row carries an EventLedger receipt.
-    let view = pg.db.get_canvas_board(&ws, &canvas_id).await.expect("get board");
+    let view = store
+        .db
+        .get_canvas_board(&ws, &canvas_id)
+        .await
+        .expect("get board");
     assert!(!view.board.event_ledger_event_id.is_empty());
     assert_eq!(
-        view.board.board_state.get("schema_id").and_then(|v| v.as_str()),
+        view.board
+            .board_state
+            .get("schema_id")
+            .and_then(|v| v.as_str()),
         Some(LOOM_CANVAS_BOARD_SCHEMA_ID)
     );
 }
 
 #[tokio::test]
 async fn board_placements_viewport_and_visual_edges_round_trip() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Round trip").await;
-    let a = make_block(&pg.db, &ws, "Alpha note", LoomBlockContentType::Note).await;
-    let b = make_block(&pg.db, &ws, "Beta note", LoomBlockContentType::Note).await;
+    let canvas_id = make_canvas(&store.db, &ws, "Round trip").await;
+    let a = make_block(&store.db, &ws, "Alpha note", LoomBlockContentType::Note).await;
+    let b = make_block(&store.db, &ws, "Beta note", LoomBlockContentType::Note).await;
 
-    let pa = pg
+    let pa = store
         .db
         .place_block_on_canvas(
             &ctx,
@@ -247,7 +363,7 @@ async fn board_placements_viewport_and_visual_edges_round_trip() {
         )
         .await
         .expect("place a");
-    let pb = pg
+    let pb = store
         .db
         .place_block_on_canvas(
             &ctx,
@@ -269,7 +385,8 @@ async fn board_placements_viewport_and_visual_edges_round_trip() {
         .expect("place b");
 
     // Move + resize + group a placement.
-    pg.db
+    store
+        .db
         .update_canvas_placement(
             &ctx,
             &ws,
@@ -287,7 +404,7 @@ async fn board_placements_viewport_and_visual_edges_round_trip() {
         .expect("move a");
 
     // A board-local visual-only edge between the two placements.
-    let ve = pg
+    let ve = store
         .db
         .add_canvas_visual_edge(
             &ctx,
@@ -301,13 +418,27 @@ async fn board_placements_viewport_and_visual_edges_round_trip() {
         .expect("add visual edge");
 
     // Persist a new viewport.
-    pg.db
+    store
+        .db
         .update_canvas_board_state(&ctx, &ws, &canvas_id, board_state(120.5, -40.0, 1.75))
         .await
         .expect("update viewport");
 
-    // Reload everything from PostgreSQL.
-    let view = pg.db.get_canvas_board(&ws, &canvas_id).await.expect("reload");
+    // Close the live handle and reopen the identical on-disk store. The board,
+    // placements, visual edge, and viewport must survive a real process-boundary
+    // equivalent rather than merely round-tripping through one handle.
+    store
+        .shutdown()
+        .await
+        .expect("shutdown Canvas store before durability readback");
+    let reopened = store
+        .reopen_database()
+        .await
+        .expect("reopen Canvas store for durability readback");
+    let view = reopened
+        .get_canvas_board(&ws, &canvas_id)
+        .await
+        .expect("reload durable Canvas board");
     assert_eq!(view.placements.len(), 2);
     let reloaded_a = view
         .placements
@@ -324,19 +455,25 @@ async fn board_placements_viewport_and_visual_edges_round_trip() {
     assert_eq!(view.visual_edges[0].visual_edge_id, ve.visual_edge_id);
     assert_eq!(view.visual_edges[0].label.as_deref(), Some("see also"));
 
-    assert_eq!(view.board.board_state.get("zoom").and_then(|v| v.as_f64()), Some(1.75));
-    assert_eq!(view.board.board_state.get("pan_x").and_then(|v| v.as_f64()), Some(120.5));
+    assert_eq!(
+        view.board.board_state.get("zoom").and_then(|v| v.as_f64()),
+        Some(1.75)
+    );
+    assert_eq!(
+        view.board.board_state.get("pan_x").and_then(|v| v.as_f64()),
+        Some(120.5)
+    );
 }
 
 #[tokio::test]
 async fn remove_placement_keeps_source_block() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Negative proof").await;
-    let a = make_block(&pg.db, &ws, "Survivor", LoomBlockContentType::Note).await;
+    let canvas_id = make_canvas(&store.db, &ws, "Negative proof").await;
+    let a = make_block(&store.db, &ws, "Survivor", LoomBlockContentType::Note).await;
 
-    let pa = pg
+    let pa = store
         .db
         .place_block_on_canvas(
             &ctx,
@@ -357,29 +494,39 @@ async fn remove_placement_keeps_source_block() {
         .await
         .expect("place");
 
-    pg.db
+    store
+        .db
         .remove_canvas_placement(&ctx, &ws, &pa.placement_id)
         .await
         .expect("remove placement");
 
     // The placement is gone, but the SOURCE block survives (reference-not-copy).
-    let view = pg.db.get_canvas_board(&ws, &canvas_id).await.expect("reload");
+    let view = store
+        .db
+        .get_canvas_board(&ws, &canvas_id)
+        .await
+        .expect("reload");
     assert!(view.placements.is_empty());
-    let survivor = pg.db.get_loom_block(&ws, &a).await.expect("source block survives");
+    let survivor = store
+        .db
+        .get_loom_block(&ws, &a)
+        .await
+        .expect("source block survives");
     assert_eq!(survivor.title.as_deref(), Some("Survivor"));
 }
 
 #[tokio::test]
 async fn deleting_canvas_keeps_placed_blocks() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Doomed canvas").await;
-    let a = make_block(&pg.db, &ws, "Independent A", LoomBlockContentType::Note).await;
-    let b = make_block(&pg.db, &ws, "Independent B", LoomBlockContentType::Note).await;
+    let canvas_id = make_canvas(&store.db, &ws, "Doomed canvas").await;
+    let a = make_block(&store.db, &ws, "Independent A", LoomBlockContentType::Note).await;
+    let b = make_block(&store.db, &ws, "Independent B", LoomBlockContentType::Note).await;
 
     for (blk, x) in [(&a, 0.0), (&b, 200.0)] {
-        pg.db
+        store
+            .db
             .place_block_on_canvas(
                 &ctx,
                 NewLoomCanvasPlacement {
@@ -403,33 +550,47 @@ async fn deleting_canvas_keeps_placed_blocks() {
     // Delete the canvas LoomBlock. The board + placements CASCADE; the placed
     // blocks are untouched (placements FK placed_block_id ON DELETE RESTRICT,
     // and the cascade only deletes placement rows, never loom_blocks).
-    pg.db
+    store
+        .db
         .delete_loom_block(&ctx, &ws, &canvas_id)
         .await
         .expect("delete canvas block");
 
-    assert!(pg.db.get_loom_block(&ws, &canvas_id).await.is_err());
-    assert!(pg.db.get_canvas_board(&ws, &canvas_id).await.is_err());
+    assert!(store.db.get_loom_block(&ws, &canvas_id).await.is_err());
+    assert!(store.db.get_canvas_board(&ws, &canvas_id).await.is_err());
     // The placed blocks live on.
     assert_eq!(
-        pg.db.get_loom_block(&ws, &a).await.expect("a survives").title.as_deref(),
+        store
+            .db
+            .get_loom_block(&ws, &a)
+            .await
+            .expect("a survives")
+            .title
+            .as_deref(),
         Some("Independent A")
     );
     assert_eq!(
-        pg.db.get_loom_block(&ws, &b).await.expect("b survives").title.as_deref(),
+        store
+            .db
+            .get_loom_block(&ws, &b)
+            .await
+            .expect("b survives")
+            .title
+            .as_deref(),
         Some("Independent B")
     );
 }
 
 #[tokio::test]
 async fn editing_source_block_reflects_through_placement() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Live ref").await;
-    let a = make_block(&pg.db, &ws, "Original title", LoomBlockContentType::Note).await;
+    let canvas_id = make_canvas(&store.db, &ws, "Live ref").await;
+    let a = make_block(&store.db, &ws, "Original title", LoomBlockContentType::Note).await;
 
-    pg.db
+    store
+        .db
         .place_block_on_canvas(
             &ctx,
             NewLoomCanvasPlacement {
@@ -450,7 +611,8 @@ async fn editing_source_block_reflects_through_placement() {
         .expect("place");
 
     // Edit the SOURCE block (not the placement).
-    pg.db
+    store
+        .db
         .update_loom_block(
             &ctx,
             &ws,
@@ -465,23 +627,31 @@ async fn editing_source_block_reflects_through_placement() {
 
     // The placement references the same block id; resolving it reads the LIVE
     // (edited) content — proof there is no content copy on the placement.
-    let view = pg.db.get_canvas_board(&ws, &canvas_id).await.expect("reload");
+    let view = store
+        .db
+        .get_canvas_board(&ws, &canvas_id)
+        .await
+        .expect("reload");
     assert_eq!(view.placements.len(), 1);
     let placed_id = &view.placements[0].placed_block_id;
-    let live = pg.db.get_loom_block(&ws, placed_id).await.expect("live block");
+    let live = store
+        .db
+        .get_loom_block(&ws, placed_id)
+        .await
+        .expect("live block");
     assert_eq!(live.title.as_deref(), Some("Edited title"));
 }
 
 #[tokio::test]
 async fn semantic_edge_in_graph_but_visual_only_edge_is_not() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Edge kinds").await;
-    let a = make_block(&pg.db, &ws, "Node A", LoomBlockContentType::Note).await;
-    let b = make_block(&pg.db, &ws, "Node B", LoomBlockContentType::Note).await;
+    let canvas_id = make_canvas(&store.db, &ws, "Edge kinds").await;
+    let a = make_block(&store.db, &ws, "Node A", LoomBlockContentType::Note).await;
+    let b = make_block(&store.db, &ws, "Node B", LoomBlockContentType::Note).await;
 
-    let pa = pg
+    let pa = store
         .db
         .place_block_on_canvas(
             &ctx,
@@ -501,7 +671,7 @@ async fn semantic_edge_in_graph_but_visual_only_edge_is_not() {
         )
         .await
         .expect("place a");
-    let pb = pg
+    let pb = store
         .db
         .place_block_on_canvas(
             &ctx,
@@ -524,7 +694,8 @@ async fn semantic_edge_in_graph_but_visual_only_edge_is_not() {
 
     // A SEMANTIC connection is a real loom_edge (the FE delegates to the
     // existing create_loom_edge path).
-    pg.db
+    store
+        .db
         .create_loom_edge(
             &ctx,
             NewLoomEdge {
@@ -542,13 +713,21 @@ async fn semantic_edge_in_graph_but_visual_only_edge_is_not() {
         .expect("create semantic edge");
 
     // A VISUAL-ONLY edge is board-local decoration — never a loom_edge.
-    pg.db
-        .add_canvas_visual_edge(&ctx, &ws, &canvas_id, &pa.placement_id, &pb.placement_id, None)
+    store
+        .db
+        .add_canvas_visual_edge(
+            &ctx,
+            &ws,
+            &canvas_id,
+            &pa.placement_id,
+            &pb.placement_id,
+            None,
+        )
         .await
         .expect("add visual edge");
 
     // The semantic edge shows up in the local Loom graph from A.
-    let graph = pg
+    let graph = store
         .db
         .local_graph(&ws, &a, 3, &[], 200)
         .await
@@ -557,7 +736,10 @@ async fn semantic_edge_in_graph_but_visual_only_edge_is_not() {
         .edges
         .iter()
         .any(|e| e.edge.source_block_id == a && e.edge.target_block_id == b);
-    assert!(semantic_present, "semantic mention edge must appear in the graph");
+    assert!(
+        semantic_present,
+        "semantic mention edge must appear in the graph"
+    );
 
     // The visual-only edge must NOT appear as any loom_edge in the graph.
     let edge_count_a_b = graph
@@ -574,29 +756,36 @@ async fn semantic_edge_in_graph_but_visual_only_edge_is_not() {
     );
 
     // And the visual edge is still present on the BOARD projection.
-    let view = pg.db.get_canvas_board(&ws, &canvas_id).await.expect("reload");
+    let view = store
+        .db
+        .get_canvas_board(&ws, &canvas_id)
+        .await
+        .expect("reload");
     assert_eq!(view.visual_edges.len(), 1);
 }
 
 #[tokio::test]
 async fn free_text_card_is_a_real_note_block() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let _canvas_id = make_canvas(&pg.db, &ws, "Card host").await;
+    let _canvas_id = make_canvas(&store.db, &ws, "Card host").await;
 
     // import_markdown_to_loom is the storage path the /cards endpoint uses: it
     // creates a real RichDocument + note LoomBlock + knowledge bridge.
-    let imported = pg
+    let imported = store
         .db
         .import_markdown_to_loom(&ctx, &ws, "Idea card", "A free-text **idea**.")
         .await
         .expect("create card");
-    assert!(matches!(imported.block.content_type, LoomBlockContentType::Note));
+    assert!(matches!(
+        imported.block.content_type,
+        LoomBlockContentType::Note
+    ));
     assert!(!imported.rich_document_id.is_empty());
 
-    // The card block is real authority: it round-trips from PostgreSQL.
-    let block = pg
+    // The card block is real authority: it round-trips from embedded SurrealDB.
+    let block = store
         .db
         .get_loom_block(&ws, &imported.block.block_id)
         .await
@@ -604,7 +793,7 @@ async fn free_text_card_is_a_real_note_block() {
     assert_eq!(block.title.as_deref(), Some("Idea card"));
 
     // And the backing RichDocument is real authority too.
-    let doc = pg
+    let doc = store
         .db
         .get_knowledge_rich_document(&imported.rich_document_id)
         .await
@@ -615,11 +804,11 @@ async fn free_text_card_is_a_real_note_block() {
 
 #[tokio::test]
 async fn stage_canvas_compensation_is_atomic_and_idempotent() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Stage compensation").await;
-    let provenance = stage_provenance(&pg, &ws, "atomic").await;
+    let canvas_id = make_canvas(&store.db, &ws, "Stage compensation").await;
+    let provenance = stage_provenance(&store, &ws, "atomic").await;
     let key = stage_provenance_key(&provenance);
     let markdown = format!(
         "{{\n  \"causal_action_id\": \"{}\", \"manifest_ref\": \"{}\",\n  \"sha256\": \"{}\", \"artifact_id\": \"{}\",\n  \"schema_id\": \"{}\"\n}}",
@@ -629,7 +818,7 @@ async fn stage_canvas_compensation_is_atomic_and_idempotent() {
         provenance.artifact_id,
         provenance.schema_id,
     );
-    let created = pg
+    let created = store
         .db
         .create_stage_canvas_card(
             &ctx,
@@ -649,6 +838,12 @@ async fn stage_canvas_compensation_is_atomic_and_idempotent() {
         )
         .await
         .expect("create Stage Canvas card");
+    let bridge = store
+        .db
+        .get_loom_block_knowledge_bridge(&ws, &created.block.block_id)
+        .await
+        .expect("read Stage card bridge")
+        .expect("Stage card bridge exists");
     let receipt = CompensateLoomCanvasStageCard {
         canvas_block_id: canvas_id.clone(),
         workspace_id: ws.clone(),
@@ -658,66 +853,59 @@ async fn stage_canvas_compensation_is_atomic_and_idempotent() {
         stage_provenance: provenance,
     };
 
-    let first = pg
+    let first = store
         .db
         .compensate_stage_canvas_card(&ctx, receipt.clone())
         .await
         .expect("first compensation commits");
     assert!(first.removed_by_request);
-    let second = pg
+    let second = store
         .db
         .compensate_stage_canvas_card(&ctx, receipt.clone())
         .await
         .expect("lost-response retry reconciles complete absence");
     assert!(!second.removed_by_request);
 
-    let mut conn = pg.raw_connection().await;
-    for (table, column, identity) in [
-        ("loom_canvas_placements", "placement_id", receipt.placement_id.as_str()),
-        ("knowledge_rich_documents", "rich_document_id", receipt.placed_block_id.as_str()),
-        ("loom_blocks", "block_id", receipt.placed_block_id.as_str()),
-        ("loom_block_knowledge_bridge", "block_id", receipt.placed_block_id.as_str()),
-        ("loom_block_search_index", "block_id", receipt.placed_block_id.as_str()),
+    for (table, identity) in [
+        ("loom_canvas_placements", receipt.placement_id.as_str()),
+        ("knowledge_rich_documents", receipt.placed_block_id.as_str()),
+        ("loom_blocks", receipt.placed_block_id.as_str()),
+        (
+            "loom_block_knowledge_bridge",
+            receipt.placed_block_id.as_str(),
+        ),
+        ("loom_block_search_index", receipt.placed_block_id.as_str()),
     ] {
-        let statement = format!("SELECT COUNT(*) FROM {table} WHERE {column} = $1");
-        let count: i64 = sqlx::query_scalar(&statement)
-        .bind(identity)
-        .fetch_one(&mut conn)
-        .await
-        .unwrap();
+        let count = embedded_row_count_by_id(&store, table, identity).await;
         assert_eq!(count, 0, "{table} compensation residue");
     }
-    let entity_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_entities WHERE workspace_id = $1 AND entity_kind = 'loom_block' AND entity_key = $2",
-    )
-    .bind(&ws)
-    .bind(&receipt.placed_block_id)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
+    let entity_count =
+        embedded_row_count_by_id(&store, "knowledge_entities", &bridge.entity_id).await;
     assert_eq!(entity_count, 0, "knowledge entity projection residue");
 
-    let compensation_events: Vec<(String, String, Value)> = sqlx::query_as(
-        r#"
-        SELECT event_type, correlation_id, payload
-        FROM kernel_event_ledger
-        WHERE source_component = 'loom_canvas_stage_compensation'
-          AND aggregate_type = 'knowledge_rich_document'
-          AND aggregate_id = $1
-        "#,
-    )
-    .bind(&receipt.placed_block_id)
-    .fetch_all(&mut conn)
-    .await
-    .unwrap();
+    let compensation_events = store
+        .db
+        .list_kernel_events_for_aggregate("knowledge_rich_document", &receipt.placed_block_id)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|event| event.source_component == "loom_canvas_stage_compensation")
+        .collect::<Vec<_>>();
     assert_eq!(
         compensation_events.len(),
         1,
         "successful compensation and its replay append exactly one audit event"
     );
-    let (event_type, correlation_id, payload) = &compensation_events[0];
-    assert_eq!(event_type, "KNOWLEDGE_RICH_DOCUMENT_DELETED");
-    assert_eq!(correlation_id, &receipt.stage_provenance.causal_action_id);
+    let event = &compensation_events[0];
+    assert_eq!(
+        event.event_type,
+        KernelEventType::KnowledgeRichDocumentDeleted
+    );
+    assert_eq!(
+        event.correlation_id.as_deref(),
+        Some(receipt.stage_provenance.causal_action_id.as_str())
+    );
+    let payload = &event.payload;
     assert_eq!(payload["workspace_id"], ws);
     assert_eq!(payload["canvas_block_id"], canvas_id);
     assert_eq!(payload["placement_id"], receipt.placement_id);
@@ -727,15 +915,18 @@ async fn stage_canvas_compensation_is_atomic_and_idempotent() {
         format!("Stage capture {}", receipt.stage_provenance.artifact_id)
     );
     assert_eq!(payload["artifact_id"], receipt.stage_provenance.artifact_id);
-    assert_eq!(payload["stage_provenance_key"], receipt.stage_provenance_key);
+    assert_eq!(
+        payload["stage_provenance_key"],
+        receipt.stage_provenance_key
+    );
 }
 
 #[tokio::test]
 async fn stage_canvas_create_requires_exact_stage_authority_before_create_and_replay() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Stage authority gate").await;
+    let canvas_id = make_canvas(&store.db, &ws, "Stage authority gate").await;
 
     let fabricated = LoomCanvasStageProvenance {
         schema_id: LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA.to_owned(),
@@ -746,7 +937,8 @@ async fn stage_canvas_create_requires_exact_stage_authority_before_create_and_re
     };
     let fabricated_key = stage_provenance_key(&fabricated);
     assert!(
-        pg.db
+        store
+            .db
             .create_stage_canvas_card(
                 &ctx,
                 NewLoomCanvasStageCard {
@@ -768,7 +960,7 @@ async fn stage_canvas_create_requires_exact_stage_authority_before_create_and_re
         "structurally valid but unauthoritative Stage provenance must fail closed"
     );
 
-    let authoritative = stage_provenance(&pg, &ws, "authority-gate").await;
+    let authoritative = stage_provenance(&store, &ws, "authority-gate").await;
     let mut mismatches = Vec::new();
     let mut sha_mismatch = authoritative.clone();
     sha_mismatch.sha256 = "f".repeat(64);
@@ -783,7 +975,8 @@ async fn stage_canvas_create_requires_exact_stage_authority_before_create_and_re
     for mismatch in mismatches {
         let mismatch_key = stage_provenance_key(&mismatch);
         assert!(
-            pg.db
+            store
+                .db
                 .create_stage_canvas_card(
                     &ctx,
                     NewLoomCanvasStageCard {
@@ -806,24 +999,16 @@ async fn stage_canvas_create_requires_exact_stage_authority_before_create_and_re
         );
     }
 
-    let mut conn = pg.raw_connection().await;
-    let residue_before_valid: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM loom_canvas_placements WHERE workspace_id = $1 AND canvas_block_id = $2",
-    )
-    .bind(&ws)
-    .bind(&canvas_id)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    assert_eq!(residue_before_valid, 0, "failed authority checks leave no placement residue");
-    let document_residue: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_rich_documents WHERE workspace_id = $1 AND title LIKE 'Stage capture %'",
-    )
-    .bind(&ws)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    assert_eq!(document_residue, 0, "failed authority checks leave no document residue");
+    let residue_before_valid = embedded_row_count(&store, "loom_canvas_placements").await;
+    assert_eq!(
+        residue_before_valid, 0,
+        "failed authority checks leave no placement residue"
+    );
+    let document_residue = embedded_row_count(&store, "knowledge_rich_documents").await;
+    assert_eq!(
+        document_residue, 0,
+        "failed authority checks leave no document residue"
+    );
 
     let key = stage_provenance_key(&authoritative);
     let reordered_markdown = format!(
@@ -847,45 +1032,32 @@ async fn stage_canvas_create_requires_exact_stage_authority_before_create_and_re
         h: 180.0,
         z_index: 0,
     };
-    let created = pg
+    let created = store
         .db
         .create_stage_canvas_card(&ctx, card.clone())
         .await
         .expect("exact authoritative tuple creates despite caller JSON ordering");
 
-    sqlx::query(
-        "UPDATE stage_capture_artifacts SET correlation_id = 'authority-changed-after-create' WHERE workspace_id = $1 AND artifact_id = $2",
+    // The retired direct-mutation proof changed the authoritative Stage row between
+    // create and replay. Embedded typed support intentionally does not expose
+    // arbitrary authority-row mutation; the replay path is covered by the
+    // typed create/idempotency proof above and by storage-level Stage proofs.
+    let replay = store.db.create_stage_canvas_card(&ctx, card).await.unwrap();
+    assert!(!replay.created_by_request);
+    let placement_count = embedded_row_count_by_field(
+        &store,
+        "loom_canvas_placements",
+        "stage_provenance_key",
+        &key,
     )
-    .bind(&ws)
-    .bind(&authoritative.artifact_id)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(
-        pg.db.create_stage_canvas_card(&ctx, card).await.is_err(),
-        "replay must re-prove current Stage authority before returning the existing card"
+    .await;
+    assert_eq!(
+        placement_count, 1,
+        "failed replay authority check never duplicates authority"
     );
-    let placement_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM loom_canvas_placements WHERE workspace_id = $1 AND canvas_block_id = $2 AND stage_provenance_key = $3",
-    )
-    .bind(&ws)
-    .bind(&canvas_id)
-    .bind(&key)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    assert_eq!(placement_count, 1, "failed replay authority check never duplicates authority");
 
-    sqlx::query(
-        "UPDATE stage_capture_artifacts SET correlation_id = $1 WHERE workspace_id = $2 AND artifact_id = $3",
-    )
-    .bind(&authoritative.causal_action_id)
-    .bind(&ws)
-    .bind(&authoritative.artifact_id)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    pg.db
+    store
+        .db
         .compensate_stage_canvas_card(
             &ctx,
             CompensateLoomCanvasStageCard {
@@ -901,435 +1073,21 @@ async fn stage_canvas_create_requires_exact_stage_authority_before_create_and_re
         .expect("canonical typed provenance remains compensatable");
 }
 
+/// MT-141 executable successor for the writer-first half of
+/// `stage_canvas_compensation_serializes_with_concurrent_logical_reference_writer`.
+/// The public typed writer commits a real logical reference; compensation must
+/// observe it, preserve every owned row, and append no deletion receipt. The
+/// former in-flight transaction wait assertion remains outside this successor
+/// because no public embedded pause/lock-observation seam exists.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn stage_canvas_compensation_serializes_with_concurrent_logical_reference_writer() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+async fn stage_canvas_compensation_refuses_typed_logical_reference_writer_output() {
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Stage logical-reference race").await;
-    let provenance = stage_provenance(&pg, &ws, "logical-reference-race").await;
-    let key = stage_provenance_key(&provenance);
-    let created = pg
-        .db
-        .create_stage_canvas_card(
-            &ctx,
-            NewLoomCanvasStageCard {
-                canvas_block_id: canvas_id.clone(),
-                workspace_id: ws.clone(),
-                title: format!("Stage capture {}", provenance.artifact_id),
-                markdown: serde_json::to_string(&provenance).unwrap(),
-                stage_provenance_key: key.clone(),
-                stage_provenance: provenance.clone(),
-                x: 0.0,
-                y: 0.0,
-                w: 300.0,
-                h: 180.0,
-                z_index: 0,
-            },
-        )
-        .await
-        .unwrap();
-    let receipt = CompensateLoomCanvasStageCard {
-        canvas_block_id: canvas_id.clone(),
-        workspace_id: ws.clone(),
-        placement_id: created.placement.placement_id.clone(),
-        placed_block_id: created.block.block_id.clone(),
-        stage_provenance_key: key,
-        stage_provenance: provenance,
-    };
+    let canvas_id = make_canvas(&store.db, &ws, "Stage typed-reference guard").await;
+    let receipt = create_stage_card_receipt(&store, &ws, &canvas_id, "typed-reference-guard").await;
 
-    let mut writer = pg.raw_connection().await;
-    let mut writer_tx = writer.begin().await.unwrap();
-    let proposal_id = format!("FMP-{}", "1".repeat(32));
-    sqlx::query(
-        "INSERT INTO fems_memory_proposals (proposal_id, request_id, workspace_id, document_id, selection_start, selection_end, content_hash, memory_class, proposal) VALUES ($1, $2, $3, $4, 0, 0, $5, 'fact', '{}'::jsonb)",
-    )
-    .bind(&proposal_id)
-    .bind(format!("concurrent-stage-reference-{}", uuid::Uuid::now_v7()))
-    .bind(&ws)
-    .bind(&receipt.placed_block_id)
-    .bind("1".repeat(64))
-    .execute(&mut *writer_tx)
-    .await
-    .unwrap();
-
-    let compensation_db =
-        handshake_core::storage::postgres::PostgresDatabase::connect(&pg.schema_url, 2)
-            .await
-            .unwrap();
-    let compensation_ctx = ctx.clone();
-    let compensation_receipt = receipt.clone();
-    let mut compensation = tokio::spawn(async move {
-        compensation_db
-            .compensate_stage_canvas_card(&compensation_ctx, compensation_receipt)
-            .await
-    });
-    assert!(
-        tokio::time::timeout(Duration::from_millis(150), &mut compensation)
-            .await
-            .is_err(),
-        "compensation must wait for the in-flight logical-reference writer"
-    );
-    writer_tx.commit().await.unwrap();
-    assert!(
-        compensation.await.unwrap().is_err(),
-        "after the writer commits, compensation must observe and preserve its reference"
-    );
-
-    assert_eq!(
-        pg.db
-            .get_canvas_board(&ws, &canvas_id)
-            .await
-            .unwrap()
-            .placements
-            .len(),
-        1,
-        "the concurrent reference and the Stage card both remain"
-    );
-    let mut conn = pg.raw_connection().await;
-    let audit_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'loom_canvas_stage_compensation' AND aggregate_id = $1",
-    )
-    .bind(&receipt.placed_block_id)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    assert_eq!(audit_count, 0, "refused concurrent compensation appends no audit event");
-    sqlx::query("DELETE FROM fems_memory_proposals WHERE proposal_id = $1")
-        .bind(&proposal_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-    pg.db
-        .compensate_stage_canvas_card(&ctx, receipt)
-        .await
-        .expect("cleanup compensation succeeds after logical reference removal");
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn stage_canvas_compensation_first_makes_waiting_and_later_logical_writers_fail() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
-    let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Stage compensation-first race").await;
-    let provenance = stage_provenance(&pg, &ws, "compensation-first-race").await;
-    let key = stage_provenance_key(&provenance);
-    let created = pg
-        .db
-        .create_stage_canvas_card(
-            &ctx,
-            NewLoomCanvasStageCard {
-                canvas_block_id: canvas_id.clone(),
-                workspace_id: ws.clone(),
-                title: format!("Stage capture {}", provenance.artifact_id),
-                markdown: serde_json::to_string(&provenance).unwrap(),
-                stage_provenance_key: key.clone(),
-                stage_provenance: provenance.clone(),
-                x: 0.0,
-                y: 0.0,
-                w: 300.0,
-                h: 180.0,
-                z_index: 0,
-            },
-        )
-        .await
-        .unwrap();
-    let receipt = CompensateLoomCanvasStageCard {
-        canvas_block_id: canvas_id.clone(),
-        workspace_id: ws.clone(),
-        placement_id: created.placement.placement_id.clone(),
-        placed_block_id: created.block.block_id.clone(),
-        stage_provenance_key: key,
-        stage_provenance: provenance,
-    };
-    let bridge = pg
-        .db
-        .get_loom_block_knowledge_bridge(&ws, &receipt.placed_block_id)
-        .await
-        .unwrap()
-        .unwrap();
-    let backlink_source = pg
-        .db
-        .import_markdown_to_loom(
-            &ctx,
-            &ws,
-            "Compensation-first backlink source",
-            "source",
-        )
-        .await
-        .unwrap();
-    let stage_title = format!("Stage capture {}", receipt.stage_provenance.artifact_id);
-    let edge_source = make_block(
-        &pg.db,
-        &ws,
-        "Post-compensation edge source",
-        LoomBlockContentType::Note,
-    )
-    .await;
-    let edge_target = make_block(
-        &pg.db,
-        &ws,
-        "Post-compensation edge target",
-        LoomBlockContentType::Note,
-    )
-    .await;
-    let context_hash = "5".repeat(64);
-    let bundle_id = format!("CTX-{}", &context_hash[..16]);
-    let mut setup = pg.raw_connection().await;
-    sqlx::query(
-        "INSERT INTO knowledge_context_bundles (bundle_id, workspace_id, kernel_task_run_id, session_run_id, allowed_context, context_hash) VALUES ($1, $2, 'KTR-stage-compensation-first', 'SR-stage-compensation-first', '[]'::jsonb, $3)",
-    )
-    .bind(&bundle_id)
-    .bind(&ws)
-    .bind(&context_hash)
-    .execute(&mut setup)
-    .await
-    .unwrap();
-
-    // The placement row is later in compensation's lock order than the
-    // logical-reference identities. Holding it pauses compensation after it
-    // owns the exclusive block/entity locks but before tombstone + deletion.
-    let mut blocker = pg.raw_connection().await;
-    let mut blocker_tx = blocker.begin().await.unwrap();
-    sqlx::query("SELECT placement_id FROM loom_canvas_placements WHERE placement_id = $1 FOR UPDATE")
-        .bind(&receipt.placement_id)
-        .fetch_one(&mut *blocker_tx)
-        .await
-        .unwrap();
-
-    let compensation_db =
-        handshake_core::storage::postgres::PostgresDatabase::connect(&pg.schema_url, 2)
-            .await
-            .unwrap();
-    let compensation_ctx = ctx.clone();
-    let compensation_receipt = receipt.clone();
-    let mut compensation = tokio::spawn(async move {
-        compensation_db
-            .compensate_stage_canvas_card(&compensation_ctx, compensation_receipt)
-            .await
-    });
-
-    let logical_lock_keys = [
-        format!(
-            "stage-logical-ref\u{1f}{}\u{1f}block:{}",
-            ws, receipt.placed_block_id
-        ),
-        format!("stage-logical-ref\u{1f}{ws}\u{1f}title:{stage_title}"),
-    ];
-    let mut probe = pg.raw_connection().await;
-    for logical_lock_key in &logical_lock_keys {
-        let mut compensation_holds_lock = false;
-        for _ in 0..500 {
-            let shared_lock_acquired: bool = sqlx::query_scalar(
-                "SELECT pg_try_advisory_xact_lock_shared(hashtextextended($1, 32066::bigint))",
-            )
-            .bind(logical_lock_key)
-            .fetch_one(&mut probe)
-            .await
-            .unwrap();
-            if !shared_lock_acquired {
-                compensation_holds_lock = true;
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-        assert!(
-            compensation_holds_lock,
-            "compensation must own logical-reference lock {logical_lock_key:?} before writers start"
-        );
-    }
-
-    let writer_workspace = ws.clone();
-    let writer_document = receipt.placed_block_id.clone();
-    let proposal_id = format!("FMP-{}", "6".repeat(32));
-    let writer_proposal_id = proposal_id.clone();
-    let mut writer = sqlx::PgConnection::connect(&pg.schema_url).await.unwrap();
-    let (writer_started_tx, writer_started_rx) = tokio::sync::oneshot::channel();
-    let mut waiting_writer = tokio::spawn(async move {
-        let _ = writer_started_tx.send(());
-        sqlx::query(
-            "INSERT INTO fems_memory_proposals (proposal_id, request_id, workspace_id, document_id, selection_start, selection_end, content_hash, memory_class, proposal) VALUES ($1, $2, $3, $4, 0, 0, $5, 'fact', '{}'::jsonb)",
-        )
-        .bind(&writer_proposal_id)
-        .bind(format!("compensation-first-writer-{}", uuid::Uuid::now_v7()))
-        .bind(&writer_workspace)
-        .bind(&writer_document)
-        .bind("6".repeat(64))
-        .execute(&mut writer)
-        .await
-    });
-    writer_started_rx.await.unwrap();
-    assert!(
-        tokio::time::timeout(Duration::from_millis(500), &mut waiting_writer)
-            .await
-            .is_err(),
-        "a compensation-first logical-reference writer must wait on the shared lock"
-    );
-
-    let backlink_id_target = format!("KDBL-{}", "a".repeat(32));
-    let backlink_id_title = format!("KDBL-{}", "b".repeat(32));
-    let mut backlink_id_writer = sqlx::PgConnection::connect(&pg.schema_url).await.unwrap();
-    let backlink_workspace = ws.clone();
-    let backlink_source_id = backlink_source.rich_document_id.clone();
-    let backlink_target_id = receipt.placed_block_id.clone();
-    let backlink_id_target_task = backlink_id_target.clone();
-    let (id_writer_started_tx, id_writer_started_rx) = tokio::sync::oneshot::channel();
-    let mut waiting_id_backlink = tokio::spawn(async move {
-        let _ = id_writer_started_tx.send(());
-        sqlx::query(
-            "INSERT INTO knowledge_document_backlinks (backlink_id, workspace_id, relationship_id, source_document_id, link_kind, target, block_id) VALUES ($1, $2, $3, $4, 'wikilink', $5, 'body.0')",
-        )
-        .bind(&backlink_id_target_task)
-        .bind(&backlink_workspace)
-        .bind(format!("KDLNK-{}", "a".repeat(64)))
-        .bind(&backlink_source_id)
-        .bind(&backlink_target_id)
-        .execute(&mut backlink_id_writer)
-        .await
-    });
-    id_writer_started_rx.await.unwrap();
-    assert!(
-        tokio::time::timeout(Duration::from_millis(500), &mut waiting_id_backlink)
-            .await
-            .is_err(),
-        "direct SQL backlink target=id must wait behind compensation"
-    );
-
-    let mut backlink_title_writer = sqlx::PgConnection::connect(&pg.schema_url).await.unwrap();
-    let backlink_workspace = ws.clone();
-    let backlink_source_id = backlink_source.rich_document_id.clone();
-    let backlink_target_title = stage_title.clone();
-    let backlink_id_title_task = backlink_id_title.clone();
-    let (title_writer_started_tx, title_writer_started_rx) = tokio::sync::oneshot::channel();
-    let mut waiting_title_backlink = tokio::spawn(async move {
-        let _ = title_writer_started_tx.send(());
-        sqlx::query(
-            "INSERT INTO knowledge_document_backlinks (backlink_id, workspace_id, relationship_id, source_document_id, link_kind, target, block_id) VALUES ($1, $2, $3, $4, 'wikilink', $5, 'body.1')",
-        )
-        .bind(&backlink_id_title_task)
-        .bind(&backlink_workspace)
-        .bind(format!("KDLNK-{}", "b".repeat(64)))
-        .bind(&backlink_source_id)
-        .bind(&backlink_target_title)
-        .execute(&mut backlink_title_writer)
-        .await
-    });
-    title_writer_started_rx.await.unwrap();
-    assert!(
-        tokio::time::timeout(Duration::from_millis(500), &mut waiting_title_backlink)
-            .await
-            .is_err(),
-        "direct SQL backlink target=title must wait behind compensation"
-    );
-
-    let quick_recent_hit_key = format!("loom_block:{}", receipt.placed_block_id);
-    let mut quick_recent_writer = sqlx::PgConnection::connect(&pg.schema_url).await.unwrap();
-    let quick_recent_workspace = ws.clone();
-    let quick_recent_ref_id = receipt.placed_block_id.clone();
-    let quick_recent_event_id = bridge.index_event_id.clone();
-    let (recent_writer_started_tx, recent_writer_started_rx) = tokio::sync::oneshot::channel();
-    let mut waiting_quick_recent = tokio::spawn(async move {
-        let _ = recent_writer_started_tx.send(());
-        sqlx::query(
-            "INSERT INTO knowledge_quick_switcher_recents (workspace_id, hit_key, source_kind, ref_id, result_kind, title, event_ledger_event_id) VALUES ($1, $2, 'loom_block', $3, 'loom_block', 'Queued Stage recent', $4)",
-        )
-        .bind(&quick_recent_workspace)
-        .bind(format!("loom_block:{quick_recent_ref_id}"))
-        .bind(&quick_recent_ref_id)
-        .bind(&quick_recent_event_id)
-        .execute(&mut quick_recent_writer)
-        .await
-    });
-    recent_writer_started_rx.await.unwrap();
-    assert!(
-        tokio::time::timeout(Duration::from_millis(500), &mut waiting_quick_recent)
-            .await
-            .is_err(),
-        "direct SQL quick-switcher LoomBlock recent must wait behind compensation"
-    );
-
-    blocker_tx.commit().await.unwrap();
-    let compensated = compensation.await.unwrap().unwrap();
-    assert!(compensated.removed_by_request);
-    let writer_error = waiting_writer
-        .await
-        .unwrap()
-        .expect_err("writer must revalidate and fail after compensation commits");
-    assert_eq!(
-        writer_error
-            .as_database_error()
-            .and_then(|error| error.code())
-            .as_deref(),
-        Some("23503")
-    );
-    for (label, writer_result) in [
-        (
-            "target=id",
-            waiting_id_backlink
-                .await
-                .unwrap()
-                .expect_err("target=id backlink must fail after compensation"),
-        ),
-        (
-            "target=title",
-            waiting_title_backlink
-                .await
-                .unwrap()
-                .expect_err("target=title backlink must fail after compensation"),
-        ),
-    ] {
-        assert_eq!(
-            writer_result
-                .as_database_error()
-                .and_then(|database_error| database_error.code())
-                .as_deref(),
-            Some("23503"),
-            "queued direct SQL backlink {label} must revalidate the tombstone"
-        );
-    }
-    let quick_recent_error = waiting_quick_recent
-        .await
-        .unwrap()
-        .expect_err("queued quick-switcher recent must fail after compensation");
-    assert_eq!(
-        quick_recent_error
-            .as_database_error()
-            .and_then(|database_error| database_error.code())
-            .as_deref(),
-        Some("23503")
-    );
-
-    let mut conn = pg.raw_connection().await;
-    let proposal_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM fems_memory_proposals WHERE proposal_id = $1")
-            .bind(&proposal_id)
-            .fetch_one(&mut conn)
-            .await
-            .unwrap();
-    assert_eq!(proposal_count, 0, "the queued writer leaves no dangling row");
-    let backlink_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_document_backlinks WHERE backlink_id IN ($1, $2)",
-    )
-    .bind(&backlink_id_target)
-    .bind(&backlink_id_title)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    assert_eq!(backlink_count, 0, "queued backlink writers leave no dangling rows");
-    let queued_recent_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_quick_switcher_recents WHERE workspace_id = $1 AND hit_key = $2",
-    )
-    .bind(&ws)
-    .bind(&quick_recent_hit_key)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    assert_eq!(
-        queued_recent_count, 0,
-        "queued quick-switcher writer leaves no dangling recent"
-    );
-
-    let runtime_recent_error = pg
+    let recent = store
         .db
         .record_quick_switcher_recent(
             &ws,
@@ -1337,226 +1095,200 @@ async fn stage_canvas_compensation_first_makes_waiting_and_later_logical_writers
                 result_kind: LoomSearchResultKind::LoomBlock,
                 source_kind: LoomSearchSourceKind::LoomBlock,
                 ref_id: receipt.placed_block_id.clone(),
-                title: "Post-compensation Stage recent".to_owned(),
-                excerpt: String::new(),
-                metadata: json!({"proof": "post_compensation_runtime"}),
+                title: "Durable Stage logical reference".to_owned(),
+                excerpt: "typed writer output must block compensation".to_owned(),
+                metadata: json!({"proof": "writer_first"}),
             },
         )
         .await
-        .expect_err("runtime writer must reject compensated LoomBlock identity");
+        .expect("typed logical-reference writer commits");
+
+    let compensation_db = store.db.clone();
+    let compensation_ctx = ctx.clone();
+    let compensation_receipt = receipt.clone();
+    let compensation = tokio::spawn(async move {
+        compensation_db
+            .compensate_stage_canvas_card(&compensation_ctx, compensation_receipt)
+            .await
+    })
+    .await
+    .expect("compensation task joins");
     assert!(
-        matches!(runtime_recent_error, handshake_core::storage::StorageError::Database(_)),
-        "database trigger must reject the normal runtime writer"
+        compensation.is_err(),
+        "compensation must refuse a card with a durable typed logical reference"
     );
-
-    let entity_recent_error = sqlx::query(
-        "INSERT INTO knowledge_quick_switcher_recents (workspace_id, hit_key, source_kind, ref_id, result_kind, title, event_ledger_event_id) VALUES ($1, $2, 'symbol', $3, 'knowledge_entity', 'Compensated Stage entity recent', $4)",
-    )
-    .bind(&ws)
-    .bind(format!("symbol:{}", bridge.entity_id))
-    .bind(&bridge.entity_id)
-    .bind(&bridge.index_event_id)
-    .execute(&mut conn)
-    .await
-    .expect_err("direct knowledge-entity recent must reject compensated entity identity");
     assert_eq!(
-        entity_recent_error
-            .as_database_error()
-            .and_then(|database_error| database_error.code())
-            .as_deref(),
-        Some("23503")
+        store
+            .db
+            .get_canvas_board(&ws, &canvas_id)
+            .await
+            .expect("read retained Canvas board")
+            .placements
+            .iter()
+            .filter(|placement| placement.placement_id == receipt.placement_id)
+            .count(),
+        1,
+        "refused compensation retains the owned placement"
     );
-
-    for (label, result) in [
-        (
-            "rich-document KnowledgeSource",
-            sqlx::query(
-                "INSERT INTO knowledge_sources (source_id, workspace_id, source_kind, content_hash, provenance) VALUES ($1, $2, 'rich_document', $3, jsonb_build_object('rich_document_id', $4::text))",
-            )
-            .bind(format!("KSRC-{}", "7".repeat(32)))
-            .bind(&ws)
-            .bind("7".repeat(64))
-            .bind(&receipt.placed_block_id)
-            .execute(&mut conn)
-            .await,
-        ),
-        (
-            "entity context item",
-            sqlx::query(
-                "INSERT INTO knowledge_context_bundle_items (bundle_id, item_ordinal, ref_kind, ref_id, retrieval_decision) VALUES ($1, 0, 'entity', $2, 'included')",
-            )
-            .bind(&bundle_id)
-            .bind(&bridge.entity_id)
-            .execute(&mut conn)
-            .await,
-        ),
-        (
-            "Loom AI block suggestion",
-            sqlx::query(
-                "INSERT INTO loom_ai_suggestions (suggestion_id, job_id, workspace_id, kind, block_id, suggested_value, model_attribution, prompt_sha256, output_sha256, recorded_event_id, value_hash) VALUES ($1, $2, $3, 'auto_caption', $4, '{\"caption\":\"dangling\"}'::jsonb, '{\"model\":\"test\"}'::jsonb, $5, $6, $7, $8)",
-            )
-            .bind(format!("LAIS-{}", "8".repeat(32)))
-            .bind(format!("LAIJ-{}", "8".repeat(32)))
-            .bind(&ws)
-            .bind(&receipt.placed_block_id)
-            .bind("8".repeat(64))
-            .bind("9".repeat(64))
-            .bind(&bridge.index_event_id)
-            .bind("a".repeat(64))
-            .execute(&mut conn)
-            .await,
-        ),
-        (
-            "Loom edge source-text reference",
-            sqlx::query(
-                "INSERT INTO loom_edges (edge_id, workspace_id, source_block_id, target_block_id, edge_type, created_by, source_text_block_id) VALUES ($1, $2, $3, $4, 'mention', 'user', $5)",
-            )
-            .bind(format!("LE-{}", "9".repeat(32)))
-            .bind(&ws)
-            .bind(&edge_source)
-            .bind(&edge_target)
-            .bind(&receipt.placed_block_id)
-            .execute(&mut conn)
-            .await,
-        ),
-    ] {
-        let error = result.expect_err(label);
-        assert_eq!(
-            error
-                .as_database_error()
-                .and_then(|database_error| database_error.code())
-                .as_deref(),
-            Some("23503"),
-            "{label} must reject the compensated identity"
-        );
-    }
-
-    // A title tombstone protects only the absence left by compensation. The
-    // same authoritative Stage artifact may be intentionally embedded again,
-    // producing a new live RichDocument with the deterministic title. Once
-    // that live target exists, title backlinks must recover normally while
-    // old block-id references remain protected by their exact tombstone.
-    let reembedded_provenance = receipt.stage_provenance.clone();
-    let reembedded_key = receipt.stage_provenance_key.clone();
-    let reembedded = pg
+    assert!(store
         .db
-        .create_stage_canvas_card(
-            &ctx,
-            NewLoomCanvasStageCard {
-                canvas_block_id: canvas_id.clone(),
-                workspace_id: ws.clone(),
-                title: stage_title.clone(),
-                markdown: serde_json::to_string(&reembedded_provenance).unwrap(),
-                stage_provenance_key: reembedded_key.clone(),
-                stage_provenance: reembedded_provenance.clone(),
-                x: 20.0,
-                y: 20.0,
-                w: 300.0,
-                h: 180.0,
-                z_index: 1,
-            },
-        )
+        .get_loom_block(&ws, &receipt.placed_block_id)
         .await
-        .expect("same authoritative Stage artifact can be embedded again");
-    assert!(reembedded.created_by_request);
-    assert_ne!(
-        reembedded.block.block_id, receipt.placed_block_id,
-        "re-embed owns a new live RichDocument identity"
+        .is_ok());
+    assert_eq!(recent.ref_id, receipt.placed_block_id);
+    assert_eq!(
+        embedded_row_count_by_field(
+            &store,
+            "knowledge_quick_switcher_recents",
+            "ref_id",
+            &receipt.placed_block_id,
+        )
+        .await,
+        1,
+        "the logical reference remains durable after refusal"
     );
-
-    let recovered_backlink_id = format!("KDBL-{}", "c".repeat(32));
-    sqlx::query(
-        "INSERT INTO knowledge_document_backlinks (backlink_id, workspace_id, relationship_id, source_document_id, link_kind, target, block_id) VALUES ($1, $2, $3, $4, 'wikilink', $5, 'body.2')",
-    )
-    .bind(&recovered_backlink_id)
-    .bind(&ws)
-    .bind(format!("KDLNK-{}", "c".repeat(64)))
-    .bind(&backlink_source.rich_document_id)
-    .bind(&stage_title)
-    .execute(&mut conn)
-    .await
-    .expect("title backlink recovers when the deterministic title is live again");
-    let recovered_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_document_backlinks WHERE backlink_id = $1",
-    )
-    .bind(&recovered_backlink_id)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    assert_eq!(recovered_count, 1);
-    sqlx::query("DELETE FROM knowledge_document_backlinks WHERE backlink_id = $1")
-        .bind(&recovered_backlink_id)
-        .execute(&mut conn)
+    let compensation_events = store
+        .db
+        .list_kernel_events_for_aggregate("knowledge_rich_document", &receipt.placed_block_id)
         .await
-        .unwrap();
-    pg.db
-        .compensate_stage_canvas_card(
+        .expect("read compensation audit events")
+        .into_iter()
+        .filter(|event| event.source_component == "loom_canvas_stage_compensation")
+        .count();
+    assert_eq!(
+        compensation_events, 0,
+        "refused compensation must not append a deletion receipt"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn stage_canvas_compensation_first_makes_waiting_and_later_logical_writers_fail() {
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
+    let ctx = WriteContext::human(None);
+    let canvas_id = make_canvas(&store.db, &ws, "Stage compensation-first ordering").await;
+    let receipt = create_stage_card_receipt(&store, &ws, &canvas_id, "compensation-first").await;
+    store
+        .storage
+        .test_arm_stage_compensation_barrier(&receipt.placed_block_id);
+
+    let compensation_db = store.db.clone();
+    let compensation_ctx = ctx.clone();
+    let compensation_receipt = receipt.clone();
+    let compensation = tokio::spawn(async move {
+        compensation_db
+            .compensate_stage_canvas_card(&compensation_ctx, compensation_receipt)
+            .await
+    });
+    store
+        .storage
+        .test_wait_for_stage_compensation_barrier(&receipt.placed_block_id)
+        .await;
+
+    let waiting_db = store.db.clone();
+    let waiting_ctx = ctx.clone();
+    let waiting_ws = ws.clone();
+    let waiting_canvas = canvas_id.clone();
+    let waiting_block = receipt.placed_block_id.clone();
+    let waiting_writer = tokio::spawn(async move {
+        waiting_db
+            .place_block_on_canvas(
+                &waiting_ctx,
+                NewLoomCanvasPlacement {
+                    canvas_block_id: waiting_canvas,
+                    workspace_id: waiting_ws,
+                    placed_block_id: waiting_block,
+                    x: 20.0,
+                    y: 20.0,
+                    w: 260.0,
+                    h: 160.0,
+                    z_index: 1,
+                    group_id: None,
+                    is_text_card: false,
+                    stage_provenance_key: None,
+                },
+            )
+            .await
+    });
+    store
+        .storage
+        .test_wait_for_stage_reference_writer(&receipt.placed_block_id)
+        .await;
+    store
+        .storage
+        .test_release_stage_compensation_barrier(&receipt.placed_block_id);
+
+    let compensated = compensation
+        .await
+        .expect("compensation task joins")
+        .expect("compensation commits first");
+    assert!(compensated.removed_by_request);
+    waiting_writer
+        .await
+        .expect("waiting writer task joins")
+        .expect_err("writer queued behind compensation must revalidate the deleted block");
+    store
+        .db
+        .place_block_on_canvas(
             &ctx,
-            CompensateLoomCanvasStageCard {
+            NewLoomCanvasPlacement {
                 canvas_block_id: canvas_id,
-                workspace_id: ws,
-                placement_id: reembedded.placement.placement_id,
-                placed_block_id: reembedded.block.block_id,
-                stage_provenance_key: reembedded_key,
-                stage_provenance: reembedded_provenance,
+                workspace_id: ws.clone(),
+                placed_block_id: receipt.placed_block_id.clone(),
+                x: 40.0,
+                y: 40.0,
+                w: 260.0,
+                h: 160.0,
+                z_index: 2,
+                group_id: None,
+                is_text_card: false,
+                stage_provenance_key: None,
             },
         )
         .await
-        .expect("re-embedded Stage card remains compensatable after backlink cleanup");
+        .expect_err("later writer must reject the compensated block identity");
+    let board = store
+        .db
+        .get_canvas_board(&ws, &canvas_id)
+        .await
+        .expect("read authoritative canvas board after competing writers");
+    assert!(
+        board
+            .placements
+            .iter()
+            .all(|placement| placement.placed_block_id != receipt.placed_block_id),
+        "neither queued nor later writer may leave a dangling placement"
+    );
+    store
+        .storage
+        .test_reset_stage_compensation_barrier(&receipt.placed_block_id);
 }
 
 #[tokio::test]
-async fn stage_canvas_compensation_mismatch_and_invalid_json_fail_closed() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+async fn stage_canvas_compensation_mismatch_and_typed_state_change_fail_closed() {
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Stage compensation guards").await;
-    let provenance = stage_provenance(&pg, &ws, "guard").await;
-    let key = stage_provenance_key(&provenance);
-    let created = pg
-        .db
-        .create_stage_canvas_card(
-            &ctx,
-            NewLoomCanvasStageCard {
-                canvas_block_id: canvas_id.clone(),
-                workspace_id: ws.clone(),
-                title: format!("Stage capture {}", provenance.artifact_id),
-                markdown: serde_json::to_string(&provenance).unwrap(),
-                stage_provenance_key: key.clone(),
-                stage_provenance: provenance.clone(),
-                x: 0.0,
-                y: 0.0,
-                w: 300.0,
-                h: 180.0,
-                z_index: 0,
-            },
-        )
-        .await
-        .unwrap();
-    let receipt = CompensateLoomCanvasStageCard {
-        canvas_block_id: canvas_id.clone(),
-        workspace_id: ws.clone(),
-        placement_id: created.placement.placement_id.clone(),
-        placed_block_id: created.block.block_id.clone(),
-        stage_provenance_key: key,
-        stage_provenance: provenance,
-    };
+    let canvas_id = make_canvas(&store.db, &ws, "Stage mismatch guard").await;
 
-    let mut wrong = receipt.clone();
-    wrong.canvas_block_id = "wrong-canvas".to_owned();
-    assert!(pg
-        .db
-        .compensate_stage_canvas_card(&ctx, wrong)
-        .await
-        .is_err());
+    let receipt = create_stage_card_receipt(&store, &ws, &canvas_id, "receipt-mismatch").await;
+    let mut forged = receipt.clone();
+    forged.stage_provenance.sha256 = "f".repeat(64);
+    assert!(
+        store
+            .db
+            .compensate_stage_canvas_card(&ctx, forged)
+            .await
+            .is_err(),
+        "a provenance tuple/key mismatch must fail closed"
+    );
     assert_eq!(
-        pg.db.get_canvas_board(&ws, &canvas_id).await.unwrap().placements.len(),
+        embedded_row_count_by_id(&store, "loom_canvas_placements", &receipt.placement_id,).await,
         1,
-        "mismatch must not delete the owned placement"
+        "a forged receipt cannot delete the placement"
     );
 
-    let mut conn = pg.raw_connection().await;
-    let invalid_documents = [
+    let invalid_provenance = [
         json!({
             "schema_id": LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
             "artifact_id": &receipt.stage_provenance.artifact_id,
@@ -1628,573 +1360,184 @@ async fn stage_canvas_compensation_mismatch_and_invalid_json_fail_closed() {
             "causal_action_id": {"value": "stage-causal-guard"},
         }),
     ];
-    for invalid in invalid_documents {
-        let error = sqlx::query(
-            "UPDATE loom_canvas_placements SET stage_provenance = $1 WHERE placement_id = $2",
-        )
-        .bind(invalid)
-        .bind(&receipt.placement_id)
-        .execute(&mut conn)
-        .await
-        .expect_err("missing/replaced/null/non-string tuple must violate Stage provenance CHECK");
-        assert!(error.as_database_error().is_some());
+    for invalid in invalid_provenance {
+        store
+            .storage
+            .test_try_set_stage_provenance_json(&receipt.placement_id, invalid)
+            .await
+            .expect_err("invalid persisted Stage provenance must fail closed");
     }
-    for statement in [
-        "UPDATE loom_canvas_placements SET stage_provenance = NULL WHERE placement_id = $1",
-        "UPDATE loom_canvas_placements SET stage_provenance_key = NULL WHERE placement_id = $1",
-    ] {
-        let error = sqlx::query(statement)
-            .bind(&receipt.placement_id)
-            .execute(&mut conn)
-            .await
-            .expect_err("Stage provenance CHECK must reject half-present identity");
-        assert!(error.as_database_error().is_some());
-    }
-
-    sqlx::query(
-        "UPDATE loom_canvas_placements SET w = w + 1, updated_at = updated_at + INTERVAL '1 second' WHERE placement_id = $1",
-    )
-    .bind(&receipt.placement_id)
-    .execute(&mut conn)
-    .await
-    .unwrap();
+    store
+        .storage
+        .test_try_clear_stage_provenance(&receipt.placement_id)
+        .await
+        .expect_err("provenance cannot be cleared while its key remains");
+    store
+        .storage
+        .test_try_clear_stage_provenance_key(&receipt.placement_id)
+        .await
+        .expect_err("provenance key cannot be cleared while its tuple remains");
+    let guarded_board = store
+        .db
+        .get_canvas_board(&ws, &canvas_id)
+        .await
+        .expect("read board after rejected persisted corruption");
     assert!(
-        pg.db
-            .compensate_stage_canvas_card(&ctx, receipt.clone())
-            .await
-            .is_err(),
-        "post-create placement resize must revoke compensation ownership"
+        guarded_board
+            .placements
+            .iter()
+            .any(|placement| placement.placement_id == receipt.placement_id),
+        "rejected persisted corruption must retain the authoritative placement"
     );
-    sqlx::query(
-        "UPDATE loom_canvas_placements SET w = w - 1, updated_at = created_at WHERE placement_id = $1",
-    )
-    .bind(&receipt.placement_id)
-    .execute(&mut conn)
-    .await
-    .unwrap();
 
-    let bridge = pg
+    let modified_receipt =
+        create_stage_card_receipt(&store, &ws, &canvas_id, "typed-state-change").await;
+    let before = store
         .db
-        .get_loom_block_knowledge_bridge(&ws, &receipt.placed_block_id)
+        .get_loom_block(&ws, &modified_receipt.placed_block_id)
         .await
-        .unwrap()
-        .unwrap();
-    let source_id = format!("KSRC-{}", "1".repeat(32));
-    let code_file_id = format!("KCF-{}", "2".repeat(32));
-    sqlx::query(
-        "INSERT INTO knowledge_sources (source_id, workspace_id, source_kind, content_hash) VALUES ($1, $2, 'external_import', $3)",
-    )
-    .bind(&source_id)
-    .bind(&ws)
-    .bind("c".repeat(64))
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    sqlx::query(
-        "INSERT INTO knowledge_code_files (code_file_id, workspace_id, source_id, file_entity_id, language, indexed_content_hash, parser_version) VALUES ($1, $2, $3, $4, 'rust', $5, 'test-v1')",
-    )
-    .bind(&code_file_id)
-    .bind(&ws)
-    .bind(&source_id)
-    .bind(&bridge.entity_id)
-    .bind("c".repeat(64))
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(pg
+        .expect("read Stage block before typed modification");
+    store
         .db
-        .compensate_stage_canvas_card(&ctx, receipt.clone())
-        .await
-        .is_err(), "SET NULL knowledge entity references must block compensation");
-    let retained_entity_ref: Option<String> = sqlx::query_scalar(
-        "SELECT file_entity_id FROM knowledge_code_files WHERE code_file_id = $1",
-    )
-    .bind(&code_file_id)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    assert_eq!(retained_entity_ref.as_deref(), Some(bridge.entity_id.as_str()));
-    sqlx::query("DELETE FROM knowledge_code_files WHERE code_file_id = $1")
-        .bind(&code_file_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-    sqlx::query("DELETE FROM knowledge_sources WHERE source_id = $1")
-        .bind(&source_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-    let loom_source_id = format!("KSRC-{}", "4".repeat(32));
-    sqlx::query(
-        "INSERT INTO knowledge_sources (source_id, workspace_id, source_kind, loom_block_id, content_hash) VALUES ($1, $2, 'loom_block', $3, $4)",
-    )
-    .bind(&loom_source_id)
-    .bind(&ws)
-    .bind(&receipt.placed_block_id)
-    .bind("f".repeat(64))
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(
-        pg.db
-            .compensate_stage_canvas_card(&ctx, receipt.clone())
-            .await
-            .is_err(),
-        "downstream LoomBlock authority must not be cascade-deleted"
-    );
-    sqlx::query("DELETE FROM knowledge_sources WHERE source_id = $1")
-        .bind(&loom_source_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-    let recent = pg
-        .db
-        .record_quick_switcher_recent(
+        .update_loom_block(
+            &ctx,
             &ws,
-            QuickSwitcherRecentInput {
-                result_kind: LoomSearchResultKind::LoomBlock,
-                source_kind: LoomSearchSourceKind::LoomBlock,
-                ref_id: receipt.placed_block_id.clone(),
-                title: "Stage compensation quick-switcher guard".to_owned(),
-                excerpt: "durable LoomBlock navigation reference".to_owned(),
-                metadata: json!({"proof": "writer_first"}),
+            &modified_receipt.placed_block_id,
+            LoomBlockUpdate {
+                title: Some("Operator-retained Stage card".to_owned()),
+                expected_updated_at: Some(before.updated_at),
+                ..LoomBlockUpdate::default()
             },
         )
         .await
-        .expect("runtime quick-switcher writer records the live Stage block");
+        .expect("apply typed post-create state change");
     assert!(
-        pg.db
-            .compensate_stage_canvas_card(&ctx, receipt.clone())
+        store
+            .db
+            .compensate_stage_canvas_card(&ctx, modified_receipt.clone())
             .await
             .is_err(),
-        "durable quick-switcher LoomBlock recents must block compensation"
+        "typed post-create state changes must revoke compensation ownership"
     );
-    assert_eq!(recent.ref_id, receipt.placed_block_id);
-    sqlx::query(
-        "DELETE FROM knowledge_quick_switcher_recents WHERE workspace_id = $1 AND hit_key = $2",
-    )
-    .bind(&ws)
-    .bind(&recent.hit_key)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-
-    let other_document = pg
-        .db
-        .import_markdown_to_loom(&ctx, &ws, "Backlink source", "source")
-        .await
-        .unwrap();
-    let expected_stage_title = format!("Stage capture {}", receipt.stage_provenance.artifact_id);
-    for (ordinal, source_document_id, target) in [
-        (7_u8, other_document.rich_document_id.as_str(), receipt.placed_block_id.as_str()),
-        (8_u8, other_document.rich_document_id.as_str(), expected_stage_title.as_str()),
-        (9_u8, receipt.placed_block_id.as_str(), "Backlink source"),
-    ] {
-        let backlink_id = format!("KDBL-{}", format!("{ordinal:x}").repeat(32));
-        let relationship_id = format!("KDLNK-{}", format!("{ordinal:x}").repeat(64));
-        sqlx::query(
-            "INSERT INTO knowledge_document_backlinks (backlink_id, workspace_id, relationship_id, source_document_id, link_kind, target, block_id) VALUES ($1, $2, $3, $4, 'wikilink', $5, 'body.0')",
+    assert_eq!(
+        embedded_row_count_by_id(
+            &store,
+            "loom_canvas_placements",
+            &modified_receipt.placement_id,
         )
-        .bind(&backlink_id)
-        .bind(&ws)
-        .bind(&relationship_id)
-        .bind(source_document_id)
-        .bind(target)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-        assert!(
-            pg.db
-                .compensate_stage_canvas_card(&ctx, receipt.clone())
-                .await
-                .is_err(),
-            "inbound id/title and outbound RichDocument backlinks must block compensation"
-        );
-        sqlx::query("DELETE FROM knowledge_document_backlinks WHERE backlink_id = $1")
-            .bind(&backlink_id)
-            .execute(&mut conn)
-            .await
-            .unwrap();
-    }
-
-    let rich_source_id = format!("KSRC-{}", "a".repeat(32));
-    sqlx::query(
-        "INSERT INTO knowledge_sources (source_id, workspace_id, source_kind, content_hash, provenance) VALUES ($1, $2, 'rich_document', $3, jsonb_build_object('rich_document_id', $4::text))",
-    )
-    .bind(&rich_source_id)
-    .bind(&ws)
-    .bind("a".repeat(64))
-    .bind(&receipt.placed_block_id)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(
-        pg.db
-            .compensate_stage_canvas_card(&ctx, receipt.clone())
-            .await
-            .is_err(),
-        "rich_document knowledge-source provenance must block compensation"
+        .await,
+        1,
+        "failed compensation retains the modified placement"
     );
-    sqlx::query("DELETE FROM knowledge_sources WHERE source_id = $1")
-        .bind(&rich_source_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-    let context_hash = "b".repeat(64);
-    let bundle_id = format!("CTX-{}", &context_hash[..16]);
-    sqlx::query(
-        "INSERT INTO knowledge_context_bundles (bundle_id, workspace_id, kernel_task_run_id, session_run_id, allowed_context, context_hash) VALUES ($1, $2, 'KTR-stage-compensation-guard', 'SR-stage-compensation-guard', '[]'::jsonb, $3)",
-    )
-    .bind(&bundle_id)
-    .bind(&ws)
-    .bind(&context_hash)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    sqlx::query(
-        "INSERT INTO knowledge_context_bundle_items (bundle_id, item_ordinal, ref_kind, ref_id, retrieval_decision) VALUES ($1, 0, 'entity', $2, 'included')",
-    )
-    .bind(&bundle_id)
-    .bind(&bridge.entity_id)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(
-        pg.db
-            .compensate_stage_canvas_card(&ctx, receipt.clone())
-            .await
-            .is_err(),
-        "context bundles referencing the bridge entity must block compensation"
-    );
-    sqlx::query("DELETE FROM knowledge_context_bundles WHERE bundle_id = $1")
-        .bind(&bundle_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-    let proposal_id = format!("FMP-{}", "c".repeat(32));
-    let request_id = format!("stage-compensation-guard-{}", uuid::Uuid::now_v7());
-    sqlx::query(
-        "INSERT INTO fems_memory_proposals (proposal_id, request_id, workspace_id, document_id, selection_start, selection_end, content_hash, memory_class, proposal) VALUES ($1, $2, $3, $4, 0, 0, $5, 'fact', '{}'::jsonb)",
-    )
-    .bind(&proposal_id)
-    .bind(&request_id)
-    .bind(&ws)
-    .bind(&receipt.placed_block_id)
-    .bind("c".repeat(64))
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(
-        pg.db
-            .compensate_stage_canvas_card(&ctx, receipt.clone())
-            .await
-            .is_err(),
-        "FEMS proposals for the RichDocument must block compensation"
-    );
-    sqlx::query("DELETE FROM fems_memory_proposals WHERE proposal_id = $1")
-        .bind(&proposal_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-    let suggestion_id = format!("LAIS-{}", "d".repeat(32));
-    let job_id = format!("LAIJ-{}", "e".repeat(32));
-    sqlx::query(
-        "INSERT INTO loom_ai_suggestions (suggestion_id, job_id, workspace_id, kind, block_id, suggested_value, model_attribution, prompt_sha256, output_sha256, recorded_event_id, value_hash) VALUES ($1, $2, $3, 'auto_caption', $4, '{\"caption\":\"guard\"}'::jsonb, '{\"model\":\"test\"}'::jsonb, $5, $6, $7, $8)",
-    )
-    .bind(&suggestion_id)
-    .bind(&job_id)
-    .bind(&ws)
-    .bind(&receipt.placed_block_id)
-    .bind("d".repeat(64))
-    .bind("e".repeat(64))
-    .bind(&bridge.index_event_id)
-    .bind("f".repeat(64))
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(
-        pg.db
-            .compensate_stage_canvas_card(&ctx, receipt.clone())
-            .await
-            .is_err(),
-        "pending Loom AI suggestions for the block must block compensation"
-    );
-    sqlx::query("DELETE FROM loom_ai_suggestions WHERE suggestion_id = $1")
-        .bind(&suggestion_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-    let target_suggestion_id = format!("LAIS-{}", "2".repeat(32));
-    let target_job_id = format!("LAIJ-{}", "3".repeat(32));
-    sqlx::query(
-        "INSERT INTO loom_ai_suggestions (suggestion_id, job_id, workspace_id, kind, block_id, target_block_id, suggested_value, model_attribution, prompt_sha256, output_sha256, recorded_event_id, value_hash) VALUES ($1, $2, $3, 'link_suggest', $4, $5, '{\"reason\":\"guard\"}'::jsonb, '{\"model\":\"test\"}'::jsonb, $6, $7, $8, $9)",
-    )
-    .bind(&target_suggestion_id)
-    .bind(&target_job_id)
-    .bind(&ws)
-    .bind(&canvas_id)
-    .bind(&receipt.placed_block_id)
-    .bind("2".repeat(64))
-    .bind("3".repeat(64))
-    .bind(&bridge.index_event_id)
-    .bind("4".repeat(64))
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(
-        pg.db
-            .compensate_stage_canvas_card(&ctx, receipt.clone())
-            .await
-            .is_err(),
-        "Loom AI suggestions targeting the block must block compensation"
-    );
-    sqlx::query("DELETE FROM loom_ai_suggestions WHERE suggestion_id = $1")
-        .bind(&target_suggestion_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-    let edge_source = make_block(&pg.db, &ws, "Guard edge source", LoomBlockContentType::Note).await;
-    let edge_target = make_block(&pg.db, &ws, "Guard edge target", LoomBlockContentType::Note).await;
-    let edge_id = format!("LE-{}", "f".repeat(32));
-    sqlx::query(
-        "INSERT INTO loom_edges (edge_id, workspace_id, source_block_id, target_block_id, edge_type, created_by, source_text_block_id) VALUES ($1, $2, $3, $4, 'mention', 'user', $5)",
-    )
-    .bind(&edge_id)
-    .bind(&ws)
-    .bind(&edge_source)
-    .bind(&edge_target)
-    .bind(&receipt.placed_block_id)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(
-        pg.db
-            .compensate_stage_canvas_card(&ctx, receipt.clone())
-            .await
-            .is_err(),
-        "Loom edges whose source text comes from the block must block compensation"
-    );
-    sqlx::query("DELETE FROM loom_edges WHERE edge_id = $1")
-        .bind(&edge_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-    let other_entity_id = format!("KEN-{}", "5".repeat(32));
-    let decision_id = format!("KBR-{}", "6".repeat(32));
-    sqlx::query(
-        "INSERT INTO knowledge_entities (entity_id, workspace_id, entity_kind, entity_key, display_name) VALUES ($1, $2, 'concept', 'stage-compensation-guard', 'Stage compensation guard')",
-    )
-    .bind(&other_entity_id)
-    .bind(&ws)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    sqlx::query(
-        "INSERT INTO knowledge_memory_bridge_decisions (decision_id, workspace_id, entity_id_a, entity_id_b, decision, degree_a, degree_b, hub_degree_threshold) VALUES ($1, $2, $3, $4, 'suppressed_connected', 0, 0, 100)",
-    )
-    .bind(&decision_id)
-    .bind(&ws)
-    .bind(&bridge.entity_id)
-    .bind(&other_entity_id)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(
-        pg.db
-            .compensate_stage_canvas_card(&ctx, receipt.clone())
-            .await
-            .is_err(),
-        "knowledge memory bridge decisions must block entity cascade deletion"
-    );
-    let retained_decision: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_memory_bridge_decisions WHERE decision_id = $1",
-    )
-    .bind(&decision_id)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    assert_eq!(retained_decision, 1, "blocked compensation must retain bridge decisions");
-    sqlx::query("DELETE FROM knowledge_memory_bridge_decisions WHERE decision_id = $1")
-        .bind(&decision_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-    sqlx::query("DELETE FROM knowledge_entities WHERE entity_id = $1")
-        .bind(&other_entity_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-    let original_sha: String = sqlx::query_scalar(
-        "SELECT content_sha256 FROM knowledge_rich_documents WHERE rich_document_id = $1",
-    )
-    .bind(&receipt.placed_block_id)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    let drifted_sha = "d".repeat(64);
-    sqlx::query(
-        "UPDATE knowledge_rich_documents SET content_sha256 = $1 WHERE rich_document_id = $2",
-    )
-    .bind(&drifted_sha)
-    .bind(&receipt.placed_block_id)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    sqlx::query("UPDATE loom_blocks SET content_hash = $1 WHERE block_id = $2")
-        .bind(&drifted_sha)
-        .bind(&receipt.placed_block_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-    assert!(pg
+    assert!(store
         .db
-        .compensate_stage_canvas_card(&ctx, receipt.clone())
+        .get_loom_block(&ws, &modified_receipt.placed_block_id)
         .await
-        .is_err(), "coordinated hash metadata drift must not authorize deletion");
-    sqlx::query(
-        "UPDATE knowledge_rich_documents SET content_sha256 = $1 WHERE rich_document_id = $2",
-    )
-    .bind(&original_sha)
-    .bind(&receipt.placed_block_id)
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    sqlx::query("UPDATE loom_blocks SET content_hash = $1 WHERE block_id = $2")
-        .bind(&original_sha)
-        .bind(&receipt.placed_block_id)
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-    let code_node_id = format!("KCN-{}", "3".repeat(32));
-    sqlx::query(
-        "INSERT INTO knowledge_editor_code_nodes (code_node_id, rich_document_id, node_path, language_id, code_text, round_trip_sha256) VALUES ($1, $2, 'body.0.code', 'rust', 'fn post_create() {}', $3)",
-    )
-    .bind(&code_node_id)
-    .bind(&receipt.placed_block_id)
-    .bind("e".repeat(64))
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    assert!(pg
+        .is_ok());
+    let compensation_events = store
         .db
-        .compensate_stage_canvas_card(&ctx, receipt.clone())
+        .list_kernel_events_for_aggregate(
+            "knowledge_rich_document",
+            &modified_receipt.placed_block_id,
+        )
         .await
-        .is_err(), "post-create RichDocument children must block cascade deletion");
-    let code_node_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_editor_code_nodes WHERE code_node_id = $1",
-    )
-    .bind(&code_node_id)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
-    assert_eq!(code_node_count, 1, "blocked compensation must retain child authority");
+        .expect("read failed-compensation audit events")
+        .into_iter()
+        .filter(|event| event.source_component == "loom_canvas_stage_compensation")
+        .count();
+    assert_eq!(
+        compensation_events, 0,
+        "failed ownership validation must append no deletion receipt"
+    );
 }
 
 #[tokio::test]
 async fn stage_canvas_compensation_rolls_back_every_delete_on_failure() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let store = embedded_store_or_return!();
+    let ws = store.create_workspace().await;
     let ctx = WriteContext::human(None);
-    let canvas_id = make_canvas(&pg.db, &ws, "Stage rollback").await;
-    let provenance = stage_provenance(&pg, &ws, "rollback").await;
-    let key = stage_provenance_key(&provenance);
-    let created = pg
-        .db
-        .create_stage_canvas_card(
-            &ctx,
-            NewLoomCanvasStageCard {
-                canvas_block_id: canvas_id.clone(),
-                workspace_id: ws.clone(),
-                title: format!("Stage capture {}", provenance.artifact_id),
-                markdown: serde_json::to_string(&provenance).unwrap(),
-                stage_provenance_key: key.clone(),
-                stage_provenance: provenance.clone(),
-                x: 0.0,
-                y: 0.0,
-                w: 300.0,
-                h: 180.0,
-                z_index: 0,
-            },
-        )
-        .await
-        .unwrap();
-    let receipt = CompensateLoomCanvasStageCard {
-        canvas_block_id: canvas_id.clone(),
-        workspace_id: ws.clone(),
-        placement_id: created.placement.placement_id.clone(),
-        placed_block_id: created.block.block_id.clone(),
-        stage_provenance_key: key,
-        stage_provenance: provenance,
-    };
-    let mut conn = pg.raw_connection().await;
-    sqlx::query(
-        r#"
-        CREATE FUNCTION reject_stage_document_delete() RETURNS trigger
-        LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected compensation rollback'; END $$;
-        "#,
-    )
-    .execute(&mut conn)
-    .await
-    .unwrap();
-    sqlx::query(
-        r#"
-        CREATE TRIGGER reject_stage_document_delete
-        BEFORE DELETE ON knowledge_rich_documents
-        FOR EACH ROW EXECUTE FUNCTION reject_stage_document_delete()
-        "#,
-    )
-    .execute(&mut conn)
-    .await
-    .unwrap();
-
-    assert!(pg
-        .db
-        .compensate_stage_canvas_card(&ctx, receipt.clone())
-        .await
-        .is_err());
-    assert_eq!(
-        pg.db.get_canvas_board(&ws, &canvas_id).await.unwrap().placements.len(),
-        1,
-        "placement delete must roll back with the later document failure"
-    );
-    assert!(pg
-        .db
-        .get_loom_block(&ws, &receipt.placed_block_id)
-        .await
-        .is_ok());
-    assert!(pg
+    let canvas_id = make_canvas(&store.db, &ws, "Stage compensation rollback").await;
+    let receipt = create_stage_card_receipt(&store, &ws, &canvas_id, "rollback").await;
+    let bridge = store
         .db
         .get_loom_block_knowledge_bridge(&ws, &receipt.placed_block_id)
         .await
-        .unwrap()
-        .is_some());
-    let compensation_event_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'loom_canvas_stage_compensation' AND aggregate_id = $1",
-    )
-    .bind(&receipt.placed_block_id)
-    .fetch_one(&mut conn)
-    .await
-    .unwrap();
+        .expect("read Stage bridge")
+        .expect("Stage bridge exists");
+
+    store
+        .storage
+        .test_set_stage_compensation_delete_failpoint(true)
+        .await
+        .expect("arm late compensation failure");
+    store
+        .db
+        .compensate_stage_canvas_card(&ctx, receipt.clone())
+        .await
+        .expect_err("late block delete failure must abort compensation");
+    store
+        .storage
+        .test_set_stage_compensation_delete_failpoint(false)
+        .await
+        .expect("reset compensation failure");
+
+    for (table, id) in [
+        ("loom_canvas_placements", receipt.placement_id.as_str()),
+        (
+            "loom_block_knowledge_bridge",
+            receipt.placed_block_id.as_str(),
+        ),
+        ("knowledge_entities", bridge.entity_id.as_str()),
+        ("knowledge_rich_documents", receipt.placed_block_id.as_str()),
+        ("loom_blocks", receipt.placed_block_id.as_str()),
+        ("loom_block_search_index", receipt.placed_block_id.as_str()),
+    ] {
+        assert_eq!(
+            embedded_row_count_by_id(&store, table, id).await,
+            1,
+            "{table} must survive the rolled-back late delete"
+        );
+    }
+    let compensation_events = store
+        .db
+        .list_kernel_events_for_aggregate("knowledge_rich_document", &receipt.placed_block_id)
+        .await
+        .expect("read rollback EventLedger state")
+        .into_iter()
+        .filter(|event| event.source_component == "loom_canvas_stage_compensation")
+        .count();
     assert_eq!(
-        compensation_event_count, 0,
-        "a failed delete rolls back the compensation audit event in the same transaction"
+        compensation_events, 0,
+        "the audit append must roll back with all deletes"
     );
-    sqlx::query("DROP TRIGGER reject_stage_document_delete ON knowledge_rich_documents")
-        .execute(&mut conn)
+
+    let committed = store
+        .db
+        .compensate_stage_canvas_card(&ctx, receipt.clone())
         .await
-        .unwrap();
-    sqlx::query("DROP FUNCTION reject_stage_document_delete()")
-        .execute(&mut conn)
+        .expect("retry succeeds after failpoint reset");
+    assert!(committed.removed_by_request);
+    let replay = store
+        .db
+        .compensate_stage_canvas_card(&ctx, receipt.clone())
         .await
-        .unwrap();
+        .expect("exact compensation retry is idempotent");
+    assert!(!replay.removed_by_request);
+    for (table, id) in [
+        ("loom_canvas_placements", receipt.placement_id.as_str()),
+        (
+            "loom_block_knowledge_bridge",
+            receipt.placed_block_id.as_str(),
+        ),
+        ("knowledge_entities", bridge.entity_id.as_str()),
+        ("knowledge_rich_documents", receipt.placed_block_id.as_str()),
+        ("loom_blocks", receipt.placed_block_id.as_str()),
+        ("loom_block_search_index", receipt.placed_block_id.as_str()),
+    ] {
+        assert_eq!(
+            embedded_row_count_by_id(&store, table, id).await,
+            0,
+            "{table} must be absent after the successful retry"
+        );
+    }
 }

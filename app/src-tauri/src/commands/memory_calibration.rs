@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use handshake_core::{
     memory::{
-        bitemporal::PostgresBitemporalMemoryIndex,
+        bitemporal::SurrealBitemporalMemoryIndex,
         calibration::{
             CalibrationCollector, CalibrationError, CalibrationMetrics, CalibrationSnapshot,
             CalibrationThresholds, FemsCalibrationSource, MEMORY_CALIBRATION_SNAPSHOT_COMMAND,
@@ -45,7 +45,7 @@ impl Default for MemoryCalibrationIpcState {
 impl MemoryCalibrationIpcState {
     pub fn with_postgres(db: Arc<dyn Database>) -> Self {
         Self::with_source(
-            Arc::new(PostgresBitemporalMemoryIndex::with_db(db)),
+            Arc::new(SurrealBitemporalMemoryIndex::with_db(db)),
             CalibrationThresholds::default(),
         )
     }

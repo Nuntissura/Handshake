@@ -12,9 +12,9 @@ use handshake_core::memory::hygiene::{
     HYGIENE_FLAG_ACTION_ID, HYGIENE_PROMOTE_ACTION_ID, HYGIENE_PRUNE_ACTION_ID,
 };
 use handshake_core::memory::{
-    pinned_core::MEMORY_PIN_AGGREGATE_TYPE, PostgresKernelActionSubmitter,
+    pinned_core::MEMORY_PIN_AGGREGATE_TYPE, SurrealKernelActionSubmitter,
 };
-use handshake_core::storage::{tests::postgres_backend_from_env, StorageError};
+use handshake_core::storage::tests::embedded_test_backend;
 use uuid::Uuid;
 
 #[derive(Default)]
@@ -272,19 +272,13 @@ fn consolidation_uses_embedding_similarity_before_fingerprint_fallback() {
     assert_eq!(submitter.consolidations.lock().unwrap().len(), 1);
 }
 
-async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core::storage::Database>
-{
-    match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
-    }
-}
-
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test hygiene_manager_tests -- --ignored`"]
-async fn postgres_submitter_persists_hygiene_prune_candidate() {
-    let db = postgres_or_environment_blocked().await;
-    let submitter = PostgresKernelActionSubmitter::with_db(std::sync::Arc::clone(&db));
+async fn submitter_persists_hygiene_prune_candidate() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated embedded hygiene backend");
+    let db = std::sync::Arc::clone(&backend.database);
+    let submitter = SurrealKernelActionSubmitter::with_db(std::sync::Arc::clone(&db));
     let memory_id = Uuid::now_v7();
 
     let receipt_id = HygieneActionSubmitter::submit_prune(&submitter, memory_id, Utc::now())
@@ -300,6 +294,13 @@ async fn postgres_submitter_persists_hygiene_prune_candidate() {
                 && event.payload["proposed_receipt"]["record_id"].as_str()
                     == Some(receipt_id.to_string().as_str())
         }),
-        "PostgresKernelActionSubmitter must persist hygiene prune candidates through KernelActionCatalogV1"
+        "SurrealKernelActionSubmitter must persist hygiene prune candidates through KernelActionCatalogV1"
     );
+
+    drop(submitter);
+    drop(db);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded hygiene backend");
 }

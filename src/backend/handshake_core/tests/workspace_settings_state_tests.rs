@@ -1,29 +1,18 @@
 //! WP-KERNEL-009 MT-248 durable workspace-settings proof.
 //!
 //! Settings, theme, and app keybindings are operator support state, but they
-//! must be workspace-scoped PostgreSQL state with EventLedger receipts rather
+//! must be workspace-scoped embedded state with EventLedger receipts rather
 //! than localStorage-only UI preferences.
 
-mod knowledge_pg_support;
+#[allow(dead_code)]
+mod user_manual_support;
 
 use handshake_core::kernel::KernelEventType;
 use handshake_core::storage::{
-    Database, StorageError, WORKSPACE_SETTINGS_SCHEMA_ID, WorkspaceSettingsStateInput,
+    Database, StorageError, WorkspaceSettingsStateInput, WORKSPACE_SETTINGS_SCHEMA_ID,
 };
-use knowledge_pg_support::knowledge_pg;
 use serde_json::json;
-use sqlx::Row;
-
-macro_rules! pg_or_skip {
-    () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
-            None => {
-                panic!("MT-248 workspace settings proof requires real PostgreSQL");
-            }
-        }
-    }};
-}
+use user_manual_support::manual_test_backend;
 
 fn settings_state(
     theme: &str,
@@ -49,10 +38,10 @@ fn settings_state(
 
 #[tokio::test]
 async fn mt248_workspace_settings_rejects_non_object_state() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
-    let err = pg
+    let err = backend
         .db
         .save_workspace_settings_state(
             &ws,
@@ -67,14 +56,18 @@ async fn mt248_workspace_settings_rejects_non_object_state() {
         err,
         StorageError::Validation("workspace settings_state must be a JSON object")
     ));
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 #[tokio::test]
 async fn mt248_workspace_settings_rejects_wrong_schema_id() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
-    let err = pg
+    let err = backend
         .db
         .save_workspace_settings_state(
             &ws,
@@ -94,14 +87,18 @@ async fn mt248_workspace_settings_rejects_wrong_schema_id() {
             "workspace settings_state schema_id must be hsk.workspace_settings_state@1"
         )
     ));
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 #[tokio::test]
 async fn mt248_workspace_settings_rejects_duplicate_chords_before_eventledger() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
-    let err = pg
+    let err = backend
         .db
         .save_workspace_settings_state(
             &ws,
@@ -117,32 +114,28 @@ async fn mt248_workspace_settings_rejects_duplicate_chords_before_eventledger() 
         StorageError::Validation("workspace settings_state duplicate keybinding chord")
     ));
 
-    let mut conn = pg.raw_connection().await;
-    let event_count: i64 = sqlx::query(
-        r#"
-        SELECT COUNT(*)::BIGINT AS count
-        FROM kernel_event_ledger
-        WHERE aggregate_type = 'workspace_settings_state'
-          AND aggregate_id = $1
-        "#,
-    )
-    .bind(&ws)
-    .fetch_one(&mut conn)
-    .await
-    .expect("query settings event count")
-    .get("count");
+    let event_count = backend
+        .db
+        .list_kernel_events_for_aggregate("workspace_settings_state", &ws)
+        .await
+        .expect("query settings event count")
+        .len();
     assert_eq!(
         event_count, 0,
         "invalid settings must fail before EventLedger append"
     );
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }
 
 #[tokio::test]
 async fn mt248_workspace_settings_persists_with_eventledger() {
-    let pg = pg_or_skip!();
-    let ws = pg.create_workspace().await;
+    let backend = manual_test_backend().await.expect("open embedded backend");
+    let ws = backend.create_workspace().await;
 
-    let initial = pg
+    let initial = backend
         .db
         .get_workspace_settings_state(&ws)
         .await
@@ -152,7 +145,7 @@ async fn mt248_workspace_settings_persists_with_eventledger() {
         "new workspace should not synthesize settings state"
     );
 
-    let first = pg
+    let first = backend
         .db
         .save_workspace_settings_state(
             &ws,
@@ -171,7 +164,7 @@ async fn mt248_workspace_settings_persists_with_eventledger() {
     assert_eq!(first.settings_state["theme"], "dark");
     assert!(!first.event_ledger_event_id.trim().is_empty());
 
-    let updated = pg
+    let updated = backend
         .db
         .save_workspace_settings_state(
             &ws,
@@ -187,7 +180,7 @@ async fn mt248_workspace_settings_persists_with_eventledger() {
         "each settings mutation must retain its own EventLedger receipt"
     );
 
-    let loaded = pg
+    let loaded = backend
         .db
         .get_workspace_settings_state(&ws)
         .await
@@ -196,45 +189,37 @@ async fn mt248_workspace_settings_persists_with_eventledger() {
     assert_eq!(loaded.settings_state["theme"], "light");
     assert_eq!(loaded.event_ledger_event_id, updated.event_ledger_event_id);
 
-    let mut conn = pg.raw_connection().await;
-    let event_count: i64 = sqlx::query(
-        r#"
-        SELECT COUNT(*)::BIGINT AS count
-        FROM kernel_event_ledger
-        WHERE event_id = $1
-          AND event_type = $2
-          AND aggregate_type = 'workspace_settings_state'
-          AND payload ->> 'workspace_id' = $3
-          AND payload -> 'settings_state' ->> 'theme' = 'light'
-        "#,
-    )
-    .bind(&updated.event_ledger_event_id)
-    .bind(KernelEventType::KnowledgeWorkspaceSettingsStateRecorded.as_str())
-    .bind(&ws)
-    .fetch_one(&mut conn)
-    .await
-    .expect("query matching kernel event")
-    .get("count");
+    let events = backend
+        .db
+        .list_kernel_events_for_aggregate("workspace_settings_state", &ws)
+        .await
+        .expect("query matching kernel event");
+    let event_count = events
+        .iter()
+        .filter(|event| {
+            event.event_id == updated.event_ledger_event_id
+                && event.event_type.as_str()
+                    == KernelEventType::KnowledgeWorkspaceSettingsStateRecorded.as_str()
+                && event.payload["workspace_id"] == ws
+                && event.payload["settings_state"]["theme"] == "light"
+        })
+        .count();
     assert_eq!(event_count, 1);
 
-    let row_count: i64 = sqlx::query(
-        r#"
-        SELECT COUNT(*)::BIGINT AS count
-        FROM knowledge_workspace_settings_states s
-        JOIN kernel_event_ledger e
-          ON e.event_id = s.event_ledger_event_id
-        WHERE s.workspace_id = $1
-          AND e.event_type = $2
-        "#,
-    )
-    .bind(&ws)
-    .bind(KernelEventType::KnowledgeWorkspaceSettingsStateRecorded.as_str())
-    .fetch_one(&mut conn)
-    .await
-    .expect("query settings row event FK")
-    .get("count");
+    let row_count = events
+        .iter()
+        .filter(|event| {
+            event.event_id == loaded.event_ledger_event_id
+                && event.event_type.as_str()
+                    == KernelEventType::KnowledgeWorkspaceSettingsStateRecorded.as_str()
+        })
+        .count();
     assert_eq!(
         row_count, 1,
         "workspace settings row must retain its EventLedger FK"
     );
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded backend");
 }

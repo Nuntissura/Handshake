@@ -1,45 +1,28 @@
-//! WP-KERNEL-009 MT-181 FolderTreeAndColorLabels — REAL PostgreSQL proof.
+//! WP-KERNEL-009 MT-181 FolderTreeAndColorLabels — embedded-store proof.
 //!
 //! §7.1.4.3 / MT-181: a persistent Loom folder hierarchy with color labels,
-//! sort modes, and project membership over PostgreSQL (loom_folders +
-//! loom_folder_members). An organizational overlay over LoomBlocks; never a
-//! second source of block truth. No parallel store.
+//! sort modes, and project membership over the embedded store. An
+//! organizational overlay over LoomBlocks; never a second source of block
+//! truth. No parallel store.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod knowledge_ingestion_support;
 
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomFolderSortMode, LoomFolderUpdate,
     NewLoomBlock, NewLoomFolder, StorageError, WriteContext,
 };
-use knowledge_pg_support::{base_database_url, knowledge_pg, KnowledgePg};
-use sqlx::{Connection, Row};
+use knowledge_ingestion_support::open_embedded_store;
 
-macro_rules! pg_or_skip {
+macro_rules! embedded_store {
     () => {{
-        match knowledge_pg().await {
-            Some(pg) => pg,
+        match open_embedded_store().await {
+            Some(store) => store,
             None => {
-                eprintln!("SKIP MT-181 loom folder proof: PostgreSQL unavailable");
-                return;
+                panic!("embedded MT-181 Loom folder fixture is mandatory");
             }
         }
     }};
-}
-
-async fn drop_isolated_schema(pg: KnowledgePg) {
-    let schema = pg.schema.clone();
-    drop(pg);
-    let base_url = base_database_url()
-        .await
-        .expect("PostgreSQL URL remains available for isolated-schema cleanup");
-    let mut connection = sqlx::PgConnection::connect(&base_url)
-        .await
-        .expect("connect for isolated-schema cleanup");
-    let quoted = schema.replace('"', "\"\"");
-    sqlx::query(&format!("DROP SCHEMA IF EXISTS \"{quoted}\" CASCADE"))
-        .execute(&mut connection)
-        .await
-        .expect("drop isolated Loom folder proof schema");
 }
 
 #[test]
@@ -67,7 +50,7 @@ fn folder_update_json_distinguishes_absent_null_and_value_for_move_fields() {
 }
 
 async fn blk(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ws: &str,
     title: &str,
 ) -> String {
@@ -95,7 +78,7 @@ async fn blk(
 }
 
 async fn folder(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &handshake_core::storage::surreal::SurrealDatabase,
     ws: &str,
     name: &str,
     parent: Option<&str>,
@@ -121,7 +104,7 @@ async fn folder(
 
 #[tokio::test]
 async fn folder_tree_persists_hierarchy_color_and_sort() {
-    let pg = pg_or_skip!();
+    let pg = embedded_store!();
     let ws = pg.create_workspace().await;
 
     let work = folder(&pg.db, &ws, "Work", None, LoomFolderSortMode::NameAsc).await;
@@ -163,7 +146,7 @@ async fn folder_tree_persists_hierarchy_color_and_sort() {
 
 #[tokio::test]
 async fn duplicate_root_folder_names_are_rejected_per_workspace() {
-    let pg = pg_or_skip!();
+    let pg = embedded_store!();
     let ws = pg.create_workspace().await;
 
     let first = folder(
@@ -205,135 +188,123 @@ async fn duplicate_root_folder_names_are_rejected_per_workspace() {
         "the rejected duplicate must not create a second ambiguous root"
     );
     assert!(rows.iter().any(|row| row.folder_id == first));
-    drop_isolated_schema(pg).await;
 }
 
 #[tokio::test]
-async fn loom_folder_uniqueness_forward_migration_installs_partial_indexes() {
-    let pg = pg_or_skip!();
-    let mut connection = pg.raw_connection().await;
-    let indexes = sqlx::query(
-        "SELECT indexname, indexdef FROM pg_indexes \
-         WHERE schemaname = current_schema() AND tablename = 'loom_folders'",
-    )
-    .fetch_all(&mut connection)
-    .await
-    .expect("inspect migrated loom_folders indexes");
-    let definitions: std::collections::HashMap<String, String> = indexes
-        .into_iter()
-        .map(|row| (row.get("indexname"), row.get("indexdef")))
-        .collect();
-    assert!(
-        definitions
-            .get("uq_loom_folders_root_name")
-            .is_some_and(|definition| definition.contains("parent_folder_id IS NULL")),
-        "0342 must install the root-name partial unique index: {definitions:?}"
-    );
-    assert!(
-        definitions
-            .get("uq_loom_folders_child_name")
-            .is_some_and(|definition| definition.contains("parent_folder_id IS NOT NULL")),
-        "0342 must install the non-root sibling partial unique index: {definitions:?}"
-    );
-
-    let old_constraint_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM pg_constraint \
-         WHERE conname = 'uq_loom_folders_sibling_name' \
-           AND conrelid = 'loom_folders'::regclass",
-    )
-    .fetch_one(&mut connection)
-    .await
-    .expect("inspect superseded nullable-parent constraint");
-    assert_eq!(old_constraint_count, 0);
-    drop(connection);
-    drop_isolated_schema(pg).await;
-}
-
-#[tokio::test]
-async fn loom_folder_uniqueness_forward_migration_recovers_preexisting_duplicate_roots() {
-    let pg = pg_or_skip!();
+async fn duplicate_child_folder_names_are_rejected_per_parent() {
+    let pg = embedded_store!();
     let ws = pg.create_workspace().await;
-    let mut connection = pg.raw_connection().await;
-
-    sqlx::raw_sql(
-        "DROP INDEX IF EXISTS uq_loom_folders_root_name;
-         DROP INDEX IF EXISTS uq_loom_folders_child_name;
-         ALTER TABLE loom_folders
-             ADD CONSTRAINT uq_loom_folders_sibling_name
-             UNIQUE (workspace_id, parent_folder_id, name);",
+    let first_parent = folder(
+        &pg.db,
+        &ws,
+        "First parent",
+        None,
+        LoomFolderSortMode::UpdatedDesc,
     )
-    .execute(&mut connection)
-    .await
-    .expect("restore the pre-0342 nullable-parent uniqueness shape");
-
-    sqlx::query(
-        "INSERT INTO loom_folders
-             (folder_id, workspace_id, parent_folder_id, name, sort_mode)
-         VALUES
-             ('LFD-upgrade-001', $1, NULL, 'Duplicate root', 'updated_desc'),
-             ('LFD-upgrade-002', $1, NULL, 'Duplicate root', 'updated_desc'),
-             ('LFD-upgrade-existing-name', $1, NULL,
-              'Duplicate root [recovered-LFD-upgrade-002]', 'updated_desc')",
+    .await;
+    let second_parent = folder(
+        &pg.db,
+        &ws,
+        "Second parent",
+        None,
+        LoomFolderSortMode::UpdatedDesc,
     )
-    .bind(&ws)
-    .execute(&mut connection)
-    .await
-    .expect("pre-0342 schema permits duplicate root names");
-
-    sqlx::raw_sql(include_str!(
-        "../migrations/0342_loom_folder_sibling_name_uniqueness.sql"
-    ))
-    .execute(&mut connection)
-    .await
-    .expect("0342 recovers duplicates and installs truthful indexes");
-
-    let names: Vec<String> = sqlx::query_scalar(
-        "SELECT name FROM loom_folders WHERE workspace_id = $1 ORDER BY folder_id",
+    .await;
+    let first_child = folder(
+        &pg.db,
+        &ws,
+        "Duplicate child",
+        Some(&first_parent),
+        LoomFolderSortMode::UpdatedDesc,
     )
-    .bind(&ws)
-    .fetch_all(&mut connection)
-    .await
-    .expect("read recovered folder names");
-    assert_eq!(names.len(), 3, "migration preserves every folder");
+    .await;
+
+    let error = pg
+        .db
+        .create_loom_folder(
+            &ws,
+            NewLoomFolder {
+                folder_id: None,
+                workspace_id: ws.clone(),
+                parent_folder_id: Some(first_parent.clone()),
+                name: "Duplicate child".to_owned(),
+                color: None,
+                sort_mode: LoomFolderSortMode::UpdatedDesc,
+                sort_order: None,
+                project_ref: None,
+            },
+        )
+        .await
+        .expect_err("duplicate child name must be rejected within one parent");
+    assert!(
+        matches!(error, StorageError::Conflict("loom_folder_sibling_name")),
+        "duplicate children must produce the typed sibling-name conflict, got {error}"
+    );
+
+    let second_child = folder(
+        &pg.db,
+        &ws,
+        "Duplicate child",
+        Some(&second_parent),
+        LoomFolderSortMode::UpdatedDesc,
+    )
+    .await;
+    let rows = pg.db.list_loom_folders(&ws).await.expect("list folders");
+    assert!(rows.iter().any(|row| row.folder_id == first_child));
+    assert!(rows.iter().any(|row| row.folder_id == second_child));
     assert_eq!(
-        names
-            .iter()
-            .filter(|name| *name == "Duplicate root")
+        rows.iter()
+            .filter(|row| {
+                row.parent_folder_id.as_deref() == Some(first_parent.as_str())
+                    && row.name == "Duplicate child"
+            })
             .count(),
         1,
-        "exactly one canonical root retains the original name"
+        "the rejected duplicate must not create a second child under one parent"
     );
-    assert!(
-        names
-            .iter()
-            .any(|name| name == "Duplicate root [recovered-LFD-upgrade-002]-2"),
-        "recovery avoids a pre-existing generated name: {names:?}"
-    );
+}
 
-    let duplicate_after_upgrade = sqlx::query(
-        "INSERT INTO loom_folders
-             (folder_id, workspace_id, parent_folder_id, name, sort_mode)
-         VALUES ('LFD-upgrade-003', $1, NULL, 'Duplicate root', 'updated_desc')",
-    )
-    .bind(&ws)
-    .execute(&mut connection)
-    .await
-    .expect_err("0342 rejects a new duplicate root");
+#[test]
+fn mt141_retired_loom_folder_migration_probes_have_exact_dispositions() {
+    let dispositions = [
+        (
+            "loom_folder_uniqueness_forward_migration_installs_partial_indexes",
+            "retired adapter-specific index and nullable-parent constraint shape",
+            "MT-139 PT-139-2 exact live catalog proof plus duplicate_root_folder_names_are_rejected_per_workspace and duplicate_child_folder_names_are_rejected_per_parent typed active-behavior proofs",
+        ),
+        (
+            "loom_folder_uniqueness_forward_migration_recovers_preexisting_duplicate_roots",
+            "one-time repair of duplicate roots created by the retired nullable-parent schema, including generated-name collision suffixing",
+            "removed historical upgrade behavior; duplicate_root_folder_names_are_rejected_per_workspace supersedes only prevention of new duplicate roots",
+        ),
+    ];
+
+    assert_eq!(dispositions.len(), 2);
     assert_eq!(
-        duplicate_after_upgrade
-            .as_database_error()
-            .and_then(|error| error.code())
-            .as_deref(),
-        Some("23505")
+        dispositions.map(|entry| entry.0),
+        [
+            "loom_folder_uniqueness_forward_migration_installs_partial_indexes",
+            "loom_folder_uniqueness_forward_migration_recovers_preexisting_duplicate_roots",
+        ]
     );
-
-    drop(connection);
-    drop_isolated_schema(pg).await;
+    assert!(dispositions[0].2.contains("MT-139 PT-139-2"));
+    assert!(dispositions[0]
+        .2
+        .contains("duplicate_root_folder_names_are_rejected_per_workspace"));
+    assert!(dispositions[0]
+        .2
+        .contains("duplicate_child_folder_names_are_rejected_per_parent"));
+    assert!(dispositions[1]
+        .1
+        .contains("generated-name collision suffixing"));
+    assert!(dispositions[1]
+        .2
+        .starts_with("removed historical upgrade behavior"));
 }
 
 #[tokio::test]
 async fn folder_membership_and_manual_sort() {
-    let pg = pg_or_skip!();
+    let pg = embedded_store!();
     let ws = pg.create_workspace().await;
     let f = folder(&pg.db, &ws, "Bucket", None, LoomFolderSortMode::Manual).await;
 
@@ -391,7 +362,7 @@ async fn folder_membership_and_manual_sort() {
 
 #[tokio::test]
 async fn folder_name_sort_mode_orders_by_title() {
-    let pg = pg_or_skip!();
+    let pg = embedded_store!();
     let ws = pg.create_workspace().await;
     let f = folder(&pg.db, &ws, "Alpha", None, LoomFolderSortMode::NameAsc).await;
     let zeb = blk(&pg.db, &ws, "Zebra").await;
@@ -416,7 +387,7 @@ async fn folder_name_sort_mode_orders_by_title() {
 
 #[tokio::test]
 async fn folder_move_into_own_subtree_is_rejected() {
-    let pg = pg_or_skip!();
+    let pg = embedded_store!();
     let ws = pg.create_workspace().await;
     let root = folder(&pg.db, &ws, "Root", None, LoomFolderSortMode::UpdatedDesc).await;
     let child = folder(
@@ -472,7 +443,7 @@ async fn folder_move_into_own_subtree_is_rejected() {
 
 #[tokio::test]
 async fn deleting_folder_cascades_subtree_but_not_blocks() {
-    let pg = pg_or_skip!();
+    let pg = embedded_store!();
     let ws = pg.create_workspace().await;
     let root = folder(
         &pg.db,
@@ -521,7 +492,7 @@ async fn deleting_folder_cascades_subtree_but_not_blocks() {
 
 #[tokio::test]
 async fn folder_apis_fail_closed_on_missing_targets() {
-    let pg = pg_or_skip!();
+    let pg = embedded_store!();
     let ws = pg.create_workspace().await;
 
     // Create under a non-existent parent.

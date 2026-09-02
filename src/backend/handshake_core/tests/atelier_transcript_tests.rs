@@ -1,19 +1,14 @@
-//! WP-KERNEL-005 atelier transcript/caption pipeline: live PostgreSQL
+//! WP-KERNEL-005 atelier transcript/caption pipeline: embedded SurrealDB
 //! round-trip proofs for the governed-record + receipt model in
-//! `handshake_core::atelier::transcript` (MT-203). Run with a live
-//! DATABASE_URL, e.g.
-//!   DATABASE_URL=postgres://postgres@127.0.0.1:5544/handshake \
-//!     cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
-//!     --test atelier_transcript_tests -- --nocapture
+//! `handshake_core::atelier::transcript` (MT-203).
 //!
-//! No mocks: each test connects the real `AtelierStore` to a live Postgres,
-//! ensures the schema, and exercises the probe -> transcript -> caption ->
+//! No mocks: each test uses the real `AtelierStore` on embedded SurrealDB and
+//! exercises the probe -> transcript -> caption ->
 //! receipt lineage with REAL data. This module has NO character FK; the lineage
 //! anchor is the `sha256:<64hex>` `source_media_hash`. Tables persist between
 //! runs, so every hash / job_id / artifact_ref is made unique per run via
 //! `Uuid::new_v4()` to avoid colliding on the UNIQUE / ON CONFLICT keys. Only
-//! `handshake_core` + `tokio` + `uuid` + `serde_json` (+ std) are used; sqlx is
-//! never imported directly.
+//! `handshake_core` + `tokio` + `uuid` + `serde_json` (+ std) are used.
 
 use chrono::Utc;
 use handshake_core::atelier::transcript::{
@@ -24,20 +19,12 @@ use handshake_core::atelier::transcript::{
 use handshake_core::atelier::AtelierStore;
 use uuid::Uuid;
 
-fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-}
+mod atelier_surreal_support;
 
-/// Connect + ensure schema, the shared preamble every test runs against a real
-/// Postgres.
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+/// Create the shared isolated embedded-store preamble every test runs against.
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// A fresh, run-unique canonical `sha256:<64hex>` lineage key. The 64 hex chars
@@ -71,13 +58,7 @@ async fn fresh_probe(store: &AtelierStore, hash: &str) -> MediaProbeReport {
 
 #[tokio::test]
 async fn atelier_transcript_rejects_legacy_runtime_artifact_refs() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_transcript_rejects_legacy_runtime_artifact_refs: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let hash = fresh_source_hash();
 
     let err = store
@@ -103,13 +84,7 @@ async fn atelier_transcript_rejects_legacy_runtime_artifact_refs() {
 
 #[tokio::test]
 async fn atelier_transcript_rejects_legacy_runtime_receipt_and_mux_refs() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_transcript_rejects_legacy_runtime_receipt_and_mux_refs: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let hash = fresh_source_hash();
     let probe = fresh_probe(&store, &hash).await;
@@ -221,13 +196,7 @@ async fn atelier_transcript_rejects_legacy_runtime_receipt_and_mux_refs() {
 
 #[tokio::test]
 async fn atelier_probe_idempotent_and_transcript_lineage_roundtrip() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_probe_idempotent_and_transcript_lineage_roundtrip: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let probe_before = store
         .count_events(transcript_event_family::MEDIA_PROBE_RECORDED)
@@ -371,11 +340,7 @@ async fn atelier_probe_idempotent_and_transcript_lineage_roundtrip() {
 
 #[tokio::test]
 async fn atelier_caption_inherits_hash_and_is_idempotent() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_caption_inherits_hash_and_is_idempotent: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let caption_before = store
         .count_events(transcript_event_family::CAPTION_RECORDED)
@@ -484,13 +449,7 @@ async fn atelier_caption_inherits_hash_and_is_idempotent() {
 
 #[tokio::test]
 async fn atelier_caption_render_produces_deterministic_sidecars_and_receipt() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_caption_render_produces_deterministic_sidecars_and_receipt: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let hash = fresh_source_hash();
     let probe = fresh_probe(&store, &hash).await;
@@ -608,13 +567,7 @@ async fn atelier_caption_render_produces_deterministic_sidecars_and_receipt() {
 
 #[tokio::test]
 async fn atelier_receipt_redaction_idempotency_and_partial_preservation() {
-    let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_receipt_redaction_idempotency_and_partial_preservation: DATABASE_URL not set"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let receipt_before = store
         .count_events(transcript_event_family::RECEIPT_FILED)

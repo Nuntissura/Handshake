@@ -1,29 +1,29 @@
 //! WP-KERNEL-009 MT-239 UserManualFreshnessFixture.
 //!
-//! Real PostgreSQL proof that UserManual freshness rejects false PASS states
-//! when stored child rows drift without changing page row hashes or row counts.
+//! Embedded-SurrealDB proof that freshness rejects false PASS states when a
+//! stored child row drifts without changing its parent hash or row count.
 
-mod knowledge_pg_support;
 #[allow(dead_code)]
 mod user_manual_support;
 
+use handshake_core::storage::surreal::{TestFieldMutation, TestMutationValue};
+use handshake_core::storage::Database;
 use handshake_core::user_manual::freshness::{check_freshness, FreshnessVerdictKind};
 use handshake_core::user_manual::seed::ensure_seeded;
 use handshake_core::user_manual::store::UserManualStore;
-use sqlx::Connection;
+use user_manual_support::manual_test_backend;
 
 #[tokio::test]
 async fn mt239_freshness_detects_same_count_page_child_tampering() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mt239_same_count_child_tamper"
-    );
-    ensure_seeded(&kpg.db).await.expect("seed");
-    let store = UserManualStore::new(&kpg.db);
-    let clean = check_freshness(&kpg.db)
+    let backend = manual_test_backend()
+        .await
+        .expect("open embedded UserManual backend");
+    ensure_seeded(&backend.db).await.expect("seed");
+    let store = UserManualStore::new(&backend.db);
+    let clean = check_freshness(&backend.db)
         .await
         .expect("freshness before tamper");
-    assert!(clean.fresh, "seeded manual must start fresh: {:?}", clean);
+    assert!(clean.fresh, "seeded manual must start fresh: {clean:?}");
 
     let (page, sections, _) = store
         .get_page_by_slug("manual-toc")
@@ -36,66 +36,69 @@ async fn mt239_freshness_detects_same_count_page_child_tampering() {
     let original_title = section.title.clone();
     let original_body = section.body_md.clone();
 
-    let mut conn = kpg.raw_connection().await;
-    sqlx::query(
-        r#"
-        UPDATE user_manual_sections
-        SET title = 'tampered same-count section title',
-            body_md = 'tampered same-count section body'
-        WHERE section_id = $1
-        "#,
-    )
-    .bind(&section.section_id)
-    .execute(&mut conn)
-    .await
-    .expect("tamper section in place");
-    let stored_hash_after_tamper: String =
-        sqlx::query_scalar("SELECT content_hash FROM user_manual_pages WHERE page_id = $1")
-            .bind(&page.page_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("page hash after tamper");
-    let section_count_after_tamper: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM user_manual_sections WHERE page_id = $1")
-            .bind(&page.page_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("section count after tamper");
-    conn.close().await.ok();
+    let inspector = backend.db.storage().test_inspector();
+    let section_table = inspector
+        .table_selector("user_manual_sections")
+        .await
+        .expect("select UserManual section table");
+    let section_title = section_table.field("title").expect("select title field");
+    let section_body = section_table.field("body_md").expect("select body field");
+    backend
+        .db
+        .storage()
+        .test_mutator()
+        .update_row(
+            &section_table,
+            &section.section_id,
+            &[
+                TestFieldMutation::new(
+                    section_title,
+                    TestMutationValue::string("tampered same-count section title"),
+                ),
+                TestFieldMutation::new(
+                    section_body,
+                    TestMutationValue::string("tampered same-count section body"),
+                ),
+            ],
+        )
+        .await
+        .expect("tamper one child row in place");
 
+    let (stored_page, stored_sections, _) = store
+        .get_page_by_slug("manual-toc")
+        .await
+        .expect("manual-toc after tamper")
+        .expect("manual-toc remains stored");
     assert_eq!(
-        stored_hash_after_tamper, page.content_hash,
-        "fixture must not update the page row hash"
+        stored_page.content_hash, page.content_hash,
+        "fixture must not update the parent page hash"
     );
     assert_eq!(
-        section_count_after_tamper as usize,
+        stored_sections.len(),
         sections.len(),
         "fixture must keep the child row count unchanged"
     );
 
-    let stale = check_freshness(&kpg.db)
+    let stale = check_freshness(&backend.db)
         .await
         .expect("freshness after same-count child tamper");
     assert!(
         !stale.fresh,
-        "same-count child tampering must not report fresh: {:?}",
-        stale
+        "same-count child tamper reported fresh: {stale:?}"
     );
     assert!(
         stale
             .verdicts
             .iter()
-            .any(|v| { v.kind == FreshnessVerdictKind::StaleContent && v.subject == page.slug }),
-        "same-count child tampering must yield stale_content for {}; got {:?}",
+            .any(|verdict| verdict.kind == FreshnessVerdictKind::StaleContent
+                && verdict.subject == page.slug),
+        "same-count child tamper must yield stale_content for {}: {:?}",
         page.slug,
         stale.verdicts
     );
 
-    let healed = ensure_seeded(&kpg.db).await.expect("healing reseed");
-    assert!(
-        healed.pages_changed >= 1,
-        "reseed must heal same-count child row tampering"
-    );
+    let healed = ensure_seeded(&backend.db).await.expect("healing reseed");
+    assert!(healed.pages_changed >= 1, "reseed must heal child drift");
     let (_, healed_sections, _) = store
         .get_page_by_slug("manual-toc")
         .await
@@ -104,4 +107,10 @@ async fn mt239_freshness_detects_same_count_page_child_tampering() {
     assert_eq!(healed_sections.len(), sections.len());
     assert_eq!(healed_sections[0].title, original_title);
     assert_eq!(healed_sections[0].body_md, original_body);
+
+    drop(store);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded UserManual backend");
 }

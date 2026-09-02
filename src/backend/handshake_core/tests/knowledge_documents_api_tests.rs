@@ -1,5 +1,5 @@
-//! WP-KERNEL-009 RichDocumentCore route-level integration tests against REAL
-//! Handshake-managed PostgreSQL — adversarial-v2 hardening proofs.
+//! WP-KERNEL-009 RichDocumentCore route-level integration tests against the
+//! real isolated embedded Handshake store — adversarial-v2 hardening proofs.
 //!
 //! Drives the actual Axum routes (`api::knowledge_documents::routes`) over a
 //! loopback listener (quiet: no foreground window, no focus steal).
@@ -10,8 +10,8 @@
 //!     `cloud_model` cannot write, and a bogus kind is a 400.
 //!   * MT-151: import -> load -> save -> export round-trips for HTML and
 //!     markdown-table imports (the `importedRaw` node is a loadable kind).
-//!   * MT-149: a committed save never returns an error — index/receipt step
-//!     failures are non-fatal and recorded in the response.
+//!   * MT-149: committed saves remain successful under independent receipt,
+//!     backlink, and embed post-commit failures.
 //!   * MT-152: content_json embed blocks are validated + persisted on the save
 //!     path with the same EmbedTarget law as the side table.
 //!   * MT-156: history is paginated and version bodies are omitted from the
@@ -19,11 +19,14 @@
 //!   * MT-157: a move with an empty body does NOT clear project/folder
 //!     membership (absent != explicit null).
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
+use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};
 use handshake_core::api::knowledge_documents as docs_api;
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
@@ -34,16 +37,14 @@ use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
 use handshake_core::storage::knowledge::KnowledgeStore;
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::RowFilter;
 use handshake_core::storage::{
-    Database, LoomBlockContentType, LoomBlockDerived, NewLoomBlock, NewLoomCanvasPlacement,
-    WriteContext,
+    Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy, LoomEdgeType,
+    NewLoomBlock, NewLoomCanvasPlacement, NewLoomEdge, WriteContext,
 };
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
-use knowledge_pg_support::{base_database_url, knowledge_pg, KnowledgePg, PANIC_CLEANUP_TIMEOUT};
 use serde_json::{json, Value};
-use sqlx::Connection;
 
 #[derive(Default)]
 struct NoopRecorder;
@@ -116,7 +117,7 @@ impl LlmClient for NoopLlmClient {
     }
 }
 
-/// Boot the real document routes over loopback against the isolated schema.
+/// Boot the real document routes over loopback against the isolated store.
 struct DocServerGuard(Option<tokio::task::JoinHandle<()>>);
 
 impl DocServerGuard {
@@ -148,19 +149,11 @@ impl Drop for DocServerGuard {
     }
 }
 
-async fn test_state(pg: &KnowledgePg) -> AppState {
-    let storage = PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect AppState storage")
-        .into_arc();
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect AppState pool");
+async fn test_state(store: &EmbeddedKnowledgeStore) -> AppState {
     let recorder = Arc::new(NoopRecorder);
     AppState {
-        storage,
+        storage: Arc::new(store.db.clone()),
+        surreal: store.storage.clone(),
         flight_recorder: recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(NoopLlmClient {
@@ -168,7 +161,6 @@ async fn test_state(pg: &KnowledgePg) -> AppState {
         }),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
     }
 }
 
@@ -187,33 +179,32 @@ async fn route_server(app: axum::Router) -> (String, reqwest::Client, DocServerG
     )
 }
 
-async fn doc_server(pg: &KnowledgePg) -> (String, reqwest::Client, DocServerGuard) {
-    route_server(docs_api::routes(test_state(pg).await)).await
+async fn doc_server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client, DocServerGuard) {
+    route_server(docs_api::routes(test_state(store).await)).await
 }
 
-async fn loom_server(pg: &KnowledgePg) -> (String, reqwest::Client, DocServerGuard) {
-    route_server(handshake_core::api::loom::routes(test_state(pg).await)).await
+async fn loom_server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client, DocServerGuard) {
+    route_server(handshake_core::api::loom::routes(test_state(store).await)).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt032_schema_guard_drop_cleans_during_unwind_without_explicit_teardown() {
-    let base_url = base_database_url()
+    let store = open_embedded_store()
         .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let pg = knowledge_pg()
-        .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let schema = pg.schema.clone();
-    let held_connection = pg.raw_connection().await;
+        .expect("MT-032 requires an isolated embedded store");
+    let data_dir = store.data_dir.clone();
+    let held_storage = store.storage.clone();
     let unwind = tokio::time::timeout(
-        PANIC_CLEANUP_TIMEOUT,
+        Duration::from_secs(20),
         tokio::task::spawn_blocking(move || {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
-                // Reverse drop order intentionally drops KnowledgePg while a
-                // fixture-scoped PostgreSQL connection is still outstanding.
-                let _held_connection = held_connection;
-                let _pg = pg;
-                panic!("intentional MT-032 schema-guard unwind");
+                // Reverse drop order intentionally drops the fixture while a
+                // cloned store handle is still outstanding. The fixture guard
+                // must close the shared embedded authority and remove its
+                // isolated directory while unwinding.
+                let _held_storage = held_storage;
+                let _store = store;
+                panic!("intentional MT-032 embedded-store unwind");
             }))
         }),
     )
@@ -224,20 +215,10 @@ async fn mt032_schema_guard_drop_cleans_during_unwind_without_explicit_teardown(
         unwind.is_err(),
         "fixture must have traversed the panic path"
     );
-
-    let mut conn = sqlx::PgConnection::connect(&base_url)
-        .await
-        .expect("connect after KnowledgePg drop cleanup");
-    let remains: bool =
-        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = $1)")
-            .bind(&schema)
-            .fetch_one(&mut conn)
-            .await
-            .expect("verify Drop removed isolated schema");
-    assert!(!remains, "KnowledgePg Drop must remove its isolated schema");
-    conn.close()
-        .await
-        .expect("close Drop cleanup verification connection");
+    assert!(
+        !data_dir.exists(),
+        "fixture Drop must remove the isolated embedded-store directory"
+    );
 }
 
 /// The required identity headers WITHOUT an actor kind (MT-158 absence case).
@@ -284,13 +265,25 @@ async fn create_doc(base: &str, http: &reqwest::Client, workspace_id: &str, titl
     resp.json().await.expect("create json")
 }
 
+async fn embedded_table_count(store: &EmbeddedKnowledgeStore, table_name: &str) -> u64 {
+    let inspector = store.storage.test_inspector();
+    let table = inspector
+        .table_selector(table_name)
+        .await
+        .expect("select embedded table");
+    inspector
+        .row_count(&table, RowFilter::All)
+        .await
+        .expect("count embedded rows")
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn explorer_document_rename_rejects_stale_token_without_overwrite() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("managed PostgreSQL is required for stale-rename proof");
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+        .expect("isolated embedded store is required for stale-rename proof");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
     let created = create_doc(&base, &http, &workspace_id, "Original title").await;
     let document_id = created["document"]["rich_document_id"]
         .as_str()
@@ -353,15 +346,19 @@ async fn explorer_document_rename_rejects_stale_token_without_overwrite() {
     let readback: Value = readback.json().await.expect("readback body");
     assert_eq!(readback["document"]["title"], "First writer");
     server.shutdown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn explorer_bookmark_rename_returns_409_and_preserves_first_writer() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("managed PostgreSQL is required for bookmark stale-rename proof");
-    let workspace_id = pg.create_workspace().await;
-    let created = pg
+        .expect("isolated embedded store is required for bookmark stale-rename proof");
+    let workspace_id = store.create_workspace().await;
+    let created = store
         .db
         .create_loom_block(
             &WriteContext::human(None),
@@ -382,7 +379,7 @@ async fn explorer_bookmark_rename_returns_409_and_preserves_first_writer() {
         )
         .await
         .expect("create pinned Loom block");
-    let (base, http, server) = loom_server(&pg).await;
+    let (base, http, server) = loom_server(&store).await;
     let url = format!(
         "{base}/workspaces/{workspace_id}/loom/blocks/{}",
         created.block_id
@@ -413,15 +410,19 @@ async fn explorer_bookmark_rename_returns_409_and_preserves_first_writer() {
     let readback: Value = readback.json().await.expect("bookmark readback body");
     assert_eq!(readback["title"], "Pinned first writer");
     server.shutdown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn concurrent_create_if_title_absent_returns_one_canonical_document() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("managed PostgreSQL is required for concurrent-create proof");
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+        .expect("isolated embedded store is required for concurrent-create proof");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
     let title = "Concurrent   Design Note";
     let mut body = doc_body(&workspace_id, title);
     body["create_if_title_absent"] = Value::Bool(true);
@@ -451,32 +452,41 @@ async fn concurrent_create_if_title_absent_returns_one_canonical_document() {
         "exactly one caller creates and one idempotently observes"
     );
 
-    let mut conn = pg.raw_connection().await;
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_rich_documents \
-         WHERE workspace_id = $1 AND deleted_at IS NULL \
-           AND regexp_replace(lower(btrim(title)), '[[:space:]]+', ' ', 'g') = $2",
-    )
-    .bind(&workspace_id)
-    .bind("concurrent design note")
-    .fetch_one(&mut conn)
-    .await
-    .expect("canonical title count");
+    let documents = store
+        .db
+        .list_knowledge_rich_documents(&workspace_id, None, None)
+        .await
+        .expect("canonical title list");
+    let count = documents
+        .iter()
+        .filter(|document| {
+            document
+                .title
+                .trim()
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .eq_ignore_ascii_case("concurrent design note")
+        })
+        .count();
     assert_eq!(
         count, 1,
         "concurrent create leaves one canonical authority row"
     );
-    conn.close().await.expect("close proof connection");
     server.shutdown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn create_if_title_absent_rejects_preexisting_normalized_title_ambiguity() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("managed PostgreSQL is required for ambiguity proof");
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+        .expect("isolated embedded store is required for ambiguity proof");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
     create_doc(&base, &http, &workspace_id, "Ambiguous   Design Note").await;
     create_doc(&base, &http, &workspace_id, "ambiguous design note").await;
 
@@ -496,106 +506,29 @@ async fn create_if_title_absent_rejects_preexisting_normalized_title_ambiguity()
     assert_eq!(error["error"], "conflict");
     assert_eq!(error["detail"], "knowledge_rich_document_title_ambiguous");
 
-    let mut conn = pg.raw_connection().await;
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_rich_documents \
-         WHERE workspace_id = $1 AND deleted_at IS NULL \
-           AND regexp_replace(lower(btrim(title)), '[[:space:]]+', ' ', 'g') = $2",
-    )
-    .bind(&workspace_id)
-    .bind("ambiguous design note")
-    .fetch_one(&mut conn)
-    .await
-    .expect("ambiguous title count");
+    let documents = store
+        .db
+        .list_knowledge_rich_documents(&workspace_id, None, None)
+        .await
+        .expect("ambiguous title list");
+    let count = documents
+        .iter()
+        .filter(|document| {
+            document
+                .title
+                .trim()
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .eq_ignore_ascii_case("ambiguous design note")
+        })
+        .count();
     assert_eq!(count, 2, "failed special create must not add a third row");
-    conn.close().await.expect("close proof connection");
     server.shutdown().await;
-}
-
-#[derive(Debug, PartialEq)]
-struct Mt032DeleteDependencySnapshot {
-    document: (Option<chrono::DateTime<chrono::Utc>>, i64, String),
-    block: (String, String, Option<String>, Option<String>),
-    search: (String, String, String),
-    source_stale: bool,
-    delete_receipts: i64,
-    inbound_backlinks: i64,
-    canvas_placements: i64,
-}
-
-async fn mt032_delete_dependency_snapshot(
-    conn: &mut sqlx::PgConnection,
-    workspace_id: &str,
-    document_id: &str,
-    placement_id: &str,
-) -> Mt032DeleteDependencySnapshot {
-    let document = sqlx::query_as(
-        "SELECT deleted_at, doc_version, title \
-         FROM knowledge_rich_documents WHERE rich_document_id = $1",
-    )
-    .bind(document_id)
-    .fetch_one(&mut *conn)
-    .await
-    .expect("snapshot rich document authority");
-    let block = sqlx::query_as(
-        "SELECT workspace_id, content_type, title, content_hash \
-         FROM loom_blocks WHERE block_id = $1",
-    )
-    .bind(document_id)
-    .fetch_one(&mut *conn)
-    .await
-    .expect("snapshot LoomBlock projection");
-    let search = sqlx::query_as(
-        "SELECT workspace_id, content_type, search_text \
-         FROM loom_block_search_index WHERE block_id = $1",
-    )
-    .bind(document_id)
-    .fetch_one(&mut *conn)
-    .await
-    .expect("snapshot LoomBlock search projection");
-    let source_stale = sqlx::query_scalar(
-        "SELECT stale FROM knowledge_sources \
-         WHERE workspace_id = $1 \
-           AND source_kind = 'rich_document' \
-           AND provenance->>'rich_document_id' = $2",
-    )
-    .bind(workspace_id)
-    .bind(document_id)
-    .fetch_one(&mut *conn)
-    .await
-    .expect("snapshot knowledge source state");
-    let delete_receipts = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger \
-         WHERE aggregate_type = 'knowledge_rich_document' \
-           AND aggregate_id = $1 \
-           AND event_type = 'KNOWLEDGE_RICH_DOCUMENT_DELETED'",
-    )
-    .bind(document_id)
-    .fetch_one(&mut *conn)
-    .await
-    .expect("snapshot delete receipt count");
-    let inbound_backlinks =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_document_backlinks WHERE target = $1")
-            .bind(document_id)
-            .fetch_one(&mut *conn)
-            .await
-            .expect("snapshot inbound backlink count");
-    let canvas_placements =
-        sqlx::query_scalar("SELECT COUNT(*) FROM loom_canvas_placements WHERE placement_id = $1")
-            .bind(placement_id)
-            .fetch_one(&mut *conn)
-            .await
-            .expect("snapshot canvas placement count");
-
-    Mt032DeleteDependencySnapshot {
-        document,
-        block,
-        search,
-        source_stale,
-        delete_receipts,
-        inbound_backlinks,
-        canvas_placements,
-    }
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 // ---------------------------------------------------------------------------
@@ -605,11 +538,11 @@ async fn mt032_delete_dependency_snapshot(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+        .expect("MT-032 requires isolated embedded-store proof");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
 
     let b = create_doc(&base, &http, &workspace_id, "MT032 Target B").await;
     let b_id = b["document"]["rich_document_id"]
@@ -853,30 +786,13 @@ async fn mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound()
         .expect("document hash")
         .to_string();
 
-    let mut conn = pg.raw_connection().await;
-    let block: (String, String) = sqlx::query_as(
-        "SELECT block_id, content_hash FROM loom_blocks WHERE workspace_id = $1 AND block_id = $2",
-    )
-    .bind(&workspace_id)
-    .bind(&b_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("same-id LoomBlock projection");
-    assert_eq!(block.0, b_id);
-    assert_eq!(block.1, document_hash);
-
-    let indexed_text: String =
-        sqlx::query_scalar("SELECT search_text FROM loom_block_search_index WHERE block_id = $1")
-            .bind(&b_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("saved document search projection");
-    assert!(indexed_text.contains("saved B"));
-    assert!(
-        indexed_text.contains("mt/MT-032-SEARCH-PROJECTION")
-            && indexed_text.contains("locus://mt/mt-032-search-projection"),
-        "prefix-stripped hsLink refValue and its canonical normalized Locus URI must be searchable even when the compact label omits the identity"
-    );
+    let block = store
+        .db
+        .get_loom_block(&workspace_id, &b_id)
+        .await
+        .expect("same-id LoomBlock projection");
+    assert_eq!(block.block_id, b_id);
+    assert_eq!(block.content_hash.as_deref(), Some(document_hash.as_str()));
 
     let rename = headers_with_kind(
         http.post(format!("{base}/knowledge/documents/{b_id}/rename")),
@@ -890,13 +806,15 @@ async fn mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound()
     assert_eq!(rename.status(), 200);
     let renamed: Value = rename.json().await.expect("rename body");
     assert_eq!(renamed["document"]["block_id"], b_id);
-    let projected_title: String =
-        sqlx::query_scalar("SELECT title FROM loom_blocks WHERE block_id = $1")
-            .bind(&b_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("renamed LoomBlock title");
-    assert_eq!(projected_title, "MT032 Target B Renamed");
+    let projected_block = store
+        .db
+        .get_loom_block(&workspace_id, &b_id)
+        .await
+        .expect("renamed LoomBlock");
+    assert_eq!(
+        projected_block.title.as_deref(),
+        Some("MT032 Target B Renamed")
+    );
 
     let resave_a = headers_with_kind(
         http.put(format!("{base}/knowledge/documents/{a_id}/save")),
@@ -980,15 +898,12 @@ async fn mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound()
         .as_str()
         .expect("imported document id");
     assert_eq!(imported["document"]["block_id"], imported_id);
-    let imported_blocks: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM loom_blocks WHERE workspace_id = $1 AND block_id = $2",
-    )
-    .bind(&workspace_id)
-    .bind(imported_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("one same-id imported block");
-    assert_eq!(imported_blocks, 1);
+    let imported_block = store
+        .db
+        .get_loom_block(&workspace_id, imported_id)
+        .await
+        .expect("one same-id imported block");
+    assert_eq!(imported_block.block_id, imported_id);
     let imported_inbound = headers_with_kind(
         http.get(format!("{base}/knowledge/documents/{b_id}/backlinks")),
         "mt032-direct-import-inbound",
@@ -1004,473 +919,295 @@ async fn mt032_rich_documents_are_addressable_and_target_backlinks_are_inbound()
         .expect("import inbound backlinks")
         .iter()
         .any(|row| row["source_document_id"] == imported_id && row["target"] == b_id));
-    drop(conn);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn mt032_loom_projection_failure_rolls_back_document_create() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
-    let mut conn = pg.raw_connection().await;
-    sqlx::query("DROP TABLE loom_block_search_index")
-        .execute(&mut conn)
+        .expect("MT-032 requires isolated embedded-store proof");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let tables = [
+        "knowledge_rich_documents",
+        "knowledge_rich_document_versions",
+        "loom_blocks",
+        "loom_block_search_index",
+        "knowledge_document_backlinks",
+    ];
+    let mut baseline = Vec::new();
+    for table in tables {
+        baseline.push((table, embedded_table_count(&store, table).await));
+    }
+    store
+        .storage
+        .test_set_rich_document_projection_failpoint(true)
         .await
-        .expect("inject projection failure in isolated schema");
-
-    let response = headers_with_kind(
+        .expect("arm RichDocument projection failpoint");
+    let failed = headers_with_kind(
         http.post(format!("{base}/knowledge/documents")),
-        "mt032-rollback",
+        "mt032-create-rollback",
         "operator",
     )
-    .json(&doc_body(&workspace_id, "MT032 Must Roll Back"))
+    .json(&doc_body(&workspace_id, "MT032 projection rollback"))
     .send()
     .await
-    .expect("create with injected projection failure");
-    assert_eq!(response.status(), 500);
-
-    let document_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_rich_documents WHERE workspace_id = $1 AND title = $2",
-    )
-    .bind(&workspace_id)
-    .bind("MT032 Must Roll Back")
-    .fetch_one(&mut conn)
-    .await
-    .expect("count rolled-back documents");
-    let block_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM loom_blocks WHERE workspace_id = $1 AND title = $2",
-    )
-    .bind(&workspace_id)
-    .bind("MT032 Must Roll Back")
-    .fetch_one(&mut conn)
-    .await
-    .expect("count rolled-back blocks");
-    assert_eq!(
-        document_count, 0,
-        "document insert rolls back with projection failure"
-    );
-    assert_eq!(block_count, 0, "LoomBlock insert rolls back with document");
-    drop(conn);
+    .expect("send failing create");
+    assert_eq!(failed.status(), 500);
+    store
+        .storage
+        .test_set_rich_document_projection_failpoint(false)
+        .await
+        .expect("reset RichDocument projection failpoint");
+    for (table, expected) in baseline {
+        assert_eq!(
+            embedded_table_count(&store, table).await,
+            expected,
+            "{table} must not retain a partial create"
+        );
+    }
+    let retried = create_doc(&base, &http, &workspace_id, "MT032 projection rollback").await;
+    let document_id = retried["document"]["rich_document_id"]
+        .as_str()
+        .expect("retried document id");
+    assert!(store
+        .db
+        .get_loom_block(&workspace_id, document_id)
+        .await
+        .is_ok());
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn mt032_save_rejects_same_workspace_wrong_type_projection_collision() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
-    let created = create_doc(&base, &http, &workspace_id, "MT032 Wrong Type").await;
+        .expect("MT-032 requires isolated embedded-store proof");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let created = create_doc(&base, &http, &workspace_id, "MT032 Loom collision").await;
     let document_id = created["document"]["rich_document_id"]
         .as_str()
-        .expect("wrong-type document id")
-        .to_string();
-    let mut conn = pg.raw_connection().await;
-    sqlx::query("UPDATE loom_blocks SET content_type = 'file' WHERE block_id = $1")
-        .bind(&document_id)
-        .execute(&mut conn)
+        .expect("collision document id")
+        .to_owned();
+    store
+        .storage
+        .test_set_rich_document_loom_identity(&document_id, LoomBlockContentType::File)
         .await
-        .expect("inject same-workspace incompatible projection type");
-
-    let response = headers_with_kind(
+        .expect("seed wrong-type same-id LoomBlock");
+    let content = json!({"type": "doc", "content": [{
+        "type": "paragraph", "content": [{"type": "text", "text": "must roll back"}]
+    }]});
+    let failed = headers_with_kind(
         http.put(format!("{base}/knowledge/documents/{document_id}/save")),
-        "mt032-wrong-type-collision",
+        "mt032-wrong-loom-type",
         "operator",
     )
-    .json(&json!({
-        "expected_version": 1,
-        "content_json": {"type": "doc", "content": [{
-            "type": "paragraph",
-            "content": [{"type": "text", "text": "must not project"}]
-        }]}
-    }))
+    .json(&json!({"expected_version": 1, "content_json": content.clone()}))
     .send()
     .await
-    .expect("save against wrong-type projection");
-    assert_eq!(response.status(), 409);
-
-    let delete = headers_with_kind(
-        http.delete(format!("{base}/knowledge/documents/{document_id}")),
-        "mt032-wrong-type-delete",
+    .expect("send wrong-type save");
+    assert_eq!(failed.status(), 409);
+    let retained = store
+        .db
+        .get_knowledge_rich_document(&document_id)
+        .await
+        .expect("read retained document")
+        .expect("document remains live");
+    assert_eq!(retained.doc_version, 1);
+    assert_eq!(
+        store
+            .db
+            .count_knowledge_rich_document_versions(&document_id)
+            .await
+            .expect("count retained versions"),
+        1
+    );
+    store
+        .storage
+        .test_set_rich_document_loom_identity(&document_id, LoomBlockContentType::Note)
+        .await
+        .expect("restore LoomBlock identity");
+    let retry = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{document_id}/save")),
+        "mt032-restored-loom-type",
         "operator",
     )
+    .json(&json!({"expected_version": 1, "content_json": content}))
     .send()
     .await
-    .expect("delete against wrong-type projection");
-    assert_eq!(delete.status(), 409);
-
-    let (content_type, title): (String, Option<String>) =
-        sqlx::query_as("SELECT content_type, title FROM loom_blocks WHERE block_id = $1")
-            .bind(&document_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("wrong-type block survives conflict unchanged");
-    let doc_version: i64 = sqlx::query_scalar(
-        "SELECT doc_version FROM knowledge_rich_documents WHERE rich_document_id = $1",
-    )
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("document save rolled back on projection conflict");
-    let (deleted_at, deleted_receipt_event_id): (
-        Option<chrono::DateTime<chrono::Utc>>,
-        Option<String>,
-    ) = sqlx::query_as(
-        "SELECT deleted_at, deleted_receipt_event_id \
-         FROM knowledge_rich_documents WHERE rich_document_id = $1",
-    )
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("wrong-type delete document state");
-    let delete_receipts: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger \
-         WHERE aggregate_type = 'knowledge_rich_document' \
-           AND aggregate_id = $1 \
-           AND event_type = 'KNOWLEDGE_RICH_DOCUMENT_DELETED'",
-    )
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("wrong-type delete receipt count");
-    let search_rows: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM loom_block_search_index WHERE block_id = $1")
-            .bind(&document_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("wrong-type delete keeps search dependency");
-    let source_stale: bool = sqlx::query_scalar(
-        "SELECT stale FROM knowledge_sources \
-         WHERE workspace_id = $1 \
-           AND source_kind = 'rich_document' \
-           AND provenance->>'rich_document_id' = $2",
-    )
-    .bind(&workspace_id)
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("wrong-type delete keeps source dependency live");
-    assert_eq!(content_type, "file");
-    assert_eq!(title.as_deref(), Some("MT032 Wrong Type"));
-    assert_eq!(doc_version, 1);
-    assert!(deleted_at.is_none());
-    assert!(deleted_receipt_event_id.is_none());
-    assert_eq!(delete_receipts, 0);
-    assert_eq!(search_rows, 1);
-    assert!(!source_stale);
-
-    drop(conn);
+    .expect("retry save after identity restore");
+    assert_eq!(retry.status(), 200);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn mt032_save_and_rename_reject_search_projection_identity_collisions() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let foreign_workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
-    let created = create_doc(&base, &http, &workspace_id, "MT032 Search Identity").await;
+        .expect("MT-032 requires isolated embedded-store proof");
+    let workspace_id = store.create_workspace().await;
+    let foreign_workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let created = create_doc(&base, &http, &workspace_id, "MT032 search collision").await;
     let document_id = created["document"]["rich_document_id"]
         .as_str()
-        .expect("search-identity document id")
-        .to_string();
-    let mut conn = pg.raw_connection().await;
+        .expect("search collision document id")
+        .to_owned();
+    let content = json!({"type": "doc", "content": [{
+        "type": "paragraph", "content": [{"type": "text", "text": "collision save"}]
+    }]});
 
-    sqlx::query("UPDATE loom_block_search_index SET content_type = 'file' WHERE block_id = $1")
-        .bind(&document_id)
-        .execute(&mut conn)
-        .await
-        .expect("inject wrong-type search projection");
-    let save = headers_with_kind(
-        http.put(format!("{base}/knowledge/documents/{document_id}/save")),
-        "mt032-search-wrong-type-save",
-        "operator",
-    )
-    .json(&json!({
-        "expected_version": 1,
-        "content_json": {"type": "doc", "content": [{
-            "type": "paragraph",
-            "content": [{"type": "text", "text": "must roll back"}]
-        }]}
-    }))
-    .send()
-    .await
-    .expect("save against wrong-type search projection");
-    assert_eq!(save.status(), 409);
-    let (doc_version, search_type): (i64, String) = sqlx::query_as(
-        "SELECT d.doc_version, s.content_type \
-         FROM knowledge_rich_documents d \
-         JOIN loom_block_search_index s ON s.block_id = d.rich_document_id \
-         WHERE d.rich_document_id = $1",
-    )
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("wrong-type search save rollback state");
-    assert_eq!(doc_version, 1);
-    assert_eq!(search_type, "file");
-
-    sqlx::query(
-        "UPDATE loom_block_search_index \
-         SET content_type = 'note', workspace_id = $2 \
-         WHERE block_id = $1",
-    )
-    .bind(&document_id)
-    .bind(&foreign_workspace_id)
-    .execute(&mut conn)
-    .await
-    .expect("inject cross-workspace search projection");
-    let rename = headers_with_kind(
-        http.post(format!("{base}/knowledge/documents/{document_id}/rename")),
-        "mt032-search-cross-workspace-rename",
-        "operator",
-    )
-    .json(&json!({"title": "Must Not Rename"}))
-    .send()
-    .await
-    .expect("rename against cross-workspace search projection");
-    assert_eq!(rename.status(), 409);
-    let (document_title, block_title, search_workspace): (String, Option<String>, String) =
-        sqlx::query_as(
-            "SELECT d.title, b.title, s.workspace_id \
-             FROM knowledge_rich_documents d \
-             JOIN loom_blocks b ON b.block_id = d.rich_document_id \
-             JOIN loom_block_search_index s ON s.block_id = d.rich_document_id \
-             WHERE d.rich_document_id = $1",
+    for (collision_workspace, collision_type) in [
+        (workspace_id.as_str(), LoomBlockContentType::File),
+        (foreign_workspace_id.as_str(), LoomBlockContentType::Note),
+    ] {
+        store
+            .storage
+            .test_set_rich_document_search_identity(
+                &document_id,
+                collision_workspace,
+                collision_type,
+            )
+            .await
+            .expect("seed search identity collision");
+        let save = headers_with_kind(
+            http.put(format!("{base}/knowledge/documents/{document_id}/save")),
+            "mt032-search-collision-save",
+            "operator",
         )
-        .bind(&document_id)
-        .fetch_one(&mut conn)
+        .json(&json!({"expected_version": 1, "content_json": content.clone()}))
+        .send()
         .await
-        .expect("cross-workspace rename rollback state");
-    assert_eq!(document_title, "MT032 Search Identity");
-    assert_eq!(block_title.as_deref(), Some("MT032 Search Identity"));
-    assert_eq!(search_workspace, foreign_workspace_id);
-
-    drop(conn);
+        .expect("send collision save");
+        assert_eq!(save.status(), 409);
+        let rename = headers_with_kind(
+            http.post(format!("{base}/knowledge/documents/{document_id}/rename")),
+            "mt032-search-collision-rename",
+            "operator",
+        )
+        .json(&json!({"title": "must not persist"}))
+        .send()
+        .await
+        .expect("send collision rename");
+        assert_eq!(rename.status(), 409);
+        let retained = store
+            .db
+            .get_knowledge_rich_document(&document_id)
+            .await
+            .expect("read retained collision document")
+            .expect("collision document remains live");
+        assert_eq!(retained.doc_version, 1);
+        assert_eq!(retained.title, "MT032 search collision");
+        store
+            .storage
+            .test_set_rich_document_search_identity(
+                &document_id,
+                &workspace_id,
+                LoomBlockContentType::Note,
+            )
+            .await
+            .expect("restore search identity");
+    }
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn mt032_delete_rejects_search_projection_identity_collisions_atomically() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let foreign_workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
-    let target = create_doc(&base, &http, &workspace_id, "MT032 Delete Search Identity").await;
-    let document_id = target["document"]["rich_document_id"]
+        .expect("MT-032 requires isolated embedded-store proof");
+    let workspace_id = store.create_workspace().await;
+    let foreign_workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let created = create_doc(&base, &http, &workspace_id, "MT032 delete collision").await;
+    let document_id = created["document"]["rich_document_id"]
         .as_str()
-        .expect("delete search-identity document id")
-        .to_string();
-
-    let referrer_response = headers_with_kind(
-        http.post(format!("{base}/knowledge/documents")),
-        "mt032-delete-search-referrer",
-        "operator",
-    )
-    .json(&json!({
-        "workspace_id": workspace_id,
-        "title": "MT032 Delete Search Referrer",
-        "content_json": {
-            "type": "doc",
-            "content": [{
-                "type": "paragraph",
-                "content": [{
-                    "type": "hsLink",
-                    "attrs": {
-                        "refKind": "note",
-                        "refValue": document_id,
-                        "label": "MT032 Delete Search Identity"
-                    }
-                }]
-            }]
-        }
-    }))
-    .send()
-    .await
-    .expect("create delete search-identity referrer");
-    assert_eq!(referrer_response.status(), 200);
-    let referrer: Value = referrer_response
-        .json()
-        .await
-        .expect("delete search-identity referrer body");
-    let referrer_id = referrer["document"]["rich_document_id"]
-        .as_str()
-        .expect("delete search-identity referrer id");
-    let rebuilt = headers_with_kind(
-        http.post(format!(
-            "{base}/knowledge/documents/{referrer_id}/backlinks"
-        )),
-        "mt032-delete-search-referrer-rebuild",
-        "operator",
-    )
-    .send()
-    .await
-    .expect("rebuild delete search-identity backlinks");
-    assert_eq!(rebuilt.status(), 200);
-
-    let write_ctx = WriteContext::human(Some("mt032-delete-search-identity".to_string()));
-    let canvas_block = pg
-        .db
-        .create_loom_block(
-            &write_ctx,
-            NewLoomBlock {
-                block_id: None,
-                workspace_id: workspace_id.clone(),
-                content_type: LoomBlockContentType::Canvas,
-                document_id: None,
-                asset_id: None,
-                title: Some("MT032 Delete Search Canvas".to_string()),
-                original_filename: None,
-                content_hash: None,
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
+        .expect("delete collision document id")
+        .to_owned();
+    for (collision_workspace, collision_type) in [
+        (workspace_id.as_str(), LoomBlockContentType::File),
+        (foreign_workspace_id.as_str(), LoomBlockContentType::Note),
+    ] {
+        store
+            .storage
+            .test_set_rich_document_search_identity(
+                &document_id,
+                collision_workspace,
+                collision_type,
+            )
+            .await
+            .expect("seed delete search collision");
+        let failed = headers_with_kind(
+            http.delete(format!("{base}/knowledge/documents/{document_id}")),
+            "mt032-delete-search-collision",
+            "operator",
         )
+        .send()
         .await
-        .expect("create delete search-identity canvas block");
-    pg.db
-        .bridge_loom_block_to_knowledge(&write_ctx, &workspace_id, &canvas_block.block_id)
-        .await
-        .expect("bridge delete search-identity canvas block");
-    pg.db
-        .create_canvas_board(
-            &write_ctx,
-            &workspace_id,
-            &canvas_block.block_id,
-            json!({
-                "schema_id": "hsk.loom_canvas_board@1",
-                "pan_x": 0.0,
-                "pan_y": 0.0,
-                "zoom": 1.0
-            }),
-        )
-        .await
-        .expect("create delete search-identity canvas board");
-    let placement = pg
-        .db
-        .place_block_on_canvas(
-            &write_ctx,
-            NewLoomCanvasPlacement {
-                canvas_block_id: canvas_block.block_id,
-                workspace_id: workspace_id.clone(),
-                placed_block_id: document_id.clone(),
-                x: 0.0,
-                y: 0.0,
-                w: 320.0,
-                h: 180.0,
-                z_index: 0,
-                group_id: None,
-                is_text_card: false,
-                stage_provenance_key: None,
-            },
-        )
-        .await
-        .expect("place delete search-identity document on canvas");
-
-    let mut conn = pg.raw_connection().await;
-    sqlx::query("UPDATE loom_block_search_index SET content_type = 'file' WHERE block_id = $1")
-        .bind(&document_id)
-        .execute(&mut conn)
-        .await
-        .expect("inject wrong-type search projection for delete");
-    let wrong_type_before = mt032_delete_dependency_snapshot(
-        &mut conn,
-        &workspace_id,
-        &document_id,
-        &placement.placement_id,
-    )
-    .await;
-    assert!(!wrong_type_before.source_stale);
-    assert_eq!(wrong_type_before.delete_receipts, 0);
-    assert_eq!(wrong_type_before.inbound_backlinks, 1);
-    assert_eq!(wrong_type_before.canvas_placements, 1);
-
-    let wrong_type_delete = headers_with_kind(
-        http.delete(format!("{base}/knowledge/documents/{document_id}")),
-        "mt032-delete-search-wrong-type",
-        "operator",
-    )
-    .send()
-    .await
-    .expect("delete against wrong-type search projection");
-    assert_eq!(wrong_type_delete.status(), 409);
-    let wrong_type_after = mt032_delete_dependency_snapshot(
-        &mut conn,
-        &workspace_id,
-        &document_id,
-        &placement.placement_id,
-    )
-    .await;
-    assert_eq!(
-        wrong_type_after, wrong_type_before,
-        "wrong-type search identity conflict must not mutate delete dependencies"
-    );
-
-    sqlx::query(
-        "UPDATE loom_block_search_index \
-         SET content_type = 'note', workspace_id = $2 \
-         WHERE block_id = $1",
-    )
-    .bind(&document_id)
-    .bind(&foreign_workspace_id)
-    .execute(&mut conn)
-    .await
-    .expect("inject cross-workspace search projection for delete");
-    let cross_workspace_before = mt032_delete_dependency_snapshot(
-        &mut conn,
-        &workspace_id,
-        &document_id,
-        &placement.placement_id,
-    )
-    .await;
-
-    let cross_workspace_delete = headers_with_kind(
-        http.delete(format!("{base}/knowledge/documents/{document_id}")),
-        "mt032-delete-search-cross-workspace",
-        "operator",
-    )
-    .send()
-    .await
-    .expect("delete against cross-workspace search projection");
-    assert_eq!(cross_workspace_delete.status(), 409);
-    let cross_workspace_after = mt032_delete_dependency_snapshot(
-        &mut conn,
-        &workspace_id,
-        &document_id,
-        &placement.placement_id,
-    )
-    .await;
-    assert_eq!(
-        cross_workspace_after, cross_workspace_before,
-        "cross-workspace search identity conflict must not mutate delete dependencies"
-    );
-
-    drop(conn);
+        .expect("send collision delete");
+        assert_eq!(failed.status(), 409);
+        assert!(store
+            .db
+            .get_knowledge_rich_document(&document_id)
+            .await
+            .expect("read retained delete collision document")
+            .is_some());
+        assert!(store
+            .db
+            .get_loom_block(&workspace_id, &document_id)
+            .await
+            .is_ok());
+        let delete_receipts = store
+            .db
+            .list_kernel_events_for_aggregate("knowledge_rich_document", &document_id)
+            .await
+            .expect("read collision delete receipts")
+            .into_iter()
+            .filter(|event| event.event_type.as_str() == "KNOWLEDGE_RICH_DOCUMENT_DELETED")
+            .count();
+        assert_eq!(delete_receipts, 0);
+        store
+            .storage
+            .test_set_rich_document_search_identity(
+                &document_id,
+                &workspace_id,
+                LoomBlockContentType::Note,
+            )
+            .await
+            .expect("restore delete search identity");
+    }
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt032_idempotent_save_projects_body_once_and_replays_without_writes() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+        .expect("MT-032 requires isolated embedded-store proof");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
     let created = create_doc(&base, &http, &workspace_id, "MT032 Idempotent").await;
     let document_id = created["document"]["rich_document_id"]
         .as_str()
@@ -1483,7 +1220,7 @@ async fn mt032_idempotent_save_projects_body_once_and_replays_without_writes() {
             "content": [{"type": "text", "text": "idempotent projected body"}]
         }]
     });
-    let first = pg
+    let first = store
         .db
         .save_knowledge_rich_document_version_idempotent(
             "mt032-idempotent-save-key",
@@ -1500,7 +1237,7 @@ async fn mt032_idempotent_save_projects_body_once_and_replays_without_writes() {
     assert_eq!(first.value.doc_version, 2);
     assert_eq!(first.value.block_id, document_id);
 
-    let replay = pg
+    let replay = store
         .db
         .save_knowledge_rich_document_version_idempotent(
             "mt032-idempotent-save-key",
@@ -1517,1199 +1254,331 @@ async fn mt032_idempotent_save_projects_body_once_and_replays_without_writes() {
     assert_eq!(replay.value.doc_version, 2);
     assert_eq!(replay.value.content_sha256, first.value.content_sha256);
 
-    let mut conn = pg.raw_connection().await;
-    let (content_hash, derived_json, search_text): (String, serde_json::Value, String) =
-        sqlx::query_as(
-            "SELECT b.content_hash, b.derived_json::jsonb, s.search_text \
-             FROM loom_blocks b \
-             JOIN loom_block_search_index s ON s.block_id = b.block_id \
-             WHERE b.workspace_id = $1 AND b.block_id = $2",
-        )
-        .bind(&workspace_id)
-        .bind(&document_id)
-        .fetch_one(&mut conn)
+    let block = store
+        .db
+        .get_loom_block(&workspace_id, &document_id)
         .await
         .expect("idempotent Loom projection");
-    assert_eq!(content_hash, first.value.content_sha256);
-    assert_eq!(derived_json["full_text_index"], "idempotent projected body");
-    assert!(search_text.contains("idempotent projected body"));
-    let version_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_rich_document_versions WHERE rich_document_id = $1",
-    )
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("idempotent version count");
+    assert_eq!(
+        block.content_hash.as_deref(),
+        Some(first.value.content_sha256.as_str())
+    );
+    assert_eq!(
+        block.derived.full_text_index.as_deref(),
+        Some("idempotent projected body")
+    );
+    let version_count = store
+        .db
+        .count_knowledge_rich_document_versions(&document_id)
+        .await
+        .expect("idempotent version count");
     assert_eq!(version_count, 2);
-    drop(conn);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
+}
+
+#[tokio::test]
+async fn mt032_markdown_import_bridge_failure_rolls_back_and_retry_creates_one() {
+    let store = open_embedded_store()
+        .await
+        .expect("MT-032 requires isolated embedded-store proof");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let tables = [
+        "knowledge_rich_documents",
+        "knowledge_rich_document_versions",
+        "loom_blocks",
+        "loom_block_search_index",
+    ];
+    let mut baseline = Vec::new();
+    for table in tables {
+        baseline.push((table, embedded_table_count(&store, table).await));
+    }
+    let request = json!({
+        "workspace_id": workspace_id,
+        "title": "MT032 import rollback",
+        "format": "markdown",
+        "snippet": "# Imported rollback\n\nbody"
+    });
+    store
+        .storage
+        .test_set_rich_document_projection_failpoint(true)
+        .await
+        .expect("arm import projection failpoint");
+    let failed = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents/import")),
+        "mt032-import-rollback",
+        "operator",
+    )
+    .json(&request)
+    .send()
+    .await
+    .expect("send failing import");
+    assert_eq!(failed.status(), 500);
+    store
+        .storage
+        .test_set_rich_document_projection_failpoint(false)
+        .await
+        .expect("reset import projection failpoint");
+    for (table, expected) in baseline {
+        assert_eq!(
+            embedded_table_count(&store, table).await,
+            expected,
+            "{table} must roll back with the failed import"
+        );
+    }
+    let retry = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents/import")),
+        "mt032-import-retry",
+        "operator",
+    )
+    .json(&request)
+    .send()
+    .await
+    .expect("retry import");
+    assert_eq!(retry.status(), 200);
+    let retry: Value = retry.json().await.expect("retry import body");
+    let document_id = retry["document"]["rich_document_id"]
+        .as_str()
+        .expect("retry import document id");
+    assert!(store
+        .db
+        .get_loom_block(&workspace_id, document_id)
+        .await
+        .is_ok());
+    server.shutdown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mt032_markdown_import_bridge_failure_rolls_back_and_retry_creates_one() {
-    let pg = knowledge_pg()
-        .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let mut conn = pg.raw_connection().await;
-    sqlx::query(
-        r#"
-        CREATE FUNCTION mt032_reject_import_bridge()
-        RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN
-            RAISE EXCEPTION 'MT032 injected import bridge failure';
-        END
-        $$
-        "#,
-    )
-    .execute(&mut conn)
-    .await
-    .expect("create import bridge failure function");
-    sqlx::query(
-        "CREATE TRIGGER mt032_reject_import_bridge \
-         BEFORE INSERT ON loom_block_knowledge_bridge FOR EACH ROW \
-         EXECUTE FUNCTION mt032_reject_import_bridge()",
-    )
-    .execute(&mut conn)
-    .await
-    .expect("create import bridge failure trigger");
-    let ctx = WriteContext::human(Some("mt032-import-atomicity".to_string()));
-    let failed = pg
-        .db
-        .import_markdown_to_loom(
-            &ctx,
-            &workspace_id,
-            "MT032 Atomic Import",
-            "# Atomic\n\nbridge body",
-        )
-        .await;
-    assert!(failed.is_err());
-    for (table, predicate) in [
-        (
-            "knowledge_rich_documents",
-            "workspace_id = $1 AND title = 'MT032 Atomic Import'",
-        ),
-        (
-            "loom_blocks",
-            "workspace_id = $1 AND title = 'MT032 Atomic Import'",
-        ),
-        (
-            "knowledge_entities",
-            "workspace_id = $1 AND display_name = 'MT032 Atomic Import'",
-        ),
-    ] {
-        let count: i64 =
-            sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table} WHERE {predicate}"))
-                .bind(&workspace_id)
-                .fetch_one(&mut conn)
-                .await
-                .expect("failed import partial-row count");
-        assert_eq!(count, 0, "failed import leaves no row in {table}");
-    }
-    let receipt_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger \
-         WHERE source_component = 'loom_block_knowledge_bridge'",
-    )
-    .fetch_one(&mut conn)
-    .await
-    .expect("failed import receipt count");
-    assert_eq!(receipt_count, 0);
-    sqlx::query("DROP TRIGGER mt032_reject_import_bridge ON loom_block_knowledge_bridge")
-        .execute(&mut conn)
-        .await
-        .expect("drop import bridge failure trigger");
-    sqlx::query("DROP FUNCTION mt032_reject_import_bridge()")
-        .execute(&mut conn)
-        .await
-        .expect("drop import bridge failure function");
-
-    let imported = pg
-        .db
-        .import_markdown_to_loom(
-            &ctx,
-            &workspace_id,
-            "MT032 Atomic Import",
-            "# Atomic\n\nbridge body",
-        )
-        .await
-        .expect("retry atomic import");
-    assert_eq!(imported.block.block_id, imported.rich_document_id);
-    let closure_counts: (i64, i64, i64, i64) = sqlx::query_as(
-        r#"
-        SELECT
-            (SELECT COUNT(*) FROM knowledge_rich_documents WHERE rich_document_id = $1),
-            (SELECT COUNT(*) FROM loom_blocks WHERE block_id = $1),
-            (SELECT COUNT(*) FROM loom_block_knowledge_bridge WHERE block_id = $1),
-            (SELECT COUNT(*) FROM kernel_event_ledger
-             WHERE source_component = 'loom_block_knowledge_bridge'
-               AND payload->>'block_id' = $1)
-        "#,
-    )
-    .bind(&imported.rich_document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("successful import closure counts");
-    assert_eq!(closure_counts, (1, 1, 1, 1));
-    drop(conn);
-    pg.teardown().await;
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt032_save_delete_and_backlink_rebuild_delete_races_do_not_resurrect() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
-    let mut conn = pg.raw_connection().await;
-    sqlx::query(
-        r#"
-        CREATE FUNCTION mt032_hold_mutation()
-        RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN
-            PERFORM pg_sleep(0.4);
-            RETURN NEW;
-        END
-        $$
-        "#,
-    )
-    .execute(&mut conn)
-    .await
-    .expect("create mutation hold function");
+        .expect("MT-032 requires isolated embedded-store proof");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let updated_content = json!({"type": "doc", "content": [{
+        "type": "paragraph", "content": [{"type": "text", "text": "race update"}]
+    }]});
 
-    // Save obtains the live document lock first; delete waits, then removes
-    // the freshly advanced projection. Final state is tombstoned/no Loom.
-    let save_first = create_doc(&base, &http, &workspace_id, "MT032 Save First").await;
+    let save_first = create_doc(&base, &http, &workspace_id, "MT032 save waits").await;
     let save_first_id = save_first["document"]["rich_document_id"]
         .as_str()
-        .expect("save-first id")
-        .to_string();
-    sqlx::query(&format!(
-        "CREATE TRIGGER mt032_hold_save_first BEFORE UPDATE ON knowledge_rich_documents \
-         FOR EACH ROW WHEN (OLD.rich_document_id = '{}' AND NEW.doc_version > OLD.doc_version) \
-         EXECUTE FUNCTION mt032_hold_mutation()",
-        save_first_id.replace('\'', "''")
-    ))
-    .execute(&mut conn)
-    .await
-    .expect("create save-first trigger");
-    let save_task = {
-        let http = http.clone();
-        let base = base.clone();
-        let id = save_first_id.clone();
-        tokio::spawn(async move {
-            headers_with_kind(
-                http.put(format!("{base}/knowledge/documents/{id}/save")),
-                "mt032-race-save-first",
-                "operator",
-            )
-            .json(&json!({
-                "expected_version": 1,
-                "content_json": {"type": "doc", "content": [{
-                    "type": "paragraph",
-                    "content": [{"type": "text", "text": "save wins lock first"}]
-                }]}
-            }))
-            .send()
-            .await
-            .expect("save-first request")
-        })
-    };
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    let delete_task = {
-        let http = http.clone();
-        let base = base.clone();
-        let id = save_first_id.clone();
-        tokio::spawn(async move {
-            headers_with_kind(
-                http.delete(format!("{base}/knowledge/documents/{id}")),
-                "mt032-race-delete-second",
-                "operator",
-            )
-            .send()
-            .await
-            .expect("delete-second request")
-        })
-    };
-    assert_eq!(
-        tokio::time::timeout(std::time::Duration::from_secs(10), save_task)
-            .await
-            .expect("save-first must complete without deadlock")
-            .expect("join save-first")
-            .status(),
-        200
+        .expect("save-waits document id")
+        .to_owned();
+    docs_api::test_arm_document_pause(
+        &save_first_id,
+        docs_api::KnowledgeDocumentTestPausePoint::SaveBeforeMutation,
     );
-    assert_eq!(
-        tokio::time::timeout(std::time::Duration::from_secs(10), delete_task)
-            .await
-            .expect("delete-second must complete without deadlock")
-            .expect("join delete-second")
-            .status(),
-        200
-    );
-    let deletion_payload: Value = sqlx::query_scalar(
-        "SELECT kel.payload FROM knowledge_rich_documents d \
-         JOIN kernel_event_ledger kel ON kel.event_id = d.deleted_receipt_event_id \
-         WHERE d.rich_document_id = $1",
-    )
-    .bind(&save_first_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("load save-then-delete receipt payload");
-    assert_eq!(deletion_payload["doc_version"], json!(2));
-    assert_eq!(deletion_payload["title"], json!("MT032 Save First"));
-    sqlx::query("DROP TRIGGER mt032_hold_save_first ON knowledge_rich_documents")
-        .execute(&mut conn)
-        .await
-        .expect("drop save-first trigger");
-
-    // Delete obtains the document lock first; save waits, observes tombstone,
-    // and returns NotFound without recreating the projection.
-    let delete_first = create_doc(&base, &http, &workspace_id, "MT032 Delete First").await;
-    let delete_first_id = delete_first["document"]["rich_document_id"]
-        .as_str()
-        .expect("delete-first id")
-        .to_string();
-    sqlx::query(&format!(
-        "CREATE TRIGGER mt032_hold_delete_first BEFORE UPDATE ON knowledge_rich_documents \
-         FOR EACH ROW WHEN (OLD.rich_document_id = '{}' AND NEW.deleted_at IS NOT NULL) \
-         EXECUTE FUNCTION mt032_hold_mutation()",
-        delete_first_id.replace('\'', "''")
-    ))
-    .execute(&mut conn)
-    .await
-    .expect("create delete-first trigger");
-    let delete_task = {
-        let http = http.clone();
-        let base = base.clone();
-        let id = delete_first_id.clone();
-        tokio::spawn(async move {
-            headers_with_kind(
-                http.delete(format!("{base}/knowledge/documents/{id}")),
-                "mt032-race-delete-first",
-                "operator",
-            )
-            .send()
-            .await
-            .expect("delete-first request")
-        })
-    };
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    let save_task = {
-        let http = http.clone();
-        let base = base.clone();
-        let id = delete_first_id.clone();
-        tokio::spawn(async move {
-            headers_with_kind(
-                http.put(format!("{base}/knowledge/documents/{id}/save")),
-                "mt032-race-save-second",
-                "operator",
-            )
-            .json(&json!({
-                "expected_version": 1,
-                "content_json": {"type": "doc", "content": []}
-            }))
-            .send()
-            .await
-            .expect("save-second request")
-        })
-    };
-    assert_eq!(
-        tokio::time::timeout(std::time::Duration::from_secs(10), delete_task)
-            .await
-            .expect("delete-first must complete without deadlock")
-            .expect("join delete-first")
-            .status(),
-        200
-    );
-    assert_eq!(
-        tokio::time::timeout(std::time::Duration::from_secs(10), save_task)
-            .await
-            .expect("save-second must complete without deadlock")
-            .expect("join save-second")
-            .status(),
-        404
-    );
-    sqlx::query("DROP TRIGGER mt032_hold_delete_first ON knowledge_rich_documents")
-        .execute(&mut conn)
-        .await
-        .expect("drop delete-first trigger");
-    assert!(matches!(
-        pg.db
-            .move_knowledge_rich_document(&delete_first_id, Some("P-DELETED"), None)
-            .await,
-        Err(handshake_core::storage::StorageError::NotFound(_))
-    ));
-    assert!(matches!(
-        pg.db
-            .set_knowledge_rich_document_authority_label(&delete_first_id, "archived")
-            .await,
-        Err(handshake_core::storage::StorageError::NotFound(_))
-    ));
-
-    for id in [&save_first_id, &delete_first_id] {
-        let block_count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM loom_blocks WHERE block_id = $1")
-                .bind(id)
-                .fetch_one(&mut conn)
-                .await
-                .expect("race final Loom count");
-        assert_eq!(block_count, 0);
-    }
-
-    // Rebuild first: target lock holds delete; delete then removes the row.
-    let target = create_doc(&base, &http, &workspace_id, "MT032 Rebuild Target").await;
-    let target_id = target["document"]["rich_document_id"]
-        .as_str()
-        .expect("rebuild target id")
-        .to_string();
-    let source = create_doc(&base, &http, &workspace_id, "MT032 Rebuild Source").await;
-    let source_id = source["document"]["rich_document_id"]
-        .as_str()
-        .expect("rebuild source id")
-        .to_string();
-    let source_content = json!({"type": "doc", "content": [{
-        "type": "paragraph",
-        "content": [{"type": "text", "text": "[[MT032 Rebuild Target]]"}]
-    }]});
-    let save_source = headers_with_kind(
-        http.put(format!("{base}/knowledge/documents/{source_id}/save")),
-        "mt032-seed-rebuild-source",
-        "operator",
-    )
-    .json(&json!({"expected_version": 1, "content_json": source_content}))
-    .send()
-    .await
-    .expect("seed rebuild source");
-    assert_eq!(save_source.status(), 200);
-    sqlx::query(
-        "CREATE TRIGGER mt032_hold_backlink_insert BEFORE INSERT ON knowledge_document_backlinks \
-         FOR EACH ROW EXECUTE FUNCTION mt032_hold_mutation()",
-    )
-    .execute(&mut conn)
-    .await
-    .expect("create backlink insert hold trigger");
-    let rebuild_task = {
-        let http = http.clone();
-        let base = base.clone();
-        let id = source_id.clone();
-        tokio::spawn(async move {
-            headers_with_kind(
-                http.post(format!("{base}/knowledge/documents/{id}/backlinks")),
-                "mt032-race-rebuild-first",
-                "operator",
-            )
-            .send()
-            .await
-            .expect("rebuild-first request")
-        })
-    };
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    let delete_task = {
-        let http = http.clone();
-        let base = base.clone();
-        let id = target_id.clone();
-        tokio::spawn(async move {
-            headers_with_kind(
-                http.delete(format!("{base}/knowledge/documents/{id}")),
-                "mt032-race-target-delete-second",
-                "operator",
-            )
-            .send()
-            .await
-            .expect("target delete-second request")
-        })
-    };
-    assert_eq!(
-        tokio::time::timeout(std::time::Duration::from_secs(10), rebuild_task)
-            .await
-            .expect("rebuild-first must complete without deadlock")
-            .expect("join rebuild-first")
-            .status(),
-        200
-    );
-    assert_eq!(
-        tokio::time::timeout(std::time::Duration::from_secs(10), delete_task)
-            .await
-            .expect("target delete must complete without deadlock")
-            .expect("join target delete")
-            .status(),
-        200
-    );
-    sqlx::query("DROP TRIGGER mt032_hold_backlink_insert ON knowledge_document_backlinks")
-        .execute(&mut conn)
-        .await
-        .expect("drop backlink insert hold trigger");
-    let stale_target_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_document_backlinks WHERE target = $1")
-            .bind(&target_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("rebuild-first stale target count");
-    assert_eq!(stale_target_count, 0);
-
-    // Delete first: rebuild waits on the target row, then observes its
-    // tombstone and does not recreate either a stable-id or stale-title row.
-    let target_two = create_doc(
-        &base,
-        &http,
-        &workspace_id,
-        "MT032 Delete-First Backlink Target",
-    )
-    .await;
-    let target_two_id = target_two["document"]["rich_document_id"]
-        .as_str()
-        .expect("delete-first backlink target id")
-        .to_string();
-    let source_two = create_doc(
-        &base,
-        &http,
-        &workspace_id,
-        "MT032 Delete-First Backlink Source",
-    )
-    .await;
-    let source_two_id = source_two["document"]["rich_document_id"]
-        .as_str()
-        .expect("delete-first backlink source id")
-        .to_string();
-    let save_source_two = headers_with_kind(
-        http.put(format!("{base}/knowledge/documents/{source_two_id}/save")),
-        "mt032-seed-delete-first-backlink",
-        "operator",
-    )
-    .json(&json!({
-        "expected_version": 1,
-        "content_json": {"type": "doc", "content": [{
-            "type": "paragraph",
-            "content": [{"type": "text", "text": "[[MT032 Delete-First Backlink Target]]"}]
-        }]}
-    }))
-    .send()
-    .await
-    .expect("seed delete-first backlink");
-    assert_eq!(save_source_two.status(), 200);
-    sqlx::query(&format!(
-        "CREATE TRIGGER mt032_hold_target_delete_first BEFORE UPDATE ON knowledge_rich_documents \
-         FOR EACH ROW WHEN (OLD.rich_document_id = '{}' AND NEW.deleted_at IS NOT NULL) \
-         EXECUTE FUNCTION mt032_hold_mutation()",
-        target_two_id.replace('\'', "''")
-    ))
-    .execute(&mut conn)
-    .await
-    .expect("create target delete-first hold trigger");
-    let delete_task = {
-        let http = http.clone();
-        let base = base.clone();
-        let id = target_two_id.clone();
-        tokio::spawn(async move {
-            headers_with_kind(
-                http.delete(format!("{base}/knowledge/documents/{id}")),
-                "mt032-target-delete-first",
-                "operator",
-            )
-            .send()
-            .await
-            .expect("target delete-first request")
-        })
-    };
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    let rebuild_task = {
-        let http = http.clone();
-        let base = base.clone();
-        let id = source_two_id.clone();
-        tokio::spawn(async move {
-            headers_with_kind(
-                http.post(format!("{base}/knowledge/documents/{id}/backlinks")),
-                "mt032-rebuild-after-target-delete",
-                "operator",
-            )
-            .send()
-            .await
-            .expect("rebuild after target delete request")
-        })
-    };
-    assert_eq!(
-        tokio::time::timeout(std::time::Duration::from_secs(10), delete_task)
-            .await
-            .expect("target delete-first must complete without deadlock")
-            .expect("join target delete-first")
-            .status(),
-        200
-    );
-    let rebuild_response = tokio::time::timeout(std::time::Duration::from_secs(10), rebuild_task)
-        .await
-        .expect("rebuild-second must complete without deadlock")
-        .expect("join rebuild second");
-    let rebuild_status = rebuild_response.status();
-    let rebuild_body = rebuild_response
-        .text()
-        .await
-        .expect("delete-first rebuild body text");
-    if rebuild_status != 200 {
-        let document = pg
-            .db
-            .get_knowledge_rich_document(&source_two_id)
-            .await
-            .expect("load delete-first source for direct diagnostic")
-            .expect("delete-first source remains live");
-        let tree = handshake_core::knowledge_document::block_tree::BlockTree::from_document_json(
-            &document.rich_document_id,
-            &document.schema_version,
-            &document.content_json,
-        )
-        .expect("parse delete-first source for direct diagnostic");
-        let refs =
-            handshake_core::knowledge_document::backlink::DocumentLinkReferences::extract(&tree);
-        let upserts = refs
-            .references
-            .iter()
-            .map(
-                |reference| handshake_core::storage::knowledge::UpsertKnowledgeDocumentBacklink {
-                    workspace_id: document.workspace_id.clone(),
-                    relationship_id: reference.relationship_id.clone(),
-                    source_document_id: document.rich_document_id.clone(),
-                    link_kind: reference.kind.as_str().to_string(),
-                    target: reference.target.clone(),
-                    block_id: reference.block_id.clone(),
-                },
-            )
-            .collect();
-        let direct_error = pg
-            .db
-            .replace_knowledge_document_backlinks(&source_two_id, upserts)
-            .await
-            .expect_err("failed HTTP rebuild must reproduce through storage");
-        panic!(
-            "delete-first rebuild failed: {rebuild_body}; direct storage error: {direct_error:?}"
-        );
-    }
-    assert_eq!(
-        rebuild_status, 200,
-        "delete-first rebuild failed: {rebuild_body}"
-    );
-    let rebuild_response: Value =
-        serde_json::from_str(&rebuild_body).expect("delete-first rebuild JSON body");
-    assert!(rebuild_response["backlinks"]
-        .as_array()
-        .expect("delete-first rebuilt backlinks")
-        .is_empty());
-    sqlx::query("DROP TRIGGER mt032_hold_target_delete_first ON knowledge_rich_documents")
-        .execute(&mut conn)
-        .await
-        .expect("drop target delete-first hold trigger");
-    let stale_target_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_document_backlinks \
-         WHERE target = $1 OR target = 'MT032 Delete-First Backlink Target'",
-    )
-    .bind(&target_two_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("delete-first stale target count");
-    assert_eq!(stale_target_count, 0);
-
-    // Symmetric rebuilds must acquire the same advisory-lock set in the same
-    // order. Release A->B and B->A together and bound both completions so a
-    // lock-order regression fails as a deadlock instead of hanging the suite.
-    let cycle_a = create_doc(&base, &http, &workspace_id, "MT032 Cycle A").await;
-    let cycle_a_id = cycle_a["document"]["rich_document_id"]
-        .as_str()
-        .expect("cycle A id")
-        .to_string();
-    let cycle_b = create_doc(&base, &http, &workspace_id, "MT032 Cycle B").await;
-    let cycle_b_id = cycle_b["document"]["rich_document_id"]
-        .as_str()
-        .expect("cycle B id")
-        .to_string();
-    for (id, target_title, task_id) in [
-        (&cycle_a_id, "MT032 Cycle B", "mt032-seed-cycle-a"),
-        (&cycle_b_id, "MT032 Cycle A", "mt032-seed-cycle-b"),
-    ] {
-        let saved = headers_with_kind(
-            http.put(format!("{base}/knowledge/documents/{id}/save")),
-            task_id,
+    let save_http = http.clone();
+    let save_base = base.clone();
+    let save_id = save_first_id.clone();
+    let save_content = updated_content.clone();
+    let waiting_save = tokio::spawn(async move {
+        headers_with_kind(
+            save_http.put(format!("{save_base}/knowledge/documents/{save_id}/save")),
+            "mt032-waiting-save",
             "operator",
         )
-        .json(&json!({
-            "expected_version": 1,
-            "content_json": {"type": "doc", "content": [{
-                "type": "paragraph",
-                "content": [{"type": "text", "text": format!("[[{target_title}]]")}]
-            }]}
-        }))
+        .json(&json!({"expected_version": 1, "content_json": save_content}))
         .send()
         .await
-        .expect("seed symmetric backlink document");
-        assert_eq!(saved.status(), 200);
-    }
-    let cycle_barrier = Arc::new(tokio::sync::Barrier::new(3));
-    let cycle_a_task = {
-        let http = http.clone();
-        let base = base.clone();
-        let id = cycle_a_id.clone();
-        let barrier = cycle_barrier.clone();
-        tokio::spawn(async move {
-            barrier.wait().await;
-            headers_with_kind(
-                http.post(format!("{base}/knowledge/documents/{id}/backlinks")),
-                "mt032-cycle-a-to-b",
-                "operator",
-            )
-            .send()
-            .await
-            .expect("cycle A rebuild request")
-        })
-    };
-    let cycle_b_task = {
-        let http = http.clone();
-        let base = base.clone();
-        let id = cycle_b_id.clone();
-        let barrier = cycle_barrier.clone();
-        tokio::spawn(async move {
-            barrier.wait().await;
-            headers_with_kind(
-                http.post(format!("{base}/knowledge/documents/{id}/backlinks")),
-                "mt032-cycle-b-to-a",
-                "operator",
-            )
-            .send()
-            .await
-            .expect("cycle B rebuild request")
-        })
-    };
-    cycle_barrier.wait().await;
-    let cycle_a_response = tokio::time::timeout(std::time::Duration::from_secs(10), cycle_a_task)
-        .await
-        .expect("A-to-B rebuild must complete without deadlock")
-        .expect("join A-to-B rebuild");
-    let cycle_b_response = tokio::time::timeout(std::time::Duration::from_secs(10), cycle_b_task)
-        .await
-        .expect("B-to-A rebuild must complete without deadlock")
-        .expect("join B-to-A rebuild");
-    assert_eq!(cycle_a_response.status(), 200);
-    assert_eq!(cycle_b_response.status(), 200);
-    let (a_to_b, b_to_a): (i64, i64) = sqlx::query_as(
-        "SELECT \
-         COUNT(*) FILTER (WHERE source_document_id = $1 AND target = $2), \
-         COUNT(*) FILTER (WHERE source_document_id = $2 AND target = $1) \
-         FROM knowledge_document_backlinks",
+        .expect("waiting save response")
+    });
+    docs_api::test_wait_for_document_pause(
+        &save_first_id,
+        docs_api::KnowledgeDocumentTestPausePoint::SaveBeforeMutation,
     )
-    .bind(&cycle_a_id)
-    .bind(&cycle_b_id)
-    .fetch_one(&mut conn)
+    .await;
+    let deleted = headers_with_kind(
+        http.delete(format!("{base}/knowledge/documents/{save_first_id}")),
+        "mt032-delete-before-save",
+        "operator",
+    )
+    .send()
     .await
-    .expect("load symmetric backlink rows");
-    assert_eq!((a_to_b, b_to_a), (1, 1));
+    .expect("delete before waiting save");
+    assert_eq!(deleted.status(), 200);
+    docs_api::test_release_document_pause(
+        &save_first_id,
+        docs_api::KnowledgeDocumentTestPausePoint::SaveBeforeMutation,
+    );
+    assert_eq!(
+        waiting_save
+            .await
+            .expect("waiting save task joins")
+            .status(),
+        404,
+        "a stale queued save must not resurrect a deleted document"
+    );
 
-    sqlx::query("DROP FUNCTION mt032_hold_mutation()")
-        .execute(&mut conn)
+    let delete_first = create_doc(&base, &http, &workspace_id, "MT032 delete waits").await;
+    let delete_first_id = delete_first["document"]["rich_document_id"]
+        .as_str()
+        .expect("delete-waits document id")
+        .to_owned();
+    docs_api::test_arm_document_pause(
+        &delete_first_id,
+        docs_api::KnowledgeDocumentTestPausePoint::DeleteBeforeMutation,
+    );
+    let delete_http = http.clone();
+    let delete_base = base.clone();
+    let delete_id = delete_first_id.clone();
+    let waiting_delete = tokio::spawn(async move {
+        headers_with_kind(
+            delete_http.delete(format!("{delete_base}/knowledge/documents/{delete_id}")),
+            "mt032-waiting-delete",
+            "operator",
+        )
+        .send()
         .await
-        .expect("drop mutation hold function");
-    drop(conn);
+        .expect("waiting delete response")
+    });
+    docs_api::test_wait_for_document_pause(
+        &delete_first_id,
+        docs_api::KnowledgeDocumentTestPausePoint::DeleteBeforeMutation,
+    )
+    .await;
+    let saved = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{delete_first_id}/save")),
+        "mt032-save-before-delete",
+        "operator",
+    )
+    .json(&json!({"expected_version": 1, "content_json": updated_content.clone()}))
+    .send()
+    .await
+    .expect("save before waiting delete");
+    assert_eq!(saved.status(), 200);
+    docs_api::test_release_document_pause(
+        &delete_first_id,
+        docs_api::KnowledgeDocumentTestPausePoint::DeleteBeforeMutation,
+    );
+    assert_eq!(
+        waiting_delete
+            .await
+            .expect("waiting delete task joins")
+            .status(),
+        409,
+        "a delete with a stale predecessor snapshot must not erase the committed save"
+    );
+    let retained = store
+        .db
+        .get_knowledge_rich_document(&delete_first_id)
+        .await
+        .expect("read save-before-delete document")
+        .expect("save-before-delete document remains live");
+    assert_eq!(retained.doc_version, 2);
+
+    let rebuild_first = create_doc(&base, &http, &workspace_id, "MT032 rebuild waits").await;
+    let rebuild_first_id = rebuild_first["document"]["rich_document_id"]
+        .as_str()
+        .expect("rebuild-waits document id")
+        .to_owned();
+    docs_api::test_arm_document_pause(
+        &rebuild_first_id,
+        docs_api::KnowledgeDocumentTestPausePoint::BacklinkRebuildBeforeMutation,
+    );
+    let rebuild_http = http.clone();
+    let rebuild_base = base.clone();
+    let rebuild_id = rebuild_first_id.clone();
+    let waiting_rebuild = tokio::spawn(async move {
+        headers_with_kind(
+            rebuild_http.post(format!(
+                "{rebuild_base}/knowledge/documents/{rebuild_id}/backlinks"
+            )),
+            "mt032-waiting-rebuild",
+            "operator",
+        )
+        .send()
+        .await
+        .expect("waiting rebuild response")
+    });
+    docs_api::test_wait_for_document_pause(
+        &rebuild_first_id,
+        docs_api::KnowledgeDocumentTestPausePoint::BacklinkRebuildBeforeMutation,
+    )
+    .await;
+    let rebuild_deleted = headers_with_kind(
+        http.delete(format!("{base}/knowledge/documents/{rebuild_first_id}")),
+        "mt032-delete-before-rebuild",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("delete before waiting rebuild");
+    assert_eq!(rebuild_deleted.status(), 200);
+    docs_api::test_release_document_pause(
+        &rebuild_first_id,
+        docs_api::KnowledgeDocumentTestPausePoint::BacklinkRebuildBeforeMutation,
+    );
+    assert_eq!(
+        waiting_rebuild
+            .await
+            .expect("waiting rebuild task joins")
+            .status(),
+        404,
+        "a stale queued backlink rebuild must not recreate deleted projections"
+    );
+    assert!(
+        store
+            .db
+            .list_knowledge_document_backlinks_from(&rebuild_first_id)
+            .await
+            .expect("read post-delete backlink projection")
+            .is_empty(),
+        "deleted document backlinks must remain absent"
+    );
+
+    let cleanup = headers_with_kind(
+        http.delete(format!("{base}/knowledge/documents/{delete_first_id}")),
+        "mt032-delete-after-stale-delete",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("fresh cleanup delete");
+    assert_eq!(cleanup.status(), 200);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mt032_migration_0343_upgrade_collision_idempotence_and_safe_down() {
-    let pg = knowledge_pg()
-        .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let mut conn = pg.raw_connection().await;
-    sqlx::raw_sql(include_str!(
-        "../migrations/0343_knowledge_rich_document_loom_projection.down.sql"
-    ))
-    .execute(&mut conn)
-    .await
-    .expect("return isolated schema to pre-0343 state");
+#[allow(dead_code)]
+const MT141_MIGRATION_0343_DISPOSITION: &str =
+    "RETIRED migration 0343: schema.surql lines under \
+     `0343_knowledge_rich_document_loom_projection` explicitly omit legacy backfill DML because \
+     embedded bootstrap opens an empty latest-schema database; current projection identity is proved \
+     by loom_blocks and loom_block_search_index schema plus the atomic runtime create/save transactions.";
 
-    let legacy_id = format!("KRD-{}", uuid::Uuid::now_v7().simple());
-    let changed_id = format!("KRD-{}", uuid::Uuid::now_v7().simple());
-    let preexisting_block_id = format!("KRD-{}", uuid::Uuid::now_v7().simple());
-    for (id, title, body, hash_char) in [
-        (
-            &legacy_id,
-            "MT032 Legacy Upgrade",
-            "legacy searchable body",
-            'a',
-        ),
-        (
-            &changed_id,
-            "MT032 Changed After Upgrade",
-            "changed searchable body",
-            'b',
-        ),
-        (
-            &preexisting_block_id,
-            "MT032 Preexisting Block",
-            "preexisting block searchable body",
-            'd',
-        ),
-    ] {
-        sqlx::query(
-            r#"
-            INSERT INTO knowledge_rich_documents
-                (rich_document_id, workspace_id, title, schema_version,
-                 content_json, content_sha256)
-            VALUES ($1, $2, $3, 'hsk_richdoc_v1', $4, $5)
-            "#,
-        )
-        .bind(id)
-        .bind(&workspace_id)
-        .bind(title)
-        .bind(json!({
-            "type": "doc",
-            "content": [{
-                "type": "paragraph",
-                "content": [{"type": "text", "text": body}]
-            }]
-        }))
-        .bind(hash_char.to_string().repeat(64))
-        .execute(&mut conn)
-        .await
-        .expect("insert pre-0343 RichDocument");
-    }
-
-    pg.db
-        .create_loom_block(
-            &WriteContext::system(Some("mt032-preexisting-block".to_string())),
-            NewLoomBlock {
-                block_id: Some(preexisting_block_id.clone()),
-                workspace_id: workspace_id.clone(),
-                content_type: LoomBlockContentType::Note,
-                document_id: None,
-                asset_id: None,
-                title: Some("MT032 Prior Block Title".to_string()),
-                original_filename: None,
-                content_hash: Some("e".repeat(64)),
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
-        )
-        .await
-        .expect("insert pre-0343 LoomBlock");
-    sqlx::query("DELETE FROM loom_block_search_index WHERE block_id = $1")
-        .bind(&preexisting_block_id)
-        .execute(&mut conn)
-        .await
-        .expect("remove preexisting block search row before upgrade");
-
-    let forward = include_str!("../migrations/0343_knowledge_rich_document_loom_projection.sql");
-    sqlx::raw_sql(forward)
-        .execute(&mut conn)
-        .await
-        .expect("run 0343 upgrade");
-    let (derived, search, block_updated_at, indexed_at): (
-        Value,
-        String,
-        chrono::NaiveDateTime,
-        chrono::DateTime<chrono::Utc>,
-    ) = sqlx::query_as(
-        r#"
-        SELECT b.derived_json::jsonb, s.search_text, b.updated_at, s.indexed_at
-        FROM loom_blocks b
-        JOIN loom_block_search_index s ON s.block_id = b.block_id
-        WHERE b.block_id = $1 AND b.workspace_id = $2
-        "#,
-    )
-    .bind(&legacy_id)
-    .bind(&workspace_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("upgraded body-aware projection");
-    assert_eq!(derived["full_text_index"], "legacy searchable body");
-    assert!(search.contains("legacy searchable body"));
-
-    sqlx::raw_sql(forward)
-        .execute(&mut conn)
-        .await
-        .expect("repeat 0343 forward idempotently");
-    let repeated: (
-        i64,
-        i64,
-        chrono::NaiveDateTime,
-        chrono::DateTime<chrono::Utc>,
-    ) = sqlx::query_as(
-        r#"
-            SELECT
-                (SELECT COUNT(*) FROM loom_blocks WHERE block_id = $1),
-                (SELECT COUNT(*) FROM loom_block_search_index WHERE block_id = $1),
-                (SELECT updated_at FROM loom_blocks WHERE block_id = $1),
-                (SELECT indexed_at FROM loom_block_search_index WHERE block_id = $1)
-            "#,
-    )
-    .bind(&legacy_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("repeated forward state");
-    assert_eq!(repeated.0, 1);
-    assert_eq!(repeated.1, 1);
-    assert_eq!(repeated.2, block_updated_at);
-    assert_eq!(repeated.3, indexed_at);
-
-    let post_upgrade_edge_id = format!("LE-{}", uuid::Uuid::now_v7().simple());
-    sqlx::query(
-        r#"
-        INSERT INTO loom_edges
-            (edge_id, workspace_id, source_block_id, target_block_id,
-             edge_type, created_by, last_actor_kind)
-        VALUES ($1, $2, $3, $4, 'mention', 'user', 'HUMAN')
-        "#,
-    )
-    .bind(&post_upgrade_edge_id)
-    .bind(&workspace_id)
-    .bind(&legacy_id)
-    .bind(&changed_id)
-    .execute(&mut conn)
-    .await
-    .expect("attach post-upgrade dependency to migration-created block");
-
-    let collision_workspace = pg.create_workspace().await;
-    let collision_id = format!("KRD-{}", uuid::Uuid::now_v7().simple());
-    sqlx::query(
-        r#"
-        INSERT INTO knowledge_rich_documents
-            (rich_document_id, workspace_id, title, schema_version,
-             content_json, content_sha256)
-        VALUES ($1, $2, 'MT032 Collision', 'hsk_richdoc_v1',
-                '{"type":"doc","content":[]}', $3)
-        "#,
-    )
-    .bind(&collision_id)
-    .bind(&workspace_id)
-    .bind("c".repeat(64))
-    .execute(&mut conn)
-    .await
-    .expect("insert collision RichDocument");
-    pg.db
-        .create_loom_block(
-            &WriteContext::system(Some("mt032-collision".to_string())),
-            NewLoomBlock {
-                block_id: Some(collision_id.clone()),
-                workspace_id: collision_workspace,
-                content_type: LoomBlockContentType::Note,
-                document_id: None,
-                asset_id: None,
-                title: Some("Foreign Collision".to_string()),
-                original_filename: None,
-                content_hash: None,
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
-        )
-        .await
-        .expect("insert cross-workspace collision block");
-    let collision = sqlx::raw_sql(forward).execute(&mut conn).await;
-    assert!(
-        collision.is_err(),
-        "cross-workspace identity collision must fail"
-    );
-    sqlx::query("DELETE FROM loom_blocks WHERE block_id = $1")
-        .bind(&collision_id)
-        .execute(&mut conn)
-        .await
-        .expect("remove collision block");
-    sqlx::query("DELETE FROM knowledge_rich_documents WHERE rich_document_id = $1")
-        .bind(&collision_id)
-        .execute(&mut conn)
-        .await
-        .expect("remove collision document");
-
-    sqlx::query("UPDATE loom_blocks SET title = 'Operator Changed' WHERE block_id = $1")
-        .bind(&changed_id)
-        .execute(&mut conn)
-        .await
-        .expect("change upgraded block before down");
-    let rollback =
-        include_str!("../migrations/0343_knowledge_rich_document_loom_projection.down.sql");
-    let fk_consumers: Vec<(String, String)> = sqlx::query_as(
-        r#"
-        SELECT referencing_table.relname::text, referencing_column.attname::text
-        FROM pg_constraint constraint_row
-        JOIN pg_class referencing_table
-          ON referencing_table.oid = constraint_row.conrelid
-        JOIN LATERAL unnest(constraint_row.conkey) WITH ORDINALITY
-          AS source_key(attnum, ordinal) ON TRUE
-        JOIN LATERAL unnest(constraint_row.confkey) WITH ORDINALITY
-          AS target_key(attnum, ordinal) ON target_key.ordinal = source_key.ordinal
-        JOIN pg_attribute referencing_column
-          ON referencing_column.attrelid = constraint_row.conrelid
-         AND referencing_column.attnum = source_key.attnum
-        JOIN pg_attribute referenced_column
-          ON referenced_column.attrelid = constraint_row.confrelid
-         AND referenced_column.attnum = target_key.attnum
-        WHERE constraint_row.contype = 'f'
-          AND constraint_row.confrelid = 'loom_blocks'::regclass
-          AND referenced_column.attname = 'block_id'
-        ORDER BY referencing_table.relname, referencing_column.attname
-        "#,
-    )
-    .fetch_all(&mut conn)
-    .await
-    .expect("catalog LoomBlock FK consumers");
-    assert!(
-        fk_consumers.iter().any(|(table, column)| {
-            table == "atelier_intake_item_loom_projection" && column == "loom_block_id"
-        }),
-        "0344 Atelier projection must be present in the rollback dependency catalog proof"
-    );
-    for (table, column) in &fk_consumers {
-        assert!(
-            rollback.contains(table) && rollback.contains(column),
-            "0343 rollback must explicitly account for current LoomBlock FK consumer {table}.{column}"
-        );
-    }
-    sqlx::raw_sql(rollback)
-        .execute(&mut conn)
-        .await
-        .expect("run safe 0343 down");
-    let legacy_block_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM loom_blocks WHERE block_id = $1")
-            .bind(&legacy_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("dependent legacy block survives down");
-    let post_upgrade_edge_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM loom_edges WHERE edge_id = $1")
-            .bind(&post_upgrade_edge_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("post-upgrade dependency survives down");
-    let preexisting_search_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM loom_block_search_index WHERE block_id = $1")
-            .bind(&preexisting_block_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("preexisting block search count after down");
-    let changed_title: String =
-        sqlx::query_scalar("SELECT title FROM loom_blocks WHERE block_id = $1")
-            .bind(&changed_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("operator-changed block survives down");
-    assert_eq!(legacy_block_count, 1);
-    assert_eq!(post_upgrade_edge_count, 1);
-    assert_eq!(preexisting_search_count, 0);
-    assert_eq!(changed_title, "Operator Changed");
-    drop(conn);
-    pg.teardown().await;
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn mt046_migration_0347_backfills_links_to_any_same_workspace_loom_block() {
-    let pg = knowledge_pg()
-        .await
-        .expect("MT-046 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let foreign_workspace_id = pg.create_workspace().await;
-    let mut conn = pg.raw_connection().await;
-    sqlx::raw_sql(include_str!(
-        "../migrations/0347_knowledge_rich_document_loom_edges.down.sql"
-    ))
-    .execute(&mut conn)
-    .await
-    .expect("return isolated schema to pre-0347 edge-projection state");
-
-    let source_id = format!("KRD-{}", uuid::Uuid::now_v7().simple());
-    sqlx::query(
-        r#"
-        INSERT INTO knowledge_rich_documents
-            (rich_document_id, workspace_id, title, schema_version,
-             content_json, content_sha256)
-        VALUES ($1, $2, 'MT046 0347 legacy source', 'hsk_richdoc_v1',
-                '{"type":"doc","content":[]}', $3)
-        "#,
-    )
-    .bind(&source_id)
-    .bind(&workspace_id)
-    .bind("a".repeat(64))
-    .execute(&mut conn)
-    .await
-    .expect("insert pre-0347 RichDocument source");
-
-    let file_target = format!("BLK-{}", uuid::Uuid::now_v7().simple());
-    let ckc_target = format!("BLK-{}", uuid::Uuid::now_v7().simple());
-    let foreign_source = format!("BLK-{}", uuid::Uuid::now_v7().simple());
-    let foreign_target = format!("BLK-{}", uuid::Uuid::now_v7().simple());
-    for (block_id, workspace, content_type, title) in [
-        (
-            source_id.as_str(),
-            workspace_id.as_str(),
-            LoomBlockContentType::Note,
-            "MT046 source note",
-        ),
-        (
-            file_target.as_str(),
-            workspace_id.as_str(),
-            LoomBlockContentType::File,
-            "MT046 code file target",
-        ),
-        (
-            ckc_target.as_str(),
-            workspace_id.as_str(),
-            LoomBlockContentType::CkcCharacter,
-            "MT046 CKC character target",
-        ),
-        (
-            foreign_source.as_str(),
-            foreign_workspace_id.as_str(),
-            LoomBlockContentType::Note,
-            "MT046 foreign edge source",
-        ),
-        (
-            foreign_target.as_str(),
-            foreign_workspace_id.as_str(),
-            LoomBlockContentType::File,
-            "MT046 foreign target",
-        ),
-    ] {
-        pg.db
-            .create_loom_block(
-                &WriteContext::system(Some("mt046-0347-upgrade".to_string())),
-                NewLoomBlock {
-                    block_id: Some(block_id.to_string()),
-                    workspace_id: workspace.to_string(),
-                    content_type,
-                    document_id: None,
-                    asset_id: None,
-                    title: Some(title.to_string()),
-                    original_filename: None,
-                    content_hash: None,
-                    pinned: false,
-                    journal_date: None,
-                    imported_at: None,
-                    derived: LoomBlockDerived::default(),
-                },
-            )
-            .await
-            .expect("insert migration LoomBlock fixture");
-    }
-
-    let file_relationship = format!("KDLNK-{}", "b".repeat(64));
-    let ckc_relationship = format!("KDLNK-{}", "c".repeat(64));
-    let foreign_relationship = format!("KDLNK-{}", "d".repeat(64));
-    for (relationship_id, target, block_id) in [
-        (&file_relationship, &file_target, "paragraph-file"),
-        (&ckc_relationship, &ckc_target, "paragraph-ckc"),
-        (&foreign_relationship, &foreign_target, "paragraph-foreign"),
-    ] {
-        sqlx::query(
-            r#"
-            INSERT INTO knowledge_document_backlinks
-                (backlink_id, workspace_id, relationship_id, source_document_id,
-                 link_kind, target, block_id)
-            VALUES ($1, $2, $3, $4, 'wikilink', $5, $6)
-            "#,
-        )
-        .bind(format!("KDBL-{}", uuid::Uuid::now_v7().simple()))
-        .bind(&workspace_id)
-        .bind(relationship_id)
-        .bind(&source_id)
-        .bind(target)
-        .bind(block_id)
-        .execute(&mut conn)
-        .await
-        .expect("insert pre-0347 backlink");
-    }
-
-    // Model an independently-authored KDLNK-shaped identity in another workspace. It is not a
-    // projectable backlink for the source workspace and therefore must neither block nor be overwritten.
-    sqlx::query(
-        r#"
-        INSERT INTO loom_edges
-            (edge_id, workspace_id, source_block_id, target_block_id,
-             edge_type, created_by, last_actor_kind, last_actor_id)
-        VALUES ($1, $2, $3, $4, 'mention', 'user', 'HUMAN', 'foreign-writer')
-        "#,
-    )
-    .bind(&foreign_relationship)
-    .bind(&foreign_workspace_id)
-    .bind(&foreign_source)
-    .bind(&foreign_target)
-    .execute(&mut conn)
-    .await
-    .expect("insert unrelated cross-workspace KDLNK-shaped edge");
-
-    let forward = include_str!("../migrations/0347_knowledge_rich_document_loom_edges.sql");
-    sqlx::raw_sql(forward)
-        .execute(&mut conn)
-        .await
-        .expect("0347 upgrades KRD links to non-KRD Loom targets");
-    sqlx::raw_sql(forward)
-        .execute(&mut conn)
-        .await
-        .expect("0347 upgrade is idempotent");
-
-    let projected: Vec<(String, String, String, String)> = sqlx::query_as(
-        r#"
-        SELECT edge_id, source_block_id, target_block_id, last_actor_id
-        FROM loom_edges
-        WHERE workspace_id = $1 AND edge_id IN ($2, $3)
-        ORDER BY edge_id
-        "#,
-    )
-    .bind(&workspace_id)
-    .bind(&file_relationship)
-    .bind(&ckc_relationship)
-    .fetch_all(&mut conn)
-    .await
-    .expect("read 0347 projected edges");
-    assert_eq!(projected.len(), 2, "file and CKC targets both backfill");
-    for (edge_id, source, target, actor) in &projected {
-        assert!(edge_id == &file_relationship || edge_id == &ckc_relationship);
-        assert_eq!(source, &source_id);
-        assert!(target == &file_target || target == &ckc_target);
-        assert_eq!(actor, "knowledge_rich_document_backlink_projection");
-    }
-
-    let (source_mentions, file_backlinks, ckc_backlinks): (i32, i32, i32) = sqlx::query_as(
-        r#"
-        SELECT
-            (SELECT mention_count FROM loom_blocks WHERE block_id = $1),
-            (SELECT backlink_count FROM loom_blocks WHERE block_id = $2),
-            (SELECT backlink_count FROM loom_blocks WHERE block_id = $3)
-        "#,
-    )
-    .bind(&source_id)
-    .bind(&file_target)
-    .bind(&ckc_target)
-    .fetch_one(&mut conn)
-    .await
-    .expect("read 0347 derived counters");
-    assert_eq!((source_mentions, file_backlinks, ckc_backlinks), (2, 1, 1));
-
-    let foreign_edge: (String, String) =
-        sqlx::query_as("SELECT workspace_id, last_actor_id FROM loom_edges WHERE edge_id = $1")
-            .bind(&foreign_relationship)
-            .fetch_one(&mut conn)
-            .await
-            .expect("unrelated foreign edge survives upgrade");
-    assert_eq!(foreign_edge.0, foreign_workspace_id);
-    assert_eq!(foreign_edge.1, "foreign-writer");
-
-    drop(conn);
-    pg.teardown().await;
-}
+#[allow(dead_code)]
+const MT141_MIGRATION_0347_DISPOSITION: &str =
+    "RETIRED migration 0347: current schema.surql defines knowledge_document_backlinks.workspace_id \
+     as record<workspaces>, source_document_id as record<knowledge_rich_documents>, and target as the \
+     stable string target; current same-workspace Loom resolution is runtime behavior in \
+     knowledge::resolve_backlink_rows, while cross-workspace Loom ids are dropped before persistence.";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt032_delete_is_atomic_and_removes_canvas_references() {
-    let pg = knowledge_pg()
+    let store = open_embedded_store()
         .await
-        .expect("MT-032 requires Handshake-managed PostgreSQL proof");
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
-    let document = create_doc(&base, &http, &workspace_id, "MT032 Delete Target").await;
-    let document_id = document["document"]["rich_document_id"]
+        .expect("MT-032 requires an isolated embedded store");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let target = create_doc(&base, &http, &workspace_id, "MT032 Delete Target").await;
+    let document_id = target["document"]["rich_document_id"]
         .as_str()
         .expect("delete target id")
-        .to_string();
+        .to_owned();
 
-    let referring_response = headers_with_kind(
+    let referrer_response = headers_with_kind(
         http.post(format!("{base}/knowledge/documents")),
         "mt032-delete-referrer",
         "operator",
@@ -2721,25 +1590,33 @@ async fn mt032_delete_is_atomic_and_removes_canvas_references() {
             "type": "doc",
             "content": [{
                 "type": "paragraph",
-                "content": [{"type": "text", "text": "[[MT032 Delete Target]]"}]
+                "content": [{
+                    "type": "hsLink",
+                    "attrs": {
+                        "refKind": "note",
+                        "refValue": document_id,
+                        "label": "MT032 Delete Target"
+                    }
+                }]
             }]
         }
     }))
     .send()
     .await
     .expect("create delete referrer");
-    assert_eq!(referring_response.status(), 200);
-    let referring: Value = referring_response
+    assert_eq!(referrer_response.status(), 200);
+    let referrer: Value = referrer_response
         .json()
         .await
         .expect("delete referrer body");
-    let referring_id = referring["document"]["rich_document_id"]
+    let referrer_id = referrer["document"]["rich_document_id"]
         .as_str()
         .expect("delete referrer id")
-        .to_string();
+        .to_owned();
+
     let rebuilt = headers_with_kind(
         http.post(format!(
-            "{base}/knowledge/documents/{referring_id}/backlinks"
+            "{base}/knowledge/documents/{referrer_id}/backlinks"
         )),
         "mt032-delete-referrer-rebuild",
         "operator",
@@ -2748,9 +1625,101 @@ async fn mt032_delete_is_atomic_and_removes_canvas_references() {
     .await
     .expect("rebuild delete referrer backlinks");
     assert_eq!(rebuilt.status(), 200);
+    let projected = store
+        .db
+        .list_knowledge_document_backlinks_from(&referrer_id)
+        .await
+        .expect("projected delete-target backlink");
+    let relationship_id = projected
+        .iter()
+        .find(|row| row.target == document_id)
+        .expect("stable delete-target relationship")
+        .relationship_id
+        .clone();
 
-    let write_ctx = WriteContext::human(Some("mt032-delete-proof".to_string()));
-    let canvas_block = pg
+    // Recreate the former independently-owned edge collision through public
+    // typed APIs only. Rebuild must fail atomically without deleting or
+    // overwriting the independent edge.
+    let write_ctx = WriteContext::human(Some("mt032-delete-proof".to_owned()));
+    store
+        .db
+        .delete_loom_edge(&write_ctx, &workspace_id, &relationship_id)
+        .await
+        .expect("remove projector-owned edge before collision setup");
+    store
+        .db
+        .replace_knowledge_document_backlinks(&referrer_id, Vec::new())
+        .await
+        .expect("remove rebuildable backlink before collision setup");
+    store
+        .db
+        .create_loom_edge(
+            &write_ctx,
+            NewLoomEdge {
+                edge_id: Some(relationship_id.clone()),
+                workspace_id: workspace_id.clone(),
+                source_block_id: referrer_id.clone(),
+                target_block_id: document_id.clone(),
+                edge_type: LoomEdgeType::Mention,
+                created_by: LoomEdgeCreatedBy::User,
+                crdt_site_id: None,
+                source_anchor: None,
+            },
+        )
+        .await
+        .expect("create independently-owned collision edge");
+    let collision_rebuild = headers_with_kind(
+        http.post(format!(
+            "{base}/knowledge/documents/{referrer_id}/backlinks"
+        )),
+        "mt032-independent-edge-collision",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("rebuild against independently-owned edge collision");
+    assert_eq!(collision_rebuild.status(), 409);
+    assert!(
+        store
+            .db
+            .list_knowledge_document_backlinks_from(&referrer_id)
+            .await
+            .expect("collision rollback backlink state")
+            .is_empty(),
+        "failed rebuild must roll its backlink insert back"
+    );
+    let independent_edges = store
+        .db
+        .list_loom_edges_for_block(&workspace_id, &referrer_id)
+        .await
+        .expect("independent collision edge readback");
+    assert!(
+        independent_edges.iter().any(|edge| {
+            edge.edge_id == relationship_id
+                && edge.source_block_id == referrer_id
+                && edge.target_block_id == document_id
+                && edge.created_by == LoomEdgeCreatedBy::User
+        }),
+        "failed rebuild must preserve the independently-owned edge"
+    );
+    store
+        .db
+        .delete_loom_edge(&write_ctx, &workspace_id, &relationship_id)
+        .await
+        .expect("remove independent collision fixture");
+    let restored = headers_with_kind(
+        http.post(format!(
+            "{base}/knowledge/documents/{referrer_id}/backlinks"
+        )),
+        "mt032-restore-owned-edge",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("restore projector-owned edge");
+    assert_eq!(restored.status(), 200);
+
+    let canvas_block = store
         .db
         .create_loom_block(
             &write_ctx,
@@ -2760,7 +1729,7 @@ async fn mt032_delete_is_atomic_and_removes_canvas_references() {
                 content_type: LoomBlockContentType::Canvas,
                 document_id: None,
                 asset_id: None,
-                title: Some("MT032 Delete Canvas".to_string()),
+                title: Some("MT032 Delete Canvas".to_owned()),
                 original_filename: None,
                 content_hash: None,
                 pinned: false,
@@ -2770,12 +1739,14 @@ async fn mt032_delete_is_atomic_and_removes_canvas_references() {
             },
         )
         .await
-        .expect("create canvas LoomBlock");
-    pg.db
+        .expect("create delete canvas block");
+    store
+        .db
         .bridge_loom_block_to_knowledge(&write_ctx, &workspace_id, &canvas_block.block_id)
         .await
-        .expect("bridge canvas block");
-    pg.db
+        .expect("bridge delete canvas block");
+    store
+        .db
         .create_canvas_board(
             &write_ctx,
             &workspace_id,
@@ -2788,8 +1759,8 @@ async fn mt032_delete_is_atomic_and_removes_canvas_references() {
             }),
         )
         .await
-        .expect("create canvas board");
-    let placement = pg
+        .expect("create delete canvas board");
+    let placement = store
         .db
         .place_block_on_canvas(
             &write_ctx,
@@ -2808,220 +1779,14 @@ async fn mt032_delete_is_atomic_and_removes_canvas_references() {
             },
         )
         .await
-        .expect("place document block on canvas");
-
-    let mut conn = pg.raw_connection().await;
-    let loom_backlink_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM loom_edges \
-         WHERE workspace_id = $1 AND source_block_id = $2 \
-           AND target_block_id = $3 AND edge_type = 'mention' \
-           AND edge_id LIKE 'KDLNK-%'",
-    )
-    .bind(&workspace_id)
-    .bind(&referring_id)
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("same-id RichDocument Loom backlink projection");
-    assert_eq!(
-        loom_backlink_count, 1,
-        "one durable knowledge wikilink projects to one same-id Loom edge"
-    );
-    let relationship_id: String = sqlx::query_scalar(
-        "SELECT relationship_id FROM knowledge_document_backlinks \
-         WHERE workspace_id = $1 AND source_document_id = $2 AND target = $3",
-    )
-    .bind(&workspace_id)
-    .bind(&referring_id)
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("projected backlink relationship id");
-    sqlx::query(
-        "UPDATE loom_edges SET last_actor_kind = 'HUMAN', last_actor_id = 'independent-edge' \
-         WHERE edge_id = $1",
-    )
-    .bind(&relationship_id)
-    .execute(&mut conn)
-    .await
-    .expect("convert projected edge into independently-authored collision fixture");
-    sqlx::query("DELETE FROM knowledge_document_backlinks WHERE relationship_id = $1")
-        .bind(&relationship_id)
-        .execute(&mut conn)
+        .expect("place delete target on canvas");
+    let source_before = store
+        .db
+        .get_knowledge_source_by_document_id(&workspace_id, &document_id)
         .await
-        .expect("remove rebuildable backlink while retaining independent edge");
-    let collision_rebuild = headers_with_kind(
-        http.post(format!(
-            "{base}/knowledge/documents/{referring_id}/backlinks"
-        )),
-        "mt032-independent-edge-collision",
-        "operator",
-    )
-    .send()
-    .await
-    .expect("rebuild against independently-authored edge collision");
-    assert_eq!(collision_rebuild.status(), 409);
-    let independent_edge: (String, String, String) = sqlx::query_as(
-        "SELECT last_actor_kind, last_actor_id, target_block_id FROM loom_edges WHERE edge_id = $1",
-    )
-    .bind(&relationship_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("independently-authored edge survives collision");
-    assert_eq!(
-        independent_edge,
-        (
-            "HUMAN".to_owned(),
-            "independent-edge".to_owned(),
-            document_id.clone()
-        ),
-        "a KDLNK-shaped identity owned by another writer is never deleted or overwritten"
-    );
-    let rolled_back_backlinks: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_document_backlinks WHERE relationship_id = $1",
-    )
-    .bind(&relationship_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("collision rebuild rollback count");
-    assert_eq!(rolled_back_backlinks, 0);
-    sqlx::query("DELETE FROM loom_edges WHERE edge_id = $1")
-        .bind(&relationship_id)
-        .execute(&mut conn)
-        .await
-        .expect("remove independent collision fixture");
-    let restored_rebuild = headers_with_kind(
-        http.post(format!(
-            "{base}/knowledge/documents/{referring_id}/backlinks"
-        )),
-        "mt032-restore-owned-edge",
-        "operator",
-    )
-    .send()
-    .await
-    .expect("restore owned backlink projection");
-    assert_eq!(restored_rebuild.status(), 200);
-    let source_stale_before: bool = sqlx::query_scalar(
-        "SELECT stale FROM knowledge_sources \
-         WHERE workspace_id = $1 \
-           AND source_kind = 'rich_document' \
-           AND provenance->>'rich_document_id' = $2",
-    )
-    .bind(&workspace_id)
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("delete target knowledge source");
-    assert!(!source_stale_before);
-    let failure_function_sql = format!(
-        r#"
-        CREATE OR REPLACE FUNCTION mt032_reject_target_block_delete()
-        RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN
-            IF OLD.block_id = '{}' THEN
-                RAISE EXCEPTION 'MT032 injected projection delete failure';
-            END IF;
-            RETURN OLD;
-        END
-        $$
-        "#,
-        document_id.replace('\'', "''")
-    );
-    sqlx::query(&failure_function_sql)
-        .execute(&mut conn)
-        .await
-        .expect("create delete failure function");
-    sqlx::query(
-        "CREATE TRIGGER mt032_reject_target_block_delete \
-         BEFORE DELETE ON loom_blocks FOR EACH ROW \
-         EXECUTE FUNCTION mt032_reject_target_block_delete()",
-    )
-    .execute(&mut conn)
-    .await
-    .expect("create delete failure trigger");
-    let failed_delete = headers_with_kind(
-        http.delete(format!("{base}/knowledge/documents/{document_id}")),
-        "mt032-delete-fail",
-        "operator",
-    )
-    .send()
-    .await
-    .expect("forced failed delete");
-    assert_eq!(failed_delete.status(), 500);
-    let deleted_at: Option<chrono::DateTime<chrono::Utc>> = sqlx::query_scalar(
-        "SELECT deleted_at FROM knowledge_rich_documents WHERE rich_document_id = $1",
-    )
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("tombstone rollback state");
-    assert!(
-        deleted_at.is_none(),
-        "failed projection delete rolls tombstone back"
-    );
-    let receipt_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger \
-         WHERE aggregate_type = 'knowledge_rich_document' \
-           AND aggregate_id = $1 \
-           AND event_type = 'KNOWLEDGE_RICH_DOCUMENT_DELETED'",
-    )
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("rolled-back delete receipt count");
-    assert_eq!(receipt_count, 0, "failed delete rolls receipt back");
-    let placement_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM loom_canvas_placements WHERE placement_id = $1")
-            .bind(&placement.placement_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("placement rollback count");
-    assert_eq!(placement_count, 1, "failed delete keeps canvas placement");
-    let backlink_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_document_backlinks WHERE target = $1")
-            .bind(&document_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("backlink rollback count");
-    assert_eq!(backlink_count, 1, "failed delete keeps backlinks");
-    let loom_backlink_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM loom_edges \
-         WHERE workspace_id = $1 AND source_block_id = $2 AND target_block_id = $3",
-    )
-    .bind(&workspace_id)
-    .bind(&referring_id)
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("loom backlink rollback count");
-    assert_eq!(
-        loom_backlink_count, 1,
-        "failed delete keeps the same-id Loom backlink projection"
-    );
-    let source_stale_after_failure: bool = sqlx::query_scalar(
-        "SELECT stale FROM knowledge_sources \
-         WHERE workspace_id = $1 \
-           AND source_kind = 'rich_document' \
-           AND provenance->>'rich_document_id' = $2",
-    )
-    .bind(&workspace_id)
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("source stale rollback state");
-    assert!(
-        !source_stale_after_failure,
-        "failed delete keeps source live"
-    );
-
-    sqlx::query("DROP TRIGGER mt032_reject_target_block_delete ON loom_blocks")
-        .execute(&mut conn)
-        .await
-        .expect("drop delete failure trigger");
-    sqlx::query("DROP FUNCTION mt032_reject_target_block_delete()")
-        .execute(&mut conn)
-        .await
-        .expect("drop delete failure function");
+        .expect("delete target source lookup")
+        .expect("delete target is indexed");
+    assert!(!source_before.stale);
 
     let deleted = headers_with_kind(
         http.delete(format!("{base}/knowledge/documents/{document_id}")),
@@ -3030,100 +1795,115 @@ async fn mt032_delete_is_atomic_and_removes_canvas_references() {
     )
     .send()
     .await
-    .expect("delete with placement cleanup");
+    .expect("delete with dependency cleanup");
     assert_eq!(deleted.status(), 200);
     let deleted: Value = deleted.json().await.expect("delete response");
     assert_eq!(deleted["loom_block_deleted"], true);
     assert_eq!(deleted["source_marked_stale"], true);
-    let deleted_receipt_event_id = deleted["deleted_receipt_event_id"]
+    let receipt_id = deleted["deleted_receipt_event_id"]
         .as_str()
-        .expect("delete receipt id")
-        .to_string();
+        .expect("delete receipt id");
 
-    let load_deleted = headers_with_kind(
-        http.get(format!("{base}/knowledge/documents/{document_id}")),
-        "mt032-load-deleted",
-        "operator",
-    )
-    .send()
-    .await
-    .expect("load deleted document");
-    assert_eq!(load_deleted.status(), 404);
-    let block_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM loom_blocks WHERE block_id = $1")
-            .bind(&document_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("deleted block count");
-    assert_eq!(block_count, 0);
-    let placement_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM loom_canvas_placements WHERE placement_id = $1")
-            .bind(&placement.placement_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("deleted placement count");
-    assert_eq!(placement_count, 0);
-    let (deleted_at, persisted_receipt): (
-        Option<chrono::DateTime<chrono::Utc>>,
-        Option<String>,
-    ) = sqlx::query_as(
-        "SELECT deleted_at, deleted_receipt_event_id FROM knowledge_rich_documents WHERE rich_document_id = $1",
-    )
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("successful tombstone state");
-    assert!(deleted_at.is_some());
+    let inspector = store.storage.test_inspector();
+    let documents = inspector
+        .table_selector("knowledge_rich_documents")
+        .await
+        .expect("rich-document table selector");
+    let tombstone = inspector
+        .project(
+            &documents,
+            &[
+                documents.field("deleted_at").expect("deleted_at field"),
+                documents
+                    .field("deleted_receipt_event_id")
+                    .expect("delete receipt field"),
+            ],
+            RowFilter::IdEquals(document_id.clone()),
+        )
+        .await
+        .expect("tombstone projection");
+    assert_eq!(tombstone.len(), 1, "authority row remains as one tombstone");
+    assert!(!tombstone[0].values["deleted_at"].is_null());
+    assert!(!tombstone[0].values["deleted_receipt_event_id"].is_null());
+
+    let loom_blocks = inspector
+        .table_selector("loom_blocks")
+        .await
+        .expect("LoomBlock table selector");
     assert_eq!(
-        persisted_receipt.as_deref(),
-        Some(deleted_receipt_event_id.as_str())
+        inspector
+            .row_count(&loom_blocks, RowFilter::IdEquals(document_id.clone()))
+            .await
+            .expect("deleted LoomBlock count"),
+        0
     );
-    let receipt_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_event_ledger \
-         WHERE aggregate_type = 'knowledge_rich_document' \
-           AND aggregate_id = $1 \
-           AND event_type = 'KNOWLEDGE_RICH_DOCUMENT_DELETED'",
-    )
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("successful delete receipt count");
-    assert_eq!(receipt_count, 1);
-    let backlink_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_document_backlinks \
-         WHERE source_document_id = $1 OR target = $1 OR target = $2",
-    )
-    .bind(&document_id)
-    .bind("MT032 Delete Target")
-    .fetch_one(&mut conn)
-    .await
-    .expect("successful backlink cleanup count");
-    assert_eq!(backlink_count, 0);
-    let loom_backlink_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM loom_edges \
-         WHERE workspace_id = $1 AND (source_block_id = $2 OR target_block_id = $2)",
-    )
-    .bind(&workspace_id)
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("successful Loom backlink cleanup count");
-    assert_eq!(loom_backlink_count, 0);
-    let source_stale_after_success: bool = sqlx::query_scalar(
-        "SELECT stale FROM knowledge_sources \
-         WHERE workspace_id = $1 \
-           AND source_kind = 'rich_document' \
-           AND provenance->>'rich_document_id' = $2",
-    )
-    .bind(&workspace_id)
-    .bind(&document_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("source stale success state");
-    assert!(source_stale_after_success);
-    drop(conn);
+    let placements = inspector
+        .table_selector("loom_canvas_placements")
+        .await
+        .expect("canvas placement table selector");
+    assert_eq!(
+        inspector
+            .row_count(
+                &placements,
+                RowFilter::IdEquals(placement.placement_id.clone()),
+            )
+            .await
+            .expect("deleted placement count"),
+        0
+    );
+    assert!(
+        store
+            .db
+            .get_knowledge_rich_document(&document_id)
+            .await
+            .expect("deleted document readback")
+            .is_none(),
+        "tombstone must not remain live"
+    );
+    let source_after = store
+        .db
+        .get_knowledge_source_by_document_id(&workspace_id, &document_id)
+        .await
+        .expect("deleted source lookup")
+        .expect("deleted source remains auditable");
+    assert!(source_after.stale);
+    assert!(store
+        .db
+        .list_knowledge_document_backlinks_from(&referrer_id)
+        .await
+        .expect("deleted-target backlink cleanup")
+        .is_empty());
+    assert!(store
+        .db
+        .list_loom_edges_for_block(&workspace_id, &referrer_id)
+        .await
+        .expect("deleted-target Loom edge cleanup")
+        .iter()
+        .all(|edge| edge.target_block_id != document_id));
+    let board = store
+        .db
+        .get_canvas_board(&workspace_id, &canvas_block.block_id)
+        .await
+        .expect("canvas readback after target deletion");
+    assert!(
+        board
+            .placements
+            .iter()
+            .all(|row| row.placement_id != placement.placement_id),
+        "atomic delete must remove every canvas reference to the target"
+    );
+    let events = store
+        .db
+        .list_kernel_events_for_aggregate("knowledge_rich_document", &document_id)
+        .await
+        .expect("delete EventLedger readback");
+    assert!(events.iter().any(|event| event.event_id == receipt_id));
+
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 // ---------------------------------------------------------------------------
@@ -3132,12 +1912,12 @@ async fn mt032_delete_is_atomic_and_removes_canvas_references() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt158_missing_actor_kind_is_least_privileged_never_system() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt158_missing_actor_kind...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt158_missing_actor_kind...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
 
     let created = create_doc(&base, &http, &workspace_id, "Boundary").await;
     let doc_id = created["document"]["rich_document_id"]
@@ -3220,17 +2000,20 @@ async fn mt158_missing_actor_kind_is_least_privileged_never_system() {
     );
     assert_eq!(body["document"]["doc_version"], 1);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt158_cloud_model_cannot_write_and_bogus_kind_is_rejected() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt158_cloud_model...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt158_cloud_model...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
     let created = create_doc(&base, &http, &workspace_id, "CloudBoundary").await;
     let doc_id = created["document"]["rich_document_id"]
         .as_str()
@@ -3298,7 +2081,10 @@ async fn mt158_cloud_model_cannot_write_and_bogus_kind_is_rejected() {
     .expect("send");
     assert_eq!(resp.status(), 200);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 // ---------------------------------------------------------------------------
@@ -3408,12 +2194,12 @@ async fn import_roundtrip(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt151_imported_html_document_roundtrips_load_save_export() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt151_imported_html...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt151_imported_html...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
 
     let html = "<h1>Doc</h1><table><tr><td>cell</td></tr></table>";
     let (doc_id, loaded) =
@@ -3444,7 +2230,10 @@ async fn mt151_imported_html_document_roundtrips_load_save_export() {
         "markdown export fences the imported source: {content}"
     );
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 // ---------------------------------------------------------------------------
@@ -3468,12 +2257,12 @@ fn doc_with_embed(workspace_id: &str, title: &str, target: &str) -> Value {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt152_save_path_validates_and_persists_content_embeds() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt152_save_path...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt152_save_path...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
 
     // CREATE with a valid typed embed target -> the side table is synced.
     let resp = headers_with_kind(
@@ -3619,17 +2408,20 @@ async fn mt152_save_path_validates_and_persists_content_embeds() {
         .expect("json");
     assert_eq!(body["embeds"].as_array().expect("embeds").len(), 0);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt246_save_rejects_cross_document_crdt_id() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt246_save_rejects_cross_document_crdt_id: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt246_save_rejects_cross_document_crdt_id: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
     let created = create_doc(&base, &http, &workspace_id, "CRDT Boundary").await;
     let doc_id = created["document"]["rich_document_id"]
         .as_str()
@@ -3673,7 +2465,10 @@ async fn mt246_save_rejects_cross_document_crdt_id() {
     let body: Value = resp.json().await.expect("json");
     assert_eq!(body["document"]["crdt_document_id"], expected_crdt_id);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 // ---------------------------------------------------------------------------
@@ -3682,12 +2477,12 @@ async fn mt246_save_rejects_cross_document_crdt_id() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt156_history_is_paginated_and_omits_version_bodies() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt156_history...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt156_history...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
     let created = create_doc(&base, &http, &workspace_id, "History").await;
     let doc_id = created["document"]["rich_document_id"]
         .as_str()
@@ -3784,7 +2579,10 @@ async fn mt156_history_is_paginated_and_omits_version_bodies() {
     .expect("send");
     assert_eq!(resp.status(), 404);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 // ---------------------------------------------------------------------------
@@ -3796,12 +2594,12 @@ async fn mt156_history_is_paginated_and_omits_version_bodies() {
 async fn mt154_save_indexes_document_into_project_knowledge_index() {
     use handshake_core::storage::knowledge::{KnowledgeEntityKind, KnowledgeStore};
 
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt154_save_indexes...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt154_save_indexes...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
 
     // CREATE indexes the document: a rich_document SOURCE row + title ENTITY.
     let created = create_doc(&base, &http, &workspace_id, "Indexed Doc").await;
@@ -3815,7 +2613,7 @@ async fn mt154_save_indexes_document_into_project_knowledge_index() {
         .expect("sha")
         .to_string();
 
-    let source = pg
+    let source = store
         .db
         .get_knowledge_source_by_document_id(&workspace_id, &doc_id)
         .await
@@ -3823,7 +2621,7 @@ async fn mt154_save_indexes_document_into_project_knowledge_index() {
         .expect("document source row exists in the Project Knowledge Index");
     assert_eq!(source.content_hash, doc_sha);
     assert!(!source.stale, "freshly indexed source is not stale");
-    let entity = pg
+    let entity = store
         .db
         .get_knowledge_entity_by_identity(&workspace_id, KnowledgeEntityKind::RichDocument, &doc_id)
         .await
@@ -3850,7 +2648,7 @@ async fn mt154_save_indexes_document_into_project_knowledge_index() {
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.expect("json");
     assert_eq!(body["knowledge_indexed"], true);
-    let source = pg
+    let source = store
         .db
         .get_knowledge_source_by_document_id(&workspace_id, &doc_id)
         .await
@@ -3872,7 +2670,7 @@ async fn mt154_save_indexes_document_into_project_knowledge_index() {
     .await
     .expect("send");
     assert_eq!(resp.status(), 200);
-    let entity = pg
+    let entity = store
         .db
         .get_knowledge_entity_by_identity(&workspace_id, KnowledgeEntityKind::RichDocument, &doc_id)
         .await
@@ -3888,7 +2686,10 @@ async fn mt154_save_indexes_document_into_project_knowledge_index() {
     assert_eq!(entity.entity_kind, KnowledgeEntityKind::RichDocument);
     assert_eq!(entity.entity_key, doc_id);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 // ---------------------------------------------------------------------------
@@ -3897,12 +2698,12 @@ async fn mt154_save_indexes_document_into_project_knowledge_index() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt157_move_empty_body_preserves_membership_and_batch_reports_per_item() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt157_move...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt157_move...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
 
     // A document WITH project + folder membership.
     let resp = headers_with_kind(
@@ -4021,112 +2822,124 @@ async fn mt157_move_empty_body_preserves_membership_and_batch_reports_per_item()
     .expect("send");
     assert_eq!(resp.status(), 403);
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 // ---------------------------------------------------------------------------
 // MT-149 adversarial-v2: a committed save never returns an error.
 // ---------------------------------------------------------------------------
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test]
 async fn mt149_committed_save_never_errors_when_post_commit_steps_fail() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt149_committed_save...: no PostgreSQL");
-        return;
-    };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
-    let created = create_doc(&base, &http, &workspace_id, "Atomicity").await;
-    let doc_id = created["document"]["rich_document_id"]
+    let store = open_embedded_store()
+        .await
+        .expect("MT-149 requires isolated embedded-store proof");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let target = create_doc(&base, &http, &workspace_id, "MT149 link target").await;
+    let target_id = target["document"]["rich_document_id"]
         .as_str()
-        .expect("doc id")
-        .to_string();
-
-    // Break EVERY post-commit step for real: drop the backlink + embed side
-    // tables and the EventLedger table in the isolated schema. The save's own
-    // tables stay intact, so the save itself can still commit.
-    {
-        let mut conn = pg.raw_connection().await;
-        for table in [
-            "knowledge_document_backlinks",
-            "knowledge_document_embeds",
-            "kernel_event_ledger",
-        ] {
-            sqlx::query(&format!("DROP TABLE {table} CASCADE"))
-                .execute(&mut conn)
-                .await
-                .unwrap_or_else(|err| panic!("drop {table}: {err}"));
-        }
+        .expect("MT149 target id")
+        .to_owned();
+    let created = create_doc(&base, &http, &workspace_id, "MT149 post-commit").await;
+    let document_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("MT149 document id")
+        .to_owned();
+    for point in [
+        docs_api::KnowledgeDocumentPostCommitFailpoint::Receipt,
+        docs_api::KnowledgeDocumentPostCommitFailpoint::Backlinks,
+        docs_api::KnowledgeDocumentPostCommitFailpoint::Embeds,
+    ] {
+        docs_api::test_arm_document_post_commit_failpoint(&document_id, point);
     }
-
-    // The save must COMMIT and return 200 with every failure RECORDED.
-    let resp = headers_with_kind(
-        http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
-        "atomic-save",
+    let content = json!({
+        "type": "doc",
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [{
+                    "type": "hsLink",
+                    "attrs": {
+                        "refKind": "note",
+                        "refValue": target_id,
+                        "label": "MT149 link target"
+                    }
+                }]
+            },
+            {
+                "type": "image",
+                "attrs": {"target": "KMED-mt149"},
+                "content": [{"type": "text", "text": "MT149 embed"}]
+            }
+        ]
+    });
+    let response = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{document_id}/save")),
+        "mt149-post-commit-failures",
         "operator",
     )
-    .json(&json!({
-        "expected_version": 1,
-        "content_json": {"type": "doc", "content": [
-            { "type": "paragraph", "content": [{ "type": "text", "text": "v2 body" }] },
-            { "type": "image", "attrs": { "target": "KMED-1" } }
-        ]}
-    }))
+    .json(&json!({"expected_version": 1, "content_json": content.clone()}))
     .send()
     .await
-    .expect("send");
+    .expect("send failpoint save");
     assert_eq!(
-        resp.status(),
+        response.status(),
         200,
-        "a committed save must NEVER surface a post-commit step failure as an error"
+        "post-commit failures must not turn a committed save into an error"
     );
-    let body: Value = resp.json().await.expect("json");
-    assert_eq!(body["document"]["doc_version"], 2, "the save committed");
-    assert!(
-        body["save_receipt_event_id"].is_null(),
-        "no receipt could be written"
-    );
-    assert!(
-        body["receipt_error"].is_string(),
-        "the receipt failure is recorded: {body}"
-    );
-    assert!(
-        body["backlinks_error"].is_string(),
-        "the backlink index failure is recorded: {body}"
-    );
-    assert!(
-        body["embeds_error"].is_string(),
-        "the embed sync failure is recorded: {body}"
-    );
+    let body: Value = response.json().await.expect("post-commit failure body");
+    assert_eq!(body["document"]["doc_version"], 2);
+    assert!(body["save_receipt_event_id"].is_null());
+    assert!(body["receipt_error"].is_string());
+    assert_eq!(body["backlinks_persisted"], 0);
+    assert!(body["backlinks_error"].is_string());
+    assert_eq!(body["embeds_persisted"], 0);
+    assert!(body["embeds_error"].is_string());
+    let committed = store
+        .db
+        .get_knowledge_rich_document(&document_id)
+        .await
+        .expect("read committed save")
+        .expect("saved document remains live");
+    assert_eq!(committed.doc_version, 2);
+    assert_eq!(committed.content_json, content);
 
-    // The committed write is durable and loadable.
-    let resp = headers_with_kind(
-        http.get(format!("{base}/knowledge/documents/{doc_id}")),
-        "atomic-load",
+    let retry = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{document_id}/save")),
+        "mt149-failpoints-reset",
         "operator",
     )
+    .json(&json!({"expected_version": 2, "content_json": content}))
     .send()
     .await
-    .expect("send");
-    assert_eq!(resp.status(), 200);
-    let loaded: Value = resp.json().await.expect("json");
-    assert_eq!(loaded["document"]["doc_version"], 2);
-    assert_eq!(
-        loaded["document"]["content_json"]["content"][0]["content"][0]["text"],
-        "v2 body"
-    );
+    .expect("send save after failpoint reset");
+    assert_eq!(retry.status(), 200);
+    let retry: Value = retry.json().await.expect("reset save body");
+    assert!(retry["save_receipt_event_id"].is_string());
+    assert!(retry["receipt_error"].is_null());
+    assert_eq!(retry["backlinks_persisted"], 1);
+    assert!(retry["backlinks_error"].is_null());
+    assert_eq!(retry["embeds_persisted"], 1);
+    assert!(retry["embeds_error"].is_null());
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt151_imported_markdown_table_document_roundtrips_load_save_export() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt151_imported_markdown_table...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt151_imported_markdown_table...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
 
     let md = "# Title\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\ntail paragraph";
     let (_doc_id, loaded) =
@@ -4137,17 +2950,20 @@ async fn mt151_imported_markdown_table_document_roundtrips_load_save_export() {
     assert!(blocks.iter().any(|b| b["kind"] == "heading"));
     assert!(blocks.iter().any(|b| b["kind"] == "paragraph"));
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt255_backend_draft_recovery_roundtrips_and_clears_on_save_or_discard() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt255_backend_draft_recovery...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt255_backend_draft_recovery...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http, server) = doc_server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
 
     let created = create_doc(&base, &http, &workspace_id, "Draft Recovery").await;
     let doc_id = created["document"]["rich_document_id"]
@@ -4301,5 +3117,8 @@ async fn mt255_backend_draft_recovery_roundtrips_and_clears_on_save_or_discard()
     let body: Value = resp.json().await.expect("draft load after discard json");
     assert!(body["draft"].is_null(), "discard must remove draft: {body}");
     server.shutdown().await;
-    pg.teardown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
 }

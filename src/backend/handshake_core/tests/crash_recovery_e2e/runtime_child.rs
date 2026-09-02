@@ -1,222 +1,304 @@
 use std::{
     fs::File,
+    io::Write,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     thread,
     time::{Duration, Instant},
 };
 
-use serde::Serialize;
-use sqlx::{postgres::PgPoolOptions, PgPool, Row};
+use chrono::Utc;
+use handshake_core::{
+    kernel::{KernelActor, KernelEventType, NewKernelEvent, SessionRun, SessionRunState},
+    process_ledger::{
+        LedgerEvent, ProcessEngineKind, ProcessLedgerStore, ProcessStart, SurrealProcessLedgerStore,
+    },
+    session_checkpoint::{
+        CheckpointSink, CheckpointStateKind, SessionCheckpoint, SurrealCheckpointSink,
+    },
+    storage::{
+        surreal::{bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig},
+        Database,
+    },
+};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::runtime_postgres::{
-    count_rows, recovery_broker, write_artifact_json, RuntimePg, RuntimeSeed, RuntimeTestError,
-};
+const CHILD_MODE_ENV: &str = "HS_MT195_SURREAL_CHILD";
+const CHILD_DATA_DIR_ENV: &str = "HS_MT195_SURREAL_DATA_DIR";
+const CHILD_READY_FILE_ENV: &str = "HS_MT195_SURREAL_READY_FILE";
 
-#[derive(Debug, Serialize)]
-pub struct HardKillEvidence {
-    pub schema: String,
-    pub artifact_report: PathBuf,
-    pub child_was_hard_killed: bool,
-    pub child_process_row_was_left_without_graceful_stop: bool,
-    pub checkpoint_rows: i64,
-    pub process_rows: i64,
-    pub report_rows: i64,
-    pub resumed_sessions: usize,
-    pub failed_sessions: usize,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChildReadyEvidence {
+    pub session_id: Uuid,
+    pub checkpoint_id: Uuid,
+    pub process_uuid: Uuid,
+    pub os_pid: u32,
 }
 
-#[derive(Debug, Serialize)]
-pub struct RealStartupRecoveryEvidence {
-    pub schema: String,
-    pub artifact_report: PathBuf,
-    pub real_binary_was_spawned: bool,
-    pub startup_recovery_only_exit: bool,
-    pub process_exit_success: Option<bool>,
-    pub report_rows: i64,
-    pub resumed_sessions: i64,
-    pub failed_sessions: i64,
-    pub retry_scheduled_queue_rows: i64,
-    pub post_failure_checkpoint_rows: i64,
-    pub reclaimed_process_rows: i64,
-    pub final_counter: Option<i64>,
+pub struct KilledChildEvidence {
+    pub data_dir: PathBuf,
+    pub ready: ChildReadyEvidence,
+    pub exit_status: std::process::ExitStatus,
 }
 
-#[derive(Debug, Serialize)]
-struct ChildReadyFile {
-    session_id: Uuid,
-    process_id: Uuid,
-    os_pid: u32,
+pub struct SeededRecoveryEvidence {
+    pub session_id: Uuid,
+    pub checkpoint_id: Uuid,
 }
 
-#[derive(Debug, Serialize)]
-struct HardKillActionFile {
-    child_pid: u32,
-    child_exit: String,
-    child_was_hard_killed: bool,
+pub struct ProductStartupRecoveryEvidence {
+    pub status: std::process::ExitStatus,
+    pub report_file: PathBuf,
 }
 
-struct ProductionSeed {
-    session_id: Uuid,
-    session_run_id: String,
-}
-
-pub async fn run_hard_kill_child_recovery() -> HardKillEvidence {
-    let pg = RuntimePg::new("hard-kill-child").await;
-    let ready_file = pg.artifact_dir().join("ready.json");
-    let action_file = pg.artifact_dir().join("action.json");
-    let stdout_file = pg.artifact_dir().join("stdout.log");
-    let stderr_file = pg.artifact_dir().join("stderr.log");
-
-    let child_pid = spawn_runtime_child(&pg, &ready_file, &stdout_file, &stderr_file)
-        .unwrap_or_else(|err| panic!("spawn MT-195 runtime child: {err}"));
-    wait_for_ready(&ready_file, Duration::from_secs(15));
-
-    let mut child = child_pid;
-    let pid = child.id();
-    child
-        .kill()
-        .unwrap_or_else(|err| panic!("hard-kill MT-195 runtime child: {err}"));
-    let status = child
-        .wait()
-        .unwrap_or_else(|err| panic!("wait for hard-killed MT-195 runtime child: {err}"));
-    let child_was_hard_killed = !status.success();
-    let action = HardKillActionFile {
-        child_pid: pid,
-        child_exit: format!("{status:?}"),
-        child_was_hard_killed,
-    };
-    write_artifact_json(&action_file, &action);
-
-    mark_child_killed(&pg.pool).await;
-    let broker = recovery_broker(pg.pool.clone());
-    let report = handshake_core::session_checkpoint::RestartResumeOrchestrator::run(&broker);
-
-    let checkpoint_rows = count_rows(&pg.pool, "kernel_session_checkpoint").await;
-    let process_rows = count_rows(&pg.pool, "kernel_runtime_process_evidence").await;
-    let report_rows = count_rows(&pg.pool, "kernel_restart_resume_report").await;
-    let process_rows_without_stop = process_rows_without_graceful_stop(&pg.pool).await;
-
-    let artifact_report = pg.artifact_dir().join("report.json");
-    let evidence = HardKillEvidence {
-        schema: pg.schema().to_string(),
-        artifact_report: artifact_report.clone(),
-        child_was_hard_killed,
-        child_process_row_was_left_without_graceful_stop: process_rows_without_stop == 1,
-        checkpoint_rows,
-        process_rows,
-        report_rows,
-        resumed_sessions: report.sessions_resumed.len(),
-        failed_sessions: report.sessions_recovery_failed.len(),
-    };
-    write_artifact_json(&artifact_report, &evidence);
-    evidence
-}
-
-pub async fn run_real_handshake_core_startup_recovery() -> RealStartupRecoveryEvidence {
-    let pg = RuntimePg::new_production("real-handshake-core-startup-recovery").await;
-    let seed = seed_production_resume_candidate(&pg.pool).await;
-    let startup_report_file = pg.artifact_dir().join("startup-recovery-report.json");
-    let stdout_file = pg.artifact_dir().join("real-binary-stdout.log");
-    let stderr_file = pg.artifact_dir().join("real-binary-stderr.log");
-
-    let status = spawn_real_handshake_core_startup_recovery(
-        &pg,
-        &startup_report_file,
-        &stdout_file,
-        &stderr_file,
-    )
-    .unwrap_or_else(|err| panic!("spawn real handshake_core startup recovery: {err}"));
-
-    let report_rows = count_production_report_rows(&pg.pool).await;
-    let resumed_sessions = count_report_sessions(&pg.pool, "sessions_resumed").await;
-    let failed_sessions = count_report_sessions(&pg.pool, "sessions_recovery_failed").await;
-    let retry_scheduled_queue_rows =
-        count_retry_scheduled_queue_rows(&pg.pool, &seed.session_run_id).await;
-    let post_failure_checkpoint_rows =
-        count_post_failure_checkpoint_rows(&pg.pool, seed.session_id).await;
-    let reclaimed_process_rows = count_reclaimed_process_rows(&pg.pool, &seed.session_run_id).await;
-    let final_counter = latest_checkpoint_counter(&pg.pool, seed.session_id).await;
-
-    let artifact_report = pg.artifact_dir().join("real-binary-evidence.json");
-    let evidence = RealStartupRecoveryEvidence {
-        schema: pg.schema().to_string(),
-        artifact_report: artifact_report.clone(),
-        real_binary_was_spawned: true,
-        startup_recovery_only_exit: startup_report_file.exists(),
-        process_exit_success: Some(status.success()),
-        report_rows,
-        resumed_sessions,
-        failed_sessions,
-        retry_scheduled_queue_rows,
-        post_failure_checkpoint_rows,
-        reclaimed_process_rows,
-        final_counter,
-    };
-    write_artifact_json(&artifact_report, &evidence);
-    evidence
-}
-
-fn spawn_runtime_child(
-    pg: &RuntimePg,
-    ready_file: &Path,
-    stdout_file: &Path,
-    stderr_file: &Path,
-) -> Result<std::process::Child, RuntimeTestError> {
-    let exe = std::env::current_exe().map_err(RuntimeTestError::Io)?;
-    let stdout = File::create(stdout_file).map_err(RuntimeTestError::Io)?;
-    let stderr = File::create(stderr_file).map_err(RuntimeTestError::Io)?;
-    Command::new(exe)
-        .arg("--ignored")
+pub fn spawn_and_hard_kill_child(root: &Path) -> KilledChildEvidence {
+    let data_dir = root.join("surreal-store");
+    let ready_file = root.join("child-ready.json");
+    let stdout = File::create(root.join("child-stdout.log")).expect("create child stdout");
+    let stderr = File::create(root.join("child-stderr.log")).expect("create child stderr");
+    let mut command = Command::new(std::env::current_exe().expect("resolve current test binary"));
+    command
         .arg("--exact")
         .arg("runtime_child::mt195_runtime_child_entrypoint")
+        .arg("--ignored")
         .arg("--nocapture")
         .arg("--test-threads=1")
-        .env("HS_MT195_RUNTIME_CHILD", "1")
-        .env("HS_MT195_SCHEMA_URL", pg.schema_url())
-        .env("HS_MT195_READY_FILE", ready_file)
-        .stdout(Stdio::from(stdout))
-        .stderr(Stdio::from(stderr))
-        .spawn()
-        .map_err(RuntimeTestError::Io)
-}
-
-fn spawn_real_handshake_core_startup_recovery(
-    pg: &RuntimePg,
-    startup_report_file: &Path,
-    stdout_file: &Path,
-    stderr_file: &Path,
-) -> Result<std::process::ExitStatus, RuntimeTestError> {
-    let exe = real_handshake_core_exe();
-    let stdout = File::create(stdout_file).map_err(RuntimeTestError::Io)?;
-    let stderr = File::create(stderr_file).map_err(RuntimeTestError::Io)?;
-    let mut command = Command::new(exe);
-    command
-        .env("DATABASE_URL", pg.schema_url())
-        .env("HANDSHAKE_STORAGE_MODE", "postgres_primary")
-        .env("HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES", "1")
-        .env("HANDSHAKE_STARTUP_RECOVERY_ONLY", "1")
-        .env(
-            "HANDSHAKE_STARTUP_RECOVERY_REPORT_FILE",
-            startup_report_file,
-        )
+        .env(CHILD_MODE_ENV, "1")
+        .env(CHILD_DATA_DIR_ENV, &data_dir)
+        .env(CHILD_READY_FILE_ENV, &ready_file)
+        .stdin(Stdio::null())
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr));
     apply_quiet_process_flags(&mut command);
-    let mut child = command.spawn().map_err(RuntimeTestError::Io)?;
-    wait_for_child_exit(&mut child, Duration::from_secs(120))
+    let mut child = command.spawn().expect("spawn MT-195 embedded child");
+
+    let started = Instant::now();
+    while !ready_file.exists() && started.elapsed() < Duration::from_secs(120) {
+        if let Some(status) = child.try_wait().expect("poll MT-195 child") {
+            panic!("MT-195 child exited before readiness: {status:?}");
+        }
+        thread::sleep(Duration::from_millis(25));
+    }
+    if !ready_file.exists() {
+        let _ = child.kill();
+        let _ = child.wait();
+        panic!("MT-195 child did not publish readiness within 120 seconds");
+    }
+    let ready: ChildReadyEvidence =
+        serde_json::from_slice(&std::fs::read(&ready_file).expect("read MT-195 child readiness"))
+            .expect("decode MT-195 child readiness");
+
+    child
+        .kill()
+        .expect("kill only the MT-195 child started by this test");
+    let exit_status = child.wait().expect("reap killed MT-195 child");
+    KilledChildEvidence {
+        data_dir,
+        ready,
+        exit_status,
+    }
 }
 
-fn real_handshake_core_exe() -> PathBuf {
-    option_env!("CARGO_BIN_EXE_handshake_core")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("CARGO_BIN_EXE_handshake_core").map(PathBuf::from))
-        .unwrap_or_else(|| {
-            panic!(
-                "ENVIRONMENT_BLOCKED: CARGO_BIN_EXE_handshake_core missing; rerun with --features app-runtime"
-            )
+pub async fn seed_closed_recovery_store(data_dir: &Path) -> SeededRecoveryEvidence {
+    let storage = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(data_dir)
+            .expect("configure real-binary recovery seed store"),
+    )
+    .await
+    .expect("open real-binary recovery seed store");
+    bootstrap_schema(&storage)
+        .await
+        .expect("bootstrap real-binary recovery seed store");
+    let session_id = Uuid::now_v7();
+    let session_run_id = format!("SR-{session_id}");
+    let database = SurrealDatabase::new(storage.clone());
+    let now = Utc::now();
+    database
+        .enqueue_kernel_session_run(SessionRun {
+            session_run_id: session_run_id.clone(),
+            kernel_task_run_id: "KTR-MT195-REAL-BINARY".to_owned(),
+            adapter_id: "mt195-real-binary-seed".to_owned(),
+            state: SessionRunState::Queued,
+            created_at: now,
+            updated_at: now,
         })
+        .await
+        .expect("enqueue real-binary recovery candidate");
+    database
+        .claim_kernel_session_run(&session_run_id, "mt195-real-binary-seed", 300)
+        .await
+        .expect("claim real-binary recovery candidate")
+        .expect("real-binary recovery candidate is claimable");
+    database
+        .update_kernel_session_run_state(&session_run_id, SessionRunState::Running)
+        .await
+        .expect("mark real-binary recovery candidate running");
+    let replay_event = NewKernelEvent::builder(
+        "KTR-MT195-REAL-BINARY",
+        &session_run_id,
+        KernelEventType::ModelResponseRecorded,
+        KernelActor::System("mt195-real-binary-seed".to_owned()),
+    )
+    .aggregate("session_run", &session_run_id)
+    .idempotency_key(format!("mt195-real-binary-replay-{session_id}"))
+    .source_component("mt195-real-binary-seed")
+    .payload(serde_json::json!({"by": 3}))
+    .build()
+    .expect("build real-binary replay event");
+    let replay_event = database
+        .append_kernel_event(replay_event)
+        .await
+        .expect("persist real-binary replay event");
+    assert_eq!(replay_event.event_sequence, 1);
+    let checkpoint = SessionCheckpoint::new(
+        session_id,
+        Uuid::now_v7(),
+        0,
+        serde_json::json!({"counter": 0, "source": "mt195-real-binary-seed"}),
+        CheckpointStateKind::Periodic,
+    )
+    .expect("construct real-binary recovery checkpoint");
+    let checkpoint_id = checkpoint.checkpoint_id.as_uuid();
+    SurrealCheckpointSink::new(storage.clone())
+        .write_batch(vec![checkpoint])
+        .await
+        .expect("persist real-binary recovery checkpoint");
+    storage
+        .shutdown()
+        .await
+        .expect("close real-binary recovery seed store");
+    SeededRecoveryEvidence {
+        session_id,
+        checkpoint_id,
+    }
+}
+
+pub fn run_real_handshake_core_startup_recovery(
+    root: &Path,
+    data_dir: &Path,
+) -> ProductStartupRecoveryEvidence {
+    let report_file = root.join("startup-recovery-report.json");
+    let stdout = File::create(root.join("handshake-core-stdout.log"))
+        .expect("create real handshake_core stdout");
+    let stderr = File::create(root.join("handshake-core-stderr.log"))
+        .expect("create real handshake_core stderr");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_handshake_core"));
+    command
+        .env("HANDSHAKE_DATA_DIR", data_dir)
+        .env("HANDSHAKE_STARTUP_RECOVERY_ONLY", "1")
+        .env("HANDSHAKE_STARTUP_RECOVERY_REPORT_FILE", &report_file)
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(stdout))
+        .stderr(Stdio::from(stderr));
+    apply_quiet_process_flags(&mut command);
+    let status = command
+        .status()
+        .expect("run real handshake_core startup recovery");
+    ProductStartupRecoveryEvidence {
+        status,
+        report_file,
+    }
+}
+
+async fn run_child_entrypoint_from_env() {
+    if std::env::var(CHILD_MODE_ENV).ok().as_deref() != Some("1") {
+        return;
+    }
+    let data_dir =
+        PathBuf::from(std::env::var_os(CHILD_DATA_DIR_ENV).expect("MT-195 child data directory"));
+    let ready_file =
+        PathBuf::from(std::env::var_os(CHILD_READY_FILE_ENV).expect("MT-195 child ready file"));
+    let storage = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&data_dir).expect("configure MT-195 child store"),
+    )
+    .await
+    .expect("open MT-195 child store");
+    bootstrap_schema(&storage)
+        .await
+        .expect("bootstrap MT-195 child store");
+
+    let session_id = Uuid::now_v7();
+    let session_run_id = format!("SR-{session_id}");
+    let database = SurrealDatabase::new(storage.clone());
+    let now = Utc::now();
+    database
+        .enqueue_kernel_session_run(SessionRun {
+            session_run_id: session_run_id.clone(),
+            kernel_task_run_id: "KTR-MT195-HARD-KILL".to_owned(),
+            adapter_id: "mt195-runtime-child".to_owned(),
+            state: SessionRunState::Queued,
+            created_at: now,
+            updated_at: now,
+        })
+        .await
+        .expect("enqueue MT-195 child session");
+    database
+        .claim_kernel_session_run(&session_run_id, "mt195-runtime-child", 300)
+        .await
+        .expect("claim MT-195 child session")
+        .expect("queued MT-195 child session is claimable");
+    database
+        .update_kernel_session_run_state(&session_run_id, SessionRunState::Running)
+        .await
+        .expect("mark MT-195 child session running");
+    let replay_event = NewKernelEvent::builder(
+        "KTR-MT195-HARD-KILL",
+        &session_run_id,
+        KernelEventType::ModelResponseRecorded,
+        KernelActor::System("mt195-runtime-child".to_owned()),
+    )
+    .aggregate("session_run", &session_run_id)
+    .idempotency_key(format!("mt195-hard-kill-replay-{session_id}"))
+    .source_component("mt195-runtime-child")
+    .payload(serde_json::json!({"by": 3}))
+    .build()
+    .expect("build MT-195 replay event");
+    let replay_event = database
+        .append_kernel_event(replay_event)
+        .await
+        .expect("persist MT-195 replay event");
+    assert_eq!(replay_event.event_sequence, 1);
+    let checkpoint = SessionCheckpoint::new(
+        session_id,
+        Uuid::now_v7(),
+        0,
+        serde_json::json!({"counter": 0, "source": "mt195-hard-kill-child"}),
+        CheckpointStateKind::Periodic,
+    )
+    .expect("construct MT-195 child checkpoint");
+    let checkpoint_id = checkpoint.checkpoint_id.as_uuid();
+    SurrealCheckpointSink::new(storage.clone())
+        .write_batch(vec![checkpoint])
+        .await
+        .expect("persist MT-195 child checkpoint");
+
+    let process = ProcessStart::new(
+        ProcessEngineKind::HelperSubprocess,
+        "mt195-runtime-child",
+        Some("WP-KERNEL-004".to_owned()),
+    )
+    .with_os_pid(std::process::id())
+    .with_parent_session_id(&session_run_id)
+    .with_mt_id("MT-195");
+    let process_uuid = process.process_uuid;
+    SurrealProcessLedgerStore::new(storage.clone())
+        .write_batch(vec![LedgerEvent::Start(process)])
+        .await
+        .expect("persist MT-195 active process row");
+
+    let ready = ChildReadyEvidence {
+        session_id,
+        checkpoint_id,
+        process_uuid,
+        os_pid: std::process::id(),
+    };
+    let mut file = File::create(&ready_file).expect("create MT-195 readiness file");
+    serde_json::to_writer(&mut file, &ready).expect("write MT-195 readiness JSON");
+    file.write_all(b"\n").expect("finish readiness JSON");
+    file.sync_all().expect("sync MT-195 readiness evidence");
+
+    std::future::pending::<()>().await;
 }
 
 #[cfg(windows)]
@@ -229,341 +311,8 @@ fn apply_quiet_process_flags(command: &mut Command) {
 #[cfg(not(windows))]
 fn apply_quiet_process_flags(_command: &mut Command) {}
 
-fn wait_for_child_exit(
-    child: &mut std::process::Child,
-    timeout: Duration,
-) -> Result<std::process::ExitStatus, RuntimeTestError> {
-    let started = Instant::now();
-    while started.elapsed() < timeout {
-        if let Some(status) = child.try_wait().map_err(RuntimeTestError::Io)? {
-            return Ok(status);
-        }
-        thread::sleep(Duration::from_millis(50));
-    }
-    let _ = child.kill();
-    let _ = child.wait();
-    panic!(
-        "ENVIRONMENT_BLOCKED: real handshake_core startup recovery child did not exit within {:?}",
-        timeout
-    );
-}
-
-fn wait_for_ready(ready_file: &Path, timeout: Duration) {
-    let started = Instant::now();
-    while started.elapsed() < timeout {
-        if ready_file.exists() {
-            return;
-        }
-        thread::sleep(Duration::from_millis(50));
-    }
-    panic!(
-        "ENVIRONMENT_BLOCKED: MT-195 runtime child did not write ready file within {:?}",
-        timeout
-    );
-}
-
-async fn mark_child_killed(pool: &PgPool) {
-    sqlx::query(
-        r#"
-        UPDATE kernel_runtime_process_evidence
-        SET killed_observed_at_utc = NOW(), state = 'hard_killed_observed'
-        WHERE graceful_stop_at_utc IS NULL
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("mark hard-killed process evidence");
-}
-
-async fn process_rows_without_graceful_stop(pool: &PgPool) -> i64 {
-    sqlx::query_scalar::<_, i64>(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_runtime_process_evidence
-        WHERE graceful_stop_at_utc IS NULL
-        "#,
-    )
-    .fetch_one(pool)
-    .await
-    .expect("count process rows without graceful stop")
-}
-
-async fn seed_production_resume_candidate(pool: &PgPool) -> ProductionSeed {
-    let session_id = Uuid::now_v7();
-    let session_run_id = format!("SR-{session_id}");
-    let kernel_task_run_id = format!("KTR-{session_id}");
-    sqlx::query(
-        r#"
-        INSERT INTO kernel_session_queue (
-            session_run_id,
-            kernel_task_run_id,
-            adapter_id,
-            state,
-            claimed_by,
-            lease_expires_at,
-            attempt_count,
-            available_at,
-            created_at,
-            updated_at
-        )
-        VALUES ($1, $2, 'mt195-real-binary', 'RUNNING', 'mt195-previous-worker', NOW() + INTERVAL '30 minutes', 1, NOW(), NOW(), NOW())
-        "#,
-    )
-    .bind(&session_run_id)
-    .bind(&kernel_task_run_id)
-    .execute(pool)
-    .await
-    .expect("seed production session queue");
-
-    sqlx::query(
-        r#"
-        INSERT INTO kernel_session_checkpoint (
-            checkpoint_id,
-            session_id,
-            model_session_id,
-            last_event_ledger_seq,
-            compact_state,
-            state_kind,
-            pending_artifacts,
-            created_at_utc,
-            created_by_process,
-            schema_version
-        )
-        VALUES ($1, $2, $3, 0, $4, 'periodic', '[]'::jsonb, NOW(), $5, 1)
-        "#,
-    )
-    .bind(Uuid::now_v7())
-    .bind(session_id)
-    .bind(Uuid::now_v7())
-    .bind(serde_json::json!({ "counter": 0, "label": "real_handshake_core_startup" }))
-    .bind(std::process::id() as i32)
-    .execute(pool)
-    .await
-    .expect("seed production checkpoint");
-
-    seed_production_event(pool, &kernel_task_run_id, &session_run_id, 1).await;
-    seed_production_event(pool, &kernel_task_run_id, &session_run_id, 2).await;
-    seed_production_orphan_process(pool, &session_run_id).await;
-
-    ProductionSeed {
-        session_id,
-        session_run_id,
-    }
-}
-
-async fn seed_production_event(
-    pool: &PgPool,
-    kernel_task_run_id: &str,
-    session_run_id: &str,
-    by: i64,
-) {
-    let event_id = format!("KE-{}", Uuid::now_v7());
-    sqlx::query(
-        r#"
-        INSERT INTO kernel_event_ledger (
-            event_id,
-            event_version,
-            kernel_task_run_id,
-            session_run_id,
-            aggregate_type,
-            aggregate_id,
-            idempotency_key,
-            event_type,
-            actor_kind,
-            actor_id,
-            payload_hash,
-            source_component,
-            payload
-        )
-        VALUES ($1, 'kernel_event_v1', $2, $3, 'session_run', $3, $4,
-                'MODEL_RESPONSE_RECORDED', 'session_broker', 'mt195-real-binary',
-                '0000000000000000000000000000000000000000000000000000000000000000',
-                'mt195-real-binary', $5)
-        "#,
-    )
-    .bind(&event_id)
-    .bind(kernel_task_run_id)
-    .bind(session_run_id)
-    .bind(format!("mt195-real-binary-{event_id}"))
-    .bind(serde_json::json!({ "by": by }))
-    .execute(pool)
-    .await
-    .expect("seed production event");
-}
-
-async fn seed_production_orphan_process(pool: &PgPool, session_run_id: &str) {
-    sqlx::query(
-        r#"
-        INSERT INTO kernel_process_lifecycle (
-            process_uuid,
-            os_pid,
-            parent_session_id,
-            sandbox_adapter_id,
-            engine_kind,
-            started_at,
-            owner_role,
-            owner_wp,
-            metadata_jsonb
-        )
-        VALUES ($1, $2, $3, 'mt195-real-binary', 'helper_subprocess', NOW(), 'coder', 'WP-KERNEL-004', '{}'::jsonb)
-        "#,
-    )
-    .bind(Uuid::now_v7())
-    .bind(std::process::id() as i64)
-    .bind(session_run_id)
-    .execute(pool)
-    .await
-    .expect("seed production orphan process");
-}
-
-async fn count_production_report_rows(pool: &PgPool) -> i64 {
-    sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM kernel_restart_resume_report")
-        .fetch_one(pool)
-        .await
-        .expect("count production report rows")
-}
-
-async fn count_report_sessions(pool: &PgPool, column: &str) -> i64 {
-    assert!(
-        matches!(column, "sessions_resumed" | "sessions_recovery_failed"),
-        "unexpected report session column {column}"
-    );
-    sqlx::query_scalar::<_, i64>(&format!(
-        "SELECT COALESCE(SUM(jsonb_array_length({column})), 0)::BIGINT FROM kernel_restart_resume_report"
-    ))
-    .fetch_one(pool)
-    .await
-    .expect("count production report sessions")
-}
-
-async fn count_retry_scheduled_queue_rows(pool: &PgPool, session_run_id: &str) -> i64 {
-    sqlx::query_scalar::<_, i64>(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_session_queue
-        WHERE session_run_id = $1
-          AND state = 'RETRY_SCHEDULED'
-          AND claimed_by IS NULL
-          AND lease_expires_at IS NULL
-        "#,
-    )
-    .bind(session_run_id)
-    .fetch_one(pool)
-    .await
-    .expect("count retry-scheduled queue rows")
-}
-
-async fn count_post_failure_checkpoint_rows(pool: &PgPool, session_id: Uuid) -> i64 {
-    sqlx::query_scalar::<_, i64>(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_session_checkpoint
-        WHERE session_id = $1
-          AND state_kind = 'post_failure'
-        "#,
-    )
-    .bind(session_id)
-    .fetch_one(pool)
-    .await
-    .expect("count post-failure checkpoints")
-}
-
-async fn count_reclaimed_process_rows(pool: &PgPool, session_run_id: &str) -> i64 {
-    sqlx::query_scalar::<_, i64>(
-        r#"
-        SELECT COUNT(*)
-        FROM kernel_process_lifecycle
-        WHERE parent_session_id = $1
-          AND stopped_at IS NOT NULL
-          AND exit_code = -1
-          AND stop_reason = 'reclaim'
-        "#,
-    )
-    .bind(session_run_id)
-    .fetch_one(pool)
-    .await
-    .expect("count reclaimed production process rows")
-}
-
-async fn latest_checkpoint_counter(pool: &PgPool, session_id: Uuid) -> Option<i64> {
-    sqlx::query(
-        r#"
-        SELECT compact_state
-        FROM kernel_session_checkpoint
-        WHERE session_id = $1
-        ORDER BY created_at_utc DESC
-        LIMIT 1
-        "#,
-    )
-    .bind(session_id)
-    .fetch_optional(pool)
-    .await
-    .expect("load latest production checkpoint")
-    .and_then(|row| {
-        row.get::<serde_json::Value, _>("compact_state")
-            .get("counter")
-            .and_then(serde_json::Value::as_i64)
-    })
-}
-
-pub async fn run_child_entrypoint_from_env() {
-    if std::env::var("HS_MT195_RUNTIME_CHILD").ok().as_deref() != Some("1") {
-        return;
-    }
-
-    let schema_url = std::env::var("HS_MT195_SCHEMA_URL")
-        .expect("ENVIRONMENT_BLOCKED: HS_MT195_SCHEMA_URL missing for MT-195 runtime child");
-    let ready_file = PathBuf::from(
-        std::env::var("HS_MT195_READY_FILE")
-            .expect("ENVIRONMENT_BLOCKED: HS_MT195_READY_FILE missing for MT-195 runtime child"),
-    );
-    let pool = PgPoolOptions::new()
-        .max_connections(2)
-        .connect(&schema_url)
-        .await
-        .expect("connect MT-195 child to isolated Postgres schema");
-    let process_id = Uuid::now_v7();
-    let seed = RuntimeSeed::success("hard_kill_child");
-    crate::runtime_postgres::insert_seed(&pool, seed)
-        .await
-        .expect("insert child checkpoint/event evidence");
-    insert_process_evidence(&pool, process_id, seed.session_id).await;
-    let ready = ChildReadyFile {
-        session_id: seed.session_id,
-        process_id,
-        os_pid: std::process::id(),
-    };
-    write_artifact_json(&ready_file, &ready);
-
-    loop {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-}
-
-async fn insert_process_evidence(pool: &PgPool, process_id: Uuid, session_id: Uuid) {
-    sqlx::query(
-        r#"
-        INSERT INTO kernel_runtime_process_evidence (
-            process_id,
-            session_id,
-            os_pid,
-            role,
-            state,
-            checkpoint_committed_at_utc
-        )
-        VALUES ($1, $2, $3, 'mt195-runtime-child', 'checkpoint_committed', NOW())
-        "#,
-    )
-    .bind(process_id)
-    .bind(session_id)
-    .bind(std::process::id() as i32)
-    .execute(pool)
-    .await
-    .expect("insert child process evidence");
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "internal MT-195 runtime child entrypoint; parent test spawns and hard-kills this process"]
+#[ignore = "internal MT-195 child entrypoint; the parent test hard-kills this process"]
 async fn mt195_runtime_child_entrypoint() {
     run_child_entrypoint_from_env().await;
 }

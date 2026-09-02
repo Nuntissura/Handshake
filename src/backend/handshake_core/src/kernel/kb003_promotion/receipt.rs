@@ -22,7 +22,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::kernel::context_bundle::{canonical_json_bytes, sha256_hex};
-use crate::kernel::kb003_artifact_classes::{HashPolicy, Kb003ArtifactClass, metadata_for};
+use crate::kernel::kb003_artifact_classes::{metadata_for, HashPolicy, Kb003ArtifactClass};
 use crate::kernel::kb003_schemas::SCHEMA_KERNEL_PROMOTION_RECEIPT_V1;
 
 use super::decision::{PromotionDecisionV1, PromotionOutcome};
@@ -47,9 +47,9 @@ pub struct PromotionReceiptV1 {
     pub event_ledger_event_id: Option<String>,
     pub issued_at_utc: DateTime<Utc>,
     /// H4 fix (KB003 remediation): raw `e.to_string()` for the storage error
-    /// when the rejection variant is `PostgresFailure`. NOT included in
+    /// when the rejection variant is `StorageFailure`. NOT included in
     /// `payload_hash` — present only for observability so operators can
-    /// inspect what Postgres actually said even though the hash is now
+    /// inspect what the embedded storage backend reported even though the hash is now
     /// computed from a bucketed `NormalisedStorageErrorKind`. `None` for
     /// every other rejection variant and for accepted decisions.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -88,7 +88,7 @@ impl PromotionReceiptV1 {
     }
 
     /// H4 fix: like `new`, but also captures the raw storage-error string
-    /// for observability (only used on the PostgresFailure rejection path
+    /// for observability (only used on the StorageFailure rejection path
     /// in `PromotionGate::evaluate`). The raw string does NOT participate
     /// in `payload_hash` — the hash is computed from the canonical
     /// projection in `decision::canonical_hash_projection`.
@@ -135,7 +135,7 @@ impl PromotionReceiptV1 {
         // H4 fix (KB003 remediation): the outcome we hash is a DETERMINISTIC
         // projection, not the raw `self.decision.outcome`. The raw outcome
         // embeds ephemeral fields (PolicyDenial.denial_id, MissingArtifact
-        // .bundle_id, PostgresFailure.storage_error raw string) that caused
+        // .bundle_id, StorageFailure.storage_error raw string) that caused
         // two retries of the same logical rejection to produce different
         // payload_hash values → false IdempotencyConflict. The full outcome
         // is still retained on `self.decision.outcome` for observability.

@@ -3,41 +3,34 @@
 //! This is the validator-ready evidence pack for WP-009. It is *product/test*
 //! code, not governance paperwork: it ASSEMBLES a machine-readable evidence
 //! index AT RUNTIME and then proves every claim in that index by executing the
-//! underlying capability against the real, Handshake-managed PostgreSQL +
+//! underlying capability against the real, Handshake-managed embedded SurrealDB +
 //! EventLedger — never a static doc assertion.
 //!
 //! The adversarial bar (MT-240 blueprint §"ADVERSARIAL RISKS") is that an
 //! evidence pack must not assert coverage without the underlying behavior
 //! actually running. So this file does NOT merely list proof pointers; for the
-//! HBR rows in MT-240 focus it executes the real fail-closed / no-SQLite /
+//! HBR rows in MT-240 focus it executes the real embedded-authority / no-SQLite /
 //! portability / visual-debug code paths inline, and:
 //!
 //!   1. asserts every claimed proof-pointer test file actually resolves on
 //!      disk (a claim for a non-existent test fails the pack);
-//!   2. executes the real fail-closed PostgreSQL authority resolver
-//!      (`ControlPlaneStorageConfig::resolve`) and asserts SQLite/missing
-//!      authority fails closed — HBR-STOP / CX-503R;
+//!   2. opens the mandatory embedded authority through the canonical harness
+//!      and records its namespace/database identity — HBR-STOP / CX-503R;
 //!   3. executes the real SQLite source tripwire and machine-local path
 //!      normalizer — no-SQLite regression + portability (HBR-STOP-002);
-//!   4. builds the real Loom visual-debug snapshot projection from live PG
+//!   4. builds the real Loom visual-debug snapshot projection from live embedded
 //!      navigation state — HBR-VIS-005 backend evidence;
 //!   5. persists the assembled evidence index into the real EventLedger as a
-//!      `KNOWLEDGE_VALIDATION_RECORDED` receipt, RE-READS it from PostgreSQL by
+//!      `KNOWLEDGE_VALIDATION_RECORDED` receipt, RE-READS it by typed aggregate
 //!      aggregate, and asserts payload + hash integrity (CX-503R: the pack's
-//!      own durable state is PostgreSQL/EventLedger, never a sidecar file).
+//!      own durable state is embedded SurrealDB/EventLedger, never a sidecar file).
 //!
-//! Gated on real PostgreSQL via `knowledge_pg_support`; prints SKIP and returns
-//! when the managed cluster binaries are genuinely absent. Never SQLite.
+//! Uses the mandatory embedded test backend. Never SQLite.
 //!
-//! Run (narrow target, the only test in this file):
-//!   DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake' \
-//!   cargo test --manifest-path src/backend/handshake_core/Cargo.toml \
-//!     --features runtime-full,test-utils \
-//!     --test wp009_integration_validator_evidence_pack_tests \
-//!     mt240_integration_validator_evidence_pack_assembles_and_proves_at_runtime \
-//!     --target-dir ../Handshake_Artifacts/handshake-cargo-target
+//! Run through the project test harness; the fixture owns its embedded store
+//! and requires no external database URL.
 
-mod knowledge_pg_support;
+mod user_manual_support;
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -47,14 +40,14 @@ use handshake_core::dependency_policy::{repo_root_from_manifest_dir, RuntimeDepe
 use handshake_core::hbr::vis_gap::HBR_VIS_GAP_HBR_ID;
 use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use handshake_core::knowledge_ingestion::paths::normalize_source_relative_path;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::{
-    ControlPlaneStorageConfig, Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy,
-    LoomEdgeType, NewLoomBlock, NewLoomEdge, StorageError, WriteContext,
-    LOOM_VISUAL_DEBUG_SCHEMA_ID,
+    Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy, LoomEdgeType,
+    NewLoomBlock, NewLoomEdge, WriteContext, LOOM_VISUAL_DEBUG_SCHEMA_ID,
 };
 use handshake_core::user_manual::registry::wp009_surface_registry;
-use knowledge_pg_support::knowledge_pg;
 use serde_json::{json, Value};
+use user_manual_support::manual_test_backend;
 
 const WP_ID: &str = "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1";
 const MT_ID: &str = "MT-240";
@@ -77,7 +70,7 @@ struct EvidenceClaim {
 const EVIDENCE_CLAIMS: &[EvidenceClaim] = &[
     EvidenceClaim {
         hbr_id: "HBR-STOP-001",
-        capability: "missing/non-Postgres authority fails closed (no SQLite fallback)",
+        capability: "mandatory embedded authority opens through the canonical harness with no fallback",
         proof_test_files: &[
             "security_portability_validation_tests.rs",
             "knowledge_fail_closed_tests.rs",
@@ -96,14 +89,14 @@ const EVIDENCE_CLAIMS: &[EvidenceClaim] = &[
     },
     EvidenceClaim {
         hbr_id: HBR_VIS_GAP_HBR_ID, // HBR-VIS-005
-        capability: "Loom visual-debug projection from live PG navigation state",
+        capability: "Loom visual-debug projection from live embedded navigation state",
         proof_test_files: &["loom_visual_debug_views_tests.rs", "hbr_vis_gap_tests.rs"],
         receipt_kinds: &["KNOWLEDGE_LOOM_BLOCK_INDEXED"],
     },
     EvidenceClaim {
         hbr_id: "CX-503R",
         capability:
-            "PostgreSQL + EventLedger is the only durable authority; receipts re-read from PG",
+            "Embedded SurrealDB + EventLedger is the only durable authority; receipts re-read by typed aggregate",
         proof_test_files: &[
             "knowledge_parallel_write_conflict_fixture_tests.rs",
             "loom_transclusion_tests.rs",
@@ -125,7 +118,7 @@ const RESIDUAL_RISKS: &[&str] = &[
      deep transclusion anchor stability is covered by loom_transclusion_tests but remains a \
      watch item for cross-document anchor drift.",
     "Frontend visual-debug screenshot capture (VisualDebuggerPanel.tsx / visual_debug.rs) is \
-     proven at the BACKEND projection level here (loom_visual_debug_snapshot from live PG); the \
+     proven at the BACKEND projection level here (loom_visual_debug_snapshot from live embedded state); the \
      offline Playwright screenshot lanes under app/tests/visual are the GUI-pixel half and run \
      in the frontend toolchain, not this cargo target.",
 ];
@@ -187,7 +180,7 @@ fn assemble_evidence_index(dir: &Path) -> Value {
 }
 
 async fn insert_loom_block(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    db: &SurrealDatabase,
     ctx: &WriteContext,
     workspace_id: &str,
     content_type: LoomBlockContentType,
@@ -221,44 +214,26 @@ async fn insert_loom_block(
 
 #[tokio::test]
 async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runtime() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!(
-            "SKIP mt240_integration_validator_evidence_pack_assembles_and_proves_at_runtime: \
-             no Handshake-managed PostgreSQL"
-        );
-        return;
-    };
+    let backend = manual_test_backend().await.expect("embedded test backend");
 
     // --- (1) Assemble the machine-readable evidence index; every claimed
     //         proof-pointer test file must resolve on disk. ------------------
     let dir = tests_dir();
     let mut evidence_index = assemble_evidence_index(&dir);
 
-    // --- (2) HBR-STOP-001 / CX-503R: the real fail-closed authority resolver
-    //         rejects missing + SQLite authority (no SQLite fallback). -------
-    let fail_closed_cases = [
-        (None, None, None),
-        (
-            Some("postgres_primary"),
-            Some("true"),
-            Some("sqlite://tmp/cache.sqlite3"),
-        ),
-        (Some("sqlite"), None, Some("sqlite://tmp/cache.sqlite3")),
-    ];
-    for (mode, requires_postgres, database_url) in fail_closed_cases {
-        let err = ControlPlaneStorageConfig::resolve(mode, requires_postgres, database_url)
-            .expect_err("missing/non-PostgreSQL authority must fail closed");
-        match err {
-            StorageError::Validation(message) => assert!(
-                message.contains("postgres") || message.contains("unsupported storage mode"),
-                "unexpected fail-closed message: {message}"
-            ),
-            other => panic!("expected validation failure, got {other:?}"),
-        }
-    }
+    // --- (2) HBR-STOP-001 / CX-503R: the canonical harness has already
+    //         opened and migrated the mandatory embedded authority. Record the
+    //         exact runtime identity used by every proof below.
+    let authority_config = backend.db.storage().config();
+    assert!(!authority_config.namespace().is_empty());
+    assert!(!authority_config.database().is_empty());
+    evidence_index["embedded_authority_observed"] = json!({
+        "namespace": authority_config.namespace(),
+        "database": authority_config.database(),
+    });
 
-    // --- (3) HBR-STOP-002: no-SQLite source tripwire + machine-local path
-    //         rejection actually fire on shaped fixtures. -------------------
+    // --- (3) HBR-STOP-002: deliberate source-text fixtures prove the
+    //         no-SQLite tripwire and machine-local path rejection. -----------
     let allowlist = allowlist();
     let sqlite_violations = scan_source_text(
         "src/backend/handshake_core/src/storage/sqlx_adapter.rs",
@@ -282,11 +257,11 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
     }
 
     // --- (4) HBR-VIS-005: build the real Loom visual-debug projection from
-    //         live PG navigation state. --------------------------------------
-    let workspace_id = pg.create_workspace().await;
+    //         live embedded navigation state. --------------------------------
+    let workspace_id = backend.create_workspace().await;
     let ctx = WriteContext::human(None);
     let start_block_id = insert_loom_block(
-        &pg.db,
+        &backend.db,
         &ctx,
         &workspace_id,
         LoomBlockContentType::Note,
@@ -295,7 +270,7 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
     )
     .await;
     let backlink_source_id = insert_loom_block(
-        &pg.db,
+        &backend.db,
         &ctx,
         &workspace_id,
         LoomBlockContentType::Note,
@@ -304,12 +279,14 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
     )
     .await;
     for block_id in [&start_block_id, &backlink_source_id] {
-        pg.db
+        backend
+            .db
             .bridge_loom_block_to_knowledge(&ctx, &workspace_id, block_id)
             .await
             .expect("bridge Loom block to ProjectKnowledgeIndex");
     }
-    pg.db
+    backend
+        .db
         .create_loom_edge(
             &ctx,
             NewLoomEdge {
@@ -326,7 +303,7 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
         .await
         .expect("mention edge");
 
-    let snapshot = pg
+    let snapshot = backend
         .db
         .loom_visual_debug_snapshot(&workspace_id, &start_block_id, "EvidencePackAlpha", 25)
         .await
@@ -336,7 +313,7 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
     assert_eq!(snapshot.authority_backend.as_str(), "surreal_event_ledger");
     assert!(
         snapshot.counts.blocks >= 2,
-        "visual-debug snapshot must reflect live PG blocks"
+        "visual-debug snapshot must reflect live embedded blocks"
     );
     assert!(
         snapshot
@@ -371,7 +348,7 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
     evidence_index["wp009_surface_count"] = json!(surfaces.len());
 
     // --- (6) CX-503R: persist the assembled index into the REAL EventLedger,
-    //         re-read it from PostgreSQL by aggregate, assert integrity. -----
+    //         re-read it from embedded EventLedger by aggregate, assert integrity.
     let aggregate_id = format!("{MT_ID}-evidence-pack-{}", uuid::Uuid::now_v7());
     let event = NewKernelEvent::builder(
         format!("KTR-{MT_ID}"),
@@ -390,28 +367,28 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
     .expect("build evidence-pack kernel event");
     let expected_hash = event.payload_hash.clone();
 
-    let appended = pg
+    let appended = backend
         .db
         .append_kernel_event(event)
         .await
-        .expect("append evidence-pack receipt to PostgreSQL EventLedger");
+        .expect("append evidence-pack receipt to embedded EventLedger");
     assert!(
         appended.event_sequence > 0,
         "EventLedger must assign a durable sequence to the evidence receipt"
     );
 
-    let rows = pg
+    let rows = backend
         .db
         .list_kernel_events_for_aggregate(
             "wp009_integration_validator_evidence_pack",
             &aggregate_id,
         )
         .await
-        .expect("re-read evidence receipt from PostgreSQL");
+        .expect("re-read evidence receipt from embedded EventLedger");
     assert_eq!(
         rows.len(),
         1,
-        "exactly one evidence receipt re-read from PG"
+        "exactly one evidence receipt re-read from embedded EventLedger"
     );
     let reread = &rows[0];
     assert_eq!(
@@ -432,7 +409,7 @@ async fn mt240_integration_validator_evidence_pack_assembles_and_proves_at_runti
     assert_eq!(
         claims.len(),
         EVIDENCE_CLAIMS.len(),
-        "every assembled HBR claim is durable in PostgreSQL"
+        "every assembled HBR claim is durable in embedded EventLedger"
     );
     assert_eq!(
         reread.payload.get("no_sqlite").and_then(Value::as_bool),

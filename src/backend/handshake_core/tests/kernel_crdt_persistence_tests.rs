@@ -38,13 +38,15 @@ fn kernel_crdt_update_record_carries_surreal_order_hash_actor_session_and_replay
     let authority_wire = serde_json::to_string(&record.storage_authority)
         .expect("CRDT authority posture must serialize");
     assert_eq!(authority_wire, "\"surreal_event_ledger\"");
-    assert!(!authority_wire.contains("postgres"));
-    let legacy_read: CrdtStorageAuthorityPosture =
-        serde_json::from_str("\"postgres_event_ledger\"")
-            .expect("legacy authority wire remains readable");
-    assert_eq!(legacy_read, CrdtStorageAuthorityPosture::SurrealEventLedger);
+    let canonical_read: CrdtStorageAuthorityPosture =
+        serde_json::from_str("\"surreal_event_ledger\"")
+            .expect("canonical authority wire remains readable");
     assert_eq!(
-        serde_json::to_string(&legacy_read).expect("canonical authority reserialization"),
+        canonical_read,
+        CrdtStorageAuthorityPosture::SurrealEventLedger
+    );
+    assert_eq!(
+        serde_json::to_string(&canonical_read).expect("canonical authority reserialization"),
         "\"surreal_event_ledger\""
     );
 

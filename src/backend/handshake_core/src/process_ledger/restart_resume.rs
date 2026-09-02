@@ -8,6 +8,8 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
+#[cfg(feature = "test-utils")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{future::Future, sync::Arc, time::Duration};
 use surrealdb::types::SurrealValue;
 use thiserror::Error;
@@ -335,6 +337,8 @@ pub struct SurrealRestartResumeRunner {
     storage: SurrealStorage,
     idempotency: Arc<IdempotencyLedger>,
     orphan_reclaimer: Arc<dyn RestartOrphanReclaimer>,
+    #[cfg(feature = "test-utils")]
+    cancel_before_resume: Arc<AtomicBool>,
 }
 
 impl SurrealRestartResumeRunner {
@@ -343,7 +347,37 @@ impl SurrealRestartResumeRunner {
             idempotency: Arc::new(IdempotencyLedger::new(storage.clone())),
             storage,
             orphan_reclaimer,
+            #[cfg(feature = "test-utils")]
+            cancel_before_resume: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub fn arm_operator_cancel_before_resume(&self) {
+        self.cancel_before_resume.store(true, Ordering::Release);
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub async fn consume_event_sequence_for_test(&self) -> Result<i64, RestartResumeRuntimeError> {
+        #[derive(SurrealValue)]
+        struct EmptyBindings {}
+
+        self.storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_first::<i64, _>(
+                            "RETURN sequence::nextval('kernel_event_sequence');",
+                            EmptyBindings {},
+                        )
+                        .await
+                })
+            })
+            .await?
+            .ok_or_else(|| RestartResumeRuntimeError::SideEffectFailed {
+                table: "kernel_event_ledger".to_owned(),
+                error: "test event-sequence reservation returned no value".to_owned(),
+            })
     }
 
     pub async fn run(&self) -> Result<ResumeReport, RestartResumeRuntimeError> {
@@ -470,6 +504,18 @@ impl SurrealRestartResumeRunner {
             let replay_result = execute_global_replay(&checkpoint, &events, &global_sequences);
             match replay_result {
                 Ok(result) => {
+                    #[cfg(feature = "test-utils")]
+                    if self.cancel_before_resume.swap(false, Ordering::AcqRel) {
+                        self.record_failure(
+                            &mut report,
+                            &candidate,
+                            ResumeError::SessionApplyError {
+                                reason: "operator_cancel_during_recovery".to_owned(),
+                            },
+                        )
+                        .await?;
+                        continue;
+                    }
                     let resumed = self
                         .resume_candidate(
                             &candidate,
@@ -784,6 +830,56 @@ impl SurrealRestartResumeRunner {
         self.apply_idempotent_store_write(
             candidate,
             failure_seq,
+            "kernel_session_checkpoint_recovery_failed",
+            || async {
+                let Some(checkpoint) = candidate.checkpoint.as_ref() else {
+                    return Ok(());
+                };
+                let checkpoint_id = Uuid::now_v7();
+                let bindings = RecoveryFailedCheckpointBindings {
+                    record: surrealdb::types::RecordId::new(
+                        "kernel_session_checkpoint",
+                        checkpoint_id.to_string(),
+                    ),
+                    checkpoint_id,
+                    session_id: candidate.session_id,
+                    model_session_id: checkpoint.model_session_id,
+                    last_event_ledger_seq: checkpoint.last_event_ledger_seq,
+                    compact_state: checkpoint.compact_state.clone(),
+                    pending_artifacts: checkpoint.pending_artifacts.clone(),
+                    created_by_process: i64::from(std::process::id()),
+                    schema_version: i64::from(checkpoint.schema_version),
+                };
+                self.storage
+                    .with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database
+                                .execute_returning(
+                                    "CREATE $record CONTENT { \
+                                     checkpoint_id: $checkpoint_id, session_id: $session_id, \
+                                     model_session_id: $model_session_id, \
+                                     last_event_ledger_seq: $last_event_ledger_seq, \
+                                     compact_state: $compact_state, \
+                                     state_kind: 'recovery_failed', \
+                                     pending_artifacts: $pending_artifacts, \
+                                     created_at_utc: time::now(), \
+                                     created_by_process: $created_by_process, \
+                                     schema_version: $schema_version \
+                                 };",
+                                    bindings,
+                                )
+                                .await
+                        })
+                    })
+                    .await
+                    .map_err(|err| err.to_string())?;
+                Ok(())
+            },
+        )
+        .await?;
+        self.apply_idempotent_store_write(
+            candidate,
+            failure_seq,
             "kernel_session_queue",
             || async {
                 #[derive(SurrealValue)]
@@ -1008,6 +1104,19 @@ struct ResumeCandidateBindings {
     new_checkpoint_id: String,
     new_checkpoint_uuid: Uuid,
     model_session_id: Uuid,
+    compact_state: Value,
+    pending_artifacts: Vec<String>,
+    created_by_process: i64,
+    schema_version: i64,
+}
+
+#[derive(SurrealValue)]
+struct RecoveryFailedCheckpointBindings {
+    record: surrealdb::types::RecordId,
+    checkpoint_id: Uuid,
+    session_id: Uuid,
+    model_session_id: Uuid,
+    last_event_ledger_seq: i64,
     compact_state: Value,
     pending_artifacts: Vec<String>,
     created_by_process: i64,

@@ -1,8 +1,8 @@
-//! WP-KERNEL-005 MT-190 / MT-191 / MT-192 / MT-193 / MT-194: real PostgreSQL
+//! WP-KERNEL-005 MT-190 / MT-191 / MT-192 / MT-193 / MT-194: embedded SurrealDB
 //! round-trip proofs for the DCC/Flight-Recorder model-workflow diagnostics
 //! surfaces.
 //!
-//! These MTs are TYPED RUNTIME surfaces (Postgres rows + EventLedger events),
+//! These MTs are TYPED RUNTIME surfaces (persisted rows + EventLedger events),
 //! never governance markdown:
 //!   * MT-190 -- DCC Approvals + Visual-Capture panel projections (projection,
 //!     GUI later), one typed row per panel kind.
@@ -19,49 +19,32 @@
 //!     (matrix_kind `MT-194.reset-orphan`) recorded through the existing
 //!     atelier_diagnostics_validation_matrix runtime surface.
 //!
-//! Every test persists through the real `AtelierStore` against
-//! Handshake-managed PostgreSQL, RE-READS the rows from PostgreSQL, and
-//! asserts the canonical EventLedger evidence. Gated on
-//! `atelier_pg_support::database_url()`: when no PostgreSQL is available the
-//! test prints SKIP and returns (never SQLite).
+//! Every test persists through the real `AtelierStore` on embedded SurrealDB,
+//! re-reads the rows, and asserts the canonical EventLedger evidence.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::dcc_flight_recorder::{
     dcc_flight_recorder_event_family, reset_orphan_diagnostics_validation_catalog,
     reset_orphan_validation_matrix_kind, DccWorkflowPanelKind, NewDccWorkflowPanelProjection,
     NewFrWorkflowEvent,
 };
-use handshake_core::atelier::state_probe::{
-    state_probe_event_family, DiagnosticsValidationStatus,
-};
+use handshake_core::atelier::state_probe::{state_probe_event_family, DiagnosticsValidationStatus};
 use handshake_core::atelier::{event_family, AtelierError, AtelierStore};
 use handshake_core::flight_recorder::workflow_event_kinds::FrWorkflowEventKind;
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// Connect with a real kernel EventLedger so every test can assert the
-/// canonical ledger evidence, then ensure the atelier schema (which wires
-/// migration 0116). Idempotent.
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+/// Create an isolated embedded store with its canonical EventLedger.
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 /// Assert one `AtelierDomainEventRecorded` ledger row exists for the given
@@ -90,13 +73,7 @@ async fn assert_ledger_event(
 /// (APPROVALS + VISUAL_CAPTURE) and emits canonical EventLedger evidence.
 #[tokio::test]
 async fn mt190_dcc_approvals_and_visual_capture_panels_round_trip() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt190_dcc_approvals_and_visual_capture_panels_round_trip: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     for kind in DccWorkflowPanelKind::ALL.iter().copied() {
         let panel_id = format!("dcc-wf-{}-{}", kind.as_token(), Uuid::new_v4());
@@ -129,7 +106,7 @@ async fn mt190_dcc_approvals_and_visual_capture_panels_round_trip() {
         assert_eq!(recorded.panel_kind, kind);
         assert_eq!(recorded.state_json, state);
 
-        // RE-READ from PostgreSQL via the kind-scoped list projection.
+        // RE-READ from the embedded store via the kind-scoped list projection.
         let listed = store
             .list_dcc_workflow_panel_projections_by_kind(kind)
             .await
@@ -207,7 +184,7 @@ async fn prove_fr_workflow_kinds(
         assert_eq!(recorded.mt_owner, mt_owner);
         assert_eq!(&recorded.payload, payload);
 
-        // RE-READ from PostgreSQL via the kind-scoped list.
+        // RE-READ from the embedded store via the kind-scoped list.
         let listed = store
             .list_fr_workflow_events_by_kind(*kind)
             .await
@@ -236,8 +213,7 @@ async fn prove_fr_workflow_kinds(
                         )
                     && event.payload["atelier_payload"]["event_kind"]
                         == serde_json::json!(kind.as_str())
-                    && event.payload["atelier_payload"]["mt_owner"]
-                        == serde_json::json!(mt_owner)
+                    && event.payload["atelier_payload"]["mt_owner"] == serde_json::json!(mt_owner)
             }),
             "recording {kind} must emit canonical EventLedger evidence naming kind + owner"
         );
@@ -263,16 +239,10 @@ async fn prove_fr_workflow_kinds(
 }
 
 /// MT-191: Flight Recorder events for tool calls, proposals, and apply
-/// decisions persist on PostgreSQL and emit EventLedger evidence.
+/// decisions persist in the embedded store and emit EventLedger evidence.
 #[tokio::test]
 async fn mt191_fr_tool_proposal_apply_events_persist_and_emit() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt191_fr_tool_proposal_apply_events_persist_and_emit: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     prove_fr_workflow_kinds(
         &store,
@@ -313,16 +283,10 @@ async fn mt191_fr_tool_proposal_apply_events_persist_and_emit() {
 }
 
 /// MT-192: Flight Recorder events for visual capture, validation, and
-/// recovery persist on PostgreSQL and emit EventLedger evidence.
+/// recovery persist in the embedded store and emit EventLedger evidence.
 #[tokio::test]
 async fn mt192_fr_visual_validation_recovery_events_persist_and_emit() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt192_fr_visual_validation_recovery_events_persist_and_emit: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let capture_ref = format!("artifact://atelier/captures/{}", Uuid::new_v4());
     prove_fr_workflow_kinds(
@@ -369,16 +333,10 @@ async fn mt192_fr_visual_validation_recovery_events_persist_and_emit() {
 }
 
 /// MT-193: Flight Recorder events for build guard, package guard, and
-/// stale-doc detection persist on PostgreSQL and emit EventLedger evidence.
+/// stale-doc detection persist in the embedded store and emit EventLedger evidence.
 #[tokio::test]
 async fn mt193_fr_build_package_stale_doc_events_persist_and_emit() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt193_fr_build_package_stale_doc_events_persist_and_emit: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     prove_fr_workflow_kinds(
         &store,
@@ -405,20 +363,17 @@ async fn mt193_fr_build_package_stale_doc_events_persist_and_emit() {
     .await;
 
     // The event family is folded into the canonical atelier family set.
-    assert!(event_family::ALL
-        .contains(&dcc_flight_recorder_event_family::FR_WORKFLOW_EVENT_RECORDED));
+    assert!(
+        event_family::ALL.contains(&dcc_flight_recorder_event_family::FR_WORKFLOW_EVENT_RECORDED)
+    );
 }
 
 /// MT-194: the reset/orphan diagnostic validation-matrix rows persist on
-/// PostgreSQL under matrix_kind `MT-194.reset-orphan`, re-read with their
+/// embedded storage under matrix_kind `MT-194.reset-orphan`, re-read with their
 /// requirement + evidence, and emit EventLedger evidence per row.
 #[tokio::test]
 async fn mt194_reset_orphan_validation_matrix_rows_persist() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt194_reset_orphan_validation_matrix_rows_persist: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     // Record the MT-194 catalog through the existing validation-matrix write
     // path (idempotent upsert on row_id).
@@ -430,7 +385,7 @@ async fn mt194_reset_orphan_validation_matrix_rows_persist() {
             .unwrap_or_else(|err| panic!("record MT-194 row {}: {err:?}", new.row_id));
     }
 
-    // RE-READ from PostgreSQL scoped to the MT-194 matrix kind.
+    // RE-READ from the embedded store scoped to the MT-194 matrix kind.
     let rows = store
         .list_diagnostics_validation_matrix(Some(reset_orphan_validation_matrix_kind::RESET_ORPHAN))
         .await

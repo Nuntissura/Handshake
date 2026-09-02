@@ -2,15 +2,14 @@
 //!
 //! Executes the real ModelManual source-row merges (Core/Data, Pose/ComfyUI,
 //! Diagnostics-owned) and the manual drift guard, persists the runs through
-//! `AtelierStore` against Handshake-managed PostgreSQL, re-reads them, and
+//! `AtelierStore` against the isolated embedded SurrealDB harness, re-reads them, and
 //! asserts the canonical EventLedger events. Synthetic-manual tests prove the
 //! normalize / missing-as-blocker / drift-finding logic on non-literal inputs.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use std::collections::BTreeSet;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::model_manual_merge::{
     merge_manual_source_rows, model_manual_merge_event_family, normalize_manual_command_id,
     run_manual_drift_guard, wired_surface_fingerprint, ManualDriftKind, ManualMergeSourceKind,
@@ -22,26 +21,17 @@ use handshake_core::kernel::KernelEventType;
 use handshake_core::model_manual::{
     model_manual, CommandReference, CommandStatus, Manual, ManualFeatureGroup,
 };
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use std::sync::Arc;
 use uuid::Uuid;
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 const fn synthetic_row(
@@ -72,11 +62,7 @@ const fn synthetic_row(
 
 #[tokio::test]
 async fn mt185_core_row_merge_merges_real_core_rows_and_persists_with_ledger() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt185_core_row_merge: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let outcome = merge_manual_source_rows(model_manual(), ManualMergeSourceKind::CoreData);
     assert!(
@@ -134,7 +120,7 @@ async fn mt185_core_row_merge_merges_real_core_rows_and_persists_with_ledger() {
         .expect("Core/Data merge must include atelier_record_atelier_reset");
     assert_eq!(reset.source_mt, "MT-060");
 
-    // Persist through the real store, re-read from PostgreSQL, and assert the
+    // Persist through the real store, re-read from the embedded store, and assert the
     // EventLedger mirror.
     let record = store
         .record_manual_row_merge(&outcome)
@@ -143,7 +129,7 @@ async fn mt185_core_row_merge_merges_real_core_rows_and_persists_with_ledger() {
     let reloaded = store
         .get_manual_row_merge(record.run_id)
         .await
-        .expect("re-read Core/Data merge run from PostgreSQL");
+        .expect("re-read Core/Data merge run from embedded store");
     assert_eq!(reloaded, record);
     assert_eq!(reloaded.source_kind, ManualMergeSourceKind::CoreData);
     assert_eq!(reloaded.merged_rows, outcome.merged_rows);
@@ -228,7 +214,10 @@ fn mt185_core_row_merge_normalizes_ids_and_marks_missing_as_blockers() {
         normalize_manual_command_id("  Atelier--Create.Character "),
         "atelier_create_character"
     );
-    assert_eq!(normalize_manual_command_id("_already__normal_"), "already_normal");
+    assert_eq!(
+        normalize_manual_command_id("_already__normal_"),
+        "already_normal"
+    );
 
     let outcome =
         merge_manual_source_rows(&CORE_MERGE_PARTIAL_MANUAL, ManualMergeSourceKind::CoreData);
@@ -269,8 +258,10 @@ fn mt185_core_row_merge_normalizes_ids_and_marks_missing_as_blockers() {
 
     // Distinct raw ids collapsing onto one normalized id are a collision
     // blocker, not a silent merge.
-    let collision_outcome =
-        merge_manual_source_rows(&CORE_MERGE_COLLISION_MANUAL, ManualMergeSourceKind::CoreData);
+    let collision_outcome = merge_manual_source_rows(
+        &CORE_MERGE_COLLISION_MANUAL,
+        ManualMergeSourceKind::CoreData,
+    );
     assert!(
         collision_outcome.blockers.iter().any(|blocker| {
             blocker.reason == MERGE_BLOCKER_ID_NORMALIZATION_COLLISION
@@ -287,11 +278,7 @@ fn mt185_core_row_merge_normalizes_ids_and_marks_missing_as_blockers() {
 
 #[tokio::test]
 async fn mt186_pose_row_merge_merges_real_pose_rows_and_persists_with_ledger() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt186_pose_row_merge: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let outcome = merge_manual_source_rows(model_manual(), ManualMergeSourceKind::PoseComfy);
     assert!(
@@ -343,7 +330,7 @@ async fn mt186_pose_row_merge_merges_real_pose_rows_and_persists_with_ledger() {
     let reloaded = store
         .get_manual_row_merge(record.run_id)
         .await
-        .expect("re-read Pose/ComfyUI merge run from PostgreSQL");
+        .expect("re-read Pose/ComfyUI merge run from embedded store");
     assert_eq!(reloaded, record);
     assert_eq!(reloaded.source_kind, ManualMergeSourceKind::PoseComfy);
     assert_eq!(reloaded.merged_rows, outcome.merged_rows);
@@ -416,14 +403,9 @@ fn mt186_pose_row_merge_marks_missing_groups_as_blockers() {
 
 #[tokio::test]
 async fn mt187_owned_row_merge_classifies_row_kinds_and_persists_with_ledger() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt187_owned_row_merge: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
-    let outcome =
-        merge_manual_source_rows(model_manual(), ManualMergeSourceKind::DiagnosticsOwned);
+    let outcome = merge_manual_source_rows(model_manual(), ManualMergeSourceKind::DiagnosticsOwned);
     assert!(
         outcome.blockers.is_empty(),
         "real manual Diagnostics-owned merge must produce no blockers: {:?}",
@@ -472,9 +454,12 @@ async fn mt187_owned_row_merge_classifies_row_kinds_and_persists_with_ledger() {
     let reloaded = store
         .get_manual_row_merge(record.run_id)
         .await
-        .expect("re-read Diagnostics-owned merge run from PostgreSQL");
+        .expect("re-read Diagnostics-owned merge run from embedded store");
     assert_eq!(reloaded, record);
-    assert_eq!(reloaded.source_kind, ManualMergeSourceKind::DiagnosticsOwned);
+    assert_eq!(
+        reloaded.source_kind,
+        ManualMergeSourceKind::DiagnosticsOwned
+    );
     assert_eq!(reloaded.merged_rows, outcome.merged_rows);
 
     let kernel_events = database
@@ -507,12 +492,7 @@ static OWNED_MERGE_PARTIAL_MANUAL: Manual = Manual {
         commands: &["model_manual_get"],
     }],
     command_reference: &[
-        synthetic_row(
-            "model_manual_get",
-            CommandStatus::Wired,
-            None,
-            &[],
-        ),
+        synthetic_row("model_manual_get", CommandStatus::Wired, None, &[]),
         synthetic_row(
             "kernel_action_catalog_view",
             CommandStatus::Wired,
@@ -641,8 +621,10 @@ fn mt183_drift_guard_flags_unresolved_orphan_and_collision_drift() {
 
     // The shipped manual against the real registered runtime surface is
     // drift-free; this is the live negative check, not an echo.
-    let real_findings =
-        run_manual_drift_guard(model_manual(), &RegisteredSurfaceIndex::handshake_runtime_default());
+    let real_findings = run_manual_drift_guard(
+        model_manual(),
+        &RegisteredSurfaceIndex::handshake_runtime_default(),
+    );
     assert!(
         real_findings.is_empty(),
         "shipped ModelManual must be drift-free against the registered surface: {real_findings:?}"
@@ -707,11 +689,7 @@ static VERSION_GUARD_MANUAL_V2: Manual = Manual {
 
 #[tokio::test]
 async fn mt183_drift_guard_detects_wired_surface_diff_without_version_bump() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt183_drift_guard_version_bump: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
     let surfaces = RegisteredSurfaceIndex::handshake_runtime_default();
     let scope = format!("test-scope-{}", Uuid::new_v4());
 
@@ -745,11 +723,11 @@ async fn mt183_drift_guard_detects_wired_surface_diff_without_version_bump() {
         .expect("wired-surface diff without version bump must be flagged");
     assert!(version_finding.detail.contains("1.0.0-test"));
 
-    // The persisted run re-reads identically from PostgreSQL.
+    // The persisted run re-reads identically from the embedded store.
     let reloaded = store
         .get_manual_drift_guard_run(run2.run_id)
         .await
-        .expect("re-read drifted guard run from PostgreSQL");
+        .expect("re-read drifted guard run from embedded store");
     assert_eq!(reloaded, run2);
     assert_eq!(reloaded.guard_scope, scope);
     assert_eq!(reloaded.manual_version, "1.0.0-test");
@@ -793,11 +771,7 @@ async fn mt183_drift_guard_detects_wired_surface_diff_without_version_bump() {
 
 #[tokio::test]
 async fn mt183_drift_guard_real_manual_persists_clean_run() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt183_drift_guard_real_manual: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
     let scope = format!("test-real-manual-{}", Uuid::new_v4());
 
     let record = store
@@ -819,7 +793,7 @@ async fn mt183_drift_guard_real_manual_persists_clean_run() {
     let reloaded = store
         .get_manual_drift_guard_run(record.run_id)
         .await
-        .expect("re-read real-manual guard run from PostgreSQL");
+        .expect("re-read real-manual guard run from embedded store");
     assert_eq!(reloaded, record);
 
     let kernel_events = database

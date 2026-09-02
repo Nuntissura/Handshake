@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 use super::allowlist::{PolicyVerdictKind, RootRegistrationPolicy};
 use super::receipts::{ExtractionReceipt, NewExtractionReceipt};
 use super::repair::{NewRepairEntry, RepairAttemptOutcome, RepairEntry, RepairState};
-use super::spans::{ExtractedSpan, SpanAnchor};
+use super::spans::{ExtractedSpan, SpanAnchor, SpanRedaction};
 use super::{new_ingestion_id, IngestionError, IngestionResult};
 use crate::ai_ready_data::chunking::sha256_hex;
 use crate::storage::surreal::{SurrealDatabase, SurrealStorageError};
@@ -41,6 +41,15 @@ fn opt_key(record: Option<RecordId>) -> IngestionResult<Option<String>> {
 }
 fn storage_error(error: SurrealStorageError) -> IngestionError {
     IngestionError::Storage(StorageError::Database(error.to_string()))
+}
+
+pub(super) fn validate_span_redaction(span: &ExtractedSpan) -> IngestionResult<()> {
+    if span.redaction == SpanRedaction::Redacted && !span.content.contains("[REDACTED:") {
+        return Err(IngestionError::Validation(
+            "redacted span content must contain a [REDACTED:<kind>] marker".to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Clone)]
@@ -408,6 +417,11 @@ impl KnowledgeIngestionStore {
         receipt_event_id: Option<&str>,
     ) -> IngestionResult<ExtractionReceipt> {
         receipt.validate()?;
+        let receipt_event_id = receipt_event_id.ok_or_else(|| {
+            IngestionError::Validation(
+                "extraction receipt requires a receipt EventLedger event".to_owned(),
+            )
+        })?;
         #[derive(SurrealValue)]
         struct Bindings {
             id: String,
@@ -427,7 +441,7 @@ impl KnowledgeIngestionStore {
             event: Option<RecordId>,
         }
         let rows: Vec<ReceiptRecord> = self.rows("CREATE type::record('knowledge_ingestion_receipts', $id) CONTENT { receipt_id: $id, workspace_id: $workspace, source_id: $source, ingestion_run_token: $run, extractor_id: $extractor, extractor_version: $version, status: $status, error_class: $error_class, error_detail: $error_detail, spans_produced: $produced, spans_failed: $failed, redaction_count: $redactions, content_hash: $hash, duration_ms: $duration, receipt_event_id: $event } RETURN AFTER;",
-            Bindings { id: new_ingestion_id("KIRC"), workspace: thing(WORKSPACES, &receipt.workspace_id), source: thing(SOURCES, &receipt.source_id), run: receipt.ingestion_run_token, extractor: receipt.extractor_id, version: receipt.extractor_version, status: receipt.status.as_str().to_owned(), error_class: receipt.error_class.map(|value| value.as_str().to_owned()), error_detail: receipt.error_detail, produced: receipt.spans_produced, failed: receipt.spans_failed, redactions: receipt.redaction_count, hash: receipt.content_hash, duration: receipt.duration_ms, event: opt_thing(EVENTS, receipt_event_id) }).await?;
+            Bindings { id: new_ingestion_id("KIRC"), workspace: thing(WORKSPACES, &receipt.workspace_id), source: thing(SOURCES, &receipt.source_id), run: receipt.ingestion_run_token, extractor: receipt.extractor_id, version: receipt.extractor_version, status: receipt.status.as_str().to_owned(), error_class: receipt.error_class.map(|value| value.as_str().to_owned()), error_detail: receipt.error_detail, produced: receipt.spans_produced, failed: receipt.spans_failed, redactions: receipt.redaction_count, hash: receipt.content_hash, duration: receipt.duration_ms, event: Some(thing(EVENTS, receipt_event_id)) }).await?;
         rows.into_iter()
             .next()
             .map(receipt_from_record)
@@ -477,6 +491,9 @@ impl KnowledgeIngestionStore {
         receipt_id: &str,
         spans: &[ExtractedSpan],
     ) -> IngestionResult<Vec<StoredSpan>> {
+        for span in spans {
+            validate_span_redaction(span)?;
+        }
         #[derive(SurrealValue)]
         struct SpanInput {
             span_id: String,
@@ -530,6 +547,11 @@ impl KnowledgeIngestionStore {
     }
 
     pub async fn enqueue_repair(&self, entry: NewRepairEntry) -> IngestionResult<RepairEntry> {
+        if entry.enqueue_event_id.is_none() {
+            return Err(IngestionError::Validation(
+                "repair queue entry requires an enqueue EventLedger event".to_owned(),
+            ));
+        }
         let _guard = REPAIR_MUTATION_LOCK.lock().await;
         #[derive(SurrealValue)]
         struct Bindings {
@@ -673,6 +695,7 @@ impl KnowledgeIngestionStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
     use crate::knowledge_ingestion::receipts::ExtractionStatus;
     use crate::knowledge_ingestion::spans::SpanAnchor;
     use crate::storage::knowledge::{
@@ -752,6 +775,22 @@ mod tests {
             )
             .await
             .expect("activate policy");
+        let receipt_event = db
+            .append_kernel_event(
+                NewKernelEvent::builder(
+                    "ingestion-store-test-task",
+                    "ingestion-store-test-session",
+                    KernelEventType::ValidationRecorded,
+                    KernelActor::System("ingestion-store-test".to_owned()),
+                )
+                .aggregate("knowledge_source", source.source_id.clone())
+                .source_component("knowledge_ingestion_store_test")
+                .payload(json!({"kind":"extraction_receipt"}))
+                .build()
+                .expect("build receipt event"),
+            )
+            .await
+            .expect("record receipt event");
         let receipt = store
             .record_extraction_receipt(
                 NewExtractionReceipt {
@@ -769,7 +808,7 @@ mod tests {
                     content_hash: "a".repeat(64),
                     duration_ms: 1,
                 },
-                None,
+                Some(&receipt_event.event_id),
             )
             .await
             .expect("record receipt");

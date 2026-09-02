@@ -5,12 +5,12 @@ use serde_json::json;
 use tempfile::tempdir;
 
 #[cfg(feature = "wsl2-integration")]
-use std::collections::{BTreeMap, BTreeSet};
-#[cfg(feature = "wsl2-integration")]
 use handshake_core::sandbox::{
     AdapterId, Command, ImageRef, NetPolicy, ProcessSpec, ResourceLimits, SandboxAdapter,
     SandboxAdapterError, Signal, TrustClass, Wsl2PodmanAdapter, Wsl2PodmanConfig,
 };
+#[cfg(feature = "wsl2-integration")]
+use std::collections::{BTreeMap, BTreeSet};
 
 #[test]
 fn allowed_sandbox_glob_produces_readonly_repo_plus_single_readwrite_overlay() {
@@ -141,7 +141,7 @@ fn prose_forbidden_entries_do_not_block_unrelated_path_scope() {
     write_packet(
         repo.path(),
         &["src/backend/handshake_core/src/sandbox/**"],
-        &["No SQLite authority, cache, offline, fallback, compatibility, or test fixture anywhere per CX-503R."],
+        &["Embedded SurrealDB is the only authority; cache, offline, fallback, compatibility, and test fixtures are non-authoritative per CX-503R."],
     );
 
     let binds =
@@ -189,15 +189,14 @@ async fn work_packet_scope_binder_integration_wsl2_bind_modes() {
     write_packet(repo.path(), &["crates/writable/**"], &[]);
 
     // 2. Get the binder's ACTUAL layered output. Do not hand-build binds.
-    let binds = bind_specs_from_packet(&repo.path().join("packet.json"), repo.path())
-        .expect("scope binds");
+    let binds =
+        bind_specs_from_packet(&repo.path().join("packet.json"), repo.path()).expect("scope binds");
 
     // Sanity: the layering we are about to prove must actually be present.
     assert!(
         binds
             .iter()
-            .any(|bind| bind.mode == BindMode::ReadOnly
-                && slash(&bind.guest_path) == "/workspace"),
+            .any(|bind| bind.mode == BindMode::ReadOnly && slash(&bind.guest_path) == "/workspace"),
         "binder must emit a ReadOnly /workspace repo-root mount; got {binds:?}"
     );
     let writable_overlay = binds

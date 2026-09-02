@@ -29,7 +29,7 @@ pub enum LocusTrackingCapabilityKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LocusAuthorityMode {
-    PostgresAuthority,
+    EmbeddedSurrealDbAuthority,
     EventLedgerAuthority,
     CrdtWorkspaceAuthority,
     ProjectionOnly,
@@ -186,14 +186,14 @@ pub fn validate_locus_work_tracking_reset_contract(
     }
 
     for required_ref in [
-        "kernel.postgres_control_plane",
+        "kernel.embedded_surreal_store",
         "kernel.event_ledger",
         "kernel.crdt_workspace",
     ] {
         if !contains_exact(&contract.product_authority_refs, required_ref) {
             errors.push(LocusWorkTrackingResetValidationError {
                 field: "product_authority_refs",
-                message: "Postgres, EventLedger, and CRDT authority refs are required",
+                message: "embedded SurrealDB, EventLedger, and CRDT authority refs are required",
             });
         }
     }
@@ -358,7 +358,7 @@ fn validate_capabilities(
         if !authority_mode_matches_kind(capability.kind, capability.authority_mode) {
             errors.push(LocusWorkTrackingResetValidationError {
                 field: "authority_mode",
-                message: "capability authority mode must be Postgres/EventLedger/CRDT compatible",
+                message: "capability authority mode must be embedded SurrealDB/EventLedger/CRDT compatible",
             });
         }
 
@@ -471,7 +471,7 @@ fn authority_mode_matches_kind(
         LocusTrackingCapabilityKind::WorkPacketTracking
         | LocusTrackingCapabilityKind::ReadyQuery
         | LocusTrackingCapabilityKind::SpecRouterIntegration => {
-            authority_mode == LocusAuthorityMode::PostgresAuthority
+            authority_mode == LocusAuthorityMode::EmbeddedSurrealDbAuthority
         }
         LocusTrackingCapabilityKind::MicroTaskTracking
         | LocusTrackingCapabilityKind::Occupancy

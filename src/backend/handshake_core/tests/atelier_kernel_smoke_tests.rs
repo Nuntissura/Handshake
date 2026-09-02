@@ -1,11 +1,11 @@
-//! WP-KERNEL-005 MT-181 — Diagnostics Integration Smoke Path, executed for
-//! real against Handshake-managed PostgreSQL.
+//! WP-KERNEL-005 MT-181 — Diagnostics Integration Smoke Path, executed against
+//! embedded SurrealDB.
 //!
 //! One no-context model operation path is RUN end to end (not described):
 //!   session -> lease -> state -> command -> receipt -> visual -> bundle -> release
 //!
 //! Every stage persists through the real `AtelierStore` surface that owns it,
-//! is RE-READ from PostgreSQL (never trusted from the write echo), and is
+//! is RE-READ from the embedded store (never trusted from the write echo), and is
 //! asserted against its canonical EventLedger family:
 //!   * session  — `record_session_heartbeat` (MT-144),
 //!     `atelier.diagnostics.session_heartbeat_recorded`
@@ -25,14 +25,12 @@
 //!   * release  — `release_model_lease` (MT-143),
 //!     `atelier.model_lease.released`
 //!
-//! Gated on `atelier_pg_support::database_url()`: when no PostgreSQL is
-//! available the test prints SKIP and returns (never SQLite).
+//! The isolated harness supplies the canonical schema for the smoke path.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use std::sync::Arc;
 
-use atelier_pg_support::database_url;
 use chrono::Utc;
 use handshake_core::atelier::action_receipt::{
     action_receipt_event_family, ActionReceiptStatus, NewActionReceipt,
@@ -56,30 +54,21 @@ use handshake_core::kernel::role_mailbox_claim_lease::{
 };
 use handshake_core::kernel::KernelEventType;
 use handshake_core::model_manual::{model_manual, CommandStatus};
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
+use handshake_core::storage::Database;
 use serde_json::json;
-use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 
 /// The registered KERNEL-002 catalog action the smoke path's command stage
 /// runs: the no-context model's first real read, "show me what I can do".
 const SMOKE_COMMAND_ACTION_ID: &str = "kernel.action_catalog.view";
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 /// Assert one atelier-domain EventLedger event of `event_family` exists for
@@ -107,19 +96,12 @@ async fn assert_smoke_event(
 }
 
 /// MT-181: the diagnostics integration smoke path is RUN end to end against
-/// live PostgreSQL — session -> lease -> state -> command -> receipt ->
+/// embedded SurrealDB — session -> lease -> state -> command -> receipt ->
 /// visual -> bundle -> release — with persisted state re-read from the
 /// database and the canonical EventLedger event asserted at every stage.
 #[tokio::test]
-async fn mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_pg() {
-    let Some(url) = database_url().await else {
-        eprintln!(
-            "SKIP mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_pg: \
-             PostgreSQL unavailable"
-        );
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+async fn mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_embedded_store() {
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let run = Uuid::now_v7();
     let actor_id = format!("smoke-model-{run}");
@@ -134,7 +116,7 @@ async fn mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_pg() {
     assert_eq!(session.session_ref, session_ref);
     assert_eq!(session.status, SessionStatus::Active);
 
-    // Re-read the session row from PostgreSQL, not the write echo.
+    // Re-read the session row from the embedded store, not the write echo.
     let sessions = store
         .list_diagnostics_sessions()
         .await
@@ -170,7 +152,7 @@ async fn mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_pg() {
     let lease_reread = store
         .get_model_lease(lease.claim_id)
         .await
-        .expect("re-read smoke lease from PostgreSQL");
+        .expect("re-read smoke lease from embedded store");
     assert_eq!(lease_reread.thread_id, thread_id);
     assert_eq!(lease_reread.actor_id, actor_id);
     assert_eq!(lease_reread.effective_state, ClaimLeaseState::Active);
@@ -250,7 +232,7 @@ async fn mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_pg() {
     let receipt_reread = store
         .get_action_receipt(receipt.receipt_id)
         .await
-        .expect("re-read smoke receipt from PostgreSQL");
+        .expect("re-read smoke receipt from embedded store");
     assert_eq!(receipt_reread.action_id, SMOKE_COMMAND_ACTION_ID);
     assert_eq!(receipt_reread.session_id, session_ref);
     assert_eq!(receipt_reread.status, ActionReceiptStatus::Succeeded);
@@ -434,7 +416,7 @@ async fn mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_pg() {
     let bundle_reread = store
         .get_kernel_diagnostic_bundle_manifest(bundle.manifest_id)
         .await
-        .expect("re-read smoke bundle manifest from PostgreSQL")
+        .expect("re-read smoke bundle manifest from embedded store")
         .expect("smoke bundle manifest must persist");
     assert_eq!(bundle_reread.subject_ref, subject_ref);
     assert_eq!(bundle_reread.sections.len(), 3);

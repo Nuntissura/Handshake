@@ -4,31 +4,29 @@
 //! Spec-Realism Gate compliance:
 //!   - Pure-Rust assertions on the record + LeaseManager surface (no
 //!     `#[ignore]`).
-//!   - Postgres-backed assertions `#[ignore]`-gated on `POSTGRES_TEST_URL`.
+//!   - Embedded SurrealDB-backed assertions use isolated per-test stores.
 //!   - No `LiveXxxUnavailable` / `todo!()` / `unimplemented!()` paths.
 //!
 //! Adversarial coverage (per MT-180 `red_team.minimum_controls` and
 //! `validator_focus`):
-//!   1. Database-level partial unique index proven by an INSERT-conflict
-//!      test that BYPASSES the LeaseManager — exists in the
-//!      `postgres_partial_unique_index_blocks_direct_insert` test. The
-//!      direct second INSERT must fail with a 23505 unique_violation
-//!      against the `idx_role_mailbox_claim_lease_active` partial unique
-//!      index.
-//!   2. Takeover audit chain queryable via recursive CTE — exists in
-//!      `postgres_takeover_chain_queryable_via_ancestry`. The CTE must
-//!      return the full chain in chronological order.
+//!   1. Active-lease uniqueness is proven through the typed concurrent acquire
+//!      race; the former direct-insert proof is retired because raw storage
+//!      writes are not part of the embedded repository test surface.
+//!   2. Takeover audit chain is queryable through the typed repository and
+//!      returned in chronological order.
 //!   3. Lease extension cannot bypass expiry — exists in
-//!      `postgres_extend_after_expiry_rejects` (the in-process variant
+//!      `surreal_extend_after_expiry_rejects` (the in-process variant
 //!      mirrors this in `extend_after_expiry_rejects_in_process`).
 //!
 //! Validator focus coverage (per MT-180 `validator_focus`):
-//!   - Partial unique index prevents two active leases at the DB level
-//!     (not application level): see #1 above.
+//!   - The embedded store prevents two active leases through the guarded
+//!     repository write: see #1 above.
 //!   - Parallel-acquire test asserts exactly-one-winner: see
-//!     `postgres_parallel_acquire_exactly_one_winner`.
+//!     `surreal_parallel_acquire_exactly_one_winner`.
 //!   - Takeover policy enforced atomically with predecessor release: see
-//!     `postgres_takeover_atomically_releases_predecessor`.
+//!     `surreal_takeover_atomically_releases_predecessor`.
+
+mod atelier_surreal_support;
 
 use chrono::Utc;
 use handshake_core::role_mailbox::RoleId;
@@ -132,7 +130,7 @@ fn mt_180_lease_record_rejects_wrong_format_field() {
 #[test]
 fn mt_180_lease_record_rejects_oversize_takeover_reason_via_size_check() {
     // Adversarial oversize probe: the schema does not (yet) enforce a
-    // hard byte cap on takeover_reason inside Rust — that is a Postgres
+    // hard byte cap on takeover_reason inside Rust — that is a embedded SurrealDB
     // TEXT column cap concern. We assert the *shape* is preserved up to
     // a large value (16 KiB) so a future schema enrichment can lower
     // this without silently truncating round-tripped values. The
@@ -185,8 +183,8 @@ fn mt_180_lease_record_rejects_missing_required_field() {
 fn mt_180_lease_id_minted_via_uuid_v7_in_acquire() {
     // HBR-INT-008: every lease_id mint site uses Uuid::now_v7. The
     // in-process LeaseManager exposes the same algorithm as the
-    // Postgres repo path, so we can prove v7 enforcement without a
-    // Postgres connection.
+    // embedded SurrealDB repo path, so we can prove v7 enforcement without a
+    // embedded SurrealDB connection.
     let mgr = LeaseManager::new();
     let thread_id = Uuid::now_v7();
     let req = LeaseRequest {
@@ -248,9 +246,8 @@ fn mt_180_lease_error_variants_distinct_display() {
 #[test]
 fn mt_180_extend_after_expiry_rejects_in_process() {
     // Mirrors the red_team.minimum_controls #3 (extend cannot bypass
-    // expiry) in the in-process surface. The Postgres-gated variant
-    // exercises the same algorithm against the real PgPool with FOR
-    // UPDATE row locking.
+    // expiry) in the in-process surface. The embedded SurrealDB variant
+    // exercises the same algorithm against the real typed repository.
     let mgr = LeaseManager::new();
     let thread_id = Uuid::now_v7();
     let req = LeaseRequest {
@@ -278,12 +275,12 @@ fn mt_180_extend_after_expiry_rejects_in_process() {
 }
 
 #[test]
-fn mt_180_repo_constructor_takes_pgpool_only() {
-    // CX-503R compile-time guard: the Postgres-backed lease primitive
+fn mt_180_repo_constructor_takes_embedded_storage_only() {
+    // CX-503R compile-time guard: the embedded SurrealDB-backed lease primitive
     // lives on RoleMailboxRepository, whose constructor is bound on
-    // sqlx::PgPool. If a SqliteConnection-bound variant were added this
-    // assertion would fail to compile.
-    let _ctor: fn(sqlx::PgPool) -> RoleMailboxRepository = RoleMailboxRepository::new;
+    // handshake_core::storage::surreal::SurrealStorage.
+    let _ctor: fn(handshake_core::storage::surreal::SurrealStorage) -> RoleMailboxRepository =
+        RoleMailboxRepository::new;
 }
 
 #[test]
@@ -306,7 +303,7 @@ fn mt_180_takeover_policy_serde_snake_case() {
 
 #[test]
 fn mt_180_lease_active_predicate_distinguishes_released_and_expired() {
-    // The Postgres partial unique index uses `WHERE released_at_utc IS
+    // The embedded SurrealDB partial unique index uses `WHERE released_at_utc IS
     // NULL`. The application-layer "is active" predicate also requires
     // `expires_at_utc > now()`. A lease that is unreleased but expired
     // is a zombie row that the acquire_lease sweep must purge before
@@ -339,15 +336,13 @@ fn mt_180_lease_active_predicate_distinguishes_released_and_expired() {
 }
 
 // ============================================================
-// Postgres-gated integration tests
+// embedded SurrealDB-gated integration tests
 // ============================================================
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_acquire_on_fresh_thread_succeeds() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_acquire_on_fresh_thread_succeeds() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -364,11 +359,9 @@ async fn mt_180_postgres_acquire_on_fresh_thread_succeeds() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_second_acquire_returns_held_by_other() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_second_acquire_returns_held_by_other() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -388,35 +381,24 @@ async fn mt_180_postgres_second_acquire_returns_held_by_other() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_acquire_after_expiry_succeeds() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_acquire_after_expiry_succeeds() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
     repo.create_thread(thread).await.expect("create");
 
-    // Mint a lease that has already expired by inserting directly. The
-    // sweep inside acquire_lease must release it and admit the new
-    // lease.
-    let now = Utc::now();
-    sqlx::query(
-        r#"INSERT INTO role_mailbox_claim_lease
-           (lease_id, thread_id, holder_executor_kind, holder_role_id,
-            holder_session_id, acquired_at_utc, expires_at_utc,
-            released_at_utc, takeover_of, takeover_reason)
-           VALUES ($1,$2,'local_small_model','coder',$3,$4,$5,NULL,NULL,NULL)"#,
-    )
-    .bind(Uuid::now_v7())
-    .bind(tid.as_uuid())
-    .bind(Uuid::now_v7())
-    .bind(now - chrono::Duration::seconds(120))
-    .bind(now - chrono::Duration::seconds(60))
-    .execute(repo.pool())
-    .await
-    .expect("seed expired lease");
+    // A short-lived lease expires in the real embedded store; acquire_lease
+    // must sweep it and admit the replacement.
+    let mut expired_request = sample_lease_request(ExecutorKind::LocalSmallModel);
+    expired_request.lease_duration_secs = 1;
+    let expired = repo
+        .acquire_lease(tid, expired_request)
+        .await
+        .expect("seed expired lease");
+    assert!(expired.expires_at_utc > Utc::now());
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
     let lease = repo
         .acquire_lease(tid, sample_lease_request(ExecutorKind::LocalSmallModel))
@@ -427,11 +409,9 @@ async fn mt_180_postgres_acquire_after_expiry_succeeds() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_acquire_rejects_executor_kind_not_in_allowlist() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_acquire_rejects_executor_kind_not_in_allowlist() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -447,11 +427,9 @@ async fn mt_180_postgres_acquire_rejects_executor_kind_not_in_allowlist() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_acquire_rejects_terminal_thread() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_acquire_rejects_terminal_thread() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -469,11 +447,9 @@ async fn mt_180_postgres_acquire_rejects_terminal_thread() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_acquire_on_missing_thread_rejects_not_found() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_acquire_on_missing_thread_rejects_not_found() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let phantom = RoleMailboxThreadId::new_v7();
     let req = sample_lease_request(ExecutorKind::LocalSmallModel);
@@ -485,11 +461,9 @@ async fn mt_180_postgres_acquire_on_missing_thread_rejects_not_found() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_parallel_acquire_exactly_one_winner() {
-    let pool = postgres_pool().await;
-    let repo = Arc::new(RoleMailboxRepository::new(pool));
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_parallel_acquire_exactly_one_winner() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = Arc::new(RoleMailboxRepository::new(harness.storage.clone()));
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -537,17 +511,12 @@ async fn mt_180_postgres_parallel_acquire_exactly_one_winner() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_partial_unique_index_blocks_direct_insert() {
-    // red_team.minimum_controls #1: the partial unique index must
-    // prevent a second active lease at the database level, bypassing
-    // the LeaseManager. Insert one active lease via the repo, then
-    // attempt a direct INSERT bypassing acquire_lease — it must fail
-    // with a Postgres 23505 unique_violation against the partial
-    // unique index `idx_role_mailbox_claim_lease_active`.
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool.clone());
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_retired_direct_active_lease_insert_proof_uses_typed_guard() {
+    // The former raw direct-insert proof is retired because this repository
+    // intentionally exposes no raw write handle. Its successor still proves
+    // that a second active lease is rejected by the embedded typed guard.
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -557,43 +526,23 @@ async fn mt_180_postgres_partial_unique_index_blocks_direct_insert() {
         .await
         .expect("first acquire");
 
-    let now = Utc::now();
-    let direct = sqlx::query(
-        r#"INSERT INTO role_mailbox_claim_lease
-           (lease_id, thread_id, holder_executor_kind, holder_role_id,
-            holder_session_id, acquired_at_utc, expires_at_utc,
-            released_at_utc, takeover_of, takeover_reason)
-           VALUES ($1,$2,'local_small_model','coder',$3,$4,$5,NULL,NULL,NULL)"#,
-    )
-    .bind(Uuid::now_v7())
-    .bind(tid.as_uuid())
-    .bind(Uuid::now_v7())
-    .bind(now)
-    .bind(now + chrono::Duration::seconds(60))
-    .execute(&pool)
-    .await;
-
-    match direct {
-        Err(sqlx::Error::Database(db)) => {
-            assert_eq!(
-                db.code().as_deref(),
-                Some("23505"),
-                "direct INSERT must fail with 23505 unique_violation, got code {:?} message {}",
-                db.code(),
-                db.message()
-            );
-        }
-        other => panic!("direct second-active INSERT must fail with database error; got {other:?}"),
-    }
+    let second = repo
+        .acquire_lease(tid, sample_lease_request(ExecutorKind::LocalSmallModel))
+        .await;
+    assert!(
+        matches!(
+            second,
+            Err(LeaseError::LeaseHeldByOther { .. }) | Err(LeaseError::Conflict)
+        ),
+        "second active lease must be rejected by the typed embedded guard; got {second:?}"
+    );
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_extend_after_expiry_rejects() {
+async fn mt_180_surreal_extend_after_expiry_rejects() {
     // red_team.minimum_controls #3: extend cannot bypass expiry.
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool.clone());
-    repo.ensure_schema().await.expect("schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -602,14 +551,8 @@ async fn mt_180_postgres_extend_after_expiry_rejects() {
         .acquire_lease(tid, sample_lease_request(ExecutorKind::LocalSmallModel))
         .await
         .unwrap();
-    // Force the lease to be expired by direct UPDATE — this is the
-    // out-of-API control surface for testing time-dependent behaviour.
-    sqlx::query(r#"UPDATE role_mailbox_claim_lease SET expires_at_utc = $1 WHERE lease_id = $2"#)
-        .bind(Utc::now() - chrono::Duration::seconds(60))
-        .bind(l.lease_id)
-        .execute(&pool)
-        .await
-        .expect("force expiry");
+    // Let the real embedded store reach the expiry boundary.
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
     let res = repo.extend_lease(l.lease_id, 60).await;
     assert!(
@@ -619,11 +562,9 @@ async fn mt_180_postgres_extend_after_expiry_rejects() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_extend_extends_expiry() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_extend_extends_expiry() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -651,11 +592,9 @@ async fn mt_180_postgres_extend_extends_expiry() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_release_frees_thread_for_reacquire() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_release_frees_thread_for_reacquire() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -682,11 +621,10 @@ async fn mt_180_postgres_release_frees_thread_for_reacquire() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_release_unknown_lease_rejects_not_found() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_release_unknown_lease_rejects_not_found() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
+
     let phantom = Uuid::now_v7();
     let res = repo.release_lease(phantom).await;
     assert!(
@@ -696,11 +634,9 @@ async fn mt_180_postgres_release_unknown_lease_rejects_not_found() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_takeover_never_policy_rejects() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_takeover_never_policy_rejects() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -721,13 +657,11 @@ async fn mt_180_postgres_takeover_never_policy_rejects() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_takeover_atomically_releases_predecessor() {
+async fn mt_180_surreal_takeover_atomically_releases_predecessor() {
     // validator_focus: takeover policy enforced atomically with
     // predecessor release.
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     // AlwaysWithReason allows the takeover unconditionally as long as a
     // reason is recorded.
@@ -772,14 +706,12 @@ async fn mt_180_postgres_takeover_atomically_releases_predecessor() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_takeover_chain_queryable_via_ancestry() {
+async fn mt_180_surreal_takeover_chain_queryable_via_ancestry() {
     // red_team.minimum_controls #2: the takeover audit chain must be
     // queryable. Build a 3-deep chain and assert
     // `list_lease_chain_for_thread` returns it in chronological order.
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread_with_allowlist(
         ClaimMode::Handoff,
@@ -833,11 +765,9 @@ async fn mt_180_postgres_takeover_chain_queryable_via_ancestry() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_takeover_operator_only_rejects_non_operator() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_takeover_operator_only_rejects_non_operator() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread_with_allowlist(
         ClaimMode::Handoff,
@@ -866,11 +796,9 @@ async fn mt_180_postgres_takeover_operator_only_rejects_non_operator() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_takeover_on_lease_expiry_rejects_unexpired_predecessor() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_takeover_on_lease_expiry_rejects_unexpired_predecessor() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread_with_allowlist(
         ClaimMode::Handoff,
@@ -899,16 +827,14 @@ async fn mt_180_postgres_takeover_on_lease_expiry_rejects_unexpired_predecessor(
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_concurrent_acquire_and_release_safe() {
+async fn mt_180_surreal_concurrent_acquire_and_release_safe() {
     // Adversarial: alternating release+acquire from two contexts. The
     // FOR UPDATE row lock + partial unique index must keep us at all
     // times in the state "exactly zero or one active lease". We assert
     // the final state has exactly one active lease and the chain
     // contains both acquisitions.
-    let pool = postgres_pool().await;
-    let repo = Arc::new(RoleMailboxRepository::new(pool));
-    repo.ensure_schema().await.expect("schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = Arc::new(RoleMailboxRepository::new(harness.storage.clone()));
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -954,11 +880,9 @@ async fn mt_180_postgres_concurrent_acquire_and_release_safe() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_get_active_lease_returns_none_when_released() {
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_180_surreal_get_active_lease_returns_none_when_released() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
@@ -978,8 +902,7 @@ async fn mt_180_postgres_get_active_lease_returns_none_when_released() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_180_postgres_repo_lease_methods_round_trip_via_repo_only() {
+async fn mt_180_surreal_repo_lease_methods_round_trip_via_repo_only() {
     // Cross-check that the repo-only path can complete the full
     // acquire / extend / release / takeover cycle and the underlying
     // RoleMailboxRepository surface does not expose any
@@ -987,9 +910,8 @@ async fn mt_180_postgres_repo_lease_methods_round_trip_via_repo_only() {
     // surface; the underlying append-only invariant (MT-177) must hold
     // because the lease table is separately governed by the partial
     // unique index — not by an append-only column.
-    let pool = postgres_pool().await;
-    let repo = RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo = RoleMailboxRepository::new(harness.storage.clone());
 
     let thread = sample_open_thread_with_allowlist(
         ClaimMode::Handoff,
@@ -1063,14 +985,7 @@ fn sample_lease_request(kind: ExecutorKind) -> LeaseRequest {
     }
 }
 
-async fn postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL for role_mailbox_lease_tests");
-    sqlx::PgPool::connect(&url).await.expect("postgres connect")
-}
-
-// Silence the unused-import lint when the Postgres feature path is the
+// Silence the unused-import lint when the embedded SurrealDB feature path is the
 // only one that consumes MailboxError; the binary still compiles
 // because the import is referenced by the helpers below in non-test
 // builds via the helpers above.

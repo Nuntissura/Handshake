@@ -33,6 +33,8 @@
 //!   by index name in the store error text rather than SQLSTATE 23505.
 
 use std::collections::{BTreeMap, BTreeSet};
+#[cfg(feature = "test-utils")]
+use std::sync::{Arc, Mutex};
 
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use serde::{Deserialize, Serialize};
@@ -74,6 +76,22 @@ pub enum StateRecoveryError {
 }
 
 pub type StateRecoveryResult<T> = Result<T, StateRecoveryError>;
+
+#[cfg(feature = "test-utils")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum StateRecoveryTestFailpoint {
+    ClaimAfterEventBeforeAuthority,
+    ReleaseAfterAuthorityBeforeEvent,
+    QuietAfterEventBeforeAuthority,
+    RecoveryAfterEventBeforeAuthority,
+    ReclaimAfterAuthorityBeforeEvent,
+}
+
+#[cfg(feature = "test-utils")]
+#[derive(Default)]
+struct StateRecoveryTestControl {
+    armed: Mutex<BTreeSet<StateRecoveryTestFailpoint>>,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1636,6 +1654,15 @@ struct ReclaimClaimBinding {
     record: RecordId,
     released_at_utc: DateTime<Utc>,
     reason: String,
+    event_record: RecordId,
+    event_content: surrealdb::types::Value,
+}
+
+#[cfg(feature = "test-utils")]
+#[derive(SurrealValue)]
+struct CorruptCheckpointPayloadBinding {
+    record: RecordId,
+    payload: Value,
 }
 
 fn scope_binding(scope: &ClaimScope) -> ScopeBinding {
@@ -1648,6 +1675,63 @@ fn scope_binding(scope: &ClaimScope) -> ScopeBinding {
 const CREATE_ROW_WITH_EVENT_QUERY: &str = "BEGIN TRANSACTION; \
      CREATE $event_record CONTENT $event_content; \
      CREATE $record CONTENT $content; \
+     COMMIT TRANSACTION;";
+
+#[cfg(feature = "test-utils")]
+const CREATE_ROW_WITH_EVENT_FAIL_AFTER_EVENT_QUERY: &str = "BEGIN TRANSACTION; \
+     CREATE $event_record CONTENT $event_content; \
+     THROW 'HSK-TEST-FAIL-AFTER-EVENT'; \
+     CREATE $record CONTENT $content; \
+     COMMIT TRANSACTION;";
+
+const RELEASE_CLAIM_QUERY: &str = "BEGIN TRANSACTION; \
+     IF count((SELECT VALUE id FROM $claim \
+         WHERE actor_id = $actor_id AND status = 'active' \
+           AND released_at_utc = NONE)) > 0 { \
+         CREATE $event_record CONTENT $event_content; \
+         UPDATE $claim SET status = 'released', \
+             released_at_utc = time::now(), reason = $reason, \
+             release_event_ledger_event_id = $event_record; \
+         RETURN true; \
+     } ELSE { RETURN NONE; }; \
+     COMMIT TRANSACTION;";
+
+#[cfg(feature = "test-utils")]
+const RELEASE_CLAIM_FAIL_BEFORE_EVENT_QUERY: &str = "BEGIN TRANSACTION; \
+     IF count((SELECT VALUE id FROM $claim \
+         WHERE actor_id = $actor_id AND status = 'active' \
+           AND released_at_utc = NONE)) > 0 { \
+         UPDATE $claim SET status = 'released', released_at_utc = time::now(), \
+             reason = $reason; \
+         THROW 'HSK-TEST-FAIL-RELEASE-EVENT'; \
+         CREATE $event_record CONTENT $event_content; \
+         RETURN true; \
+     } ELSE { RETURN NONE; }; \
+     COMMIT TRANSACTION;";
+
+const RECLAIM_CLAIM_QUERY: &str = "BEGIN TRANSACTION; \
+     LET $changed = (UPDATE $record SET status = 'reclaimed', \
+         released_at_utc = $released_at_utc, reason = $reason \
+         WHERE status = 'active' AND released_at_utc = NONE \
+           AND expires_at_utc <= time::now() RETURN AFTER)[0]; \
+     IF $changed != NONE { \
+         CREATE $event_record CONTENT $event_content; \
+         UPDATE $record SET reclaim_event_ledger_event_id = $event_record; \
+         RETURN (SELECT * FROM $record)[0]; \
+     } ELSE { RETURN NONE; }; \
+     COMMIT TRANSACTION;";
+
+#[cfg(feature = "test-utils")]
+const RECLAIM_CLAIM_FAIL_BEFORE_EVENT_QUERY: &str = "BEGIN TRANSACTION; \
+     LET $changed = (UPDATE $record SET status = 'reclaimed', \
+         released_at_utc = $released_at_utc, reason = $reason \
+         WHERE status = 'active' AND released_at_utc = NONE \
+           AND expires_at_utc <= time::now() RETURN AFTER)[0]; \
+     IF $changed != NONE { \
+         THROW 'HSK-TEST-FAIL-RECLAIM-EVENT'; \
+         CREATE $event_record CONTENT $event_content; \
+         RETURN $changed; \
+     } ELSE { RETURN NONE; }; \
      COMMIT TRANSACTION;";
 
 fn event_record(event_id: &str) -> RecordId {
@@ -1704,15 +1788,39 @@ fn event_ledger_write_row(
 #[derive(Clone)]
 pub struct ParallelSwarmStateRecoveryStore {
     storage: SurrealStorage,
+    #[cfg(feature = "test-utils")]
+    test_control: Arc<StateRecoveryTestControl>,
 }
 
 impl ParallelSwarmStateRecoveryStore {
     pub fn new(storage: SurrealStorage) -> Self {
-        Self { storage }
+        Self {
+            storage,
+            #[cfg(feature = "test-utils")]
+            test_control: Arc::new(StateRecoveryTestControl::default()),
+        }
     }
 
     pub fn storage(&self) -> &SurrealStorage {
         &self.storage
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub fn arm_test_failpoint(&self, failpoint: StateRecoveryTestFailpoint) {
+        self.test_control
+            .armed
+            .lock()
+            .expect("state-recovery test failpoint mutex poisoned")
+            .insert(failpoint);
+    }
+
+    #[cfg(feature = "test-utils")]
+    fn take_test_failpoint(&self, failpoint: StateRecoveryTestFailpoint) -> bool {
+        self.test_control
+            .armed
+            .lock()
+            .expect("state-recovery test failpoint mutex poisoned")
+            .remove(&failpoint)
     }
 
     async fn query<R, B>(
@@ -1834,8 +1942,17 @@ impl ParallelSwarmStateRecoveryStore {
             record: RecordId::new(CLAIMS_TABLE, claim_id.clone()),
             content: claim_row.into_value(),
         };
+        let statement = CREATE_ROW_WITH_EVENT_QUERY;
+        #[cfg(feature = "test-utils")]
+        let statement = if self
+            .take_test_failpoint(StateRecoveryTestFailpoint::ClaimAfterEventBeforeAuthority)
+        {
+            CREATE_ROW_WITH_EVENT_FAIL_AFTER_EVENT_QUERY
+        } else {
+            statement
+        };
         match self
-            .query::<surrealdb::types::Value, _>(CREATE_ROW_WITH_EVENT_QUERY, bindings)
+            .query::<surrealdb::types::Value, _>(statement, bindings)
             .await
         {
             Ok(_) => Ok(WorkClaimOutcome {
@@ -2598,8 +2715,16 @@ impl ParallelSwarmStateRecoveryStore {
             record: RecordId::new(QUIET_TABLE, receipt_id.clone()),
             content: row.into_value(),
         };
-        let _: Vec<surrealdb::types::Value> =
-            self.query(CREATE_ROW_WITH_EVENT_QUERY, bindings).await?;
+        let statement = CREATE_ROW_WITH_EVENT_QUERY;
+        #[cfg(feature = "test-utils")]
+        let statement = if self
+            .take_test_failpoint(StateRecoveryTestFailpoint::QuietAfterEventBeforeAuthority)
+        {
+            CREATE_ROW_WITH_EVENT_FAIL_AFTER_EVENT_QUERY
+        } else {
+            statement
+        };
+        let _: Vec<surrealdb::types::Value> = self.query(statement, bindings).await?;
         Ok(QuietBackgroundWorkRecord {
             receipt_id,
             workspace_id: request.workspace_id,
@@ -2709,19 +2834,18 @@ impl ParallelSwarmStateRecoveryStore {
         )?;
         let kernel_event = KernelEvent::from_new(event.clone());
         let event_id = kernel_event.event_id.clone();
+        let statement = RELEASE_CLAIM_QUERY;
+        #[cfg(feature = "test-utils")]
+        let statement = if self
+            .take_test_failpoint(StateRecoveryTestFailpoint::ReleaseAfterAuthorityBeforeEvent)
+        {
+            RELEASE_CLAIM_FAIL_BEFORE_EVENT_QUERY
+        } else {
+            statement
+        };
         let released: Option<bool> = self
             .query_first(
-                "BEGIN TRANSACTION; \
-                 IF count((SELECT VALUE id FROM $claim \
-                     WHERE actor_id = $actor_id AND status = 'active' \
-                       AND released_at_utc = NONE)) > 0 { \
-                     CREATE $event_record CONTENT $event_content; \
-                     UPDATE $claim SET status = 'released', \
-                         released_at_utc = time::now(), reason = $reason, \
-                         release_event_ledger_event_id = $event_record; \
-                     RETURN true; \
-                 } ELSE { RETURN NONE; }; \
-                 COMMIT TRANSACTION;",
+                statement,
                 ReleaseClaimBindings {
                     claim: RecordId::new(CLAIMS_TABLE, claim_id.to_string()),
                     actor_id: lane.actor_id.clone(),
@@ -3497,8 +3621,16 @@ impl ParallelSwarmStateRecoveryStore {
             record: RecordId::new(RECEIPTS_TABLE, receipt_id.clone()),
             content: row.into_value(),
         };
-        let _: Vec<surrealdb::types::Value> =
-            self.query(CREATE_ROW_WITH_EVENT_QUERY, bindings).await?;
+        let statement = CREATE_ROW_WITH_EVENT_QUERY;
+        #[cfg(feature = "test-utils")]
+        let statement = if self
+            .take_test_failpoint(StateRecoveryTestFailpoint::RecoveryAfterEventBeforeAuthority)
+        {
+            CREATE_ROW_WITH_EVENT_FAIL_AFTER_EVENT_QUERY
+        } else {
+            statement
+        };
+        let _: Vec<surrealdb::types::Value> = self.query(statement, bindings).await?;
         let receipt = RecoveryReceiptRecord {
             receipt_id,
             checkpoint_id: checkpoint.checkpoint_id.clone(),
@@ -3963,57 +4095,75 @@ impl ParallelSwarmStateRecoveryStore {
         let mut reclaimed = Vec::with_capacity(rows.len());
         for row in rows {
             let candidate = work_claim_from_row(row)?;
-            let changed: Vec<ClaimRow> = self
-                .query(
-                    "UPDATE $record SET status = 'reclaimed', \
-                     released_at_utc = $released_at_utc, reason = $reason \
-                     WHERE status = 'active' AND released_at_utc = NONE \
-                       AND expires_at_utc <= time::now() RETURN AFTER;",
+            let event = Self::build_event(
+                KernelEventType::SessionCancelled,
+                "parallel_swarm_claim_reclaim",
+                &candidate.claim_id,
+                &reclaimer,
+                session_id,
+                json!({
+                    "schema_id": "hsk.parallel_swarm.claim_reclaim@1",
+                    "claim_id": &candidate.claim_id,
+                    "workspace_id": &candidate.workspace_id,
+                    "wp_id": &candidate.wp_id,
+                    "mt_id": &candidate.mt_id,
+                    "scope": &candidate.scope,
+                    "prior_lane": &candidate.lane,
+                    "reclaimed_by_lane": &reclaimer,
+                    "reason": reason,
+                }),
+            )?;
+            let kernel_event = KernelEvent::from_new(event.clone());
+            let event_id = kernel_event.event_id.clone();
+            let statement = RECLAIM_CLAIM_QUERY;
+            #[cfg(feature = "test-utils")]
+            let statement = if self
+                .take_test_failpoint(StateRecoveryTestFailpoint::ReclaimAfterAuthorityBeforeEvent)
+            {
+                RECLAIM_CLAIM_FAIL_BEFORE_EVENT_QUERY
+            } else {
+                statement
+            };
+            let changed: Option<ClaimRow> = self
+                .query_first(
+                    statement,
                     ReclaimClaimBinding {
                         record: RecordId::new(CLAIMS_TABLE, candidate.claim_id.clone()),
                         released_at_utc: Utc::now(),
                         reason: reason.to_string(),
-                    },
-                )
-                .await?;
-            let Some(row) = changed.into_iter().next() else {
-                continue;
-            };
-            let mut claim = work_claim_from_row(row)?;
-            let event_id = self
-                .append_event(
-                    KernelEventType::SessionCancelled,
-                    "parallel_swarm_claim_reclaim",
-                    &claim.claim_id,
-                    &reclaimer,
-                    session_id,
-                    json!({
-                        "schema_id": "hsk.parallel_swarm.claim_reclaim@1",
-                        "claim_id": &claim.claim_id,
-                        "workspace_id": &claim.workspace_id,
-                        "wp_id": &claim.wp_id,
-                        "mt_id": &claim.mt_id,
-                        "scope": &claim.scope,
-                        "prior_lane": &claim.lane,
-                        "reclaimed_by_lane": &reclaimer,
-                        "reason": reason,
-                    }),
-                )
-                .await?;
-            let _: Vec<ClaimRow> = self
-                .query(
-                    "UPDATE $record SET reclaim_event_ledger_event_id = $event_record \
-                     WHERE status = 'reclaimed' RETURN AFTER;",
-                    RecordEventBinding {
-                        record: RecordId::new(CLAIMS_TABLE, claim.claim_id.clone()),
                         event_record: event_record(&event_id),
+                        event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
                     },
                 )
                 .await?;
-            claim.reclaim_event_ledger_event_id = Some(event_id);
-            reclaimed.push(claim);
+            if let Some(row) = changed {
+                reclaimed.push(work_claim_from_row(row)?);
+            }
         }
         Ok(reclaimed)
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub async fn corrupt_checkpoint_payload_for_test(
+        &self,
+        checkpoint_id: &str,
+        payload: Value,
+    ) -> StateRecoveryResult<()> {
+        let changed: Vec<CheckpointRow> = self
+            .query(
+                "UPDATE $record SET payload_jsonb = $payload RETURN AFTER;",
+                CorruptCheckpointPayloadBinding {
+                    record: RecordId::new(CHECKPOINTS_TABLE, checkpoint_id.to_string()),
+                    payload,
+                },
+            )
+            .await?;
+        if changed.len() != 1 {
+            return Err(StateRecoveryError::CheckpointNotFound(
+                checkpoint_id.to_string(),
+            ));
+        }
+        Ok(())
     }
 
     fn build_event(

@@ -1,52 +1,42 @@
 //! WP-KERNEL-005 MT-025 clipboard and URL image import proof.
 //!
-//! Uses live PostgreSQL/EventLedger only. Clipboard import must materialize an
+//! Uses the embedded SurrealDB/EventLedger path. Clipboard import must materialize an
 //! operator-provided ArtifactStore image with provenance; URL import must record
 //! a governed fetch request with media-downloader capability proof and SSRF
 //! preflight, without opening sockets in the atelier repository layer.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use handshake_core::atelier::{
-    AtelierStore, ClipboardImageImportRequest, UrlImageImportRequest, event_family,
+    event_family, AtelierStore, ClipboardImageImportRequest, UrlImageImportRequest,
 };
 use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
 };
-use handshake_core::storage::{Database, postgres::PostgresDatabase};
+use handshake_core::kernel::KernelEventType;
+use handshake_core::storage::Database;
 use serde_json::Value;
-use sqlx::postgres::PgPoolOptions;
 use std::sync::{
-    Arc,
     atomic::{AtomicUsize, Ordering},
+    Arc,
 };
 use uuid::Uuid;
 
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 async fn connected_store_with_recorder(
-    url: &str,
     recorder: Arc<dyn FlightRecorder>,
-) -> AtelierStore {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let store = AtelierStore::with_observability(pool, database.into_arc(), recorder);
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+) -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let store = AtelierStore::with_observability(
+        harness.storage.clone(),
+        harness.database.clone(),
+        recorder,
+    );
+    (store, harness)
 }
 
 #[derive(Clone, Default)]
@@ -70,8 +60,9 @@ impl FlightRecorder for FailingFlightRecorder {
     }
 }
 
-async fn connected_store_with_failing_recorder(url: &str) -> AtelierStore {
-    connected_store_with_recorder(url, Arc::new(FailingFlightRecorder)).await
+async fn connected_store_with_failing_recorder(
+) -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    connected_store_with_recorder(Arc::new(FailingFlightRecorder)).await
 }
 
 struct FailAfterFlightRecorder {
@@ -127,74 +118,68 @@ fn media_downloader_grant(profile: &str) -> String {
     )
 }
 
-async fn image_import_request_count_by_key(store: &AtelierStore, idempotency_key: &str) -> i64 {
-    sqlx::query_scalar(
-        "SELECT COUNT(*) FROM atelier_image_import_request WHERE idempotency_key = $1",
-    )
-    .bind(idempotency_key)
-    .fetch_one(store.pool())
-    .await
-    .expect("count image import requests by idempotency key")
+async fn image_import_request_count_by_key(
+    harness: &atelier_surreal_support::AtelierSurrealHarness,
+    idempotency_key: &str,
+) -> i64 {
+    harness
+        .row_count_by_field(
+            "atelier_image_import_request",
+            "idempotency_key",
+            idempotency_key,
+        )
+        .await as i64
 }
 
-async fn image_import_request_count_by_requester(store: &AtelierStore, requested_by: &str) -> i64 {
-    sqlx::query_scalar("SELECT COUNT(*) FROM atelier_image_import_request WHERE requested_by = $1")
-        .bind(requested_by)
-        .fetch_one(store.pool())
-        .await
-        .expect("count image import requests by requester")
+async fn image_import_request_count_by_requester(
+    harness: &atelier_surreal_support::AtelierSurrealHarness,
+    requested_by: &str,
+) -> i64 {
+    harness
+        .row_count_by_field("atelier_image_import_request", "requested_by", requested_by)
+        .await as i64
 }
 
-async fn image_import_event_count_by_requester(store: &AtelierStore, requested_by: &str) -> i64 {
-    sqlx::query_scalar(
-        r#"SELECT COUNT(*)
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_image_import_request'
-             AND payload->>'requested_by' = $2"#,
-    )
-    .bind(event_family::IMAGE_IMPORT_RECORDED)
-    .bind(requested_by)
-    .fetch_one(store.pool())
-    .await
-    .expect("count image import events by requester")
+async fn image_import_event_count_by_requester(
+    harness: &atelier_surreal_support::AtelierSurrealHarness,
+    requested_by: &str,
+) -> i64 {
+    harness
+        .row_count_by_field("atelier_image_import_request", "requested_by", requested_by)
+        .await as i64
 }
 
 async fn media_asset_count_for_hash(store: &AtelierStore, content_hash: &str) -> i64 {
-    sqlx::query_scalar("SELECT COUNT(*) FROM atelier_media_asset WHERE content_hash = $1")
-        .bind(content_hash.strip_prefix("sha256:").unwrap_or(content_hash))
-        .fetch_one(store.pool())
+    if store
+        .get_media_asset_by_hash(content_hash)
         .await
-        .expect("count media assets by hash")
+        .expect("lookup media asset by hash")
+        .is_some()
+    {
+        1
+    } else {
+        0
+    }
 }
 
-async fn import_event_payload(store: &AtelierStore, import_id: Uuid) -> Value {
-    sqlx::query_scalar(
-        r#"SELECT payload
-           FROM atelier_event
-           WHERE event_family = $1
-             AND aggregate_type = 'atelier_image_import_request'
-             AND aggregate_id = $2
-           ORDER BY created_at_utc DESC
-           LIMIT 1"#,
-    )
-    .bind(event_family::IMAGE_IMPORT_RECORDED)
-    .bind(import_id.to_string())
-    .fetch_one(store.pool())
-    .await
-    .expect("read image import event payload")
+async fn import_event_payload(database: &Arc<dyn Database>, import_id: Uuid) -> Value {
+    database
+        .list_kernel_events_for_aggregate("atelier_image_import_request", &import_id.to_string())
+        .await
+        .expect("list image import EventLedger events")
+        .into_iter()
+        .find(|event| {
+            event.event_type == KernelEventType::AtelierDomainEventRecorded
+                && event.payload["event_family"] == event_family::IMAGE_IMPORT_RECORDED
+        })
+        .map(|event| event.payload["atelier_payload"].clone())
+        .expect("read image import event payload")
 }
 
 #[tokio::test]
 async fn clipboard_image_import_materializes_artifactstore_asset_with_provenance() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP clipboard_image_import_materializes_artifactstore_asset_with_provenance: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
-    let artifact = atelier_pg_support::write_native_media_artifact(b"mt-025 clipboard bytes");
+    let (store, _harness) = connected_store().await;
+    let artifact = atelier_surreal_support::write_native_media_artifact(b"mt-025 clipboard bytes");
 
     let record = store
         .import_clipboard_image(&ClipboardImageImportRequest {
@@ -259,13 +244,7 @@ async fn clipboard_image_import_materializes_artifactstore_asset_with_provenance
 
 #[tokio::test]
 async fn url_image_import_records_capability_gated_fetch_request_without_materializing() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP url_image_import_records_capability_gated_fetch_request_without_materializing: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, harness) = connected_store().await;
     let raw_url = format!(
         "https://example.com/images/{}.png?token=raw-secret#fragment",
         Uuid::new_v4()
@@ -306,7 +285,7 @@ async fn url_image_import_records_capability_gated_fetch_request_without_materia
         "URL import record must not expose query secrets or fragments"
     );
 
-    let event_payload = import_event_payload(&store, record.import_id).await;
+    let event_payload = import_event_payload(&harness.database, record.import_id).await;
     assert_eq!(event_payload["source_url_ref"], record.source_url_hash);
     assert_eq!(event_payload["network_fetch_allowed"], false);
     assert_eq!(event_payload["requires_fetch_worker_revalidation"], true);
@@ -343,12 +322,12 @@ async fn url_image_import_records_capability_gated_fetch_request_without_materia
         "unexpected capability error: {capability_err}"
     );
     assert_eq!(
-        image_import_request_count_by_key(&store, &denied_key).await,
+        image_import_request_count_by_key(&harness, &denied_key).await,
         0,
         "capability failure must not persist the rejected idempotency key"
     );
     assert_eq!(
-        image_import_event_count_by_requester(&store, &denied_actor).await,
+        image_import_event_count_by_requester(&harness, &denied_actor).await,
         0,
         "capability failure must happen before persistence"
     );
@@ -356,13 +335,7 @@ async fn url_image_import_records_capability_gated_fetch_request_without_materia
 
 #[tokio::test]
 async fn url_image_import_blocks_ssrf_targets_before_persistence() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP url_image_import_blocks_ssrf_targets_before_persistence: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, harness) = connected_store().await;
     let blocked_actor = format!("operator-url-blocked-{}", Uuid::new_v4());
     let mut blocked_keys = Vec::new();
 
@@ -407,19 +380,19 @@ async fn url_image_import_blocks_ssrf_targets_before_persistence() {
     }
 
     assert_eq!(
-        image_import_request_count_by_requester(&store, &blocked_actor).await,
+        image_import_request_count_by_requester(&harness, &blocked_actor).await,
         0,
         "SSRF failures must not create import request rows for the blocked actor"
     );
     for idempotency_key in blocked_keys {
         assert_eq!(
-            image_import_request_count_by_key(&store, &idempotency_key).await,
+            image_import_request_count_by_key(&harness, &idempotency_key).await,
             0,
             "SSRF failure must not persist rejected idempotency key {idempotency_key}"
         );
     }
     assert_eq!(
-        image_import_event_count_by_requester(&store, &blocked_actor).await,
+        image_import_event_count_by_requester(&harness, &blocked_actor).await,
         0,
         "SSRF failures must not emit EventLedger events"
     );
@@ -427,13 +400,7 @@ async fn url_image_import_blocks_ssrf_targets_before_persistence() {
 
 #[tokio::test]
 async fn url_image_import_redacts_path_material_before_persistence() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP url_image_import_redacts_path_material_before_persistence: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, harness) = connected_store().await;
     let secret_slug = format!("private-token-{}", Uuid::new_v4());
     let raw_url = format!(
         "https://cdn.example.com/{secret_slug}/faces/source.png?sig=query-secret#fragment-secret"
@@ -471,25 +438,31 @@ async fn url_image_import_redacts_path_material_before_persistence() {
         "stored normalized URL must redact path, query, and fragment material: {normalized_url}"
     );
 
-    let persisted_url: Option<String> = sqlx::query_scalar(
-        "SELECT normalized_url FROM atelier_image_import_request WHERE import_id = $1",
-    )
-    .bind(record.import_id)
-    .fetch_one(store.pool())
-    .await
-    .expect("read persisted normalized URL");
-    assert_eq!(persisted_url.as_deref(), Some(normalized_url));
+    let inspector = harness.storage.test_inspector();
+    let table = inspector
+        .table_selector("atelier_image_import_request")
+        .await
+        .expect("inspect image import table");
+    let projected = inspector
+        .project(
+            &table,
+            &[table
+                .field("normalized_url")
+                .expect("inspect normalized_url field")],
+            handshake_core::storage::surreal::RowFilter::IdEquals(record.import_id.to_string()),
+        )
+        .await
+        .expect("read persisted normalized URL");
+    assert_eq!(projected.len(), 1);
+    assert_eq!(
+        projected[0].values["normalized_url"].as_str(),
+        Some(normalized_url)
+    );
 }
 
 #[tokio::test]
 async fn url_image_import_rejects_padded_capability_refs_before_persistence() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP url_image_import_rejects_padded_capability_refs_before_persistence: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, harness) = connected_store().await;
     let padded_actor = format!("operator-url-padded-{}", Uuid::new_v4());
     let padded_profile_key = format!("url-import-padded-profile-{}", Uuid::new_v4());
     let padded_grant_key = format!("url-import-padded-grant-{}", Uuid::new_v4());
@@ -529,22 +502,22 @@ async fn url_image_import_rejects_padded_capability_refs_before_persistence() {
     );
 
     assert_eq!(
-        image_import_request_count_by_requester(&store, &padded_actor).await,
+        image_import_request_count_by_requester(&harness, &padded_actor).await,
         0,
         "padded capability refs must not create import request rows for the padded actor"
     );
     assert_eq!(
-        image_import_request_count_by_key(&store, &padded_profile_key).await,
+        image_import_request_count_by_key(&harness, &padded_profile_key).await,
         0,
         "padded capability profile must not persist its idempotency key"
     );
     assert_eq!(
-        image_import_request_count_by_key(&store, &padded_grant_key).await,
+        image_import_request_count_by_key(&harness, &padded_grant_key).await,
         0,
         "padded capability grant must not persist its idempotency key"
     );
     assert_eq!(
-        image_import_event_count_by_requester(&store, &padded_actor).await,
+        image_import_event_count_by_requester(&harness, &padded_actor).await,
         0,
         "padded capability refs must not emit EventLedger events"
     );
@@ -552,13 +525,7 @@ async fn url_image_import_rejects_padded_capability_refs_before_persistence() {
 
 #[tokio::test]
 async fn image_import_idempotency_key_rejects_mismatched_replays() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP image_import_idempotency_key_rejects_mismatched_replays: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let url_key = format!("url-import-replay-{}", Uuid::new_v4());
     let first = store
@@ -610,7 +577,8 @@ async fn image_import_idempotency_key_rejects_mismatched_replays() {
         "mismatched URL replay must not emit a second import event"
     );
 
-    let artifact = atelier_pg_support::write_native_media_artifact(b"mt-025 replay clipboard one");
+    let artifact =
+        atelier_surreal_support::write_native_media_artifact(b"mt-025 replay clipboard one");
     let clipboard_key = format!("clipboard-import-replay-{}", Uuid::new_v4());
     store
         .import_clipboard_image(&ClipboardImageImportRequest {
@@ -625,7 +593,7 @@ async fn image_import_idempotency_key_rejects_mismatched_replays() {
         .await
         .expect("first clipboard import succeeds");
     let other_artifact =
-        atelier_pg_support::write_native_media_artifact(b"mt-025 replay clipboard two");
+        atelier_surreal_support::write_native_media_artifact(b"mt-025 replay clipboard two");
     let clipboard_mismatch = store
         .import_clipboard_image(&ClipboardImageImportRequest {
             idempotency_key: clipboard_key,
@@ -646,16 +614,10 @@ async fn image_import_idempotency_key_rejects_mismatched_replays() {
 
 #[tokio::test]
 async fn clipboard_replay_survives_media_dedupe_with_distinct_artifact_refs() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP clipboard_replay_survives_media_dedupe_with_distinct_artifact_refs: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
     let first_artifact =
-        atelier_pg_support::write_native_media_artifact(b"mt-025 clipboard dedupe bytes");
-    let second_artifact = atelier_pg_support::write_native_media_artifact_from_stored_payload(
+        atelier_surreal_support::write_native_media_artifact(b"mt-025 clipboard dedupe bytes");
+    let second_artifact = atelier_surreal_support::write_native_media_artifact_from_stored_payload(
         &first_artifact.stored_payload,
     );
 
@@ -701,15 +663,9 @@ async fn clipboard_replay_survives_media_dedupe_with_distinct_artifact_refs() {
 
 #[tokio::test]
 async fn clipboard_import_recovers_after_post_materialization_event_failure() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP clipboard_import_recovers_after_post_materialization_event_failure: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let failing_store =
-        connected_store_with_recorder(&url, Arc::new(FailAfterFlightRecorder::new(1))).await;
-    let artifact = atelier_pg_support::write_native_media_artifact(
+    let (failing_store, failing_harness) =
+        connected_store_with_recorder(Arc::new(FailAfterFlightRecorder::new(1))).await;
+    let artifact = atelier_surreal_support::write_native_media_artifact(
         b"mt-025 clipboard post materialization failure",
     );
     let request = ClipboardImageImportRequest {
@@ -727,7 +683,7 @@ async fn clipboard_import_recovers_after_post_materialization_event_failure() {
         "clipboard import returns an error when the image-import event mirror fails"
     );
     assert_eq!(
-        image_import_request_count_by_key(&failing_store, &request.idempotency_key).await,
+        image_import_request_count_by_key(&failing_harness, &request.idempotency_key).await,
         0,
         "failed image-import event write must roll back the clipboard import row"
     );
@@ -737,7 +693,10 @@ async fn clipboard_import_recovers_after_post_materialization_event_failure() {
         "media materialization is a recoverable committed prerequisite"
     );
 
-    let good_store = connected_store(&url).await;
+    let good_store = AtelierStore::with_event_ledger(
+        failing_harness.storage.clone(),
+        failing_harness.database.clone(),
+    );
     let recovered = good_store
         .import_clipboard_image(&request)
         .await
@@ -761,13 +720,7 @@ async fn clipboard_import_recovers_after_post_materialization_event_failure() {
 
 #[tokio::test]
 async fn url_image_import_rolls_back_row_when_eventledger_write_fails() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!(
-            "SKIP url_image_import_rolls_back_row_when_eventledger_write_fails: PostgreSQL unavailable"
-        );
-        return;
-    };
-    let store = connected_store_with_failing_recorder(&url).await;
+    let (store, harness) = connected_store_with_failing_recorder().await;
     let idempotency_key = format!("url-import-event-fails-{}", Uuid::new_v4());
 
     let result = store
@@ -786,7 +739,7 @@ async fn url_image_import_rolls_back_row_when_eventledger_write_fails() {
         "URL import returns an error when EventLedger evidence fails"
     );
     assert_eq!(
-        image_import_request_count_by_key(&store, &idempotency_key).await,
+        image_import_request_count_by_key(&harness, &idempotency_key).await,
         0,
         "failed EventLedger write must roll back the URL import row"
     );

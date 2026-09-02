@@ -2,8 +2,8 @@
 //!
 //! Spec-Realism Gate compliance:
 //!  - Sub-rule 1: no LiveXxxUnavailable / todo / unimplemented paths.
-//!  - Sub-rule 2: Postgres-backed tests are `#[ignore]`-gated on
-//!    `POSTGRES_TEST_URL`. Pure-Rust tests live in the lib module's `#[cfg(test)]`
+//!  - Sub-rule 2: embedded-store tests use an isolated per-test SurrealDB data
+//!    directory. Pure-Rust tests live in the lib module's `#[cfg(test)]`
 //!    blocks and are exercised here through integration assertions.
 //!  - Sub-rule 3: a separate validator session signs off on behaviour.
 
@@ -25,6 +25,8 @@ use handshake_core::role_mailbox_v1::{
     },
 };
 use uuid::Uuid;
+
+mod atelier_surreal_support;
 
 #[test]
 fn mt_176_thread_lifecycle_rejects_illegal_transition() {
@@ -207,14 +209,13 @@ fn mt_179_unknown_family_decodes_to_unknown_variant() {
     assert_eq!(explicit, back);
 }
 
-// MT-176/MT-177/MT-178 Postgres-gated tests.
+// MT-176/MT-177/MT-178 embedded-store integration tests.
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
-async fn mt_177_postgres_repo_thread_lifecycle_round_trip() {
-    let pool = postgres_pool().await;
-    let repo = handshake_core::role_mailbox_v1::repo::RoleMailboxRepository::new(pool);
-    repo.ensure_schema().await.expect("schema");
+async fn mt_177_embedded_repo_thread_lifecycle_round_trip() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let repo =
+        handshake_core::role_mailbox_v1::repo::RoleMailboxRepository::new(harness.storage.clone());
     let thread = RoleMailboxThread::open(
         "t",
         LinkedRecordKind::Wp,
@@ -247,7 +248,6 @@ async fn mt_177_postgres_repo_thread_lifecycle_round_trip() {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test -- --ignored`"]
 async fn mt_178_exporter_idempotent_writes() {
     use handshake_core::role_mailbox_v1::exporter::{MailboxExporter, MailboxExporterConfig};
     use std::collections::BTreeMap;
@@ -278,11 +278,4 @@ async fn mt_178_exporter_idempotent_writes() {
     let r2 = ex.export(&[thread], &messages).unwrap();
     assert!(r1.lines_appended >= 1);
     assert_eq!(r2.lines_appended, 0);
-}
-
-async fn postgres_pool() -> sqlx::PgPool {
-    let url = handshake_core::storage::tests::postgres_test_base_url()
-        .await
-        .expect("resolve real PostgreSQL for role_mailbox_v1_tests");
-    sqlx::PgPool::connect(&url).await.expect("postgres connect")
 }

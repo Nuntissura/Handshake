@@ -10,31 +10,28 @@
 //!     Handshake-native) execution endpoints.
 //!   * MT-119 explicit guard rejecting DIRECT localhost ComfyUI execution.
 //!   * MT-120 artifact_ref is persisted BEFORE a registration_id is assigned in
-//!     the governed comfy output registration path (live PostgreSQL proof).
+//!     the governed comfy output registration path (embedded-store proof).
 //!
 //! MT-107/108/109/119 are pure-function invariants and need no database. MT-120
-//! exercises the real `AtelierStore` against a live Postgres and is gated on
-//! `atelier_pg_support::database_url()`. All run-scoped ids are unique per run
-//! (`Uuid::new_v4()`) so the proof never depends on global table counts.
+//! exercises the real `AtelierStore` against an isolated embedded store. All
+//! run-scoped ids are unique per run (`Uuid::new_v4()`) so the proof never
+//! depends on global table counts.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use handshake_core::atelier::comfy::{
     map_comfy_output_to_intake_lane, map_comfy_routing_intent_to_intake_lane,
     reject_direct_localhost_comfy_execution, ComfyAdapterKind, ComfyEndpointConfig,
-    ComfyOutputRegistrationFailureStatus, IntakeOutput, MediaKind, NewComfyOutputRegistrationFailure,
-    RoutingIntent,
+    ComfyOutputRegistrationFailureStatus, IntakeOutput, MediaKind,
+    NewComfyOutputRegistrationFailure, RoutingIntent,
 };
 use handshake_core::atelier::intake::IntakeLane;
 use handshake_core::atelier::AtelierStore;
 use uuid::Uuid;
 
-async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    store.ensure_schema().await.expect("ensure atelier schema");
-    store
+async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness)
 }
 
 /// Build a governed `IntakeOutput` record value for the pure lane-mapping
@@ -196,14 +193,10 @@ fn mt119_rejects_direct_localhost_comfy_execution() {
 /// registration-failure record durably preserves the saved artifact_ref while
 /// it still carries NO successful registration; the registration_id is only
 /// bound later, on retry. This proves the save-before-register ordering against
-/// a live PostgreSQL instance.
+/// the embedded SurrealDB store.
 #[tokio::test]
 async fn mt120_artifact_ref_is_persisted_before_registration_id() {
-    let Some(url) = atelier_pg_support::database_url().await else {
-        eprintln!("SKIP mt120_artifact_ref_is_persisted_before_registration_id: DATABASE_URL not set");
-        return;
-    };
-    let store = connected_store(&url).await;
+    let (store, _harness) = connected_store().await;
 
     let run_id = Uuid::new_v4();
     let artifact_ref = format!("artifact://atelier/comfy/{}", Uuid::new_v4());
@@ -269,8 +262,7 @@ async fn mt120_artifact_ref_is_persisted_before_registration_id() {
 
     // Step 2: ONLY NOW is a registration assigned, on retry. The artifact_ref
     // was already persisted (step 1); the registration_id is bound after it.
-    let adapter =
-        handshake_core::atelier::comfy::ComfyBridgeFakeAdapterV1::default();
+    let adapter = handshake_core::atelier::comfy::ComfyBridgeFakeAdapterV1::default();
     let registration = store
         .register_bridge_capability(&adapter.capability_registration(
             run_id,

@@ -7,15 +7,32 @@ use handshake_core::flight_recorder::{
     FlightRecorderEvent, RecorderError,
 };
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{tests::postgres_backend_from_env, StorageError};
+use handshake_core::storage::surreal::{
+    bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
+};
+use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
+use handshake_core::storage::Database;
 use handshake_core::terminal::runtime::{SessionBinding, TerminalRuntime};
 
-async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core::storage::Database>
-{
-    match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
-    }
+async fn reopen_embedded_store(
+    backend: &EmbeddedTestBackend,
+) -> (SurrealStorage, Arc<dyn Database>) {
+    backend
+        .storage
+        .shutdown()
+        .await
+        .expect("close original embedded terminal EventLedger store");
+    let reopened = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&backend.data_dir)
+            .expect("configure reopened embedded terminal EventLedger store"),
+    )
+    .await
+    .expect("reopen embedded terminal EventLedger store");
+    bootstrap_schema(&reopened)
+        .await
+        .expect("bootstrap reopened terminal EventLedger schema");
+    let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(reopened.clone()));
+    (reopened, database)
 }
 
 struct NoopFlightRecorder;
@@ -39,9 +56,11 @@ impl FlightRecorder for NoopFlightRecorder {
 }
 
 #[tokio::test]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL; run with `cargo test --test terminal_event_ledger_tests -- --ignored`"]
-async fn terminal_capture_session_receipts_land_in_postgres_event_ledger() {
-    let db = postgres_or_environment_blocked().await;
+async fn terminal_capture_session_receipts_land_in_surreal_event_ledger() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("failed to init embedded SurrealDB backend");
+    let db = backend.database.clone();
     let recorder: Arc<dyn FlightRecorder> = Arc::new(EventLedgerFlightRecorderMirror::new(
         Arc::new(NoopFlightRecorder),
         db.clone(),
@@ -60,10 +79,15 @@ async fn terminal_capture_session_receipts_land_in_postgres_event_ledger() {
     sink.feed(b"terminal-ledger-proof\n").await;
     sink.close(0).await;
 
-    let events = db
+    drop(sink);
+    drop(runtime);
+    drop(recorder);
+    drop(db);
+    let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
+    let events = reopened_db
         .list_kernel_events_for_aggregate("terminal_session", &info.session_id)
         .await
-        .expect("replay terminal EventLedger receipts");
+        .expect("replay terminal EventLedger receipts after reopen");
 
     assert_eq!(events.len(), 3);
     assert!(events
@@ -99,4 +123,14 @@ async fn terminal_capture_session_receipts_land_in_postgres_event_ledger() {
     );
     assert_eq!(events[1].payload["payload"]["command"], "<captured-output>");
     assert_eq!(events[1].payload["terminal_session_id"], info.session_id);
+    drop(reopened_db);
+    reopened
+        .shutdown()
+        .await
+        .expect("close reopened terminal EventLedger store");
+    drop(reopened);
+    backend
+        .close_and_remove()
+        .await
+        .expect("embedded SurrealDB storage cleanup");
 }

@@ -3,16 +3,13 @@ use std::{
     ffi::OsString,
     fs,
     io::Write,
-    net::TcpListener,
     path::{Path, PathBuf},
     process::{Command, Output, Stdio},
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
 };
 
 use async_trait::async_trait;
 use serde_json::{json, Value};
-use sqlx::{postgres::PgPoolOptions, Row};
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -28,18 +25,17 @@ use handshake_core::{
         },
     },
     kernel::{KernelEvent, KernelEventType, NewKernelEvent},
-    managed_postgres::{ManagedPostgres, ManagedPostgresConfig},
     process_ledger::{
-        LedgerOverflowEvent, PostgresProcessLedgerStore, ProcessEngineKind, ProcessLedgerError,
-        ProcessLedgerOverflowSink, ProcessLedgerWriter, ProcessStart, ProcessStop,
+        LedgerOverflowEvent, ProcessEngineKind, ProcessLedgerError, ProcessLedgerOverflowSink,
+        ProcessLedgerWriter, ProcessStart, ProcessStop, SurrealProcessLedgerStore,
     },
+    storage::surreal::RowFilter,
+    storage::tests::embedded_test_backend,
 };
 
 const WP_ID: &str =
     "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1";
 const SESSION_ID: &str = "KERNEL_BUILDER-20260518-012310";
-const POSTGRES_READY_TIMEOUT: Duration = Duration::from_secs(300);
-
 #[tokio::test]
 async fn hbr_e2e_smoke_test() -> Result<(), Box<dyn Error>> {
     let repo_root = repo_root();
@@ -201,19 +197,8 @@ async fn hbr_e2e_smoke_test() -> Result<(), Box<dyn Error>> {
     assert_success(normalized.clone(), "hbr-violation-emit normalize");
     assert_eq!(String::from_utf8(normalized.stdout)?, canonical_violation);
 
-    let postgres = PostgresFixture::start().await?;
-    let pool = match connect_postgres_with_retry(postgres.url()).await {
-        Ok(pool) => pool,
-        Err(error) => {
-            return Err(format!(
-                "{error}\nPostgreSQL fixture diagnostics:\n{}",
-                postgres.diagnostics()
-            )
-            .into());
-        }
-    };
-    let store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
-    store.apply_migration().await?;
+    let backend = embedded_test_backend().await?;
+    let store = Arc::new(SurrealProcessLedgerStore::new(backend.storage.clone()));
     let (writer, drain) =
         ProcessLedgerWriter::new_manual(8, Arc::new(InMemoryOverflowSink::default()))?;
     let start = ProcessStart::new(
@@ -229,22 +214,30 @@ async fn hbr_e2e_smoke_test() -> Result<(), Box<dyn Error>> {
     writer.append_stop(stop)?;
     drain.drain_available_to(store.clone()).await?;
 
-    let row = sqlx::query(
-        r#"
-        SELECT engine_kind, owner_wp, stopped_at IS NOT NULL AS has_stop
-        FROM kernel_process_lifecycle
-        WHERE process_uuid = $1::uuid
-        "#,
-    )
-    .bind(start.process_uuid.to_string())
-    .fetch_one(&pool)
-    .await?;
-    let engine_kind: String = row.get("engine_kind");
-    let owner_wp: Option<String> = row.get("owner_wp");
-    let has_stop: bool = row.get("has_stop");
-    assert_eq!(engine_kind, ProcessEngineKind::HelperSubprocess.as_str());
-    assert_eq!(owner_wp.as_deref(), Some(WP_ID));
-    assert!(has_stop);
+    let inspector = backend.storage.test_inspector();
+    let table = inspector.table_selector("kernel_process_lifecycle").await?;
+    let engine_kind = table.field("engine_kind")?;
+    let owner_wp = table.field("owner_wp")?;
+    let stopped_at = table.field("stopped_at")?;
+    let rows = inspector
+        .project(
+            &table,
+            &[engine_kind, owner_wp, stopped_at],
+            RowFilter::IdEquals(start.process_uuid.to_string()),
+        )
+        .await?;
+    assert_eq!(rows.len(), 1);
+    let row = &rows[0].values;
+    assert_eq!(
+        row.get("engine_kind").and_then(Value::as_str),
+        Some(ProcessEngineKind::HelperSubprocess.as_str())
+    );
+    assert_eq!(row.get("owner_wp").and_then(Value::as_str), Some(WP_ID));
+    assert!(row.get("stopped_at").is_some_and(|value| !value.is_null()));
+
+    drop(inspector);
+    drop(store);
+    backend.close_and_remove().await?;
 
     Ok(())
 }
@@ -396,30 +389,6 @@ fn assert_success(output: Output, label: &str) {
     );
 }
 
-async fn connect_postgres_with_retry(url: &str) -> Result<sqlx::PgPool, Box<dyn Error>> {
-    let deadline = Instant::now() + POSTGRES_READY_TIMEOUT;
-    loop {
-        match PgPoolOptions::new()
-            .max_connections(1)
-            .acquire_timeout(Duration::from_secs(5))
-            .connect(url)
-            .await
-        {
-            Ok(pool) => return Ok(pool),
-            Err(error) => {
-                if Instant::now() >= deadline {
-                    return Err(format!(
-                        "timed out waiting {:?} for host connection to PostgreSQL test fixture: {error}",
-                        POSTGRES_READY_TIMEOUT
-                    )
-                    .into());
-                }
-                tokio::time::sleep(Duration::from_millis(500)).await;
-            }
-        }
-    }
-}
-
 #[derive(Clone, Default)]
 struct InMemoryHandoffLedger {
     events: Arc<Mutex<Vec<NewKernelEvent>>>,
@@ -475,72 +444,4 @@ impl ProcessLedgerOverflowSink for InMemoryOverflowSink {
         self.events.lock().expect("overflow lock").push(event);
         Ok(())
     }
-}
-
-struct PostgresFixture {
-    url: String,
-    managed_data_dir: Option<PathBuf>,
-}
-
-impl PostgresFixture {
-    async fn start() -> Result<Self, Box<dyn Error>> {
-        let url = handshake_core::storage::tests::postgres_test_base_url().await?;
-        Ok(Self {
-            url,
-            managed_data_dir: None,
-        })
-    }
-
-    fn url(&self) -> &str {
-        &self.url
-    }
-
-    fn diagnostics(&self) -> String {
-        let Some(data_dir) = &self.managed_data_dir else {
-            return "external POSTGRES_TEST_URL supplied; no managed fixture diagnostics available"
-                .to_string();
-        };
-
-        format!(
-            "managed postgres data_dir: {}\nurl: {}",
-            data_dir.display(),
-            self.url
-        )
-    }
-}
-
-impl Drop for PostgresFixture {
-    fn drop(&mut self) {
-        if let Some(data_dir) = &self.managed_data_dir {
-            let _ = Command::new(pg_ctl_path())
-                .args(["stop", "-D"])
-                .arg(data_dir)
-                .args(["-m", "fast"])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status();
-            let _ = fs::remove_dir_all(data_dir);
-        }
-    }
-}
-
-fn free_local_port() -> Result<u16, Box<dyn Error>> {
-    let listener = TcpListener::bind("127.0.0.1:0")?;
-    Ok(listener.local_addr()?.port())
-}
-
-fn pg_ctl_path() -> PathBuf {
-    std::env::var("HANDSHAKE_MANAGED_PG_BIN")
-        .ok()
-        .or_else(|| std::env::var("PGBIN").ok())
-        .filter(|value| !value.trim().is_empty())
-        .map(|dir| {
-            let exe = if cfg!(windows) {
-                "pg_ctl.exe"
-            } else {
-                "pg_ctl"
-            };
-            PathBuf::from(dir).join(exe)
-        })
-        .unwrap_or_else(|| PathBuf::from("pg_ctl"))
 }

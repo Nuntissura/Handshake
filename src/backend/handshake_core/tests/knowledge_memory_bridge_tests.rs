@@ -1,5 +1,5 @@
 //! WP-KERNEL-009 MemoryGraphAndClaims MT-124 (BridgeEdgeGenerator) integration
-//! tests against REAL Handshake-managed PostgreSQL.
+//! tests against the real embedded Handshake storage authority.
 //!
 //! Proof: two entities that co-occur in a shared span but sit in different edge
 //! components get a PROPOSED `relates_to` bridge edge backed by that span; a
@@ -15,7 +15,7 @@ use handshake_core::storage::knowledge::{
     KnowledgeEdgeLifecycle, KnowledgeEdgeType, KnowledgeStore, NewKnowledgeEdge,
 };
 use handshake_core::storage::knowledge_memory::BridgeDecision;
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
 use knowledge_memory_fixtures::{pool_for, MemoryFixture};
 
 /// All fixture entities are detected from the single fixture span, so any two
@@ -23,11 +23,11 @@ use knowledge_memory_fixtures::{pool_for, MemoryFixture};
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn bridges_disconnected_cooccurring_entities_as_proposed() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP bridges_disconnected_cooccurring_entities_as_proposed: no PostgreSQL");
+        eprintln!("SKIP bridges_disconnected_cooccurring_entities_as_proposed: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
 
     // Two entities, co-occurring (shared fixture span), no edge between them.
     let _a = fx.entity("symbol", "crate::mod_a::Alpha", "Alpha").await;
@@ -83,11 +83,11 @@ async fn bridges_disconnected_cooccurring_entities_as_proposed() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn hub_endpoint_suppresses_the_bridge() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP hub_endpoint_suppresses_the_bridge: no PostgreSQL");
+        eprintln!("SKIP hub_endpoint_suppresses_the_bridge: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
 
     // `hub` will be given a high degree by connecting it to several leaves.
     let hub = fx.entity("concept", "crate::core::Hub", "Hub").await;

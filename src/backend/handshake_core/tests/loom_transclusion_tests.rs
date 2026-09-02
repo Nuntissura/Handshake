@@ -1,9 +1,9 @@
-//! WP-KERNEL-009 MT-258 NoteTransclusion — REAL PostgreSQL route-level proof.
+//! WP-KERNEL-009 MT-258 NoteTransclusion — real embedded-store route-level proof.
 //!
 //! Obsidian-parity note transclusion on LoomBlock authority. Drives the actual
 //! Axum routes (`api::loom::routes` + `api::knowledge_documents::routes`) over a
-//! loopback listener against the Handshake-managed PostgreSQL cluster (no
-//! Docker, no SQLite, no mock). Proves the three transclusion invariants the
+//! loopback listener against the Handshake-managed embedded store (no Docker,
+//! mock, or fallback authority). Proves the three transclusion invariants the
 //! reviewers hunt for:
 //!
 //!   1. READ-THROUGH: GET /loom/blocks/:id/transclusion resolves a block to its
@@ -17,7 +17,8 @@
 //!      atom node (`attrs.refValue` = source block id) persists ONLY that atom
 //!      node on save/reload — the host never absorbs the source body.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
 use std::sync::Arc;
 
@@ -33,12 +34,12 @@ use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
 use handshake_core::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::{Database, NewDocument, NewLoomBlock, WriteContext};
 use handshake_core::storage::{LoomBlockContentType, LoomBlockDerived};
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
+use knowledge_ingestion_support::{open_embedded_store, EmbeddedKnowledgeStore};
 use serde_json::{json, Value};
 
 #[derive(Default)]
@@ -78,7 +79,9 @@ impl DiagnosticsStore for NoopRecorder {
         &self,
         _id: uuid::Uuid,
     ) -> Result<Diagnostic, handshake_core::storage::StorageError> {
-        Err(handshake_core::storage::StorageError::NotFound("diagnostic"))
+        Err(handshake_core::storage::StorageError::NotFound(
+            "diagnostic",
+        ))
     }
     async fn list_diagnostics(
         &self,
@@ -113,19 +116,11 @@ impl LlmClient for NoopLlmClient {
 /// Boot the real loom + document routes over loopback against the isolated
 /// schema. Both route groups share one AppState so a loom block's
 /// `document_id` resolves to a rich document created through the docs API.
-async fn server(pg: &KnowledgePg) -> (String, reqwest::Client) {
-    let storage = PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect AppState storage")
-        .into_arc();
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect AppState pool");
+async fn server(store: &EmbeddedKnowledgeStore) -> (String, reqwest::Client) {
     let recorder = Arc::new(NoopRecorder);
     let state = AppState {
-        storage,
+        storage: Arc::new(store.db.clone()),
+        surreal: store.storage.clone(),
         flight_recorder: recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(NoopLlmClient {
@@ -133,7 +128,6 @@ async fn server(pg: &KnowledgePg) -> (String, reqwest::Client) {
         }),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
     };
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -141,7 +135,9 @@ async fn server(pg: &KnowledgePg) -> (String, reqwest::Client) {
     let addr = listener.local_addr().expect("local addr");
     let app = loom_api::routes(state.clone()).merge(docs_api::routes(state));
     tokio::spawn(async move {
-        axum::serve(listener, app).await.expect("transclusion api server");
+        axum::serve(listener, app)
+            .await
+            .expect("transclusion api server");
     });
     (format!("http://{addr}"), reqwest::Client::new())
 }
@@ -153,20 +149,17 @@ fn doc_headers(req: reqwest::RequestBuilder, label: &str) -> reqwest::RequestBui
         .header("x-hsk-actor-kind", "operator")
 }
 
-/// Build a storage handle on the isolated schema for setup that the HTTP
-/// surface cannot express (the legacy `documents` anchor + a rich document
-/// anchored to it). This is REAL Postgres, no mock.
-async fn storage_for(pg: &KnowledgePg) -> PostgresDatabase {
-    PostgresDatabase::connect(&pg.schema_url, 5)
-        .await
-        .expect("connect test storage")
+/// Build a typed storage handle for setup that the HTTP surface cannot express
+/// (the `documents` anchor + a rich document anchored to it).
+async fn storage_for(store: &EmbeddedKnowledgeStore) -> SurrealDatabase {
+    store.db.clone()
 }
 
 /// Set up a SOURCE: a legacy `documents` row, a rich document anchored to it
 /// (the transclusion authority), and a LoomBlock whose `document_id` is that
 /// same legacy anchor. Returns (block_id, source_rich_document_id, version).
 async fn setup_source(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     workspace_id: &str,
     text: &str,
 ) -> (String, String, i64) {
@@ -279,13 +272,13 @@ fn count_node_type(node: &Value, node_type: &str, count: &mut usize) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt258_transclusion_read_through_edit_routes_to_source_and_host_stays_copy_free() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt258 transclusion proof: PostgreSQL unavailable");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt258 transclusion proof: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let db = storage_for(&pg).await;
-    let (base, http) = server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let db = storage_for(&store).await;
+    let (base, http) = server(&store).await;
 
     // --- Source authority document + a LoomBlock that resolves to it ---------
     let (block_id, source_document_id, source_v1) =
@@ -293,7 +286,11 @@ async fn mt258_transclusion_read_through_edit_routes_to_source_and_host_stays_co
 
     // --- 1. READ-THROUGH: resolves to the SOURCE document content ------------
     let resolved = get_transclusion(&base, &http, &workspace_id, &block_id).await;
-    assert_eq!(resolved["resolved"], json!(true), "read-through must resolve");
+    assert_eq!(
+        resolved["resolved"],
+        json!(true),
+        "read-through must resolve"
+    );
     assert_eq!(
         resolved["source_document_id"].as_str(),
         Some(source_document_id.as_str()),
@@ -392,7 +389,11 @@ async fn mt258_transclusion_read_through_edit_routes_to_source_and_host_stays_co
     let host_content_json = &host_loaded["document"]["content_json"];
 
     let mut transclusion_nodes = 0usize;
-    count_node_type(host_content_json, "loomTransclusion", &mut transclusion_nodes);
+    count_node_type(
+        host_content_json,
+        "loomTransclusion",
+        &mut transclusion_nodes,
+    );
     assert_eq!(
         transclusion_nodes, 1,
         "host persists exactly one loomTransclusion atom node"
@@ -441,12 +442,12 @@ async fn mt258_transclusion_read_through_edit_routes_to_source_and_host_stays_co
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt258_transclusion_unresolved_block_without_source_is_typed_not_blank() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP mt258 transclusion unresolved proof: PostgreSQL unavailable");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP mt258 transclusion unresolved proof: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let (base, http) = server(&pg).await;
+    let workspace_id = store.create_workspace().await;
+    let (base, http) = server(&store).await;
 
     // A loom block with NO document_id (e.g. an asset/tag block) cannot resolve
     // to a source document; the read-through is a typed unresolved state.

@@ -1,6 +1,10 @@
 //! WP-KERNEL-009 MT-143 RetrievalDebugApi — adversarial-v2 hardening proof for
-//! the stale-reason / missing-evidence surface and the repair action, driven
-//! over the REAL Axum routes against real PostgreSQL.
+//! the stale-reason surface and the repair action, driven
+//! over the REAL Axum routes against the embedded store.
+//!
+//! MT-141 ports the missing-evidence probe through the closed, feature-gated
+//! embedded-store test mutator, so the API still proves both source staleness
+//! and evidence deletion before repairing the durable bundle.
 
 #[path = "knowledge_memory_fixtures.rs"]
 mod knowledge_memory_fixtures;
@@ -23,10 +27,10 @@ use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
 use handshake_core::storage::knowledge::{
-    KnowledgeCompactionPolicy, KnowledgePassageEvidenceRef, KnowledgeRetrievalMode,
-    KnowledgeStore, NewKnowledgeMemoryPassage,
+    KnowledgeCompactionPolicy, KnowledgePassageEvidenceRef, KnowledgeRetrievalMode, KnowledgeStore,
+    NewKnowledgeMemoryPassage,
 };
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::{SurrealDatabase, SurrealStorage};
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
 use knowledge_memory_fixtures::{pool_for, MemoryFixture};
@@ -103,19 +107,12 @@ impl LlmClient for NoopLlmClient {
     }
 }
 
-async fn retrieval_server(schema_url: &str) -> (String, reqwest::Client) {
-    let storage = PostgresDatabase::connect(schema_url, 5)
-        .await
-        .expect("connect AppState storage")
-        .into_arc();
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(schema_url)
-        .await
-        .expect("connect AppState pool");
+async fn retrieval_server(storage: SurrealStorage) -> (String, reqwest::Client) {
+    let storage_facade = SurrealDatabase::new(storage.clone());
     let recorder = Arc::new(NoopRecorder);
     let state = AppState {
-        storage,
+        storage: Arc::new(storage_facade),
+        surreal: storage,
         flight_recorder: recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(NoopLlmClient {
@@ -123,7 +120,6 @@ async fn retrieval_server(schema_url: &str) -> (String, reqwest::Client) {
         }),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: pool,
     };
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -151,14 +147,15 @@ fn nav_headers(req: reqwest::RequestBuilder, label: &str) -> reqwest::RequestBui
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt143_staleness_surface_and_repair_action() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP mt143_staleness_surface_and_repair_action: no PostgreSQL");
+        eprintln!("SKIP mt143_staleness_surface_and_repair_action: embedded storage unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
+    let pool = pool_for(&fx.store).await;
 
     // A span-backed passage; the executed pipeline (no edges) falls back to it
     // and compiles a REAL bundle with a passage item.
-    fx.pg
+    let passage = fx
+        .store
         .db
         .create_knowledge_memory_passage(NewKnowledgeMemoryPassage {
             workspace_id: fx.workspace_id.clone(),
@@ -180,7 +177,7 @@ async fn mt143_staleness_surface_and_repair_action() {
     let mut request = RetrievalRequest::discovery(&fx.workspace_id, "staleness scenario");
     request.graph_neighborhood_expected = true;
     let executed = execute_retrieval(
-        &fx.pg.db,
+        &fx.store.db,
         &pool,
         "ktr-stale-api",
         "sr-stale-api",
@@ -194,7 +191,7 @@ async fn mt143_staleness_surface_and_repair_action() {
     .expect("execute");
     let bundle_id = executed.compiled.bundle_id.clone();
 
-    let (base, http) = retrieval_server(&fx.pg.schema_url).await;
+    let (base, http) = retrieval_server(fx.store.storage.clone()).await;
 
     // FRESH bundle: every item ok, stale=false, receipt present.
     let resp = nav_headers(
@@ -214,22 +211,21 @@ async fn mt143_staleness_surface_and_repair_action() {
     assert!(!items.is_empty());
     assert!(items.iter().all(|i| i["status"] == "ok"));
 
-    // Make the evidence go MISSING for real: drop the passage row out from
-    // under the bundle item (raw SQL — passages have no protecting FK from
-    // bundle items by design: bundles are projections of a past retrieval).
-    {
-        let mut conn = fx.pg.raw_connection().await;
-        sqlx::query("DELETE FROM knowledge_passage_evidence WHERE passage_id = $1")
-            .bind(&executed.ranked[0].candidate_id)
-            .execute(&mut conn)
-            .await
-            .expect("drop passage evidence");
-        sqlx::query("DELETE FROM knowledge_memory_passages WHERE passage_id = $1")
-            .bind(&executed.ranked[0].candidate_id)
-            .execute(&mut conn)
-            .await
-            .expect("drop passage");
-    }
+    // Delete the projected passage through the closed embedded test seam. The
+    // bundle remains append-only while its live evidence becomes missing.
+    let passages = fx
+        .store
+        .storage
+        .test_inspector()
+        .table_selector("knowledge_memory_passages")
+        .await
+        .expect("select passage table");
+    fx.store
+        .storage
+        .test_mutator()
+        .delete_row(&passages, passage.passage_id.as_str())
+        .await
+        .expect("delete passage behind durable bundle");
     let resp = nav_headers(
         http.get(format!(
             "{base}/knowledge/retrieval/bundles/{bundle_id}/staleness"
@@ -269,7 +265,7 @@ async fn mt143_staleness_surface_and_repair_action() {
     // The repaired bundle is persisted and bound to a trace of its own; the
     // stale bundle is retained (append-only evidence).
     let (repaired, _items) = fx
-        .pg
+        .store
         .db
         .get_knowledge_context_bundle(repaired_id)
         .await
@@ -277,7 +273,7 @@ async fn mt143_staleness_surface_and_repair_action() {
         .expect("repaired bundle persisted");
     assert_eq!(repaired.bundle_id, repaired_id);
     assert!(fx
-        .pg
+        .store
         .db
         .get_knowledge_context_bundle(&bundle_id)
         .await

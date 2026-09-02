@@ -1,9 +1,9 @@
-//! WP-KERNEL-009 RetrievalContextAndRanking bridges — real-PostgreSQL proof for
+//! WP-KERNEL-009 RetrievalContextAndRanking bridges — real embedded-store proof for
 //! the folded-stub bridges (MT-139 ProjectBrain, MT-140 SemanticCatalog,
 //! MT-141 AIReady export, MT-142 ContextPack recorder) and the schema-first
 //! filter (MT-131).
 //!
-//! PostgreSQL + EventLedger authority only; SKIP loudly when binaries absent.
+//! Embedded SurrealDB + EventLedger authority only.
 
 #[path = "knowledge_memory_fixtures.rs"]
 mod knowledge_memory_fixtures;
@@ -25,12 +25,12 @@ use handshake_core::storage::knowledge_memory::{
 
 use knowledge_memory_fixtures::{pool_for, MemoryFixture};
 
-macro_rules! skip_if_no_pg {
+macro_rules! skip_if_store_unavailable {
     ($opt:expr, $name:literal) => {
         match $opt {
             Some(value) => value,
             None => {
-                eprintln!(concat!("SKIP ", $name, ": PostgreSQL unavailable"));
+                eprintln!(concat!("SKIP ", $name, ": embedded store unavailable"));
                 return;
             }
         }
@@ -42,8 +42,8 @@ macro_rules! skip_if_no_pg {
 /// is dropped.
 #[tokio::test]
 async fn schema_first_filter_narrows_to_query_scope() {
-    let fx = skip_if_no_pg!(MemoryFixture::setup().await, "schema_first_filter");
-    let pool = pool_for(&fx.pg).await;
+    let fx = skip_if_store_unavailable!(MemoryFixture::setup().await, "schema_first_filter");
+    let pool = pool_for(&fx.store).await;
 
     // Ontology term "depends_on" with an alias the query will hit.
     let term = upsert_memory_ontology_term(
@@ -119,7 +119,7 @@ async fn schema_first_filter_narrows_to_query_scope() {
     .expect("fact out");
 
     // Query mentions "dependency" -> resolves to the term -> narrows facts.
-    // Adversarial-v2 MT-131: the scope predicate is pushed into the fact SQL,
+    // Adversarial-v2 MT-131: the scope predicate is pushed into the storage
     // so off-topic rows never load (off_topic_dropped is 0 by construction).
     let result = schema_first_filter(&pool, &fx.workspace_id, "what is the dependency?", 100)
         .await
@@ -139,7 +139,7 @@ async fn schema_first_filter_narrows_to_query_scope() {
     // RECALL-GAP proof (the adversarial-v2 finding): bury the in-scope fact
     // under NEWER off-topic facts and use a tight cap. The old post-hoc
     // filter loaded the newest N rows (all off-topic) and dropped everything;
-    // the SQL pushdown still finds the in-scope fact.
+    // pushdown still finds the in-scope fact.
     for i in 0..5 {
         let claim = fx.claim(&format!("noise note {i}")).await;
         create_memory_fact(
@@ -180,7 +180,7 @@ async fn schema_first_filter_narrows_to_query_scope() {
 /// with pack/source hashes and bounded policy metadata (no full context).
 #[tokio::test]
 async fn context_pack_decision_emits_bounded_receipt() {
-    let fx = skip_if_no_pg!(MemoryFixture::setup().await, "context_pack_decision");
+    let fx = skip_if_store_unavailable!(MemoryFixture::setup().await, "context_pack_decision");
 
     let record = ContextPackDecisionRecord {
         decision: ContextPackDecision::Reuse,
@@ -192,7 +192,7 @@ async fn context_pack_decision_emits_bounded_receipt() {
         linkage: Some("job-7".to_string()),
     };
     let receipt = record_context_pack_decision(
-        &fx.pg.db,
+        &fx.store.db,
         KernelActor::System("retrieval-test".to_string()),
         "ktr-pack",
         "sr-pack",
@@ -210,7 +210,7 @@ async fn context_pack_decision_emits_bounded_receipt() {
 /// without one, to discovery/synthesis (the deterministic backend mapping).
 #[tokio::test]
 async fn project_brain_maps_lookup_vs_discovery() {
-    // Pure mapping (no PG needed), but gate on the fixture for consistency with
+    // Pure mapping (no store needed), but gate on the fixture for consistency with
     // the suite's skip behavior is unnecessary here — assert directly.
     let lookup = map_query(&ProjectBrainQuery {
         workspace_id: "ws".to_string(),

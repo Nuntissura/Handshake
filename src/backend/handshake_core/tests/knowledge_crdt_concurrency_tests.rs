@@ -5,8 +5,8 @@
 //!   - mt_071_index_run_guard: MT-071 ConcurrentIndexRunSemantics
 //!   - mt_073_offline_boundary: MT-073 OfflineDraftStateBoundary
 //!
-//! All durable assertions run against real PostgreSQL (POSTGRES_TEST_URL,
-//! isolated schema, full migration chain incl. 0150/0151).
+//! All durable assertions run against the real isolated embedded SurrealDB
+//! store and its migration chain.
 
 use base64::Engine;
 use handshake_core::kernel::crdt::actor_site::{
@@ -17,14 +17,51 @@ use handshake_core::kernel::crdt::state_vector::KnowledgeStateVectorV1;
 use handshake_core::kernel::crdt::yjs_bridge::{
     YjsUpdateEnvelopeV1, YJS_UPDATE_ENCODING_V1, YJS_UPDATE_ENVELOPE_SCHEMA_ID,
 };
-use handshake_core::storage::tests::{postgres_backend_with_pool_from_env, PostgresTestBackend};
-use handshake_core::storage::StorageError;
+use handshake_core::storage::surreal::{
+    bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
+};
+use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
+use handshake_core::storage::Database;
 
-async fn backend_or_blocked() -> PostgresTestBackend {
-    match postgres_backend_with_pool_from_env().await {
+async fn embedded_backend_or_blocked() -> EmbeddedTestBackend {
+    match embedded_test_backend().await {
         Ok(backend) => backend,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
+        Err(err) => panic!("failed to init embedded backend: {err:?}"),
     }
+}
+
+async fn reopen_embedded_store(
+    backend: &EmbeddedTestBackend,
+) -> (SurrealStorage, std::sync::Arc<dyn Database>) {
+    backend
+        .storage
+        .shutdown()
+        .await
+        .expect("close original embedded CRDT concurrency store");
+    let reopened = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&backend.data_dir)
+            .expect("configure reopened embedded CRDT concurrency store"),
+    )
+    .await
+    .expect("reopen embedded CRDT concurrency store");
+    bootstrap_schema(&reopened)
+        .await
+        .expect("bootstrap reopened CRDT concurrency schema");
+    let database: std::sync::Arc<dyn Database> =
+        std::sync::Arc::new(SurrealDatabase::new(reopened.clone()));
+    (reopened, database)
+}
+
+async fn close_reopened_and_remove(reopened: SurrealStorage, backend: EmbeddedTestBackend) {
+    reopened
+        .shutdown()
+        .await
+        .expect("close reopened CRDT concurrency store");
+    drop(reopened);
+    backend
+        .close_and_remove()
+        .await
+        .expect("remove embedded CRDT concurrency store");
 }
 
 /// Build a structurally valid Yjs update envelope for tests. Bytes are real
@@ -103,9 +140,9 @@ mod mt_070_save_semantics {
     /// silently overwritten; the rebased resubmission is accepted.
     #[tokio::test]
     async fn concurrent_saves_yield_typed_conflicts_and_durable_receipts() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-mt070-{suffix}");
         let doc = format!("doc-mt070-{suffix}");
@@ -297,6 +334,39 @@ mod mt_070_save_semantics {
             replay,
             KnowledgeDraftSaveOutcomeV1::AlreadyApplied { update_seq: 2, .. }
         ));
+
+        drop(pool);
+        drop(db);
+        let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
+        let reopened_receipts = list_denial_receipts_for_document(&reopened, &crdt_doc)
+            .await
+            .expect("list denial receipts after reopen");
+        assert_eq!(reopened_receipts.len(), 2);
+        assert!(reopened_receipts
+            .iter()
+            .any(|receipt| receipt.receipt_kind == "stale_draft_save"));
+        assert!(reopened_receipts
+            .iter()
+            .any(|receipt| receipt.receipt_kind == "concurrent_draft_fork"));
+        let reopened_head = read_draft_head(reopened_db.as_ref(), &ws, &doc, &crdt_doc)
+            .await
+            .expect("read draft head after reopen");
+        assert_eq!(reopened_head.head_update_seq, 3);
+        assert_eq!(reopened_head.head_state_vector, op_next.encode());
+        let reopened_updates = reopened_db
+            .list_kernel_crdt_updates(&ws, &doc, &crdt_doc)
+            .await
+            .expect("list CRDT updates after reopen");
+        assert_eq!(reopened_updates.len(), 3);
+        let reopened_events = reopened_db
+            .list_kernel_events_for_aggregate("knowledge_crdt_document", &crdt_doc)
+            .await
+            .expect("list conflict events after reopen");
+        assert!(reopened_events
+            .iter()
+            .any(|event| event.event_type == KernelEventType::KnowledgeCrdtConflictDetected));
+        drop(reopened_db);
+        close_reopened_and_remove(reopened, backend).await;
     }
 }
 
@@ -331,9 +401,9 @@ mod mt_071_index_run_guard {
     /// release frees the slot.
     #[tokio::test]
     async fn one_active_run_per_source_root_with_typed_rejection() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-mt071-{suffix}");
         let root_a = format!("KSR-{:032}", 1);
@@ -421,7 +491,7 @@ mod mt_073_offline_boundary {
     use uuid::Uuid;
 
     #[test]
-    fn boundary_contract_pins_postgres_as_only_durable_draft_authority() {
+    fn boundary_contract_pins_embedded_store_as_only_durable_draft_authority() {
         let contract = knowledge_offline_draft_boundary_contract();
         validate_offline_draft_boundary_contract(&contract).expect("contract is sound");
         assert_eq!(
@@ -445,9 +515,9 @@ mod mt_073_offline_boundary {
     /// promotion/authority surfaces.
     #[tokio::test]
     async fn offline_replay_loses_no_drafts_and_never_mutates_authority() {
-        let backend = backend_or_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
         let db = backend.database.clone();
-        let pool = backend.postgres_pool.clone();
+        let pool = backend.storage.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = format!("ws-mt073-{suffix}");
         let doc = format!("doc-mt073-{suffix}");
@@ -486,7 +556,7 @@ mod mt_073_offline_boundary {
             .iter()
             .all(|verdict| matches!(verdict, OfflineReplayVerdictV1::Stored { .. })));
 
-        // No draft loss: every update is in PostgreSQL.
+        // No draft loss: every update is in embedded storage.
         let stored = db
             .list_kernel_crdt_updates(&ws, &doc, &crdt_doc)
             .await
@@ -526,14 +596,22 @@ mod mt_073_offline_boundary {
             KernelEventType::KnowledgeCrdtUpdateRecorded
         )));
 
-        // And the authority fact table itself stays untouched (PG-level).
-        let fact_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM knowledge_crdt_promoted_facts WHERE workspace_id = $1",
-        )
-        .bind(&ws)
-        .fetch_one(&pool)
-        .await
-        .expect("count facts");
+        // And the authority fact table itself stays untouched (embedded-store level).
+        let inspector = backend.storage.test_inspector();
+        let facts = inspector
+            .table_selector("knowledge_crdt_promoted_facts")
+            .await
+            .expect("select promoted facts table");
+        let fact_count = inspector
+            .row_count(
+                &facts,
+                handshake_core::storage::surreal::RowFilter::FieldEquals {
+                    field: facts.field("workspace_id").expect("select workspace field"),
+                    value: ws.as_str().into(),
+                },
+            )
+            .await
+            .expect("count facts");
         assert_eq!(
             fact_count, 0,
             "offline replay must not create authority facts"

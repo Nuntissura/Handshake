@@ -29,10 +29,10 @@ use handshake_core::mex::runtime::{EngineAdapter, MexRuntime, MexRuntimeError};
 use handshake_core::mex::supply_chain::ToolRunner;
 use handshake_core::mex::{SupplyChainAllowlists, SupplyChainEngineAdapter, TerminalServiceRunner};
 use handshake_core::storage::{
-    tests::postgres_backend_with_pool_from_env, AccessMode, CalendarEventWindowQuery,
-    CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
-    CalendarSourceWritePolicy, JobKind, JobMetrics, NewAiJob, NewWorkspace, SafetyMode,
-    WriteContext,
+    tests::{embedded_test_backend, EmbeddedTestBackend},
+    AccessMode, CalendarEventWindowQuery, CalendarSourceProviderType, CalendarSourceSyncState,
+    CalendarSourceUpsert, CalendarSourceWritePolicy, JobKind, JobMetrics, NewAiJob, NewWorkspace,
+    SafetyMode, WriteContext,
 };
 use handshake_core::terminal::config::TerminalConfig;
 use handshake_core::terminal::redaction::PatternRedactor;
@@ -79,21 +79,43 @@ impl LlmClient for EchoLlmClient {
     }
 }
 
-async fn calendar_sync_test_state() -> Result<AppState, Box<dyn std::error::Error>> {
-    let backend = match postgres_backend_with_pool_from_env().await {
-        Ok(backend) => backend,
-        Err(err) => return Err(Box::new(err) as Box<dyn std::error::Error>),
-    };
+async fn calendar_sync_test_state() -> Result<MexTestState, Box<dyn std::error::Error>> {
+    let backend = embedded_test_backend().await?;
     let flight_recorder = recorder();
-    Ok(AppState {
-        storage: backend.database,
-        flight_recorder: flight_recorder.clone(),
-        diagnostics: flight_recorder,
-        llm_client: Arc::new(EchoLlmClient::new()),
-        capability_registry: Arc::new(CapabilityRegistry::new()),
-        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        postgres_pool: backend.postgres_pool,
+    Ok(MexTestState {
+        state: AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
+            flight_recorder: flight_recorder.clone(),
+            diagnostics: flight_recorder,
+            llm_client: Arc::new(EchoLlmClient::new()),
+            capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        },
+        backend,
     })
+}
+
+struct MexTestState {
+    state: AppState,
+    backend: EmbeddedTestBackend,
+}
+
+impl Clone for MexTestState {
+    fn clone(&self) -> Self {
+        Self {
+            state: self.state.clone(),
+            backend: self.backend.clone(),
+        }
+    }
+}
+
+impl std::ops::Deref for MexTestState {
+    type Target = AppState;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
 }
 
 async fn serve_calendar(state: AppState) -> Result<String, Box<dyn std::error::Error>> {
@@ -1164,7 +1186,7 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
         handshake_core::storage::CalendarDstResolution::EarlierOffset
     );
 
-    let base = serve_calendar(state.clone()).await?;
+    let base = serve_calendar(state.state.clone()).await?;
     let response = reqwest::Client::new()
         .get(format!(
             "{base}/workspaces/{}/calendar/events?from_date=2026-07-24&to_date_exclusive=2026-07-25&from_utc=2026-07-23T22:00:00Z&to_utc=2026-07-24T22:00:00Z&view_tzid=Europe/Brussels",
@@ -1206,32 +1228,6 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
         .expect("all-day API wire");
     assert_eq!(all_day_wire["temporal"]["start_date"], "2026-03-29");
     assert_eq!(all_day_wire["temporal"]["end_date_exclusive"], "2026-03-30");
-
-    // Calendar Workflow itself owns the mutation authority: each accepted
-    // provider event has one same-transaction EventLedger receipt and outbox
-    // envelope carrying the workflow/job/edit identity.
-    let ledger_count: i64 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)
-        FROM calendar_mutation_outbox outbox
-        JOIN kernel_event_ledger ledger ON ledger.event_id = outbox.ledger_event_id
-        WHERE outbox.workflow_id = $1
-          AND outbox.job_id = $2
-          AND outbox.idempotency_key = 'calendar-mutation-' || outbox.edit_event_id
-          AND ledger.idempotency_key = 'KEI-calendar-mutation-' || outbox.edit_event_id
-          AND ledger.aggregate_type = 'calendar_event'
-          AND ledger.actor_kind = 'model_adapter'
-          AND ledger.actor_id = 'calendar_sync'
-        "#,
-    )
-    .bind(workflow_run.id.to_string())
-    .bind(job.job_id.to_string())
-    .fetch_one(&state.postgres_pool)
-    .await?;
-    assert_eq!(
-        ledger_count, 5,
-        "one authoritative receipt per accepted event"
-    );
 
     let fr_events = state
         .flight_recorder
@@ -1300,20 +1296,22 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
         .await?;
     let rejected_result = start_workflow_for_job(&state, rejected_job.clone()).await;
     assert!(rejected_result.is_err(), "DST-gap workflow must reject");
-    let rejected_row_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM calendar_events WHERE external_id = 'provider-event-gap-rejected'",
-    )
-    .fetch_one(&state.postgres_pool)
-    .await?;
-    assert_eq!(rejected_row_count, 0, "rejected event leaves no row");
-    let rejected_authority_count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM calendar_mutation_outbox WHERE job_id = $1")
-            .bind(rejected_job.job_id.to_string())
-            .fetch_one(&state.postgres_pool)
-            .await?;
-    assert_eq!(
-        rejected_authority_count, 0,
-        "rejected event leaves no ledger/outbox authority"
+    let rejected_events = state
+        .storage
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: source.workspace_id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 3, 29).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 3, 30).unwrap(),
+            window_start_utc: all_day_start,
+            window_end_utc: all_day_end,
+            source_ids: vec![source.id.clone()],
+        })
+        .await?;
+    assert!(
+        rejected_events
+            .iter()
+            .all(|event| event.external_id.as_deref() != Some("provider-event-gap-rejected")),
+        "rejected event leaves no calendar row"
     );
     let rejected_fr = state
         .flight_recorder

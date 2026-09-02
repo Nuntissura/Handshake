@@ -38,8 +38,8 @@ fn no_context_model_can_answer_core_operation_questions_from_model_manual() {
         },
         ManualProbe {
             question: "Where does process lifecycle evidence land?",
-            query_terms: &["process", "lifecycle", "Postgres"],
-            expected_evidence: &["Postgres kernel_process_lifecycle rows"],
+            query_terms: &["process", "lifecycle", "SurrealDB"],
+            expected_evidence: &["Embedded SurrealDB kernel_process_lifecycle rows"],
         },
         ManualProbe {
             question: "How should GUI diagnostics avoid interrupting the operator?",

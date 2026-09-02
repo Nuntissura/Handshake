@@ -231,6 +231,8 @@ fn model_registry_tests_registry_has_no_direct_persistence_write_path() {
     )
     .expect("read registry source");
 
+    // Intentional forbidden-technology tripwire: these legacy persistence
+    // tokens are retained only so this test detects their reintroduction.
     let banned_tokens = vec![
         "std::fs::write".to_string(),
         "File::create".to_string(),

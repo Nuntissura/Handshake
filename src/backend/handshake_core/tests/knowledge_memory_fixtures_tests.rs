@@ -1,5 +1,5 @@
 //! WP-KERNEL-009 MemoryGraphAndClaims MT-128 (MemoryGraphFixtures) integration
-//! tests against REAL Handshake-managed PostgreSQL.
+//! tests against the real embedded Handshake storage authority.
 //!
 //! Proves each of the six fixture scenarios the contract enumerates produces the
 //! intended authority state: contradictions (both claims conflicted + a recorded
@@ -20,7 +20,7 @@ use handshake_core::storage::knowledge::{
     KnowledgeClaimState, KnowledgeEdgeLifecycle, KnowledgeStore,
 };
 use handshake_core::storage::knowledge_memory::MemoryOntologyLifecycle;
-use handshake_core::storage::postgres::PostgresDatabase;
+use handshake_core::storage::surreal::SurrealDatabase;
 use knowledge_memory_fixtures::{pool_for, MemoryFixture};
 
 fn ctx(fx: &MemoryFixture, seed: &str) -> FixtureContext {
@@ -34,12 +34,12 @@ fn ctx(fx: &MemoryFixture, seed: &str) -> FixtureContext {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn contradiction_and_resolution_fixtures() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP contradiction_and_resolution_fixtures: no PostgreSQL");
+        eprintln!("SKIP contradiction_and_resolution_fixtures: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
-    let subject = fx.entity("api", "pg", "ManagedPostgres").await;
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
+    let subject = fx.entity("api", "storage", "ManagedStore").await;
     let c = ctx(&fx, "contradiction");
 
     let fixture = contradiction(&db, &pool, &c, &subject)
@@ -100,12 +100,12 @@ async fn contradiction_and_resolution_fixtures() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stale_fact_fixture_retires_claim_as_stale() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP stale_fact_fixture_retires_claim_as_stale: no PostgreSQL");
+        eprintln!("SKIP stale_fact_fixture_retires_claim_as_stale: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
-    let subject = fx.entity("api", "pg", "ManagedPostgres").await;
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
+    let subject = fx.entity("api", "storage", "ManagedStore").await;
 
     let (_fact, claim_id) = stale_fact(&db, &pool, &ctx(&fx, "stale"), &subject)
         .await
@@ -125,11 +125,11 @@ async fn stale_fact_fixture_retires_claim_as_stale() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn fragmented_subgraph_and_false_bridge_fixtures() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP fragmented_subgraph_and_false_bridge_fixtures: no PostgreSQL");
+        eprintln!("SKIP fragmented_subgraph_and_false_bridge_fixtures: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
     let a = fx.entity("symbol", "crate::a::A", "A").await;
     let b = fx.entity("symbol", "crate::b::B", "B").await;
     let c = ctx(&fx, "frag");
@@ -166,11 +166,11 @@ async fn fragmented_subgraph_and_false_bridge_fixtures() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unsupported_claim_and_promotion_fixtures() {
     let Some(fx) = MemoryFixture::setup().await else {
-        eprintln!("SKIP unsupported_claim_and_promotion_fixtures: no PostgreSQL");
+        eprintln!("SKIP unsupported_claim_and_promotion_fixtures: embedded store unavailable");
         return;
     };
-    let pool = pool_for(&fx.pg).await;
-    let db = PostgresDatabase::new(pool.clone());
+    let pool = pool_for(&fx.store).await;
+    let db = SurrealDatabase::new(pool.clone());
     let subject = fx.entity("symbol", "crate::x::X", "X").await;
     let c = ctx(&fx, "unsupported");
 
@@ -178,11 +178,11 @@ async fn unsupported_claim_and_promotion_fixtures() {
     let fact = unsupported_claim(&db, &pool, &c, &subject)
         .await
         .expect("unsupported fixture");
-    let all = build_fact_graph(&db, &pool, &fx.workspace_id, false, 50)
+    let all = build_fact_graph(&db, &fx.workspace_id, false, 50)
         .await
         .expect("all graph");
     assert!(all.edges.iter().any(|e| e.fact_id == fact.fact_id));
-    let trusted = build_fact_graph(&db, &pool, &fx.workspace_id, true, 50)
+    let trusted = build_fact_graph(&db, &fx.workspace_id, true, 50)
         .await
         .expect("trusted graph");
     assert!(

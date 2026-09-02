@@ -24,9 +24,8 @@ use handshake_core::mcp::gate::{
 use handshake_core::mcp::jsonrpc::{JsonRpcMessage, JsonRpcResponse};
 use handshake_core::mcp::transport::duplex::DuplexTransport;
 use handshake_core::storage::{
-    postgres::PostgresDatabase, AccessMode, AiJob, Database, JobKind, JobMetrics, JobState,
-    ModelSession, ModelSessionState, NewAiJob, NewModelSession, SafetyMode, SessionMessageRole,
-    StorageError,
+    AccessMode, AiJob, Database, JobKind, JobMetrics, JobState, ModelSession, ModelSessionState,
+    NewAiJob, NewModelSession, SafetyMode, SessionMessageRole, StorageError,
 };
 use handshake_core::workflows::{
     cancel_model_run_job, revoke_consent_receipt_for_model_runs, start_workflow_for_job,
@@ -34,9 +33,10 @@ use handshake_core::workflows::{
 };
 use handshake_core::AppState;
 use serde_json::{json, Value};
-use sqlx::Connection;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter, DuplexStream};
 use uuid::Uuid;
+
+mod atelier_surreal_support;
 
 struct EchoLlmClient {
     profile: ModelProfile,
@@ -84,7 +84,9 @@ impl ConsentProvider for AllowAllConsent {
     }
 }
 
-async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+async fn setup_state(
+) -> Result<(AppState, atelier_surreal_support::AtelierSurrealHarness), Box<dyn std::error::Error>>
+{
     std::env::set_var(
         "HANDSHAKE_SESSION_WORKTREE_ROOT",
         std::env::temp_dir()
@@ -95,161 +97,24 @@ async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
             .display()
             .to_string(),
     );
-    let Some((storage, postgres_pool)) = scheduler_postgres_backend_from_env().await? else {
-        return Ok(None);
-    };
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
 
     let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
     let llm_client: Arc<dyn LlmClient> = Arc::new(EchoLlmClient::new());
 
-    Ok(Some(AppState {
-        storage,
-        postgres_pool,
-        flight_recorder: flight_recorder.clone(),
-        diagnostics: flight_recorder,
-        llm_client,
-        capability_registry: Arc::new(CapabilityRegistry::new()),
-        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-    }))
+    Ok((
+        AppState {
+            storage: harness.database.clone(),
+            surreal: harness.storage.clone(),
+            flight_recorder: flight_recorder.clone(),
+            diagnostics: flight_recorder,
+            llm_client,
+            capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        },
+        harness,
+    ))
 }
-
-async fn scheduler_postgres_backend_from_env(
-) -> Result<Option<(Arc<dyn Database>, sqlx::postgres::PgPool)>, Box<dyn std::error::Error>> {
-    let url = handshake_core::storage::tests::postgres_test_base_url().await?;
-
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("model_session_scheduler_test_{}", Uuid::now_v7().simple());
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    drop(conn);
-
-    let sep = if url.contains('?') { "&" } else { "?" };
-    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-    let mut schema_conn = sqlx::PgConnection::connect(&schema_url).await?;
-    install_scheduler_test_schema(&mut schema_conn).await?;
-    drop(schema_conn);
-
-    let db = PostgresDatabase::connect(&schema_url, 5).await?;
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&schema_url)
-        .await?;
-    Ok(Some((db.into_arc(), pool)))
-}
-
-async fn install_scheduler_test_schema(
-    conn: &mut sqlx::PgConnection,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // These tests exercise model-session scheduling behavior. Replaying the full app migration set
-    // per test schema is unrelated to that contract and pushes the suite past the bounded test run.
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS ai_jobs (
-            id TEXT PRIMARY KEY NOT NULL,
-            trace_id TEXT NOT NULL,
-            workflow_run_id TEXT,
-            job_kind TEXT NOT NULL,
-            status TEXT NOT NULL,
-            status_reason TEXT NOT NULL DEFAULT 'queued',
-            error_message TEXT,
-            protocol_id TEXT NOT NULL,
-            profile_id TEXT NOT NULL,
-            capability_profile_id TEXT NOT NULL,
-            access_mode TEXT NOT NULL,
-            safety_mode TEXT NOT NULL,
-            entity_refs TEXT NOT NULL DEFAULT '[]',
-            planned_operations TEXT NOT NULL DEFAULT '[]',
-            metrics TEXT NOT NULL DEFAULT '{"duration_ms":0,"total_tokens":0,"input_tokens":0,"output_tokens":0,"tokens_planner":0,"tokens_executor":0,"entities_read":0,"entities_written":0,"validators_run_count":0}',
-            job_inputs TEXT,
-            job_outputs TEXT,
-            is_pinned INTEGER NOT NULL DEFAULT 0,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        "#,
-    )
-    .execute(&mut *conn)
-    .await?;
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS workflow_runs (
-            id TEXT PRIMARY KEY NOT NULL,
-            job_id TEXT NOT NULL REFERENCES ai_jobs(id) ON DELETE CASCADE,
-            status TEXT NOT NULL,
-            last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        "#,
-    )
-    .execute(&mut *conn)
-    .await?;
-
-    sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_ai_jobs_gc ON ai_jobs(status, created_at, is_pinned)",
-    )
-    .execute(&mut *conn)
-    .await?;
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS ai_job_mcp_fields (
-            job_id TEXT PRIMARY KEY NOT NULL REFERENCES ai_jobs(id) ON DELETE CASCADE,
-            mcp_server_id TEXT,
-            mcp_call_id TEXT,
-            mcp_progress_token TEXT
-        )
-        "#,
-    )
-    .execute(&mut *conn)
-    .await?;
-    sqlx::query(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_job_mcp_fields_progress_token ON ai_job_mcp_fields(mcp_progress_token)",
-    )
-    .execute(&mut *conn)
-    .await?;
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS workflow_node_executions (
-            id TEXT PRIMARY KEY NOT NULL,
-            workflow_run_id TEXT NOT NULL REFERENCES workflow_runs(id) ON DELETE CASCADE,
-            node_id TEXT NOT NULL,
-            node_type TEXT NOT NULL,
-            status TEXT NOT NULL,
-            sequence INTEGER NOT NULL,
-            input_payload TEXT NULL,
-            output_payload TEXT NULL,
-            error_message TEXT NULL,
-            started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            finished_at TIMESTAMPTZ NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        "#,
-    )
-    .execute(&mut *conn)
-    .await?;
-
-    sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_wne_run_sequence ON workflow_node_executions (workflow_run_id, sequence)",
-    )
-    .execute(&mut *conn)
-    .await?;
-    sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_wne_run_node ON workflow_node_executions (workflow_run_id, node_id)",
-    )
-    .execute(&mut *conn)
-    .await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_wne_status ON workflow_node_executions (status)")
-        .execute(&mut *conn)
-        .await?;
-
-    Ok(())
-}
-
 fn hex64(ch: char) -> String {
     std::iter::repeat(ch).take(64).collect()
 }
@@ -566,9 +431,7 @@ fn valid_cloud_bundle_for_model_run(
 #[tokio::test]
 async fn model_run_persists_session_and_artifact_first_messages(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
 
@@ -674,9 +537,7 @@ async fn model_run_persists_session_and_artifact_first_messages(
 #[tokio::test]
 async fn trust001_external_system_role_is_downgraded_to_user_with_attribution(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
 
@@ -731,9 +592,7 @@ async fn trust001_external_system_role_is_downgraded_to_user_with_attribution(
 #[tokio::test]
 async fn trust002_cross_session_provenance_fields_are_persisted(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
     let source_session_id = format!("source-{}", Uuid::now_v7());
@@ -798,9 +657,7 @@ async fn trust002_cross_session_provenance_fields_are_persisted(
 
 #[tokio::test]
 async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::now_v7());
 
     let job = create_model_run_job(
@@ -839,9 +696,7 @@ async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::er
 
 #[tokio::test]
 async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
     let consent_receipt_id = format!("cr-{}", Uuid::now_v7());
@@ -912,9 +767,7 @@ async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn s
 #[tokio::test]
 async fn model_run_cloud_consent_allows_with_valid_bundle() -> Result<(), Box<dyn std::error::Error>>
 {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
     let consent_receipt_id = format!("cr-{}", Uuid::now_v7());
@@ -1002,9 +855,7 @@ async fn model_run_cloud_consent_allows_with_valid_bundle() -> Result<(), Box<dy
 #[tokio::test]
 async fn model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
 
     let first = create_model_run_job(
         &state,
@@ -1133,9 +984,7 @@ async fn model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic(
 #[tokio::test]
 async fn model_run_cancellation_is_cooperative_and_cancelled_not_failed(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::now_v7());
 
     let job = create_model_run_job(
@@ -1213,9 +1062,7 @@ async fn model_run_cancellation_is_cooperative_and_cancelled_not_failed(
 #[tokio::test]
 async fn consent_revocation_cancels_pending_model_runs_and_blocks_sessions(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
     let consent_receipt_id = format!("cr-{}", Uuid::now_v7());
@@ -1297,9 +1144,7 @@ async fn consent_revocation_cancels_pending_model_runs_and_blocks_sessions(
 #[tokio::test]
 async fn session_observability_spans_bind_model_runs_and_tool_calls(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
 
@@ -1802,9 +1647,7 @@ fn session_scheduler_event_payloads_are_validated() {
 #[tokio::test]
 async fn model_run_spawn_request_within_contracts_is_accepted(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::now_v7());
     seed_active_model_session(&state, &parent_session_id, None, &["fs.read", "net.http"]).await?;
 
@@ -1874,9 +1717,7 @@ async fn model_run_spawn_request_within_contracts_is_accepted(
 #[tokio::test]
 async fn model_run_spawn_request_rejected_when_depth_exceeds_max(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::now_v7());
     seed_active_model_session(
         &state,
@@ -1941,9 +1782,7 @@ async fn model_run_spawn_request_rejected_when_depth_exceeds_max(
 #[tokio::test]
 async fn model_run_spawn_request_rejected_when_children_exceeds_limit(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::now_v7());
     seed_active_model_session(
         &state,
@@ -2021,9 +1860,7 @@ async fn model_run_spawn_request_rejected_when_children_exceeds_limit(
 #[tokio::test]
 async fn model_run_spawn_request_rejected_when_capability_widens(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::now_v7());
     seed_active_model_session(&state, &parent_session_id, None, &["fs.read"]).await?;
 
@@ -2078,9 +1915,7 @@ async fn model_run_spawn_request_rejected_when_capability_widens(
 #[tokio::test]
 async fn model_run_spawn_announce_back_event_is_emitted_for_parented_completion(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::now_v7());
     seed_active_model_session(&state, &parent_session_id, None, &["fs.read", "net.http"]).await?;
 
@@ -2157,9 +1992,7 @@ async fn model_run_spawn_announce_back_event_is_emitted_for_parented_completion(
 #[tokio::test]
 async fn model_run_cancellation_cascades_to_descendants() -> Result<(), Box<dyn std::error::Error>>
 {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::now_v7());
     let child_session_id = format!("child-{}", Uuid::now_v7());
     let grandchild_session_id = format!("grandchild-{}", Uuid::now_v7());
@@ -2269,9 +2102,7 @@ async fn model_run_cancellation_cascades_to_descendants() -> Result<(), Box<dyn 
 
 #[tokio::test]
 async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::error::Error>> {
-    let Some(state) = setup_state().await? else {
-        return Ok(());
-    };
+    let (state, _harness) = setup_state().await?;
     let session_id = format!("sess-{}", Uuid::now_v7());
 
     let created = state

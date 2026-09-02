@@ -1,5 +1,5 @@
 //! WP-KERNEL-009 MT-062 TransactionalIdempotencyKeys integration tests
-//! against REAL Handshake-managed PostgreSQL.
+//! against the REAL Handshake-managed embedded SurrealDB store.
 //!
 //! Proof targets (the migration-documented discipline, 0142):
 //!   * replayed request (same key + same payload) returns the prior result
@@ -9,7 +9,8 @@
 //!   * the editor-save surface replays the promoted revision instead of a
 //!     version conflict.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod knowledge_ingestion_support;
 
 use handshake_core::storage::knowledge::{
     KnowledgeCompactionPolicy, KnowledgeIndexingEligibility, KnowledgePassageEvidenceRef,
@@ -17,8 +18,11 @@ use handshake_core::storage::knowledge::{
     KnowledgeSourceKind, KnowledgeSpanKind, KnowledgeStore, NewKnowledgeMemoryPassage,
     NewKnowledgeRichDocument, NewKnowledgeSource, NewKnowledgeSourceRoot, NewKnowledgeSpan,
 };
+use handshake_core::storage::surreal::{RowFilter, ScalarValue};
 use handshake_core::storage::StorageError;
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
+use knowledge_ingestion_support::{
+    open_embedded_store as embedded_knowledge, EmbeddedKnowledgeStore,
+};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -27,9 +31,9 @@ const HASH_SPAN: &str = "2222222222222222222222222222222222222222222222222222222
 
 /// Real workspace -> root -> source -> span so passages have honest lineage
 /// (same fixture shape as knowledge_claims_tests).
-async fn span_fixture(pg: &KnowledgePg) -> (String, String, String) {
-    let workspace_id = pg.create_workspace().await;
-    let root = pg
+async fn span_fixture(store: &EmbeddedKnowledgeStore) -> (String, String, String) {
+    let workspace_id = store.create_workspace().await;
+    let root = store
         .db
         .create_knowledge_source_root(NewKnowledgeSourceRoot {
             workspace_id: workspace_id.clone(),
@@ -41,7 +45,7 @@ async fn span_fixture(pg: &KnowledgePg) -> (String, String, String) {
         })
         .await
         .expect("root");
-    let source = pg
+    let source = store
         .db
         .upsert_knowledge_source(NewKnowledgeSource {
             workspace_id: workspace_id.clone(),
@@ -60,7 +64,7 @@ async fn span_fixture(pg: &KnowledgePg) -> (String, String, String) {
         })
         .await
         .expect("source");
-    let span = pg
+    let span = store
         .db
         .create_knowledge_span(NewKnowledgeSpan {
             source_id: source.source_id.clone(),
@@ -99,35 +103,66 @@ fn passage(workspace_id: &str, span_id: &str, text: &str) -> NewKnowledgeMemoryP
     }
 }
 
-async fn passage_count(pg: &KnowledgePg, workspace_id: &str) -> i64 {
-    let mut conn = pg.raw_connection().await;
-    sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_memory_passages WHERE workspace_id = $1")
-        .bind(workspace_id)
-        .fetch_one(&mut conn)
+async fn embedded_row_count_by_field(
+    store: &EmbeddedKnowledgeStore,
+    table_name: &str,
+    field_name: &str,
+    value: &str,
+) -> i64 {
+    let inspector = store.storage.test_inspector();
+    let table = inspector
+        .table_selector(table_name)
         .await
-        .expect("count passages")
+        .expect("select embedded table");
+    let field = table.field(field_name).expect("select embedded field");
+    inspector
+        .row_count(
+            &table,
+            RowFilter::FieldEquals {
+                field,
+                value: ScalarValue::String(value.to_owned()),
+            },
+        )
+        .await
+        .expect("count embedded rows") as i64
+}
+
+async fn passage_count(store: &EmbeddedKnowledgeStore) -> i64 {
+    let inspector = store.storage.test_inspector();
+    let table = inspector
+        .table_selector("knowledge_memory_passages")
+        .await
+        .expect("select embedded passage table");
+    inspector
+        .row_count(&table, RowFilter::All)
+        .await
+        .expect("count embedded passages") as i64
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn replayed_passage_write_returns_prior_result_without_double_write() {
-    let Some(pg) = knowledge_pg().await else {
+    let Some(store) = embedded_knowledge().await else {
         eprintln!(
-            "SKIP replayed_passage_write_returns_prior_result_without_double_write: no PostgreSQL"
+            "SKIP replayed_passage_write_returns_prior_result_without_double_write: embedded store unavailable"
         );
         return;
     };
-    let (workspace_id, _source_id, span_id) = span_fixture(&pg).await;
+    let (workspace_id, _source_id, span_id) = span_fixture(&store).await;
     let key = format!("idem-passage-{}", Uuid::now_v7());
-    let payload = passage(&workspace_id, &span_id, "managed PG listens on 5544");
+    let payload = passage(
+        &workspace_id,
+        &span_id,
+        "the embedded store persists passages",
+    );
 
-    let first = pg
+    let first = store
         .db
         .create_knowledge_memory_passage_idempotent(&key, payload.clone())
         .await
         .expect("first write");
     assert!(!first.replayed, "first write must be a real write");
 
-    let second = pg
+    let second = store
         .db
         .create_knowledge_memory_passage_idempotent(&key, payload.clone())
         .await
@@ -138,33 +173,35 @@ async fn replayed_passage_write_returns_prior_result_without_double_write() {
         "replay must return the prior result"
     );
     assert_eq!(
-        passage_count(&pg, &workspace_id).await,
+        passage_count(&store).await,
         1,
         "replay must not double-write"
     );
 
     // The key ledger holds exactly one row for the key.
-    let mut conn = pg.raw_connection().await;
-    let keys: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM knowledge_idempotency_keys WHERE idempotency_key = $1",
+    let keys = embedded_row_count_by_field(
+        &store,
+        "knowledge_idempotency_keys",
+        "idempotency_key",
+        &key,
     )
-    .bind(&key)
-    .fetch_one(&mut conn)
-    .await
-    .expect("count keys");
+    .await;
     assert_eq!(keys, 1);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn same_key_with_divergent_payload_is_a_typed_conflict() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP same_key_with_divergent_payload_is_a_typed_conflict: no PostgreSQL");
+    let Some(store) = embedded_knowledge().await else {
+        eprintln!(
+            "SKIP same_key_with_divergent_payload_is_a_typed_conflict: embedded store unavailable"
+        );
         return;
     };
-    let (workspace_id, _source_id, span_id) = span_fixture(&pg).await;
+    let (workspace_id, _source_id, span_id) = span_fixture(&store).await;
     let key = format!("idem-divergent-{}", Uuid::now_v7());
 
-    pg.db
+    store
+        .db
         .create_knowledge_memory_passage_idempotent(
             &key,
             passage(&workspace_id, &span_id, "original payload"),
@@ -172,7 +209,7 @@ async fn same_key_with_divergent_payload_is_a_typed_conflict() {
         .await
         .expect("first write");
 
-    let err = pg
+    let err = store
         .db
         .create_knowledge_memory_passage_idempotent(
             &key,
@@ -182,7 +219,7 @@ async fn same_key_with_divergent_payload_is_a_typed_conflict() {
         .expect_err("divergent duplicate must be rejected");
     assert!(matches!(err, StorageError::Conflict(_)), "got {err:?}");
     assert_eq!(
-        passage_count(&pg, &workspace_id).await,
+        passage_count(&store).await,
         1,
         "the divergent duplicate must not write"
     );
@@ -190,18 +227,22 @@ async fn same_key_with_divergent_payload_is_a_typed_conflict() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn racing_writers_on_one_key_produce_exactly_one_write() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP racing_writers_on_one_key_produce_exactly_one_write: no PostgreSQL");
+    let Some(store) = embedded_knowledge().await else {
+        eprintln!(
+            "SKIP racing_writers_on_one_key_produce_exactly_one_write: embedded store unavailable"
+        );
         return;
     };
-    let (workspace_id, _source_id, span_id) = span_fixture(&pg).await;
+    let (workspace_id, _source_id, span_id) = span_fixture(&store).await;
     let key = format!("idem-race-{}", Uuid::now_v7());
     let payload = passage(&workspace_id, &span_id, "raced payload");
 
     let (left, right) = tokio::join!(
-        pg.db
+        store
+            .db
             .create_knowledge_memory_passage_idempotent(&key, payload.clone()),
-        pg.db
+        store
+            .db
             .create_knowledge_memory_passage_idempotent(&key, payload.clone()),
     );
     let left = left.expect("left racer");
@@ -212,7 +253,7 @@ async fn racing_writers_on_one_key_produce_exactly_one_write() {
         "both racers must converge on one result"
     );
     assert_eq!(
-        passage_count(&pg, &workspace_id).await,
+        passage_count(&store).await,
         1,
         "a race must never double-write"
     );
@@ -224,14 +265,14 @@ async fn racing_writers_on_one_key_produce_exactly_one_write() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn editor_save_replay_returns_promoted_revision_without_double_write() {
-    let Some(pg) = knowledge_pg().await else {
+    let Some(store) = embedded_knowledge().await else {
         eprintln!(
-            "SKIP editor_save_replay_returns_promoted_revision_without_double_write: no PostgreSQL"
+            "SKIP editor_save_replay_returns_promoted_revision_without_double_write: embedded store unavailable"
         );
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let document = pg
+    let workspace_id = store.create_workspace().await;
+    let document = store
         .db
         .create_knowledge_rich_document(NewKnowledgeRichDocument {
             workspace_id: workspace_id.clone(),
@@ -255,7 +296,7 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
     });
     let crdt_document_id = format!("KCRDT-{}", Uuid::now_v7().simple());
 
-    let first = pg
+    let first = store
         .db
         .save_knowledge_rich_document_version_idempotent(
             &key,
@@ -277,7 +318,7 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
 
     // The EXACT same request again: a non-idempotent path would now fail
     // with a version conflict; the idempotent path replays the result.
-    let second = pg
+    let second = store
         .db
         .save_knowledge_rich_document_version_idempotent(
             &key,
@@ -294,7 +335,7 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
     assert_eq!(second.value.doc_version, 2);
     assert_eq!(second.value.content_sha256, first.value.content_sha256);
 
-    let crdt_change_err = pg
+    let crdt_change_err = store
         .db
         .save_knowledge_rich_document_version_idempotent(
             &format!("idem-save-crdt-change-{}", Uuid::now_v7()),
@@ -316,14 +357,14 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
         "type": "doc",
         "content": [{"type": "paragraph", "content": [{"type": "text", "text": "v3"}]}]
     });
-    let later = pg
+    let later = store
         .db
         .save_knowledge_rich_document_version(&document.rich_document_id, 2, v3, None, None, None)
         .await
         .expect("later non-idempotent save");
     assert_eq!(later.doc_version, 3);
 
-    let replay_after_later_save = pg
+    let replay_after_later_save = store
         .db
         .save_knowledge_rich_document_version_idempotent(
             &key,
@@ -348,7 +389,7 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
     );
     assert_eq!(replay_after_later_save.value.crdt_snapshot_id, None);
 
-    let versions = pg
+    let versions = store
         .db
         .list_knowledge_rich_document_versions(&document.rich_document_id)
         .await
@@ -356,7 +397,7 @@ async fn editor_save_replay_returns_promoted_revision_without_double_write() {
     assert_eq!(versions.len(), 3, "replay must not append to the history");
 
     // A DIFFERENT save reusing the key stays a typed Conflict.
-    let err = pg
+    let err = store
         .db
         .save_knowledge_rich_document_version_idempotent(
             &key,

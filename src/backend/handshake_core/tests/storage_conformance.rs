@@ -1,41 +1,52 @@
 use handshake_core::storage::tests::{
-    postgres_backend_from_env, run_loom_storage_conformance, run_loom_traversal_performance_probe,
+    embedded_test_backend, run_loom_storage_conformance, run_loom_traversal_performance_probe,
     run_storage_conformance,
 };
-use handshake_core::storage::StorageError;
 
 #[tokio::test]
-async fn postgres_storage_conformance() {
-    let db = match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
-    };
-
-    run_storage_conformance(db)
+async fn surreal_storage_conformance() {
+    let backend = embedded_test_backend()
         .await
-        .expect("postgres storage conformance");
+        .expect("failed to init embedded SurrealDB backend");
+    let result = {
+        let db = backend.database.clone();
+        run_storage_conformance(db).await
+    };
+    result.expect("embedded SurrealDB storage conformance");
+    backend
+        .close_and_remove()
+        .await
+        .expect("embedded SurrealDB storage cleanup");
 }
 
 #[tokio::test]
-async fn postgres_loom_storage_conformance() {
-    let db = match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
-    };
-
-    run_loom_storage_conformance(db)
+async fn surreal_loom_storage_conformance() {
+    let backend = embedded_test_backend()
         .await
-        .expect("postgres loom storage conformance");
+        .expect("failed to init embedded SurrealDB backend");
+    let result = {
+        let db = backend.database.clone();
+        run_loom_storage_conformance(db).await
+    };
+    result.expect("embedded SurrealDB loom storage conformance");
+    backend
+        .close_and_remove()
+        .await
+        .expect("embedded SurrealDB storage cleanup");
 }
 
 #[tokio::test]
-async fn postgres_loom_traversal_performance_target() {
-    let db = match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
-    };
-
-    run_loom_traversal_performance_probe(db)
+async fn surreal_loom_traversal_performance_target() {
+    let backend = embedded_test_backend()
         .await
-        .expect("postgres loom traversal performance");
+        .expect("failed to init embedded SurrealDB backend");
+    let result = {
+        let db = backend.database.clone();
+        run_loom_traversal_performance_probe(db).await
+    };
+    result.expect("embedded SurrealDB loom traversal performance");
+    backend
+        .close_and_remove()
+        .await
+        .expect("embedded SurrealDB storage cleanup");
 }

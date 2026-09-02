@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::Mutex;
 
 use chrono::Utc;
@@ -9,9 +8,10 @@ use handshake_core::memory::outcome_feedback::{
     OutcomeError, OutcomeFeedbackLoop, OutcomeReceipt, OutcomeScoringTuner, TuningParams,
     OUTCOME_ATTACH_ACTION_ID,
 };
-use handshake_core::memory::persistence_postgres::PostgresKernelActionSubmitter;
-use handshake_core::storage::{postgres::PostgresDatabase, Database, StorageError, StorageResult};
-use sqlx::{Connection, PgPool, Row};
+use handshake_core::memory::SurrealKernelActionSubmitter;
+use handshake_core::storage::surreal::{SurrealDatabase, SurrealStorage, SurrealStorageConfig};
+use handshake_core::storage::tests::embedded_test_backend;
+use handshake_core::storage::Database;
 use uuid::Uuid;
 
 struct RecordingOutcomeSubmitter {
@@ -243,11 +243,13 @@ fn record_outcome_does_not_tune_scores_when_attach_fails() {
     );
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
-async fn postgres_outcome_attach_submitter_persists_catalog_event() {
-    let (db, pool) = isolated_postgres().await.expect("isolated postgres");
-    let submitter = PostgresKernelActionSubmitter::with_db(db);
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn embedded_outcome_attach_submitter_durable_catalog_event_proof() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open embedded outcome feedback proof store");
+    let database = backend.database.clone();
+    let submitter = SurrealKernelActionSubmitter::with_db(database.clone());
     let feedback = OutcomeFeedbackLoop::new(&submitter);
     let capsule_id = Uuid::now_v7();
     let items = pack(&[1]);
@@ -267,26 +269,33 @@ async fn postgres_outcome_attach_submitter_persists_catalog_event() {
                 ..TuningParams::default()
             },
         )
-        .expect("record outcome through postgres submitter");
+        .expect("record outcome through embedded submitter");
 
     assert_eq!(receipt.action_id, OUTCOME_ATTACH_ACTION_ID);
     assert!(scores[&items[0].memory_id] > 0.5);
 
-    let row = sqlx::query(
-        r#"
-        SELECT payload
-        FROM kernel_event_ledger
-        WHERE aggregate_type = 'memory_capsule'
-          AND aggregate_id = $1
-        ORDER BY event_sequence DESC
-        LIMIT 1
-        "#,
+    drop(feedback);
+    drop(submitter);
+    drop(database);
+    backend
+        .storage
+        .shutdown()
+        .await
+        .expect("close embedded outcome feedback proof store");
+
+    let reopened_storage = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&backend.data_dir)
+            .expect("configure reopened outcome feedback proof store"),
     )
-    .bind(capsule_id.to_string())
-    .fetch_one(&pool)
     .await
-    .expect("outcome event row");
-    let payload: serde_json::Value = row.get("payload");
+    .expect("reopen outcome feedback proof store");
+    let reopened = SurrealDatabase::new(reopened_storage.clone());
+    let durable = reopened
+        .list_kernel_events_for_aggregate("memory_capsule", &capsule_id.to_string())
+        .await
+        .expect("load durable outcome catalog event");
+    assert_eq!(durable.len(), 1, "outcome attach must append one event");
+    let payload = &durable[0].payload;
     let capsule_id_string = capsule_id.to_string();
     assert_eq!(
         payload["catalog_action_id"].as_str(),
@@ -304,21 +313,15 @@ async fn postgres_outcome_attach_submitter_persists_catalog_event() {
         payload["write_box_envelope"]["payload"]["attribution"]["outcome"]["outcome"].as_str(),
         Some("pass")
     );
-}
 
-async fn isolated_postgres() -> StorageResult<(Arc<dyn Database>, PgPool)> {
-    let url = handshake_core::storage::tests::postgres_test_base_url().await?;
-    let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("mt158_outcome_feedback_{}", Uuid::now_v7().simple());
-    sqlx::query(&format!("CREATE SCHEMA {schema}"))
-        .execute(&mut conn)
-        .await?;
-    drop(conn);
-
-    let sep = if url.contains('?') { "&" } else { "?" };
-    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
-    let db = PostgresDatabase::connect(&schema_url, 5).await?;
-    db.run_migrations().await?;
-    let pool = PgPool::connect(&schema_url).await?;
-    Ok((db.into_arc(), pool))
+    drop(reopened);
+    reopened_storage
+        .shutdown()
+        .await
+        .expect("close reopened outcome feedback proof store");
+    drop(reopened_storage);
+    backend
+        .close_and_remove()
+        .await
+        .expect("remove embedded outcome feedback proof store");
 }

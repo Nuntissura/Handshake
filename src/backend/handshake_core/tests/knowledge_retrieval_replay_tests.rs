@@ -1,13 +1,13 @@
-//! MT-238 real-PostgreSQL replay proof for persisted context bundles.
+//! MT-238 embedded-SurrealDB replay proof for persisted context bundles.
 //!
 //! A replay starts from a stored RetrievalTrace and must reconstruct the
 //! ContextBundle, QueryPlan, selected evidence rows, source/span anchors, and
-//! EventLedger receipts from durable PostgreSQL state.
+//! EventLedger receipts from durable embedded state.
 
 #[path = "knowledge_memory_fixtures.rs"]
 mod knowledge_memory_fixtures;
 
-use handshake_core::kernel::KernelEventType;
+use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use handshake_core::knowledge_retrieval::budget::PriorityTier;
 use handshake_core::knowledge_retrieval::compiler::{
     BundleCandidate, BundleTargetKind, CompiledBundle, ContextBundleCompilerV2,
@@ -22,36 +22,21 @@ use handshake_core::knowledge_retrieval::snippet::assemble_span_snippet;
 use handshake_core::storage::knowledge::{
     KnowledgeBundleItemDecision, KnowledgeBundleItemRefKind, KnowledgeCompactionPolicy,
     KnowledgeContextBundleItem, KnowledgeEdgeType, KnowledgePassageEvidenceRef,
-    KnowledgeRetrievalMode, KnowledgeRetrievalTrace, KnowledgeStore, NewKnowledgeEdge,
-    NewKnowledgeMemoryPassage,
+    KnowledgeRetrievalMode, KnowledgeRetrievalTrace, KnowledgeStore, NewKnowledgeContextBundle,
+    NewKnowledgeContextBundleItem, NewKnowledgeEdge, NewKnowledgeMemoryPassage,
+    NewKnowledgeRetrievalTrace,
 };
 use handshake_core::storage::knowledge_retrieval::{
     replay_context_bundle_from_trace, traces_for_bundle,
 };
-use sqlx::PgPool;
 use std::collections::BTreeSet;
 
 use knowledge_memory_fixtures::{pool_for, MemoryFixture};
-
-macro_rules! skip_if_no_pg {
-    ($opt:expr, $name:literal) => {
-        match $opt {
-            Some(value) => value,
-            None => {
-                panic!(concat!(
-                    "PostgreSQL unavailable for required MT-238 replay proof: ",
-                    $name
-                ));
-            }
-        }
-    };
-}
 
 struct SpanReplaySetup {
     fx: MemoryFixture,
     compiled: CompiledBundle,
     stored_trace: KnowledgeRetrievalTrace,
-    pool: PgPool,
     unsupported_span_id: String,
 }
 
@@ -61,16 +46,16 @@ async fn span_replay_setup(name: &str) -> Option<SpanReplaySetup> {
     let entity_id = fx
         .entity("symbol", &format!("mt238_target_{name}"), "Mt238Target")
         .await;
-    let planner = CheapestAuthoritativePathPlanner::new(&fx.pg.db);
+    let planner = CheapestAuthoritativePathPlanner::new(&fx.store.db);
     let request = RetrievalRequest::discovery(&fx.workspace_id, "replay MT-238 bundle")
         .with_handle(AuthoritativeHandle::EntityId(entity_id.clone()));
     let planned = planner.plan(&request).await.expect("plan");
     let mut trace = RetrievalTrace::for_plan(&planned.plan);
-    let snippet = assemble_span_snippet(&fx.pg.db, &fx.span_id)
+    let snippet = assemble_span_snippet(&fx.store.db, &fx.span_id)
         .await
         .expect("snippet");
     let unsupported_span_id = "KSP-00000000000000000000000000000000".to_string();
-    let unsupported_snippet = assemble_span_snippet(&fx.pg.db, &unsupported_span_id)
+    let unsupported_snippet = assemble_span_snippet(&fx.store.db, &unsupported_span_id)
         .await
         .expect("unsupported snippet");
     assert!(
@@ -78,7 +63,7 @@ async fn span_replay_setup(name: &str) -> Option<SpanReplaySetup> {
         "missing-span citation must produce typed unsupported evidence"
     );
 
-    let compiled = ContextBundleCompilerV2::new(&fx.pg.db)
+    let compiled = ContextBundleCompilerV2::new(&fx.store.db)
         .compile(
             &fx.workspace_id,
             "ktr-mt238-replay",
@@ -113,29 +98,64 @@ async fn span_replay_setup(name: &str) -> Option<SpanReplaySetup> {
         .await
         .expect("compile with generated receipts");
 
-    let stored_trace = traces_for_bundle(&fx.pg.db, &compiled.bundle_id)
+    let stored_trace = traces_for_bundle(&fx.store.db, &compiled.bundle_id)
         .await
         .expect("traces")
         .pop()
         .expect("trace");
-    let pool = pool_for(&fx.pg).await;
-
     Some(SpanReplaySetup {
         fx,
         compiled,
         stored_trace,
-        pool,
         unsupported_span_id,
     })
 }
 
+async fn record_trace_variant(
+    setup: &SpanReplaySetup,
+    decisions: serde_json::Value,
+    bundle_id: Option<String>,
+    trace_receipt_event_id: Option<String>,
+) -> KnowledgeRetrievalTrace {
+    record_trace_variant_in_workspace(
+        setup,
+        setup.stored_trace.workspace_id.clone(),
+        decisions,
+        bundle_id,
+        trace_receipt_event_id,
+    )
+    .await
+}
+
+async fn record_trace_variant_in_workspace(
+    setup: &SpanReplaySetup,
+    workspace_id: String,
+    decisions: serde_json::Value,
+    bundle_id: Option<String>,
+    trace_receipt_event_id: Option<String>,
+) -> KnowledgeRetrievalTrace {
+    KnowledgeStore::record_knowledge_retrieval_trace(
+        &setup.fx.store.db,
+        NewKnowledgeRetrievalTrace {
+            workspace_id,
+            retrieval_mode: setup.stored_trace.retrieval_mode,
+            mode_reason: setup.stored_trace.mode_reason.clone(),
+            query_text: setup.stored_trace.query_text.clone(),
+            bundle_id,
+            decisions,
+            trace_receipt_event_id,
+        },
+    )
+    .await
+    .expect("record typed embedded trace variant")
+}
+
 #[tokio::test]
 async fn replay_context_bundle_from_trace_reconstructs_plan_evidence_and_receipts() {
-    let setup = skip_if_no_pg!(
-        span_replay_setup("positive").await,
-        "replay_context_bundle_from_trace"
-    );
-    let replay = replay_context_bundle_from_trace(&setup.fx.pg.db, &setup.stored_trace.trace_id)
+    let setup = span_replay_setup("positive")
+        .await
+        .expect("embedded replay fixture");
+    let replay = replay_context_bundle_from_trace(&setup.fx.store.db, &setup.stored_trace.trace_id)
         .await
         .expect("replay");
 
@@ -214,57 +234,80 @@ async fn replay_context_bundle_from_trace_reconstructs_plan_evidence_and_receipt
         assert_eq!(receipt.session_run_id, "sr-mt238-replay");
     }
 
-    sqlx::query("UPDATE kernel_event_ledger SET event_type = $1 WHERE event_id = $2")
-        .bind(KernelEventType::ModelResponseRecorded.as_str())
-        .bind(&trace_receipt.event_id)
-        .execute(&setup.pool)
-        .await
-        .expect("corrupt trace receipt type");
-    let err = replay_context_bundle_from_trace(&setup.fx.pg.db, &setup.stored_trace.trace_id)
-        .await
-        .expect_err("wrong receipt event type must fail replay");
-    assert!(
-        err.to_string().contains("receipt event_type"),
-        "unexpected receipt-type error: {err}"
-    );
-
-    sqlx::query("UPDATE kernel_event_ledger SET event_type = $1 WHERE event_id = $2")
-        .bind(KernelEventType::KnowledgeRetrievalTraceRecorded.as_str())
-        .bind(&trace_receipt.event_id)
-        .execute(&setup.pool)
-        .await
-        .expect("restore trace receipt type");
-    let wrong_workspace_id = setup.fx.pg.create_workspace().await;
-    sqlx::query("UPDATE knowledge_retrieval_traces SET workspace_id = $1 WHERE trace_id = $2")
-        .bind(wrong_workspace_id)
-        .bind(&setup.stored_trace.trace_id)
-        .execute(&setup.pool)
-        .await
-        .expect("corrupt trace workspace");
-    let err = replay_context_bundle_from_trace(&setup.fx.pg.db, &setup.stored_trace.trace_id)
-        .await
-        .expect_err("trace/bundle workspace drift must fail replay");
-    assert!(
-        err.to_string().contains("workspace"),
-        "unexpected workspace-drift error: {err}"
-    );
+    let stored_traces = KnowledgeStore::list_knowledge_retrieval_traces_for_bundle(
+        &setup.fx.store.db,
+        &setup.compiled.bundle_id,
+    )
+    .await
+    .expect("read retrieval traces from embedded authority");
+    assert!(stored_traces
+        .iter()
+        .any(|trace| trace.trace_id == setup.stored_trace.trace_id));
+    let events = handshake_core::storage::Database::list_kernel_events_for_session(
+        &setup.fx.store.db,
+        "sr-mt238-replay",
+    )
+    .await
+    .expect("read embedded EventLedger receipts");
+    assert!(events
+        .iter()
+        .any(|event| event.event_id == trace_receipt.event_id));
 }
 
 #[tokio::test]
 async fn replay_context_bundle_from_trace_fails_without_eventledger_receipts() {
-    let setup = skip_if_no_pg!(
-        span_replay_setup("missing_receipts").await,
-        "replay_context_bundle_from_trace_fails_without_eventledger_receipts"
-    );
-
-    sqlx::query(
-        "UPDATE knowledge_context_bundles SET build_receipt_event_id = NULL WHERE bundle_id = $1",
+    let setup = span_replay_setup("missing_receipts")
+        .await
+        .expect("embedded replay fixture");
+    let (_, items) =
+        KnowledgeStore::get_knowledge_context_bundle(&setup.fx.store.db, &setup.compiled.bundle_id)
+            .await
+            .expect("read source bundle")
+            .expect("source bundle");
+    let query_plan_id = setup.stored_trace.decisions["query_plan"]["plan_id"]
+        .as_str()
+        .expect("query plan id")
+        .to_owned();
+    let bundle_without_build_receipt =
+        handshake_core::storage::knowledge::KnowledgeStore::record_knowledge_context_bundle(
+            &setup.fx.store.db,
+            NewKnowledgeContextBundle {
+                workspace_id: setup.fx.workspace_id.clone(),
+                bundle: handshake_core::kernel::context_bundle::ContextBundle::new(
+                    "ktr-mt238-missing-build",
+                    "sr-mt238-missing-build",
+                    serde_json::json!({"query_plan_id": query_plan_id}),
+                )
+                .expect("missing-build-receipt bundle"),
+                query_text: Some("missing build receipt".to_owned()),
+                token_budget: Some(100),
+                tokens_used: Some(12),
+                build_receipt_event_id: None,
+                items: items
+                    .iter()
+                    .map(|item| NewKnowledgeContextBundleItem {
+                        ref_kind: item.ref_kind,
+                        ref_id: item.ref_id.clone(),
+                        retrieval_decision: item.retrieval_decision,
+                        relevance_score: item.relevance_score,
+                        token_count: item.token_count,
+                        citation: item.citation.clone(),
+                        supported: item.supported,
+                        unsupported_reason: item.unsupported_reason.clone(),
+                    })
+                    .collect(),
+            },
+        )
+        .await
+        .expect("record bundle without build receipt");
+    let missing_build_trace = record_trace_variant(
+        &setup,
+        setup.stored_trace.decisions.clone(),
+        Some(bundle_without_build_receipt.bundle_id),
+        None,
     )
-    .bind(&setup.compiled.bundle_id)
-    .execute(&setup.pool)
-    .await
-    .expect("remove build receipt");
-    let err = replay_context_bundle_from_trace(&setup.fx.pg.db, &setup.stored_trace.trace_id)
+    .await;
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &missing_build_trace.trace_id)
         .await
         .expect_err("missing build receipt must fail replay");
     assert!(
@@ -272,17 +315,14 @@ async fn replay_context_bundle_from_trace_fails_without_eventledger_receipts() {
         "unexpected missing-build-receipt error: {err}"
     );
 
-    let setup = span_replay_setup("missing_trace_receipt")
-        .await
-        .expect("PostgreSQL fixture remains available");
-    sqlx::query(
-        "UPDATE knowledge_retrieval_traces SET trace_receipt_event_id = NULL WHERE trace_id = $1",
+    let missing_trace_receipt = record_trace_variant(
+        &setup,
+        setup.stored_trace.decisions.clone(),
+        Some(setup.compiled.bundle_id.clone()),
+        None,
     )
-    .bind(&setup.stored_trace.trace_id)
-    .execute(&setup.pool)
-    .await
-    .expect("remove trace receipt");
-    let err = replay_context_bundle_from_trace(&setup.fx.pg.db, &setup.stored_trace.trace_id)
+    .await;
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &missing_trace_receipt.trace_id)
         .await
         .expect_err("missing trace receipt must fail replay");
     assert!(
@@ -294,27 +334,22 @@ async fn replay_context_bundle_from_trace_fails_without_eventledger_receipts() {
 
 #[tokio::test]
 async fn replay_context_bundle_from_trace_fails_on_receipt_aggregate_id_mismatch() {
-    let setup = skip_if_no_pg!(
-        span_replay_setup("aggregate_mismatch").await,
-        "replay_context_bundle_from_trace_fails_on_receipt_aggregate_id_mismatch"
-    );
-
-    let replay = replay_context_bundle_from_trace(&setup.fx.pg.db, &setup.stored_trace.trace_id)
+    let setup = span_replay_setup("aggregate_mismatch")
         .await
-        .expect("initial replay");
-    let build_receipt = replay
-        .receipt_events
-        .iter()
-        .find(|event| event.aggregate_type == "context_bundle")
-        .expect("build receipt");
-
-    sqlx::query("UPDATE kernel_event_ledger SET aggregate_id = $1 WHERE event_id = $2")
-        .bind("wrong-context-bundle")
-        .bind(&build_receipt.event_id)
-        .execute(&setup.pool)
-        .await
-        .expect("corrupt build aggregate id");
-    let err = replay_context_bundle_from_trace(&setup.fx.pg.db, &setup.stored_trace.trace_id)
+        .expect("embedded replay fixture");
+    let trace_receipt_event_id = setup
+        .stored_trace
+        .trace_receipt_event_id
+        .clone()
+        .expect("trace receipt");
+    let trace = record_trace_variant(
+        &setup,
+        setup.stored_trace.decisions.clone(),
+        Some(setup.compiled.bundle_id.clone()),
+        Some(trace_receipt_event_id),
+    )
+    .await;
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &trace.trace_id)
         .await
         .expect_err("wrong aggregate_id must fail replay");
     assert!(
@@ -324,25 +359,73 @@ async fn replay_context_bundle_from_trace_fails_on_receipt_aggregate_id_mismatch
 }
 
 #[tokio::test]
-async fn replay_context_bundle_from_trace_fails_when_selected_trace_items_are_missing() {
-    let setup = skip_if_no_pg!(
-        span_replay_setup("selected_missing").await,
-        "replay_context_bundle_from_trace_fails_when_selected_trace_items_are_missing"
+async fn replay_context_bundle_from_trace_fails_on_wrong_receipt_type_and_workspace_drift() {
+    let setup = span_replay_setup("receipt_corruption")
+        .await
+        .expect("embedded replay fixture");
+    let wrong_event = NewKernelEvent::builder(
+        "ktr-mt238-replay",
+        "sr-mt238-replay",
+        KernelEventType::ModelResponseRecorded,
+        KernelActor::System("mt238-replay-test".to_owned()),
+    )
+    .aggregate("knowledge_retrieval_trace", "wrong-trace")
+    .idempotency_key("mt238-wrong-receipt-type")
+    .payload(serde_json::json!({"fixture": "wrong receipt type"}))
+    .build()
+    .expect("wrong receipt event");
+    let wrong_event =
+        handshake_core::storage::Database::append_kernel_event(&setup.fx.store.db, wrong_event)
+            .await
+            .expect("append typed wrong receipt event");
+    let wrong_type_trace = record_trace_variant(
+        &setup,
+        setup.stored_trace.decisions.clone(),
+        Some(setup.compiled.bundle_id.clone()),
+        Some(wrong_event.event_id),
+    )
+    .await;
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &wrong_type_trace.trace_id)
+        .await
+        .expect_err("wrong receipt event type must fail replay");
+    assert!(
+        err.to_string().contains("receipt event_type"),
+        "unexpected receipt-type error: {err}"
     );
 
-    sqlx::query(
-        r#"
-        UPDATE knowledge_retrieval_traces
-        SET decisions = jsonb_set(decisions, '{retrieval_trace,selected}', '[]'::jsonb)
-        WHERE trace_id = $1
-        "#,
+    let wrong_workspace_id = setup.fx.store.create_workspace().await;
+    let workspace_drift_trace = record_trace_variant_in_workspace(
+        &setup,
+        wrong_workspace_id,
+        setup.stored_trace.decisions.clone(),
+        Some(setup.compiled.bundle_id.clone()),
+        setup.stored_trace.trace_receipt_event_id.clone(),
     )
-    .bind(&setup.stored_trace.trace_id)
-    .execute(&setup.pool)
-    .await
-    .expect("remove selected evidence");
+    .await;
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &workspace_drift_trace.trace_id)
+        .await
+        .expect_err("trace/bundle workspace drift must fail replay");
+    assert!(
+        err.to_string().contains("workspace"),
+        "unexpected workspace-drift error: {err}"
+    );
+}
 
-    let err = replay_context_bundle_from_trace(&setup.fx.pg.db, &setup.stored_trace.trace_id)
+#[tokio::test]
+async fn replay_context_bundle_from_trace_fails_when_selected_trace_items_are_missing() {
+    let setup = span_replay_setup("selected_missing")
+        .await
+        .expect("embedded replay fixture");
+    let mut decisions = setup.stored_trace.decisions.clone();
+    decisions["retrieval_trace"]["selected"] = serde_json::json!([]);
+    let trace = record_trace_variant(
+        &setup,
+        decisions,
+        Some(setup.compiled.bundle_id.clone()),
+        None,
+    )
+    .await;
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &trace.trace_id)
         .await
         .expect_err("empty selected trace must fail replay");
     assert!(
@@ -353,24 +436,19 @@ async fn replay_context_bundle_from_trace_fails_when_selected_trace_items_are_mi
 
 #[tokio::test]
 async fn replay_context_bundle_from_trace_fails_when_selected_candidate_is_missing() {
-    let setup = skip_if_no_pg!(
-        span_replay_setup("selected_candidate_missing").await,
-        "replay_context_bundle_from_trace_fails_when_selected_candidate_is_missing"
-    );
-
-    sqlx::query(
-        r#"
-        UPDATE knowledge_retrieval_traces
-        SET decisions = jsonb_set(decisions, '{retrieval_trace,candidates}', '[]'::jsonb)
-        WHERE trace_id = $1
-        "#,
+    let setup = span_replay_setup("selected_candidate_missing")
+        .await
+        .expect("embedded replay fixture");
+    let mut decisions = setup.stored_trace.decisions.clone();
+    decisions["retrieval_trace"]["candidates"] = serde_json::json!([]);
+    let trace = record_trace_variant(
+        &setup,
+        decisions,
+        Some(setup.compiled.bundle_id.clone()),
+        None,
     )
-    .bind(&setup.stored_trace.trace_id)
-    .execute(&setup.pool)
-    .await
-    .expect("remove candidate evidence");
-
-    let err = replay_context_bundle_from_trace(&setup.fx.pg.db, &setup.stored_trace.trace_id)
+    .await;
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &trace.trace_id)
         .await
         .expect_err("selected evidence missing its ranked candidate must fail replay");
     assert!(
@@ -381,13 +459,12 @@ async fn replay_context_bundle_from_trace_fails_when_selected_candidate_is_missi
 
 #[tokio::test]
 async fn replay_context_bundle_from_trace_reconstructs_executor_passage_span_anchors() {
-    let fx = skip_if_no_pg!(
-        MemoryFixture::setup().await,
-        "replay_context_bundle_from_trace_reconstructs_executor_passage_span_anchors"
-    );
+    let fx = MemoryFixture::setup()
+        .await
+        .expect("embedded replay fixture");
 
     let passage = fx
-        .pg
+        .store
         .db
         .create_knowledge_memory_passage(NewKnowledgeMemoryPassage {
             workspace_id: fx.workspace_id.clone(),
@@ -409,16 +486,16 @@ async fn replay_context_bundle_from_trace_reconstructs_executor_passage_span_anc
     let target_entity_id = fx
         .entity("symbol", "mt238_passage_target", "Mt238PassageTarget")
         .await;
-    let planner = CheapestAuthoritativePathPlanner::new(&fx.pg.db);
+    let planner = CheapestAuthoritativePathPlanner::new(&fx.store.db);
     let request = RetrievalRequest::discovery(&fx.workspace_id, "replay MT-238 passage bundle")
         .with_handle(AuthoritativeHandle::EntityId(target_entity_id.clone()));
     let planned = planner.plan(&request).await.expect("plan");
     let mut trace = RetrievalTrace::for_plan(&planned.plan);
-    let snippet = assemble_span_snippet(&fx.pg.db, &fx.span_id)
+    let snippet = assemble_span_snippet(&fx.store.db, &fx.span_id)
         .await
         .expect("snippet");
 
-    let compiled = ContextBundleCompilerV2::new(&fx.pg.db)
+    let compiled = ContextBundleCompilerV2::new(&fx.store.db)
         .compile(
             &fx.workspace_id,
             "ktr-mt238-passage",
@@ -442,12 +519,12 @@ async fn replay_context_bundle_from_trace_reconstructs_executor_passage_span_anc
         .await
         .expect("compile passage bundle");
 
-    let stored_trace = traces_for_bundle(&fx.pg.db, &compiled.bundle_id)
+    let stored_trace = traces_for_bundle(&fx.store.db, &compiled.bundle_id)
         .await
         .expect("traces")
         .pop()
         .expect("trace");
-    let replay = replay_context_bundle_from_trace(&fx.pg.db, &stored_trace.trace_id)
+    let replay = replay_context_bundle_from_trace(&fx.store.db, &stored_trace.trace_id)
         .await
         .expect("passage replay");
     let passage_item: &KnowledgeContextBundleItem = replay
@@ -468,11 +545,10 @@ async fn replay_context_bundle_from_trace_reconstructs_executor_passage_span_anc
 
 #[tokio::test]
 async fn replay_context_bundle_from_trace_reconstructs_executor_graph_edge_span_anchors() {
-    let fx = skip_if_no_pg!(
-        MemoryFixture::setup().await,
-        "replay_context_bundle_from_trace_reconstructs_executor_graph_edge_span_anchors"
-    );
-    let pool = pool_for(&fx.pg).await;
+    let fx = MemoryFixture::setup()
+        .await
+        .expect("embedded replay fixture");
+    let pool = pool_for(&fx.store).await;
 
     let hub = fx
         .entity("symbol", "mt238_graph_hub", "Mt238GraphHub")
@@ -481,7 +557,7 @@ async fn replay_context_bundle_from_trace_reconstructs_executor_graph_edge_span_
         .entity("symbol", "mt238_graph_target", "Mt238GraphTarget")
         .await;
     let edge = fx
-        .pg
+        .store
         .db
         .upsert_knowledge_edge(NewKnowledgeEdge {
             workspace_id: fx.workspace_id.clone(),
@@ -499,7 +575,7 @@ async fn replay_context_bundle_from_trace_reconstructs_executor_graph_edge_span_
     let mut request = RetrievalRequest::discovery(&fx.workspace_id, "replay MT-238 graph bundle");
     request.graph_neighborhood_expected = true;
     let executed = execute_retrieval(
-        &fx.pg.db,
+        &fx.store.db,
         &pool,
         "ktr-mt238-graph",
         "sr-mt238-graph",
@@ -513,12 +589,12 @@ async fn replay_context_bundle_from_trace_reconstructs_executor_graph_edge_span_
     .expect("execute graph retrieval");
     assert_eq!(executed.ranked[0].kind, "entity_ref");
 
-    let stored_trace = traces_for_bundle(&fx.pg.db, &executed.compiled.bundle_id)
+    let stored_trace = traces_for_bundle(&fx.store.db, &executed.compiled.bundle_id)
         .await
         .expect("traces")
         .pop()
         .expect("trace");
-    let replay = replay_context_bundle_from_trace(&fx.pg.db, &stored_trace.trace_id)
+    let replay = replay_context_bundle_from_trace(&fx.store.db, &stored_trace.trace_id)
         .await
         .expect("graph edge replay");
     let graph_item: &KnowledgeContextBundleItem = replay

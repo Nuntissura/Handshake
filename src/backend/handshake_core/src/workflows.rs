@@ -44,7 +44,7 @@ use crate::{
         openai_compat_canonical_request_bytes, CompletionRequest, LlmError, ModelTier,
     },
     memory::{
-        bitemporal::PostgresBitemporalMemoryIndex,
+        bitemporal::SurrealBitemporalMemoryIndex,
         hygiene::{HygieneConfig, HygieneJobRunner},
         SurrealKernelActionSubmitter,
     },
@@ -22097,7 +22097,7 @@ async fn run_fems_hygiene_job(
 ) -> Result<RunJobOutcome, WorkflowError> {
     let config = parse_fems_hygiene_config(inputs)?;
     let report = {
-        let fems = PostgresBitemporalMemoryIndex::with_db(Arc::clone(&state.storage));
+        let fems = SurrealBitemporalMemoryIndex::with_db(Arc::clone(&state.storage));
         let submitter = SurrealKernelActionSubmitter::with_db(Arc::clone(&state.storage));
         let runner = HygieneJobRunner::new(&fems, &submitter);
         runner

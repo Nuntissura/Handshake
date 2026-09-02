@@ -1,42 +1,32 @@
 //! WP-KERNEL-005 MT-143 proof — lease/claim contract for parallel model
-//! coordination, enforced against Handshake-managed PostgreSQL.
+//! coordination, enforced against the embedded SurrealDB store.
 //!
 //! TTL, stale state, and conflict errors are proven against the database
 //! clock: leases are persisted through `AtelierStore`, RE-READ from
-//! PostgreSQL, expiry becomes observable on re-read without any writer,
+//! the embedded store, expiry becomes observable on re-read without any writer,
 //! conflicting exclusive claims fail typed, expired holders are taken over
 //! durably, and every mutation mirrors through the EventLedger.
 
-mod atelier_pg_support;
+mod atelier_surreal_support;
 
 use std::sync::Arc;
 
-use atelier_pg_support::database_url;
 use handshake_core::atelier::model_lease::{model_lease_event_family, NewModelLeaseClaim};
 use handshake_core::atelier::{AtelierError, AtelierStore};
 use handshake_core::kernel::role_mailbox_claim_lease::{
     ClaimLeaseState, RoleMailboxClaimMode, RoleMailboxExecutorKind,
 };
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{postgres::PostgresDatabase, Database};
-use sqlx::postgres::PgPoolOptions;
+use handshake_core::storage::Database;
 use uuid::Uuid;
 
-async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(url)
-        .await
-        .expect("connect to PostgreSQL");
-    let database = PostgresDatabase::new(pool.clone());
-    database
-        .run_migrations()
-        .await
-        .expect("run kernel migrations");
-    let database = database.into_arc();
-    let store = AtelierStore::with_event_ledger(pool, database.clone());
-    store.ensure_schema().await.expect("ensure atelier schema");
-    (store, database)
+async fn connected_store_with_ledger() -> (
+    AtelierStore,
+    Arc<dyn Database>,
+    atelier_surreal_support::AtelierSurrealHarness,
+) {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    (harness.atelier.clone(), harness.database.clone(), harness)
 }
 
 fn new_claim(thread_id: &str, actor_id: &str, ttl_seconds: i64) -> NewModelLeaseClaim {
@@ -72,12 +62,8 @@ async fn assert_lease_event(
 }
 
 #[tokio::test]
-async fn mt143_claim_persists_to_pg_and_rereads_with_db_clock_ttl_view() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt143_claim_persists: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+async fn mt143_claim_persists_to_embedded_store_and_rereads_with_db_clock_ttl_view() {
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let thread_id = format!("mt143-thread-{}", Uuid::now_v7());
     let claimed = store
@@ -87,11 +73,11 @@ async fn mt143_claim_persists_to_pg_and_rereads_with_db_clock_ttl_view() {
     assert_eq!(claimed.stored_state, ClaimLeaseState::Active);
     assert!(!claimed.lease_expired);
 
-    // RE-READ from PostgreSQL: the persisted row, not the claim echo.
+    // RE-READ from the embedded store: the persisted row, not the claim echo.
     let reread = store
         .get_model_lease(claimed.claim_id)
         .await
-        .expect("re-read lease from PostgreSQL");
+        .expect("re-read lease from embedded store");
     assert_eq!(reread.claim_id, claimed.claim_id);
     assert_eq!(reread.thread_id, thread_id);
     assert_eq!(reread.actor_id, "coder-alpha");
@@ -115,11 +101,7 @@ async fn mt143_claim_persists_to_pg_and_rereads_with_db_clock_ttl_view() {
 
 #[tokio::test]
 async fn mt143_ttl_expiry_is_observable_on_reread_without_any_writer() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt143_ttl_expiry: PostgreSQL unavailable");
-        return;
-    };
-    let (store, _database) = connected_store_with_ledger(&url).await;
+    let (store, _database, _harness) = connected_store_with_ledger().await;
 
     let thread_id = format!("mt143-ttl-{}", Uuid::now_v7());
     let claimed = store
@@ -153,12 +135,8 @@ async fn mt143_ttl_expiry_is_observable_on_reread_without_any_writer() {
 }
 
 #[tokio::test]
-async fn mt143_conflicting_exclusive_claim_fails_typed_against_pg() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt143_conflict: PostgreSQL unavailable");
-        return;
-    };
-    let (store, _database) = connected_store_with_ledger(&url).await;
+async fn mt143_conflicting_exclusive_claim_fails_typed_against_embedded_store() {
+    let (store, _database, _harness) = connected_store_with_ledger().await;
 
     let thread_id = format!("mt143-conflict-{}", Uuid::now_v7());
     let holder = store
@@ -190,11 +168,7 @@ async fn mt143_conflicting_exclusive_claim_fails_typed_against_pg() {
 
 #[tokio::test]
 async fn mt143_expired_holder_is_taken_over_durably_with_ledger_event() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt143_takeover: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     let thread_id = format!("mt143-takeover-{}", Uuid::now_v7());
     let stale_holder = store
@@ -242,12 +216,8 @@ async fn mt143_expired_holder_is_taken_over_durably_with_ledger_event() {
 }
 
 #[tokio::test]
-async fn mt143_renew_and_release_enforce_holder_and_ttl_on_pg() {
-    let Some(url) = database_url().await else {
-        eprintln!("SKIP mt143_renew_release: PostgreSQL unavailable");
-        return;
-    };
-    let (store, database) = connected_store_with_ledger(&url).await;
+async fn mt143_renew_and_release_enforce_holder_and_ttl_on_embedded_store() {
+    let (store, database, _harness) = connected_store_with_ledger().await;
 
     // Renew by the holder extends from the database clock.
     let thread_id = format!("mt143-renew-{}", Uuid::now_v7());

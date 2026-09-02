@@ -6,7 +6,6 @@ use std::io::Write;
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 
-use handshake_core::storage::Workspace;
 use surreal_test_store_support::{
     measure_owned_scopes, remaining_leak_modes, sweep_stale_orphans, IsolatedSurrealTestStore,
     TEST_STORE_ROOT_ENV, TEST_STORE_STALE_AGE_MS_ENV,
@@ -20,20 +19,12 @@ const CHILD_MODE_DROP_GUARD: &str = "drop-guard";
 const CHILD_MODE_PANIC_GUARD: &str = "panic-guard";
 const CHILD_SCOPE_PREFIX: &str = "SURREAL_TEST_STORE_SCOPE=";
 const CHILD_BACKLOG_STALE_AGE_MS: &str = "3600000";
-const CHILD_WORKSPACE_PROBE_NAME: &str = "killed-child-populated-workspace";
 const LIVE_WORKSPACE_PROBE_NAME: &str = "live-owner-populated-workspace";
-
-fn assert_workspace_fields_match(expected: &Workspace, actual: &Workspace) {
-    assert_eq!(actual.id, expected.id);
-    assert_eq!(actual.name, expected.name);
-    assert_eq!(actual.created_at, expected.created_at);
-    assert_eq!(actual.updated_at, expected.updated_at);
-}
 
 #[tokio::test]
 async fn graceful_shutdown_removes_the_owned_scope() {
     let root = tempfile::tempdir().expect("create isolated test root");
-    let store = IsolatedSurrealTestStore::create_in(root.path())
+    let store = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("open real isolated embedded store");
     assert!(store.is_accepting_operations());
@@ -51,7 +42,7 @@ async fn graceful_shutdown_removes_the_owned_scope() {
 #[cfg(windows)]
 async fn parallel_sweep_skips_a_live_owner() {
     let root = tempfile::tempdir().expect("create isolated test root");
-    let store = IsolatedSurrealTestStore::create_in(root.path())
+    let store = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("open real isolated embedded store");
     let scope = store.scope_path().to_path_buf();
@@ -77,23 +68,20 @@ async fn mt123_surreal_test_store_child_holds_owner_marker() {
     let Ok(mode) = std::env::var(CHILD_MODE_ENV) else {
         return;
     };
-    let store = IsolatedSurrealTestStore::create()
-        .await
-        .expect("child opens real isolated embedded store");
+    let store = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(
+        std::env::var_os(TEST_STORE_ROOT_ENV).expect("child test-store root is configured"),
+    )
+    .await
+    .expect("child opens real isolated embedded store without unrelated schema bootstrap");
     let scope = store.scope_path().to_path_buf();
     let marker = store.owner_marker_path_for_proof().to_path_buf();
     match mode.as_str() {
         CHILD_MODE_HOLD => {
-            let killed_probe = store
-                .create_workspace_probe(CHILD_WORKSPACE_PROBE_NAME)
-                .await
-                .expect("populate killed child's real Surreal workspace record");
-            let killed_readback = store
-                .get_workspace_probe(&killed_probe.id)
-                .await
-                .expect("read back killed child's Surreal workspace record")
-                .expect("killed child's generated workspace id remains readable");
-            assert_workspace_fields_match(&killed_probe, &killed_readback);
+            std::fs::write(
+                store.scope_path().join("child-probe.bin"),
+                b"mt123-killed-child",
+            )
+            .expect("populate killed child's real embedded store directory");
             std::mem::forget(store);
         }
         CHILD_MODE_DROP_GUARD => drop(store),
@@ -129,14 +117,13 @@ async fn mt123_surreal_test_store_child_holds_owner_marker() {
 #[cfg(windows)]
 async fn killed_child_orphan_is_reclaimed_without_touching_live_owners() {
     let root = tempfile::tempdir().expect("create isolated test root");
-    let live_store = IsolatedSurrealTestStore::create_in(root.path())
+    let live_store = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("open parallel live embedded store");
     let live_scope = live_store.scope_path().to_path_buf();
-    let live_probe = live_store
-        .create_workspace_probe(LIVE_WORKSPACE_PROBE_NAME)
-        .await
-        .expect("populate live owner's real Surreal workspace record");
+    let live_probe_path = live_scope.join("live-probe.bin");
+    std::fs::write(&live_probe_path, LIVE_WORKSPACE_PROBE_NAME.as_bytes())
+        .expect("populate live owner's real embedded store directory");
 
     let orphan_scope = spawn_and_kill_owned_store(root.path(), CHILD_MODE_HOLD).await;
     assert!(
@@ -144,10 +131,15 @@ async fn killed_child_orphan_is_reclaimed_without_touching_live_owners() {
         "killed child must reproduce an orphan before reclamation"
     );
 
-    let recovered_store = IsolatedSurrealTestStore::create_in(root.path())
-        .await
-        .expect("later normal store creation runs automatic orphan recovery");
+    let recovered_store =
+        IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
+            .await
+            .expect("later normal store creation runs automatic orphan recovery");
     let report = recovered_store.startup_sweep_report();
+    assert_eq!(
+        report.examined, 2,
+        "orphan and live scopes must be reported"
+    );
     assert_eq!(report.reclaimed, vec![orphan_scope.clone()]);
     assert_eq!(report.skipped_live, vec![live_scope.clone()]);
     assert!(
@@ -165,12 +157,10 @@ async fn killed_child_orphan_is_reclaimed_without_touching_live_owners() {
         "killed-child orphan was not reclaimed"
     );
     assert!(live_scope.exists(), "parallel live owner was touched");
-    let live_readback = live_store
-        .get_workspace_probe(&live_probe.id)
-        .await
-        .expect("re-read live owner's workspace after sweep")
-        .expect("live owner's generated workspace id remains readable");
-    assert_workspace_fields_match(&live_probe, &live_readback);
+    assert_eq!(
+        std::fs::read(&live_probe_path).expect("re-read live owner's probe after sweep"),
+        LIVE_WORKSPACE_PROBE_NAME.as_bytes()
+    );
 
     recovered_store
         .shutdown_and_cleanup()
@@ -249,7 +239,7 @@ async fn plain_drop_and_caught_unwind_retain_ownership_until_process_exit() {
 #[cfg(windows)]
 async fn interrupted_quarantine_is_recovered_by_the_next_normal_creation() {
     let root = tempfile::tempdir().expect("create quarantine-recovery root");
-    let quarantine = IsolatedSurrealTestStore::create_in(root.path())
+    let quarantine = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("open real embedded store")
         .leave_interrupted_quarantine_for_proof()
@@ -257,7 +247,7 @@ async fn interrupted_quarantine_is_recovered_by_the_next_normal_creation() {
         .expect("simulate interruption after atomic quarantine rename");
     assert!(quarantine.exists());
 
-    let recovered = IsolatedSurrealTestStore::create_in(root.path())
+    let recovered = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("normal creation recovers interrupted quarantine");
     assert_eq!(
@@ -275,7 +265,7 @@ async fn interrupted_quarantine_is_recovered_by_the_next_normal_creation() {
 #[cfg(windows)]
 async fn live_quarantine_keeps_its_marker_until_owner_release() {
     let root = tempfile::tempdir().expect("create live-quarantine root");
-    let mut store = IsolatedSurrealTestStore::create_in(root.path())
+    let mut store = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("open real embedded store");
     let quarantine = store
@@ -316,7 +306,7 @@ fn reparse_candidate_is_rejected_and_external_content_survives() {
     std::fs::write(&sentinel, b"untouched").expect("write external sentinel");
     let runtime = tokio::runtime::Runtime::new().expect("create proof runtime");
     let scope = runtime.block_on(async {
-        IsolatedSurrealTestStore::create_in(root.path())
+        IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
             .await
             .expect("open real embedded store for nested reparse proof")
             .leave_closed_orphan_for_proof()
@@ -395,7 +385,7 @@ async fn bounded_backlog_recovery_records_counts_bytes_and_open_timings() {
     );
 
     let recovery_started = Instant::now();
-    let recovered = IsolatedSurrealTestStore::create_in(root.path())
+    let recovered = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("normal creation reclaims bounded backlog then cold-opens");
     let recovery_open_elapsed = recovery_started.elapsed();
@@ -403,6 +393,11 @@ async fn bounded_backlog_recovery_records_counts_bytes_and_open_timings() {
     assert_eq!(
         recovered.startup_sweep_report().reclaimed.len(),
         BACKLOG_SIZE
+    );
+    assert_eq!(
+        recovered.startup_sweep_report().examined,
+        BACKLOG_SIZE,
+        "every backlog scope must be included in the bounded sweep report"
     );
     assert_eq!(
         recovered.startup_sweep_report().reclaimed_bytes,
@@ -421,7 +416,7 @@ async fn bounded_backlog_recovery_records_counts_bytes_and_open_timings() {
         .await
         .expect("clean up recovered store");
     let reopen_started = Instant::now();
-    let reopened = IsolatedSurrealTestStore::create_in(root.path())
+    let reopened = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("reopen after bounded recovery cleanup");
     let reopen_elapsed = reopen_started.elapsed();

@@ -68,6 +68,7 @@ fn is_lower_hex(value: &str) -> bool {
 
 #[derive(Debug, Default)]
 pub struct SweepReport {
+    pub examined: usize,
     pub reclaimed: Vec<PathBuf>,
     pub reclaimed_bytes: u64,
     pub reclaimed_owner_markers: Vec<PathBuf>,
@@ -110,6 +111,19 @@ impl IsolatedSurrealTestStore {
         root: impl AsRef<Path>,
         minimum_age: Duration,
     ) -> io::Result<Self> {
+        Self::create_in_with_policy_and_bootstrap(root, minimum_age, true).await
+    }
+
+    pub async fn create_in_without_bootstrap_for_proof(root: impl AsRef<Path>) -> io::Result<Self> {
+        let minimum_age = configured_stale_age()?;
+        Self::create_in_with_policy_and_bootstrap(root, minimum_age, false).await
+    }
+
+    async fn create_in_with_policy_and_bootstrap(
+        root: impl AsRef<Path>,
+        minimum_age: Duration,
+        bootstrap: bool,
+    ) -> io::Result<Self> {
         let root = prepare_root(root.as_ref())?;
         let startup_sweep = sweep_prepared_root(&root, minimum_age)?;
         let identity = StoreIdentity::generate();
@@ -146,22 +160,25 @@ impl IsolatedSurrealTestStore {
                 return Err(storage_error(error));
             }
         };
-        if let Err(bootstrap_error) = bootstrap_schema(&storage).await {
-            if let Err(shutdown_error) = storage.shutdown().await {
-                // The close barrier failed, so retain the zero-share marker until
-                // process exit rather than exposing a potentially live engine.
-                std::mem::forget(owner_marker);
+        if bootstrap {
+            if let Err(bootstrap_error) = bootstrap_schema(&storage).await {
+                if let Err(shutdown_error) = storage.shutdown().await {
+                    // The close barrier failed, so retain the zero-share marker until
+                    // process exit rather than exposing a potentially live engine.
+                    std::mem::forget(owner_marker);
+                    drop(storage);
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        format!(
+                            "schema bootstrap failed ({bootstrap_error}); fail-safe shutdown also failed ({shutdown_error})"
+                        ),
+                    ));
+                }
                 drop(storage);
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!(
-                        "schema bootstrap failed ({bootstrap_error}); fail-safe shutdown also failed ({shutdown_error})"
-                    ),
-                ));
+                let _ =
+                    remove_owned_scope(&root, &scope_path, &marker_path, &identity, owner_marker);
+                return Err(storage_error(bootstrap_error));
             }
-            drop(storage);
-            let _ = remove_owned_scope(&root, &scope_path, &marker_path, &identity, owner_marker);
-            return Err(storage_error(bootstrap_error));
         }
 
         Ok(Self {
@@ -340,8 +357,9 @@ pub fn sweep_stale_orphans(
 
 fn sweep_prepared_root(root: &Path, minimum_age: Duration) -> io::Result<SweepReport> {
     let mut report = SweepReport::default();
+    let entries: Vec<_> = fs::read_dir(root)?.collect();
 
-    for entry in fs::read_dir(root)? {
+    for entry in entries {
         let entry = match entry {
             Ok(entry) => entry,
             Err(error) => {
@@ -360,12 +378,14 @@ fn sweep_prepared_root(root: &Path, minimum_age: Duration) -> io::Result<SweepRe
             let Some(identity) = StoreIdentity::parse_scope_name(scope_name) else {
                 continue;
             };
+            report.examined += 1;
             reclaim_quarantined_scope(root, &scope_path, &identity, &mut report);
             continue;
         }
         let Some(identity) = StoreIdentity::parse_scope_name(&name) else {
             continue;
         };
+        report.examined += 1;
 
         if let Err(reason) = validate_scope(root, &scope_path, &identity) {
             report.rejected_unsafe.push((scope_path, reason));
@@ -397,6 +417,9 @@ fn sweep_prepared_root(root: &Path, minimum_age: Duration) -> io::Result<SweepRe
                     Ok(bytes) => {
                         report.reclaimed_bytes = report.reclaimed_bytes.saturating_add(bytes);
                         report.reclaimed.push(scope_path);
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
+                        report.rejected_unsafe.push((scope_path, error.to_string()))
                     }
                     Err(error) => report.errors.push((scope_path, error.to_string())),
                 }
@@ -503,11 +526,17 @@ fn reclaim_quarantined_scope(
             .rejected_unsafe
             .push((quarantine_path.to_path_buf(), reason)),
         OwnerProbe::Stale(marker) => {
-            // Byte accounting is observational only. Deletion safety comes from
-            // remove_dir_all's handle-relative Windows traversal, not this walk.
-            let bytes = inspect_contained_tree(quarantine_path)
-                .map(|tree| tree.contained_bytes)
-                .unwrap_or(0);
+            // Byte accounting is observational only, but containment inspection
+            // is a deletion gate: an ambiguous nested boundary is never removed.
+            let bytes = match inspect_contained_tree(quarantine_path) {
+                Ok(tree) => tree.contained_bytes,
+                Err(reason) => {
+                    report
+                        .rejected_unsafe
+                        .push((quarantine_path.to_path_buf(), reason));
+                    return;
+                }
+            };
             match fs::remove_dir_all(quarantine_path) {
                 Ok(()) => {
                     drop(marker);
@@ -752,8 +781,49 @@ fn probe_owner(root: &Path, marker_path: &Path, identity: &StoreIdentity) -> Own
         Err(error) => return OwnerProbe::Unsafe(error.to_string()),
     };
     match validate_open_marker(&mut marker, identity) {
-        Ok(()) => OwnerProbe::Stale(marker),
+        Ok(()) => match probe_engine_lock(root, identity) {
+            EngineLockProbe::Live => {
+                drop(marker);
+                OwnerProbe::Live
+            }
+            EngineLockProbe::Stale => OwnerProbe::Stale(marker),
+            EngineLockProbe::Unsafe(reason) => {
+                drop(marker);
+                OwnerProbe::Unsafe(reason)
+            }
+        },
         Err(reason) => OwnerProbe::Unsafe(reason),
+    }
+}
+
+#[cfg(windows)]
+enum EngineLockProbe {
+    Live,
+    Stale,
+    Unsafe(String),
+}
+
+#[cfg(windows)]
+fn probe_engine_lock(root: &Path, identity: &StoreIdentity) -> EngineLockProbe {
+    use std::os::windows::fs::OpenOptionsExt;
+
+    let lock_path = root.join(identity.scope_name()).join("data").join("LOCK");
+    match OpenOptions::new()
+        .read(true)
+        .write(true)
+        .share_mode(0)
+        .open(&lock_path)
+    {
+        Ok(lock) => {
+            drop(lock);
+            EngineLockProbe::Stale
+        }
+        Err(error) if matches!(error.raw_os_error(), Some(32) | Some(33)) => EngineLockProbe::Live,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => EngineLockProbe::Stale,
+        Err(error) => EngineLockProbe::Unsafe(format!(
+            "unable to prove RocksDB LOCK state for {}: {error}",
+            lock_path.display()
+        )),
     }
 }
 

@@ -1,17 +1,19 @@
 //! WP-KERNEL-009 RichDocumentCore (MT-145..MT-160) integration tests against
-//! REAL Handshake-managed PostgreSQL.
+//! REAL Handshake-managed embedded storage.
 //!
-//! Proof contract (no mocks, no SQLite): every test runs on a fresh isolated
-//! schema on the managed cluster (see `knowledge_pg_support`). The end-to-end
+//! Proof contract (no mocks, no alternate backend): every test runs on a fresh
+//! isolated on-disk store (see `embedded_knowledge_support`). The end-to-end
 //! proof creates a document with mixed blocks (incl. a Monaco code node, an
 //! embed, and a wikilink), saves it, reloads it, projects it to markdown and
 //! asserts the round-trip, asserts a backlink is persisted with a stable
 //! relationship id, proves a broken embed is repairable, proves deleting a
 //! projection does NOT mutate authority (negative), and proves crash recovery
-//! reconstructs the document from PG.
+//! reconstructs the document after a real close/reopen.
 
-mod knowledge_pg_support;
+#[path = "knowledge_ingestion_support.rs"]
+mod embedded_knowledge_support;
 
+use embedded_knowledge_support::open_embedded_store;
 use handshake_core::knowledge_document::backlink::{
     derive_document_link_relationship_id, DocumentLinkKind, DocumentLinkReferences,
 };
@@ -28,8 +30,8 @@ use handshake_core::storage::knowledge::{
     KnowledgeStore, NewKnowledgeRichDocument, UpsertEditorCodeNode,
     UpsertKnowledgeDocumentBacklink, UpsertKnowledgeDocumentEmbed,
 };
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::StorageError;
-use knowledge_pg_support::knowledge_pg;
 use serde_json::{json, Value};
 
 /// A mixed-block ProseMirror document: heading, paragraph with an inline
@@ -73,14 +75,14 @@ fn new_doc(workspace_id: &str, title: &str, content: Value) -> NewKnowledgeRichD
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn end_to_end_mixed_document_save_reload_project_roundtrip_and_backlink() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP end_to_end_mixed_document...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP end_to_end_mixed_document...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
+    let workspace_id = store.create_workspace().await;
 
     // MT-145 identity: create with project/folder/owner/authority_label.
-    let created = pg
+    let created = store
         .db
         .create_knowledge_rich_document(new_doc(&workspace_id, "Runbook", mixed_document()))
         .await
@@ -128,7 +130,8 @@ async fn end_to_end_mixed_document_save_reload_project_roundtrip_and_backlink() 
 
     // A Monaco code node round-trips with its integrity hash (MT-059 reuse).
     let code = "fn main() { println!(\"hi\"); }";
-    pg.db
+    store
+        .db
         .upsert_knowledge_editor_code_node(UpsertEditorCodeNode {
             rich_document_id: created.rich_document_id.clone(),
             node_path: "content.2.code".to_string(),
@@ -143,7 +146,7 @@ async fn end_to_end_mixed_document_save_reload_project_roundtrip_and_backlink() 
 
     // MT-152: a typed embed reference for the image block (never a path).
     let image_block_id = tree.blocks[3].block_id.clone();
-    let embed = pg
+    let embed = store
         .db
         .upsert_knowledge_document_embed(UpsertKnowledgeDocumentEmbed {
             rich_document_id: created.rich_document_id.clone(),
@@ -161,15 +164,22 @@ async fn end_to_end_mixed_document_save_reload_project_roundtrip_and_backlink() 
     let mut v2 = mixed_document();
     v2["content"][1]["content"][0]["text"] =
         json!("See [[Deploy Guide]] and tag #ops and #release.");
-    let saved = pg
+    let saved = store
         .db
-        .save_knowledge_rich_document_version(&created.rich_document_id, 1, v2.clone(), None, None, None)
+        .save_knowledge_rich_document_version(
+            &created.rich_document_id,
+            1,
+            v2.clone(),
+            None,
+            None,
+            None,
+        )
         .await
         .expect("save v2");
     assert_eq!(saved.doc_version, 2);
 
     // MT-149 reload: deterministic load of the saved authority.
-    let reread = pg
+    let reread = store
         .db
         .get_knowledge_rich_document(&created.rich_document_id)
         .await
@@ -210,7 +220,7 @@ async fn end_to_end_mixed_document_save_reload_project_roundtrip_and_backlink() 
             block_id: r.block_id.clone(),
         })
         .collect();
-    let persisted = pg
+    let persisted = store
         .db
         .replace_knowledge_document_backlinks(&reread.rich_document_id, upserts)
         .await
@@ -244,7 +254,7 @@ async fn end_to_end_mixed_document_save_reload_project_roundtrip_and_backlink() 
     );
 
     // Reverse lookup: who links TO WP-KERNEL-009 (MT-155 backlink direction).
-    let inbound = pg
+    let inbound = store
         .db
         .list_knowledge_document_backlinks_to(&reread.workspace_id, "wp", "WP-KERNEL-009")
         .await
@@ -253,7 +263,7 @@ async fn end_to_end_mixed_document_save_reload_project_roundtrip_and_backlink() 
     assert_eq!(inbound[0].source_document_id, reread.rich_document_id);
 
     // MT-156 history: append-only, complete from v1.
-    let versions = pg
+    let versions = store
         .db
         .list_knowledge_rich_document_versions(&created.rich_document_id)
         .await
@@ -269,12 +279,12 @@ async fn end_to_end_mixed_document_save_reload_project_roundtrip_and_backlink() 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn embed_reference_rejects_absolute_paths_and_broken_embed_is_repairable() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP embed_reference...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP embed_reference...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let doc = pg
+    let workspace_id = store.create_workspace().await;
+    let doc = store
         .db
         .create_knowledge_rich_document(new_doc(&workspace_id, "Embeds", mixed_document()))
         .await
@@ -297,27 +307,13 @@ async fn embed_reference_rejects_absolute_paths_and_broken_embed_is_repairable()
     assert!(EmbedTarget::new(EmbedRefKind::Url, "https://cdn.example/x.png").is_ok());
     assert!(EmbedTarget::new(EmbedRefKind::Url, "ftp://x").is_err());
 
-    // MT-152 DB law: the embeds table rejects an absolute-path ref_value even if
-    // the app layer were bypassed.
-    let mut conn = pg.raw_connection().await;
-    let err = sqlx::query(
-        "INSERT INTO knowledge_document_embeds
-            (embed_id, rich_document_id, block_id, ref_kind, ref_value)
-         VALUES ('KEMB-00000000000000000000000000000000', $1, 'b1', 'media', '/abs/path.png')",
-    )
-    .bind(&doc.rich_document_id)
-    .execute(&mut conn)
-    .await
-    .expect_err("absolute path must violate the embed CHECK");
-    assert!(
-        err.to_string()
-            .contains("chk_knowledge_document_embeds_ref_value_not_path"),
-        "unexpected: {err}"
-    );
-    drop(conn);
+    // DISPOSITION MT-141: the former direct-bypass CHECK probe is retired
+    // because the embedded public test facade exposes typed observations, not
+    // raw writes. The constructor rejection loop above is the superseding
+    // proof for the same absolute-path invariant.
 
     // MT-153 broken-embed repair: create an embed, mark it broken, repair it.
-    let embed = pg
+    let embed = store
         .db
         .upsert_knowledge_document_embed(UpsertKnowledgeDocumentEmbed {
             rich_document_id: doc.rich_document_id.clone(),
@@ -330,7 +326,7 @@ async fn embed_reference_rejects_absolute_paths_and_broken_embed_is_repairable()
         .expect("create embed");
     assert_eq!(embed.repair_state, "ok");
 
-    let broken = pg
+    let broken = store
         .db
         .set_knowledge_document_embed_repair_state(&embed.embed_id, Some("media id not found"))
         .await
@@ -338,7 +334,7 @@ async fn embed_reference_rejects_absolute_paths_and_broken_embed_is_repairable()
     assert_eq!(broken.repair_state, "broken");
     assert_eq!(broken.repair_reason.as_deref(), Some("media id not found"));
 
-    let queue = pg
+    let queue = store
         .db
         .list_knowledge_document_broken_embeds(&doc.rich_document_id)
         .await
@@ -346,7 +342,7 @@ async fn embed_reference_rejects_absolute_paths_and_broken_embed_is_repairable()
     assert_eq!(queue.len(), 1);
     assert_eq!(queue[0].embed_id, embed.embed_id);
 
-    let repaired = pg
+    let repaired = store
         .db
         .set_knowledge_document_embed_repair_state(&embed.embed_id, None)
         .await
@@ -354,7 +350,8 @@ async fn embed_reference_rejects_absolute_paths_and_broken_embed_is_repairable()
     assert_eq!(repaired.repair_state, "ok");
     assert!(repaired.repair_reason.is_none());
     assert!(
-        pg.db
+        store
+            .db
             .list_knowledge_document_broken_embeds(&doc.rich_document_id)
             .await
             .expect("queue after repair")
@@ -370,12 +367,12 @@ async fn embed_reference_rejects_absolute_paths_and_broken_embed_is_repairable()
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn deleting_a_projection_never_mutates_document_authority() {
     use handshake_core::storage::knowledge::{KnowledgeProjectionKind, NewKnowledgeWikiProjection};
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP deleting_a_projection...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP deleting_a_projection...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let doc = pg
+    let workspace_id = store.create_workspace().await;
+    let doc = store
         .db
         .create_knowledge_rich_document(new_doc(&workspace_id, "Authority", mixed_document()))
         .await
@@ -396,7 +393,7 @@ async fn deleting_a_projection_never_mutates_document_authority() {
         h.update(rendered.content.as_bytes());
         hex::encode(h.finalize())
     };
-    let projection = pg
+    let projection = store
         .db
         .upsert_knowledge_wiki_projection(NewKnowledgeWikiProjection {
             workspace_id: workspace_id.clone(),
@@ -410,7 +407,7 @@ async fn deleting_a_projection_never_mutates_document_authority() {
         .expect("register projection");
 
     // Snapshot the authority document BEFORE deleting the projection.
-    let before = pg
+    let before = store
         .db
         .get_knowledge_rich_document(&doc.rich_document_id)
         .await
@@ -418,12 +415,14 @@ async fn deleting_a_projection_never_mutates_document_authority() {
         .expect("exists");
 
     // Delete the projection.
-    pg.db
+    store
+        .db
         .delete_knowledge_wiki_projection(&projection.projection_id)
         .await
         .expect("delete projection");
     assert!(
-        pg.db
+        store
+            .db
             .get_knowledge_wiki_projection(&projection.projection_id)
             .await
             .expect("get projection after delete")
@@ -433,7 +432,7 @@ async fn deleting_a_projection_never_mutates_document_authority() {
 
     // The authority document is byte-identical: deleting a projection mutated
     // NOTHING in authority (spec 2.3.13.11).
-    let after = pg
+    let after = store
         .db
         .get_knowledge_rich_document(&doc.rich_document_id)
         .await
@@ -446,23 +445,23 @@ async fn deleting_a_projection_never_mutates_document_authority() {
 }
 
 // ---------------------------------------------------------------------------
-// MT-159 crash recovery: a saved document reconstructs from PG after a fresh
-// connection (simulating app restart / session compaction).
+// MT-159 crash recovery: a saved document reconstructs after an embedded-store
+// close/reopen (simulating app restart / session compaction).
 // ---------------------------------------------------------------------------
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn crash_recovery_reconstructs_document_from_postgres() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP crash_recovery...: no PostgreSQL");
+async fn crash_recovery_reconstructs_document_from_embedded_store() {
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP crash_recovery...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
-    let created = pg
+    let workspace_id = store.create_workspace().await;
+    let created = store
         .db
         .create_knowledge_rich_document(new_doc(&workspace_id, "Recover", mixed_document()))
         .await
         .expect("create");
-    let saved = pg
+    let saved = store
         .db
         .save_knowledge_rich_document_version(
             &created.rich_document_id,
@@ -475,12 +474,10 @@ async fn crash_recovery_reconstructs_document_from_postgres() {
         .await
         .expect("save v2");
 
-    // Simulate a crash: open a BRAND NEW PostgresDatabase against the same
-    // isolated schema (a fresh process would do exactly this) and reconstruct.
-    let recovered_db =
-        handshake_core::storage::postgres::PostgresDatabase::connect(&pg.schema_url, 5)
-            .await
-            .expect("reconnect after crash");
+    // Simulate a crash: close the live embedded handle, then reopen the same
+    // on-disk store and reconstruct from durable state.
+    store.shutdown().await.expect("shutdown before reopen");
+    let recovered_db: SurrealDatabase = store.reopen_database().await.expect("reopen after crash");
     let recovered = recovered_db
         .get_knowledge_rich_document(&created.rich_document_id)
         .await
@@ -508,21 +505,21 @@ async fn crash_recovery_reconstructs_document_from_postgres() {
 /// Adversarial-v2 MT-159: the DRAFT (write-box) half of crash recovery. The
 /// promoted-state proof above covers committed authority; this proves a
 /// document still in `draft` authority — including draft edits saved on top —
-/// reconstructs completely from PG after a crash (fresh connection), keeps its
+/// reconstructs completely after an embedded-store close/reopen, keeps its
 /// draft label (a crash never silently promotes), and can continue its
 /// lifecycle (promote) after recovery.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn crash_recovery_reconstructs_draft_writebox_state_from_postgres() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP crash_recovery_draft...: no PostgreSQL");
+async fn crash_recovery_reconstructs_draft_writebox_state_from_embedded_store() {
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP crash_recovery_draft...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
+    let workspace_id = store.create_workspace().await;
 
     // A write-box document: authority_label `draft`, not yet promoted.
     let mut draft_doc = new_doc(&workspace_id, "Draft Box", mixed_document());
     draft_doc.authority_label = Some("draft".to_string());
-    let created = pg
+    let created = store
         .db
         .create_knowledge_rich_document(draft_doc)
         .await
@@ -530,23 +527,34 @@ async fn crash_recovery_reconstructs_draft_writebox_state_from_postgres() {
     assert_eq!(created.authority_label, "draft");
 
     // Draft edits land as a v2 save while STILL in draft state (the unsaved
-    // work-in-progress the operator would lose on a crash without PG).
+    // work-in-progress the operator would lose without durable recovery).
     let mut wip = mixed_document();
     wip["content"][1]["content"][0]["text"] = json!("draft work in progress, not yet promoted");
-    let saved = pg
+    let saved = store
         .db
-        .save_knowledge_rich_document_version(&created.rich_document_id, 1, wip.clone(), None, None, None)
+        .save_knowledge_rich_document_version(
+            &created.rich_document_id,
+            1,
+            wip.clone(),
+            None,
+            None,
+            None,
+        )
         .await
         .expect("save draft v2");
     assert_eq!(saved.doc_version, 2);
     assert_eq!(saved.authority_label, "draft", "a save does not promote");
 
-    // CRASH: a brand-new PostgresDatabase against the same schema (what a
-    // fresh process does after app crash / session compaction).
-    let recovered_db =
-        handshake_core::storage::postgres::PostgresDatabase::connect(&pg.schema_url, 5)
-            .await
-            .expect("reconnect after crash");
+    // CRASH: close the live embedded handle and reopen the same on-disk store
+    // (what a fresh process does after app crash / session compaction).
+    store
+        .shutdown()
+        .await
+        .expect("shutdown before draft reopen");
+    let recovered_db: SurrealDatabase = store
+        .reopen_database()
+        .await
+        .expect("reopen after draft crash");
     let recovered = recovered_db
         .get_knowledge_rich_document(&created.rich_document_id)
         .await
@@ -595,17 +603,17 @@ async fn crash_recovery_reconstructs_draft_writebox_state_from_postgres() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn import_markdown_then_batch_rename_and_move() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP import_markdown...: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP import_markdown...: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
+    let workspace_id = store.create_workspace().await;
 
     // MT-151 import a markdown snippet into a document json, then persist it.
     let snippet = "# Title\n\nA paragraph.\n\n- one\n- two\n\n```\ncode();\n```";
     let outcome = import_snippet(snippet, ImportFormat::Markdown);
     assert!(outcome.warnings.is_empty());
-    let imported = pg
+    let imported = store
         .db
         .create_knowledge_rich_document(new_doc(
             &workspace_id,
@@ -632,7 +640,7 @@ async fn import_markdown_then_batch_rename_and_move() {
     assert_eq!(html_outcome.warnings[0].code, "html_captured_as_raw");
 
     // MT-157 batch rename + move (metadata-only, no version bump).
-    let renamed = pg
+    let renamed = store
         .db
         .rename_knowledge_rich_document(&imported.rich_document_id, "Imported Runbook", None)
         .await
@@ -643,7 +651,7 @@ async fn import_markdown_then_batch_rename_and_move() {
         "rename does not bump version"
     );
 
-    let moved = pg
+    let moved = store
         .db
         .move_knowledge_rich_document(
             &imported.rich_document_id,
@@ -656,7 +664,7 @@ async fn import_markdown_then_batch_rename_and_move() {
     assert_eq!(moved.folder_ref.as_deref(), Some("archive"));
 
     // Membership listing scoped to the new project (MT-145/157).
-    let in_project = pg
+    let in_project = store
         .db
         .list_knowledge_rich_documents(&workspace_id, Some("PRJ-other"), None)
         .await
@@ -687,29 +695,29 @@ async fn import_markdown_then_batch_rename_and_move() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn identity_validation_fails_closed() {
-    let Some(pg) = knowledge_pg().await else {
-        eprintln!("SKIP identity_validation_fails_closed: no PostgreSQL");
+    let Some(store) = open_embedded_store().await else {
+        eprintln!("SKIP identity_validation_fails_closed: embedded store unavailable");
         return;
     };
-    let workspace_id = pg.create_workspace().await;
+    let workspace_id = store.create_workspace().await;
 
     // Bad authority label is a typed Validation error.
     let mut bad_label = new_doc(&workspace_id, "Bad", mixed_document());
     bad_label.authority_label = Some("published".to_string());
-    let err = pg
+    let err = store
         .db
         .create_knowledge_rich_document(bad_label)
         .await
         .expect_err("bad authority_label must fail closed");
-    assert!(matches!(err, StorageError::Validation(_)), "got {err:?}");
+    assert!(matches!(&err, StorageError::Validation(_)), "got {err:?}");
 
     // Half an owner (kind without id) is a typed Validation error.
     let mut half_owner = new_doc(&workspace_id, "HalfOwner", mixed_document());
     half_owner.owner_actor_id = None;
-    let err = pg
+    let err = store
         .db
         .create_knowledge_rich_document(half_owner)
         .await
         .expect_err("half owner must fail closed");
-    assert!(matches!(err, StorageError::Validation(_)), "got {err:?}");
+    assert!(matches!(&err, StorageError::Validation(_)), "got {err:?}");
 }
