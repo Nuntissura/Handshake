@@ -1173,14 +1173,10 @@ impl SwarmCoordinator {
         let breaker = FailureFingerprintBreaker::new(config.breaker);
         // Inherit the lane store's account scope so routing-produced rows carry
         // the same ownership as directly recorded ones (HBR-PRIV-001).
-        let routing_execution_store = model_lane_store.as_ref().and_then(|store| {
-            store.postgres_pool_if_available().map(|pool| {
-                super::routing_execution::ModelLaneRoutingExecutionStore::new_with_access(
-                    pool,
-                    store.access().clone(),
-                )
-            })
-        });
+        let routing_execution_store = model_lane_store
+            .as_ref()
+            .cloned()
+            .map(super::routing_execution::ModelLaneRoutingExecutionStore::new);
         let inner = Arc::new(Inner {
             spawn_admission_closed: AtomicBool::new(false),
             spawn_pre_registration: AtomicUsize::new(0),
@@ -2004,7 +2000,7 @@ impl SwarmCoordinator {
     /// has no OS process to spawn: human/operator, subagent, or validator. The
     /// Rust coordinator still owns the launch path by normalizing through the
     /// Dexterity registry and committing ModelLane + EventLedger rows in the
-    /// same PostgreSQL authority path as process-backed launches.
+    /// same embedded-Surreal authority path as process-backed launches.
     /// Launch a cloud batch under one run-scoped consent receipt. Every request
     /// must share the run and receipt, and every request is preflighted before
     /// the first factory call.
@@ -2272,7 +2268,7 @@ impl SwarmCoordinator {
     /// manager and has no OS process to spawn. This is intentionally narrower
     /// than [`Self::launch_no_os_model_lane`]: it only accepts the subagent
     /// adapter and still normalizes through the Dexterity registry before the
-    /// PostgreSQL ModelLane/EventLedger authority write.
+    /// atomic embedded-Surreal ModelLane/EventLedger authority write.
     pub async fn launch_operator_subagent_model_lane(
         &self,
         request: DexterityLaunchAdapterRequest,
@@ -3570,7 +3566,7 @@ impl SwarmCoordinator {
             .map(|h| h.cancel.clone())
     }
 
-    /// The coordinator's wired [`ModelLaneStore`] (a cheap `PgPool`-backed clone),
+    /// The coordinator's wired [`ModelLaneStore`] (a cheap `SurrealStorage`-backed clone),
     /// or `None` when the coordinator was built without one. WP-1 MT-012: the
     /// operator-chat launch service uses this to replay the just-spawned run/lane
     /// so it can persist the launched CLI runtime's real stdout as
@@ -3586,7 +3582,7 @@ impl SwarmCoordinator {
     }
 
     /// Materialize a Dexterity ContextBundle for the named downstream lane from
-    /// PostgreSQL/EventLedger authority. Callers pass the returned
+    /// embedded-Surreal/EventLedger authority. Callers pass the returned
     /// `ModelLaneDownstreamContextBundle::to_kernel_context_bundle()` into the
     /// model adapter instead of rebuilding context from prompt memory.
     pub async fn context_bundle_for_downstream_lane(
@@ -3902,7 +3898,7 @@ impl SwarmCoordinator {
         use futures::StreamExt as _;
         let execution_store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
             SwarmError::LedgerFailed(
-                "production routing requires a PostgreSQL ModelLaneStore".into(),
+                "production routing requires a scoped embedded-Surreal ModelLaneStore".into(),
             )
         })?;
         let execution = execution_store
@@ -4950,9 +4946,11 @@ impl SwarmCoordinator {
             ModelLaneRoutingStageClaim, ModelLaneRoutingStageStateKind,
         };
         let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
-            SwarmError::LedgerFailed("production routing requires a PostgreSQL executor".into())
+            SwarmError::LedgerFailed(
+                "production routing requires a scoped ModelLane routing executor".into(),
+            )
         })?;
-        // Discover local authority independently of PostgreSQL. If the
+        // Discover local authority independently of the durable Surreal path. If the
         // projection read or a stage transition fails, every exact routing
         // incarnation still has to receive its local cancellation fence.
         let live_targets: Vec<(
@@ -5120,7 +5118,7 @@ impl SwarmCoordinator {
     ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
         let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
             SwarmError::LedgerFailed(
-                "production routing requires a PostgreSQL ModelLaneStore".into(),
+                "production routing requires a scoped embedded-Surreal ModelLaneStore".into(),
             )
         })?;
         store
@@ -5141,7 +5139,7 @@ impl SwarmCoordinator {
     ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
         let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
             SwarmError::LedgerFailed(
-                "production routing requires a PostgreSQL ModelLaneStore".into(),
+                "production routing requires a scoped embedded-Surreal ModelLaneStore".into(),
             )
         })?;
         store
@@ -5201,7 +5199,9 @@ impl SwarmCoordinator {
     ) -> SwarmResult<super::routing_execution::ModelLaneRoutingExecutionState> {
         use super::routing::ModelLaneRoutingDispatchTarget;
         let execution_store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
-            SwarmError::LedgerFailed("production routing requires a PostgreSQL executor".into())
+            SwarmError::LedgerFailed(
+                "production routing requires a scoped ModelLane routing executor".into(),
+            )
         })?;
         let model_lane_store = self.inner.model_lane_store.as_ref().ok_or_else(|| {
             SwarmError::LedgerFailed("authority completion requires ModelLaneStore".into())
@@ -5343,7 +5343,9 @@ impl SwarmCoordinator {
     ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
         self.retry_pending_session_cleanups().await?;
         let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
-            SwarmError::LedgerFailed("production routing requires a PostgreSQL executor".into())
+            SwarmError::LedgerFailed(
+                "production routing requires a scoped ModelLane routing executor".into(),
+            )
         })?;
         let expired = store
             .expired_stage_attempts(execution_id)
@@ -5445,7 +5447,9 @@ impl SwarmCoordinator {
         reason: impl Into<String>,
     ) -> SwarmResult<super::routing_execution::ModelLaneRoutingExecutionState> {
         let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
-            SwarmError::LedgerFailed("production routing requires a PostgreSQL executor".into())
+            SwarmError::LedgerFailed(
+                "production routing requires a scoped ModelLane routing executor".into(),
+            )
         })?;
         // Persist the cancellation BEFORE tearing down the runtime sessions.
         //
@@ -6531,7 +6535,7 @@ impl SwarmCoordinator {
         exit_code: i32,
         terminal_record: Option<(ModelLaneStore, String)>,
     ) -> SwarmResult<()> {
-        // Fence provider work before any PostgreSQL receipt can block. The
+        // Fence provider work before any durable Surreal receipt can block. The
         // typed in-memory cleanup intent above survives a timed-out durable
         // write and is retried by the background/restart reconciliation path.
         {
@@ -7285,7 +7289,7 @@ impl SwarmCoordinator {
     /// or otherwise recovered from the ledger's in-flight START index. Falling
     /// back to coordinator defaults here would emit a STOP whose `started_at`,
     /// WP/MT lineage, and `metadata_jsonb` diverge from the START, which
-    /// PostgreSQL rejects as `PROCESS_LEDGER_STOP_IDENTITY_CONFLICT` and which
+    /// canonical ProcessLedger authority rejects as `PROCESS_LEDGER_STOP_IDENTITY_CONFLICT` and which
     /// leaves the process permanently open in the ledger. The synthesized row
     /// below is reserved for sessions whose START was never recorded, where the
     /// STOP inserts a fresh lifecycle row instead of updating one.

@@ -20,7 +20,7 @@ use std::sync::{Arc, RwLock};
 use thiserror::Error;
 use zeroize::Zeroizing;
 
-use super::openai_byok::{ApiKeyFetchCode, ApiKeyProvider, OpenAiByokError};
+use super::openai_byok::{ApiKeyFetchCode, ApiKeyProvider, OpenAiByokError, TransientApiKey};
 
 #[derive(Debug, Error)]
 pub enum SecretsVaultError {
@@ -150,22 +150,23 @@ impl<V: SecretsVault> std::fmt::Debug for VaultApiKeyProvider<V> {
 }
 
 impl<V: SecretsVault + 'static> ApiKeyProvider for VaultApiKeyProvider<V> {
-    fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
-        // The vault read is zeroized on drop; the returned owned `String` is the
-        // one transient copy the transport (the Authorization header builder)
-        // requires. The `Zeroizing` original is wiped as this expression ends.
+    fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
         self.vault
             .get(&self.lane)
-            .map(|secret| secret.to_string())
-            .map_err(|err| OpenAiByokError::ApiKeyFetch {
-                code: match err {
-                    SecretsVaultError::EmptyLaneId => ApiKeyFetchCode::VaultEmptyLaneId,
-                    SecretsVaultError::EmptySecretValue => ApiKeyFetchCode::VaultEmptySecretValue,
-                    SecretsVaultError::NoSecretForLane(_) => ApiKeyFetchCode::VaultNoSecretForLane,
-                    SecretsVaultError::LockPoisoned(_) => ApiKeyFetchCode::VaultLockPoisoned,
-                    SecretsVaultError::KeychainBackend(_) => ApiKeyFetchCode::VaultKeychainBackend,
-                },
-            })
+            .map(TransientApiKey::from_zeroizing)
+            .map_err(map_vault_fetch_error)
+    }
+}
+
+fn map_vault_fetch_error(err: SecretsVaultError) -> OpenAiByokError {
+    OpenAiByokError::ApiKeyFetch {
+        code: match err {
+            SecretsVaultError::EmptyLaneId => ApiKeyFetchCode::VaultEmptyLaneId,
+            SecretsVaultError::EmptySecretValue => ApiKeyFetchCode::VaultEmptySecretValue,
+            SecretsVaultError::NoSecretForLane(_) => ApiKeyFetchCode::VaultNoSecretForLane,
+            SecretsVaultError::LockPoisoned(_) => ApiKeyFetchCode::VaultLockPoisoned,
+            SecretsVaultError::KeychainBackend(_) => ApiKeyFetchCode::VaultKeychainBackend,
+        },
     }
 }
 
@@ -282,9 +283,9 @@ impl SecretsVault for OsKeychainSecretsVault {
         // this abstraction layer, and the macOS / Linux backends
         // require platform-specific code paths outside the
         // crate's trait surface. Callers that need lane discovery
-        // should maintain a parallel lane registry (e.g. in the
-        // Postgres event ledger or a Handshake-owned file) and
-        // treat the vault as the secret-value store only.
+        // should maintain non-secret lane authority only through the embedded
+        // SurrealDB/EventLedger and treat the vault as the secret-value store.
+        // No alternate database or file compatibility fallback is supported.
         Ok(Vec::new())
     }
 }
@@ -361,7 +362,8 @@ mod tests {
         vault.put("openai", "sk-proxy").unwrap();
         let provider = VaultApiKeyProvider::new(vault.clone(), "openai");
         let fetched = provider.fetch_api_key().expect("fetch");
-        assert_eq!(fetched, "sk-proxy");
+        assert_eq!(fetched.expose_secret(), "sk-proxy");
+        assert_eq!(format!("{fetched:?}"), "TransientApiKey([REDACTED])");
     }
 
     #[test]

@@ -73,7 +73,7 @@ pub use openai_byok::{
     ApiKeyFetchCode, ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudInvocationAuditRow,
     CloudInvocationAuditSink, OpenAiByokError, OpenAiByokRuntime, OpenAiModelHandle,
     ProviderBodyMetadata, ProviderOperation, ProviderResponseKind, SseFailureKind,
-    TransportErrorCode, DEFAULT_OPENAI_MODEL_ALLOWLIST, OPENAI_CHAT_COMPLETIONS_PATH,
+    TransientApiKey, TransportErrorCode, DEFAULT_OPENAI_MODEL_ALLOWLIST, OPENAI_CHAT_COMPLETIONS_PATH,
     OPENAI_EMBEDDINGS_PATH,
 };
 pub use secrets_vault::{

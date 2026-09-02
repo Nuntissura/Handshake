@@ -18,7 +18,7 @@
 //! # Relationship to WP-KERNEL-006 / WP-KERNEL-007
 //!
 //! `WP-KERNEL-006` owns the real identity substrate (`LocalAccount`,
-//! `Principal`, `AuthenticatedSession`, PostgreSQL RLS), and its MT-015
+//! `Principal`, `AuthenticatedSession`, embedded storage predicates), and its MT-015
 //! `AuthorityTableOwnershipColumns` is the declared owner of the ownership
 //! columns on Kernel V1 authority tables. `WP-KERNEL-007` owns `ResourceGrant`
 //! and `AccessSpace` semantics.
@@ -40,10 +40,13 @@
 //! HBR-PRIV-002 requires enforcement at *every* applicable boundary and states
 //! that hiding a row in one layer is never sufficient.
 
-use std::fmt;
+use std::{
+    collections::BTreeMap,
+    fmt,
+    sync::{Arc, RwLock},
+};
 
 use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgArguments, postgres::PgRow, query::Query, Postgres, Row};
 use uuid::Uuid;
 
 /// Account that OWNS a resource. Distinct from the actor that touched it:
@@ -232,7 +235,7 @@ impl ResourceScope {
 /// projections. Unlike [`ResourceScope`], none of the projection dimensions
 /// are optional: emitting an identifier-bearing diagnostic without one of
 /// these fields would make the projection impossible to authorize exactly.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ExactResourceScopeAttribution {
     pub owner_account_id: OwnerAccountId,
     pub actor_principal_id: ActorPrincipalId,
@@ -280,7 +283,7 @@ impl ExactResourceScopeAttribution {
         query.authorize_row(&self.as_stored_scope())
     }
 
-    /// Stamp the five flat field names used by PostgreSQL metadata and Flight
+    /// Stamp the five flat field names used by durable metadata and Flight
     /// Recorder JSON. A non-object payload is rejected instead of replaced.
     pub fn stamp_json_object(
         &self,
@@ -373,7 +376,7 @@ impl ResourceScopeQuery {
     }
 }
 
-/// The scope as it was read back out of PostgreSQL. Every field is optional
+/// The scope decoded from durable transport. Every field is optional
 /// because the columns are nullable until WP-KERNEL-006 MT-015 tightens them;
 /// `authorize_row` is what turns that nullability into a denial rather than a
 /// silent allow.
@@ -417,6 +420,14 @@ pub enum ScopeDenied {
     },
     #[error("resource attribution does not match the exact server scope")]
     ExactAttributionMismatch,
+    #[error("authenticated resource context is unknown")]
+    LifecycleUnknown,
+    #[error("authenticated resource context is stale")]
+    LifecycleStale,
+    #[error("authenticated resource context is revoked")]
+    LifecycleRevoked,
+    #[error("authenticated resource lifecycle authority is unavailable")]
+    LifecycleAuthorityUnavailable,
 }
 
 impl ScopeDenied {
@@ -429,6 +440,10 @@ impl ScopeDenied {
             Self::OwnerMismatch { .. } => "RESOURCE_SCOPE_OWNER_MISMATCH",
             Self::WorkspaceMismatch { .. } => "RESOURCE_SCOPE_WORKSPACE_MISMATCH",
             Self::ExactAttributionMismatch => "RESOURCE_SCOPE_EXACT_ATTRIBUTION_MISMATCH",
+            Self::LifecycleUnknown => "RESOURCE_ACCESS_CONTEXT_UNKNOWN",
+            Self::LifecycleStale => "RESOURCE_ACCESS_CONTEXT_STALE",
+            Self::LifecycleRevoked => "RESOURCE_ACCESS_CONTEXT_REVOKED",
+            Self::LifecycleAuthorityUnavailable => "RESOURCE_ACCESS_LIFECYCLE_UNAVAILABLE",
         }
     }
 }
@@ -614,6 +629,195 @@ pub enum ResourceScopeError {
 // Store-level access context (write stamping + read enforcement)
 // ---------------------------------------------------------------------------
 
+/// Server-owned lifecycle decision for one exact authenticated resource
+/// context. `Stale` and `Revoked` are terminal for that exact session identity;
+/// callers must register a new authenticated session instead of reactivating it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResourceAccessLifecycleState {
+    Active,
+    Stale,
+    Revoked,
+}
+
+/// Observable decision returned without echoing any account, session, Space,
+/// or workspace identifier into denial surfaces.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResourceAccessLifecycleDecision {
+    Unknown,
+    Known {
+        state: ResourceAccessLifecycleState,
+        transition_sequence: u64,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ResourceAccessLifecycleEntry {
+    state: ResourceAccessLifecycleState,
+    transition_sequence: u64,
+}
+
+#[derive(Debug, Default)]
+struct ResourceAccessLifecycleRegistryState {
+    entries: BTreeMap<ExactResourceScopeAttribution, ResourceAccessLifecycleEntry>,
+    next_transition_sequence: u64,
+}
+
+/// Central in-process authentication/session authority shared by every store
+/// and route serving one runtime composition root. It is intentionally not
+/// durable product data: durable ModelLane attribution remains in SurrealDB,
+/// while current authentication lifecycle is guarded by this concurrency-safe
+/// server-owned registry.
+#[derive(Clone, Debug, Default)]
+pub struct ResourceAccessLifecycleRegistry {
+    state: Arc<RwLock<ResourceAccessLifecycleRegistryState>>,
+}
+
+impl PartialEq for ResourceAccessLifecycleRegistry {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.state, &other.state)
+    }
+}
+
+impl Eq for ResourceAccessLifecycleRegistry {}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+pub enum ResourceAccessLifecycleTransitionError {
+    #[error("authenticated resource context is unknown")]
+    UnknownContext,
+    #[error("authenticated resource context cannot be reactivated")]
+    TerminalContext,
+    #[error("authenticated resource lifecycle authority is unavailable")]
+    AuthorityUnavailable,
+}
+
+impl ResourceAccessLifecycleRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Register a newly authenticated exact context. Repeating registration
+    /// while it is active is idempotent; stale/revoked identities cannot be
+    /// reactivated and require a newly minted session identity.
+    pub fn register_active(
+        &self,
+        exact: ExactResourceScopeAttribution,
+    ) -> Result<ResourceAccessLifecycleDecision, ResourceAccessLifecycleTransitionError> {
+        let mut state = self
+            .state
+            .write()
+            .map_err(|_| ResourceAccessLifecycleTransitionError::AuthorityUnavailable)?;
+        if let Some(entry) = state.entries.get(&exact).copied() {
+            return match entry.state {
+                ResourceAccessLifecycleState::Active => {
+                    Ok(ResourceAccessLifecycleDecision::Known {
+                        state: entry.state,
+                        transition_sequence: entry.transition_sequence,
+                    })
+                }
+                ResourceAccessLifecycleState::Stale | ResourceAccessLifecycleState::Revoked => {
+                    Err(ResourceAccessLifecycleTransitionError::TerminalContext)
+                }
+            };
+        }
+        state.next_transition_sequence = state.next_transition_sequence.saturating_add(1);
+        let entry = ResourceAccessLifecycleEntry {
+            state: ResourceAccessLifecycleState::Active,
+            transition_sequence: state.next_transition_sequence,
+        };
+        state.entries.insert(exact, entry);
+        Ok(ResourceAccessLifecycleDecision::Known {
+            state: entry.state,
+            transition_sequence: entry.transition_sequence,
+        })
+    }
+
+    pub fn mark_stale(
+        &self,
+        exact: &ExactResourceScopeAttribution,
+    ) -> Result<ResourceAccessLifecycleDecision, ResourceAccessLifecycleTransitionError> {
+        self.transition(exact, ResourceAccessLifecycleState::Stale)
+    }
+
+    pub fn revoke(
+        &self,
+        exact: &ExactResourceScopeAttribution,
+    ) -> Result<ResourceAccessLifecycleDecision, ResourceAccessLifecycleTransitionError> {
+        self.transition(exact, ResourceAccessLifecycleState::Revoked)
+    }
+
+    fn transition(
+        &self,
+        exact: &ExactResourceScopeAttribution,
+        target: ResourceAccessLifecycleState,
+    ) -> Result<ResourceAccessLifecycleDecision, ResourceAccessLifecycleTransitionError> {
+        let mut state = self
+            .state
+            .write()
+            .map_err(|_| ResourceAccessLifecycleTransitionError::AuthorityUnavailable)?;
+        let current = state
+            .entries
+            .get(exact)
+            .copied()
+            .ok_or(ResourceAccessLifecycleTransitionError::UnknownContext)?;
+        if current.state == target
+            || (current.state == ResourceAccessLifecycleState::Revoked
+                && target == ResourceAccessLifecycleState::Stale)
+        {
+            return Ok(ResourceAccessLifecycleDecision::Known {
+                state: current.state,
+                transition_sequence: current.transition_sequence,
+            });
+        }
+        state.next_transition_sequence = state.next_transition_sequence.saturating_add(1);
+        let entry = ResourceAccessLifecycleEntry {
+            state: target,
+            transition_sequence: state.next_transition_sequence,
+        };
+        state.entries.insert(exact.clone(), entry);
+        Ok(ResourceAccessLifecycleDecision::Known {
+            state: entry.state,
+            transition_sequence: entry.transition_sequence,
+        })
+    }
+
+    pub fn decision(
+        &self,
+        exact: &ExactResourceScopeAttribution,
+    ) -> Result<ResourceAccessLifecycleDecision, ResourceAccessLifecycleTransitionError> {
+        let state = self
+            .state
+            .read()
+            .map_err(|_| ResourceAccessLifecycleTransitionError::AuthorityUnavailable)?;
+        Ok(match state.entries.get(exact) {
+            Some(entry) => ResourceAccessLifecycleDecision::Known {
+                state: entry.state,
+                transition_sequence: entry.transition_sequence,
+            },
+            None => ResourceAccessLifecycleDecision::Unknown,
+        })
+    }
+
+    pub fn authorize(&self, exact: &ExactResourceScopeAttribution) -> Result<(), ScopeDenied> {
+        match self.decision(exact) {
+            Ok(ResourceAccessLifecycleDecision::Known {
+                state: ResourceAccessLifecycleState::Active,
+                ..
+            }) => Ok(()),
+            Ok(ResourceAccessLifecycleDecision::Known {
+                state: ResourceAccessLifecycleState::Stale,
+                ..
+            }) => Err(ScopeDenied::LifecycleStale),
+            Ok(ResourceAccessLifecycleDecision::Known {
+                state: ResourceAccessLifecycleState::Revoked,
+                ..
+            }) => Err(ScopeDenied::LifecycleRevoked),
+            Ok(ResourceAccessLifecycleDecision::Unknown) => Err(ScopeDenied::LifecycleUnknown),
+            Err(_) => Err(ScopeDenied::LifecycleAuthorityUnavailable),
+        }
+    }
+}
+
 /// Authority for a read or write that is **intentionally cross-owner**.
 ///
 /// This type exists so that "no account filter" can never be an accident. Boot
@@ -675,6 +879,10 @@ pub struct AccountAccessContext {
     query: ResourceScopeQuery,
     write: Option<ResourceScope>,
     exact_read: Option<ExactResourceScopeAttribution>,
+    /// `None` is an explicit legacy context for consumers not yet migrated to
+    /// authenticated-session lifecycle. Protected ModelLane/operator-chat
+    /// boundaries reject it through [`ResourceAccessContext::require_lifecycle_active`].
+    lifecycle: Option<ResourceAccessLifecycleRegistry>,
 }
 
 impl AccountAccessContext {
@@ -699,7 +907,9 @@ pub enum ResourceAccessContext {
 
 impl ResourceAccessContext {
     /// Read+write context. Writes are stamped with `scope`; reads are filtered
-    /// to `scope`'s owning account and (when set) its workspace.
+    /// to `scope`'s owning account and (when set) its workspace. This preserves
+    /// the pre-lifecycle behavior for unrelated consumers; protected boundaries
+    /// must use [`Self::for_account_with_lifecycle`].
     pub fn for_account(scope: ResourceScope) -> Self {
         let exact_read = ExactResourceScopeAttribution::try_from_resource_scope(&scope).ok();
         let mut query = ResourceScopeQuery::for_owner(scope.owner_account_id);
@@ -710,6 +920,26 @@ impl ResourceAccessContext {
             query,
             write: Some(scope),
             exact_read,
+            lifecycle: None,
+        })
+    }
+
+    /// Construct an account context against the server-owned lifecycle
+    /// authority. The exact tuple must already be registered active.
+    pub fn for_account_with_lifecycle(
+        scope: ResourceScope,
+        lifecycle: ResourceAccessLifecycleRegistry,
+    ) -> Self {
+        let exact_read = ExactResourceScopeAttribution::try_from_resource_scope(&scope).ok();
+        let mut query = ResourceScopeQuery::for_owner(scope.owner_account_id);
+        if let Some(workspace) = scope.workspace.clone() {
+            query = query.within_workspace(workspace);
+        }
+        Self::Account(AccountAccessContext {
+            query,
+            write: Some(scope),
+            exact_read,
+            lifecycle: Some(lifecycle),
         })
     }
 
@@ -720,6 +950,7 @@ impl ResourceAccessContext {
             query,
             write: None,
             exact_read: None,
+            lifecycle: None,
         })
     }
 
@@ -732,6 +963,21 @@ impl ResourceAccessContext {
             query,
             write: None,
             exact_read: Some(exact),
+            lifecycle: None,
+        })
+    }
+
+    pub fn for_exact_reader_with_lifecycle(
+        exact: ExactResourceScopeAttribution,
+        lifecycle: ResourceAccessLifecycleRegistry,
+    ) -> Self {
+        let query = ResourceScopeQuery::for_owner(exact.owner_account_id)
+            .within_workspace(exact.workspace_id.clone());
+        Self::Account(AccountAccessContext {
+            query,
+            write: None,
+            exact_read: Some(exact),
+            lifecycle: Some(lifecycle),
         })
     }
 
@@ -741,14 +987,16 @@ impl ResourceAccessContext {
 
     pub fn read_query(&self) -> Option<&ResourceScopeQuery> {
         match self {
-            Self::Account(account) => Some(&account.query),
+            Self::Account(account) if self.require_active().is_ok() => Some(&account.query),
+            Self::Account(_) => None,
             Self::System(_) => None,
         }
     }
 
     pub fn write_scope(&self) -> Option<&ResourceScope> {
         match self {
-            Self::Account(account) => account.write.as_ref(),
+            Self::Account(account) if self.require_active().is_ok() => account.write.as_ref(),
+            Self::Account(_) => None,
             Self::System(_) => None,
         }
     }
@@ -758,7 +1006,8 @@ impl ResourceAccessContext {
     /// reject a coarse owner/workspace context before issuing any query.
     pub fn exact_read_scope(&self) -> Option<&ExactResourceScopeAttribution> {
         match self {
-            Self::Account(account) => account.exact_read.as_ref(),
+            Self::Account(account) if self.require_active().is_ok() => account.exact_read.as_ref(),
+            Self::Account(_) => None,
             Self::System(_) => None,
         }
     }
@@ -774,11 +1023,65 @@ impl ResourceAccessContext {
         matches!(self, Self::System(_))
     }
 
+    pub fn lifecycle_authority(&self) -> Option<&ResourceAccessLifecycleRegistry> {
+        match self {
+            Self::Account(account) => account.lifecycle.as_ref(),
+            Self::System(_) => None,
+        }
+    }
+
+    /// Preserve legacy context behavior while enforcing lifecycle whenever an
+    /// authority was explicitly injected.
+    pub fn require_active(&self) -> Result<(), ScopeDenied> {
+        match self {
+            Self::Account(AccountAccessContext {
+                lifecycle: Some(lifecycle),
+                exact_read,
+                ..
+            }) => exact_read
+                .as_ref()
+                .ok_or(ScopeDenied::LifecycleUnknown)
+                .and_then(|exact| lifecycle.authorize(exact)),
+            Self::Account(AccountAccessContext {
+                lifecycle: None, ..
+            }) => Ok(()),
+            Self::System(_) => Ok(()),
+        }
+    }
+
+    /// Protected product boundary: an explicit shared lifecycle authority is
+    /// mandatory, and legacy/system contexts cannot satisfy it.
+    pub fn require_lifecycle_active(&self) -> Result<(), ScopeDenied> {
+        match self {
+            Self::Account(AccountAccessContext {
+                lifecycle: Some(lifecycle),
+                exact_read: Some(exact),
+                ..
+            }) => lifecycle.authorize(exact),
+            Self::Account(_) | Self::System(_) => Err(ScopeDenied::LifecycleUnknown),
+        }
+    }
+
+    /// Validate both the current server-owned lifecycle and the exact tuple
+    /// asserted by an account-facing request. The single mismatch reason is
+    /// deliberately constant-shape and never reveals the bound tuple.
+    pub fn authorize_exact_request(
+        &self,
+        request: &ExactResourceScopeAttribution,
+    ) -> Result<(), ScopeDenied> {
+        self.require_lifecycle_active()?;
+        match self {
+            Self::Account(account) if account.exact_read.as_ref() == Some(request) => Ok(()),
+            Self::Account(_) | Self::System(_) => Err(ScopeDenied::ExactAttributionMismatch),
+        }
+    }
+
     /// Second enforcement layer. HBR-PRIV-002: hiding a row in one layer is
-    /// never sufficient, so every read path calls this on the scope columns it
-    /// read back, even though the SQL predicate should already have excluded
-    /// the row.
+    /// never sufficient, so every read path calls this on the scope fields it
+    /// read back, even though the durable query predicate should already have
+    /// excluded the row.
     pub fn authorize_row(&self, row: &StoredResourceScope) -> Result<(), ScopeDenied> {
+        self.require_active()?;
         match self {
             Self::Account(account) => match account.exact_read.as_ref() {
                 Some(exact) if &exact.as_stored_scope() == row => Ok(()),
@@ -788,223 +1091,6 @@ impl ResourceAccessContext {
             Self::System(_) => Ok(()),
         }
     }
-
-    /// Build the SQL fragment that keeps denied rows inside PostgreSQL.
-    ///
-    /// `first_placeholder` is the next free `$n` in the statement being built.
-    /// The returned clause always starts with ` AND `, so callers append it to a
-    /// statement that already has a `WHERE` (use `WHERE TRUE` when there is no
-    /// other predicate).
-    pub fn sql_predicate(&self, first_placeholder: usize) -> ScopeSqlPredicate {
-        match self {
-            Self::System(_) => ScopeSqlPredicate {
-                clause: String::new(),
-                owner: None,
-                actor: None,
-                session: None,
-                access_space: None,
-                workspace: None,
-            },
-            Self::Account(account) => {
-                let mut clause =
-                    format!(" AND {OWNER_ACCOUNT_COLUMN} = ${first_placeholder}::uuid");
-                let mut actor = None;
-                let mut session = None;
-                let mut access_space = None;
-                let workspace = account.query.workspace().map(|ws| ws.as_str().to_owned());
-                if let Some(exact) = account.exact_read.as_ref() {
-                    clause.push_str(&format!(
-                        " AND {ACTOR_PRINCIPAL_COLUMN} = ${}::uuid \
-                         AND {AUTHENTICATED_SESSION_COLUMN} = ${}::uuid \
-                         AND {ACCESS_SPACE_COLUMN} = ${}::uuid \
-                         AND {WORKSPACE_COLUMN} = ${}",
-                        first_placeholder + 1,
-                        first_placeholder + 2,
-                        first_placeholder + 3,
-                        first_placeholder + 4
-                    ));
-                    actor = Some(exact.actor_principal_id.as_uuid());
-                    session = Some(exact.authenticated_session_id.as_uuid());
-                    access_space = Some(exact.access_space_id.as_uuid());
-                } else if workspace.is_some() {
-                    clause.push_str(&format!(
-                        " AND {WORKSPACE_COLUMN} = ${}",
-                        first_placeholder + 1
-                    ));
-                }
-                ScopeSqlPredicate {
-                    clause,
-                    owner: Some(account.query.owner_account_id().as_uuid()),
-                    actor,
-                    session,
-                    access_space,
-                    workspace,
-                }
-            }
-        }
-    }
-
-    /// The column values to stamp on an INSERT. A `System` context yields all
-    /// NULLs — an unattributed row — which no account-scoped reader can read.
-    pub fn insert_columns(&self) -> ScopeColumnValues<'_> {
-        ScopeColumnValues::from_scope(self.write_scope())
-    }
-}
-
-pub const OWNER_ACCOUNT_COLUMN: &str = "owner_account_id";
-pub const ACTOR_PRINCIPAL_COLUMN: &str = "actor_principal_id";
-pub const AUTHENTICATED_SESSION_COLUMN: &str = "authenticated_session_id";
-pub const ACCESS_SPACE_COLUMN: &str = "access_space_id";
-pub const WORKSPACE_COLUMN: &str = "workspace_id";
-
-/// The five scope columns migration 0363 adds, in the order
-/// [`stored_resource_scope_from_row`] and [`ScopeColumnValues::bind`] expect.
-pub const RESOURCE_SCOPE_SELECT_COLUMNS: &str =
-    "owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id";
-
-/// The same five columns as an INSERT column list fragment.
-pub const RESOURCE_SCOPE_INSERT_COLUMNS: &str = RESOURCE_SCOPE_SELECT_COLUMNS;
-
-/// A rendered owner predicate plus the values that fill its placeholders.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ScopeSqlPredicate {
-    clause: String,
-    owner: Option<Uuid>,
-    actor: Option<Uuid>,
-    session: Option<Uuid>,
-    access_space: Option<Uuid>,
-    workspace: Option<String>,
-}
-
-impl ScopeSqlPredicate {
-    /// `""` for a system context, otherwise ` AND owner_account_id = $n::uuid[ AND workspace_id = $n+1]`.
-    pub fn clause(&self) -> &str {
-        &self.clause
-    }
-
-    /// How many placeholders this predicate consumed.
-    pub fn placeholder_count(&self) -> usize {
-        usize::from(self.owner.is_some())
-            + usize::from(self.actor.is_some())
-            + usize::from(self.session.is_some())
-            + usize::from(self.access_space.is_some())
-            + usize::from(self.workspace.is_some())
-    }
-
-    /// Bind the predicate values, in the same order the clause references them.
-    pub fn bind<'q>(
-        &'q self,
-        mut query: Query<'q, Postgres, PgArguments>,
-    ) -> Query<'q, Postgres, PgArguments> {
-        if let Some(owner) = self.owner {
-            query = query.bind(owner);
-        }
-        if let Some(actor) = self.actor {
-            query = query.bind(actor);
-        }
-        if let Some(session) = self.session {
-            query = query.bind(session);
-        }
-        if let Some(access_space) = self.access_space {
-            query = query.bind(access_space);
-        }
-        if let Some(workspace) = self.workspace.as_deref() {
-            query = query.bind(workspace);
-        }
-        query
-    }
-
-    /// `query_scalar` variant of [`Self::bind`].
-    pub fn bind_scalar<'q, O>(
-        &'q self,
-        mut query: sqlx::query::QueryScalar<'q, Postgres, O, PgArguments>,
-    ) -> sqlx::query::QueryScalar<'q, Postgres, O, PgArguments> {
-        if let Some(owner) = self.owner {
-            query = query.bind(owner);
-        }
-        if let Some(actor) = self.actor {
-            query = query.bind(actor);
-        }
-        if let Some(session) = self.session {
-            query = query.bind(session);
-        }
-        if let Some(access_space) = self.access_space {
-            query = query.bind(access_space);
-        }
-        if let Some(workspace) = self.workspace.as_deref() {
-            query = query.bind(workspace);
-        }
-        query
-    }
-}
-
-/// The five scope column values for one INSERT.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ScopeColumnValues<'a> {
-    pub owner_account_id: Option<Uuid>,
-    pub actor_principal_id: Option<Uuid>,
-    pub authenticated_session_id: Option<Uuid>,
-    pub access_space_id: Option<Uuid>,
-    pub workspace_id: Option<&'a str>,
-}
-
-impl<'a> ScopeColumnValues<'a> {
-    pub fn from_scope(scope: Option<&'a ResourceScope>) -> Self {
-        match scope {
-            None => Self::default(),
-            Some(scope) => Self {
-                owner_account_id: Some(scope.owner_account_id.as_uuid()),
-                actor_principal_id: Some(scope.actor_principal_id.as_uuid()),
-                authenticated_session_id: scope.authenticated_session.map(|s| s.as_uuid()),
-                access_space_id: scope.access_space.map(|s| s.as_uuid()),
-                workspace_id: scope.workspace.as_ref().map(|w| w.as_str()),
-            },
-        }
-    }
-
-    /// True when this write leaves the row unattributed (NULL owner). Callers
-    /// that must not silently drop attribution check this.
-    pub const fn is_unattributed(&self) -> bool {
-        self.owner_account_id.is_none()
-    }
-
-    /// Bind the five values in `RESOURCE_SCOPE_INSERT_COLUMNS` order.
-    pub fn bind<'q>(
-        self,
-        query: Query<'q, Postgres, PgArguments>,
-    ) -> Query<'q, Postgres, PgArguments>
-    where
-        'a: 'q,
-    {
-        query
-            .bind(self.owner_account_id)
-            .bind(self.actor_principal_id)
-            .bind(self.authenticated_session_id)
-            .bind(self.access_space_id)
-            .bind(self.workspace_id)
-    }
-}
-
-/// Read the five scope columns back out of a row so the post-deserialization
-/// authorization layer has something to judge.
-pub fn stored_resource_scope_from_row(row: &PgRow) -> Result<StoredResourceScope, sqlx::Error> {
-    Ok(StoredResourceScope {
-        owner_account_id: row
-            .try_get::<Option<Uuid>, _>(OWNER_ACCOUNT_COLUMN)?
-            .map(OwnerAccountId::from_uuid),
-        actor_principal_id: row
-            .try_get::<Option<Uuid>, _>(ACTOR_PRINCIPAL_COLUMN)?
-            .map(ActorPrincipalId::from_uuid),
-        authenticated_session: row
-            .try_get::<Option<Uuid>, _>(AUTHENTICATED_SESSION_COLUMN)?
-            .map(AuthenticatedSessionRef::from_uuid),
-        access_space: row
-            .try_get::<Option<Uuid>, _>(ACCESS_SPACE_COLUMN)?
-            .map(AccessSpaceRef::from_uuid),
-        workspace: row
-            .try_get::<Option<String>, _>(WORKSPACE_COLUMN)?
-            .and_then(|value| WorkspaceScopeRef::new(value).ok()),
-    })
 }
 
 #[cfg(test)]
@@ -1017,6 +1103,20 @@ mod tests {
 
     fn actor() -> ActorPrincipalId {
         ActorPrincipalId::mint()
+    }
+
+    fn exact_scope(workspace: &str) -> ResourceScope {
+        ResourceScope::new(owner(), actor())
+            .with_session(AuthenticatedSessionRef::mint())
+            .with_access_space(AccessSpaceRef::mint())
+            .with_workspace(WorkspaceScopeRef::new(workspace).unwrap())
+    }
+
+    fn active_access(scope: ResourceScope) -> ResourceAccessContext {
+        let exact = ExactResourceScopeAttribution::try_from_resource_scope(&scope).unwrap();
+        let lifecycle = ResourceAccessLifecycleRegistry::new();
+        lifecycle.register_active(exact).unwrap();
+        ResourceAccessContext::for_account_with_lifecycle(scope, lifecycle)
     }
 
     #[test]
@@ -1264,24 +1364,20 @@ mod tests {
     }
 
     #[test]
-    fn account_context_renders_an_owner_only_predicate() {
-        let access = ResourceAccessContext::for_account(ResourceScope::new(owner(), actor()));
-        let predicate = access.sql_predicate(2);
-        assert_eq!(predicate.clause(), " AND owner_account_id = $2::uuid");
-        assert_eq!(predicate.placeholder_count(), 1);
+    fn account_context_retains_its_write_scope() {
+        let access = active_access(exact_scope("ws-write"));
+        assert!(access.write_scope().is_some());
+        assert!(access.read_query().is_some());
     }
 
     #[test]
-    fn account_context_renders_a_workspace_narrowed_predicate() {
-        let scope = ResourceScope::new(owner(), actor())
-            .with_workspace(WorkspaceScopeRef::new("ws-alpha").unwrap());
-        let access = ResourceAccessContext::for_account(scope);
-        let predicate = access.sql_predicate(3);
+    fn account_context_retains_workspace_narrowing() {
+        let scope = exact_scope("ws-alpha");
+        let access = active_access(scope);
         assert_eq!(
-            predicate.clause(),
-            " AND owner_account_id = $3::uuid AND workspace_id = $4"
+            access.read_query().and_then(ResourceScopeQuery::workspace),
+            Some(&WorkspaceScopeRef::new("ws-alpha").unwrap())
         );
-        assert_eq!(predicate.placeholder_count(), 2);
     }
 
     #[test]
@@ -1290,13 +1386,13 @@ mod tests {
             .with_session(AuthenticatedSessionRef::mint())
             .with_access_space(AccessSpaceRef::mint())
             .with_workspace(WorkspaceScopeRef::new("ws-exact").unwrap());
-        let access = ResourceAccessContext::for_account(scope.clone());
-        let predicate = access.sql_predicate(7);
+        let access = active_access(scope.clone());
         assert_eq!(
-            predicate.clause(),
-            " AND owner_account_id = $7::uuid AND actor_principal_id = $8::uuid AND authenticated_session_id = $9::uuid AND access_space_id = $10::uuid AND workspace_id = $11"
+            access.exact_read_scope(),
+            ExactResourceScopeAttribution::try_from_resource_scope(&scope)
+                .ok()
+                .as_ref()
         );
-        assert_eq!(predicate.placeholder_count(), 5);
 
         access
             .authorize_row(&StoredResourceScope::from(&scope))
@@ -1326,13 +1422,10 @@ mod tests {
     }
 
     #[test]
-    fn system_context_renders_no_predicate_and_stamps_nothing() {
+    fn system_context_has_no_account_write_scope() {
         let access =
             ResourceAccessContext::system(SystemScopeAuthority::legacy_unscoped_call_site());
-        let predicate = access.sql_predicate(1);
-        assert_eq!(predicate.clause(), "");
-        assert_eq!(predicate.placeholder_count(), 0);
-        assert!(access.insert_columns().is_unattributed());
+        assert!(access.write_scope().is_none());
         assert_eq!(
             access.system_authority().map(|a| a.reason()),
             Some("SYSTEM_SCOPE_LEGACY_UNSCOPED_CALL_SITE")
@@ -1345,23 +1438,29 @@ mod tests {
         // If they could write, an unauthenticated header would mint ownership.
         let access = ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(owner()));
         assert!(access.write_scope().is_none());
-        assert!(access.insert_columns().is_unattributed());
         assert!(access.read_query().is_some());
+        access
+            .require_active()
+            .expect("legacy reader semantics remain available outside protected boundaries");
+        assert_eq!(
+            access.require_lifecycle_active().unwrap_err().reason_code(),
+            "RESOURCE_ACCESS_CONTEXT_UNKNOWN"
+        );
     }
 
     #[test]
-    fn an_account_context_stamps_every_column_it_carries() {
+    fn an_account_context_exposes_all_exact_dimensions() {
         let scope = ResourceScope::new(owner(), actor())
             .with_session(AuthenticatedSessionRef::mint())
             .with_access_space(AccessSpaceRef::mint())
             .with_workspace(WorkspaceScopeRef::new("ws-alpha").unwrap());
-        let access = ResourceAccessContext::for_account(scope);
-        let columns = access.insert_columns();
-        assert!(!columns.is_unattributed());
-        assert!(columns.actor_principal_id.is_some());
-        assert!(columns.authenticated_session_id.is_some());
-        assert!(columns.access_space_id.is_some());
-        assert_eq!(columns.workspace_id, Some("ws-alpha"));
+        let access = active_access(scope.clone());
+        assert_eq!(
+            access.exact_read_scope(),
+            ExactResourceScopeAttribution::try_from_resource_scope(&scope)
+                .ok()
+                .as_ref()
+        );
     }
 
     #[test]
@@ -1413,7 +1512,7 @@ mod tests {
             "the bypass reason must survive into the durable record so it is auditable"
         );
 
-        let account = ResourceAccessContext::for_account(ResourceScope::new(owner(), actor()));
+        let account = active_access(exact_scope("ws-authority"));
         assert!(AccountBoundAuthority::from_access(&account).is_account_bound());
     }
 
@@ -1430,5 +1529,63 @@ mod tests {
             .authorize_row(&their_row)
             .expect_err("an account reader must not see another account's row");
         assert_eq!(denied.reason_code(), "RESOURCE_SCOPE_OWNER_MISMATCH");
+    }
+
+    #[test]
+    fn legacy_account_context_is_explicit_but_cannot_enter_protected_boundaries() {
+        let scope = exact_scope("ws-legacy");
+        let access = ResourceAccessContext::for_account(scope.clone());
+        assert!(access.lifecycle_authority().is_none());
+        assert_eq!(access.write_scope(), Some(&scope));
+        assert!(access.exact_read_scope().is_some());
+        assert_eq!(
+            access.require_lifecycle_active().unwrap_err().reason_code(),
+            "RESOURCE_ACCESS_CONTEXT_UNKNOWN"
+        );
+    }
+
+    #[test]
+    fn lifecycle_is_shared_immediate_and_terminal_for_one_exact_session() {
+        let scope = exact_scope("ws-lifecycle");
+        let exact = ExactResourceScopeAttribution::try_from_resource_scope(&scope).unwrap();
+        let lifecycle = ResourceAccessLifecycleRegistry::new();
+        lifecycle.register_active(exact.clone()).unwrap();
+        let first =
+            ResourceAccessContext::for_account_with_lifecycle(scope.clone(), lifecycle.clone());
+        let second = ResourceAccessContext::for_account_with_lifecycle(scope, lifecycle.clone());
+        first.require_active().unwrap();
+        second.require_active().unwrap();
+
+        lifecycle.revoke(&exact).unwrap();
+        for access in [&first, &second] {
+            assert_eq!(
+                access.require_active().unwrap_err().reason_code(),
+                "RESOURCE_ACCESS_CONTEXT_REVOKED"
+            );
+            assert!(access.write_scope().is_none());
+            assert!(access.exact_read_scope().is_none());
+        }
+        assert_eq!(
+            lifecycle.register_active(exact).unwrap_err(),
+            ResourceAccessLifecycleTransitionError::TerminalContext
+        );
+    }
+
+    #[test]
+    fn stale_and_unknown_decisions_are_distinct_and_non_leaking() {
+        let scope = exact_scope("ws-stale");
+        let exact = ExactResourceScopeAttribution::try_from_resource_scope(&scope).unwrap();
+        let lifecycle = ResourceAccessLifecycleRegistry::new();
+        assert_eq!(
+            lifecycle.authorize(&exact).unwrap_err().reason_code(),
+            "RESOURCE_ACCESS_CONTEXT_UNKNOWN"
+        );
+        lifecycle.register_active(exact.clone()).unwrap();
+        lifecycle.mark_stale(&exact).unwrap();
+        let denied = lifecycle.authorize(&exact).unwrap_err();
+        assert_eq!(denied.reason_code(), "RESOURCE_ACCESS_CONTEXT_STALE");
+        assert!(!denied
+            .to_string()
+            .contains(&exact.authenticated_session_id.to_string()));
     }
 }

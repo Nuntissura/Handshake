@@ -3694,6 +3694,7 @@ fn map_kernel_event(row: PgRow) -> StorageResult<KernelEvent> {
 
 fn crdt_storage_authority_str(authority: CrdtStorageAuthorityPosture) -> &'static str {
     match authority {
+        CrdtStorageAuthorityPosture::EmbeddedSurrealDb => "embedded_surrealdb",
         CrdtStorageAuthorityPosture::PostgresEventLedger => "postgres_event_ledger",
         CrdtStorageAuthorityPosture::FileSystemAuthority => "filesystem_authority",
         CrdtStorageAuthorityPosture::MemoryOnly => "memory_only",
@@ -3702,6 +3703,7 @@ fn crdt_storage_authority_str(authority: CrdtStorageAuthorityPosture) -> &'stati
 
 fn parse_crdt_storage_authority(value: &str) -> StorageResult<CrdtStorageAuthorityPosture> {
     match value {
+        "embedded_surrealdb" => Ok(CrdtStorageAuthorityPosture::EmbeddedSurrealDb),
         "postgres_event_ledger" => Ok(CrdtStorageAuthorityPosture::PostgresEventLedger),
         "filesystem_authority" => Ok(CrdtStorageAuthorityPosture::FileSystemAuthority),
         "memory_only" => Ok(CrdtStorageAuthorityPosture::MemoryOnly),

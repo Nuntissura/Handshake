@@ -683,6 +683,11 @@ DEFINE FIELD OVERWRITE payload_hash ON TABLE kernel_event_ledger TYPE string;
 DEFINE FIELD OVERWRITE source_component ON TABLE kernel_event_ledger TYPE string;
 DEFINE FIELD OVERWRITE payload ON TABLE kernel_event_ledger TYPE object FLEXIBLE;
 DEFINE FIELD OVERWRITE payload.* ON TABLE kernel_event_ledger TYPE any;
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_principal_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE access_space_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE workspace_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
 DEFINE FIELD OVERWRITE created_at ON TABLE kernel_event_ledger TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_kernel_event_ledger ON TABLE kernel_event_ledger FIELDS event_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_kernel_event_ledger_sequence ON TABLE kernel_event_ledger FIELDS event_sequence UNIQUE;
@@ -695,6 +700,7 @@ DEFINE INDEX OVERWRITE idx_kernel_event_ledger_payload_hash ON TABLE kernel_even
 DEFINE INDEX OVERWRITE idx_kernel_event_ledger_correlation ON TABLE kernel_event_ledger FIELDS correlation_id;
 DEFINE INDEX OVERWRITE idx_kernel_event_ledger_causation ON TABLE kernel_event_ledger FIELDS causation_id;
 DEFINE INDEX OVERWRITE idx_kernel_event_ledger_created_at ON TABLE kernel_event_ledger FIELDS created_at;
+DEFINE INDEX OVERWRITE idx_kernel_event_ledger_resource_scope ON TABLE kernel_event_ledger FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, event_sequence;
 
 -- 0019_kernel_session_queue.sql
 DEFINE TABLE OVERWRITE kernel_session_queue SCHEMAFULL PERMISSIONS NONE;
@@ -716,6 +722,10 @@ DEFINE INDEX OVERWRITE idx_kernel_session_queue_lease ON TABLE kernel_session_qu
 -- 0020_kernel_crdt_storage.sql
 DEFINE TABLE OVERWRITE kernel_crdt_updates SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE schema_id ON TABLE kernel_crdt_updates TYPE string;
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE kernel_crdt_updates TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_principal_id ON TABLE kernel_crdt_updates TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE kernel_crdt_updates TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE access_space_id ON TABLE kernel_crdt_updates TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE workspace_id ON TABLE kernel_crdt_updates TYPE string;
 DEFINE FIELD OVERWRITE document_id ON TABLE kernel_crdt_updates TYPE string;
 DEFINE FIELD OVERWRITE crdt_document_id ON TABLE kernel_crdt_updates TYPE string;
@@ -736,16 +746,22 @@ DEFINE FIELD OVERWRITE event_ledger_stream_id ON TABLE kernel_crdt_updates TYPE 
 DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE kernel_crdt_updates TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE storage_authority ON TABLE kernel_crdt_updates TYPE string;
 DEFINE FIELD OVERWRITE created_at ON TABLE kernel_crdt_updates TYPE datetime DEFAULT time::now();
-DEFINE INDEX OVERWRITE pk_kernel_crdt_updates ON TABLE kernel_crdt_updates FIELDS workspace_id, document_id, crdt_document_id, update_id UNIQUE;
-DEFINE INDEX OVERWRITE idx_kernel_crdt_updates_seq ON TABLE kernel_crdt_updates FIELDS workspace_id, document_id, crdt_document_id, update_seq UNIQUE;
-DEFINE INDEX OVERWRITE idx_kernel_crdt_updates_event ON TABLE kernel_crdt_updates FIELDS event_ledger_stream_id, event_ledger_event_id UNIQUE;
-DEFINE INDEX OVERWRITE idx_kernel_crdt_updates_bytes_ref ON TABLE kernel_crdt_updates FIELDS update_bytes_ref UNIQUE;
+DEFINE INDEX OVERWRITE pk_kernel_crdt_updates ON TABLE kernel_crdt_updates FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, update_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_kernel_crdt_updates_seq ON TABLE kernel_crdt_updates FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, update_seq UNIQUE;
+DEFINE INDEX OVERWRITE idx_kernel_crdt_updates_event ON TABLE kernel_crdt_updates FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, event_ledger_stream_id, event_ledger_event_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_kernel_crdt_updates_bytes_ref ON TABLE kernel_crdt_updates FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, update_bytes_ref UNIQUE;
 DEFINE INDEX OVERWRITE idx_kernel_crdt_updates_replay ON TABLE kernel_crdt_updates FIELDS workspace_id, document_id, crdt_document_id, update_seq;
 DEFINE INDEX OVERWRITE idx_kernel_crdt_updates_state_vector_after ON TABLE kernel_crdt_updates FIELDS state_vector_after;
+DEFINE INDEX OVERWRITE uq_kernel_crdt_updates_scope_ref ON TABLE kernel_crdt_updates FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, update_bytes_ref UNIQUE;
+DEFINE INDEX OVERWRITE uq_kernel_crdt_updates_scope_seq ON TABLE kernel_crdt_updates FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, update_seq UNIQUE;
 
 DEFINE TABLE OVERWRITE kernel_crdt_snapshots SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE schema_id ON TABLE kernel_crdt_snapshots TYPE string;
 DEFINE FIELD OVERWRITE snapshot_id ON TABLE kernel_crdt_snapshots TYPE string;
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE kernel_crdt_snapshots TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_principal_id ON TABLE kernel_crdt_snapshots TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE kernel_crdt_snapshots TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE access_space_id ON TABLE kernel_crdt_snapshots TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE workspace_id ON TABLE kernel_crdt_snapshots TYPE string;
 DEFINE FIELD OVERWRITE document_id ON TABLE kernel_crdt_snapshots TYPE string;
 DEFINE FIELD OVERWRITE crdt_document_id ON TABLE kernel_crdt_snapshots TYPE string;
@@ -761,11 +777,13 @@ DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE kernel_crdt_snapshots TYPE
 DEFINE FIELD OVERWRITE promotion_evidence_update_ids ON TABLE kernel_crdt_snapshots TYPE array<string>;
 DEFINE FIELD OVERWRITE storage_authority ON TABLE kernel_crdt_snapshots TYPE string;
 DEFINE FIELD OVERWRITE created_at ON TABLE kernel_crdt_snapshots TYPE datetime DEFAULT time::now();
-DEFINE INDEX OVERWRITE pk_kernel_crdt_snapshots ON TABLE kernel_crdt_snapshots FIELDS workspace_id, document_id, crdt_document_id, snapshot_id UNIQUE;
-DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_event ON TABLE kernel_crdt_snapshots FIELDS event_ledger_stream_id, event_ledger_event_id UNIQUE;
-DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_bytes_ref ON TABLE kernel_crdt_snapshots FIELDS snapshot_bytes_ref UNIQUE;
+DEFINE INDEX OVERWRITE pk_kernel_crdt_snapshots ON TABLE kernel_crdt_snapshots FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, snapshot_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_event ON TABLE kernel_crdt_snapshots FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, event_ledger_stream_id, event_ledger_event_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_bytes_ref ON TABLE kernel_crdt_snapshots FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, snapshot_bytes_ref UNIQUE;
 DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_latest ON TABLE kernel_crdt_snapshots FIELDS workspace_id, document_id, crdt_document_id, covered_update_seq;
 DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_state_vector ON TABLE kernel_crdt_snapshots FIELDS state_vector;
+DEFINE INDEX OVERWRITE uq_kernel_crdt_snapshots_scope_ref ON TABLE kernel_crdt_snapshots FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, snapshot_bytes_ref UNIQUE;
+DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_scope_seq ON TABLE kernel_crdt_snapshots FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, covered_update_seq;
 
 -- 0021_kernel_process_lifecycle.sql
 DEFINE TABLE OVERWRITE kernel_process_lifecycle SCHEMAFULL PERMISSIONS NONE;
@@ -3490,6 +3508,13 @@ DEFINE INDEX OVERWRITE idx_knowledge_crdt_denial_receipts_actor ON TABLE knowled
 -- 0151_knowledge_crdt_agent_lane_leases.sql
 DEFINE TABLE OVERWRITE knowledge_crdt_agent_lane_leases SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE lease_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_principal_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE access_space_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE document_id ON TABLE knowledge_crdt_agent_lane_leases TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE crdt_document_id ON TABLE knowledge_crdt_agent_lane_leases TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
 DEFINE FIELD OVERWRITE lane_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE actor_id ON TABLE knowledge_crdt_agent_lane_leases TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE actor_kind ON TABLE knowledge_crdt_agent_lane_leases TYPE 'operator' | 'local_model' | 'cloud_model' | 'validator' | 'system';
@@ -3503,18 +3528,23 @@ DEFINE FIELD OVERWRITE renewal_count ON TABLE knowledge_crdt_agent_lane_leases T
 DEFINE FIELD OVERWRITE released_at_utc ON TABLE knowledge_crdt_agent_lane_leases TYPE option<datetime>;
 DEFINE FIELD OVERWRITE expired_at_utc ON TABLE knowledge_crdt_agent_lane_leases TYPE option<datetime>;
 DEFINE FIELD OVERWRITE takeover_of ON TABLE knowledge_crdt_agent_lane_leases TYPE option<record<knowledge_crdt_agent_lane_leases>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE recorded_event_id ON TABLE knowledge_crdt_agent_lane_leases TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE last_transition_event_id ON TABLE knowledge_crdt_agent_lane_leases TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
 -- Stored discriminator for the source partial UNIQUE index
 -- `uq_knowledge_crdt_lease_active_scope ... WHERE released_at_utc IS NULL`.
 DEFINE FIELD OVERWRITE active_scope_key ON TABLE knowledge_crdt_agent_lane_leases TYPE string
     VALUE IF $this.released_at_utc = NONE {
-        'active:' + type::string($this.scope_kind) + ':' + $this.scope_id
+        'active:' + $this.owner_account_id + ':' + $this.actor_principal_id + ':' + $this.authenticated_session_id + ':' + $this.access_space_id + ':' + $this.workspace_id + ':' + type::string($this.scope_kind) + ':' + $this.scope_id
     } ELSE {
-        'released:' + $this.lease_id
+        'released:' + $this.owner_account_id + ':' + $this.lease_id
     };
 DEFINE INDEX OVERWRITE pk_knowledge_crdt_agent_lane_leases ON TABLE knowledge_crdt_agent_lane_leases FIELDS lease_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_knowledge_crdt_lease_active_scope ON TABLE knowledge_crdt_agent_lane_leases FIELDS active_scope_key UNIQUE;
 DEFINE INDEX OVERWRITE idx_knowledge_crdt_lease_session ON TABLE knowledge_crdt_agent_lane_leases FIELDS session_id;
 DEFINE INDEX OVERWRITE idx_knowledge_crdt_lease_expiry ON TABLE knowledge_crdt_agent_lane_leases FIELDS expires_at_utc;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_lease_event ON TABLE knowledge_crdt_agent_lane_leases FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, last_transition_event_id;
+DEFINE INDEX OVERWRITE uq_knowledge_crdt_lease_scope_identity ON TABLE knowledge_crdt_agent_lane_leases FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, lease_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_lease_scope_document ON TABLE knowledge_crdt_agent_lane_leases FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, scope_kind, scope_id, expires_at_utc;
 
 -- 0152_knowledge_crdt_graph_proposals.sql
 DEFINE TABLE OVERWRITE knowledge_crdt_graph_proposals SCHEMAFULL PERMISSIONS NONE;
@@ -3563,6 +3593,10 @@ DEFINE INDEX OVERWRITE idx_knowledge_crdt_promoted_facts_workspace ON TABLE know
 -- 0154_knowledge_crdt_ai_edit_proposals.sql
 DEFINE TABLE OVERWRITE knowledge_crdt_ai_edit_proposals SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE proposal_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_principal_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE access_space_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE document_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE crdt_document_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE string ASSERT string::trim($value) != '';
@@ -3586,10 +3620,16 @@ DEFINE FIELD OVERWRITE recorded_event_id ON TABLE knowledge_crdt_ai_edit_proposa
 DEFINE FIELD OVERWRITE decided_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE promotion_requested_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE promotion_accepted_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE last_transition_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE applied_update_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<string>;
+DEFINE FIELD OVERWRITE applied_update_sha256 ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR string::len($value) = 64;
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_crdt_ai_edit_proposals TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_knowledge_crdt_ai_edit_proposals ON TABLE knowledge_crdt_ai_edit_proposals FIELDS proposal_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_knowledge_crdt_ai_edit_proposals_document ON TABLE knowledge_crdt_ai_edit_proposals FIELDS crdt_document_id, review_state, created_at_utc;
 DEFINE INDEX OVERWRITE idx_knowledge_crdt_ai_edit_proposals_actor ON TABLE knowledge_crdt_ai_edit_proposals FIELDS actor_id, created_at_utc;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_ai_edit_proposal_event ON TABLE knowledge_crdt_ai_edit_proposals FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, last_transition_event_id;
+DEFINE INDEX OVERWRITE uq_knowledge_crdt_ai_edit_proposal_scope_identity ON TABLE knowledge_crdt_ai_edit_proposals FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, proposal_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_knowledge_crdt_ai_edit_proposal_scope_document ON TABLE knowledge_crdt_ai_edit_proposals FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, review_state, created_at_utc;
 
 -- 0155_knowledge_crdt_swarm_checkpoints.sql
 DEFINE TABLE OVERWRITE knowledge_crdt_swarm_checkpoints SCHEMAFULL PERMISSIONS NONE;
@@ -4130,7 +4170,7 @@ DEFINE FIELD OVERWRITE common_errors ON TABLE user_manual_tool_entries TYPE arra
 DEFINE FIELD OVERWRITE common_errors.* ON TABLE user_manual_tool_entries TYPE any;
 DEFINE FIELD OVERWRITE recovery_steps ON TABLE user_manual_tool_entries TYPE array DEFAULT [];
 DEFINE FIELD OVERWRITE recovery_steps.* ON TABLE user_manual_tool_entries TYPE any;
-DEFINE FIELD OVERWRITE origin ON TABLE user_manual_tool_entries TYPE 'legacy_model_manual' | 'wp009_surface';
+DEFINE FIELD OVERWRITE origin ON TABLE user_manual_tool_entries TYPE 'legacy_model_manual' | 'wp009_surface' | 'wp1_model_lane' | 'wp1_mt012_operator_chat' | 'wp1_mt013_embedded_model' | 'wp1_mt014' | 'wp1_mt015_cloud_model_access' | 'wp1_mt016_dedicated_embedding_model';
 DEFINE FIELD OVERWRITE content_hash ON TABLE user_manual_tool_entries TYPE string ASSERT string::len($value) = 64;
 DEFINE FIELD OVERWRITE manual_version ON TABLE user_manual_tool_entries TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE updated_at ON TABLE user_manual_tool_entries TYPE datetime DEFAULT time::now();
@@ -4142,7 +4182,7 @@ DEFINE FIELD OVERWRITE feature_id ON TABLE user_manual_feature_entries TYPE stri
 DEFINE FIELD OVERWRITE title ON TABLE user_manual_feature_entries TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE description ON TABLE user_manual_feature_entries TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE tool_ids ON TABLE user_manual_feature_entries TYPE array<string> DEFAULT [];
-DEFINE FIELD OVERWRITE origin ON TABLE user_manual_feature_entries TYPE 'legacy_model_manual' | 'wp009_surface';
+DEFINE FIELD OVERWRITE origin ON TABLE user_manual_feature_entries TYPE 'legacy_model_manual' | 'wp009_surface' | 'wp1_model_lane' | 'wp1_mt012_operator_chat' | 'wp1_mt013_embedded_model' | 'wp1_mt014' | 'wp1_mt015_cloud_model_access' | 'wp1_mt016_dedicated_embedding_model';
 DEFINE FIELD OVERWRITE content_hash ON TABLE user_manual_feature_entries TYPE string ASSERT string::len($value) = 64;
 DEFINE FIELD OVERWRITE manual_version ON TABLE user_manual_feature_entries TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE updated_at ON TABLE user_manual_feature_entries TYPE datetime DEFAULT time::now();

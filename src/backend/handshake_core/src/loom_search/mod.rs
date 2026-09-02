@@ -1,6 +1,6 @@
 //! WP-KERNEL-009 MT-264 UnifiedWorkSurface-264-LoomSearchV2 (DEC-008).
 //!
-//! Postgres-native, graph-blended ES-class search over the Loom corpus. This
+//! Embedded-Surreal, graph-blended search over the Loom corpus. This
 //! service layer wires the model-runtime embedding surface ([`LlmClient::embedding`],
 //! reused from the MT-260 AI-Loom path) into the derived `loom_block_search_index`
 //! projection and the hybrid search query:
@@ -9,7 +9,7 @@
 //!     embedding model is configured, a REAL embedding via the configured model,
 //!     then upserts the projection row through the receipted storage path.
 //!   * [`search`] embeds the QUERY through the same surface (when available) and
-//!     runs the hybrid FTS + pg_trgm + pgvector kNN query, blended with the Loom
+//!     runs exact-scoped keyword, trigram, and Surreal vector similarity, blended with the Loom
 //!     graph and faceted by content_type.
 //!
 //! No-model path (HARD requirement): when the configured client declines the
@@ -37,12 +37,14 @@ use crate::flight_recorder::{
 };
 use crate::llm::{EmbeddingRequest, LlmClient, LlmError};
 use crate::storage::{
-    Database, LoomBlock, LoomSearchV2Request, LoomSearchV2Response, SemanticUnavailableReason,
-    StorageResult, WriteContext,
+    surreal::{SurrealEmbeddingRegistration, SurrealLoomSearchStore},
+    LoomBlock, LoomSearchV2Request, LoomSearchV2Response, SemanticUnavailableReason, StorageError,
+    StorageResult,
 };
+use crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 
 /// The canonical embedding dimensionality for LoomSearchV2 (matches the
-/// `vector(768)` column in migration 0336). A model that returns a different
+/// 768-dimensional Surreal vector index). A model that returns a different
 /// dimensionality degrades the semantic modality (typed, surfaced) rather than
 /// being silently truncated/padded or hard-erroring.
 pub const LOOM_SEARCH_EMBEDDING_DIM: usize = 768;
@@ -85,14 +87,20 @@ enum EmbedOutcome {
 /// Embeds `text` via the configured model. Maps a typed model decline to
 /// [`EmbedOutcome::NoModel`]; a wrong-dimensionality response to a DISTINCT
 /// [`EmbedOutcome::DimMismatch`] (degrade, not error).
-async fn embed_text(llm: &dyn LlmClient, text: &str) -> EmbedOutcome {
-    let Some(entry) = llm
-        .model_catalog()
-        .and_then(|catalog| catalog.embedding_model_for_dim(LOOM_SEARCH_EMBEDDING_DIM))
-    else {
-        return EmbedOutcome::NoModel;
-    };
-    let Some(embedding_space_id) = entry.embedding_space_id() else {
+async fn embed_text(
+    llm: &dyn LlmClient,
+    selection: &SurrealEmbeddingRegistration,
+    text: &str,
+) -> EmbedOutcome {
+    let Some(entry) = llm.model_catalog().and_then(|catalog| {
+        catalog.list().into_iter().find(|entry| {
+            entry.ready
+                && entry.runtime_role == crate::model_runtime::ModelRuntimeRole::Embedding
+                && entry.supports_embedding
+                && entry.embedding_dimension == Some(LOOM_SEARCH_EMBEDDING_DIM)
+                && entry.artifact_sha256 == selection.artifact_sha256
+        })
+    }) else {
         return EmbedOutcome::NoModel;
     };
     let req = EmbeddingRequest::new(Uuid::now_v7(), text.to_string(), entry.model_id);
@@ -106,7 +114,7 @@ async fn embed_text(llm: &dyn LlmClient, text: &str) -> EmbedOutcome {
             } else {
                 EmbedOutcome::Embedded {
                     vector: resp.vector,
-                    embedding_space_id,
+                    embedding_space_id: selection.embedding_space_id.clone(),
                 }
             }
         }
@@ -164,38 +172,37 @@ async fn emit_dim_mismatch_event(
 /// surfaced Flight Recorder event) and returns `Ok(false)` — it does NOT
 /// propagate a hard error.
 pub async fn reindex_block(
-    db: &dyn Database,
+    store: &SurrealLoomSearchStore,
     llm: &dyn LlmClient,
     recorder: &dyn FlightRecorder,
-    ctx: &WriteContext,
+    scope: &ExactResourceScopeAttribution,
     block: &LoomBlock,
 ) -> StorageResult<bool> {
     let text = block_search_text(block);
-    let mut embedding_model: Option<String> = None;
-    let embedding: Option<Vec<f32>> = match embed_text(llm, &text).await {
-        EmbedOutcome::Embedded {
-            vector,
-            embedding_space_id,
-        } => {
-            embedding_model = Some(embedding_space_id);
-            Some(vector)
-        }
-        EmbedOutcome::NoModel => None,
-        EmbedOutcome::DimMismatch { expected, actual } => {
-            emit_dim_mismatch_event(recorder, "reindex", &block.workspace_id, expected, actual)
-                .await;
-            None
-        }
+    let selection = store.resolve_embedding_model(scope).await?;
+    let mut selected_model = None;
+    let embedding: Option<Vec<f32>> = match selection.as_ref() {
+        None => None,
+        Some(selection) => match embed_text(llm, selection, &text).await {
+            EmbedOutcome::Embedded {
+                vector,
+                embedding_space_id,
+            } => {
+                debug_assert_eq!(embedding_space_id, selection.embedding_space_id);
+                selected_model = Some(selection);
+                Some(vector)
+            }
+            EmbedOutcome::NoModel => None,
+            EmbedOutcome::DimMismatch { expected, actual } => {
+                emit_dim_mismatch_event(recorder, "reindex", &block.workspace_id, expected, actual)
+                    .await;
+                None
+            }
+        },
     };
-    db.reindex_loom_block_search(
-        ctx,
-        &block.workspace_id,
-        &block.block_id,
-        &text,
-        embedding.as_deref(),
-        embedding_model.as_deref(),
-    )
-    .await?;
+    store
+        .reindex_block(scope, block, selected_model, embedding.clone())
+        .await?;
     Ok(embedding.is_some())
 }
 
@@ -206,32 +213,54 @@ pub async fn reindex_block(
 /// [`SemanticUnavailableReason`]. A dimensionality mismatch additionally emits
 /// a surfaced Flight Recorder event. NO hard error / 400 on either degrade path.
 pub async fn search(
-    db: &dyn Database,
+    store: &SurrealLoomSearchStore,
     llm: &dyn LlmClient,
     recorder: &dyn FlightRecorder,
-    workspace_id: &str,
+    scope: &ExactResourceScopeAttribution,
     mut request: LoomSearchV2Request,
 ) -> StorageResult<LoomSearchV2Response> {
+    let selection = store.resolve_embedding_model(scope).await?;
     let mut degrade_reason: Option<SemanticUnavailableReason> = None;
     if request.query_embedding.is_none() && !request.query.trim().is_empty() {
-        match embed_text(llm, &request.query).await {
-            EmbedOutcome::Embedded {
-                vector,
-                embedding_space_id,
-            } => {
-                request.query_embedding = Some(vector);
-                request.query_embedding_model = Some(embedding_space_id);
-            }
-            EmbedOutcome::NoModel => {
-                degrade_reason = Some(SemanticUnavailableReason::NoModel);
-            }
-            EmbedOutcome::DimMismatch { expected, actual } => {
-                degrade_reason = Some(SemanticUnavailableReason::DimMismatch { expected, actual });
-                emit_dim_mismatch_event(recorder, "search", workspace_id, expected, actual).await;
-            }
+        match selection.as_ref() {
+            None => degrade_reason = Some(SemanticUnavailableReason::NoModel),
+            Some(selection) => match embed_text(llm, selection, &request.query).await {
+                EmbedOutcome::Embedded {
+                    vector,
+                    embedding_space_id,
+                } => {
+                    request.query_embedding = Some(vector);
+                    request.query_embedding_model = Some(embedding_space_id);
+                }
+                EmbedOutcome::NoModel => {
+                    degrade_reason = Some(SemanticUnavailableReason::NoModel);
+                }
+                EmbedOutcome::DimMismatch { expected, actual } => {
+                    degrade_reason =
+                        Some(SemanticUnavailableReason::DimMismatch { expected, actual });
+                    emit_dim_mismatch_event(
+                        recorder,
+                        "search",
+                        scope.workspace_id.as_str(),
+                        expected,
+                        actual,
+                    )
+                    .await;
+                }
+            },
+        }
+    } else if let Some(requested_space) = request.query_embedding_model.as_deref() {
+        if selection
+            .as_ref()
+            .map(|model| model.embedding_space_id.as_str())
+            != Some(requested_space)
+        {
+            return Err(StorageError::Validation(
+                "MT-016 query embedding does not match the exact active embedding space",
+            ));
         }
     }
-    let mut response = db.loom_search_v2(workspace_id, request).await?;
+    let mut response = store.search(scope, &request).await?.response;
     // Surface the typed degrade reason so a dropped semantic modality is never
     // silent. A degrade always means semantic was NOT contributed.
     if let Some(reason) = degrade_reason {

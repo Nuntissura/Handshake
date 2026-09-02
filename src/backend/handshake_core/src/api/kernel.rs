@@ -25,6 +25,7 @@ use crate::kernel::{
     dcc_mvp_runtime_surface::validate_dcc_mvp_runtime_surface,
     DccMvpRuntimeSurfaceV1, KernelError, KernelTraceInspector, TraceProjection,
 };
+use crate::api::account_scope::RequestAccountScope;
 use crate::storage::{ModelSession, ModelSessionState};
 use crate::swarm_orchestration::state_recovery::{
     validate_swarm_dashboard_projection, AgentLaneIdentity, AgentLaneKind, AttributionMode,
@@ -169,6 +170,11 @@ fn map_state_recovery_error(err: StateRecoveryError) -> (StatusCode, Json<ErrorR
             "parallel_swarm_dashboard_invalid_request",
             message,
         ),
+        StateRecoveryError::AccessLifecycle(message) => api_error(
+            StatusCode::FORBIDDEN,
+            "parallel_swarm_dashboard_scope_denied",
+            message,
+        ),
         other => api_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "parallel_swarm_dashboard_projection_failed",
@@ -216,6 +222,7 @@ pub async fn dcc_projection(
 
 pub async fn parallel_swarm_dashboard_projection(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Query(query): Query<ParallelSwarmDashboardProjectionQuery>,
 ) -> ApiResult<ParallelSwarmDashboardProjectionV1> {
     let lane = AgentLaneIdentity::new(
@@ -232,8 +239,10 @@ pub async fn parallel_swarm_dashboard_projection(
         },
     )
     .map_err(map_state_recovery_error)?;
-    let store =
-        ParallelSwarmStateRecoveryStore::new(state.postgres_pool.clone(), state.storage.clone());
+    let store = ParallelSwarmStateRecoveryStore::with_surreal_lifecycle(
+        state.surreal_storage.clone(),
+        scope.into_exact(),
+    );
     let projection = store
         .project_swarm_dashboard(SwarmDashboardProjectionRequest {
             lane,
@@ -455,7 +464,7 @@ async fn session_spawn_runtime_evidence_from_state(
 /// This is the pure path used by `session_spawn_runtime_evidence_from_state`
 /// after it pulls the recorder events from the active state. It is exposed so
 /// tests can drive announce-back, cascade-cancel, and flight-recorder pairing
-/// behavior without standing up a Postgres-backed AppState — the test surface
+/// behavior without standing up a full AppState — the test surface
 /// must fail closed if a future change reverts to hardcoded synthesis.
 pub fn derive_session_spawn_runtime_evidence(
     sessions: &[ModelSession],

@@ -24,7 +24,8 @@
 //!   as `configured` / `unavailable` (mapping a missing key —
 //!   "ProviderNotConfigured" — to `unavailable`, never an error) WITHOUT
 //!   returning key material. It never calls `vault.list_lanes` (the OS
-//!   keychain has no portable enumeration) and never uses SQLite.
+//!   keychain has no portable enumeration) and never touches an alternate
+//!   database.
 //! * Gemini is not offered. It is not a variant of [`ByokProvider`] or
 //!   [`CliBridgeProvider`], so the exclusion is enforced by construction,
 //!   not by a runtime filter that a caller could bypass. The reset brief
@@ -59,7 +60,7 @@ use thiserror::Error;
 use zeroize::Zeroize;
 
 use super::official_cli_bridge::{
-    CliBridgeConfig, CliInvocationContext, InteractiveLoginTransport, LiveCliSpawner,
+    CliBridgeConfig, CliInvocationContext, CliKind, InteractiveLoginTransport, LiveCliSpawner,
 };
 use super::secrets_vault::{SecretsVault, SecretsVaultError};
 use crate::sandbox::{
@@ -159,6 +160,14 @@ impl CliBridgeProvider {
         }
     }
 
+    fn accepts_cli_kind(self, cli_kind: CliKind) -> bool {
+        matches!(
+            (self, cli_kind),
+            (CliBridgeProvider::ClaudeCode, CliKind::ClaudeCode)
+                | (CliBridgeProvider::Codex, CliKind::CodexCli)
+        )
+    }
+
     /// The provider's OWN official login command, run operator-initiated inside
     /// a Handshake-hosted pseudo-terminal (no OS console window, no focus or
     /// Z-order change) and surfaced in the native Settings login panel.
@@ -193,7 +202,7 @@ impl CliBridgeProvider {
         match self {
             CliBridgeProvider::ClaudeCode => OfficialAuthStatusCommand {
                 program: "claude",
-                args: &["auth", "status", "--json"],
+                args: &["auth", "status"],
             },
             CliBridgeProvider::Codex => OfficialAuthStatusCommand {
                 program: "codex",
@@ -307,14 +316,16 @@ impl ProductionCliBridgeAuthStatusProbe {
         Self {
             targets: launches
                 .into_iter()
-                .map(|(provider, config)| {
-                    (
-                        provider,
-                        CanonicalCliAuthTarget {
-                            spawner: spawner.clone(),
-                            config,
-                        },
-                    )
+                .filter_map(|(provider, config)| {
+                    provider.accepts_cli_kind(config.cli_kind).then(|| {
+                        (
+                            provider,
+                            CanonicalCliAuthTarget {
+                                spawner: spawner.clone(),
+                                config,
+                            },
+                        )
+                    })
                 })
                 .collect(),
         }
@@ -728,7 +739,10 @@ impl CliBridgeLoginSessionRegistry {
     }
 
     /// Operator-initiated cancel. Idempotent.
-    pub fn cancel(&self, session_id: &str) -> Result<CliLoginSessionSnapshot, CliLoginSessionError> {
+    pub fn cancel(
+        &self,
+        session_id: &str,
+    ) -> Result<CliLoginSessionSnapshot, CliLoginSessionError> {
         let session = self.find(session_id)?;
         session
             .cancelled
@@ -856,7 +870,7 @@ pub struct CloudAccessEnumeration {
 
 /// NON-SECRET view of which providers are configured. Implementations answer
 /// per-provider status WITHOUT returning key material; they never call
-/// `vault.list_lanes` and never touch SQLite.
+/// `vault.list_lanes` and never touch an alternate database.
 pub trait ProviderAccessRegistry: Send + Sync {
     fn byok_status(&self, provider: ByokProvider) -> ProviderAccessStatus;
 }
@@ -1087,15 +1101,15 @@ impl CloudModelAccess {
         provider: ByokProvider,
         api_key: &SecretString,
     ) -> Result<(), AccessConfigError> {
-        if api_key.expose_secret().trim().is_empty() {
+        let api_key = api_key.expose_secret();
+        if api_key.trim().is_empty() {
             return Err(AccessConfigError::EmptyKey);
         }
         // Expose once as a borrowed `&str` and hand it straight to the vault,
         // which copies it into the OS credential store. No owned, un-zeroized
         // `String` copy is materialised on this path (MT-015 F2); nothing here
         // keeps the key.
-        self.vault
-            .put(provider.vault_lane(), api_key.expose_secret())?;
+        self.vault.put(provider.vault_lane(), api_key)?;
         Ok(())
     }
 
@@ -1191,10 +1205,22 @@ mod tests {
 
         let claude_status = CliBridgeProvider::ClaudeCode.auth_status_command();
         assert_eq!(claude_status.program, "claude");
-        assert_eq!(claude_status.args, &["auth", "status", "--json"]);
+        assert_eq!(claude_status.args, &["auth", "status"]);
         let codex_status = CliBridgeProvider::Codex.auth_status_command();
         assert_eq!(codex_status.program, "codex");
         assert_eq!(codex_status.args, &["login", "status"]);
+    }
+
+    #[test]
+    fn auth_probe_rejects_cross_provider_and_excluded_cli_kinds() {
+        assert!(CliBridgeProvider::ClaudeCode.accepts_cli_kind(CliKind::ClaudeCode));
+        assert!(CliBridgeProvider::Codex.accepts_cli_kind(CliKind::CodexCli));
+        assert!(!CliBridgeProvider::ClaudeCode.accepts_cli_kind(CliKind::CodexCli));
+        assert!(!CliBridgeProvider::Codex.accepts_cli_kind(CliKind::ClaudeCode));
+        for excluded in [CliKind::GeminiCli, CliKind::Other] {
+            assert!(!CliBridgeProvider::ClaudeCode.accepts_cli_kind(excluded));
+            assert!(!CliBridgeProvider::Codex.accepts_cli_kind(excluded));
+        }
     }
 
     #[test]

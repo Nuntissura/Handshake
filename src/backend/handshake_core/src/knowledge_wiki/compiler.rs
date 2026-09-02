@@ -26,7 +26,7 @@
 //! Citations are precise entity/span/source ids + content hashes
 //! (LM-PWIKI-003) — never loose file-path strings. Every page is stamped
 //! (LM-PWIKI-006) at write time: the stamp is a REQUIRED argument of
-//! [`PostgresDatabase::upsert_knowledge_wiki_page`] (ship-together guard,
+//! [`SurrealStorage::upsert_knowledge_wiki_page`] (ship-together guard,
 //! LM-PWIKI-009). EventLedger receives a `wiki_bootstrap_compile_started` /
 //! `…_completed` receipt pair (LM-PWIKI-012); every page row references the
 //! started receipt.
@@ -42,7 +42,7 @@ use crate::storage::knowledge::{
     KnowledgeEntityKind, KnowledgeEntityLifecycle, KnowledgeRichDocument, KnowledgeStore,
     KnowledgeWikiProjection, NewKnowledgeWikiPage, WikiCodeFileInput, WikiEntityWithSpan,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealStorage;
 
 use super::{
     CitedSource, CitedSourceKind, DEFAULT_PAGE_TOKEN_BUDGET, MAX_BOOTSTRAP_PAGES,
@@ -168,18 +168,17 @@ pub(crate) fn cluster_dir(relative_path: &str) -> String {
     }
 }
 
-/// The MT-241 bootstrap compiler. Holds a concrete PostgreSQL handle (this is
-/// a PostgreSQL/EventLedger-native surface; no other backend exists for it).
+/// The MT-241 bootstrap compiler. Holds the shared embedded SurrealDB handle.
 pub struct ProjectWikiCompiler {
-    db: Arc<PostgresDatabase>,
+    db: Arc<SurrealStorage>,
 }
 
 impl ProjectWikiCompiler {
-    pub fn new(db: Arc<PostgresDatabase>) -> Self {
+    pub fn new(db: Arc<SurrealStorage>) -> Self {
         Self { db }
     }
 
-    pub fn db(&self) -> &PostgresDatabase {
+    pub fn db(&self) -> &SurrealStorage {
         &self.db
     }
 

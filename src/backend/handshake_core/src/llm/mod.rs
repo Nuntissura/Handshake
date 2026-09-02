@@ -29,7 +29,7 @@ use crate::flight_recorder::{
 };
 use crate::model_runtime::{
     CancellationToken, GenerateRequest, ModelCatalog, ModelId, ModelRuntime, ModelRuntimeError,
-    Score, TokenStream,
+    Score, ScopedModelRegistryAuthority, TokenStream,
 };
 use crate::workflows::ModelSwapRequestV0_4;
 use guard::CloudEscalationBundleV0_4;
@@ -264,6 +264,15 @@ pub trait LlmClient: Send + Sync + 'static {
         Err(LlmError::ProviderError(
             "model runtime control is unavailable for this LLM client".to_string(),
         ))
+    }
+
+    /// Exact durable registry authority bound into this runtime owner.
+    ///
+    /// Mutation chokepoints must compare this authority's five-field scope to
+    /// the authenticated request scope before calling runtime control or swap.
+    /// Providers without a durable registry authority fail closed with `None`.
+    fn scoped_model_registry_authority(&self) -> Option<ScopedModelRegistryAuthority> {
+        None
     }
 
     /// Truthful per-model lifecycle controls that this concrete client can

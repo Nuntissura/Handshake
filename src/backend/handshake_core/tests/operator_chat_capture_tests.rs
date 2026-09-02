@@ -8,6 +8,7 @@
 //! are inspectable.
 
 mod knowledge_pg_support;
+mod process_ledger_surreal_support;
 
 use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -39,8 +40,8 @@ use handshake_core::model_runtime::{
 };
 use handshake_core::process_ledger::{
     drain_and_join_ledger_writer, LedgerBatcher, LedgerBatcherConfig, LedgerDrainJoinOutcome,
-    NoopOverflowSink, PostgresProcessLedgerStore, ProcessEngineKind, ProcessLedgerDrain,
-    ProcessOwnershipRecordId, ProcessStart,
+    LedgerEvent, NoopOverflowSink, ProcessEngineKind, ProcessLedgerDrain, ProcessLedgerError,
+    ProcessLedgerStore, ProcessOwnershipRecordId, ProcessStart, ReclaimResourceScope,
 };
 use handshake_core::swarm_orchestration::model_lane::{
     DexterityLaunchAdapterKind, DexterityLaunchAdapterRequest, LaunchAuthority, ModelLaneKind,
@@ -59,6 +60,7 @@ use handshake_core::swarm_orchestration::{
     ProductionModelSessionFactory, RecordingSwarmSink, RunBudget, SessionTeardown, SpawnRequest,
     SwarmConfig, SwarmCoordinator, SwarmError, SwarmEvent,
 };
+use process_ledger_surreal_support::{scope_metadata, ProcessLedgerSurrealHarness};
 
 // ---------------------------------------------------------------------------
 // Capturing Flight Recorder double (inspectable).
@@ -156,6 +158,58 @@ fn sample_sha256() -> String {
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into()
 }
 
+fn operator_chat_process_scope() -> ReclaimResourceScope {
+    ReclaimResourceScope {
+        account_uuid: Uuid::from_u128(0x11),
+        actor_uuid: Uuid::from_u128(0x12),
+        session_uuid: Uuid::from_u128(0x13),
+        workspace_id: "operator-chat-process-ledger-tests".to_string(),
+        access_space_uuid: Uuid::from_u128(0x14),
+    }
+}
+
+fn operator_chat_process_metadata() -> Value {
+    scope_metadata(&operator_chat_process_scope())
+}
+
+fn operator_chat_model_scope() -> ResourceScope {
+    let scope = operator_chat_process_scope();
+    ResourceScope::new(
+        OwnerAccountId::from_uuid(scope.account_uuid),
+        ActorPrincipalId::from_uuid(scope.actor_uuid),
+    )
+    .with_session(AuthenticatedSessionRef::from_uuid(scope.session_uuid))
+    .with_access_space(AccessSpaceRef::from_uuid(scope.access_space_uuid))
+    .with_workspace(
+        WorkspaceScopeRef::new(scope.workspace_id).expect("nonblank operator-chat workspace"),
+    )
+}
+
+struct ExplicitTestScopeStore {
+    inner: Arc<dyn ProcessLedgerStore>,
+}
+
+#[async_trait]
+impl ProcessLedgerStore for ExplicitTestScopeStore {
+    async fn write_batch(&self, mut events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
+        let exact = operator_chat_process_metadata();
+        let exact = exact.as_object().expect("exact test scope is an object");
+        for event in &mut events {
+            let metadata = match event {
+                LedgerEvent::Start(start) => &mut start.metadata_jsonb,
+                LedgerEvent::Stop(stop) => &mut stop.metadata_jsonb,
+            };
+            let object = metadata.as_object_mut().ok_or_else(|| {
+                ProcessLedgerError::InvalidConfig(
+                    "CLI test lifecycle metadata must be an object".to_string(),
+                )
+            })?;
+            object.extend(exact.clone());
+        }
+        self.inner.write_batch(events).await
+    }
+}
+
 struct OperatorChatProofFactory {
     ledger: LedgerBatcher,
     loads: Arc<AtomicUsize>,
@@ -181,7 +235,8 @@ impl ModelSessionFactory for OperatorChatProofFactory {
             .with_os_pid(os_pid)
             .with_parent_session_id(request.parent_session_id.clone())
             .with_wp_id(request.wp_id.clone().unwrap_or_default())
-            .with_mt_id(request.mt_id.clone().unwrap_or_default());
+            .with_mt_id(request.mt_id.clone().unwrap_or_default())
+            .with_metadata_jsonb(operator_chat_process_metadata());
         self.ledger
             .record_start(start)
             .map_err(|err| SwarmError::LedgerFailed(err.to_string()))?;
@@ -324,7 +379,7 @@ async fn pg_store() -> (sqlx::PgPool, ModelLaneStore) {
         .connect(&kpg.schema_url)
         .await
         .expect("connect isolated operator-chat schema");
-    let store = ModelLaneStore::new(pool.clone());
+    let store = ModelLaneStore::new_scoped(pool.clone(), operator_chat_model_scope());
     (pool, store)
 }
 
@@ -737,7 +792,8 @@ impl ModelSessionFactory for CliLoopbackFactory {
         .with_os_pid(os_pid)
         .with_parent_session_id(request.parent_session_id.clone())
         .with_wp_id(request.wp_id.clone().unwrap_or_default())
-        .with_mt_id(request.mt_id.clone().unwrap_or_default());
+        .with_mt_id(request.mt_id.clone().unwrap_or_default())
+        .with_metadata_jsonb(operator_chat_process_metadata());
         self.ledger
             .record_start(start.clone())
             .map_err(|err| SwarmError::LedgerFailed(err.to_string()))?;
@@ -1039,6 +1095,7 @@ async fn assert_process_backed_launch_evidence(
     pool: &sqlx::PgPool,
     store: &ModelLaneStore,
     drain: Option<&ProcessLedgerDrain>,
+    process_ledger: &ProcessLedgerSurrealHarness,
     recorder: &CapturingRecorder,
     launched: &OperatorChatLaunched,
     expected_lane_kind: ModelLaneKind,
@@ -1174,36 +1231,20 @@ async fn assert_process_backed_launch_evidence(
         assert_eq!(rows, 1, "HBR-INT-009 tier row {tier}/{state} is recorded");
     }
 
-    let ledger_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
-    ledger_store
-        .apply_migration()
-        .await
-        .expect("process ledger migration applies");
     if let Some(drain) = drain {
         drain
-            .drain_available_to(ledger_store)
+            .drain_available_to(process_ledger.store())
             .await
-            .expect("process ledger rows drain to PostgreSQL");
+            .expect("process ledger rows drain to embedded Surreal");
     }
-    let process_rows: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_process_lifecycle \
-         WHERE process_uuid = $1::uuid \
-           AND engine_kind = $2 \
-           AND stopped_at IS NOT NULL \
-           AND os_pid IS NOT NULL \
-           AND stop_reason = 'completed' \
-           AND wp_id = 'WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1' \
-           AND mt_id = 'MT-012'",
-    )
-    .bind(&process_uuid)
-    .bind(expected_engine_kind)
-    .fetch_one(pool)
-    .await
-    .expect("count linked process-ledger START/STOP row");
-    assert_eq!(
-        process_rows, 1,
-        "lane process_ownership_ref must resolve to a durable START/STOP ledger row"
-    );
+    let process_row = process_ledger
+        .lifecycle(Uuid::parse_str(&process_uuid).expect("process reference contains UUID"))
+        .await
+        .expect("lane process reference resolves under the exact ProcessLedger scope");
+    assert_eq!(process_row.engine_kind, expected_engine_kind);
+    assert!(process_row.stopped_at.is_some());
+    assert!(process_row.os_pid.is_some());
+    assert_eq!(process_row.stop_reason.as_deref(), Some("completed"));
 }
 
 async fn assert_cloud_projection_artifact_bindings(
@@ -1333,14 +1374,11 @@ async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_comple
     let (pool, store) = pg_store().await;
     eprintln!("MT017_OPERATOR_CHAT_STAGE=pg_store:complete");
     let recorder = Arc::new(CapturingRecorder::default());
-    let ledger_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
-    ledger_store
-        .apply_migration()
-        .await
-        .expect("process ledger migration applies before the launch durability gate");
+    let process_ledger =
+        ProcessLedgerSurrealHarness::open_with_scope(operator_chat_process_scope()).await;
     eprintln!("MT017_OPERATOR_CHAT_STAGE=ledger_migration:complete");
     let (ledger, ledger_writer) = LedgerBatcher::spawn(
-        ledger_store,
+        process_ledger.store(),
         Arc::new(NoopOverflowSink),
         LedgerBatcherConfig::default(),
     );
@@ -1600,6 +1638,7 @@ async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_comple
         &pool,
         &store,
         None,
+        &process_ledger,
         recorder.as_ref(),
         &launched,
         ModelLaneKind::CliModel,
@@ -1611,6 +1650,7 @@ async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_comple
         0,
     )
     .await;
+    process_ledger.close().await;
     eprintln!("MT017_OPERATOR_CHAT_STAGE=proof:complete");
 }
 
@@ -1622,6 +1662,8 @@ async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_comple
 #[tokio::test]
 async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_ledger() {
     let (pool, store, exact_scope) = pg_scoped_store().await;
+    let process_ledger =
+        ProcessLedgerSurrealHarness::open_with_scope(operator_chat_process_scope()).await;
     let (catalog, local_model_id) = registered_local_catalog();
     let (coordinator, loads, drain) = store_backed_coordinator(store.clone());
     let recorder = Arc::new(CapturingRecorder::default());
@@ -1640,6 +1682,7 @@ async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_le
         &pool,
         &store,
         Some(&drain),
+        &process_ledger,
         recorder.as_ref(),
         &local,
         ModelLaneKind::LocalModel,
@@ -1668,6 +1711,7 @@ async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_le
         &pool,
         &store,
         Some(&drain),
+        &process_ledger,
         recorder.as_ref(),
         &cloud,
         ModelLaneKind::CloudModel,
@@ -1685,6 +1729,7 @@ async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_le
         2,
         "local and cloud selections both reached the runtime factory"
     );
+    process_ledger.close().await;
 }
 
 /// Failure path: if the launched runtime emits stdout and then returns a stream
@@ -1920,28 +1965,22 @@ async fn operator_chat_launch_coordinator_cancellation_preserves_prefix_and_reje
         .as_deref()
         .and_then(|value| value.strip_prefix("process-ledger://"))
         .expect("process-backed lane carries ProcessOwnershipLedger reference");
-    let ledger_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
-    ledger_store
-        .apply_migration()
-        .await
-        .expect("process-ledger migration applies");
+    let process_ledger =
+        ProcessLedgerSurrealHarness::open_with_scope(operator_chat_process_scope()).await;
     drain
-        .drain_available_to(ledger_store)
+        .drain_available_to(process_ledger.store())
         .await
         .expect("drain coordinator start/stop ledger events");
-    let stopped_processes: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM kernel_process_lifecycle \
-         WHERE process_uuid = $1::uuid AND stopped_at IS NOT NULL \
-           AND stop_reason = 'operator-cancelled-mt009-live-capture'",
-    )
-    .bind(process_uuid)
-    .fetch_one(&pool)
-    .await
-    .expect("count durable cancelled process stop rows");
+    let stopped_process = process_ledger
+        .lifecycle(Uuid::parse_str(process_uuid).expect("process reference contains UUID"))
+        .await
+        .expect("durable exact-scope cancelled process row");
+    assert!(stopped_process.stopped_at.is_some());
     assert_eq!(
-        stopped_processes, 1,
-        "coordinator cancellation must retain ProcessOwnershipLedger START/STOP symmetry"
+        stopped_process.stop_reason.as_deref(),
+        Some("operator-cancelled-mt009-live-capture")
     );
+    process_ledger.close().await;
 }
 
 /// MT-009 cancellation-fence regression: while the real PostgreSQL terminal
@@ -2152,19 +2191,18 @@ async fn coordinator_cancellation_fence_retries_after_terminal_pg_failure() {
         (1, 1),
         "the retained cleanup-pending state must follow one successful runtime teardown"
     );
+    let process_ledger =
+        ProcessLedgerSurrealHarness::open_with_scope(operator_chat_process_scope()).await;
     ledger_drain
-        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(pool.clone())))
+        .drain_available_to(process_ledger.store())
         .await
         .expect("persist START/STOP before retrying terminal lane state");
-    let before_retry_processes: (i64, i64) = sqlx::query_as(
-        "SELECT COUNT(*), COUNT(*) FILTER (WHERE stopped_at IS NOT NULL) FROM kernel_process_lifecycle",
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("read exact process closure before terminal retry");
     assert_eq!(
-        before_retry_processes,
-        (1, 1),
+        (
+            process_ledger.lifecycle_count().await,
+            process_ledger.open_lifecycle_count().await,
+        ),
+        (1, 0),
         "runtime teardown and one durable STOP must precede retained cleanup_pending"
     );
 
@@ -2214,20 +2252,18 @@ async fn coordinator_cancellation_fence_retries_after_terminal_pg_failure() {
         "retry must not run teardown a second time"
     );
     ledger_drain
-        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(pool.clone())))
+        .drain_available_to(process_ledger.store())
         .await
         .expect("drain any retry ledger writes");
-    let after_retry_processes: (i64, i64) = sqlx::query_as(
-        "SELECT COUNT(*), COUNT(*) FILTER (WHERE stopped_at IS NOT NULL) FROM kernel_process_lifecycle",
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("read process closure after terminal retry");
     assert_eq!(
-        after_retry_processes,
-        (1, 1),
+        (
+            process_ledger.lifecycle_count().await,
+            process_ledger.open_lifecycle_count().await,
+        ),
+        (1, 0),
         "retry must not emit a duplicate START or STOP"
     );
+    process_ledger.close().await;
 }
 
 #[tokio::test]
@@ -2278,8 +2314,10 @@ async fn coordinator_restart_adopts_cleanup_pending_after_exact_durable_stop() {
         .cancel_session(instance_id, "mt009-restart-cleanup")
         .await
         .expect_err("terminal lane failure must leave restart-adoptable cleanup intent");
+    let process_ledger =
+        ProcessLedgerSurrealHarness::open_with_scope(operator_chat_process_scope()).await;
     ledger_drain
-        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(pool.clone())))
+        .drain_available_to(process_ledger.store())
         .await
         .expect("persist exact START/STOP before simulated restart");
     sqlx::query(&format!("DROP TRIGGER {trigger_name} ON model_lanes"))
@@ -2318,15 +2356,14 @@ async fn coordinator_restart_adopts_cleanup_pending_after_exact_durable_stop() {
             .expect("cleanup receipt carries stable resource event ID"),
     )
     .expect("resource event ID parses");
-    let process_closed: bool = sqlx::query_scalar(
-        "SELECT stopped_at IS NOT NULL AND exit_code IS NOT NULL AND stop_reason IS NOT NULL FROM kernel_process_lifecycle WHERE process_uuid=$1",
-    )
-    .bind(process_uuid)
-    .fetch_one(&pool)
-    .await
-    .expect("independently read exact durable STOP before restart adoption");
+    let process_closed = process_ledger
+        .lifecycle(process_uuid)
+        .await
+        .expect("independently read exact durable STOP before restart adoption");
     assert!(
-        process_closed,
+        process_closed.stopped_at.is_some()
+            && process_closed.exit_code.is_some()
+            && process_closed.stop_reason.is_some(),
         "restart adoption requires the exact durable STOP"
     );
 
@@ -2395,6 +2432,7 @@ async fn coordinator_restart_adopts_cleanup_pending_after_exact_durable_stop() {
         emitted_before_idempotent_retry,
         "completed restart reconciliation must not duplicate terminal events"
     );
+    process_ledger.close().await;
 }
 
 #[tokio::test]
@@ -2422,15 +2460,20 @@ async fn coordinator_restart_keeps_cleanup_pending_without_exact_durable_stop() 
         .spawn_session(request)
         .await
         .expect("spawn restart STOP-gate session");
+    let process_ledger =
+        ProcessLedgerSurrealHarness::open_with_scope(operator_chat_process_scope()).await;
     ledger_drain
-        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(pool.clone())))
+        .drain_available_to(process_ledger.store())
         .await
         .expect("persist open START before restart recovery probe");
-    let process_uuid: Uuid =
-        sqlx::query_scalar("SELECT process_uuid FROM kernel_process_lifecycle")
-            .fetch_one(&pool)
-            .await
-            .expect("load open process UUID");
+    assert_eq!(process_ledger.lifecycle_count().await, 1);
+    assert_eq!(process_ledger.open_lifecycle_count().await, 1);
+    let process_uuid = process_ledger
+        .lifecycles()
+        .await
+        .pop()
+        .expect("one open ProcessLedger lifecycle")
+        .process_uuid;
     let terminal_event_id = Uuid::now_v7();
     let resource_event_id = Uuid::now_v7();
     let record_json = json!({
@@ -2507,9 +2550,11 @@ async fn coordinator_restart_keeps_cleanup_pending_without_exact_durable_stop() 
         .await
         .expect("clean up the live STOP-gate fixture");
     ledger_drain
-        .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(pool)))
+        .drain_available_to(process_ledger.store())
         .await
         .expect("persist STOP for cleaned-up fixture");
+    assert_eq!(process_ledger.open_lifecycle_count().await, 0);
+    process_ledger.close().await;
 }
 
 /// F1/F2 PROVENANCE: the captured messages carry the DISTINCTIVE text the mock CLI
@@ -2880,7 +2925,9 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
     std::fs::create_dir_all(&selected).expect("create operator-selected dir");
     let selected_str = selected.to_string_lossy().to_string();
 
-    // A REAL, driven, PostgreSQL-backed ledger — not a manual batcher.
+    // A real driven embedded-Surreal ledger, not a manual batcher. This focused
+    // cwd fixture supplies its explicit test scope at the store boundary because
+    // CliInvocationContext does not yet carry the five production scope fields.
     //
     // `LiveCliSpawner` is the production spawner: it refuses to leave a child
     // running unless the ledger durably acknowledges the START row, and
@@ -2889,12 +2936,12 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
     // process-ownership guarantee, so it must not be dodged. A
     // `manual_for_tests` batcher is never driven, so the ack can never arrive
     // and the child is always killed before it can report its cwd.
-    let (pool, _lane_store) = pg_store().await;
-    let ledger_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
-    ledger_store
-        .apply_migration()
-        .await
-        .expect("process ledger migration applies before the launch durability gate");
+    let (_pool, _lane_store) = pg_store().await;
+    let process_ledger =
+        ProcessLedgerSurrealHarness::open_with_scope(operator_chat_process_scope()).await;
+    let ledger_store: Arc<dyn ProcessLedgerStore> = Arc::new(ExplicitTestScopeStore {
+        inner: process_ledger.store(),
+    });
     let (ledger, ledger_writer) = LedgerBatcher::spawn(
         ledger_store,
         Arc::new(NoopOverflowSink),
@@ -2990,6 +3037,9 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
         matches!(ledger_outcome, LedgerDrainJoinOutcome::Flushed),
         "the production process-ledger writer must flush both spawns' START/STOP rows; got {ledger_outcome:?}"
     );
+    assert_eq!(process_ledger.lifecycle_count().await, 2);
+    assert_eq!(process_ledger.open_lifecycle_count().await, 0);
+    process_ledger.close().await;
 
     let _ = std::fs::remove_dir_all(&selected);
 }

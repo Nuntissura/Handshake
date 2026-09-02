@@ -3,7 +3,8 @@
 //!
 //! Three-way comparison:
 //! * seed corpus (compiled into THIS binary — what the manual should say),
-//! * `user_manual_*` PostgreSQL rows (what the manual DOES say),
+//! * product-global `user_manual_*` embedded SurrealDB records (what the
+//!   manual DOES say),
 //! * [`registry::wp009_surface_registry`] (what the product DOES serve;
 //!   runtime-probed by the doc-vs-runtime tests).
 //!
@@ -33,7 +34,7 @@ use super::registry::wp009_surface_registry;
 use super::seed::{corpus_hash, seed_corpus};
 use super::store::{UserManualStore, LIST_CAP};
 use super::USER_MANUAL_VERSION;
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealStorage;
 use crate::storage::StorageResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -94,9 +95,9 @@ pub struct FreshnessReport {
     pub verdicts: Vec<FreshnessVerdict>,
 }
 
-/// Run the full freshness check against the live database.
-pub async fn check_freshness(db: &PostgresDatabase) -> StorageResult<FreshnessReport> {
-    let store = UserManualStore::new(db);
+/// Run the full freshness check against the injected embedded database.
+pub async fn check_freshness(storage: &SurrealStorage) -> StorageResult<FreshnessReport> {
+    let store = UserManualStore::new(storage.clone());
     let corpus = seed_corpus();
     let seed_hash = corpus_hash(&corpus);
     let mut verdicts = Vec::new();
@@ -285,7 +286,11 @@ pub async fn check_freshness(db: &PostgresDatabase) -> StorageResult<FreshnessRe
 
     for (subject, stored_count, seed_count) in [
         ("user_manual_pages", stored_pages.len(), corpus.pages.len()),
-        ("user_manual_tool_entries", stored_tools.len(), corpus.tools.len()),
+        (
+            "user_manual_tool_entries",
+            stored_tools.len(),
+            corpus.tools.len(),
+        ),
         (
             "user_manual_feature_entries",
             stored_features.len(),

@@ -28,7 +28,7 @@ use serde_json::{Value, json};
 use crate::storage::knowledge::{
     KnowledgeEntityKind, KnowledgeRebuildStatus, KnowledgeStore, KnowledgeWikiProjection,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealStorage;
 
 use super::compiler::{
     FileBundle, ModulePart, ProjectWikiCompiler, WikiCompileContext, concept_page_title,
@@ -102,12 +102,12 @@ pub struct WikiFanOutOutcome {
 
 /// The MT-243 fan-out engine.
 pub struct WikiFanOutEngine {
-    db: Arc<PostgresDatabase>,
+    db: Arc<SurrealStorage>,
     compiler: ProjectWikiCompiler,
 }
 
 impl WikiFanOutEngine {
-    pub fn new(db: Arc<PostgresDatabase>) -> Self {
+    pub fn new(db: Arc<SurrealStorage>) -> Self {
         Self {
             compiler: ProjectWikiCompiler::new(db.clone()),
             db,

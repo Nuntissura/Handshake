@@ -35,9 +35,9 @@ const SEED_ROWS: &[SpecEnrichmentSeedRow] = &[
         target_module: "10-product-surfaces.md",
         target_anchor: "10.15.8 UserManual migration bridge",
         seed_kind: "amend",
-        proposed_wording_md: "UserManualRecord authority is implemented as the `user_manual_*` \
-            PostgreSQL tables (pages, sections, anchors, tool entries, feature entries, \
-            versions, legacy aliases; migration 0310) seeded idempotently from a compiled-in \
+        proposed_wording_md: "UserManualRecord authority is implemented as product-global \
+            `user_manual_*` records in embedded SurrealDB (pages, sections, anchors, tool \
+            entries, feature entries, versions, and legacy aliases), seeded idempotently from a compiled-in \
             corpus with `KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED` receipts per changed page. The \
             canonical read surface is `/usermanual/*`; anonymous reads are permitted because \
             the manual is the no-context bootstrap surface, and every page read returns a \
@@ -53,7 +53,7 @@ const SEED_ROWS: &[SpecEnrichmentSeedRow] = &[
         target_anchor: "10.15.8 UserManual migration bridge",
         seed_kind: "amend",
         proposed_wording_md: "UserManual freshness is a product surface: \
-            `GET /usermanual/freshness` compares the stored rows against the compiled-in seed \
+            `GET /usermanual/freshness` compares the stored records against the compiled-in seed \
             corpus AND the declared WP-009 surface registry, returning typed verdicts \
             (`current`, `stale_content`, `missing_page`, `uncovered_surface`, \
             `dangling_anchor`, `unseeded_version`, `missing_tool_entry`, \
@@ -70,8 +70,9 @@ const SEED_ROWS: &[SpecEnrichmentSeedRow] = &[
         target_module: "02-system-architecture.md",
         target_anchor: "2.3.13.11",
         seed_kind: "amend",
-        proposed_wording_md: "Context bundles cite UserManual pages through `user_manual_page` \
-            knowledge entities (`ref_kind = entity`); the persisted item citation is \
+        proposed_wording_md: "Context bundles cite UserManual pages through exact-scoped \
+            `user_manual_page` knowledge entities in embedded SurrealDB (`ref_kind = entity`); \
+            each durable entity mutation carries linked EventLedger evidence, and the persisted item citation is \
             `usermanual:<slug>@<manual_version>#<section-anchor>@0-0@<content-hash-prefix>` so \
             a consumer carries the page version, the section source anchor, and a drift-\
             detectable content hash in one citeable string.",
@@ -82,7 +83,7 @@ const SEED_ROWS: &[SpecEnrichmentSeedRow] = &[
         target_anchor: "PRIM-UserManual",
         seed_kind: "appendix",
         proposed_wording_md: "`PRIM-UserManual` concrete shape (WP-KERNEL-009): \
-            `user_manual_pages` (slug-keyed UserManualRecord rows, sha256 content hash, \
+            `user_manual_pages` (deterministic slug-keyed UserManualRecord records, sha256 content hash, \
             version metadata), `user_manual_sections` (typed ordered sections: purpose / \
             workflows / startup / run_commands / inputs_outputs / navigation / safety / \
             failure_modes / recovery / hooks / examples / schema), `user_manual_anchors` \

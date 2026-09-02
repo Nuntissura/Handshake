@@ -1,4 +1,4 @@
-//! PostgreSQL/EventLedger execution state for canonical mixed-model routing graphs.
+//! Embedded SurrealDB/EventLedger execution state for canonical mixed-model routing graphs.
 //!
 //! The execution row is a replay projection. EventLedger is the append authority;
 //! stage attempts and the transactional outbox make claims attributable, leased,
@@ -6,16 +6,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::{SystemTime, UNIX_EPOCH};
-
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
-use sqlx::{PgPool, Postgres, Row, Transaction};
-
-use crate::kernel::{
-    context_bundle::canonical_json_bytes, KernelActor, KernelEventType, NewKernelEvent,
-};
-use crate::storage::postgres::append_kernel_event_with_executor;
 
 use super::ids::SpawnRequest;
 use super::model_lane::{
@@ -25,6 +15,12 @@ use super::routing::{
     ModelLaneRoutingAuthority, ModelLaneRoutingDispatchTarget, ModelLaneRoutingGraph,
     ModelLaneRoutingStageLaunchPlan, ModelLaneRoutingStageOutcome,
 };
+use crate::kernel::{
+    context_bundle::canonical_json_bytes, KernelActor, KernelEventType, NewKernelEvent,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
 const ROUTING_EXECUTION_SCHEMA_ID: &str = "hsk.model_lane_routing_execution@5";
 const ROUTING_STAGE_ATTEMPT_SCHEMA_ID: &str = "hsk.model_lane_routing_stage_attempt@4";
@@ -281,16 +277,10 @@ pub struct ModelLaneRoutingExecutionDiagnostics {
 
 #[derive(Debug, Clone)]
 pub struct ModelLaneRoutingExecutionStore {
-    pool: PgPool,
+    model_lane_store: super::model_lane::ModelLaneStore,
     lease_owner: String,
     lease_ms: u64,
-    /// Carried so the routing executor stamps the same account scope onto the
-    /// ModelLane message/artifact rows it writes as the store that owns the run
-    /// (HBR-PRIV-001). A routing-produced row must not be less attributable than
-    /// a directly recorded one.
-    access: crate::swarm_orchestration::resource_scope::ResourceAccessContext,
 }
-
 #[derive(Debug)]
 struct StageView {
     stage_id: String,
@@ -299,1232 +289,408 @@ struct StageView {
     activation: String,
     gate: String,
 }
-
 impl ModelLaneRoutingExecutionStore {
-    pub(crate) fn new(pool: PgPool) -> Self {
-        Self::new_with_access(
-            pool,
-            crate::swarm_orchestration::resource_scope::ResourceAccessContext::system(
-                crate::swarm_orchestration::resource_scope::SystemScopeAuthority::legacy_unscoped_call_site(),
-            ),
+    pub(crate) fn new(store: super::model_lane::ModelLaneStore) -> Self {
+        Self::with_lease(
+            store,
+            format!("routing-executor:{}", uuid::Uuid::now_v7()),
+            DEFAULT_LEASE_MS,
         )
     }
-
-    pub(crate) fn new_with_access(
-        pool: PgPool,
-        access: crate::swarm_orchestration::resource_scope::ResourceAccessContext,
+    pub(crate) fn with_lease(
+        store: super::model_lane::ModelLaneStore,
+        owner: impl Into<String>,
+        ms: u64,
     ) -> Self {
         Self {
-            pool,
-            lease_owner: format!("routing-executor:{}", uuid::Uuid::now_v7()),
-            lease_ms: DEFAULT_LEASE_MS,
-            access,
+            model_lane_store: store,
+            lease_owner: owner.into(),
+            lease_ms: ms.max(1),
         }
     }
-
-    pub(crate) fn with_lease(pool: PgPool, lease_owner: impl Into<String>, lease_ms: u64) -> Self {
-        Self {
-            pool,
-            lease_owner: lease_owner.into(),
-            lease_ms: lease_ms.max(1),
-            access: crate::swarm_orchestration::resource_scope::ResourceAccessContext::system(
-                crate::swarm_orchestration::resource_scope::SystemScopeAuthority::legacy_unscoped_call_site(),
-            ),
-        }
-    }
-
-    pub(crate) fn postgres_pool(&self) -> PgPool {
-        self.pool.clone()
-    }
-
     pub async fn snapshot(
         &self,
-        execution_id: &str,
+        id: &str,
     ) -> Result<Option<ModelLaneRoutingExecutionState>, String> {
-        let mut tx = self.pool.begin().await.map_err(|err| err.to_string())?;
-        lock_execution(&mut tx, execution_id).await?;
-        let state = load_execution_tx(&mut tx, execution_id).await?;
-        tx.commit().await.map_err(|err| err.to_string())?;
-        Ok(state)
+        self.model_lane_store
+            .routing_execution_snapshot(id)
+            .await
+            .map_err(|e| e.to_string())
     }
-
-    /// Read the execution WITHOUT taking the execution-keyed advisory lock.
-    ///
-    /// This exists for exactly one caller: cancellation. `lock_execution` is an
-    /// xact lock, so a stage that is mid-generation holds it until its
-    /// transaction ends - and that transaction only ends once the stage is
-    /// cancelled. `cancel_routing_execution` used the locking `snapshot` as its
-    /// FIRST step, which made cancellation deadlock against the work it was
-    /// trying to cancel:
-    ///
-    ///   worker holds the advisory lock, blocked in generation, waiting to be
-    ///   cancelled -> cancel blocks on `snapshot` before it can fire any session
-    ///   cancel token -> generation never observes cancellation -> the lock is
-    ///   never released.
-    ///
-    /// Proven from live pg_stat_activity during the hang: the lock holder sat in
-    /// Client/ClientRead (idle in transaction) with two cancellation-side
-    /// sessions queued behind it on Lock/advisory.
-    ///
-    /// Reading unlocked is SAFE for this caller because the result is only used
-    /// to decide WHICH live instances to signal. A concurrently-changing stage
-    /// can only mean a signal that is redundant (already terminal) or one more
-    /// that the authoritative, still-locked `cancel_execution` will terminalize
-    /// anyway. Cancellation must never queue behind the work it is cancelling.
-    /// Returns `None` when the execution does not exist.
-    ///
-    /// Deliberately does NOT go through `load_execution_tx`. That path verifies
-    /// projection/EventLedger integrity, and the advisory lock is what makes
-    /// that verification sound - see the "fractured projection/EventLedger view"
-    /// note on the locked read. Running it unlocked produces spurious
-    /// "projection/EventLedger integrity failure" errors when a stage is
-    /// mid-write, which is EXACTLY the moment cancellation is most likely to be
-    /// issued. Cancellation does not need that guarantee: it only needs to know
-    /// which instances to signal, and an instance whose state changed under it
-    /// is either already terminal (the signal is a no-op) or will be
-    /// terminalized by the authoritative, still-locked `cancel_execution`.
-    pub(crate) async fn active_instance_ids_for_cancellation(
-        &self,
-        execution_id: &str,
-    ) -> Result<Option<Vec<String>>, String> {
-        let record: Option<serde_json::Value> = sqlx::query_scalar(
-            "SELECT record_json FROM model_lane_routing_executions WHERE execution_id = $1",
-        )
-        .bind(execution_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|err| err.to_string())?;
-        let Some(record) = record else {
-            return Ok(None);
-        };
-        let mut instance_ids = Vec::new();
-        if let Some(stages) = record.get("stages").and_then(serde_json::Value::as_object) {
-            for stage in stages.values() {
-                let is_active = matches!(
-                    stage.get("state").and_then(serde_json::Value::as_str),
-                    Some("claimed") | Some("in_flight") | Some("awaiting_authority")
-                );
-                if is_active {
-                    if let Some(instance_id) =
-                        stage.get("instance_id").and_then(serde_json::Value::as_str)
-                    {
-                        instance_ids.push(instance_id.to_string());
-                    }
-                }
-            }
-        }
-        Ok(Some(instance_ids))
-    }
-
-    /// Read native diagnostics through the production execution/stage/outbox
-    /// integrity gate and retain deterministic run/stage ordering.
     pub(crate) async fn diagnostics_for_run(
         &self,
-        run_id: &str,
+        id: &str,
     ) -> Result<Vec<ModelLaneRoutingExecutionDiagnostics>, String> {
-        let execution_ids = sqlx::query_scalar::<_, String>(
-            r#"SELECT execution_id FROM model_lane_routing_executions
-               WHERE run_id = $1 ORDER BY event_ledger_seq ASC, execution_id ASC"#,
-        )
-        .bind(run_id)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|err| err.to_string())?;
-        let observed_at_unix_ms = now_ms();
-        let mut diagnostics = Vec::with_capacity(execution_ids.len());
-        for execution_id in execution_ids {
-            let mut tx = self.pool.begin().await.map_err(|err| err.to_string())?;
-            lock_execution(&mut tx, &execution_id).await?;
-            let state = load_execution_tx(&mut tx, &execution_id)
-                .await?
-                .ok_or_else(|| format!("routing execution {execution_id} disappeared"))?;
-            if state.run_id != run_id {
-                return Err(format!(
-                    "routing execution {execution_id} escaped requested run {run_id}"
-                ));
-            }
-            let graph: ModelLaneRoutingGraph =
-                serde_json::from_value(state.canonical_graph.clone()).map_err(|err| {
-                    format!("routing execution {execution_id} graph decode failed: {err}")
-                })?;
-            graph
-                .validate()
-                .map_err(|err| format!("routing execution {execution_id} graph invalid: {err}"))?;
-            let dependencies = graph
-                .stages
-                .iter()
-                .map(|stage| (stage.stage_id.clone(), stage.depends_on.clone()))
-                .collect::<BTreeMap<_, _>>();
-            let mut stages = Vec::with_capacity(state.stages.len());
-            for stage in state.stages.values() {
-                let dependency_stage_ids = dependencies
-                    .get(&stage.stage_id)
-                    .cloned()
-                    .ok_or_else(|| {
-                        format!(
-                            "routing execution {execution_id} current stage {} is absent from canonical graph",
-                            stage.stage_id
-                        )
-                    })?;
-                let command_id = format!(
-                    "routing-command:{execution_id}:{}:{}",
-                    stage.stage_id, stage.attempt
-                );
-                let row = sqlx::query(
-                    r#"SELECT status, fencing_token, lease_owner,
-                              lease_expires_at_unix_ms, event_ledger_event_id,
-                              event_ledger_seq, created_at_unix_ms, updated_at_unix_ms
-                       FROM model_lane_routing_outbox
-                       WHERE command_id = $1 FOR UPDATE"#,
-                )
-                .bind(&command_id)
-                .fetch_optional(&mut *tx)
-                .await
-                .map_err(|err| err.to_string())?
-                .ok_or_else(|| format!("routing outbox projection missing for {command_id}"))?;
-                let lease_expires_at_unix_ms = row
-                    .get::<Option<i64>, _>("lease_expires_at_unix_ms")
-                    .map(|value| value as u64);
-                let outbox = ModelLaneRoutingOutboxDiagnostics {
-                    command_id,
-                    status: row.get("status"),
-                    fencing_token: row.get("fencing_token"),
-                    lease_owner: row.get("lease_owner"),
-                    lease_expires_at_unix_ms,
-                    event_ledger_event_id: row.get("event_ledger_event_id"),
-                    event_ledger_seq: row.get("event_ledger_seq"),
-                    created_at_unix_ms: row.get::<i64, _>("created_at_unix_ms") as u64,
-                    updated_at_unix_ms: row.get::<i64, _>("updated_at_unix_ms") as u64,
-                };
-                stages.push(ModelLaneRoutingStageDiagnostics {
-                    execution_id: execution_id.clone(),
-                    stage_id: stage.stage_id.clone(),
-                    state: stage_kind_name(stage.state).to_owned(),
-                    attempt: stage.attempt,
-                    dispatch_target: dispatch_target_name(&stage.dispatch_target).to_owned(),
-                    dependency_stage_ids,
-                    expected_run_id: stage.expected_run_id.clone(),
-                    expected_lane_id: stage.expected_lane_id.clone(),
-                    expected_model_id: stage.expected_model_id.clone(),
-                    expected_provider: stage
-                        .expected_provider
-                        .map(|provider| format!("{provider:?}").to_ascii_lowercase()),
-                    instance_id: stage.instance_id.clone(),
-                    lane_id: stage.lane_id.clone(),
-                    input_refs: stage.input_refs.clone(),
-                    output_ref: stage.output_ref.clone(),
-                    output_message_ref: stage.output_message_ref.clone(),
-                    authority_request_message_ref: stage.authority_request_message_ref.clone(),
-                    output_sha256: stage.output_sha256.clone(),
-                    authority_ref: stage.authority_ref.clone(),
-                    lease_owner: stage.lease_owner.clone(),
-                    fencing_token: stage.fencing_token.clone(),
-                    lease_expires_at_unix_ms: stage.lease_expires_at_unix_ms,
-                    lease_expired: stage
-                        .lease_expires_at_unix_ms
-                        .is_some_and(|expires| expires <= observed_at_unix_ms),
-                    detail: stage.detail.clone(),
-                    event_ledger_event_id: stage.event_ledger_event_id.clone(),
-                    event_ledger_seq: stage.event_ledger_seq,
-                    updated_at_unix_ms: stage.updated_at_unix_ms,
-                    outbox,
-                });
-            }
-            tx.commit().await.map_err(|err| err.to_string())?;
-            diagnostics.push(ModelLaneRoutingExecutionDiagnostics {
-                execution_id: state.execution_id,
-                run_id: state.run_id,
-                selecting_decision_id: state.selecting_decision_id,
-                selecting_decision_event_id: state.selecting_decision_event_id,
-                selecting_decision_event_seq: state.selecting_decision_event_seq,
-                trace_id: state.trace_id,
-                run_span_id: state.run_span_id,
-                coordinator_session_id: state.coordinator_session_id,
-                locus_ref: state.locus_ref,
-                work_packet_id: state.work_packet_id,
-                micro_task_id: state.micro_task_id,
-                task_board_id: state.task_board_id,
-                owner_session: state.owner_session,
-                canonical_graph_sha256: state.canonical_graph_sha256,
-                canonical_launch_plan_sha256: state.canonical_launch_plan_sha256,
-                cloud_consent_receipt_ref: state.authority.cloud_consent_receipt_ref,
-                validator_authority_ref: state.authority.validator_authority_ref,
-                operator_authority_ref: state.authority.operator_authority_ref,
-                initial_input_ref: state.initial_input_ref,
-                initial_input_sha256: state.initial_input_sha256,
-                status: execution_status_name(state.status).to_owned(),
-                failure_reason: state.failure_reason,
-                cancel_reason: state.cancel_reason,
-                revision: state.revision,
-                stages,
-                event_ledger_event_id: state.event_ledger_event_id,
-                event_ledger_seq: state.event_ledger_seq,
-            });
-        }
-        Ok(diagnostics)
+        self.model_lane_store
+            .routing_execution_diagnostics_for_run(id)
+            .await
+            .map_err(|e| e.to_string())
     }
-
+    pub(crate) async fn active_instance_ids_for_cancellation(
+        &self,
+        id: &str,
+    ) -> Result<Option<Vec<String>>, String> {
+        let Some(x) = self.snapshot(id).await? else {
+            return Ok(None);
+        };
+        Ok(Some(
+            x.stages
+                .values()
+                .filter(|v| {
+                    matches!(
+                        v.state,
+                        ModelLaneRoutingStageStateKind::Claimed
+                            | ModelLaneRoutingStageStateKind::InFlight
+                            | ModelLaneRoutingStageStateKind::AwaitingAuthority
+                    )
+                })
+                .filter_map(|v| v.instance_id.clone())
+                .collect(),
+        ))
+    }
     pub(crate) async fn begin_execution(
         &self,
-        execution_id: &str,
-        selecting_decision_id: &str,
+        id: &str,
+        did: &str,
         authority: &ModelLaneRoutingAuthority,
-        context: ModelLaneRoutingExecutionContext,
+        c: ModelLaneRoutingExecutionContext,
     ) -> Result<ModelLaneRoutingExecutionState, String> {
-        let mut tx = self.pool.begin().await.map_err(|err| err.to_string())?;
-        lock_execution(&mut tx, execution_id).await?;
-        let decision_row = sqlx::query(
-            r#"SELECT decision.record_json, decision.event_ledger_event_id,
-                      decision.event_ledger_seq, ledger.aggregate_type,
-                      ledger.aggregate_id, ledger.payload
-               FROM model_lane_promotion_decisions decision
-               LEFT JOIN kernel_event_ledger ledger
-                 ON ledger.event_id = decision.event_ledger_event_id
-                AND ledger.event_sequence = decision.event_ledger_seq
-               WHERE decision.decision_id = $1
-               FOR UPDATE OF decision"#,
-        )
-        .bind(selecting_decision_id)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(|err| err.to_string())?
-        .ok_or_else(|| format!("unknown selecting promotion decision {selecting_decision_id}"))?;
-        let decision_json: Value = decision_row.get("record_json");
-        let decision: ModelLanePromotionDecisionRecord =
-            serde_json::from_value(decision_json.clone()).map_err(|err| err.to_string())?;
-        if decision.outcome != ModelLanePromotionOutcome::Approved {
-            return Err(format!(
-                "selecting promotion decision {selecting_decision_id} is not approved"
-            ));
+        if let Some(x) = self.snapshot(id).await? {
+            if x.selecting_decision_id == did
+                && x.authority == *authority
+                && x.run_id == c.run_id
+                && x.trace_id == c.trace_id
+                && x.run_span_id == c.run_span_id
+                && x.coordinator_session_id == c.coordinator_session_id
+                && x.locus_ref == c.locus_ref
+                && x.work_packet_id == c.work_packet_id
+                && x.micro_task_id == c.micro_task_id
+                && x.task_board_id == c.task_board_id
+                && x.owner_session == c.owner_session
+                && x.initial_input_ref.as_deref() == Some(c.initial_input_ref.as_str())
+                && x.initial_input_sha256.as_deref() == Some(c.initial_input_sha256.as_str())
+            {
+                return Ok(x);
+            }
+            return Err(format!("routing execution {id} immutable context conflict"));
         }
-        let aggregate_type: Option<String> = decision_row.get("aggregate_type");
-        let aggregate_id: Option<String> = decision_row.get("aggregate_id");
-        let ledger_payload: Option<Value> = decision_row.get("payload");
-        if aggregate_type.as_deref() != Some("model_lane_promotion_decision")
-            || aggregate_id.as_deref() != Some(selecting_decision_id)
-            || ledger_payload
-                .as_ref()
-                .and_then(|value| value.pointer("/record"))
-                .cloned()
-                .map(record_without_generated_event_fields)
-                != Some(record_without_generated_event_fields(decision_json.clone()))
-        {
-            return Err(format!("selecting promotion decision {selecting_decision_id} projection/EventLedger mismatch"));
-        }
-        if decision.run_id != context.run_id
-            || decision.trace_id != context.trace_id
-            || decision.coordinator_session_id != context.coordinator_session_id
-            || decision.work_packet_id.as_deref() != Some(context.work_packet_id.as_str())
-            || decision.task_board_id.as_deref() != Some(context.task_board_id.as_str())
-            || decision.owner_session != context.owner_session
-        {
-            return Err(format!("selecting promotion decision {selecting_decision_id} does not bind execution context"));
-        }
-        let run_row = sqlx::query(
-            r#"SELECT run.record_json, ledger.aggregate_type, ledger.aggregate_id, ledger.payload
-               FROM model_lane_runs run
-               LEFT JOIN kernel_event_ledger ledger
-                 ON ledger.event_id = run.event_ledger_event_id
-                AND ledger.event_sequence = run.event_ledger_seq
-               WHERE run.run_id = $1
-               FOR UPDATE OF run"#,
-        )
-        .bind(&context.run_id)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(|err| err.to_string())?
-        .ok_or_else(|| {
-            format!(
-                "selecting decision references missing ModelLaneRun {}",
-                context.run_id
-            )
-        })?;
-        let run_json: Value = run_row.get("record_json");
-        let run: ModelLaneRunRecord =
-            serde_json::from_value(run_json.clone()).map_err(|err| err.to_string())?;
-        let run_payload: Option<Value> = run_row.get("payload");
-        let run_aggregate_type: Option<String> = run_row.get("aggregate_type");
-        let run_aggregate_id: Option<String> = run_row.get("aggregate_id");
-        if run_aggregate_type.as_deref() != Some("model_lane_run")
-            || run_aggregate_id.as_deref() != Some(context.run_id.as_str())
-            || run_payload
-                .as_ref()
-                .and_then(|value| value.pointer("/record"))
-                .cloned()
-                .map(record_without_generated_event_fields)
-                != Some(record_without_generated_event_fields(run_json))
-            || run.trace_id != context.trace_id
-            || run.run_span_id != context.run_span_id
-            || run.coordinator_session_id != context.coordinator_session_id
-            || run.work_packet_id.as_deref() != Some(context.work_packet_id.as_str())
-            || run.micro_task_id.as_deref() != context.micro_task_id.as_deref()
-            || run.task_board_id.as_deref() != Some(context.task_board_id.as_str())
-            || run.owner_session != context.owner_session
-            || run
-                .locus_binding
-                .as_ref()
-                .map(|binding| binding.locus_binding_ref.as_str())
-                != Some(context.locus_ref.as_str())
+        let d = self
+            .model_lane_store
+            .replay_promotion_decisions(&c.run_id)
+            .await
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .find(|v| v.decision_id == did)
+            .ok_or_else(|| format!("unknown selecting promotion decision {did}"))?;
+        if d.outcome != ModelLanePromotionOutcome::Approved
+            || d.run_id != c.run_id
+            || d.trace_id != c.trace_id
+            || d.coordinator_session_id != c.coordinator_session_id
+            || d.work_packet_id.as_deref() != Some(c.work_packet_id.as_str())
+            || d.task_board_id.as_deref() != Some(c.task_board_id.as_str())
+            || d.owner_session != c.owner_session
         {
             return Err(format!(
-                "ModelLaneRun {} projection/EventLedger/context mismatch",
-                context.run_id
+                "selecting promotion decision {did} lacks execution authority"
             ));
         }
-        if !decision
-            .selected_input_refs
-            .iter()
-            .any(|value| value == &context.initial_input_ref)
-        {
-            return Err(format!(
-                "initial input is not selected by promotion decision {selecting_decision_id}"
-            ));
+        let r = self
+            .model_lane_store
+            .replay_run(&c.run_id)
+            .await
+            .map_err(|e| e.to_string())?;
+        check_run(&r.run, &c)?;
+        self.check_input(&c).await?;
+        if !d.selected_input_refs.contains(&c.initial_input_ref) {
+            return Err("initial input is not selected".into());
         }
-        validate_initial_input_tx(
-            &mut tx,
-            &context.run_id,
-            &context.initial_input_ref,
-            &context.initial_input_sha256,
-        )
-        .await?;
-        let graph = ModelLaneRoutingGraph::for_policy(decision.routing_policy);
-        graph.validate().map_err(|err| err.to_string())?;
-        if decision.diagnostic_payload.get("routing_graph")
-            != Some(&serde_json::to_value(&graph).map_err(|err| err.to_string())?)
-        {
-            return Err(format!("selecting promotion decision {selecting_decision_id} does not persist the exact canonical graph"));
+        let g = ModelLaneRoutingGraph::for_policy(d.routing_policy);
+        g.validate().map_err(|e| e.to_string())?;
+        let gj = serde_json::to_value(&g).map_err(|e| e.to_string())?;
+        if d.diagnostic_payload.get("routing_graph") != Some(&gj) {
+            return Err("selecting decision graph mismatch".into());
         }
-        validate_launch_plan(&graph, &decision.routing_launch_plan)?;
-        let launch_plan_hash = canonical_sha256(
-            &serde_json::to_value(&decision.routing_launch_plan).map_err(|err| err.to_string())?,
+        validate_launch_plan(&g, &d.routing_launch_plan)?;
+        let ph = canonical_sha256(
+            &serde_json::to_value(&d.routing_launch_plan).map_err(|e| e.to_string())?,
         )?;
-        let derived_authority = ModelLaneRoutingAuthority {
-            cloud_consent_receipt_ref: decision
+        let derived = ModelLaneRoutingAuthority {
+            cloud_consent_receipt_ref: d
                 .diagnostic_payload
                 .get("cloud_consent_receipt_ref")
                 .and_then(Value::as_str)
                 .map(str::to_owned),
-            validator_authority_ref: decision.validator_authority_ref.clone(),
-            operator_authority_ref: decision.operator_authority_ref.clone(),
+            validator_authority_ref: d.validator_authority_ref.clone(),
+            operator_authority_ref: d.operator_authority_ref.clone(),
         };
-        let authority_failure = graph
-            .require_authority_contract(&derived_authority)
-            .err()
-            .map(|error| error.to_string())
-            .or_else(|| {
-                (authority != &derived_authority).then(|| {
-                    format!("routing authority differs from selecting promotion decision {selecting_decision_id}")
-                })
-            })
-            .or_else(|| context.micro_task_id.is_none().then(|| {
-                "routing execution requires micro_task_id for durable ModelLane output authority".to_string()
-            }));
-        let canonical_graph = serde_json::to_value(&graph).map_err(|err| err.to_string())?;
-        let graph_hash = canonical_sha256(&canonical_graph)?;
-        if let Some(existing) = load_execution_tx(&mut tx, execution_id).await? {
-            if existing.canonical_graph_sha256 == graph_hash
-                && existing.selecting_decision_id == selecting_decision_id
-                && existing.authority == *authority
-                && existing.run_id == context.run_id
-                && existing.trace_id == context.trace_id
-                && existing.locus_ref == context.locus_ref
-            {
-                tx.commit().await.map_err(|err| err.to_string())?;
-                return Ok(existing);
-            }
-            return Err(format!(
-                "routing execution {execution_id} immutable context conflict"
-            ));
+        g.require_authority_contract(&derived)
+            .map_err(|e| e.to_string())?;
+        if authority != &derived || c.micro_task_id.is_none() {
+            return Err("routing authority mismatch".into());
         }
-        let mut state = initial_execution(
-            execution_id,
-            canonical_graph,
-            graph_hash,
+        let gh = canonical_sha256(&gj)?;
+        let mut x = initial_execution(
+            id,
+            gj,
+            gh,
             authority,
-            context,
-            selecting_decision_id,
-            &decision.event_ledger_event_id,
-            decision.event_ledger_seq,
-            decision.routing_launch_plan.clone(),
-            launch_plan_hash,
+            c,
+            did,
+            &d.event_ledger_event_id,
+            d.event_ledger_seq,
+            d.routing_launch_plan.clone(),
+            ph,
         );
-        if let Some(reason) = authority_failure {
-            state.status = ModelLaneRoutingExecutionStatus::Failed;
-            state.failure_reason = Some(format!("begin-time authority contract failure: {reason}"));
-        }
-        let stored = append_event(
-            &mut tx,
-            if state.status == ModelLaneRoutingExecutionStatus::Failed {
-                KernelEventType::SessionFailed
-            } else {
-                KernelEventType::SessionStarted
-            },
-            "model_lane_routing_execution",
-            execution_id,
-            &format!("routing-execution-start:{execution_id}"),
-            &state.run_id,
-            execution_id,
-            json!({"schema_id": ROUTING_EXECUTION_SCHEMA_ID, "record": state}),
-        )
-        .await?;
-        state.event_ledger_event_id = stored.0;
-        state.event_ledger_seq = stored.1;
-        save_execution_tx(&mut tx, &state).await?;
-        tx.commit().await.map_err(|err| err.to_string())?;
-        Ok(state)
-    }
-
-    pub(crate) async fn claim_ready(
-        &self,
-        execution_id: &str,
-        launches: &[ModelLaneRoutingStageLaunch],
-    ) -> Result<Vec<ModelLaneRoutingStageClaim>, String> {
-        let now = now_ms();
-        let mut tx = self.pool.begin().await.map_err(|err| err.to_string())?;
-        lock_execution(&mut tx, execution_id).await?;
-
-        let mut execution = match load_execution_tx(&mut tx, execution_id).await? {
-            Some(existing) => existing,
-            None => return Err(format!(
-                "routing execution {execution_id} has no explicit run/trace/Locus context; call begin_execution first"
-            )),
-        };
-        let graph: ModelLaneRoutingGraph =
-            serde_json::from_value(execution.canonical_graph.clone())
-                .map_err(|err| err.to_string())?;
-        graph.validate().map_err(|err| err.to_string())?;
-        let views = stage_views(&execution.canonical_graph)?;
-        let mut launch_stage_ids = BTreeSet::new();
-        for launch in launches {
-            if !launch_stage_ids.insert(launch.stage_id.as_str()) {
-                return Err(format!(
-                    "duplicate routing launch for stage {}",
-                    launch.stage_id
-                ));
-            }
-            let view = views
-                .iter()
-                .find(|view| view.stage_id == launch.stage_id)
-                .ok_or_else(|| {
-                    format!(
-                        "routing launch references unknown stage {}",
-                        launch.stage_id
-                    )
-                })?;
-            let plan = execution
-                .canonical_launch_plan
-                .iter()
-                .find(|plan| plan.stage_id == launch.stage_id)
-                .ok_or_else(|| {
-                    format!(
-                        "routing launch {} has no selecting-decision plan",
-                        launch.stage_id
-                    )
-                })?;
-            if launch.expected_run_id != execution.run_id {
-                return Err(format!(
-                    "routing launch {} changes canonical run",
-                    launch.stage_id
-                ));
-            }
-            if matches!(
-                view.dispatch_target,
-                ModelLaneRoutingDispatchTarget::LocalModel
-                    | ModelLaneRoutingDispatchTarget::CloudModel
-            ) {
-                let request = launch.request.as_ref().ok_or_else(|| {
-                    format!(
-                        "model routing stage {} has no SpawnRequest",
-                        launch.stage_id
-                    )
-                })?;
-                let contract = request.dexterity_launch.as_ref().ok_or_else(|| {
-                    format!(
-                        "model routing stage {} has no Dexterity launch contract",
-                        launch.stage_id
-                    )
-                })?;
-                if launch.generate_request.is_none()
-                    || launch.expected_lane_id.is_empty()
-                    || contract.run_id != launch.expected_run_id
-                    || contract.lane_id != launch.expected_lane_id
-                    || request.instance_id.model_id.to_string() != launch.expected_model_id
-                    || request.provider != launch.expected_provider
-                    || plan.dispatch_target != view.dispatch_target
-                    || plan.lane_id.as_deref() != Some(launch.expected_lane_id.as_str())
-                    || plan.model_id.as_deref() != Some(launch.expected_model_id.as_str())
-                    || plan.provider != launch.expected_provider
-                {
-                    return Err(format!(
-                        "routing launch {} differs from its selecting-decision run/lane/model/provider plan or generation authority",
-                        launch.stage_id
-                    ));
-                }
-            } else if launch.request.is_some() || launch.generate_request.is_some() {
-                return Err(format!(
-                    "non-model routing stage {} cannot carry model launch requests",
-                    launch.stage_id
-                ));
-            } else if plan.dispatch_target != view.dispatch_target
-                || plan.lane_id.as_deref() != launch.authority_lane_id.as_deref()
-                || plan.model_id.is_some()
-                || plan.provider.is_some()
-            {
-                return Err(format!(
-                    "routing launch {} changes selecting-decision non-model plan",
-                    launch.stage_id
-                ));
-            }
-            if let Some(existing) = execution.stages.get(&launch.stage_id) {
-                let persisted_contract_matches = if matches!(
-                    view.dispatch_target,
-                    ModelLaneRoutingDispatchTarget::LocalModel
-                        | ModelLaneRoutingDispatchTarget::CloudModel
-                ) {
-                    existing.expected_run_id == launch.expected_run_id
-                        && existing.expected_lane_id == launch.expected_lane_id
-                        && existing.expected_model_id == launch.expected_model_id
-                        && existing.expected_provider == launch.expected_provider
-                } else {
-                    existing.expected_run_id == launch.expected_run_id
-                        && existing.expected_lane_id
-                            == launch.authority_lane_id.as_deref().unwrap_or_default()
-                        && existing.expected_model_id.is_empty()
-                        && existing.expected_provider.is_none()
-                };
-                if !persisted_contract_matches {
-                    return Err(format!(
-                        "routing launch {} changes persisted provider/model/run contract",
-                        launch.stage_id
-                    ));
-                }
-            }
-        }
-
-        if matches!(
-            execution.status,
-            ModelLaneRoutingExecutionStatus::Succeeded
-                | ModelLaneRoutingExecutionStatus::Failed
-                | ModelLaneRoutingExecutionStatus::Cancelled
-        ) {
-            tx.commit().await.map_err(|err| err.to_string())?;
-            return Ok(Vec::new());
-        }
-
-        let mut scheduled: Vec<String> = execution
-            .stages
-            .values()
-            .filter(|stage| {
-                stage.state == ModelLaneRoutingStageStateKind::Scheduled
-                    && stage.lease_owner.is_none()
-                    && stage.lease_expires_at_unix_ms.is_none()
-            })
-            .map(|stage| stage.stage_id.clone())
-            .collect();
-        for view in &views {
-            if execution.stages.contains_key(&view.stage_id) || !is_ready(view, &execution.stages) {
-                continue;
-            }
-            let mut input_refs = predecessor_output_refs(view, &execution.stages);
-            if let Some(initial_input_ref) = execution.initial_input_ref.clone() {
-                input_refs.push(initial_input_ref);
-            }
-            input_refs.sort();
-            input_refs.dedup();
-            let authority_ref = authority_for_stage(view, &execution.authority)?;
-            let launch = launches
-                .iter()
-                .find(|launch| launch.stage_id == view.stage_id);
-            let plan = execution
-                .canonical_launch_plan
-                .iter()
-                .find(|plan| plan.stage_id == view.stage_id)
-                .ok_or_else(|| format!("stage {} has no selecting-decision plan", view.stage_id))?;
-            if matches!(
-                view.dispatch_target,
-                ModelLaneRoutingDispatchTarget::LocalModel
-                    | ModelLaneRoutingDispatchTarget::CloudModel
-            ) && launch.is_none()
-            {
-                return Err(format!(
-                    "model routing stage {} has no canonical launch contract",
-                    view.stage_id
-                ));
-            }
-            let attempt = 1;
-            let mut state = ModelLaneRoutingStageState {
-                stage_id: view.stage_id.clone(),
-                state: ModelLaneRoutingStageStateKind::Scheduled,
-                attempt,
-                dispatch_target: view.dispatch_target,
-                expected_run_id: launch
-                    .map(|value| value.expected_run_id.clone())
-                    .unwrap_or_else(|| execution.run_id.clone()),
-                expected_lane_id: plan.lane_id.clone().unwrap_or_default(),
-                expected_model_id: plan.model_id.clone().unwrap_or_default(),
-                expected_provider: plan.provider,
-                instance_id: None,
-                lane_id: None,
-                input_refs: input_refs.clone(),
-                output_ref: None,
-                output_message_ref: None,
-                authority_request_message_ref: None,
-                output_sha256: None,
-                output_payload: None,
-                authority_ref: authority_ref.clone(),
-                lease_owner: None,
-                fencing_token: None,
-                lease_expires_at_unix_ms: None,
-                detail: None,
-                event_ledger_event_id: String::new(),
-                event_ledger_seq: 0,
-                updated_at_unix_ms: now,
-            };
-            let idempotency = format!(
-                "routing-stage-scheduled:{execution_id}:{}:{attempt}",
-                view.stage_id
-            );
-            let stored = append_event(
-                &mut tx,
-                KernelEventType::ModelAdapterInvoked,
-                "model_lane_routing_stage_attempt",
-                &format!("{execution_id}:{}:{attempt}", view.stage_id),
-                &idempotency,
-                &execution.run_id,
-                execution_id,
-                json!({
-                    "schema_id": ROUTING_STAGE_ATTEMPT_SCHEMA_ID,
-                    "execution_id": execution_id,
-                    "run_id": execution.run_id,
-                    "trace_id": execution.trace_id,
-                    "locus_ref": execution.locus_ref,
-                    "stage_id": view.stage_id,
-                    "attempt": attempt,
-                    "dispatch_target": view.dispatch_target,
-                    "expected_run_id": execution.run_id,
-                    "expected_lane_id": plan.lane_id,
-                    "expected_model_id": plan.model_id,
-                    "expected_provider": plan.provider,
-                    "state": "scheduled",
-                    "authority_ref": authority_ref,
-                    "input_refs": &input_refs,
-                    "record": attempt_record_without_self_pointer(
-                        serde_json::to_value(&state).map_err(|err| err.to_string())?
-                    ),
-                }),
-            )
-            .await?;
-            for (index, input_ref) in input_refs.iter().enumerate() {
-                let input_sha256 =
-                    if execution.initial_input_ref.as_deref() == Some(input_ref.as_str()) {
-                        execution.initial_input_sha256.clone()
-                    } else {
-                        execution.stages.values().find_map(|stage| {
-                            (stage.output_ref.as_deref() == Some(input_ref.as_str()))
-                                .then(|| stage.output_sha256.clone())
-                                .flatten()
-                        })
-                    };
-                append_event(
-                    &mut tx,
-                    KernelEventType::ContextBundleRecorded,
-                    "model_lane_context_bundle_handoff",
-                    &format!("{execution_id}:{}:{attempt}:{index}", view.stage_id),
-                    &format!(
-                        "routing-input-handoff:{execution_id}:{}:{attempt}:{index}",
-                        view.stage_id
-                    ),
-                    &execution.run_id,
-                    execution_id,
-                    json!({
-                        "schema_id": "hsk.model_lane_context_bundle_handoff@1",
-                        "execution_id": execution_id,
-                        "run_id": execution.run_id,
-                        "trace_id": execution.trace_id,
-                        "locus_ref": execution.locus_ref,
-                        "stage_id": view.stage_id,
-                        "attempt": attempt,
-                        "input_ref": input_ref,
-                        "input_sha256": input_sha256,
-                        "authority_ref": &authority_ref,
-                    }),
-                )
-                .await?;
-            }
-            state.event_ledger_event_id = stored.0;
-            state.event_ledger_seq = stored.1;
-            insert_attempt_and_outbox_tx(&mut tx, execution_id, &state, &execution).await?;
-            execution.stages.insert(view.stage_id.clone(), state);
-            scheduled.push(view.stage_id.clone());
-        }
-
-        let mut claims = Vec::new();
-        for stage_id in scheduled {
-            let Some(stage) = execution.stages.get(&stage_id) else {
-                continue;
-            };
-            let attempt = stage.attempt;
-            let dispatch_target = stage.dispatch_target.clone();
-            let expected_run_id = stage.expected_run_id.clone();
-            let expected_lane_id = stage.expected_lane_id.clone();
-            let expected_model_id = stage.expected_model_id.clone();
-            let expected_provider = stage.expected_provider;
-            let lease_expires = now.saturating_add(self.lease_ms);
-            let fencing_token = uuid::Uuid::now_v7().to_string();
-            let claimed = sqlx::query(
-                r#"UPDATE model_lane_routing_outbox outbox
-                   SET status = 'claimed', lease_owner = $4, lease_expires_at_unix_ms = $5,
-                       fencing_token = $6, updated_at_unix_ms = $7
-                   WHERE outbox.command_id = (
-                       SELECT pending.command_id
-                       FROM model_lane_routing_outbox pending
-                       WHERE pending.execution_id = $1
-                         AND pending.stage_id = $2
-                         AND pending.attempt = $3
-                         AND pending.status = 'pending'
-                       FOR UPDATE SKIP LOCKED
-                       LIMIT 1
-                   )
-                   RETURNING outbox.command_id"#,
-            )
-            .bind(execution_id)
-            .bind(&stage_id)
-            .bind(i64::from(attempt))
-            .bind(&self.lease_owner)
-            .bind(lease_expires as i64)
-            .bind(&fencing_token)
-            .bind(now as i64)
-            .fetch_optional(&mut *tx)
+        let root = stage_views(&x.canonical_graph)?
+            .into_iter()
+            .find(|v| v.dependencies.is_empty())
+            .ok_or("routing graph has no root")?;
+        let changed = stage(&x, &root, 1)?;
+        x.stages.insert(root.stage_id, changed.clone());
+        x.revision = 1;
+        let e = events(&x, &changed, "pending", "begin")?;
+        self.model_lane_store
+            .commit_routing_execution_atomic(0, None, x, changed, "pending", e)
             .await
-            .map_err(|err| err.to_string())?;
-            if claimed.is_none() {
-                continue;
-            }
-            let mut claimed_stage = stage.clone();
-            claimed_stage.state = ModelLaneRoutingStageStateKind::Claimed;
-            claimed_stage.lease_owner = Some(self.lease_owner.clone());
-            claimed_stage.fencing_token = Some(fencing_token.clone());
-            claimed_stage.lease_expires_at_unix_ms = Some(lease_expires);
-            claimed_stage.updated_at_unix_ms = now;
-            let stored = append_event(
-                &mut tx,
-                KernelEventType::ModelAdapterInvoked,
-                "model_lane_routing_stage_attempt",
-                &format!("{execution_id}:{stage_id}:{attempt}"),
-                &format!("routing-stage-claimed:{execution_id}:{stage_id}:{attempt}"),
-                &execution.run_id,
-                execution_id,
-                json!({
-                    "schema_id": ROUTING_STAGE_ATTEMPT_SCHEMA_ID,
-                    "execution_id": execution_id,
-                    "run_id": execution.run_id,
-                    "trace_id": execution.trace_id,
-                    "locus_ref": execution.locus_ref,
-                    "stage_id": stage_id,
-                    "attempt": attempt,
-                    "state": "claimed",
-                    "lease_owner": self.lease_owner,
-                    "fencing_token": fencing_token,
-                    "lease_expires_at_unix_ms": lease_expires,
-                    "dispatch_target": dispatch_target,
-                    "expected_run_id": expected_run_id,
-                    "expected_lane_id": expected_lane_id,
-                    "expected_model_id": expected_model_id,
-                    "expected_provider": expected_provider,
-                    "input_refs": stage.input_refs,
-                    "authority_ref": stage.authority_ref,
-                    "record": attempt_record_without_self_pointer(
-                        serde_json::to_value(&claimed_stage).map_err(|err| err.to_string())?
-                    ),
-                }),
-            )
-            .await?;
-            claimed_stage.event_ledger_event_id = stored.0;
-            claimed_stage.event_ledger_seq = stored.1;
-            execution
-                .stages
-                .insert(stage_id.clone(), claimed_stage.clone());
-            persist_outbox_state_tx(&mut tx, &execution, &claimed_stage, "claimed").await?;
-            claims.push(ModelLaneRoutingStageClaim {
-                execution_id: execution_id.to_string(),
-                stage_id: stage_id.clone(),
-                attempt,
-                fencing_token,
-                lease_owner: self.lease_owner.clone(),
-                lease_expires_at_unix_ms: lease_expires,
-                dispatch_target,
-                expected_run_id,
-                expected_lane_id,
-                expected_model_id,
-                expected_provider,
-            });
-        }
-
-        if !claims.is_empty() {
-            execution.revision = execution.revision.saturating_add(1);
-            execution.status = ModelLaneRoutingExecutionStatus::Running;
-            let stored = append_event(
-                &mut tx,
-                KernelEventType::ModelAdapterInvoked,
-                "model_lane_routing_execution",
-                execution_id,
-                &format!("routing-claim:{execution_id}:{}", execution.revision),
-                &execution.run_id,
-                execution_id,
-                json!({"schema_id": ROUTING_EXECUTION_SCHEMA_ID, "record": execution}),
-            )
-            .await?;
-            execution.event_ledger_event_id = stored.0;
-            execution.event_ledger_seq = stored.1;
-            save_execution_tx(&mut tx, &execution).await?;
-            save_attempt_projections_tx(&mut tx, execution_id, &execution.stages).await?;
-        }
-        tx.commit().await.map_err(|err| err.to_string())?;
-        Ok(claims)
+            .map_err(|e| e.to_string())
     }
-
-    pub(crate) async fn record_transition(
-        &self,
-        claim: &ModelLaneRoutingStageClaim,
-        state: ModelLaneRoutingStageStateKind,
-        instance_id: Option<String>,
-        detail: Option<String>,
-    ) -> Result<ModelLaneRoutingExecutionState, String> {
-        self.record_stage_result(
-            claim,
-            state,
-            instance_id,
-            None,
-            None,
-            Vec::new(),
-            None,
-            None,
-            None,
-            None,
-            detail,
-        )
-        .await
-    }
-
-    pub(crate) async fn heartbeat_claim(
-        &self,
-        claim: &ModelLaneRoutingStageClaim,
-        state: ModelLaneRoutingStageStateKind,
-        instance_id: Option<String>,
-        lane_id: Option<String>,
-        authority_request_message_ref: Option<String>,
-    ) -> Result<ModelLaneRoutingExecutionState, String> {
-        if !matches!(
-            state,
-            ModelLaneRoutingStageStateKind::InFlight
-                | ModelLaneRoutingStageStateKind::AwaitingAuthority
-        ) {
-            return Err("routing heartbeat requires an active stage state".into());
-        }
-        self.record_stage_result(
-            claim,
-            state,
-            instance_id,
-            lane_id,
-            authority_request_message_ref,
-            Vec::new(),
-            None,
-            None,
-            None,
-            None,
-            Some("routing claim lease heartbeat".into()),
-        )
-        .await
-    }
-
-    pub(crate) async fn validate_active_claim(
-        &self,
-        claim: &ModelLaneRoutingStageClaim,
-    ) -> Result<(), String> {
-        let snapshot = self
-            .snapshot(&claim.execution_id)
-            .await?
-            .ok_or_else(|| format!("unknown routing execution {}", claim.execution_id))?;
-        let stage = snapshot
-            .stages
-            .get(&claim.stage_id)
-            .ok_or_else(|| format!("unknown routing stage {}", claim.stage_id))?;
-        if stage.attempt != claim.attempt
-            || stage.lease_owner.as_deref() != Some(claim.lease_owner.as_str())
-            || stage.fencing_token.as_deref() != Some(claim.fencing_token.as_str())
-            || stage.lease_expires_at_unix_ms.unwrap_or_default() < now_ms()
-            || !matches!(
-                stage.state,
-                ModelLaneRoutingStageStateKind::InFlight
-                    | ModelLaneRoutingStageStateKind::AwaitingAuthority
-            )
+    async fn check_input(&self, c: &ModelLaneRoutingExecutionContext) -> Result<(), String> {
+        let id = c
+            .initial_input_ref
+            .strip_prefix("model-lane-message://")
+            .ok_or("initial input is not a message")?;
+        let p = self
+            .model_lane_store
+            .navigation_by_message(id)
+            .await
+            .map_err(|e| e.to_string())?;
+        let m = p
+            .messages
+            .iter()
+            .find(|v| v.message_id == id)
+            .ok_or("initial message missing")?;
+        let a = p
+            .artifacts
+            .iter()
+            .find(|v| v.artifact_ref == m.payload_ref)
+            .ok_or("initial artifact missing")?;
+        if m.run_id != c.run_id
+            || m.payload_sha256 != c.initial_input_sha256
+            || a.artifact_sha256 != c.initial_input_sha256
+            || canonical_sha256(&a.payload_json)? != c.initial_input_sha256
         {
-            return Err(format!(
-                "stale routing claim rejected for {}/{}/attempt-{} before output side effects",
-                claim.execution_id, claim.stage_id, claim.attempt
-            ));
+            return Err("initial input authority mismatch".into());
         }
         Ok(())
     }
-
+    pub(crate) async fn claim_ready(
+        &self,
+        id: &str,
+        launches: &[ModelLaneRoutingStageLaunch],
+    ) -> Result<Vec<ModelLaneRoutingStageClaim>, String> {
+        let mut x = self
+            .snapshot(id)
+            .await?
+            .ok_or("unknown routing execution")?;
+        check_launches(&x, launches)?;
+        let mut cs = Vec::new();
+        for v in stage_views(&x.canonical_graph)? {
+            if !is_ready(&v, &x.stages) {
+                continue;
+            }
+            let old = x.stages.get(&v.stage_id).cloned();
+            if old
+                .as_ref()
+                .is_some_and(|s| s.state != ModelLaneRoutingStageStateKind::Scheduled)
+            {
+                continue;
+            }
+            let mut a = old.unwrap_or(stage(&x, &v, 1)?);
+            let now = now_ms();
+            let c = ModelLaneRoutingStageClaim {
+                execution_id: x.execution_id.clone(),
+                stage_id: a.stage_id.clone(),
+                attempt: a.attempt,
+                fencing_token: uuid::Uuid::now_v7().to_string(),
+                lease_owner: self.lease_owner.clone(),
+                lease_expires_at_unix_ms: now + self.lease_ms,
+                dispatch_target: a.dispatch_target,
+                expected_run_id: a.expected_run_id.clone(),
+                expected_lane_id: a.expected_lane_id.clone(),
+                expected_model_id: a.expected_model_id.clone(),
+                expected_provider: a.expected_provider,
+            };
+            a.state = ModelLaneRoutingStageStateKind::Claimed;
+            a.lease_owner = Some(c.lease_owner.clone());
+            a.fencing_token = Some(c.fencing_token.clone());
+            a.lease_expires_at_unix_ms = Some(c.lease_expires_at_unix_ms);
+            a.updated_at_unix_ms = now;
+            let rev = x.revision;
+            x.stages.insert(v.stage_id, a.clone());
+            x.revision = rev + 1;
+            let e = events(&x, &a, "claimed", "claim")?;
+            x = self
+                .model_lane_store
+                .commit_routing_execution_atomic(rev, None, x, a, "claimed", e)
+                .await
+                .map_err(|e| e.to_string())?;
+            cs.push(c)
+        }
+        Ok(cs)
+    }
+    pub(crate) async fn record_transition(
+        &self,
+        c: &ModelLaneRoutingStageClaim,
+        s: ModelLaneRoutingStageStateKind,
+        i: Option<String>,
+        d: Option<String>,
+    ) -> Result<ModelLaneRoutingExecutionState, String> {
+        self.record_stage_result(c, s, i, None, None, vec![], None, None, None, None, d)
+            .await
+    }
+    pub(crate) async fn heartbeat_claim(
+        &self,
+        c: &ModelLaneRoutingStageClaim,
+        s: ModelLaneRoutingStageStateKind,
+        i: Option<String>,
+        l: Option<String>,
+        r: Option<String>,
+    ) -> Result<ModelLaneRoutingExecutionState, String> {
+        if !matches!(
+            s,
+            ModelLaneRoutingStageStateKind::InFlight
+                | ModelLaneRoutingStageStateKind::AwaitingAuthority
+        ) {
+            return Err("heartbeat state invalid".into());
+        }
+        self.record_stage_result(
+            c,
+            s,
+            i,
+            l,
+            r,
+            vec![],
+            None,
+            None,
+            None,
+            None,
+            Some("lease heartbeat".into()),
+        )
+        .await
+    }
+    pub(crate) async fn validate_active_claim(
+        &self,
+        c: &ModelLaneRoutingStageClaim,
+    ) -> Result<(), String> {
+        claim(
+            &self
+                .snapshot(&c.execution_id)
+                .await?
+                .ok_or("unknown execution")?,
+            c,
+        )
+    }
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn record_stage_result(
         &self,
-        claim: &ModelLaneRoutingStageClaim,
-        state: ModelLaneRoutingStageStateKind,
-        instance_id: Option<String>,
-        lane_id: Option<String>,
-        authority_request_message_ref: Option<String>,
-        input_refs: Vec<String>,
-        output_ref: Option<String>,
-        output_message_ref: Option<String>,
-        output_sha256: Option<String>,
-        output_payload: Option<Value>,
-        detail: Option<String>,
+        c: &ModelLaneRoutingStageClaim,
+        s: ModelLaneRoutingStageStateKind,
+        i: Option<String>,
+        l: Option<String>,
+        r: Option<String>,
+        ins: Vec<String>,
+        o: Option<String>,
+        m: Option<String>,
+        h: Option<String>,
+        p: Option<Value>,
+        d: Option<String>,
     ) -> Result<ModelLaneRoutingExecutionState, String> {
-        let mut tx = self.pool.begin().await.map_err(|err| err.to_string())?;
-        let execution = self
-            .record_stage_result_tx(
-                &mut tx,
-                claim,
-                state,
-                instance_id,
-                lane_id,
-                authority_request_message_ref,
-                input_refs,
-                output_ref,
-                output_message_ref,
-                output_sha256,
-                output_payload,
-                detail,
-            )
-            .await?;
-        tx.commit().await.map_err(|err| err.to_string())?;
-        Ok(execution)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn record_stage_result_tx(
-        &self,
-        mut tx: &mut Transaction<'_, Postgres>,
-        claim: &ModelLaneRoutingStageClaim,
-        state: ModelLaneRoutingStageStateKind,
-        instance_id: Option<String>,
-        lane_id: Option<String>,
-        authority_request_message_ref: Option<String>,
-        input_refs: Vec<String>,
-        output_ref: Option<String>,
-        output_message_ref: Option<String>,
-        output_sha256: Option<String>,
-        output_payload: Option<Value>,
-        detail: Option<String>,
-    ) -> Result<ModelLaneRoutingExecutionState, String> {
-        let execution_id = claim.execution_id.as_str();
-        let stage_id = claim.stage_id.as_str();
-        lock_execution(&mut tx, execution_id).await?;
-        let mut execution = load_execution_tx(&mut tx, execution_id)
+        let x = self
+            .snapshot(&c.execution_id)
             .await?
-            .ok_or_else(|| format!("unknown routing execution {execution_id}"))?;
-        let current = execution
-            .stages
-            .get(stage_id)
-            .cloned()
-            .ok_or_else(|| format!("stage {stage_id} was not durably scheduled"))?;
-        if current.attempt != claim.attempt
-            || current.lease_owner.as_deref() != Some(claim.lease_owner.as_str())
-            || current.fencing_token.as_deref() != Some(claim.fencing_token.as_str())
-            || current.lease_expires_at_unix_ms.unwrap_or_default() < now_ms()
+            .ok_or("unknown execution")?;
+        let (n, a) = self.transition(&x, c, s, i, l, r, ins, o, m, h, p, d)?;
+        let status = obox(s);
+        let e = events(&n, &a, status, "transition")?;
+        self.model_lane_store
+            .commit_routing_execution_atomic(x.revision, Some(c), n, a, status, e)
+            .await
+            .map_err(|e| e.to_string())
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn transition(
+        &self,
+        x: &ModelLaneRoutingExecutionState,
+        c: &ModelLaneRoutingStageClaim,
+        s: ModelLaneRoutingStageStateKind,
+        i: Option<String>,
+        l: Option<String>,
+        r: Option<String>,
+        ins: Vec<String>,
+        o: Option<String>,
+        m: Option<String>,
+        h: Option<String>,
+        p: Option<Value>,
+        d: Option<String>,
+    ) -> Result<(ModelLaneRoutingExecutionState, ModelLaneRoutingStageState), String> {
+        claim(x, c)?;
+        let old = x.stages[&c.stage_id].clone();
+        if old.state != s && !valid_transition(old.state, s) {
+            return Err("invalid routing transition".into());
+        }
+        if s.is_success()
+            && (o.is_none()
+                || (old.dispatch_target != ModelLaneRoutingDispatchTarget::CoordinatorJoin
+                    && m.is_none()))
         {
-            return Err(format!(
-                "stale routing claim rejected for {execution_id}/{stage_id}/attempt-{}",
-                claim.attempt
-            ));
+            return Err("successful routing stage lacks output authority".into());
         }
-        if !matches!(
-            state,
-            ModelLaneRoutingStageStateKind::InFlight
-                | ModelLaneRoutingStageStateKind::AwaitingAuthority
-        ) && current.state == state
-            && current.instance_id == instance_id
-            && current.lane_id == lane_id
-            && current.authority_request_message_ref == authority_request_message_ref
-            && current.output_ref == output_ref
-            && current.output_message_ref == output_message_ref
-        {
-            return Ok(execution);
-        }
-        if current.state != state && !valid_transition(current.state, state) {
-            return Err(format!(
-                "invalid routing stage transition {stage_id}: {:?} -> {:?}",
-                current.state, state
-            ));
-        }
-        if state.is_success() && output_ref.is_none() {
-            return Err(format!(
-                "successful stage {stage_id} requires a durable output ref"
-            ));
-        }
-        if state.is_success()
-            && current.dispatch_target != ModelLaneRoutingDispatchTarget::CoordinatorJoin
-            && output_message_ref.is_none()
-        {
-            return Err(format!(
-                "successful lane-backed stage {stage_id} requires a durable ModelLaneMessage ref"
-            ));
-        }
-        if let Some(payload) = output_payload.as_ref() {
-            let expected_hash = output_sha256
-                .as_deref()
-                .ok_or_else(|| format!("successful stage {stage_id} requires output_sha256"))?;
-            if payload.get("artifact_sha256").and_then(Value::as_str) != Some(expected_hash) {
-                return Err(format!(
-                    "successful stage {stage_id} output pointer hash mismatch"
-                ));
+        if let Some(v) = p.as_ref() {
+            if v.get("artifact_sha256").and_then(Value::as_str) != h.as_deref() {
+                return Err("output hash mismatch".into());
             }
         }
         let now = now_ms();
-        let persisted_input_refs = if input_refs.is_empty() {
-            current.input_refs.clone()
-        } else {
-            input_refs.clone()
-        };
-        let persisted_authority_request_message_ref = authority_request_message_ref
-            .clone()
-            .or_else(|| current.authority_request_message_ref.clone());
-        let remains_active = matches!(
-            state,
+        let active = matches!(
+            s,
             ModelLaneRoutingStageStateKind::InFlight
                 | ModelLaneRoutingStageStateKind::AwaitingAuthority
         );
-        let mut next = ModelLaneRoutingStageState {
-            stage_id: stage_id.to_string(),
-            state,
-            instance_id: instance_id.clone(),
-            lane_id: lane_id.clone(),
-            authority_request_message_ref: persisted_authority_request_message_ref.clone(),
-            input_refs: persisted_input_refs.clone(),
-            output_ref: output_ref.clone(),
-            output_message_ref: output_message_ref.clone(),
-            output_sha256: output_sha256.clone(),
-            output_payload: output_payload.clone(),
-            lease_owner: remains_active.then(|| self.lease_owner.clone()),
-            fencing_token: remains_active.then(|| claim.fencing_token.clone()),
-            lease_expires_at_unix_ms: remains_active.then(|| now.saturating_add(self.lease_ms)),
-            detail: detail.clone(),
-            event_ledger_event_id: current.event_ledger_event_id.clone(),
-            event_ledger_seq: current.event_ledger_seq,
-            updated_at_unix_ms: now,
-            ..current.clone()
-        };
-        let idempotency = format!(
-            "routing-stage-transition:{execution_id}:{stage_id}:{}:{state:?}:{}",
-            current.attempt,
-            execution.revision.saturating_add(1)
-        );
-        let stored = append_event(
-            &mut tx,
-            match state {
-                ModelLaneRoutingStageStateKind::Succeeded
-                | ModelLaneRoutingStageStateKind::Joined => KernelEventType::ModelResponseRecorded,
-                ModelLaneRoutingStageStateKind::Failed
-                | ModelLaneRoutingStageStateKind::Cancelled
-                | ModelLaneRoutingStageStateKind::Compensated => KernelEventType::SessionFailed,
-                ModelLaneRoutingStageStateKind::Scheduled
-                | ModelLaneRoutingStageStateKind::Claimed
-                | ModelLaneRoutingStageStateKind::InFlight
-                | ModelLaneRoutingStageStateKind::AwaitingAuthority => {
-                    KernelEventType::ModelAdapterInvoked
-                }
-            },
-            "model_lane_routing_stage_attempt",
-            &format!("{execution_id}:{stage_id}:{}", current.attempt),
-            &idempotency,
-            &execution.run_id,
-            execution_id,
-            json!({
-                "schema_id": ROUTING_STAGE_ATTEMPT_SCHEMA_ID,
-                "execution_id": execution_id,
-                "run_id": execution.run_id,
-                "trace_id": execution.trace_id,
-                "locus_ref": execution.locus_ref,
-                "stage_id": stage_id,
-                "attempt": current.attempt,
-                "fencing_token": claim.fencing_token,
-                "state": state,
-                "instance_id": instance_id,
-                "lane_id": lane_id,
-                "authority_request_message_ref": persisted_authority_request_message_ref,
-                "input_refs": persisted_input_refs,
-                "output_ref": output_ref,
-                "output_message_ref": output_message_ref,
-                "output_sha256": output_sha256,
-                "output_payload": output_payload,
-                "authority_ref": current.authority_ref,
-                "dispatch_target": current.dispatch_target,
-                "expected_run_id": current.expected_run_id,
-                "expected_lane_id": current.expected_lane_id,
-                "expected_model_id": current.expected_model_id,
-                "expected_provider": current.expected_provider,
-                "detail": detail,
-                "record": attempt_record_without_self_pointer(
-                    serde_json::to_value(&next).map_err(|err| err.to_string())?
-                ),
-            }),
-        )
-        .await?;
-        next.event_ledger_event_id = stored.0;
-        next.event_ledger_seq = stored.1;
-        execution.stages.insert(stage_id.to_string(), next);
-        execution.revision = execution.revision.saturating_add(1);
-        refresh_execution_status(&mut execution)?;
-        let stored_execution = append_event(
-            &mut tx,
-            match execution.status {
-                ModelLaneRoutingExecutionStatus::Succeeded => KernelEventType::SessionCompleted,
-                ModelLaneRoutingExecutionStatus::Failed
-                | ModelLaneRoutingExecutionStatus::Cancelled => KernelEventType::SessionFailed,
-                _ => KernelEventType::ModelResponseRecorded,
-            },
-            "model_lane_routing_execution",
-            execution_id,
-            &format!(
-                "routing-execution-revision:{execution_id}:{}",
-                execution.revision
-            ),
-            &execution.run_id,
-            execution_id,
-            json!({"schema_id": ROUTING_EXECUTION_SCHEMA_ID, "record": execution}),
-        )
-        .await?;
-        execution.event_ledger_event_id = stored_execution.0;
-        execution.event_ledger_seq = stored_execution.1;
-        save_execution_tx(&mut tx, &execution).await?;
-        save_attempt_projections_tx(&mut tx, execution_id, &execution.stages).await?;
-        persist_outbox_state_tx(
-            &mut tx,
-            &execution,
-            &execution.stages[stage_id],
-            if remains_active {
-                "claimed"
-            } else if matches!(
-                state,
-                ModelLaneRoutingStageStateKind::Cancelled
-                    | ModelLaneRoutingStageStateKind::Compensated
-            ) {
-                stage_kind_name(state)
+        let mut a = ModelLaneRoutingStageState {
+            stage_id: old.stage_id.clone(),
+            state: s,
+            instance_id: i,
+            lane_id: l,
+            authority_request_message_ref: r.or_else(|| old.authority_request_message_ref.clone()),
+            input_refs: if ins.is_empty() {
+                old.input_refs.clone()
             } else {
-                "acked"
+                ins
             },
-        )
-        .await?;
-        Ok(execution)
+            output_ref: o,
+            output_message_ref: m,
+            output_sha256: h,
+            output_payload: p,
+            lease_owner: active.then(|| c.lease_owner.clone()),
+            fencing_token: active.then(|| c.fencing_token.clone()),
+            lease_expires_at_unix_ms: active.then(|| now + self.lease_ms),
+            detail: d,
+            updated_at_unix_ms: now,
+            ..old
+        };
+        a.event_ledger_event_id.clear();
+        a.event_ledger_seq = 0;
+        let mut n = x.clone();
+        n.stages.insert(c.stage_id.clone(), a.clone());
+        n.revision = x.revision + 1;
+        refresh_execution_status(&mut n)?;
+        Ok((n, a))
     }
-
     pub(crate) async fn record_authority_request(
         &self,
-        claim: &ModelLaneRoutingStageClaim,
-        authority_lane_id: String,
-        message: super::model_lane::NewModelLaneMessage,
+        c: &ModelLaneRoutingStageClaim,
+        l: String,
+        m: super::model_lane::NewModelLaneMessage,
     ) -> Result<
         (
             ModelLaneRoutingExecutionState,
@@ -1532,54 +698,30 @@ impl ModelLaneRoutingExecutionStore {
         ),
         String,
     > {
-        let execution_id = claim.execution_id.as_str();
-        let stage_id = claim.stage_id.as_str();
-        let mut tx = self.pool.begin().await.map_err(|err| err.to_string())?;
-        lock_execution(&mut tx, execution_id).await?;
-        let locked_execution = load_execution_tx(&mut tx, execution_id)
+        let x = self
+            .snapshot(&c.execution_id)
             .await?
-            .ok_or_else(|| format!("unknown routing execution {execution_id}"))?;
-        let locked_stage = locked_execution
-            .stages
-            .get(stage_id)
-            .ok_or_else(|| format!("stage {stage_id} was not durably scheduled"))?;
-        if locked_stage.attempt != claim.attempt
-            || locked_stage.lease_owner.as_deref() != Some(claim.lease_owner.as_str())
-            || locked_stage.fencing_token.as_deref() != Some(claim.fencing_token.as_str())
-            || locked_stage.lease_expires_at_unix_ms.unwrap_or_default() < now_ms()
-        {
-            return Err(format!(
-                "stale routing authority claim rejected before request commit for {execution_id}/{stage_id}/attempt-{}",
-                claim.attempt
-            ));
-        }
-        let stored_message = super::model_lane::ModelLaneStore::record_message_with_validation_tx(
-            &mut tx,
-            message,
-            self.access.insert_columns(),
-        )
-        .await
-        .map_err(|err| err.to_string())?;
-        let execution = self
-            .record_stage_result_tx(
-                &mut tx,
-                claim,
-                ModelLaneRoutingStageStateKind::AwaitingAuthority,
-                None,
-                Some(authority_lane_id),
-                Some(stored_message.message_id.clone()),
-                Vec::new(),
-                None,
-                None,
-                None,
-                None,
-                Some("typed authority lane dispatched; awaiting ModelLaneMessage".into()),
-            )
-            .await?;
-        tx.commit().await.map_err(|err| err.to_string())?;
-        Ok((execution, stored_message))
+            .ok_or("unknown execution")?;
+        let (n, a) = self.transition(
+            &x,
+            c,
+            ModelLaneRoutingStageStateKind::AwaitingAuthority,
+            None,
+            Some(l),
+            Some(m.message_id.clone()),
+            vec![],
+            None,
+            None,
+            None,
+            None,
+            Some("awaiting authority".into()),
+        )?;
+        let e = events(&n, &a, "claimed", "authority")?;
+        self.model_lane_store
+            .commit_routing_authority_request_atomic(x.revision, c, n, a, "claimed", m, e)
+            .await
+            .map_err(|e| e.to_string())
     }
-
     pub(crate) async fn stage_input_envelope(
         &self,
         execution_id: &str,
@@ -1593,10 +735,7 @@ impl ModelLaneRoutingExecutionStore {
             .into_iter()
             .find(|view| view.stage_id == stage_id)
             .ok_or_else(|| format!("unknown routing stage {stage_id}"))?;
-        let model_lane_store = super::model_lane::ModelLaneStore::new_with_access(
-            self.pool.clone(),
-            self.access.clone(),
-        );
+        let model_lane_store = &self.model_lane_store;
         let mut predecessors = Vec::new();
         let mut predecessor_states = Vec::new();
         for dependency in &view.dependencies {
@@ -1786,10 +925,7 @@ impl ModelLaneRoutingExecutionStore {
             .ok_or_else(|| {
                 format!("routing output {stage_id} has no canonical source ModelLane")
             })?;
-        let model_lane_store = super::model_lane::ModelLaneStore::new_with_access(
-            self.pool.clone(),
-            self.access.clone(),
-        );
+        let model_lane_store = &self.model_lane_store;
         let source_projection = model_lane_store
             .navigation_by_lane(&source_lane_id)
             .await
@@ -1952,103 +1088,46 @@ impl ModelLaneRoutingExecutionStore {
                 "fencing_token": claim.fencing_token,
             }),
         };
-        let mut tx = self.pool.begin().await.map_err(|err| err.to_string())?;
-        lock_execution(&mut tx, execution_id).await?;
-        let locked_execution = load_execution_tx(&mut tx, execution_id)
-            .await?
-            .ok_or_else(|| format!("unknown routing execution {execution_id}"))?;
-        let locked_stage = locked_execution
-            .stages
-            .get(stage_id)
-            .ok_or_else(|| format!("stage {stage_id} was not durably scheduled"))?;
-        if locked_stage.attempt != claim.attempt
-            || locked_stage.lease_owner.as_deref() != Some(claim.lease_owner.as_str())
-            || locked_stage.fencing_token.as_deref() != Some(claim.fencing_token.as_str())
-            || locked_stage.lease_expires_at_unix_ms.unwrap_or_default() < now_ms()
-        {
-            return Err(format!(
-                "stale routing output claim rejected before artifact commit for {execution_id}/{stage_id}/attempt-{}",
-                claim.attempt
-            ));
-        }
-        // A per-attempt transaction-scoped fence makes the exact point between
-        // final claim validation and projection writes externally observable
-        // for deterministic race tests while remaining uncontended in normal
-        // operation. The execution row lock is already held, so recovery or
-        // reassignment cannot cross this barrier and create stale output rows.
-        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
-            .bind(format!(
-                "routing-output:{execution_id}:{stage_id}:{}",
-                claim.attempt
-            ))
-            .execute(&mut *tx)
-            .await
-            .map_err(|err| err.to_string())?;
-        let output_message_id = if stage.dispatch_target
-            == ModelLaneRoutingDispatchTarget::CoordinatorJoin
-        {
-            super::model_lane::ModelLaneStore::record_context_bundle_artifact_binding_with_validation_tx(
-                &mut tx, binding, self.access.insert_columns(),
-            )
-            .await
-            .map_err(|err| err.to_string())?;
-            None
-        } else {
-            Some(
-                super::model_lane::ModelLaneStore::record_message_with_payload_binding_tx(
-                    &mut tx,
-                    message,
-                    binding,
-                    self.access.insert_columns(),
-                )
-                .await
-                .map_err(|err| err.to_string())?
-                .message_id
-                .clone(),
-            )
-        };
-        let bounded_typed_metadata = match stage_id {
-            "cloud-review" => json!({
-                "schema_id": "hsk.model_lane_cloud_review_verdict@1",
-                "verdict": typed_output.get("verdict"),
-                "review_present": true,
-            }),
-            "debate-join" => json!({
-                "schema_id": "hsk.model_lane_parallel_debate_adjudication@1",
-                "decision": typed_output.get("decision"),
-                "rationale": typed_output.get("rationale"),
-                "selected_output_ref": typed_output.get("selected_output_ref"),
-            }),
-            _ => json!({
-                "schema_id": "hsk.model_lane_routing_proposal_metadata@1",
-                "content_bytes": output.as_bytes().len(),
-            }),
-        };
-        let bounded_projection = json!({
-            "schema_id": "hsk.model_lane_routing_output_pointer@1",
-            "artifact_ref": output_ref,
-            "message_ref": output_message_id,
-            "artifact_sha256": output_sha256,
-            "typed_output": bounded_typed_metadata,
-        });
-        let execution = self
-            .record_stage_result_tx(
-                &mut tx,
+        let output_message_id = (stage.dispatch_target
+            != ModelLaneRoutingDispatchTarget::CoordinatorJoin)
+            .then_some(message_id);
+        let pointer = json!({"schema_id":"hsk.model_lane_routing_output_pointer@1","artifact_ref":output_ref,"message_ref":output_message_id,"artifact_sha256":output_sha256,"typed_output":typed_output});
+        let (next, changed) = self.transition(
+            &snapshot,
+            claim,
+            state,
+            instance_id,
+            lane_id,
+            None,
+            stage.input_refs.clone(),
+            Some(output_ref),
+            output_message_id,
+            Some(output_sha256),
+            Some(pointer),
+            detail,
+        )?;
+        let events = events(&next, &changed, "acked", "output")?;
+        let (stored, m, b) = self
+            .model_lane_store
+            .commit_routing_generated_output_atomic(
+                snapshot.revision,
                 claim,
-                state,
-                instance_id,
-                lane_id,
-                None,
-                stage.input_refs.clone(),
-                Some(output_ref),
-                output_message_id,
-                Some(output_sha256),
-                Some(bounded_projection),
-                detail,
+                next,
+                changed,
+                "acked",
+                (stage.dispatch_target != ModelLaneRoutingDispatchTarget::CoordinatorJoin)
+                    .then_some(message),
+                binding,
+                events,
             )
-            .await?;
-        tx.commit().await.map_err(|err| err.to_string())?;
-        Ok(execution)
+            .await
+            .map_err(|e| e.to_string())?;
+        if b.inner.artifact_ref != output_ref
+            || m.as_ref().map(|v| v.message_id.as_str()) != output_message_id.as_deref()
+        {
+            return Err("atomic routing output identity mismatch".into());
+        }
+        Ok(stored)
     }
 
     pub(crate) async fn complete_authority_stage(
@@ -2107,353 +1186,311 @@ impl ModelLaneRoutingExecutionStore {
         .await
     }
 
-    pub(crate) async fn recover_expired_claims(
-        &self,
-        execution_id: &str,
-    ) -> Result<Vec<String>, String> {
-        let now = now_ms();
-        let mut tx = self.pool.begin().await.map_err(|err| err.to_string())?;
-        lock_execution(&mut tx, execution_id).await?;
-        let mut execution = load_execution_tx(&mut tx, execution_id)
-            .await?
-            .ok_or_else(|| format!("unknown routing execution {execution_id}"))?;
-        let stage_ids: Vec<String> = execution.stages.keys().cloned().collect();
-        let mut recovered = Vec::new();
-        let mut changed = false;
-        for stage_id in stage_ids {
-            let current = execution.stages[&stage_id].clone();
-            if !matches!(
-                current.state,
+    pub(crate) async fn recover_expired_claims(&self, id: &str) -> Result<Vec<String>, String> {
+        let mut x = self.snapshot(id).await?.ok_or("unknown execution")?;
+        let mut done = vec![];
+        for sid in x.stages.keys().cloned().collect::<Vec<_>>() {
+            let old = x.stages[&sid].clone();
+            let expired = matches!(
+                old.state,
                 ModelLaneRoutingStageStateKind::Claimed
                     | ModelLaneRoutingStageStateKind::InFlight
                     | ModelLaneRoutingStageStateKind::AwaitingAuthority
-            ) || current.lease_expires_at_unix_ms.unwrap_or(u64::MAX) > now
-            {
+            ) && old.lease_expires_at_unix_ms.is_some_and(|v| v <= now_ms());
+            let interrupted = old.state == ModelLaneRoutingStageStateKind::Compensated
+                && old.detail.as_deref() == Some("expired lease compensated; requeue pending");
+            if !expired && !interrupted {
                 continue;
             }
-            let mut compensated = current.clone();
-            compensated.state = ModelLaneRoutingStageStateKind::Compensated;
-            compensated.lease_owner = None;
-            compensated.fencing_token = None;
-            compensated.lease_expires_at_unix_ms = None;
-            compensated.detail = Some("compensated after expired lease".into());
-            compensated.updated_at_unix_ms = now;
-            let compensation = append_event(
-                &mut tx,
-                KernelEventType::SessionFailed,
-                "model_lane_routing_stage_attempt",
-                &format!("{execution_id}:{stage_id}:{}", current.attempt),
-                &format!(
-                    "routing-stage-compensated:{execution_id}:{stage_id}:{}",
-                    current.attempt
-                ),
-                &execution.run_id,
-                execution_id,
-                json!({
-                    "schema_id": ROUTING_STAGE_ATTEMPT_SCHEMA_ID,
-                    "execution_id": execution_id,
-                    "stage_id": stage_id,
-                    "attempt": current.attempt,
-                    "state": "compensated",
-                    "compensation": "expired_lease",
-                    "superseded_fencing_token": current.fencing_token,
-                    "dispatch_target": current.dispatch_target,
-                    "expected_run_id": current.expected_run_id,
-                    "expected_lane_id": current.expected_lane_id,
-                    "expected_model_id": current.expected_model_id,
-                    "expected_provider": current.expected_provider,
-                    "input_refs": current.input_refs,
-                    "authority_ref": current.authority_ref,
-                    "record": attempt_record_without_self_pointer(
-                        serde_json::to_value(&compensated).map_err(|err| err.to_string())?
-                    ),
-                }),
-            )
-            .await?;
-            compensated.event_ledger_event_id = compensation.0;
-            compensated.event_ledger_seq = compensation.1;
-            sqlx::query(
-                "UPDATE model_lane_routing_outbox SET status='compensated', lease_owner=NULL, fencing_token=NULL, lease_expires_at_unix_ms=NULL, updated_at_unix_ms=$4 WHERE execution_id=$1 AND stage_id=$2 AND attempt=$3",
-            )
-            .bind(execution_id)
-            .bind(&stage_id)
-            .bind(i64::from(current.attempt))
-            .bind(now as i64)
-            .execute(&mut *tx)
-            .await
-            .map_err(|err| err.to_string())?;
-            persist_outbox_state_tx(&mut tx, &execution, &compensated, "compensated").await?;
-            sqlx::query(
-                "UPDATE model_lane_routing_stage_attempts SET status='compensated', lease_owner=NULL, fencing_token=NULL, lease_expires_at_unix_ms=NULL, event_ledger_event_id=$4, event_ledger_seq=$5, record_json=$6, updated_at_unix_ms=$7 WHERE execution_id=$1 AND stage_id=$2 AND attempt=$3",
-            )
-            .bind(execution_id)
-            .bind(&stage_id)
-            .bind(i64::from(current.attempt))
-            .bind(&compensated.event_ledger_event_id)
-            .bind(compensated.event_ledger_seq)
-            .bind(serde_json::to_value(&compensated).map_err(|err| err.to_string())?)
-            .bind(now as i64)
-            .execute(&mut *tx)
-            .await
-            .map_err(|err| err.to_string())?;
-
-            if current.attempt >= MAX_STAGE_ATTEMPTS {
-                let mut failed = current.clone();
-                failed.state = ModelLaneRoutingStageStateKind::Failed;
-                failed.detail = Some("routing stage exhausted bounded recovery attempts".into());
-                failed.lease_owner = None;
-                failed.fencing_token = None;
-                failed.lease_expires_at_unix_ms = None;
-                failed.updated_at_unix_ms = now;
-                let stored = append_event(
-                    &mut tx,
-                    KernelEventType::SessionFailed,
-                    "model_lane_routing_stage_attempt",
-                    &format!("{execution_id}:{stage_id}:{}", current.attempt),
-                    &format!(
-                        "routing-stage-exhausted:{execution_id}:{stage_id}:{}",
-                        current.attempt
-                    ),
-                    &execution.run_id,
-                    execution_id,
-                    json!({
-                        "schema_id": ROUTING_STAGE_ATTEMPT_SCHEMA_ID,
-                        "execution_id": execution_id,
-                        "stage_id": stage_id,
-                        "attempt": current.attempt,
-                        "state": "failed",
-                        "compensation": "expired_lease",
-                        "reason": "bounded_recovery_exhausted",
-                        "dispatch_target": current.dispatch_target,
-                        "expected_run_id": current.expected_run_id,
-                        "expected_lane_id": current.expected_lane_id,
-                        "expected_model_id": current.expected_model_id,
-                        "expected_provider": current.expected_provider,
-                        "input_refs": current.input_refs,
-                        "authority_ref": current.authority_ref,
-                        "record": attempt_record_without_self_pointer(
-                            serde_json::to_value(&failed).map_err(|err| err.to_string())?
-                        ),
-                    }),
-                )
-                .await?;
-                failed.event_ledger_event_id = stored.0;
-                failed.event_ledger_seq = stored.1;
-                persist_outbox_state_tx(&mut tx, &execution, &failed, "acked").await?;
-                execution.stages.insert(stage_id, failed);
-                changed = true;
-                continue;
+            if expired {
+                let rev = x.revision;
+                let mut compensated = old.clone();
+                compensated.state = ModelLaneRoutingStageStateKind::Compensated;
+                compensated.lease_owner = None;
+                compensated.fencing_token = None;
+                compensated.lease_expires_at_unix_ms = None;
+                compensated.detail = Some("expired lease compensated; requeue pending".into());
+                compensated.updated_at_unix_ms = now_ms();
+                x.stages.insert(sid.clone(), compensated.clone());
+                x.revision = rev + 1;
+                let e = events(&x, &compensated, "compensated", "compensate")?;
+                x = self
+                    .model_lane_store
+                    .commit_routing_execution_atomic(rev, None, x, compensated, "compensated", e)
+                    .await
+                    .map_err(|e| e.to_string())?;
             }
-
-            let next_attempt = current.attempt + 1;
-            let mut next = current.clone();
-            next.attempt = next_attempt;
-            next.state = ModelLaneRoutingStageStateKind::Scheduled;
-            next.instance_id = None;
-            next.lane_id = None;
-            next.output_ref = None;
-            next.output_message_ref = None;
-            next.authority_request_message_ref = None;
-            next.output_sha256 = None;
-            next.output_payload = None;
-            next.lease_owner = None;
-            next.fencing_token = None;
-            next.lease_expires_at_unix_ms = None;
-            next.detail = Some("reclaimed after expired lease and compensation".into());
-            next.updated_at_unix_ms = now;
-            let stored = append_event(
-                &mut tx,
-                KernelEventType::ModelAdapterInvoked,
-                "model_lane_routing_stage_attempt",
-                &format!("{execution_id}:{stage_id}:{next_attempt}"),
-                &format!("routing-stage-recovered:{execution_id}:{stage_id}:{next_attempt}"),
-                &execution.run_id,
-                execution_id,
-                json!({
-                    "schema_id": ROUTING_STAGE_ATTEMPT_SCHEMA_ID,
-                    "execution_id": execution_id,
-                    "stage_id": stage_id,
-                    "attempt": next_attempt,
-                    "state": "scheduled",
-                    "compensated_attempt": current.attempt,
-                    "requeue_reason": "expired_lease",
-                    "dispatch_target": current.dispatch_target,
-                    "expected_run_id": current.expected_run_id,
-                    "expected_lane_id": current.expected_lane_id,
-                    "expected_model_id": current.expected_model_id,
-                    "expected_provider": current.expected_provider,
-                    "input_refs": current.input_refs,
-                    "authority_ref": current.authority_ref,
-                    "record": attempt_record_without_self_pointer(
-                        serde_json::to_value(&next).map_err(|err| err.to_string())?
-                    ),
-                }),
-            )
-            .await?;
-            next.event_ledger_event_id = stored.0;
-            next.event_ledger_seq = stored.1;
-            insert_attempt_and_outbox_tx(&mut tx, execution_id, &next, &execution).await?;
-            recovered.push(stage_id.clone());
-            execution.stages.insert(stage_id, next);
-            changed = true;
+            let rev = x.revision;
+            let mut a = x.stages[&sid].clone();
+            a.state = if a.attempt >= MAX_STAGE_ATTEMPTS {
+                ModelLaneRoutingStageStateKind::Failed
+            } else {
+                ModelLaneRoutingStageStateKind::Scheduled
+            };
+            if a.state == ModelLaneRoutingStageStateKind::Scheduled {
+                a.attempt += 1;
+                done.push(sid.clone())
+            }
+            a.lease_owner = None;
+            a.fencing_token = None;
+            a.lease_expires_at_unix_ms = None;
+            a.updated_at_unix_ms = now_ms();
+            x.stages.insert(sid, a.clone());
+            x.revision = rev + 1;
+            let status = if a.state == ModelLaneRoutingStageStateKind::Scheduled {
+                "pending"
+            } else {
+                "acked"
+            };
+            let e = events(&x, &a, status, "recover")?;
+            x = self
+                .model_lane_store
+                .commit_routing_execution_atomic(rev, None, x, a, status, e)
+                .await
+                .map_err(|e| e.to_string())?
         }
-        if changed {
-            execution.revision = execution.revision.saturating_add(1);
-            refresh_execution_status(&mut execution)?;
-            let stored = append_event(
-                &mut tx,
-                KernelEventType::ModelResponseRecorded,
-                "model_lane_routing_execution",
-                execution_id,
-                &format!("routing-recovery:{execution_id}:{}", execution.revision),
-                &execution.run_id,
-                execution_id,
-                json!({"schema_id": ROUTING_EXECUTION_SCHEMA_ID, "record": execution}),
-            )
-            .await?;
-            execution.event_ledger_event_id = stored.0;
-            execution.event_ledger_seq = stored.1;
-            save_execution_tx(&mut tx, &execution).await?;
-            save_attempt_projections_tx(&mut tx, execution_id, &execution.stages).await?;
-        }
-        tx.commit().await.map_err(|err| err.to_string())?;
-        Ok(recovered)
+        Ok(done)
     }
-
     pub(crate) async fn expired_stage_attempts(
         &self,
-        execution_id: &str,
+        id: &str,
     ) -> Result<Vec<(String, u32, String)>, String> {
-        let now = now_ms();
-        let execution = self
-            .snapshot(execution_id)
-            .await?
-            .ok_or_else(|| format!("unknown routing execution {execution_id}"))?;
-        Ok(execution
-            .stages
+        let x = self.snapshot(id).await?.ok_or("unknown execution")?;
+        Ok(x.stages
             .values()
-            .filter(|stage| {
-                matches!(
-                    stage.state,
-                    ModelLaneRoutingStageStateKind::Claimed
-                        | ModelLaneRoutingStageStateKind::InFlight
-                        | ModelLaneRoutingStageStateKind::AwaitingAuthority
-                ) && stage
-                    .lease_expires_at_unix_ms
-                    .is_some_and(|expiry| expiry <= now)
-            })
-            .filter_map(|stage| {
-                stage
-                    .instance_id
+            .filter(|v| v.lease_expires_at_unix_ms.is_some_and(|e| e <= now_ms()))
+            .filter_map(|v| {
+                v.instance_id
                     .clone()
-                    .map(|instance_id| (stage.stage_id.clone(), stage.attempt, instance_id))
+                    .map(|i| (v.stage_id.clone(), v.attempt, i))
             })
             .collect())
     }
     pub(crate) async fn cancel_execution(
         &self,
-        execution_id: &str,
+        id: &str,
         reason: impl Into<String>,
     ) -> Result<ModelLaneRoutingExecutionState, String> {
         let reason = reason.into();
-        let mut tx = self.pool.begin().await.map_err(|err| err.to_string())?;
-        lock_execution(&mut tx, execution_id).await?;
-        let mut execution = load_execution_tx(&mut tx, execution_id)
-            .await?
-            .ok_or_else(|| format!("unknown routing execution {execution_id}"))?;
-        // Cancellation is first-writer-wins. A retry commonly means the first
-        // call durably cancelled the routing execution but one runtime cleanup
-        // remained retryable. Re-appending `routing-cancel:{execution_id}` with
-        // a new revision/reason would correctly fail EventLedger's divergent
-        // idempotency check before the coordinator can retry that cleanup.
-        // Return the canonical cancelled projection unchanged so the caller can
-        // continue its exact-generation runtime scan without rewriting history.
-        if execution.status == ModelLaneRoutingExecutionStatus::Cancelled {
-            tx.rollback().await.map_err(|err| err.to_string())?;
-            return Ok(execution);
+        let mut x = self.snapshot(id).await?.ok_or("unknown execution")?;
+        if x.status == ModelLaneRoutingExecutionStatus::Cancelled
+            && x.stages.values().all(|stage| stage.state.is_terminal())
+        {
+            return Ok(x);
         }
-        if matches!(
-            execution.status,
-            ModelLaneRoutingExecutionStatus::Succeeded | ModelLaneRoutingExecutionStatus::Failed
-        ) {
-            return Err("terminal routing execution cannot be cancelled".into());
-        }
-        let now = now_ms();
-        let cancellable: Vec<String> = execution
+        for sid in x
             .stages
             .values()
-            .filter(|stage| !stage.state.is_terminal())
-            .map(|stage| stage.stage_id.clone())
-            .collect();
-        for stage_id in cancellable {
-            let current = execution.stages[&stage_id].clone();
-            let mut cancelled_stage = current.clone();
-            cancelled_stage.state = ModelLaneRoutingStageStateKind::Cancelled;
-            cancelled_stage.detail = Some(reason.clone());
-            cancelled_stage.lease_owner = None;
-            cancelled_stage.fencing_token = None;
-            cancelled_stage.lease_expires_at_unix_ms = None;
-            cancelled_stage.updated_at_unix_ms = now;
-            let stored_stage = append_event(
-                &mut tx,
-                KernelEventType::SessionFailed,
-                "model_lane_routing_stage_attempt",
-                &format!("{execution_id}:{stage_id}:{}", current.attempt),
-                &format!(
-                    "routing-stage-cancel:{execution_id}:{stage_id}:{}",
-                    current.attempt
-                ),
-                &execution.run_id,
-                execution_id,
-                json!({
-                    "schema_id": ROUTING_STAGE_ATTEMPT_SCHEMA_ID,
-                    "execution_id": execution_id,
-                    "stage_id": stage_id,
-                    "attempt": current.attempt,
-                    "fencing_token": current.fencing_token,
-                    "state": "cancelled",
-                    "reason": reason,
-                    "dispatch_target": current.dispatch_target,
-                    "expected_run_id": current.expected_run_id,
-                    "expected_lane_id": current.expected_lane_id,
-                    "expected_model_id": current.expected_model_id,
-                    "expected_provider": current.expected_provider,
-                    "input_refs": current.input_refs,
-                    "authority_ref": current.authority_ref,
-                    "record": attempt_record_without_self_pointer(
-                        serde_json::to_value(&cancelled_stage).map_err(|err| err.to_string())?
-                    ),
-                }),
-            )
-            .await?;
-            cancelled_stage.event_ledger_event_id = stored_stage.0;
-            cancelled_stage.event_ledger_seq = stored_stage.1;
-            persist_outbox_state_tx(&mut tx, &execution, &cancelled_stage, "cancelled").await?;
-            execution.stages.insert(stage_id, cancelled_stage);
+            .filter(|v| !v.state.is_terminal())
+            .map(|v| v.stage_id.clone())
+            .collect::<Vec<_>>()
+        {
+            let rev = x.revision;
+            let mut a = x.stages[&sid].clone();
+            a.state = ModelLaneRoutingStageStateKind::Cancelled;
+            a.detail = Some(reason.clone());
+            a.lease_owner = None;
+            a.fencing_token = None;
+            a.lease_expires_at_unix_ms = None;
+            a.updated_at_unix_ms = now_ms();
+            x.stages.insert(sid, a.clone());
+            x.status = ModelLaneRoutingExecutionStatus::Cancelled;
+            x.cancel_reason = Some(reason.clone());
+            x.revision = rev + 1;
+            let e = events(&x, &a, "cancelled", "cancel")?;
+            x = self
+                .model_lane_store
+                .commit_routing_execution_atomic(rev, None, x, a, "cancelled", e)
+                .await
+                .map_err(|e| e.to_string())?
         }
-        execution.status = ModelLaneRoutingExecutionStatus::Cancelled;
-        execution.cancel_reason = Some(reason);
-        execution.revision = execution.revision.saturating_add(1);
-        let stored = append_event(
-            &mut tx,
-            KernelEventType::SessionFailed,
-            "model_lane_routing_execution",
-            execution_id,
-            &format!("routing-cancel:{execution_id}"),
-            &execution.run_id,
-            execution_id,
-            json!({"schema_id": ROUTING_EXECUTION_SCHEMA_ID, "record": execution}),
-        )
-        .await?;
-        execution.event_ledger_event_id = stored.0;
-        execution.event_ledger_seq = stored.1;
-        save_execution_tx(&mut tx, &execution).await?;
-        save_attempt_projections_tx(&mut tx, execution_id, &execution.stages).await?;
-        tx.commit().await.map_err(|err| err.to_string())?;
-        Ok(execution)
+        Ok(x)
     }
 }
-
+fn check_run(r: &ModelLaneRunRecord, c: &ModelLaneRoutingExecutionContext) -> Result<(), String> {
+    if r.run_id != c.run_id
+        || r.trace_id != c.trace_id
+        || r.run_span_id != c.run_span_id
+        || r.coordinator_session_id != c.coordinator_session_id
+        || r.work_packet_id.as_deref() != Some(&c.work_packet_id)
+        || r.micro_task_id != c.micro_task_id
+        || r.task_board_id.as_deref() != Some(&c.task_board_id)
+        || r.owner_session != c.owner_session
+    {
+        return Err("run context mismatch".into());
+    }
+    Ok(())
+}
+fn check_launches(
+    x: &ModelLaneRoutingExecutionState,
+    ls: &[ModelLaneRoutingStageLaunch],
+) -> Result<(), String> {
+    let vs = stage_views(&x.canonical_graph)?;
+    let mut seen = BTreeSet::new();
+    for l in ls {
+        if !seen.insert(&l.stage_id) {
+            return Err("duplicate launch".into());
+        }
+        let v = vs
+            .iter()
+            .find(|v| v.stage_id == l.stage_id)
+            .ok_or("unknown launch stage")?;
+        let p = x
+            .canonical_launch_plan
+            .iter()
+            .find(|p| p.stage_id == l.stage_id)
+            .ok_or("missing launch plan")?;
+        if l.expected_run_id != x.run_id || p.dispatch_target != v.dispatch_target {
+            return Err("launch authority mismatch".into());
+        }
+        if matches!(
+            v.dispatch_target,
+            ModelLaneRoutingDispatchTarget::LocalModel | ModelLaneRoutingDispatchTarget::CloudModel
+        ) {
+            let r = l.request.as_ref().ok_or("missing spawn request")?;
+            let d = r
+                .dexterity_launch
+                .as_ref()
+                .ok_or("missing launch contract")?;
+            if l.generate_request.is_none()
+                || d.run_id != l.expected_run_id
+                || d.lane_id != l.expected_lane_id
+                || r.instance_id.model_id.to_string() != l.expected_model_id
+                || r.provider != l.expected_provider
+                || p.lane_id.as_deref() != Some(&l.expected_lane_id)
+                || p.model_id.as_deref() != Some(&l.expected_model_id)
+                || p.provider != l.expected_provider
+            {
+                return Err("model launch mismatch".into());
+            }
+        }
+    }
+    Ok(())
+}
+fn stage(
+    x: &ModelLaneRoutingExecutionState,
+    v: &StageView,
+    n: u32,
+) -> Result<ModelLaneRoutingStageState, String> {
+    let p = x
+        .canonical_launch_plan
+        .iter()
+        .find(|p| p.stage_id == v.stage_id)
+        .ok_or("missing stage plan")?;
+    let mut ins = predecessor_output_refs(v, &x.stages);
+    if let Some(i) = x.initial_input_ref.clone() {
+        ins.push(i)
+    }
+    Ok(ModelLaneRoutingStageState {
+        stage_id: v.stage_id.clone(),
+        state: ModelLaneRoutingStageStateKind::Scheduled,
+        attempt: n,
+        dispatch_target: v.dispatch_target,
+        expected_run_id: x.run_id.clone(),
+        expected_lane_id: p.lane_id.clone().unwrap_or_default(),
+        expected_model_id: p.model_id.clone().unwrap_or_default(),
+        expected_provider: p.provider,
+        instance_id: None,
+        lane_id: None,
+        input_refs: ins,
+        output_ref: None,
+        output_message_ref: None,
+        authority_request_message_ref: None,
+        output_sha256: None,
+        output_payload: None,
+        authority_ref: authority_for_stage(v, &x.authority)?,
+        lease_owner: None,
+        fencing_token: None,
+        lease_expires_at_unix_ms: None,
+        detail: None,
+        event_ledger_event_id: String::new(),
+        event_ledger_seq: 0,
+        updated_at_unix_ms: now_ms(),
+    })
+}
+fn claim(x: &ModelLaneRoutingExecutionState, c: &ModelLaneRoutingStageClaim) -> Result<(), String> {
+    let a = x.stages.get(&c.stage_id).ok_or("unknown stage")?;
+    if c.execution_id != x.execution_id
+        || a.attempt != c.attempt
+        || a.lease_owner.as_deref() != Some(&c.lease_owner)
+        || a.fencing_token.as_deref() != Some(&c.fencing_token)
+        || a.lease_expires_at_unix_ms.is_none_or(|v| v < now_ms())
+    {
+        return Err("stale routing claim".into());
+    }
+    Ok(())
+}
+fn obox(s: ModelLaneRoutingStageStateKind) -> &'static str {
+    if matches!(
+        s,
+        ModelLaneRoutingStageStateKind::Claimed
+            | ModelLaneRoutingStageStateKind::InFlight
+            | ModelLaneRoutingStageStateKind::AwaitingAuthority
+    ) {
+        "claimed"
+    } else {
+        "acked"
+    }
+}
+fn events(
+    x: &ModelLaneRoutingExecutionState,
+    a: &ModelLaneRoutingStageState,
+    status: &str,
+    act: &str,
+) -> Result<Vec<NewKernelEvent>, String> {
+    let k = if a.state.is_success() {
+        KernelEventType::ModelResponseRecorded
+    } else if matches!(
+        a.state,
+        ModelLaneRoutingStageStateKind::Failed
+            | ModelLaneRoutingStageStateKind::Cancelled
+            | ModelLaneRoutingStageStateKind::Compensated
+    ) {
+        KernelEventType::SessionFailed
+    } else {
+        KernelEventType::ModelAdapterInvoked
+    };
+    let aid = format!("{}:{}:{}", x.execution_id, a.stage_id, a.attempt);
+    let oid = format!(
+        "routing-command:{}:{}:{}",
+        x.execution_id, a.stage_id, a.attempt
+    );
+    let e = |t: &str, id: &str, key: String, p: Value| {
+        NewKernelEvent::builder(
+            x.run_id.clone(),
+            x.execution_id.clone(),
+            k,
+            KernelActor::ModelAdapter("DexterityRoutingExecutor".into()),
+        )
+        .aggregate(t, id)
+        .idempotency_key(key)
+        .correlation_id(format!("dexterity-routing:{}", x.execution_id))
+        .source_component(SOURCE_COMPONENT)
+        .payload(p)
+        .build()
+        .map_err(|e| e.to_string())
+    };
+    Ok(vec![
+        e(
+            "model_lane_routing_execution",
+            &x.execution_id,
+            format!("routing:{act}:execution:{}:{}", x.execution_id, x.revision),
+            json!({"schema_id":ROUTING_EXECUTION_SCHEMA_ID,"record":x}),
+        )?,
+        e(
+            "model_lane_routing_stage_attempt",
+            &aid,
+            format!("routing:{act}:attempt:{aid}:{}", x.revision),
+            json!({"schema_id":ROUTING_STAGE_ATTEMPT_SCHEMA_ID,"record":a}),
+        )?,
+        e(
+            "model_lane_routing_outbox",
+            &oid,
+            format!("routing:{act}:outbox:{oid}:{}", x.revision),
+            json!({"schema_id":ROUTING_OUTBOX_SCHEMA_ID,"status":status}),
+        )?,
+    ])
+}
 fn validate_launch_plan(
     graph: &ModelLaneRoutingGraph,
     plan: &[ModelLaneRoutingStageLaunchPlan],
@@ -2578,81 +1615,6 @@ fn deterministic_debate_adjudication(
     }))
 }
 
-async fn validate_initial_input_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    run_id: &str,
-    input_ref: &str,
-    expected_sha256: &str,
-) -> Result<(), String> {
-    let message_id = input_ref
-        .strip_prefix("model-lane-message://")
-        .ok_or_else(|| "initial input must be a model-lane-message:// reference".to_string())?;
-    let row = sqlx::query(
-        r#"SELECT message.record_json AS message_json, message_ledger.payload AS message_payload,
-                  artifact.record_json AS artifact_json, artifact_ledger.payload AS artifact_payload
-           FROM model_lane_messages message
-           JOIN kernel_event_ledger message_ledger
-             ON message_ledger.event_id=message.event_ledger_event_id
-            AND message_ledger.event_sequence=message.event_ledger_seq
-            AND message_ledger.aggregate_type='model_lane_message'
-            AND message_ledger.aggregate_id=message.message_id
-           JOIN model_lane_context_bundle_artifacts artifact
-             ON artifact.run_id=message.run_id
-            AND artifact.artifact_ref=message.record_json->>'payload_ref'
-           JOIN kernel_event_ledger artifact_ledger
-             ON artifact_ledger.event_id=artifact.event_ledger_event_id
-            AND artifact_ledger.event_sequence=artifact.event_ledger_seq
-            AND artifact_ledger.aggregate_type='model_lane_context_bundle_artifact'
-            AND artifact_ledger.aggregate_id=artifact.artifact_binding_id
-           WHERE message.message_id=$1 AND message.run_id=$2"#,
-    )
-    .bind(message_id)
-    .bind(run_id)
-    .fetch_optional(&mut **tx)
-    .await
-    .map_err(|err| err.to_string())?
-    .ok_or_else(|| {
-        format!("selected initial input {input_ref} has no canonical message/artifact lineage")
-    })?;
-    let message_json: Value = row.get("message_json");
-    let message_payload: Value = row.get("message_payload");
-    let artifact_json: Value = row.get("artifact_json");
-    let artifact_payload: Value = row.get("artifact_payload");
-    let bound_hash = message_json.get("payload_sha256").and_then(Value::as_str);
-    // The MODEL_RESPONSE_RECORDED EventLedger payload stores `crdt_authority_binding`
-    // as a SIBLING of `/record` (see `record_message_tx`), while the mutable
-    // `record_json` projection nests it inside the record object. Compare the record
-    // body without that field, then verify the binding against the ledger sibling
-    // separately, mirroring the diagnostics-projection drift check. Without this a
-    // CRDT-bearing initial input (`crdt_authority_binding` = Some) is falsely rejected
-    // as a hash/EventLedger binding mismatch; the crdt binding is still fully asserted.
-    let mut canonical_message_record = record_without_generated_event_fields(message_json.clone());
-    let row_crdt_binding = canonical_message_record
-        .as_object_mut()
-        .and_then(|record| record.remove("crdt_authority_binding"))
-        .unwrap_or(Value::Null);
-    let ledger_crdt_binding = message_payload
-        .get("crdt_authority_binding")
-        .cloned()
-        .unwrap_or(Value::Null);
-    if message_payload.pointer("/record") != Some(&canonical_message_record)
-        || row_crdt_binding != ledger_crdt_binding
-        || artifact_payload.pointer("/record") != Some(&artifact_json)
-        || bound_hash != Some(expected_sha256)
-        || artifact_json.get("artifact_sha256").and_then(Value::as_str) != Some(expected_sha256)
-        || canonical_sha256(
-            artifact_json
-                .get("payload_json")
-                .ok_or_else(|| "initial input artifact has no payload_json".to_string())?,
-        )? != expected_sha256
-    {
-        return Err(format!(
-            "selected initial input {input_ref} hash/EventLedger binding mismatch"
-        ));
-    }
-    Ok(())
-}
-
 fn initial_execution(
     execution_id: &str,
     canonical_graph: Value,
@@ -2695,753 +1657,6 @@ fn initial_execution(
         event_ledger_event_id: String::new(),
         event_ledger_seq: 0,
     }
-}
-
-/// How long a routing-execution advisory acquisition may wait before failing
-/// loudly. Long enough that ordinary contention (a concurrent stage transition
-/// on the same execution) still succeeds on a loaded host, short enough that an
-/// operator cancel reports instead of hanging. Advisory locks are invisible to
-/// PostgreSQL's deadlock detector, so this bound is the ONLY thing that breaks a
-/// cycle on this path.
-const ROUTING_EXECUTION_LOCK_TIMEOUT: &str = "15s";
-
-async fn lock_execution(
-    tx: &mut Transaction<'_, Postgres>,
-    execution_id: &str,
-) -> Result<(), String> {
-    // Transaction-local call-site marker; see the matching note in
-    // model_lane.rs::record_or_extend_run_tx. Both sites take the SAME salt-0
-    // keyspace, so naming the holder is what distinguishes a cross-site
-    // collision from a re-entrant self-block in pg_stat_activity.
-    //
-    // lock_execution has EIGHT callers, so the bare marker proves a self-
-    // collision on the execution key without naming WHICH two callers collide.
-    // Setting HANDSHAKE_LOCK_TRACE=1 appends the nearest caller frame. The
-    // backtrace is captured ONLY under that env var, so production pays
-    // nothing: this is a diagnostic seam, not an always-on cost.
-    // NOTE: application_name is capped at NAMEDATALEN-1 (63 bytes). A marker of
-    // the form hsk:lock_execution:<caller>:<execution_id> is silently truncated
-    // mid-execution_id, which hides the very field being added. The execution
-    // id is already known from the test under inspection, so the marker carries
-    // the CALLER only and stays well inside the cap.
-    // The TASK id is the discriminator that matters here, and it is far more
-    // reliable than a symbol name: on Windows/MSVC every async frame symbolises
-    // as `async_fn$0`, so a backtrace cannot name the calling function at all.
-    // If the holder and a waiter share a task id, one logical operation holds
-    // this key on one pooled connection while requesting it on another - a true
-    // re-entrant self-deadlock. Distinct task ids mean cross-task lock-ordering
-    // contention instead. Those two faults have different fixes.
-    let task = tokio::task::try_id()
-        .map(|id| id.to_string())
-        .unwrap_or_else(|| "none".to_string());
-    sqlx::query("SELECT set_config('application_name', $1, true)")
-        .bind(format!("hsk:le:task{task}"))
-        .execute(&mut **tx)
-        .await
-        .map_err(|err| err.to_string())?;
-    // BOUND the acquisition. An unbounded pg_advisory_xact_lock on the routing
-    // terminal path means an operator cancel can block forever: PostgreSQL does
-    // NOT run deadlock detection over advisory locks, so a cycle here is never
-    // broken by the database. Re-entrant acquisition (the same task holding this
-    // key on one pooled connection while requesting it on another) was proven
-    // for this keyspace via task-id markers, and it hung indefinitely.
-    //
-    // Bounding turns that from an unrecoverable hang into a typed, reportable
-    // failure that names the execution and the holder. `SET LOCAL` semantics
-    // (`true`) confine the timeout to this transaction. Precedent in-repo:
-    // model_runtime/registry_persistence.rs bounds its advisory acquisition the
-    // same way.
-    sqlx::query("SELECT set_config('lock_timeout', $1, true)")
-        .bind(ROUTING_EXECUTION_LOCK_TIMEOUT)
-        .execute(&mut **tx)
-        .await
-        .map_err(|err| err.to_string())?;
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
-        .bind(execution_id)
-        .execute(&mut **tx)
-        .await
-        .map_err(|err| {
-            format!(
-                "routing execution advisory lock for {execution_id} was not granted within {ROUTING_EXECUTION_LOCK_TIMEOUT} \
-                 (holder identifies itself in pg_stat_activity.application_name as hsk:le:task<id>; the SAME task id on \
-                 both holder and waiter means re-entrant acquisition, a different id means cross-task lock ordering): {err}"
-            )
-        })?;
-    Ok(())
-}
-
-async fn load_execution_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    execution_id: &str,
-) -> Result<Option<ModelLaneRoutingExecutionState>, String> {
-    let row = sqlx::query(
-        r#"SELECT routing.record_json, routing.graph_sha256,
-                  ledger.aggregate_type, ledger.aggregate_id, ledger.payload
-           FROM model_lane_routing_executions routing
-           LEFT JOIN kernel_event_ledger ledger
-             ON ledger.event_id = routing.event_ledger_event_id
-            AND ledger.event_sequence = routing.event_ledger_seq
-           WHERE routing.execution_id = $1
-           FOR UPDATE OF routing"#,
-    )
-    .bind(execution_id)
-    .fetch_optional(&mut **tx)
-    .await
-    .map_err(|err| err.to_string())?;
-    let Some(row) = row else { return Ok(None) };
-    let record_json: Value = row.get("record_json");
-    let state: ModelLaneRoutingExecutionState =
-        serde_json::from_value(record_json.clone()).map_err(|err| err.to_string())?;
-    let graph_hash: String = row.get("graph_sha256");
-    let aggregate_type: Option<String> = row.get("aggregate_type");
-    let aggregate_id: Option<String> = row.get("aggregate_id");
-    let payload: Option<Value> = row.get("payload");
-    if aggregate_type.as_deref() != Some("model_lane_routing_execution")
-        || aggregate_id.as_deref() != Some(execution_id)
-        || payload
-            .as_ref()
-            .and_then(|value| value.pointer("/record"))
-            .cloned()
-            .map(execution_record_without_self_pointer)
-            != Some(execution_record_without_self_pointer(record_json))
-        || graph_hash != canonical_sha256(&state.canonical_graph)?
-        || state.canonical_graph_sha256 != graph_hash
-        || state.canonical_launch_plan_sha256
-            != canonical_sha256(
-                &serde_json::to_value(&state.canonical_launch_plan)
-                    .map_err(|err| err.to_string())?,
-            )?
-    {
-        return Err(format!(
-            "routing execution {execution_id} projection/EventLedger integrity failure"
-        ));
-    }
-    let decision_row = sqlx::query(
-        r#"SELECT decision.record_json, decision.event_ledger_event_id,
-                  decision.event_ledger_seq, ledger.aggregate_type,
-                  ledger.aggregate_id, ledger.payload
-           FROM model_lane_promotion_decisions decision
-           LEFT JOIN kernel_event_ledger ledger
-             ON ledger.event_id = decision.event_ledger_event_id
-            AND ledger.event_sequence = decision.event_ledger_seq
-           WHERE decision.decision_id = $1
-           FOR UPDATE OF decision"#,
-    )
-    .bind(&state.selecting_decision_id)
-    .fetch_optional(&mut **tx)
-    .await
-    .map_err(|err| err.to_string())?
-    .ok_or_else(|| {
-        format!("routing execution {execution_id} selecting decision projection missing")
-    })?;
-    let decision_json: Value = decision_row.get("record_json");
-    let decision_event_id: String = decision_row.get("event_ledger_event_id");
-    let decision_event_seq: i64 = decision_row.get("event_ledger_seq");
-    let decision_aggregate_type: Option<String> = decision_row.get("aggregate_type");
-    let decision_aggregate_id: Option<String> = decision_row.get("aggregate_id");
-    let decision_payload: Option<Value> = decision_row.get("payload");
-    let decision: ModelLanePromotionDecisionRecord =
-        serde_json::from_value(decision_json.clone()).map_err(|err| err.to_string())?;
-    if decision_event_id != state.selecting_decision_event_id
-        || decision_event_seq != state.selecting_decision_event_seq
-        || decision_aggregate_type.as_deref() != Some("model_lane_promotion_decision")
-        || decision_aggregate_id.as_deref() != Some(state.selecting_decision_id.as_str())
-        || decision_payload
-            .as_ref()
-            .and_then(|value| value.pointer("/record"))
-            .cloned()
-            .map(record_without_generated_event_fields)
-            != Some(record_without_generated_event_fields(decision_json))
-        || decision.routing_launch_plan != state.canonical_launch_plan
-    {
-        return Err(format!(
-            "routing execution {execution_id} selecting decision projection/EventLedger integrity failure"
-        ));
-    }
-    // Lock the mutable run projection before reading its immutable ledger
-    // event. A joined SELECT ... FOR UPDATE can wait behind a concurrent run
-    // extension and then return the new run version with joined ledger columns
-    // evaluated from the statement's older READ COMMITTED snapshot. Splitting
-    // the reads prevents that fractured projection/EventLedger view.
-    let run_row = sqlx::query(
-        r#"SELECT record_json, event_ledger_event_id, event_ledger_seq
-           FROM model_lane_runs
-           WHERE run_id = $1
-           FOR UPDATE"#,
-    )
-    .bind(&state.run_id)
-    .fetch_optional(&mut **tx)
-    .await
-    .map_err(|err| err.to_string())?
-    .ok_or_else(|| format!("routing execution {execution_id} ModelLaneRun projection missing"))?;
-    let run_json: Value = run_row.get("record_json");
-    let run_event_id: String = run_row.get("event_ledger_event_id");
-    let run_event_seq: i64 = run_row.get("event_ledger_seq");
-    let run: ModelLaneRunRecord =
-        serde_json::from_value(run_json.clone()).map_err(|err| err.to_string())?;
-    let run_event_row = sqlx::query(
-        r#"SELECT aggregate_type, aggregate_id, payload
-           FROM kernel_event_ledger
-           WHERE event_id = $1 AND event_sequence = $2"#,
-    )
-    .bind(&run_event_id)
-    .bind(run_event_seq)
-    .fetch_optional(&mut **tx)
-    .await
-    .map_err(|err| err.to_string())?;
-    let run_payload: Option<Value> = run_event_row
-        .as_ref()
-        .map(|row| row.get::<Value, _>("payload"));
-    let run_aggregate_type: Option<String> = run_event_row
-        .as_ref()
-        .map(|row| row.get::<String, _>("aggregate_type"));
-    let run_aggregate_id: Option<String> = run_event_row
-        .as_ref()
-        .map(|row| row.get::<String, _>("aggregate_id"));
-    let run_record_matches_event = run_payload
-        .as_ref()
-        .and_then(|value| value.pointer("/record"))
-        .cloned()
-        .map(record_without_generated_event_fields)
-        == Some(record_without_generated_event_fields(run_json));
-    let run_locus_ref = run
-        .locus_binding
-        .as_ref()
-        .map(|binding| binding.locus_binding_ref.as_str());
-    let mut run_integrity_mismatches = Vec::new();
-    if run_aggregate_type.as_deref() != Some("model_lane_run") {
-        run_integrity_mismatches.push("aggregate_type");
-    }
-    if run_aggregate_id.as_deref() != Some(state.run_id.as_str()) {
-        run_integrity_mismatches.push("aggregate_id");
-    }
-    if !run_record_matches_event {
-        run_integrity_mismatches.push("event_record");
-    }
-    if run.trace_id != state.trace_id {
-        run_integrity_mismatches.push("trace_id");
-    }
-    if run.run_span_id != state.run_span_id {
-        run_integrity_mismatches.push("run_span_id");
-    }
-    if run.coordinator_session_id != state.coordinator_session_id {
-        run_integrity_mismatches.push("coordinator_session_id");
-    }
-    if run.work_packet_id.as_deref() != Some(state.work_packet_id.as_str()) {
-        run_integrity_mismatches.push("work_packet_id");
-    }
-    if run.micro_task_id.as_deref() != state.micro_task_id.as_deref() {
-        run_integrity_mismatches.push("micro_task_id");
-    }
-    if run.task_board_id.as_deref() != Some(state.task_board_id.as_str()) {
-        run_integrity_mismatches.push("task_board_id");
-    }
-    if run.owner_session != state.owner_session {
-        run_integrity_mismatches.push("owner_session");
-    }
-    if run_locus_ref != Some(state.locus_ref.as_str()) {
-        run_integrity_mismatches.push("locus_ref");
-    }
-    if !run_integrity_mismatches.is_empty() {
-        return Err(format!(
-            "routing execution {execution_id} ModelLaneRun projection/EventLedger/context integrity failure: {}",
-            run_integrity_mismatches.join(",")
-        ));
-    }
-    for stage in state.stages.values() {
-        let attempt_row = sqlx::query(
-            r#"SELECT attempt.record_json, attempt.event_ledger_event_id,
-                      attempt.event_ledger_seq, ledger.aggregate_type,
-                      ledger.aggregate_id, ledger.payload
-               FROM model_lane_routing_stage_attempts attempt
-               LEFT JOIN kernel_event_ledger ledger
-                 ON ledger.event_id = attempt.event_ledger_event_id
-                AND ledger.event_sequence = attempt.event_ledger_seq
-               WHERE attempt.execution_id = $1
-                 AND attempt.stage_id = $2
-                 AND attempt.attempt = $3
-               FOR UPDATE OF attempt"#,
-        )
-        .bind(execution_id)
-        .bind(&stage.stage_id)
-        .bind(i64::from(stage.attempt))
-        .fetch_optional(&mut **tx)
-        .await
-        .map_err(|err| err.to_string())?
-        .ok_or_else(|| {
-            format!(
-                "routing attempt projection missing for {execution_id}/{}/{}",
-                stage.stage_id, stage.attempt
-            )
-        })?;
-        let attempt_json: Value = attempt_row.get("record_json");
-        let attempt_event_id: String = attempt_row.get("event_ledger_event_id");
-        let attempt_event_seq: i64 = attempt_row.get("event_ledger_seq");
-        let attempt_payload: Option<Value> = attempt_row.get("payload");
-        let attempt_aggregate_type: Option<String> = attempt_row.get("aggregate_type");
-        let attempt_aggregate_id: Option<String> = attempt_row.get("aggregate_id");
-        let expected_attempt_aggregate_id =
-            format!("{execution_id}:{}:{}", stage.stage_id, stage.attempt);
-        if attempt_json != serde_json::to_value(stage).map_err(|err| err.to_string())?
-            || attempt_event_id != stage.event_ledger_event_id
-            || attempt_event_seq != stage.event_ledger_seq
-            || attempt_aggregate_type.as_deref() != Some("model_lane_routing_stage_attempt")
-            || attempt_aggregate_id.as_deref() != Some(expected_attempt_aggregate_id.as_str())
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("execution_id"))
-                .and_then(Value::as_str)
-                != Some(execution_id)
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("stage_id"))
-                .and_then(Value::as_str)
-                != Some(stage.stage_id.as_str())
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("attempt"))
-                .and_then(Value::as_u64)
-                != Some(u64::from(stage.attempt))
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("state"))
-                .and_then(enum_name)
-                .as_deref()
-                != Some(stage_kind_name(stage.state))
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("dispatch_target"))
-                != Some(
-                    &serde_json::to_value(stage.dispatch_target).map_err(|err| err.to_string())?,
-                )
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("expected_run_id"))
-                .and_then(Value::as_str)
-                != Some(stage.expected_run_id.as_str())
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("expected_lane_id"))
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                != stage.expected_lane_id
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("expected_model_id"))
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                != stage.expected_model_id
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("expected_provider"))
-                != Some(
-                    &serde_json::to_value(stage.expected_provider)
-                        .map_err(|err| err.to_string())?,
-                )
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("input_refs"))
-                != Some(&serde_json::to_value(&stage.input_refs).map_err(|err| err.to_string())?)
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("authority_ref"))
-                != Some(&serde_json::to_value(&stage.authority_ref).map_err(|err| err.to_string())?)
-            || attempt_payload
-                .as_ref()
-                .and_then(|value| value.get("record"))
-                .cloned()
-                .map(attempt_record_without_self_pointer)
-                != Some(attempt_record_without_self_pointer(attempt_json.clone()))
-        {
-            return Err(format!(
-                "routing attempt {execution_id}/{}/{} projection/EventLedger integrity failure",
-                stage.stage_id, stage.attempt
-            ));
-        }
-        let command_id = format!(
-            "routing-command:{execution_id}:{}:{}",
-            stage.stage_id, stage.attempt
-        );
-        let outbox = sqlx::query(
-            r#"SELECT outbox.status, outbox.command_json, outbox.fencing_token,
-                      outbox.lease_owner, outbox.lease_expires_at_unix_ms,
-                      outbox.event_ledger_event_id, outbox.event_ledger_seq,
-                      ledger.aggregate_type, ledger.aggregate_id, ledger.payload
-               FROM model_lane_routing_outbox outbox
-               LEFT JOIN kernel_event_ledger ledger
-                 ON ledger.event_id=outbox.event_ledger_event_id
-                AND ledger.event_sequence=outbox.event_ledger_seq
-               WHERE outbox.command_id=$1 FOR UPDATE OF outbox"#,
-        )
-        .bind(&command_id)
-        .fetch_optional(&mut **tx)
-        .await
-        .map_err(|err| err.to_string())?
-        .ok_or_else(|| format!("routing outbox projection missing for {command_id}"))?;
-        let outbox_status: String = outbox.get("status");
-        let command_json: Value = outbox.get("command_json");
-        let outbox_fence: Option<String> = outbox.get("fencing_token");
-        let outbox_owner: Option<String> = outbox.get("lease_owner");
-        let outbox_expiry: Option<i64> = outbox.get("lease_expires_at_unix_ms");
-        let outbox_aggregate_type: Option<String> = outbox.get("aggregate_type");
-        let outbox_aggregate_id: Option<String> = outbox.get("aggregate_id");
-        let outbox_payload: Option<Value> = outbox.get("payload");
-        let expected_outbox_status = match stage.state {
-            ModelLaneRoutingStageStateKind::Scheduled => "pending",
-            ModelLaneRoutingStageStateKind::Claimed
-            | ModelLaneRoutingStageStateKind::InFlight
-            | ModelLaneRoutingStageStateKind::AwaitingAuthority => "claimed",
-            ModelLaneRoutingStageStateKind::Cancelled => "cancelled",
-            ModelLaneRoutingStageStateKind::Compensated => "compensated",
-            _ => "acked",
-        };
-        let expected_command = json!({
-            "schema_id": ROUTING_OUTBOX_SCHEMA_ID,
-            "execution_id": execution_id,
-            "stage_id": stage.stage_id,
-            "attempt": stage.attempt,
-            "dispatch_target": stage.dispatch_target,
-            "expected_run_id": stage.expected_run_id,
-            "expected_lane_id": stage.expected_lane_id,
-            "expected_model_id": stage.expected_model_id,
-            "expected_provider": stage.expected_provider,
-            "input_refs": stage.input_refs,
-            "authority_ref": stage.authority_ref,
-        });
-        if outbox_status != expected_outbox_status
-            || command_json != expected_command
-            || outbox_aggregate_type.as_deref() != Some("model_lane_routing_outbox")
-            || outbox_aggregate_id.as_deref() != Some(command_id.as_str())
-            || outbox_payload
-                .as_ref()
-                .and_then(|payload| payload.get("command"))
-                != Some(&expected_command)
-            || outbox_payload
-                .as_ref()
-                .and_then(|payload| payload.get("status"))
-                .and_then(Value::as_str)
-                != Some(expected_outbox_status)
-            || outbox_payload
-                .as_ref()
-                .and_then(|payload| payload.get("fencing_token"))
-                .and_then(Value::as_str)
-                != stage.fencing_token.as_deref()
-            || outbox_payload
-                .as_ref()
-                .and_then(|payload| payload.get("lease_owner"))
-                .and_then(Value::as_str)
-                != stage.lease_owner.as_deref()
-            || outbox_payload
-                .as_ref()
-                .and_then(|payload| payload.get("lease_expires_at_unix_ms"))
-                .and_then(Value::as_u64)
-                != stage.lease_expires_at_unix_ms
-            || outbox_fence.as_deref() != stage.fencing_token.as_deref()
-            || outbox_owner.as_deref() != stage.lease_owner.as_deref()
-            || outbox_expiry.map(|value| value as u64) != stage.lease_expires_at_unix_ms
-        {
-            return Err(format!(
-                "routing outbox {command_id} projection/EventLedger integrity failure"
-            ));
-        }
-    }
-    Ok(Some(state))
-}
-
-async fn save_execution_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    execution: &ModelLaneRoutingExecutionState,
-) -> Result<(), String> {
-    let record_json = serde_json::to_value(execution).map_err(|err| err.to_string())?;
-    sqlx::query(
-        r#"INSERT INTO model_lane_routing_executions
-           (execution_id, run_id, selecting_decision_id, selecting_decision_event_id,
-            selecting_decision_event_seq, trace_id, run_span_id, coordinator_session_id,
-            locus_ref, work_packet_id, micro_task_id, task_board_id, owner_session,
-            initial_input_ref, initial_input_sha256, graph_sha256, status, revision,
-            event_ledger_event_id, event_ledger_seq, record_json, updated_at_unix_ms)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
-           ON CONFLICT (execution_id) DO UPDATE SET
-             status=EXCLUDED.status, revision=EXCLUDED.revision,
-             event_ledger_event_id=EXCLUDED.event_ledger_event_id,
-             event_ledger_seq=EXCLUDED.event_ledger_seq,
-             record_json=EXCLUDED.record_json, updated_at_unix_ms=EXCLUDED.updated_at_unix_ms"#,
-    )
-    .bind(&execution.execution_id)
-    .bind(&execution.run_id)
-    .bind(&execution.selecting_decision_id)
-    .bind(&execution.selecting_decision_event_id)
-    .bind(execution.selecting_decision_event_seq)
-    .bind(&execution.trace_id)
-    .bind(&execution.run_span_id)
-    .bind(&execution.coordinator_session_id)
-    .bind(&execution.locus_ref)
-    .bind(&execution.work_packet_id)
-    .bind(&execution.micro_task_id)
-    .bind(&execution.task_board_id)
-    .bind(&execution.owner_session)
-    .bind(execution.initial_input_ref.as_deref().unwrap_or_default())
-    .bind(
-        execution
-            .initial_input_sha256
-            .as_deref()
-            .unwrap_or_default(),
-    )
-    .bind(&execution.canonical_graph_sha256)
-    .bind(execution_status_name(execution.status))
-    .bind(execution.revision as i64)
-    .bind(&execution.event_ledger_event_id)
-    .bind(execution.event_ledger_seq)
-    .bind(record_json)
-    .bind(now_ms() as i64)
-    .execute(&mut **tx)
-    .await
-    .map_err(|err| err.to_string())?;
-    Ok(())
-}
-
-async fn insert_attempt_and_outbox_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    execution_id: &str,
-    stage: &ModelLaneRoutingStageState,
-    execution: &ModelLaneRoutingExecutionState,
-) -> Result<(), String> {
-    let attempt_json = serde_json::to_value(stage).map_err(|err| err.to_string())?;
-    sqlx::query(
-        r#"INSERT INTO model_lane_routing_stage_attempts
-           (execution_id, stage_id, attempt, dispatch_target, expected_run_id,
-            expected_lane_id, expected_model_id, expected_provider, status, run_id, trace_id,
-            locus_ref, authority_ref, input_refs, output_ref, output_message_ref,
-            authority_request_message_ref, lease_owner, fencing_token,
-            lease_expires_at_unix_ms, event_ledger_event_id,
-            event_ledger_seq, record_json, updated_at_unix_ms)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
-           ON CONFLICT (execution_id, stage_id, attempt) DO NOTHING"#,
-    )
-    .bind(execution_id)
-    .bind(&stage.stage_id)
-    .bind(i64::from(stage.attempt))
-    .bind(dispatch_target_name(&stage.dispatch_target))
-    .bind(&stage.expected_run_id)
-    .bind(&stage.expected_lane_id)
-    .bind(&stage.expected_model_id)
-    .bind(stage.expected_provider.map(|provider| format!("{provider:?}").to_ascii_lowercase()))
-    .bind(stage_kind_name(stage.state))
-    .bind(&execution.run_id)
-    .bind(&execution.trace_id)
-    .bind(&execution.locus_ref)
-    .bind(&stage.authority_ref)
-    .bind(json!(stage.input_refs))
-    .bind(&stage.output_ref)
-    .bind(&stage.output_message_ref)
-    .bind(&stage.authority_request_message_ref)
-    .bind(&stage.lease_owner)
-    .bind(&stage.fencing_token)
-    .bind(stage.lease_expires_at_unix_ms.map(|value| value as i64))
-    .bind(&stage.event_ledger_event_id)
-    .bind(stage.event_ledger_seq)
-    .bind(attempt_json)
-    .bind(stage.updated_at_unix_ms as i64)
-    .execute(&mut **tx)
-    .await
-    .map_err(|err| err.to_string())?;
-    let command_id = format!(
-        "routing-command:{execution_id}:{}:{}",
-        stage.stage_id, stage.attempt
-    );
-    let command_json = json!({
-        "schema_id": ROUTING_OUTBOX_SCHEMA_ID,
-        "execution_id": execution_id,
-        "stage_id": stage.stage_id,
-        "attempt": stage.attempt,
-        "dispatch_target": stage.dispatch_target,
-        "expected_run_id": stage.expected_run_id,
-        "expected_lane_id": stage.expected_lane_id,
-        "expected_model_id": stage.expected_model_id,
-        "expected_provider": stage.expected_provider,
-        "input_refs": stage.input_refs,
-        "authority_ref": stage.authority_ref,
-    });
-    let outbox_event = append_event(
-        tx,
-        KernelEventType::ModelAdapterInvoked,
-        "model_lane_routing_outbox",
-        &command_id,
-        &format!(
-            "routing-outbox-pending:{execution_id}:{}:{}",
-            stage.stage_id, stage.attempt
-        ),
-        &execution.run_id,
-        execution_id,
-        json!({
-            "schema_id": ROUTING_OUTBOX_SCHEMA_ID,
-            "command_id": command_id,
-            "status": "pending",
-            "command": command_json,
-            "lease_owner": Value::Null,
-            "fencing_token": Value::Null,
-            "lease_expires_at_unix_ms": Value::Null,
-        }),
-    )
-    .await?;
-    sqlx::query(
-        r#"INSERT INTO model_lane_routing_outbox
-           (command_id, idempotency_key, execution_id, stage_id, attempt,
-            dispatch_target, status, command_json, event_ledger_event_id,
-            event_ledger_seq, created_at_unix_ms, updated_at_unix_ms)
-           VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,$8,$9,$10,$10)
-           ON CONFLICT (idempotency_key) DO NOTHING"#,
-    )
-    .bind(&command_id)
-    .bind(format!(
-        "routing-dispatch:{execution_id}:{}:{}",
-        stage.stage_id, stage.attempt
-    ))
-    .bind(execution_id)
-    .bind(&stage.stage_id)
-    .bind(i64::from(stage.attempt))
-    .bind(dispatch_target_name(&stage.dispatch_target))
-    .bind(command_json)
-    .bind(outbox_event.0)
-    .bind(outbox_event.1)
-    .bind(stage.updated_at_unix_ms as i64)
-    .execute(&mut **tx)
-    .await
-    .map_err(|err| err.to_string())?;
-    Ok(())
-}
-
-async fn persist_outbox_state_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    execution: &ModelLaneRoutingExecutionState,
-    stage: &ModelLaneRoutingStageState,
-    status: &str,
-) -> Result<(), String> {
-    let command_id = format!(
-        "routing-command:{}:{}:{}",
-        execution.execution_id, stage.stage_id, stage.attempt
-    );
-    let command_json: Value = sqlx::query_scalar(
-        "SELECT command_json FROM model_lane_routing_outbox WHERE command_id=$1 FOR UPDATE",
-    )
-    .bind(&command_id)
-    .fetch_one(&mut **tx)
-    .await
-    .map_err(|err| err.to_string())?;
-    let active = status == "claimed";
-    let event = append_event(
-        tx,
-        KernelEventType::ModelAdapterInvoked,
-        "model_lane_routing_outbox",
-        &command_id,
-        &format!(
-            "routing-outbox-{status}:{}:{}:{}:{}",
-            execution.execution_id, stage.stage_id, stage.attempt, stage.event_ledger_seq
-        ),
-        &execution.run_id,
-        &execution.execution_id,
-        json!({
-            "schema_id": ROUTING_OUTBOX_SCHEMA_ID,
-            "command_id": command_id,
-            "status": status,
-            "command": command_json,
-            "lease_owner": active.then(|| stage.lease_owner.clone()).flatten(),
-            "fencing_token": active.then(|| stage.fencing_token.clone()).flatten(),
-            "lease_expires_at_unix_ms": active.then(|| stage.lease_expires_at_unix_ms).flatten(),
-        }),
-    )
-    .await?;
-    sqlx::query(
-        r#"UPDATE model_lane_routing_outbox
-           SET status=$2, lease_owner=$3, fencing_token=$4,
-               lease_expires_at_unix_ms=$5, event_ledger_event_id=$6,
-               event_ledger_seq=$7, updated_at_unix_ms=$8
-           WHERE command_id=$1"#,
-    )
-    .bind(command_id)
-    .bind(status)
-    .bind(active.then(|| stage.lease_owner.clone()).flatten())
-    .bind(active.then(|| stage.fencing_token.clone()).flatten())
-    .bind(
-        active
-            .then(|| stage.lease_expires_at_unix_ms)
-            .flatten()
-            .map(|value| value as i64),
-    )
-    .bind(event.0)
-    .bind(event.1)
-    .bind(stage.updated_at_unix_ms as i64)
-    .execute(&mut **tx)
-    .await
-    .map_err(|err| err.to_string())?;
-    Ok(())
-}
-
-async fn save_attempt_projections_tx(
-    tx: &mut Transaction<'_, Postgres>,
-    execution_id: &str,
-    stages: &BTreeMap<String, ModelLaneRoutingStageState>,
-) -> Result<(), String> {
-    for stage in stages.values() {
-        sqlx::query(
-            r#"UPDATE model_lane_routing_stage_attempts SET status=$4, input_refs=$5,
-               output_ref=$6, output_message_ref=$7, authority_request_message_ref=$8,
-               lease_owner=$9, fencing_token=$10,
-               lease_expires_at_unix_ms=$11, event_ledger_event_id=$12,
-               event_ledger_seq=$13, record_json=$14, updated_at_unix_ms=$15
-               WHERE execution_id=$1 AND stage_id=$2 AND attempt=$3"#,
-        )
-        .bind(execution_id)
-        .bind(&stage.stage_id)
-        .bind(i64::from(stage.attempt))
-        .bind(stage_kind_name(stage.state))
-        .bind(json!(stage.input_refs))
-        .bind(&stage.output_ref)
-        .bind(&stage.output_message_ref)
-        .bind(&stage.authority_request_message_ref)
-        .bind(&stage.lease_owner)
-        .bind(&stage.fencing_token)
-        .bind(stage.lease_expires_at_unix_ms.map(|value| value as i64))
-        .bind(&stage.event_ledger_event_id)
-        .bind(stage.event_ledger_seq)
-        .bind(serde_json::to_value(stage).map_err(|err| err.to_string())?)
-        .bind(stage.updated_at_unix_ms as i64)
-        .execute(&mut **tx)
-        .await
-        .map_err(|err| err.to_string())?;
-    }
-    Ok(())
-}
-
-async fn append_event(
-    tx: &mut Transaction<'_, Postgres>,
-    event_type: KernelEventType,
-    aggregate_type: &str,
-    aggregate_id: &str,
-    idempotency_key: &str,
-    kernel_task_run_id: &str,
-    session_run_id: &str,
-    payload: Value,
-) -> Result<(String, i64), String> {
-    let event = NewKernelEvent::builder(
-        kernel_task_run_id,
-        session_run_id,
-        event_type,
-        KernelActor::ModelAdapter("DexterityRoutingExecutor".into()),
-    )
-    .aggregate(aggregate_type, aggregate_id)
-    .idempotency_key(idempotency_key)
-    .correlation_id(format!(
-        "dexterity-routing:{kernel_task_run_id}:{session_run_id}"
-    ))
-    .source_component(SOURCE_COMPONENT)
-    .payload(payload)
-    .build()
-    .map_err(|err| err.to_string())?;
-    let stored = append_kernel_event_with_executor(&mut **tx, event)
-        .await
-        .map_err(|err| err.to_string())?;
-    Ok((stored.event_id, stored.event_sequence))
 }
 
 pub(crate) fn canonical_sha256(value: &Value) -> Result<String, String> {

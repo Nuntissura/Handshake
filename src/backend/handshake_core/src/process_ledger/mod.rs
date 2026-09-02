@@ -17,6 +17,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
+pub use crate::storage::surreal::{
+    ProcessOwnershipInspection, SurrealModelLaneStaleSessionSource, SurrealProcessLedgerStore,
+};
+
 pub use batcher::{
     drain_and_join_ledger_writer, LedgerBatcher, LedgerBatcherConfig, LedgerDrainJoinOutcome,
     NoopOverflowSink, RetainedLedgerBatcher,
@@ -26,50 +30,45 @@ pub use idempotency::{
     SideEffectKind,
 };
 pub use overflow::{cap_metadata_jsonb, cap_metadata_value, MetadataCapOutcome};
-pub use reclaim::{
-    acquire_embedded_runtime_instance_lease, reclaim_handle, reclaim_pidless_embedded_orphans,
-    reconcile_restart_orphans, reconcile_restart_orphans_at_boot,
-    resolve_embedded_runtime_host_scope, resolve_embedded_runtime_host_scope_with_managed_local,
-    resolve_embedded_runtime_host_scope_with_override, spawn_managed_staleness_reclaim_task,
-    spawn_managed_staleness_reclaim_task_after_boot, spawn_staleness_reclaim_task,
-    verify_proven_local_postgres_endpoint_pool,
-    EmbeddedRuntimeInstanceDescriptor, EmbeddedRuntimeInstanceLease, KillError, KillOutcome,
-    LegacyHostScopeOpenRowProbe, ManagedStalenessReclaimTask, PidlessEmbeddedReclaimReport,
-    PostgresModelLaneStaleSessionSource, ProductionSandboxKill, Reclaim, ReclaimClaim,
-    ReclaimKillOperation, ReclaimKillOperationCandidate, ReclaimKillOperationStatus,
-    ReclaimKillOperationSweep, ReclaimKillOperationSweepEntry, ReclaimKillOperationSweepOutcome,
-    ReclaimProcessStore, ReclaimReport, ReclaimStopReservation, ReclaimStopWriter, ReclaimTrigger,
-    ReclaimableProcess, ReclaimedProcess, RestartOrphanBootReconcileReport,
-    RestartOrphanReconcileErrorPolicy, SandboxKill, StaleSessionSource, StalenessReclaimConfig,
-    EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID, EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
-    EMBEDDED_RUNTIME_MANAGED_LOCAL_HOST_SCOPE_V2_PREFIX, HANDSHAKE_HOST_SCOPE_ID_ENV,
-    PIDLESS_RECLAIM_INSTANCE_CAP, POSTGRES_ACTIVE_FOREIGN_OWNER_RECLAIM_QUERY_SQL,
-    POSTGRES_ACTIVE_OWNED_PROCESS_RECLAIM_QUERY_SQL, POSTGRES_ACTIVE_PROCESS_RECLAIM_QUERY_SQL,
-    POSTGRES_ACTIVE_RECLAIM_QUERY_SQL,
-};
 #[cfg(feature = "test-utils")]
 pub use reclaim::set_dead_owner_confirmation_gap_override_for_test;
+pub use reclaim::{
+    acquire_embedded_runtime_instance_lease, reclaim_handle, reconcile_restart_orphans,
+    reconcile_restart_orphans_at_boot, resolve_embedded_runtime_host_scope,
+    resolve_embedded_runtime_host_scope_with_override, spawn_managed_staleness_reclaim_task,
+    spawn_managed_staleness_reclaim_task_after_boot, spawn_staleness_reclaim_task,
+    EmbeddedRuntimeInstanceDescriptor, EmbeddedRuntimeInstanceLease, KillError, KillOutcome,
+    ManagedStalenessReclaimTask, ProductionSandboxKill, Reclaim, ReclaimClaim,
+    ReclaimKillOperation, ReclaimKillOperationCandidate, ReclaimKillOperationStatus,
+    ReclaimKillOperationSweep, ReclaimKillOperationSweepEntry, ReclaimKillOperationSweepOutcome,
+    ReclaimProcessStore, ReclaimReport, ReclaimResourceScope, ReclaimStopReservation,
+    ReclaimStopWriter, ReclaimTrigger, ReclaimableProcess, ReclaimedProcess,
+    RestartOrphanBootReconcileReport, RestartOrphanReconcileErrorPolicy, SandboxKill,
+    StaleSessionProcessSet, StaleSessionSource, StalenessReclaimConfig,
+    EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID, EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
+    HANDSHAKE_HOST_SCOPE_ID_ENV,
+};
 pub use restart_resume::{
-    OperatorDecisionRequest, OrphanReclaimInfo, RestartResumeOrchestrator, ResumableSession,
-    ResumeError, ResumeReport, ResumedSessionInfo,
+    BoundedRestartResumeOutcome, OperatorDecisionRequest, OrphanReclaimInfo,
+    RestartResumeOrchestrator, RestartResumeRuntimeError, ResumableSession, ResumeError,
+    ResumeReport, ResumedSessionInfo, SurrealRestartResumeRunner,
 };
 pub use runtime::{
     production_process_sandbox_registry, production_process_sandbox_registry_async,
     ProcessReclaimRuntime, ProcessReclaimRuntimeDrainReport,
 };
 pub use table::{
-    LedgerEvent, LedgerEventKind, ProcessEngineKind, ProcessRuntimeOwner, ProcessStart, ProcessStop,
-    PROCESS_LEDGER_BATCH_SIZE, PROCESS_LEDGER_DEFAULT_BATCH_SIZE,
+    LedgerEvent, LedgerEventKind, ProcessEngineKind, ProcessRuntimeOwner, ProcessStart,
+    ProcessStop, PROCESS_LEDGER_BATCH_SIZE, PROCESS_LEDGER_DEFAULT_BATCH_SIZE,
     PROCESS_LEDGER_DEFAULT_CHANNEL_CAPACITY, PROCESS_LEDGER_DEFAULT_FLUSH_INTERVAL_MS,
     PROCESS_LEDGER_FLUSH_INTERVAL_MS, PROCESS_LEDGER_METADATA_CAP_BYTES,
-    PROCESS_LEDGER_MIGRATION_SQL, PROCESS_LEDGER_RING_CAPACITY, PROCESS_LEDGER_TABLE_NAME,
-    PROCESS_START_INSERT_SQL, PROCESS_STOP_UPSERT_SQL,
+    PROCESS_LEDGER_RING_CAPACITY, PROCESS_LEDGER_TABLE_NAME,
 };
 pub use writer::{
     flush_failed_row_count, is_degraded, ActiveProcessLifecycle, LedgerOverflowEvent,
-    PostgresProcessLedgerStore, ProcessLedgerDrain, ProcessLedgerDurabilityAck, ProcessLedgerError,
-    ProcessLedgerOverflowSink, ProcessLedgerStore, ProcessLedgerWriter, ReservedProcessLifecycle,
-    ReservedProcessStop, StopRecordOutcome, WriterConfig, FR_EVT_LEDGER_OVERFLOW,
+    ProcessLedgerDrain, ProcessLedgerDurabilityAck, ProcessLedgerError, ProcessLedgerOverflowSink,
+    ProcessLedgerStore, ProcessLedgerWriter, ReservedProcessLifecycle, ReservedProcessStop,
+    StopRecordOutcome, WriterConfig, FR_EVT_LEDGER_OVERFLOW,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

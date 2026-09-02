@@ -50,15 +50,10 @@ use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 use std::task::{Context, Poll};
 
-use async_trait::async_trait;
-use futures::{stream, Stream, StreamExt};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-
 use super::openai_byok::{
     ApiKeyFetchCode, ApiKeyProvider, ByokInvocationTimeouts, CloudCallKind, CloudCallStatus,
     CloudInvocationAuditRow, CloudInvocationAuditSink, OpenAiByokError, ProviderBodyMetadata,
-    ProviderOperation, ProviderResponseKind, SseFailureKind, TransportErrorCode,
+    ProviderOperation, ProviderResponseKind, SseFailureKind, TransientApiKey, TransportErrorCode,
 };
 use crate::flight_recorder::events_llm_infer::{
     infer_end_event, infer_start_event, infer_token_event, new_llm_infer_request_id,
@@ -70,6 +65,10 @@ use crate::model_runtime::{
     GeneratedToken, KvCacheHandle, LoadSpec, LoraStackHandle, ModelCapabilities, ModelId,
     ModelRuntime, ProviderKind, Score, SteeringHookHandle, TokenStream,
 };
+use async_trait::async_trait;
+use futures::{stream, Stream, StreamExt};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// Allowlist of Anthropic model name prefixes the operator has
 /// approved for BYOK cloud invocation. Defaults to the Claude
@@ -459,10 +458,9 @@ impl AnthropicByokRuntime {
             .ok_or(AnthropicByokError::ModelNotRegistered(model_id))
     }
 
-    /// Convenience: fetch the secret from the provider. The key is
-    /// returned by value to the caller; ensure it is dropped quickly
-    /// and never logged.
-    pub fn fetch_api_key(&self) -> Result<String, AnthropicByokError> {
+    /// Fetch the secret into zeroizing ownership. The runtime never exposes a
+    /// plain owned key after this boundary.
+    pub fn fetch_api_key(&self) -> Result<TransientApiKey, AnthropicByokError> {
         self.api_key_provider
             .fetch_api_key()
             .map_err(|err| AnthropicByokError::ApiKeyFetch {
@@ -654,7 +652,7 @@ fn single_error_stream(err: ModelRuntimeError) -> TokenStream {
 fn async_token_stream(
     client: reqwest::Client,
     url: String,
-    api_key: String,
+    api_key: TransientApiKey,
     body_json: Vec<u8>,
     cancel_req: CancellationToken,
     cancel_runtime: CancellationToken,
@@ -757,7 +755,7 @@ where
 async fn run_live_stream(
     client: reqwest::Client,
     url: String,
-    api_key: String,
+    api_key: TransientApiKey,
     body_json: Vec<u8>,
     cancel_req: CancellationToken,
     cancel_runtime: CancellationToken,
@@ -801,14 +799,15 @@ async fn run_live_stream(
     }
 
     let connect_deadline = invocation_deadline.min(tokio::time::Instant::now() + timeouts.connect);
+    let request = client
+        .post(&url)
+        .header(ANTHROPIC_API_KEY_HEADER, api_key.expose_secret())
+        .header(ANTHROPIC_VERSION_HEADER, ANTHROPIC_API_VERSION)
+        .header("Content-Type", "application/json")
+        .body(body_json);
+    drop(api_key);
     let response = match await_provider_step(
-        client
-            .post(&url)
-            .header(ANTHROPIC_API_KEY_HEADER, &api_key)
-            .header(ANTHROPIC_VERSION_HEADER, ANTHROPIC_API_VERSION)
-            .header("Content-Type", "application/json")
-            .body(body_json)
-            .send(),
+        request.send(),
         &cancel_req,
         &cancel_runtime,
         &owner_cancel,
@@ -853,11 +852,6 @@ async fn run_live_stream(
             return;
         }
     };
-
-    // Drop the api_key as soon as the request has been sent;
-    // it lives in the `x-api-key` header on the wire, but the
-    // local memory copy is no longer needed.
-    drop(api_key);
 
     if !response.status().is_success() {
         let status = response.status().as_u16();
@@ -1281,8 +1275,8 @@ mod tests {
         key: String,
     }
     impl ApiKeyProvider for StaticKeyProvider {
-        fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
-            Ok(self.key.clone())
+        fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
+            Ok(TransientApiKey::from_secret(self.key.clone()))
         }
     }
 
@@ -1429,7 +1423,8 @@ mod tests {
     fn fetch_api_key_returns_provider_value_and_does_not_log_it() {
         let runtime = fixture_runtime();
         let key = runtime.fetch_api_key().expect("fetch");
-        assert!(key.starts_with("sk-ant-"));
+        assert!(key.expose_secret().starts_with("sk-ant-"));
+        assert_eq!(format!("{key:?}"), "TransientApiKey([REDACTED])");
     }
 
     #[test]

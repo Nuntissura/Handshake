@@ -40,7 +40,9 @@ use crate::{
     sandbox::palmistry_watcher::{
         PalmistrySpawnSpec, PalmistryWatcherAdapter, SpawnedPalmistry, PALMISTRY_WATCHER_ADAPTER_ID,
     },
-    storage::Database,
+    storage::surreal::{
+        SurrealPalmistryStore, SurrealPalmistryVerifier, SurrealStorage,
+    },
     swarm_orchestration::model_lane::{
         ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneStore,
         NewModelLaneDiagnosticTierStatus,
@@ -226,9 +228,8 @@ impl fmt::Debug for WatcherSigningSecret {
 pub struct PalmistryLaunchState {
     ledger: LedgerBatcher,
     recorder: Arc<dyn FlightRecorder>,
-    event_ledger: Arc<dyn Database>,
     model_lane_store: ModelLaneStore,
-    postgres_pool: sqlx::PgPool,
+    palmistry_store: SurrealPalmistryStore,
     reclaim: Arc<Reclaim>,
     active: Arc<Mutex<HashMap<Uuid, LaunchSlot>>>,
 }
@@ -333,41 +334,25 @@ impl PalmistryLaunchState {
     pub fn new(
         ledger: LedgerBatcher,
         recorder: Arc<dyn FlightRecorder>,
-        event_ledger: Arc<dyn Database>,
-        postgres_pool: sqlx::PgPool,
+        surreal_storage: SurrealStorage,
+        exact_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
         reclaim: Arc<Reclaim>,
     ) -> Self {
+        let resource_scope = crate::swarm_orchestration::resource_scope::ResourceScope::new(
+            exact_scope.owner_account_id,
+            exact_scope.actor_principal_id,
+        )
+        .with_session(exact_scope.authenticated_session_id)
+        .with_access_space(exact_scope.access_space_id)
+        .with_workspace(exact_scope.workspace_id.clone());
         Self {
             ledger,
             recorder,
-            event_ledger,
-            // Named cross-owner authority, not an anonymous unscoped store.
-            //
-            // `/internal-diagnostics/model-lane/observe` resolves whether a
-            // watcher-reported `lane_id` belongs to the server-resolved `run_id`.
-            // The watcher's authority comes from a server-issued launch record
-            // (session_id + launch_nonce + ed25519 readback), NOT from an
-            // account, so there is no caller-supplied scope to read as and a
-            // `X-Handshake-Owner-Account` header would be the wrong control
-            // here — it would let the caller choose the scope it is checked
-            // against.
-            //
-            // The read is therefore a genuine cross-owner system operation and
-            // is declared as one so it is auditable rather than accidental.
-            // RESIDUAL GAP, deliberately recorded: the correlation answer is a
-            // per-run existence signal, so a caller able to forge the full
-            // ed25519/nonce envelope could probe run/lane membership across
-            // accounts. Closing that properly means deriving the scope from the
-            // launch record's owning account, which belongs with the Palmistry
-            // implementation in WP-KERNEL-012 (CX-981-005) rather than here.
-            // No lane CONTENT is returned by this path.
-            model_lane_store: ModelLaneStore::new_system_authority(
-                postgres_pool.clone(),
-                crate::swarm_orchestration::resource_scope::SystemScopeAuthority::internal_subsystem(
-                    "SYSTEM_SCOPE_PALMISTRY_OBSERVATION_CORRELATION",
-                ),
+            model_lane_store: ModelLaneStore::new_scoped(
+                surreal_storage.clone(),
+                resource_scope,
             ),
-            postgres_pool,
+            palmistry_store: SurrealPalmistryStore::new_exact(surreal_storage, exact_scope),
             reclaim,
             active: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -412,7 +397,7 @@ struct BehaviorObservationRecord {
     correlation_hmac: String,
 }
 
-#[derive(Debug, Clone, sqlx::FromRow)]
+#[derive(Debug, Clone)]
 struct DurableWatcherVerifier {
     session_id: Uuid,
     launch_nonce: Uuid,
@@ -430,6 +415,36 @@ impl DurableWatcherVerifier {
             .map_err(|_| PalmistryLaunchError::bad_request("invalid durable Palmistry verifier"))?
             .try_into()
             .map_err(|_| PalmistryLaunchError::bad_request("invalid durable verifier length"))
+    }
+}
+
+impl From<SurrealPalmistryVerifier> for DurableWatcherVerifier {
+    fn from(verifier: SurrealPalmistryVerifier) -> Self {
+        Self {
+            session_id: verifier.session_id,
+            launch_nonce: verifier.launch_nonce,
+            parent_pid: verifier.parent_pid,
+            watcher_pid: verifier.watcher_pid,
+            watcher_creation_time_100ns: verifier.watcher_creation_time_100ns,
+            process_uuid: verifier.process_uuid,
+            executable_sha256: verifier.executable_sha256,
+            verifying_key_hex: verifier.verifying_key_hex,
+        }
+    }
+}
+
+impl From<&DurableWatcherVerifier> for SurrealPalmistryVerifier {
+    fn from(verifier: &DurableWatcherVerifier) -> Self {
+        Self {
+            session_id: verifier.session_id,
+            launch_nonce: verifier.launch_nonce,
+            parent_pid: verifier.parent_pid,
+            watcher_pid: verifier.watcher_pid,
+            watcher_creation_time_100ns: verifier.watcher_creation_time_100ns,
+            process_uuid: verifier.process_uuid,
+            executable_sha256: verifier.executable_sha256.clone(),
+            verifying_key_hex: verifier.verifying_key_hex.clone(),
+        }
     }
 }
 
@@ -626,15 +641,14 @@ async fn reattach_durable_launch(
     state: &PalmistryLaunchState,
     request: &PalmistryLaunchRequest,
 ) -> Result<Option<(PalmistryLaunchReceipt, SessionSigningSecret)>, PalmistryLaunchError> {
-    let verifiers = sqlx::query_as::<_, DurableWatcherVerifier>(
-        "SELECT session_id, launch_nonce, parent_pid, watcher_pid, \
-         watcher_creation_time_100ns, process_uuid, executable_sha256, verifying_key_hex \
-         FROM palmistry_durable_verifier WHERE session_id = $1 AND retired_at IS NULL",
-    )
-    .bind(request.session_id)
-    .fetch_all(&state.postgres_pool)
+    let verifiers: Vec<DurableWatcherVerifier> = state
+        .palmistry_store
+        .active_for_session(request.session_id)
     .await
-    .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?;
+        .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?
+        .into_iter()
+        .map(Into::into)
+        .collect();
     if verifiers.is_empty() {
         return Ok(None);
     }
@@ -758,23 +772,23 @@ async fn launch_validated(
         launch_attempt.terminate_and_wait();
         return Err(PalmistryLaunchError::unavailable(error.to_string()));
     }
-    let register_verifier = sqlx::query(
-        "INSERT INTO palmistry_durable_verifier \
-         (session_id, launch_nonce, parent_pid, watcher_pid, watcher_creation_time_100ns, process_uuid, executable_sha256, verifying_key_hex) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-    )
-    .bind(request.session_id)
-    .bind(request.launch_nonce)
-    .bind(i64::from(request.parent_pid))
-    .bind(i64::from(os_pid))
-    .bind(i64::try_from(os_creation_time_100ns).map_err(|_| {
-        PalmistryLaunchError::unavailable("Palmistry creation identity exceeds PostgreSQL BIGINT")
-    })?)
-    .bind(process_uuid)
-    .bind(&executable_sha256)
-    .bind(hex::encode(watcher_verifying_key))
-    .execute(&state.postgres_pool)
-    .await;
+    let register_verifier = state
+        .palmistry_store
+        .register(SurrealPalmistryVerifier {
+            session_id: request.session_id,
+            launch_nonce: request.launch_nonce,
+            parent_pid: i64::from(request.parent_pid),
+            watcher_pid: i64::from(os_pid),
+            watcher_creation_time_100ns: i64::try_from(os_creation_time_100ns).map_err(|_| {
+                PalmistryLaunchError::unavailable(
+                    "Palmistry creation identity exceeds embedded integer range",
+                )
+            })?,
+            process_uuid,
+            executable_sha256: executable_sha256.clone(),
+            verifying_key_hex: hex::encode(watcher_verifying_key),
+        })
+        .await;
     if let Err(error) = register_verifier {
         lifecycle.leave_open_for_reconciliation();
         launch_attempt.terminate_and_wait();
@@ -804,12 +818,10 @@ async fn launch_validated(
                 lifecycle.leave_open_for_reconciliation();
             }
         }
-        let _ = sqlx::query(
-            "UPDATE palmistry_durable_verifier SET retired_at = NOW() WHERE session_id = $1",
-        )
-        .bind(request.session_id)
-        .execute(&state.postgres_pool)
-        .await;
+        let _ = state
+            .palmistry_store
+            .retire_exact(request.session_id, request.launch_nonce, process_uuid)
+            .await;
         return Err(error);
     }
 
@@ -823,7 +835,7 @@ async fn launch_validated(
     };
     let signing_secret = SessionSigningSecret::generate();
     let active = Arc::clone(&state.active);
-    let postgres_pool = state.postgres_pool.clone();
+    let palmistry_store = state.palmistry_store.clone();
     let runtime_handle = tokio::runtime::Handle::current();
     let session_id = request.session_id;
     let launch_nonce = request.launch_nonce;
@@ -838,8 +850,7 @@ async fn launch_validated(
             };
             let result = child.wait();
             if finish_lifecycle(&runtime_handle, lifecycle, result) {
-                match runtime_handle.block_on(retire_exact_watcher_verifier(
-                    &postgres_pool,
+                match runtime_handle.block_on(palmistry_store.retire_exact(
                     session_id,
                     launch_nonce,
                     reaper_process_uuid,
@@ -938,24 +949,6 @@ fn finish_lifecycle(
             false
         }
     }
-}
-
-async fn retire_exact_watcher_verifier(
-    pool: &sqlx::PgPool,
-    session_id: Uuid,
-    launch_nonce: Uuid,
-    process_uuid: Uuid,
-) -> Result<bool, sqlx::Error> {
-    let result = sqlx::query(
-        "UPDATE palmistry_durable_verifier SET retired_at = COALESCE(retired_at, NOW()) \
-         WHERE session_id = $1 AND launch_nonce = $2 AND process_uuid = $3",
-    )
-    .bind(session_id)
-    .bind(launch_nonce)
-    .bind(process_uuid)
-    .execute(pool)
-    .await?;
-    Ok(result.rows_affected() == 1)
 }
 
 fn remove_matching_active_slot(
@@ -1167,16 +1160,14 @@ async fn recover_survivor(
             "cleanup_pending": !cleanup_complete
         })));
     }
-    let source_verifiers = sqlx::query_as::<_, DurableWatcherVerifier>(
-        "SELECT session_id, launch_nonce, parent_pid, watcher_pid, \
-         watcher_creation_time_100ns, process_uuid, executable_sha256, verifying_key_hex \
-         FROM palmistry_durable_verifier \
-         WHERE session_id = $1 AND retired_at IS NULL",
-    )
-    .bind(request.summary.source_session_id)
-    .fetch_all(&state.postgres_pool)
-    .await
-    .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?;
+    let source_verifiers: Vec<DurableWatcherVerifier> = state
+        .palmistry_store
+        .active_for_session(request.summary.source_session_id)
+        .await
+        .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?
+        .into_iter()
+        .map(Into::into)
+        .collect();
     let [source_verifier] = source_verifiers.as_slice() else {
         return Err(PalmistryLaunchError::bad_request(
             "source Palmistry verifier is missing or ambiguous",
@@ -1254,25 +1245,12 @@ async fn verify_durable_watcher_identity(
     state: &PalmistryLaunchState,
     source_verifier: &DurableWatcherVerifier,
 ) -> Result<(), PalmistryLaunchError> {
-    let matches = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS (SELECT 1 FROM kernel_process_lifecycle \
-         WHERE process_uuid = $1 \
-           AND parent_session_id = $2 \
-           AND os_pid = $3 \
-           AND sandbox_adapter_id = $4 \
-           AND metadata_jsonb->>'os_creation_time_100ns' = $5 \
-           AND metadata_jsonb->>'executable_sha256' = $6 \
-           AND stopped_at IS NULL)",
-    )
-    .bind(source_verifier.process_uuid)
-    .bind(source_verifier.session_id.to_string())
-    .bind(source_verifier.watcher_pid)
-    .bind(PALMISTRY_WATCHER_ADAPTER_ID)
-    .bind(source_verifier.watcher_creation_time_100ns.to_string())
-    .bind(&source_verifier.executable_sha256)
-    .fetch_one(&state.postgres_pool)
-    .await
-    .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?;
+    let verifier = SurrealPalmistryVerifier::from(source_verifier);
+    let matches = state
+        .palmistry_store
+        .active_process_matches(&verifier)
+        .await
+        .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?;
     if !matches {
         return Err(PalmistryLaunchError::bad_request(
             "durable Palmistry verifier does not match ProcessOwnershipLedger launch identity",
@@ -1406,14 +1384,12 @@ fn source_shutdown_is_allowed(source_session_id: Uuid, current_session_id: Uuid)
 async fn palmistry_stop_is_durable(
     state: &PalmistryLaunchState,
     process_uuid: Uuid,
-) -> Result<bool, sqlx::Error> {
-    sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS (SELECT 1 FROM kernel_process_lifecycle \
-         WHERE process_uuid = $1 AND stopped_at IS NOT NULL)",
-    )
-    .bind(process_uuid)
-    .fetch_one(&state.postgres_pool)
-    .await
+) -> Result<bool, PalmistryLaunchError> {
+    state
+        .palmistry_store
+        .stop_is_durable(process_uuid)
+        .await
+        .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))
 }
 
 async fn retire_recovered_source(
@@ -1430,10 +1406,11 @@ async fn retire_recovered_source(
             "Palmistry source retirement requires durable STOP",
         ));
     }
-    let verifier_retired =
-        retire_exact_watcher_verifier(&state.postgres_pool, session_id, launch_nonce, process_uuid)
-            .await
-            .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?;
+    let verifier_retired = state
+        .palmistry_store
+        .retire_exact(session_id, launch_nonce, process_uuid)
+        .await
+        .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?;
     if !verifier_retired {
         return Err(PalmistryLaunchError::unavailable(
             "Palmistry source verifier identity is missing during retirement",
@@ -2142,7 +2119,7 @@ async fn record_argus_receipt(
         "before_revision": request.before_revision,
         "after_revision": request.after_revision,
         "status": request.status,
-        "authority_source": "postgres_event_ledger",
+        "authority_source": "embedded_surrealdb_kernel_event_ledger",
     });
     let kernel_event = NewKernelEvent::builder(
         format!("argus:{}", request.connection_id),
@@ -2160,8 +2137,8 @@ async fn record_argus_receipt(
     .payload(payload.clone())
     .build()
     .map_err(|error| PalmistryLaunchError::bad_request(error.to_string()))?;
-    let stored = state
-        .event_ledger
+    let event_ledger_event_id = state
+        .palmistry_store
         .append_kernel_event(kernel_event)
         .await
         .map_err(|error| {
@@ -2169,7 +2146,6 @@ async fn record_argus_receipt(
                 "Argus EventLedger receipt append failed: {error}"
             ))
         })?;
-    let event_ledger_event_id = stored.event_id;
     let mirror_exists = !state
         .recorder
         .list_events(EventFilter {

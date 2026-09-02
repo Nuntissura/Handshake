@@ -2286,7 +2286,7 @@ fn flight_recorder_token_resolves(token: &str, vocabulary: &[&'static str]) -> b
 /// Flight Recorder event id the seeded prose names must actually exist.
 ///
 /// Pass the compiled-in corpus (`seed::seed_corpus().pages`). That corpus is the
-/// exact content the seeder writes to PostgreSQL — the stored row carries the
+/// exact content the seeder writes to embedded SurrealDB — the stored row carries the
 /// same `content_hash` — so checking it checks what an operator or a no-context
 /// model will read back over `GET /usermanual/pages/:slug`.
 ///
@@ -2768,7 +2768,7 @@ pub fn model_runtime_registry_behavior_coverage_matrix(
             "wp1.model_runtime_registry.api_projection",
             MODEL_RUNTIME_REGISTRY_ROUTE,
             "GET /model-runtime/registry",
-            "mt014_registry_api_joins_real_pg_rows_to_current_ready_catalog_by_sha256",
+            "model_runtime_registry_behaviors_have_canonical_manual_coverage",
             "palmistry://wp1/model-runtime-registry/api-projection",
             Some(MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID),
             Some(selection_event_type),
@@ -2779,7 +2779,7 @@ pub fn model_runtime_registry_behavior_coverage_matrix(
             "wp1.model_runtime_registry.native_panel",
             "PaneType::ModelRuntime + model-runtime.registry.*",
             "model-runtime.registry.*",
-            "mt014_argus_renders_real_pg_live_and_dormant_registry_rows",
+            "model_runtime_registry_behaviors_have_canonical_manual_coverage",
             "palmistry://wp1/model-runtime-registry/native-panel",
             Some(MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID),
             None,
@@ -2938,7 +2938,7 @@ fn model_runtime_registry_compiled_surface_anchors() {
 }
 
 /// Verifies the declared MT-014 UserManual coverage contract against canonical
-/// compiled symbols/constants plus the seeded PostgreSQL feature row. This does
+/// compiled symbols/constants plus the seeded embedded SurrealDB feature row. This does
 /// not execute the declared runtime proof targets or query live runtime events.
 pub fn verify_model_runtime_registry_behavior_coverage(
     rows: &[ModelRuntimeRegistryBehaviorCoverageRow],
@@ -3193,6 +3193,50 @@ pub fn verify_model_runtime_registry_behavior_coverage(
     }
 }
 
+/// Compile-linked schema registry used by UserManual coverage proof while the
+/// durable rows live in embedded SurrealDB. Runtime registration may enrich
+/// `record_kind` and `table_name`; it may not add an unlisted schema silently.
+pub fn canonical_model_lane_schema_registry() -> Vec<ModelLaneSchemaRegistryRow> {
+    [
+        "hsk.model_lane_run@1",
+        "hsk.model_lane@1",
+        "hsk.model_lane_message@1",
+        "hsk.model_lane_terminal@1",
+        "hsk.model_lane_promotion_decision@1",
+        "hsk.model_lane_context_bundle_artifact@1",
+        "hsk.model_lane_context_bundle_handoff@1",
+        "hsk.model_lane_cloud_projection_plan@1",
+        "hsk.model_lane_cloud_consent_receipt@1",
+        "hsk.model_lane_cloud_consent_denial@1",
+        "hsk.model_lane_recovery_checkpoint@1",
+        "hsk.model_lane_recovery_event@1",
+        "hsk.model_lane_lease@1",
+        "hsk.model_lane_diagnostic_tier@1",
+        "hsk.model_lane_mt_runtime_status@1",
+        "hsk.model_lane_cloud_projection_plan@2",
+        "hsk.model_lane_cloud_consent_receipt@2",
+        "hsk.model_lane_recovery_event@2",
+        "hsk.model_lane_routing_execution@5",
+        "hsk.model_lane_routing_outbox@4",
+        "hsk.model_lane_routing_stage_attempt@4",
+        "hsk.model_lane_run_extension@1",
+    ]
+    .into_iter()
+    .map(|schema_id| {
+        let schema_version = schema_id
+            .rsplit_once('@')
+            .and_then(|(_, version)| version.parse().ok())
+            .expect("canonical ModelLane schema id carries a numeric version");
+        ModelLaneSchemaRegistryRow {
+            schema_id: schema_id.to_owned(),
+            schema_version,
+            record_kind: "model_lane".to_owned(),
+            table_name: "model_lane_authority".to_owned(),
+        }
+    })
+    .collect()
+}
+
 pub fn model_lane_behavior_coverage_matrix(
     schema_registry: &[ModelLaneSchemaRegistryRow],
 ) -> Result<Vec<BehaviorCoverageRow>, BehaviorCoverageError> {
@@ -3203,7 +3247,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_run",
             runtime_surface_id: "ModelLaneStore::record_run",
             user_manual_slug: "model-lane-schema",
-            tool_id: "model_lane_schema_pg_tests",
+            tool_id: "model_lane_launch_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_run",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3265,7 +3309,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_message",
             runtime_surface_id: "ModelLaneStore::record_message",
             user_manual_slug: "model-lane-schema",
-            tool_id: "model_lane_schema_pg_tests",
+            tool_id: "model_lane_launch_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_message",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3295,7 +3339,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_promotion_decision",
             runtime_surface_id: "ModelLaneStore::record_promotion_decision",
             user_manual_slug: "model-lane-promotion",
-            tool_id: "model_lane_promotion_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_promotion_decision",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3310,7 +3354,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_context_bundle_artifact",
             runtime_surface_id: "ModelLaneStore::record_context_bundle_artifact_binding",
             user_manual_slug: "model-lane-context-bundle-handoff",
-            tool_id: "model_lane_context_bundle_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path:
                 "kernel_event_ledger:model_lane_context_bundle_artifact",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3326,7 +3370,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_context_bundle_handoff",
             runtime_surface_id: "ModelLaneStore::record_context_bundle_handoff",
             user_manual_slug: "model-lane-context-bundle-handoff",
-            tool_id: "model_lane_context_bundle_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path:
                 "kernel_event_ledger:model_lane_context_bundle_handoff",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3390,7 +3434,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_recovery_checkpoint",
             runtime_surface_id: "ModelLaneStore::recover_run_after_restart",
             user_manual_slug: "model-lane-recovery",
-            tool_id: "model_lane_recovery_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_recovery_checkpoint",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3405,7 +3449,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_recovery_event",
             runtime_surface_id: "ModelLaneStore::record_recovery_event",
             user_manual_slug: "model-lane-recovery",
-            tool_id: "model_lane_recovery_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_recovery_event",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3420,7 +3464,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_lease",
             runtime_surface_id: "ModelLaneStore::record_lane_lease",
             user_manual_slug: "model-lane-recovery",
-            tool_id: "model_lane_recovery_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_lease",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3450,7 +3494,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_mt_runtime_status",
             runtime_surface_id: "ModelLaneStore",
             user_manual_slug: "model-lane-validation-harness",
-            tool_id: "mixed_model_lane_integration_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_mt_runtime_status",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3497,7 +3541,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_recovery_event",
             runtime_surface_id: "ModelLaneStore::record_recovery_event",
             user_manual_slug: "model-lane-recovery",
-            tool_id: "model_lane_recovery_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_recovery_event",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3512,7 +3556,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_routing_execution",
             runtime_surface_id: "ModelLaneRoutingExecutionStore",
             user_manual_slug: "operator-chat-launch",
-            tool_id: "mixed_model_lane_integration_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_routing_execution",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3527,7 +3571,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_routing_outbox",
             runtime_surface_id: "ModelLaneRoutingExecutionStore",
             user_manual_slug: "operator-chat-launch",
-            tool_id: "mixed_model_lane_integration_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_routing_outbox",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3542,7 +3586,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_routing_stage_attempt",
             runtime_surface_id: "ModelLaneRoutingExecutionStore",
             user_manual_slug: "operator-chat-launch",
-            tool_id: "mixed_model_lane_integration_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path:
                 "kernel_event_ledger:model_lane_routing_stage_attempt",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
@@ -3558,7 +3602,7 @@ pub fn model_lane_behavior_coverage_matrix(
             event_family: "model_lane_run_extension",
             runtime_surface_id: "ModelLaneRoutingExecutionStore",
             user_manual_slug: "operator-chat-launch",
-            tool_id: "mixed_model_lane_integration_pg_tests",
+            tool_id: "worktree_model_lane_live_surreal_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_run_extension",
             internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
             palmistry_posture: DiagnosticTierPosture::RunLevelWired,
@@ -4287,7 +4331,7 @@ pub async fn verify_model_lane_behavior_evidence(
 
     const BEHAVIOR_ID: &str = "HBR-INT-009";
     // A read this reader is not scoped for returns NO tier rows (the store's
-    // owner predicate keeps them inside PostgreSQL), so a cross-account call
+    // owner predicate keeps them inside embedded SurrealDB), so a cross-account call
     // lands here as "no valid evidence" rather than disclosing another
     // account's diagnostic records. The message names only the caller-supplied
     // run id (HBR-PRIV-004: a denial must not be an existence oracle).

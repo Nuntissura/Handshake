@@ -13,9 +13,12 @@
 #![allow(dead_code)] // each live test binary consumes a subset of this shared surface.
 
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpStream;
+use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
+use std::sync::Arc;
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use base64::Engine as _;
@@ -26,6 +29,274 @@ pub const AGENT_LABEL: &str = "production-socket-live";
 
 /// How long a live proof waits for a surface (pane body, pop-out window) to appear.
 pub const SURFACE_TIMEOUT: Duration = Duration::from_secs(20);
+
+const PROXY_FORWARD: u8 = 0;
+const PROXY_HOLD: u8 = 1;
+const PROXY_FAIL: u8 = 2;
+const PROXY_BACKEND_AUTHORITY: &str = "127.0.0.1:37501";
+
+/// An owned loopback HTTP proxy for production-child failure-path proof.
+///
+/// It never mutates or stops the backend. The spawned native child is pointed at this proxy through
+/// its process environment, allowing the test to hold, reject, and then forward the child's real
+/// `/usermanual` socket traffic while the backend remains untouched.
+pub struct LoopbackHttpFaultProxy {
+    addr: String,
+    mode: Arc<AtomicU8>,
+    stop: Arc<AtomicBool>,
+    held_requests: Arc<AtomicU64>,
+    failed_requests: Arc<AtomicU64>,
+    forwarded_requests: Arc<AtomicU64>,
+    accept_thread: Option<JoinHandle<()>>,
+}
+
+impl LoopbackHttpFaultProxy {
+    pub fn start() -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind owned HTTP fault proxy");
+        listener
+            .set_nonblocking(true)
+            .expect("configure owned HTTP fault proxy");
+        let addr = listener.local_addr().expect("read owned proxy address");
+        let mode = Arc::new(AtomicU8::new(PROXY_FORWARD));
+        let stop = Arc::new(AtomicBool::new(false));
+        let held_requests = Arc::new(AtomicU64::new(0));
+        let failed_requests = Arc::new(AtomicU64::new(0));
+        let forwarded_requests = Arc::new(AtomicU64::new(0));
+        let accept_mode = mode.clone();
+        let accept_stop = stop.clone();
+        let accept_held_requests = held_requests.clone();
+        let accept_failed_requests = failed_requests.clone();
+        let accept_forwarded_requests = forwarded_requests.clone();
+        let accept_thread = std::thread::spawn(move || {
+            while !accept_stop.load(Ordering::Acquire) {
+                match listener.accept() {
+                    Ok((stream, _)) => {
+                        let connection_mode = accept_mode.clone();
+                        let connection_stop = accept_stop.clone();
+                        let connection_held_requests = accept_held_requests.clone();
+                        let connection_failed_requests = accept_failed_requests.clone();
+                        let connection_forwarded_requests = accept_forwarded_requests.clone();
+                        std::thread::spawn(move || {
+                            proxy_connection(
+                                stream,
+                                connection_mode,
+                                connection_stop,
+                                connection_held_requests,
+                                connection_failed_requests,
+                                connection_forwarded_requests,
+                            )
+                        });
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+        Self {
+            addr: addr.to_string(),
+            mode,
+            stop,
+            held_requests,
+            failed_requests,
+            forwarded_requests,
+            accept_thread: Some(accept_thread),
+        }
+    }
+
+    pub fn url(&self) -> String {
+        format!("http://{}", self.addr)
+    }
+
+    pub fn hold(&self) {
+        self.mode.store(PROXY_HOLD, Ordering::Release);
+    }
+
+    pub fn fail(&self) {
+        self.mode.store(PROXY_FAIL, Ordering::Release);
+    }
+
+    pub fn forward(&self) {
+        self.mode.store(PROXY_FORWARD, Ordering::Release);
+    }
+
+    pub fn held_request_count(&self) -> u64 {
+        self.held_requests.load(Ordering::Acquire)
+    }
+
+    pub fn failed_request_count(&self) -> u64 {
+        self.failed_requests.load(Ordering::Acquire)
+    }
+
+    pub fn forwarded_request_count(&self) -> u64 {
+        self.forwarded_requests.load(Ordering::Acquire)
+    }
+}
+
+impl Drop for LoopbackHttpFaultProxy {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Release);
+        let _ = TcpStream::connect(&self.addr);
+        if let Some(thread) = self.accept_thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+fn proxy_connection(
+    mut client: TcpStream,
+    mode: Arc<AtomicU8>,
+    stop: Arc<AtomicBool>,
+    held_requests: Arc<AtomicU64>,
+    failed_requests: Arc<AtomicU64>,
+    forwarded_requests: Arc<AtomicU64>,
+) {
+    let _ = client.set_read_timeout(Some(Duration::from_secs(5)));
+    let _ = client.set_write_timeout(Some(Duration::from_secs(5)));
+    let request = match read_http_request(&mut client) {
+        Ok(request) => request,
+        Err(_) => return,
+    };
+    let Some((forwarded, is_user_manual)) = rewrite_proxy_request(&request) else {
+        let _ = client.write_all(
+            b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        );
+        return;
+    };
+    if is_user_manual {
+        if mode.load(Ordering::Acquire) == PROXY_HOLD {
+            held_requests.fetch_add(1, Ordering::AcqRel);
+        }
+        while mode.load(Ordering::Acquire) == PROXY_HOLD && !stop.load(Ordering::Acquire) {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        if stop.load(Ordering::Acquire) {
+            return;
+        }
+        if mode.load(Ordering::Acquire) == PROXY_FAIL {
+            failed_requests.fetch_add(1, Ordering::AcqRel);
+            let _ = client.write_all(
+                b"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\nContent-Length: 32\r\nConnection: close\r\n\r\nUserManual socket fault injected",
+            );
+            return;
+        }
+        forwarded_requests.fetch_add(1, Ordering::AcqRel);
+    }
+    let mut backend = match TcpStream::connect_timeout(
+        &PROXY_BACKEND_AUTHORITY
+            .parse()
+            .expect("fixed backend authority"),
+        Duration::from_secs(3),
+    ) {
+        Ok(stream) => stream,
+        Err(_) => {
+            let _ = client.write_all(
+                b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            );
+            return;
+        }
+    };
+    let _ = backend.set_read_timeout(Some(Duration::from_secs(10)));
+    let _ = backend.set_write_timeout(Some(Duration::from_secs(5)));
+    if backend.write_all(&forwarded).is_ok() {
+        let _ = std::io::copy(&mut backend, &mut client);
+    }
+}
+
+fn read_http_request(stream: &mut TcpStream) -> std::io::Result<Vec<u8>> {
+    const MAX_REQUEST_BYTES: usize = 1024 * 1024;
+    let mut request = Vec::new();
+    let mut buffer = [0u8; 4096];
+    let mut expected_len = None;
+    loop {
+        let read = stream.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        request.extend_from_slice(&buffer[..read]);
+        if request.len() > MAX_REQUEST_BYTES {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "proxied request exceeded bounded size",
+            ));
+        }
+        if expected_len.is_none() {
+            if let Some(header_end) = find_header_end(&request) {
+                let headers = String::from_utf8_lossy(&request[..header_end]);
+                let content_length = headers
+                    .lines()
+                    .find_map(|line| {
+                        line.split_once(':').and_then(|(name, value)| {
+                            name.eq_ignore_ascii_case("content-length")
+                                .then(|| value.trim().parse::<usize>().ok())
+                                .flatten()
+                        })
+                    })
+                    .unwrap_or(0);
+                expected_len = Some(header_end + 4 + content_length);
+            }
+        }
+        if expected_len.is_some_and(|length| request.len() >= length) {
+            break;
+        }
+    }
+    Ok(request)
+}
+
+fn find_header_end(bytes: &[u8]) -> Option<usize> {
+    bytes.windows(4).position(|window| window == b"\r\n\r\n")
+}
+
+fn rewrite_proxy_request(request: &[u8]) -> Option<(Vec<u8>, bool)> {
+    let header_end = find_header_end(request)?;
+    let header = std::str::from_utf8(&request[..header_end]).ok()?;
+    let mut lines = header.split("\r\n");
+    let first = lines.next()?;
+    let mut parts = first.split_whitespace();
+    let method = parts.next()?;
+    let target = parts.next()?;
+    let version = parts.next()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    let path = if let Some(absolute) = target.strip_prefix("http://") {
+        let (authority, path) = absolute.split_once('/').unwrap_or((absolute, ""));
+        if !authority.eq_ignore_ascii_case(PROXY_BACKEND_AUTHORITY) {
+            return None;
+        }
+        format!("/{path}")
+    } else if target.starts_with('/') {
+        target.to_owned()
+    } else {
+        return None;
+    };
+    let lines = lines.collect::<Vec<_>>();
+    let host = lines.iter().find_map(|line| {
+        line.split_once(':')
+            .and_then(|(name, value)| name.eq_ignore_ascii_case("host").then(|| value.trim()))
+    });
+    if !host.is_some_and(|host| host.eq_ignore_ascii_case(PROXY_BACKEND_AUTHORITY)) {
+        return None;
+    }
+    let is_user_manual = path == "/usermanual"
+        || path.starts_with("/usermanual/")
+        || path.starts_with("/usermanual?");
+    let mut forwarded = format!("{method} {path} {version}\r\n").into_bytes();
+    for line in lines {
+        let header_name = line.split_once(':').map(|(name, _)| name.trim());
+        if header_name.is_some_and(|name| {
+            name.eq_ignore_ascii_case("connection") || name.eq_ignore_ascii_case("proxy-connection")
+        }) {
+            continue;
+        }
+        forwarded.extend_from_slice(line.as_bytes());
+        forwarded.extend_from_slice(b"\r\n");
+    }
+    forwarded.extend_from_slice(b"Connection: close\r\n\r\n");
+    forwarded.extend_from_slice(&request[header_end + 4..]);
+    Some((forwarded, is_user_manual))
+}
 
 #[derive(serde::Deserialize)]
 pub struct DiscoveredBinding {
@@ -441,8 +712,8 @@ pub fn require_palmistry_ready_backend() -> PathBuf {
     assert_eq!(
         std::env::var("HANDSHAKE_ARGUS_LIVE_BACKEND_READY").as_deref(),
         Ok("1"),
-        "set HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1 only after managed PostgreSQL and the production \
-         backend are ready for Palmistry"
+        "set HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1 only after the injected embedded SurrealDB and \
+         production backend are ready for the live proof"
     );
     let diagnostics_dir = PathBuf::from(
         std::env::var("HANDSHAKE_DIAGNOSTICS_DIR")
@@ -718,14 +989,50 @@ pub fn wait_for_author_id_between(
 }
 
 pub fn proof_dir() -> PathBuf {
-    std::env::var("HANDSHAKE_PROOF_ARTIFACT_DIR")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../../../Handshake_Artifacts/handshake-test/native_gui")
-        })
+    let artifact_root = PathBuf::from(
+        std::env::var("HANDSHAKE_ARTIFACTS_DIR")
+            .expect("HANDSHAKE_ARTIFACTS_DIR is required for live proof artifacts"),
+    );
+    let artifact_root = std::fs::canonicalize(&artifact_root).unwrap_or_else(|error| {
+        panic!(
+            "canonicalize configured artifact root {}: {error}",
+            artifact_root.display()
+        )
+    });
+    let proof_dir = PathBuf::from(
+        std::env::var("HANDSHAKE_PROOF_ARTIFACT_DIR")
+            .expect("HANDSHAKE_PROOF_ARTIFACT_DIR is required for live proof artifacts"),
+    );
+    assert!(
+        proof_dir.is_absolute(),
+        "HANDSHAKE_PROOF_ARTIFACT_DIR must be absolute"
+    );
+    let relative_proof_dir = proof_dir
+        .strip_prefix(&artifact_root)
+        .expect("proof directory must be lexically beneath HANDSHAKE_ARTIFACTS_DIR");
+    assert!(
+        relative_proof_dir
+            .components()
+            .all(|component| matches!(component, std::path::Component::Normal(_))),
+        "proof directory must not contain traversal or root components"
+    );
+    std::fs::create_dir_all(&proof_dir).unwrap_or_else(|error| {
+        panic!(
+            "create configured proof directory {}: {error}",
+            proof_dir.display()
+        )
+    });
+    let proof_dir = std::fs::canonicalize(&proof_dir).unwrap_or_else(|error| {
+        panic!(
+            "canonicalize configured proof directory {}: {error}",
+            proof_dir.display()
+        )
+    });
+    assert!(
+        proof_dir.starts_with(&artifact_root),
+        "proof directory must stay beneath HANDSHAKE_ARTIFACTS_DIR"
+    );
+    proof_dir
 }
 
 pub fn request_child_close(pid: u32) {
@@ -831,6 +1138,19 @@ pub struct LiveApp {
 impl LiveApp {
     /// Spawn the production binary, discover its owned binding, and authenticate an agent.
     pub fn start(scope: &str) -> Self {
+        Self::start_with_child_proxy(scope, None)
+    }
+
+    /// Spawn the production binary with an owned loopback HTTP proxy for real socket fault proof.
+    pub fn start_with_http_proxy(scope: &str, proxy_url: &str) -> Self {
+        assert!(
+            proxy_url.starts_with("http://127.0.0.1:"),
+            "live proof proxy must be an owned loopback listener"
+        );
+        Self::start_with_child_proxy(scope, Some(proxy_url))
+    }
+
+    fn start_with_child_proxy(scope: &str, proxy_url: Option<&str>) -> Self {
         let diagnostics_dir = require_palmistry_ready_backend();
         let tmp = std::env::temp_dir().join(format!(
             "hsk_argus_production_socket_{scope}_{}",
@@ -840,9 +1160,18 @@ impl LiveApp {
         std::fs::create_dir_all(&tmp).expect("create isolated LOCALAPPDATA");
         let binding_path = tmp.join("handshake").join("swarm_mcp_binding.json");
 
-        let child = Command::new(env!("CARGO_BIN_EXE_handshake-native"))
+        let mut command = Command::new(env!("CARGO_BIN_EXE_handshake-native"));
+        command
             .env("LOCALAPPDATA", &tmp)
-            .env("HANDSHAKE_DIAGNOSTICS_DIR", &diagnostics_dir)
+            .env("HANDSHAKE_DIAGNOSTICS_DIR", &diagnostics_dir);
+        if let Some(proxy_url) = proxy_url {
+            command
+                .env("HTTP_PROXY", proxy_url)
+                .env("http_proxy", proxy_url)
+                .env("NO_PROXY", "")
+                .env("no_proxy", "");
+        }
+        let child = command
             .spawn()
             .expect("spawn production handshake-native binary");
         let child_pid = child.id();

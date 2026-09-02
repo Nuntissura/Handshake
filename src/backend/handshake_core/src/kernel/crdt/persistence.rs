@@ -12,6 +12,7 @@ pub const CRDT_POSTGRES_UPDATE_LOG_CONTRACT_SCHEMA_ID: &str =
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CrdtStorageAuthorityPosture {
+    EmbeddedSurrealDb,
     PostgresEventLedger,
     FileSystemAuthority,
     MemoryOnly,
@@ -151,7 +152,7 @@ pub fn new_crdt_update_record(input: CrdtUpdateRecordInputV1<'_>) -> CrdtUpdateR
             .event_ledger_stream_id
             .clone(),
         event_ledger_event_id: input.event_ledger_event_id.to_string(),
-        storage_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        storage_authority: CrdtStorageAuthorityPosture::EmbeddedSurrealDb,
     }
 }
 
@@ -268,16 +269,16 @@ pub fn validate_crdt_update_record(
             message: "value must be a 64-character sha256 hex digest",
         });
     }
-    if !record.update_bytes_ref.starts_with("postgres://") {
+    if !record.update_bytes_ref.starts_with("surreal://") {
         errors.push(CrdtUpdateRecordValidationError {
             field: "update_bytes_ref",
-            message: "CRDT update bytes must be referenced from Postgres storage",
+            message: "CRDT update bytes must be referenced from embedded SurrealDB storage",
         });
     }
-    if record.storage_authority != CrdtStorageAuthorityPosture::PostgresEventLedger {
+    if record.storage_authority != CrdtStorageAuthorityPosture::EmbeddedSurrealDb {
         errors.push(CrdtUpdateRecordValidationError {
             field: "storage_authority",
-            message: "CRDT update authority must be Postgres plus EventLedger",
+            message: "CRDT update authority must be embedded SurrealDB plus EventLedger",
         });
     }
 

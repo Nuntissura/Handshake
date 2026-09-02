@@ -2,7 +2,7 @@
 //! resolution.
 //!
 //! These tests exercise the real `handshake_core::llm::boot` resolution seam
-//! with fake `ModelRuntime`s / fakes (no PostgreSQL, no real inference). They
+//! with fake `ModelRuntime`s / fakes (no durable store, no real inference). They
 //! prove the reopened acceptance:
 //! - no local model configured -> DisabledLlmClient, never an Ollama/daemon
 //!   adapter (there is no longer any Ollama arm to select);
@@ -278,7 +278,9 @@ impl DefaultLocalClientFactory for RecordingLocalFactory {
         resolved: &ResolvedProvider,
         _flight_recorder: Arc<dyn FlightRecorder>,
         _ledger: Option<handshake_core::process_ledger::LedgerBatcher>,
-        _model_registry_store: Option<handshake_core::model_runtime::ModelRegistryStore>,
+        _model_registry_authority: Option<
+            handshake_core::model_runtime::ScopedModelRegistryAuthority,
+        >,
         _runtime_instance: Option<
             handshake_core::process_ledger::EmbeddedRuntimeInstanceDescriptor,
         >,

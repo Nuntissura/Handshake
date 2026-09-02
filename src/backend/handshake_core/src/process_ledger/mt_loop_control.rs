@@ -19,10 +19,7 @@
 //!   * `MtLoopControl`       — orchestration helpers (record + resume)
 //!   * `LoopControlError`    — typed budget / size violations (no silent
 //!                              continuation; spec line 6147 invariant)
-//!   * `MtLoopCheckpointRepo` — Postgres-backed persistence (FK to
-//!                              `kernel_micro_task_job(job_id)` ON DELETE
-//!                              CASCADE; CHECK constraint enforces summary
-//!                              bound at the DB level too).
+//!   * `MtLoopCheckpointRepo` — exact-scope embedded-Surreal persistence.
 //!
 //! Wire-form note for `evidence_pointers`:
 //!   The on-disk JSONB column stores `Vec<EvidencePointer>` per the contract
@@ -38,7 +35,7 @@
 //!   * Verifier-feedback history is append-only inside a single
 //!     `record_checkpoint` call (callers pass `prior_history` and the new
 //!     checkpoint carries a strictly longer chain when feedback is appended).
-//!     The Postgres repo enforces the same shape at write time by binding
+//!     The durable repo enforces the same shape at write time by binding
 //!     `verifier_feedback_history` as the full JSONB array; concurrent
 //!     writers cannot blind-drop earlier entries because the prior history
 //!     is read inside the same transaction.
@@ -54,10 +51,14 @@
 
 use chrono::{DateTime, Timelike, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use surrealdb::types::{RecordId, RecordIdKey, SurrealValue};
 use thiserror::Error;
 use uuid::Uuid;
 
 use crate::mt_executor::job::{CompletionSignal, EscalationTier, MicroTaskJob, MicroTaskJobId};
+use crate::process_ledger::ReclaimResourceScope;
+use crate::storage::surreal::{SurrealProcessLedgerStore, SurrealStorage, SurrealStorageError};
 
 /// Evidence pointer reused from the MT-179 mailbox-family surface so loop
 /// checkpoints and mailbox `micro_task_*` payloads share the same wire form.
@@ -68,7 +69,7 @@ pub use crate::role_mailbox_v1::families::EvidencePointer;
 /// (`CONSTRAINT compact_summary_bound CHECK (octet_length(compact_summary) <= 2048)`).
 pub const COMPACT_SUMMARY_MAX_BYTES: usize = 2048;
 
-fn now_utc_postgres_precision() -> DateTime<Utc> {
+fn now_utc_storage_precision() -> DateTime<Utc> {
     let now = Utc::now();
     let nanos = now.timestamp_subsec_nanos();
     now.with_nanosecond(nanos - (nanos % 1_000)).unwrap_or(now)
@@ -212,7 +213,7 @@ impl MtLoopControl {
             verifier_feedback_history: prior_history,
             compact_summary,
             evidence_pointers,
-            created_at_utc: now_utc_postgres_precision(),
+            created_at_utc: now_utc_storage_precision(),
             created_by_session: session_id,
         })
     }
@@ -283,34 +284,196 @@ impl MtLoopControl {
     }
 }
 
-// ---------------------------- Postgres-backed repo --------------------------
+// ----------------------- Embedded-Surreal repository -----------------------
 
-/// Postgres-backed checkpoint repository. Writes to `kernel_mt_loop_checkpoint`
-/// declared in `migrations/0023_micro_task_job_queue.sql` with FK
-/// `job_id REFERENCES kernel_micro_task_job(job_id) ON DELETE CASCADE` and
-/// `CONSTRAINT compact_summary_bound CHECK (octet_length(compact_summary) <= 2048)`.
+/// Exact-scope checkpoint repository over the injected embedded store.
 #[derive(Debug, Clone)]
 pub struct MtLoopCheckpointRepo {
-    pool: sqlx::PgPool,
+    storage: SurrealStorage,
+    resource_scope: ReclaimResourceScope,
 }
 
 #[derive(Debug, Error)]
 pub enum CheckpointRepoError {
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
+    #[error("embedded SurrealDB error: {0}")]
+    Store(#[from] SurrealStorageError),
     #[error("serde error: {0}")]
     Serde(#[from] serde_json::Error),
     #[error("loop control: {0}")]
     LoopControl(#[from] LoopControlError),
+    #[error("checkpoint schema bootstrap failed: {0}")]
+    Bootstrap(String),
+    #[error("checkpoint row has invalid durable identity: {0}")]
+    InvalidIdentity(String),
 }
 
+#[derive(Clone, SurrealValue)]
+struct CheckpointScopeBindings {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct CheckpointWriteBindings {
+    checkpoint_record: RecordId,
+    job_record: RecordId,
+    checkpoint_id: Uuid,
+    iteration_n: i64,
+    state_at_checkpoint: Value,
+    retry_budget_remaining: i64,
+    verifier_feedback_history: Value,
+    compact_summary: String,
+    evidence_pointers: Value,
+    created_at_utc: DateTime<Utc>,
+    created_by_session: Uuid,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct CheckpointIdBindings {
+    checkpoint_record: RecordId,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct CheckpointJobBindings {
+    job_record: RecordId,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct CheckpointRow {
+    checkpoint_id: Uuid,
+    job_id: RecordId,
+    iteration_n: i64,
+    state_at_checkpoint: Value,
+    retry_budget_remaining: i64,
+    verifier_feedback_history: Value,
+    compact_summary: String,
+    evidence_pointers: Value,
+    created_at_utc: DateTime<Utc>,
+    created_by_session: Uuid,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct CountRow {
+    count: i64,
+}
+
+const PERSIST_CHECKPOINT: &str = r#"
+BEGIN TRANSACTION;
+LET $existing = SELECT VALUE id FROM ONLY $checkpoint_record
+    WHERE owner_account_id = $owner_account_id
+      AND actor_principal_id = $actor_principal_id
+      AND authenticated_session_id = $authenticated_session_id
+      AND access_space_id = $access_space_id
+      AND workspace_id = $workspace_id;
+IF $existing != NONE { THROW 'mt-loop-checkpoint-id-conflict'; };
+CREATE $checkpoint_record CONTENT {
+    checkpoint_id: $checkpoint_id, job_id: $job_record, iteration_n: $iteration_n,
+    state_at_checkpoint: $state_at_checkpoint,
+    retry_budget_remaining: $retry_budget_remaining,
+    verifier_feedback_history: $verifier_feedback_history,
+    compact_summary: $compact_summary, evidence_pointers: $evidence_pointers,
+    created_at_utc: $created_at_utc, created_by_session: $created_by_session,
+    owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id,
+    authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id,
+    workspace_id: $workspace_id
+};
+LET $stored = SELECT * FROM ONLY $checkpoint_record
+    WHERE checkpoint_id = $checkpoint_id
+      AND job_id = $job_record
+      AND owner_account_id = $owner_account_id
+      AND actor_principal_id = $actor_principal_id
+      AND authenticated_session_id = $authenticated_session_id
+      AND access_space_id = $access_space_id
+      AND workspace_id = $workspace_id;
+IF $stored = NONE { THROW 'mt-loop-checkpoint-verification-mismatch'; };
+RETURN $stored;
+COMMIT TRANSACTION;
+"#;
+
+const GET_CHECKPOINT: &str = r#"
+SELECT * FROM ONLY $checkpoint_record
+ WHERE owner_account_id = $owner_account_id
+   AND actor_principal_id = $actor_principal_id
+   AND authenticated_session_id = $authenticated_session_id
+   AND access_space_id = $access_space_id
+   AND workspace_id = $workspace_id;
+"#;
+
+const LATEST_CHECKPOINT: &str = r#"
+SELECT * FROM kernel_mt_loop_checkpoint
+ WHERE job_id = $job_record
+   AND owner_account_id = $owner_account_id
+   AND actor_principal_id = $actor_principal_id
+   AND authenticated_session_id = $authenticated_session_id
+   AND access_space_id = $access_space_id
+   AND workspace_id = $workspace_id
+ ORDER BY created_at_utc DESC, checkpoint_id DESC LIMIT 1;
+"#;
+
+const CHECKPOINT_CHAIN: &str = r#"
+SELECT * FROM kernel_mt_loop_checkpoint
+ WHERE job_id = $job_record
+   AND owner_account_id = $owner_account_id
+   AND actor_principal_id = $actor_principal_id
+   AND authenticated_session_id = $authenticated_session_id
+   AND access_space_id = $access_space_id
+   AND workspace_id = $workspace_id
+ ORDER BY created_at_utc ASC, checkpoint_id ASC;
+"#;
+
+const COUNT_CHECKPOINTS: &str = r#"
+SELECT count() AS count FROM kernel_mt_loop_checkpoint
+ WHERE job_id = $job_record
+   AND owner_account_id = $owner_account_id
+   AND actor_principal_id = $actor_principal_id
+   AND authenticated_session_id = $authenticated_session_id
+   AND access_space_id = $access_space_id
+   AND workspace_id = $workspace_id GROUP ALL;
+"#;
+
 impl MtLoopCheckpointRepo {
-    pub fn new(pool: sqlx::PgPool) -> Self {
-        Self { pool }
+    pub fn new(storage: SurrealStorage, resource_scope: ReclaimResourceScope) -> Self {
+        Self {
+            storage,
+            resource_scope,
+        }
     }
 
-    pub fn pool(&self) -> &sqlx::PgPool {
-        &self.pool
+    pub fn storage(&self) -> &SurrealStorage {
+        &self.storage
+    }
+
+    pub async fn open(
+        storage: SurrealStorage,
+        resource_scope: ReclaimResourceScope,
+    ) -> Result<Self, CheckpointRepoError> {
+        SurrealProcessLedgerStore::open(storage.clone())
+            .await
+            .map_err(|error| CheckpointRepoError::Bootstrap(error.to_string()))?;
+        Ok(Self::new(storage, resource_scope))
     }
 
     /// Insert one checkpoint. Pre-validates against the budget so a runaway
@@ -321,26 +484,47 @@ impl MtLoopCheckpointRepo {
                 LoopControlError::SummaryTooLarge(checkpoint.compact_summary.as_bytes().len()),
             ));
         }
-        sqlx::query(
-            r#"INSERT INTO kernel_mt_loop_checkpoint
-               (checkpoint_id, job_id, iteration_n, state_at_checkpoint,
-                retry_budget_remaining, verifier_feedback_history,
-                compact_summary, evidence_pointers,
-                created_at_utc, created_by_session)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
-        )
-        .bind(checkpoint.checkpoint_id)
-        .bind(checkpoint.job_id.as_uuid())
-        .bind(checkpoint.iteration_n as i64)
-        .bind(serde_json::to_value(&checkpoint.state_at_checkpoint)?)
-        .bind(checkpoint.retry_budget_remaining as i64)
-        .bind(serde_json::to_value(&checkpoint.verifier_feedback_history)?)
-        .bind(&checkpoint.compact_summary)
-        .bind(serde_json::to_value(&checkpoint.evidence_pointers)?)
-        .bind(checkpoint.created_at_utc)
-        .bind(checkpoint.created_by_session)
-        .execute(&self.pool)
-        .await?;
+        let scope = &self.resource_scope;
+        let bindings = CheckpointWriteBindings {
+            checkpoint_record: RecordId::new(
+                "kernel_mt_loop_checkpoint",
+                checkpoint.checkpoint_id.to_string(),
+            ),
+            job_record: RecordId::new(
+                "kernel_micro_task_job",
+                checkpoint.job_id.as_uuid().to_string(),
+            ),
+            checkpoint_id: checkpoint.checkpoint_id,
+            iteration_n: i64::from(checkpoint.iteration_n),
+            state_at_checkpoint: serde_json::to_value(&checkpoint.state_at_checkpoint)?,
+            retry_budget_remaining: i64::from(checkpoint.retry_budget_remaining),
+            verifier_feedback_history: serde_json::to_value(&checkpoint.verifier_feedback_history)?,
+            compact_summary: checkpoint.compact_summary.clone(),
+            evidence_pointers: serde_json::to_value(&checkpoint.evidence_pointers)?,
+            created_at_utc: checkpoint.created_at_utc,
+            created_by_session: checkpoint.created_by_session,
+            owner_account_id: scope.account_uuid.to_string(),
+            actor_principal_id: scope.actor_uuid.to_string(),
+            authenticated_session_id: scope.session_uuid.to_string(),
+            access_space_id: scope.access_space_uuid.to_string(),
+            workspace_id: scope.workspace_id.clone(),
+        };
+        let rows = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values_at::<CheckpointRow, _>(PERSIST_CHECKPOINT, bindings, 7)
+                        .await
+                })
+            })
+            .await?;
+        if rows.len() != 1 {
+            return Err(CheckpointRepoError::InvalidIdentity(
+                "checkpoint transaction did not return exactly one scoped row".to_owned(),
+            ));
+        }
+        self.validate_row_scope(&rows[0])?;
         Ok(())
     }
 
@@ -349,44 +533,29 @@ impl MtLoopCheckpointRepo {
         &self,
         checkpoint_id: Uuid,
     ) -> Result<Option<MtLoopCheckpoint>, CheckpointRepoError> {
-        let row: Option<(
-            Uuid,
-            Uuid,
-            i64,
-            serde_json::Value,
-            i64,
-            serde_json::Value,
-            String,
-            serde_json::Value,
-            DateTime<Utc>,
-            Uuid,
-        )> = sqlx::query_as(
-            r#"SELECT checkpoint_id, job_id, iteration_n, state_at_checkpoint,
-                       retry_budget_remaining, verifier_feedback_history,
-                       compact_summary, evidence_pointers,
-                       created_at_utc, created_by_session
-                  FROM kernel_mt_loop_checkpoint
-                 WHERE checkpoint_id = $1"#,
-        )
-        .bind(checkpoint_id)
-        .fetch_optional(&self.pool)
-        .await?;
-        let Some(r) = row else { return Ok(None) };
-        let state: MtLoopState = serde_json::from_value(r.3)?;
-        let history: Vec<VerifierFeedbackRef> = serde_json::from_value(r.5)?;
-        let pointers: Vec<EvidencePointer> = serde_json::from_value(r.7)?;
-        Ok(Some(MtLoopCheckpoint {
-            checkpoint_id: r.0,
-            job_id: MicroTaskJobId(r.1),
-            iteration_n: r.2 as u32,
-            state_at_checkpoint: state,
-            retry_budget_remaining: r.4 as u32,
-            verifier_feedback_history: history,
-            compact_summary: r.6,
-            evidence_pointers: pointers,
-            created_at_utc: r.8,
-            created_by_session: r.9,
-        }))
+        let scope = &self.resource_scope;
+        let bindings = CheckpointIdBindings {
+            checkpoint_record: RecordId::new(
+                "kernel_mt_loop_checkpoint",
+                checkpoint_id.to_string(),
+            ),
+            owner_account_id: scope.account_uuid.to_string(),
+            actor_principal_id: scope.actor_uuid.to_string(),
+            authenticated_session_id: scope.session_uuid.to_string(),
+            access_space_id: scope.access_space_uuid.to_string(),
+            workspace_id: scope.workspace_id.clone(),
+        };
+        let row = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_first::<CheckpointRow, _>(GET_CHECKPOINT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        row.map(|row| self.row_to_checkpoint(row)).transpose()
     }
 
     /// Latest checkpoint for a job, by `created_at_utc DESC`. Returns None
@@ -395,17 +564,11 @@ impl MtLoopCheckpointRepo {
         &self,
         job_id: MicroTaskJobId,
     ) -> Result<Option<MtLoopCheckpoint>, CheckpointRepoError> {
-        let row: Option<(Uuid,)> = sqlx::query_as(
-            r#"SELECT checkpoint_id FROM kernel_mt_loop_checkpoint
-                WHERE job_id = $1
-                ORDER BY created_at_utc DESC
-                LIMIT 1"#,
-        )
-        .bind(job_id.as_uuid())
-        .fetch_optional(&self.pool)
-        .await?;
-        let Some((cp_id,)) = row else { return Ok(None) };
-        self.get(cp_id).await
+        let rows = self.rows_for_job(LATEST_CHECKPOINT, job_id).await?;
+        rows.into_iter()
+            .next()
+            .map(|row| self.row_to_checkpoint(row))
+            .transpose()
     }
 
     /// Full ordered chain of checkpoints for a job. Useful for audit /
@@ -414,21 +577,11 @@ impl MtLoopCheckpointRepo {
         &self,
         job_id: MicroTaskJobId,
     ) -> Result<Vec<MtLoopCheckpoint>, CheckpointRepoError> {
-        let rows: Vec<(Uuid,)> = sqlx::query_as(
-            r#"SELECT checkpoint_id FROM kernel_mt_loop_checkpoint
-                WHERE job_id = $1
-                ORDER BY created_at_utc ASC, checkpoint_id ASC"#,
-        )
-        .bind(job_id.as_uuid())
-        .fetch_all(&self.pool)
-        .await?;
-        let mut out = Vec::with_capacity(rows.len());
-        for (cp_id,) in rows {
-            if let Some(cp) = self.get(cp_id).await? {
-                out.push(cp);
-            }
-        }
-        Ok(out)
+        self.rows_for_job(CHECKPOINT_CHAIN, job_id)
+            .await?
+            .into_iter()
+            .map(|row| self.row_to_checkpoint(row))
+            .collect()
     }
 
     /// Atomic count of recorded retry-driving checkpoints for a job. Useful
@@ -440,15 +593,109 @@ impl MtLoopCheckpointRepo {
         &self,
         job_id: MicroTaskJobId,
     ) -> Result<i64, CheckpointRepoError> {
-        let row: (i64,) = sqlx::query_as(
-            r#"SELECT COUNT(*)::BIGINT
-                 FROM kernel_mt_loop_checkpoint
-                WHERE job_id = $1"#,
-        )
-        .bind(job_id.as_uuid())
-        .fetch_one(&self.pool)
-        .await?;
-        Ok(row.0)
+        let bindings = self.job_bindings(job_id);
+        let row = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_first::<CountRow, _>(COUNT_CHECKPOINTS, bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(row.map_or(0, |row| row.count))
+    }
+
+    fn scope_bindings(&self) -> CheckpointScopeBindings {
+        let scope = &self.resource_scope;
+        CheckpointScopeBindings {
+            owner_account_id: scope.account_uuid.to_string(),
+            actor_principal_id: scope.actor_uuid.to_string(),
+            authenticated_session_id: scope.session_uuid.to_string(),
+            access_space_id: scope.access_space_uuid.to_string(),
+            workspace_id: scope.workspace_id.clone(),
+        }
+    }
+
+    fn job_bindings(&self, job_id: MicroTaskJobId) -> CheckpointJobBindings {
+        let scope = self.scope_bindings();
+        CheckpointJobBindings {
+            job_record: RecordId::new("kernel_micro_task_job", job_id.as_uuid().to_string()),
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+        }
+    }
+
+    async fn rows_for_job(
+        &self,
+        statement: &'static str,
+        job_id: MicroTaskJobId,
+    ) -> Result<Vec<CheckpointRow>, CheckpointRepoError> {
+        let bindings = self.job_bindings(job_id);
+        Ok(self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values::<CheckpointRow, _>(statement, bindings)
+                        .await
+                })
+            })
+            .await?)
+    }
+
+    fn validate_row_scope(&self, row: &CheckpointRow) -> Result<(), CheckpointRepoError> {
+        let scope = &self.resource_scope;
+        if row.owner_account_id != scope.account_uuid.to_string()
+            || row.actor_principal_id != scope.actor_uuid.to_string()
+            || row.authenticated_session_id != scope.session_uuid.to_string()
+            || row.access_space_id != scope.access_space_uuid.to_string()
+            || row.workspace_id != scope.workspace_id
+        {
+            return Err(CheckpointRepoError::InvalidIdentity(
+                "checkpoint resource scope mismatch".to_owned(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn row_to_checkpoint(
+        &self,
+        row: CheckpointRow,
+    ) -> Result<MtLoopCheckpoint, CheckpointRepoError> {
+        self.validate_row_scope(&row)?;
+        let RecordIdKey::String(job_id) = &row.job_id.key else {
+            return Err(CheckpointRepoError::InvalidIdentity(
+                "checkpoint job record id is not a string UUID".to_owned(),
+            ));
+        };
+        let job_uuid = Uuid::parse_str(job_id).map_err(|error| {
+            CheckpointRepoError::InvalidIdentity(format!(
+                "invalid checkpoint job record id: {error}"
+            ))
+        })?;
+        Ok(MtLoopCheckpoint {
+            checkpoint_id: row.checkpoint_id,
+            job_id: MicroTaskJobId(job_uuid),
+            iteration_n: u32::try_from(row.iteration_n).map_err(|_| {
+                CheckpointRepoError::InvalidIdentity("negative or oversized iteration_n".to_owned())
+            })?,
+            state_at_checkpoint: serde_json::from_value(row.state_at_checkpoint)?,
+            retry_budget_remaining: u32::try_from(row.retry_budget_remaining).map_err(|_| {
+                CheckpointRepoError::InvalidIdentity(
+                    "negative or oversized retry budget".to_owned(),
+                )
+            })?,
+            verifier_feedback_history: serde_json::from_value(row.verifier_feedback_history)?,
+            compact_summary: row.compact_summary,
+            evidence_pointers: serde_json::from_value(row.evidence_pointers)?,
+            created_at_utc: row.created_at_utc,
+            created_by_session: row.created_by_session,
+        })
     }
 }
 
@@ -456,6 +703,27 @@ impl MtLoopCheckpointRepo {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn durable_checkpoint_queries_bind_all_five_scope_fields() {
+        for statement in [
+            PERSIST_CHECKPOINT,
+            GET_CHECKPOINT,
+            LATEST_CHECKPOINT,
+            CHECKPOINT_CHAIN,
+            COUNT_CHECKPOINTS,
+        ] {
+            for predicate in [
+                "owner_account_id = $owner_account_id",
+                "actor_principal_id = $actor_principal_id",
+                "authenticated_session_id = $authenticated_session_id",
+                "access_space_id = $access_space_id",
+                "workspace_id = $workspace_id",
+            ] {
+                assert!(statement.contains(predicate), "missing {predicate}");
+            }
+        }
+    }
 
     fn sample_job(iter_n: u32) -> MicroTaskJob {
         let mut j = MicroTaskJob::queue("WP-A", "MT-1", PathBuf::from("a.json"), 6, vec![]);

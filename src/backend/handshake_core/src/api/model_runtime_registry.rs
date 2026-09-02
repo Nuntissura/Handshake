@@ -1,14 +1,11 @@
 //! ModelRuntime registry projection and deterministic READY-model selector.
 //!
-//! PostgreSQL owns durable artifact-to-adapter selection. The process-local
+//! Embedded SurrealDB owns durable artifact-to-adapter selection. The process-local
 //! [`ModelCatalog`](crate::model_runtime::ModelCatalog) owns only current boot
 //! readiness. This endpoint joins those authorities by artifact SHA-256; a
 //! boot-scoped UUID is never used as restart identity.
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    path::Path,
-};
+use std::{collections::BTreeMap, path::Path, sync::Arc};
 
 use axum::{
     extract::{Path as AxumPath, State},
@@ -21,25 +18,27 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::Row;
 use uuid::Uuid;
 
 use crate::api::account_scope::RequestAccountScope;
 use crate::{
     llm::{
-        ModelRuntimeControlAction, ModelRuntimeControlReceipt, ModelRuntimeControlRequest,
-        ModelRuntimeInspection, ModelRuntimeKvInspection, ModelRuntimeLoraInspection,
-        ModelRuntimeSteeringInspection, ModelRuntimeValue, MODEL_RUNTIME_CONTROL_SCHEMA_VERSION,
+        LlmClient, ModelRuntimeControlAction, ModelRuntimeControlReceipt,
+        ModelRuntimeControlRequest, ModelRuntimeInspection, ModelRuntimeKvInspection,
+        ModelRuntimeLoraInspection, ModelRuntimeSteeringInspection, ModelRuntimeValue,
+        MODEL_RUNTIME_CONTROL_SCHEMA_VERSION,
     },
     model_runtime::{
-        ModelCatalogEntry, ModelRegistryPersistenceError, ModelRegistryStore, ModelRuntimeRole,
-        ModelRuntimeSelectionPurpose, PersistedActiveModelSelection,
+        ModelCatalogEntry, ModelRegistryPersistenceError, ModelRuntimeRole,
+        ModelRuntimeSelectionPurpose, PersistedActiveModelSelection, ScopedModelRegistryAuthority,
     },
+    process_ledger::{ProcessLedgerError, ReclaimResourceScope, SurrealProcessLedgerStore},
+    storage::surreal::{SurrealModelRegistryStore, SurrealStorage},
+    swarm_orchestration::resource_scope::{ExactResourceScopeAttribution, ScopeDenied},
     workflows::{
         ModelSwapPriority, ModelSwapRequestV0_4, ModelSwapRequesterSubsystem,
         ModelSwapRequesterV0_4, ModelSwapRole, ModelSwapStrategy,
     },
-    AppState,
 };
 
 pub const MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID: &str =
@@ -60,6 +59,30 @@ pub const MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE: &str = "MODEL_RUNTIME_REGISTR
 /// only the stable `ScopeDenied::reason_code`, never the withheld row.
 pub const MODEL_RUNTIME_REGISTRY_SCOPE_DENIED_CODE: &str = "MODEL_RUNTIME_REGISTRY_SCOPE_DENIED";
 
+/// Narrow route state for the model-runtime registry API.
+///
+/// Composition must pass the same embedded SurrealDB clone used by the exact
+/// scoped authority exposed by `llm_client`. The mutation handlers independently
+/// compare that authority's five fields with every authenticated request.
+#[derive(Clone)]
+pub struct ModelRuntimeRegistryApiState {
+    surreal_storage: SurrealStorage,
+    llm_client: Arc<dyn LlmClient>,
+}
+
+impl ModelRuntimeRegistryApiState {
+    pub fn new(surreal_storage: SurrealStorage, llm_client: Arc<dyn LlmClient>) -> Self {
+        Self {
+            surreal_storage,
+            llm_client,
+        }
+    }
+
+    fn model_catalog(&self) -> Option<Arc<crate::model_runtime::ModelCatalog>> {
+        self.llm_client.model_catalog()
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelRuntimeRegistryRowState {
@@ -70,7 +93,7 @@ pub enum ModelRuntimeRegistryRowState {
 /// One operator-readable durable registry row joined to current boot state.
 ///
 /// `last_observed_runtime_model_id` is intentionally absent. A dormant row has
-/// no current live identity, even though PostgreSQL retains the last
+/// no current live identity, even though the durable registry retains the last
 /// observation for audit/recovery.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ModelRuntimeActionAvailability {
@@ -154,7 +177,10 @@ struct ModelRuntimeRegistryErrorBody {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct SelectReadyModelRequest {
+    request_id: Uuid,
+    expected_selection_revision: u64,
     target_model_id: String,
     actor: String,
     reason: String,
@@ -168,11 +194,11 @@ struct ModelRuntimeRegistryApiError {
 }
 
 impl ModelRuntimeRegistryApiError {
-    fn integrity(detail: impl Into<String>) -> Self {
+    fn integrity(_detail: impl Into<String>) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             code: MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE,
-            detail: detail.into(),
+            detail: "the model runtime registry failed a consistency check".to_owned(),
         }
     }
 
@@ -181,6 +207,14 @@ impl ModelRuntimeRegistryApiError {
             status: StatusCode::BAD_REQUEST,
             code,
             detail: detail.into(),
+        }
+    }
+
+    fn process_ownership_unavailable() -> Self {
+        Self {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            code: MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE,
+            detail: "scoped process ownership inspection is unavailable".to_owned(),
         }
     }
 
@@ -200,11 +234,19 @@ impl ModelRuntimeRegistryApiError {
         }
     }
 
-    fn control_rejected(detail: impl Into<String>) -> Self {
+    fn control_rejected() -> Self {
         Self {
             status: StatusCode::CONFLICT,
             code: MODEL_RUNTIME_CONTROL_REJECTED_CODE,
-            detail: detail.into(),
+            detail: "the model runtime control request was rejected".to_owned(),
+        }
+    }
+
+    fn mutation_authority_unavailable() -> Self {
+        Self {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            code: MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE,
+            detail: "request-scoped model runtime mutation authority is unavailable".to_owned(),
         }
     }
 }
@@ -223,13 +265,17 @@ impl From<ModelRegistryPersistenceError> for ModelRuntimeRegistryApiError {
         }
         let status = match &error {
             ModelRegistryPersistenceError::AuthorityUnavailable(_)
-            | ModelRegistryPersistenceError::Database(_) => StatusCode::SERVICE_UNAVAILABLE,
+            | ModelRegistryPersistenceError::Storage(_) => StatusCode::SERVICE_UNAVAILABLE,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         Self {
             status,
             code: MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE,
-            detail: error.to_string(),
+            detail: if status == StatusCode::SERVICE_UNAVAILABLE {
+                "the scoped model registry authority is unavailable".to_owned()
+            } else {
+                "the scoped model registry request was rejected".to_owned()
+            },
         }
     }
 }
@@ -248,264 +294,130 @@ impl IntoResponse for ModelRuntimeRegistryApiError {
 }
 
 async fn list_registry(
-    State(state): State<AppState>,
+    State(state): State<ModelRuntimeRegistryApiState>,
     scope: RequestAccountScope,
 ) -> Result<Json<ModelRuntimeRegistryProjection>, ModelRuntimeRegistryApiError> {
     Ok(Json(build_registry_projection(&state, &scope).await?))
 }
 
 async fn get_process_ownership_record(
-    State(state): State<AppState>,
+    State(state): State<ModelRuntimeRegistryApiState>,
     scope: RequestAccountScope,
     AxumPath(process_uuid): AxumPath<Uuid>,
 ) -> Result<Json<ModelRuntimeProcessOwnershipRecord>, ModelRuntimeRegistryApiError> {
-    load_authorized_process_ownership_records(&state, &scope, Some(process_uuid))
-        .await?
-        .into_iter()
-        .next()
-        .map(Json)
-        .ok_or_else(ModelRuntimeRegistryApiError::process_not_found)
-}
-
-/// Load ProcessOwnershipLedger rows through the same privacy boundary used by
-/// both the registry projection and the process-detail route.
-///
-/// The SQL predicate prevents cross-account/wrong-workspace rows from entering
-/// the transfer at all. The exact five-dimensional attribution is then decoded
-/// and authorized again before any identifier can reach an HTTP response. A
-/// malformed newer row is ignored rather than shadowing an older authorized
-/// row for the same artifact SHA.
-async fn load_authorized_process_ownership_records(
-    state: &AppState,
-    scope: &RequestAccountScope,
-    process_uuid: Option<Uuid>,
-) -> Result<Vec<ModelRuntimeProcessOwnershipRecord>, ModelRuntimeRegistryApiError> {
-    let exact = scope.exact();
-    let rows = sqlx::query(
-        r#"
-        SELECT process_uuid, os_pid, engine_kind, started_at, stopped_at,
-               exit_code, stop_reason, model_artifact_sha256, owner_role,
-               owner_wp, sandbox_adapter_id, metadata_jsonb
-        FROM kernel_process_lifecycle
-        WHERE metadata_jsonb->>'owner_account_id' = $1::text
-          AND metadata_jsonb->>'actor_principal_id' = $2::text
-          AND metadata_jsonb->>'authenticated_session_id' = $3::text
-          AND metadata_jsonb->>'access_space_id' = $4::text
-          AND metadata_jsonb->>'workspace_id' = $5::text
-          AND ($6::uuid IS NULL OR process_uuid = $6::uuid)
-        ORDER BY model_artifact_sha256 ASC NULLS LAST,
-                 started_at DESC,
-                 process_uuid DESC
-        "#,
-    )
-    .bind(exact.owner_account_id.as_uuid().to_string())
-    .bind(exact.actor_principal_id.as_uuid().to_string())
-    .bind(exact.authenticated_session_id.as_uuid().to_string())
-    .bind(exact.access_space_id.as_uuid().to_string())
-    .bind(exact.workspace_id.as_str())
-    .bind(process_uuid)
-    .fetch_all(&state.postgres_pool)
-    .await
-    .map_err(ModelRegistryPersistenceError::Database)?;
-
-    let mut authorized = Vec::with_capacity(rows.len());
-    for row in rows {
-        let metadata: Value = row
-            .try_get("metadata_jsonb")
-            .map_err(ModelRegistryPersistenceError::Database)?;
-        let Ok(attribution) = serde_json::from_value::<
-            crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
-        >(metadata) else {
-            continue;
-        };
-        if &attribution != exact {
-            continue;
-        }
-        authorized.push(ModelRuntimeProcessOwnershipRecord {
-            schema_id: "hsk.model_runtime_process_ownership@1".to_owned(),
-            process_uuid: row
-                .try_get("process_uuid")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            os_pid: row
-                .try_get("os_pid")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            engine_kind: row
-                .try_get("engine_kind")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            started_at_utc: row
-                .try_get("started_at")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            stopped_at_utc: row
-                .try_get("stopped_at")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            exit_code: row
-                .try_get("exit_code")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            stop_reason: row
-                .try_get("stop_reason")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            model_artifact_sha256: row
-                .try_get("model_artifact_sha256")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            owner_role: row
-                .try_get("owner_role")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            owner_wp: row
-                .try_get("owner_wp")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            sandbox_adapter_id: row
-                .try_get("sandbox_adapter_id")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-        });
-    }
-    Ok(authorized)
-}
-
-async fn load_exact_registry_authority_keys(
-    state: &AppState,
-    scope: &RequestAccountScope,
-) -> Result<(BTreeSet<[u8; 32]>, BTreeSet<(String, [u8; 32])>), ModelRuntimeRegistryApiError> {
-    let exact = scope.exact();
-    let registry_rows = sqlx::query(
-        r#"
-        SELECT artifact_sha256, owner_account_id, actor_principal_id,
-               authenticated_session_id, access_space_id, workspace_id
-        FROM ONLY model_runtime_registry
-        WHERE owner_account_id = $1::uuid
-          AND actor_principal_id = $2::uuid
-          AND authenticated_session_id = $3::uuid
-          AND access_space_id = $4::uuid
-          AND workspace_id = $5::text
-        "#,
-    )
-    .bind(exact.owner_account_id.as_uuid())
-    .bind(exact.actor_principal_id.as_uuid())
-    .bind(exact.authenticated_session_id.as_uuid())
-    .bind(exact.access_space_id.as_uuid())
-    .bind(exact.workspace_id.as_str())
-    .fetch_all(&state.postgres_pool)
-    .await
-    .map_err(ModelRegistryPersistenceError::Database)?;
-    let mut artifacts = BTreeSet::new();
-    for row in registry_rows {
-        if !registry_scope_row_matches_exact(&row, exact)? {
-            continue;
-        }
-        artifacts.insert(registry_artifact_sha256(&row)?);
-    }
-
-    let active_rows = sqlx::query(
-        r#"
-        SELECT purpose, artifact_sha256, owner_account_id, actor_principal_id,
-               authenticated_session_id, access_space_id, workspace_id
-        FROM ONLY model_runtime_active_selection
-        WHERE owner_account_id = $1::uuid
-          AND actor_principal_id = $2::uuid
-          AND authenticated_session_id = $3::uuid
-          AND access_space_id = $4::uuid
-          AND workspace_id = $5::text
-        "#,
-    )
-    .bind(exact.owner_account_id.as_uuid())
-    .bind(exact.actor_principal_id.as_uuid())
-    .bind(exact.authenticated_session_id.as_uuid())
-    .bind(exact.access_space_id.as_uuid())
-    .bind(exact.workspace_id.as_str())
-    .fetch_all(&state.postgres_pool)
-    .await
-    .map_err(ModelRegistryPersistenceError::Database)?;
-    let mut active = BTreeSet::new();
-    for row in active_rows {
-        if !registry_scope_row_matches_exact(&row, exact)? {
-            continue;
-        }
-        active.insert((
-            row.try_get("purpose")
-                .map_err(ModelRegistryPersistenceError::Database)?,
-            registry_artifact_sha256(&row)?,
+    let resource_scope = process_ledger_scope(scope.exact());
+    let inspection = SurrealProcessLedgerStore::new(state.surreal_storage.clone())
+        .inspect_ownership_by_process_uuid(&resource_scope, process_uuid)
+        .await
+        .map_err(process_ownership_error)?
+        .ok_or_else(ModelRuntimeRegistryApiError::process_not_found)?;
+    if inspection.process_uuid != process_uuid || inspection.resource_scope != resource_scope {
+        return Err(ModelRuntimeRegistryApiError::integrity(
+            "ProcessLedger ownership projection disagrees with the exact request",
         ));
     }
-    Ok((artifacts, active))
+    let exit_code = inspection
+        .exit_code
+        .map(i32::try_from)
+        .transpose()
+        .map_err(|_| {
+            ModelRuntimeRegistryApiError::integrity(
+                "ProcessLedger ownership exit code is outside the API range",
+            )
+        })?;
+    Ok(Json(ModelRuntimeProcessOwnershipRecord {
+        schema_id: "hsk.model_runtime_process_ownership@1".to_owned(),
+        process_uuid: inspection.process_uuid,
+        os_pid: inspection.os_pid.map(i64::from),
+        engine_kind: inspection.engine_kind.as_str().to_owned(),
+        started_at_utc: inspection.started_at,
+        stopped_at_utc: inspection.stopped_at,
+        exit_code,
+        stop_reason: inspection.stop_reason,
+        model_artifact_sha256: inspection.model_artifact_sha256,
+        owner_role: inspection.owner_role,
+        owner_wp: inspection.owner_wp,
+        sandbox_adapter_id: inspection.sandbox_adapter_id,
+    }))
 }
 
-fn registry_scope_row_matches_exact(
-    row: &sqlx::postgres::PgRow,
-    exact: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
-) -> Result<bool, ModelRuntimeRegistryApiError> {
-    let owner: Uuid = row
-        .try_get("owner_account_id")
-        .map_err(ModelRegistryPersistenceError::Database)?;
-    let actor: Uuid = row
-        .try_get("actor_principal_id")
-        .map_err(ModelRegistryPersistenceError::Database)?;
-    let session: Uuid = row
-        .try_get("authenticated_session_id")
-        .map_err(ModelRegistryPersistenceError::Database)?;
-    let access_space: Uuid = row
-        .try_get("access_space_id")
-        .map_err(ModelRegistryPersistenceError::Database)?;
-    let workspace: String = row
-        .try_get("workspace_id")
-        .map_err(ModelRegistryPersistenceError::Database)?;
-    Ok(owner == exact.owner_account_id.as_uuid()
-        && actor == exact.actor_principal_id.as_uuid()
-        && session == exact.authenticated_session_id.as_uuid()
-        && access_space == exact.access_space_id.as_uuid()
-        && workspace == exact.workspace_id.as_str())
+fn process_ownership_error(error: ProcessLedgerError) -> ModelRuntimeRegistryApiError {
+    match error {
+        ProcessLedgerError::Store(detail)
+            if detail.starts_with("ProcessLedger ownership inspection failed closed:") =>
+        {
+            ModelRuntimeRegistryApiError::integrity(detail)
+        }
+        ProcessLedgerError::InvalidConfig(detail) => {
+            ModelRuntimeRegistryApiError::integrity(detail)
+        }
+        _ => ModelRuntimeRegistryApiError::process_ownership_unavailable(),
+    }
 }
 
-fn registry_artifact_sha256(
-    row: &sqlx::postgres::PgRow,
-) -> Result<[u8; 32], ModelRuntimeRegistryApiError> {
-    let bytes: Vec<u8> = row
-        .try_get("artifact_sha256")
-        .map_err(ModelRegistryPersistenceError::Database)?;
-    bytes.try_into().map_err(|bytes: Vec<u8>| {
-        ModelRuntimeRegistryApiError::from(ModelRegistryPersistenceError::CorruptRow(format!(
-            "artifact_sha256 must be 32 bytes, got {}",
-            bytes.len()
-        )))
-    })
+fn registry_authority(
+    state: &ModelRuntimeRegistryApiState,
+    scope: &RequestAccountScope,
+) -> ScopedModelRegistryAuthority {
+    ScopedModelRegistryAuthority::new(
+        SurrealModelRegistryStore::new(state.surreal_storage.clone()),
+        scope.exact().clone(),
+    )
+}
+
+fn llm_registry_authority_for_request(
+    state: &ModelRuntimeRegistryApiState,
+    scope: &RequestAccountScope,
+) -> Result<ScopedModelRegistryAuthority, ModelRuntimeRegistryApiError> {
+    let authority = state
+        .llm_client
+        .scoped_model_registry_authority()
+        .ok_or_else(ModelRuntimeRegistryApiError::mutation_authority_unavailable)?;
+    authorize_mutation_scope(authority.scope(), scope.exact())?;
+    Ok(authority)
+}
+
+fn authorize_mutation_scope(
+    authority_scope: &ExactResourceScopeAttribution,
+    request_scope: &ExactResourceScopeAttribution,
+) -> Result<(), ModelRuntimeRegistryApiError> {
+    if authority_scope == request_scope {
+        return Ok(());
+    }
+    Err(ModelRuntimeRegistryApiError::from(
+        ModelRegistryPersistenceError::ScopeDenied(ScopeDenied::ExactAttributionMismatch),
+    ))
+}
+
+fn process_ledger_scope(scope: &ExactResourceScopeAttribution) -> ReclaimResourceScope {
+    ReclaimResourceScope {
+        account_uuid: scope.owner_account_id.as_uuid(),
+        actor_uuid: scope.actor_principal_id.as_uuid(),
+        session_uuid: scope.authenticated_session_id.as_uuid(),
+        workspace_id: scope.workspace_id.as_str().to_owned(),
+        access_space_uuid: scope.access_space_id.as_uuid(),
+    }
 }
 
 async fn build_registry_projection(
-    state: &AppState,
+    state: &ModelRuntimeRegistryApiState,
     scope: &RequestAccountScope,
 ) -> Result<ModelRuntimeRegistryProjection, ModelRuntimeRegistryApiError> {
     let generated_at_utc = Utc::now();
-    // Read-only, account-scoped: the durable registry rows and the active
-    // selection receipts below are filtered to this owner in SQL and
-    // re-authorized after decode (HBR-PRIV-002).
-    let store =
-        ModelRegistryStore::new_for_exact_scope(state.postgres_pool.clone(), scope.exact().clone());
-    let (exact_artifacts, exact_active_selections) =
-        load_exact_registry_authority_keys(state, scope).await?;
-    let durable_rows = store
-        .list_recoverable()
-        .await?
-        .into_iter()
-        .filter(|row| exact_artifacts.contains(&row.artifact_sha256))
-        .collect::<Vec<_>>();
-    let active_selections = store
-        .list_active_selections()
-        .await?
-        .into_iter()
-        .filter(|selection| {
-            exact_active_selections.contains(&(
-                selection.purpose.as_str().to_owned(),
-                selection.artifact_sha256,
-            ))
-        })
-        .collect::<Vec<_>>();
-    let ownership_rows = load_authorized_process_ownership_records(state, scope, None).await?;
-    let mut process_by_artifact = BTreeMap::<String, Uuid>::new();
-    for row in ownership_rows {
-        if let Some(artifact_sha256) = row.model_artifact_sha256 {
-            process_by_artifact
-                .entry(artifact_sha256)
-                .or_insert(row.process_uuid);
-        }
-    }
+    // The authority owns both the injected store clone and the exact
+    // authenticated five-field scope. Provider reads bind that scope on every
+    // durable row and fail closed on malformed or mixed-attribution results.
+    let authority = registry_authority(state, scope);
+    let durable_rows = authority
+        .store()
+        .list_recoverable(authority.scope())
+        .await?;
+    let active_selections = authority
+        .store()
+        .list_active_selections(authority.scope())
+        .await?;
+    let process_ledger = SurrealProcessLedgerStore::new(state.surreal_storage.clone());
+    let process_scope = process_ledger_scope(scope.exact());
     // Compute the application/default selection receipt, but defer the
     // absent-selection integrity error until AFTER the structural catalog vs
     // durable-authority checks below. Reporting "selection receipt is absent"
@@ -681,16 +593,23 @@ async fn build_registry_projection(
             .filter(|entry| entry.ready)
             .map(|entry| canonical_artifact_path(&entry.artifact_path))
             .unwrap_or_else(|| ModelRuntimeValue::unavailable(unavailable_reason.clone()));
-        let process_ownership_ledger_link = process_by_artifact
-            .get(&artifact_sha256)
-            .map(|process_uuid| {
+        let process_ownership_ledger_link = process_ledger
+            .inspect_latest_ownership_by_artifact(&process_scope, &artifact_sha256)
+            .await
+            .map_err(|_| {
+                ModelRuntimeRegistryApiError::integrity(
+                    "the exact-scope ProcessLedger ownership projection failed verification",
+                )
+            })?
+            .map(|ownership| {
                 ModelRuntimeValue::available(format!(
-                    "process-ownership-ledger://process/{process_uuid}"
+                    "process-ownership-ledger://process/{}",
+                    ownership.process_uuid
                 ))
             })
             .unwrap_or_else(|| {
                 ModelRuntimeValue::unavailable(
-                    "no ProcessOwnershipLedger record exists for this artifact",
+                    "no exact-scope ProcessLedger ownership row exists for this artifact",
                 )
             });
         let inspect_engine_internals_action = match &inspection.engine_internals {
@@ -804,7 +723,7 @@ async fn build_registry_projection(
     // an application/default selection exists.
     let selection_receipt_ref = selection_receipt_ref.ok_or_else(|| {
         ModelRuntimeRegistryApiError::integrity(
-            "PostgreSQL application/default selection receipt is absent",
+            "the scoped application/default selection receipt is absent",
         )
     })?;
 
@@ -818,8 +737,8 @@ async fn build_registry_projection(
 }
 
 async fn control_model_runtime(
-    State(state): State<AppState>,
-    _scope: RequestAccountScope,
+    State(state): State<ModelRuntimeRegistryApiState>,
+    scope: RequestAccountScope,
     Json(request): Json<ModelRuntimeControlRequest>,
 ) -> Result<Json<ModelRuntimeControlReceipt>, ModelRuntimeRegistryApiError> {
     if request.schema_version != MODEL_RUNTIME_CONTROL_SCHEMA_VERSION {
@@ -829,6 +748,12 @@ async fn control_model_runtime(
                 "unsupported model runtime control schema {}; expected {}",
                 request.schema_version, MODEL_RUNTIME_CONTROL_SCHEMA_VERSION
             ),
+        ));
+    }
+    if request.request_id.is_nil() {
+        return Err(ModelRuntimeRegistryApiError::bad_request(
+            MODEL_RUNTIME_CONTROL_INVALID_CODE,
+            "request_id must be a non-nil stable UUID",
         ));
     }
     bounded_token_with_code(
@@ -850,13 +775,30 @@ async fn control_model_runtime(
             target_adapter,
             64,
         )?;
+        if request.expected_selection_revision.is_none() {
+            return Err(ModelRuntimeRegistryApiError::bad_request(
+                MODEL_RUNTIME_CONTROL_INVALID_CODE,
+                "expected_selection_revision is required for adapter swap CAS",
+            ));
+        }
     }
+    let llm_authority = llm_registry_authority_for_request(&state, &scope)?;
+    registry_authority(&state, &scope)
+        .store()
+        .ensure_authority_available(scope.exact())
+        .await
+        .map_err(ModelRuntimeRegistryApiError::from)?;
+    llm_authority
+        .store()
+        .ensure_authority_available(llm_authority.scope())
+        .await
+        .map_err(ModelRuntimeRegistryApiError::from)?;
     state
         .llm_client
         .control_model_runtime(request)
         .await
         .map(Json)
-        .map_err(|error| ModelRuntimeRegistryApiError::control_rejected(error.to_string()))
+        .map_err(|_| ModelRuntimeRegistryApiError::control_rejected())
 }
 
 fn last_call_age(value: &ModelRuntimeValue<String>, now: &DateTime<Utc>) -> ModelRuntimeValue<u64> {
@@ -867,11 +809,7 @@ fn last_call_age(value: &ModelRuntimeValue<String>, now: &DateTime<Utc>) -> Mode
     };
     let observed = match DateTime::parse_from_rfc3339(value) {
         Ok(value) => value.with_timezone(&Utc),
-        Err(error) => {
-            return ModelRuntimeValue::unavailable(format!(
-                "last-call time is not valid RFC3339: {error}"
-            ))
-        }
+        Err(_) => return ModelRuntimeValue::unavailable("last-call time is not valid RFC3339"),
     };
     let elapsed = now.signed_duration_since(observed).num_seconds();
     if elapsed < 0 {
@@ -882,15 +820,27 @@ fn last_call_age(value: &ModelRuntimeValue<String>, now: &DateTime<Utc>) -> Mode
 }
 
 async fn select_ready_model(
-    State(state): State<AppState>,
+    State(state): State<ModelRuntimeRegistryApiState>,
     scope: RequestAccountScope,
     Json(request): Json<SelectReadyModelRequest>,
 ) -> Result<Json<ModelRuntimeRegistryProjection>, ModelRuntimeRegistryApiError> {
+    if request.request_id.is_nil() {
+        return Err(ModelRuntimeRegistryApiError::bad_request(
+            MODEL_RUNTIME_SELECTION_INVALID_CODE,
+            "request_id must be a non-nil stable UUID",
+        ));
+    }
     let target_model_id = bounded_token("target_model_id", &request.target_model_id, 128)?;
     let actor = bounded_token("actor", &request.actor, 128)?;
     let reason = bounded_token("reason", &request.reason, 512)?;
-    // Complete every fallible authority/projection/target check before the
-    // durable swap commits and publishes the current-boot router projection.
+    let llm_authority = llm_registry_authority_for_request(&state, &scope)?;
+    llm_authority
+        .store()
+        .ensure_authority_available(llm_authority.scope())
+        .await
+        .map_err(ModelRuntimeRegistryApiError::from)?;
+    // Complete every fallible exact-scope authority, projection, lifecycle,
+    // role, artifact and revision check before considering a runtime mutation.
     let mut projection = build_registry_projection(&state, &scope).await?;
     let current_row = projection
         .rows
@@ -898,18 +848,34 @@ async fn select_ready_model(
         .find(|row| row.selected)
         .ok_or_else(|| {
             ModelRuntimeRegistryApiError::integrity(
-                "PostgreSQL application/default selection is absent",
+                "the scoped application/default selection is absent",
             )
         })?;
     let current_model_id = current_row.live_model_id.clone().ok_or_else(|| {
         ModelRuntimeRegistryApiError::conflict(
-            "PostgreSQL application/default does not resolve to a READY current-boot model",
+            "the scoped application/default does not resolve to a READY current-boot model",
         )
     })?;
-    let current_selection_revision = current_row.active_selection_revision.unwrap_or(0);
+    let current_selection_revision = current_row.active_selection_revision.ok_or_else(|| {
+        ModelRuntimeRegistryApiError::integrity(
+            "the scoped application/default selection revision is absent",
+        )
+    })?;
+    let possible_committed_retry = request
+        .expected_selection_revision
+        .checked_add(1)
+        .is_some_and(|committed_revision| committed_revision == current_selection_revision)
+        && current_model_id == target_model_id;
+    if current_selection_revision != request.expected_selection_revision
+        && !possible_committed_retry
+    {
+        return Err(ModelRuntimeRegistryApiError::conflict(
+            "the model selection revision changed before this request",
+        ));
+    }
     if state.llm_client.selected_model_id() != current_model_id {
         return Err(ModelRuntimeRegistryApiError::integrity(format!(
-            "current router projection disagrees with PostgreSQL application/default `{current_model_id}`"
+            "current router projection disagrees with the scoped application/default `{current_model_id}`"
         )));
     }
     let target_row = projection
@@ -929,20 +895,34 @@ async fn select_ready_model(
             target_row.runtime_role
         )));
     }
-    let request_id = Uuid::now_v7().simple().to_string();
-    let selection_receipt_ref = format!("model-runtime-selection://receipt/{request_id}");
+    let target_artifact: [u8; 32] = hex::decode(&target_row.artifact_sha256)
+        .ok()
+        .and_then(|bytes| bytes.try_into().ok())
+        .ok_or_else(|| {
+            ModelRuntimeRegistryApiError::integrity(
+                "the target registry artifact identity is malformed",
+            )
+        })?;
+    let request_id = request.request_id.to_string();
     let state_ref =
         format!("model-runtime-selection://current/{current_model_id}/target/{target_model_id}");
     let state_hash = format!(
         "{:x}",
-        Sha256::digest(format!("{current_model_id}\n{target_model_id}\n{request_id}\n").as_bytes())
+        Sha256::digest(
+            format!(
+                "{current_model_id}\n{target_model_id}\n{request_id}\n{}\n",
+                request.expected_selection_revision
+            )
+            .as_bytes()
+        )
     );
     let mut metadata = BTreeMap::<String, Value>::new();
     metadata.insert("actor".to_owned(), json!(actor));
     metadata.insert("surface".to_owned(), json!("native_model_runtime_panel"));
+    metadata.insert("selection_request_id".to_owned(), json!(request_id.clone()));
     metadata.insert(
-        "selection_receipt_ref".to_owned(),
-        json!(selection_receipt_ref),
+        "expected_selection_revision".to_owned(),
+        json!(request.expected_selection_revision),
     );
     let swap = ModelSwapRequestV0_4 {
         schema_version: "hsk.model_swap@0.4".to_owned(),
@@ -967,18 +947,36 @@ async fn select_ready_model(
         },
         metadata: Some(metadata),
     };
-    // Do not place a cancellable wall-clock timeout around the authority
-    // transaction. PostgreSQL lock/statement deadlines inside
-    // ModelRegistryStore bound each operation and roll the transaction back;
-    // cancelling this future could otherwise race after COMMIT but before the
-    // process-local projection is advanced.
-    state
-        .llm_client
-        .swap_model(swap)
+    state.llm_client.swap_model(swap).await.map_err(|_| {
+        ModelRuntimeRegistryApiError::conflict(
+            "the model selection CAS or runtime mutation was rejected",
+        )
+    })?;
+
+    let committed = llm_authority
+        .store()
+        .list_active_selections(llm_authority.scope())
         .await
-        .map_err(|error| ModelRuntimeRegistryApiError::conflict(error.to_string()))?;
-    // Do not perform a fallible database/projection read after mutation. The
-    // validated pre-mutation projection is deterministically advanced in memory.
+        .map_err(ModelRuntimeRegistryApiError::from)?
+        .into_iter()
+        .find(|selection| selection.purpose == ModelRuntimeSelectionPurpose::ApplicationDefault)
+        .ok_or_else(|| {
+            ModelRuntimeRegistryApiError::integrity(
+                "the committed application/default selection is absent",
+            )
+        })?;
+    if committed.artifact_sha256 != target_artifact
+        || committed.selection_revision != request.expected_selection_revision.saturating_add(1)
+    {
+        return Err(ModelRuntimeRegistryApiError::integrity(
+            "the committed application/default selection does not match the request CAS",
+        ));
+    }
+    let selection_receipt_ref = format!(
+        "eventledger://kernel/{}",
+        committed.selection_updated_event_id
+    );
+
     for row in &mut projection.rows {
         let becomes_selected = row.live_model_id.as_deref() == Some(target_model_id);
         row.selected = becomes_selected;
@@ -987,7 +985,7 @@ async fn select_ready_model(
         if becomes_selected {
             row.active_purposes
                 .push(ModelRuntimeSelectionPurpose::ApplicationDefault);
-            row.active_selection_revision = Some(current_selection_revision.saturating_add(1));
+            row.active_selection_revision = Some(committed.selection_revision);
         } else if row.active_purposes.is_empty() {
             row.active_selection_revision = None;
         }
@@ -1038,13 +1036,13 @@ fn canonical_artifact_path(path: &str) -> ModelRuntimeValue<String> {
     let path = Path::new(path);
     match std::fs::canonicalize(path) {
         Ok(canonical) => ModelRuntimeValue::available(canonical.to_string_lossy().into_owned()),
-        Err(error) => ModelRuntimeValue::unavailable(format!(
-            "catalog artifact path could not be canonicalized: {error}"
-        )),
+        Err(_) => {
+            ModelRuntimeValue::unavailable("catalog artifact path could not be canonicalized")
+        }
     }
 }
 
-pub fn routes(state: AppState) -> Router {
+pub fn routes(state: ModelRuntimeRegistryApiState) -> Router {
     Router::new()
         .route(MODEL_RUNTIME_REGISTRY_ROUTE, get(list_registry))
         .route(
@@ -1054,4 +1052,131 @@ pub fn routes(state: AppState) -> Router {
         .route(MODEL_RUNTIME_SELECTION_ROUTE, post(select_ready_model))
         .route(MODEL_RUNTIME_CONTROL_ROUTE, post(control_model_runtime))
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
+        WorkspaceScopeRef,
+    };
+
+    fn exact_scope(workspace: &str) -> ExactResourceScopeAttribution {
+        ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::mint(),
+            actor_principal_id: ActorPrincipalId::mint(),
+            authenticated_session_id: AuthenticatedSessionRef::mint(),
+            access_space_id: AccessSpaceRef::mint(),
+            workspace_id: WorkspaceScopeRef::new(workspace).expect("valid test workspace"),
+        }
+    }
+
+    #[test]
+    fn durable_authority_errors_do_not_cross_the_http_boundary() {
+        let canary = "private-storage-detail-canary";
+        let error = ModelRuntimeRegistryApiError::from(ModelRegistryPersistenceError::Storage(
+            canary.to_owned(),
+        ));
+        assert_eq!(error.status, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(error.code, MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE);
+        assert!(!error.detail.contains(canary));
+
+        let integrity = ModelRuntimeRegistryApiError::integrity(canary);
+        assert_eq!(integrity.status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert!(!integrity.detail.contains(canary));
+    }
+
+    #[test]
+    fn unbound_mutation_and_process_inspection_fail_closed() {
+        let mutation = ModelRuntimeRegistryApiError::mutation_authority_unavailable();
+        assert_eq!(mutation.status, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(mutation.code, MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE);
+
+        let process = ModelRuntimeRegistryApiError::process_ownership_unavailable();
+        assert_eq!(process.status, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(process.code, MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE);
+    }
+
+    #[test]
+    fn mutation_scope_requires_all_five_exact_fields() {
+        let authority = exact_scope("model-runtime-api-scope");
+        let denied = [
+            ExactResourceScopeAttribution {
+                owner_account_id: OwnerAccountId::mint(),
+                ..authority.clone()
+            },
+            ExactResourceScopeAttribution {
+                actor_principal_id: ActorPrincipalId::mint(),
+                ..authority.clone()
+            },
+            ExactResourceScopeAttribution {
+                authenticated_session_id: AuthenticatedSessionRef::mint(),
+                ..authority.clone()
+            },
+            ExactResourceScopeAttribution {
+                access_space_id: AccessSpaceRef::mint(),
+                ..authority.clone()
+            },
+            ExactResourceScopeAttribution {
+                workspace_id: WorkspaceScopeRef::new("model-runtime-api-other")
+                    .expect("valid counterfactual workspace"),
+                ..authority.clone()
+            },
+        ];
+        assert!(authorize_mutation_scope(&authority, &authority).is_ok());
+        for request in denied {
+            let error = authorize_mutation_scope(&authority, &request)
+                .expect_err("one-field mismatch must fail closed");
+            assert_eq!(error.status, StatusCode::FORBIDDEN);
+            assert_eq!(error.code, MODEL_RUNTIME_REGISTRY_SCOPE_DENIED_CODE);
+            assert_eq!(
+                error.detail,
+                ScopeDenied::ExactAttributionMismatch.reason_code()
+            );
+        }
+    }
+
+    #[test]
+    fn selection_request_requires_stable_request_and_cas_identity() {
+        let request_id = Uuid::now_v7();
+        let body = json!({
+            "request_id": request_id,
+            "expected_selection_revision": 7,
+            "target_model_id": "model-target",
+            "actor": "operator",
+            "reason": "explicit operator selection"
+        });
+        let first: SelectReadyModelRequest =
+            serde_json::from_value(body.clone()).expect("complete selection request");
+        let retry: SelectReadyModelRequest =
+            serde_json::from_value(body).expect("stable retry request");
+        assert_eq!(first.request_id, retry.request_id);
+        assert_eq!(first.expected_selection_revision, 7);
+        assert_eq!(retry.expected_selection_revision, 7);
+
+        let missing_request_id = json!({
+            "expected_selection_revision": 7,
+            "target_model_id": "model-target",
+            "actor": "operator",
+            "reason": "missing identity"
+        });
+        assert!(serde_json::from_value::<SelectReadyModelRequest>(missing_request_id).is_err());
+        let missing_cas = json!({
+            "request_id": request_id,
+            "target_model_id": "model-target",
+            "actor": "operator",
+            "reason": "missing CAS"
+        });
+        assert!(serde_json::from_value::<SelectReadyModelRequest>(missing_cas).is_err());
+        let ambiguous_retry = json!({
+            "request_id": request_id,
+            "expected_selection_revision": 7,
+            "target_model_id": "model-target",
+            "actor": "operator",
+            "reason": "ambiguous envelope",
+            "replacement_request_id": Uuid::now_v7()
+        });
+        assert!(serde_json::from_value::<SelectReadyModelRequest>(ambiguous_retry).is_err());
+    }
 }

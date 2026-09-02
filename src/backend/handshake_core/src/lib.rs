@@ -135,11 +135,8 @@ macro_rules! params {
 pub mod ace;
 #[cfg(feature = "runtime-full")]
 pub mod ai_ready_data;
-/// Atelier/Lens domain (WP-KERNEL-005 legacy source fold-in): PostgreSQL/CRDT only.
+/// Atelier/Lens domain (WP-KERNEL-005 legacy source fold-in).
 pub mod atelier;
-/// Managed PostgreSQL lifecycle (task #9): auto-start a hidden embedded cluster
-/// on startup (no popup window, no Docker), so Handshake provides its own DB.
-pub mod managed_postgres;
 #[cfg(feature = "runtime-full")]
 pub mod api;
 #[cfg(feature = "runtime-full")]
@@ -274,9 +271,7 @@ pub mod test_harness;
 #[cfg(feature = "tokenization")]
 pub mod tokenization;
 /// WP-KERNEL-009 UserManualAndNoContextOps (MT-193..MT-208): the canonical
-/// UserManual product surface (PostgreSQL/EventLedger authority; legacy
-/// `model_manual` is a declared deprecated shim mapped via
-/// `user_manual::migration_plan`).
+/// UserManual product surface with product-global embedded authority.
 #[cfg(feature = "runtime-full")]
 pub mod user_manual;
 #[cfg(feature = "runtime-full")]
@@ -300,14 +295,14 @@ use crate::storage::Database;
 #[derive(Clone)]
 pub struct AppState {
     pub storage: Arc<dyn Database>,
+    /// One embedded SurrealDB handle initialized by the process owner and
+    /// cloned into every ModelLane façade; consumers never reopen the store.
+    pub surreal_storage: storage::surreal::SurrealStorage,
     pub flight_recorder: Arc<dyn FlightRecorder>,
     pub diagnostics: Arc<dyn DiagnosticsStore>,
     pub llm_client: Arc<dyn LlmClient>,
     pub capability_registry: Arc<capabilities::CapabilityRegistry>,
     pub session_registry: Arc<workflows::SessionRegistry>,
-    /// Shared PostgreSQL pool for domains that own their schema directly
-    /// (e.g. the WP-KERNEL-005 atelier store). Reused, never reconnected.
-    pub postgres_pool: sqlx::PgPool,
 }
 
 #[cfg(feature = "runtime-full")]

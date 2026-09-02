@@ -9,7 +9,7 @@
 //!   used.
 //! * 2.3.13.11 `UserManualRecord` — a no-context operator/model manual entry
 //!   tied to real product commands, routes, IPC channels, schemas, recovery
-//!   paths, and visual-debug anchors. PostgreSQL + EventLedger is authority.
+//!   paths, and visual-debug anchors. embedded SurrealDB + EventLedger is authority.
 //! * 12.7 `PRIM-UserManual` — UserManual coverage is required for every new
 //!   ProjectKnowledgeIndex route, rich editor command, backend navigation
 //!   action, retrieval trace view, graph view, visual-debug action, and
@@ -25,20 +25,22 @@
 //!   still consume it. Every legacy symbol/channel is mapped in
 //!   [`migration_plan::naming_migration_plan`] and seeded as
 //!   `user_manual_legacy_aliases` authority rows; the mapping is enforced by
-//!   tests (`tests/user_manual_storage_tests.rs`), so legacy and canonical
+//!   canonical embedded-store behavior tests
+//!   (`tests/user_manual_behavior_coverage_tests.rs`), so legacy and canonical
 //!   surfaces can never silently diverge (no split-brain docs).
 //! * The static [`crate::model_manual::MODEL_MANUAL`] manifest is the SEED
 //!   SOURCE for the legacy tool catalog: [`seed`] imports it into
-//!   `user_manual_tool_entries` rows so PostgreSQL holds the single canonical
+//!   `user_manual_tool_entries` rows so embedded SurrealDB holds the single canonical
 //!   manual; the in-binary manifest is a deterministic projection input, not
 //!   a second authority.
 //!
-//! Authority: PostgreSQL (`user_manual_*` tables, migration 0310) +
+//! Authority: embedded SurrealDB (`user_manual_*` tables in the canonical schema) +
 //! EventLedger (`KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED` receipts). Rendered
 //! markdown/HTML are projections only.
 
 pub mod behavior_coverage;
 pub mod bundle_bridge;
+#[cfg(feature = "test-utils")]
 pub mod fixtures;
 pub mod freshness;
 pub mod migration_plan;
@@ -49,7 +51,7 @@ pub mod spec_seed;
 pub mod store;
 
 pub use behavior_coverage::{
-    cloud_model_access_behavior_coverage_matrix,
+    canonical_model_lane_schema_registry, cloud_model_access_behavior_coverage_matrix,
     dedicated_embedding_model_behavior_coverage_matrix, diagnostic_tier_evidence_uri_prefix,
     diagnostic_tier_evidence_uri_scheme, diagnostic_tier_owning_evidence_uri_scheme,
     embedded_model_behavior_coverage_matrix, manual_literal_claims,
@@ -82,11 +84,11 @@ pub use store::{
 
 /// Canonical UserManual corpus version. Independent from the legacy
 /// `model_manual::MANUAL_VERSION` (1.x line): the 2.x line marks the
-/// UserManual era where PostgreSQL rows are authority. Bump on any seed
+/// UserManual era where embedded SurrealDB rows are authority. Bump on any seed
 /// content change — the freshness check (MT-204) compares stored
 /// `content_hash` per page, and `user_manual_versions` records each seeded
 /// version.
-pub const USER_MANUAL_VERSION: &str = "2.0.22";
+pub const USER_MANUAL_VERSION: &str = "2.0.23";
 
 /// The canonical stuck-together product term (operator decision; constraint in
 /// every MT-193..MT-208 contract). Route namespace, slugs, and citations all

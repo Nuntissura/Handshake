@@ -2954,11 +2954,13 @@ impl LiveCliSpawner {
         let shell = launch
             .executable_path
             .to_str()
-            .ok_or_else(|| OfficialCliBridgeError::ExecutableIdentity(format!(
-                "pinned CLI entrypoint is not representable as UTF-8 and cannot be launched \
+            .ok_or_else(|| {
+                OfficialCliBridgeError::ExecutableIdentity(format!(
+                    "pinned CLI entrypoint is not representable as UTF-8 and cannot be launched \
                  without losing executable identity: {}",
-                launch.executable_path.display()
-            )))?
+                    launch.executable_path.display()
+                ))
+            })?
             .to_string();
         let session = crate::terminal::PtySession::spawn(crate::terminal::PtySpawnConfig {
             shell: Some(shell),
@@ -2988,8 +2990,7 @@ impl LiveCliSpawner {
         };
         let mut identity_locks = launch.identity_locks;
         identity_locks.append(&mut additional_identity_locks);
-        let mut child_owner =
-            ForegroundChildOwner::new(Arc::clone(&session), pid, identity_locks);
+        let mut child_owner = ForegroundChildOwner::new(Arc::clone(&session), pid, identity_locks);
         let creation_time_100ns = match attest_process(pid) {
             Ok(value) => value,
             Err(error) => {
@@ -5753,10 +5754,9 @@ mod tests {
     // -----------------------------------------------------------------------
     // MT-019 F1 + P-5: the running-app reclaim hook.
     //
-    // `GuardedCliChild` is private, so this wiring is only reachable from an
-    // in-crate test. The integration proof in
-    // `process_reclaim_real_lifecycle_pg_tests` covers the other half — the real
-    // owner-scoped claim + real kill + durable STOP against real PostgreSQL.
+    // `GuardedCliChild` is private, so this wiring is exercised by the in-crate
+    // `official_cli_bridge::tests::mt019_*` cases. The current MT-015 integration
+    // target is `cli_bridge_login_quiet_tests`, backed by embedded SurrealDB.
     // -----------------------------------------------------------------------
 
     #[derive(Default)]
@@ -5934,8 +5934,7 @@ mod tests {
             ledger.clone(),
         ));
         let instance_id = uuid::Uuid::now_v7();
-        let (mut child, process_uuid) =
-            hook_test_guard(&ledger, 9092, instance_id, Some(reclaim));
+        let (mut child, process_uuid) = hook_test_guard(&ledger, 9092, instance_id, Some(reclaim));
 
         assert!(child
             .terminate_and_collect("mt019_reap_failure_hook_test")
@@ -6051,6 +6050,7 @@ mod tests {
             "TEMP",
             "HOME",
             "ComSpec",
+            "CODEX_HOME",
         ] {
             assert!(
                 is_inherited_runtime_env_name(runtime_var),
@@ -6059,6 +6059,9 @@ mod tests {
         }
         for untrusted in [
             "OPENAI_API_KEY",
+            "CODEX_ACCESS_TOKEN",
+            "ANTHROPIC_API_KEY",
+            "CLAUDE_CODE_OAUTH_TOKEN",
             "GITHUB_PAT",
             "DATABASE_URL",
             "KUBECONFIG",

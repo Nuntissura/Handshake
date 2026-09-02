@@ -9,12 +9,16 @@ use serde_json::{json, Value};
 use std::fs;
 use uuid::Uuid;
 
+use super::account_scope::{RequestAccountScope, MISMATCHED_SCOPE_CODE};
 use crate::ace::validators::atelier_scope::{
     apply_selection_bounded_patchsets, sha256_hex, AtelierScopeError, DocPatchsetV1,
     SelectionRangeV1,
 };
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::runtime_governance::RuntimeGovernancePaths;
+use crate::storage::surreal::{
+    SurrealWorkspaceSettingsError, SurrealWorkspaceSettingsStore, SurrealWorkspaceSettingsWrite,
+};
 use crate::workflows::build_dcc_control_plane_snapshot;
 use crate::{
     diagnostics::{
@@ -26,8 +30,7 @@ use crate::{
     },
     storage::{
         Block, JobKind, JobState, NewBlock, NewDocument, NewWorkspace, StorageError,
-        WorkbenchLayoutStateInput, WorkspaceSearchBookmarkStateInput, WorkspaceSettingsStateInput,
-        WriteActorKind, WriteContext,
+        WorkbenchLayoutStateInput, WorkspaceSearchBookmarkStateInput, WriteActorKind, WriteContext,
     },
     AppState,
 };
@@ -742,6 +745,7 @@ async fn save_workbench_layout(
 struct WorkspaceSettingsResponse {
     workspace_id: String,
     settings_state: Option<Value>,
+    generation: Option<i64>,
     updated_at: Option<chrono::DateTime<chrono::Utc>>,
     event_ledger_event_id: Option<String>,
 }
@@ -749,29 +753,36 @@ struct WorkspaceSettingsResponse {
 #[derive(Debug, Deserialize)]
 struct SaveWorkspaceSettingsRequest {
     settings_state: Value,
+    #[serde(default)]
+    expected_generation: Option<i64>,
+    #[serde(default)]
+    idempotency_key: Option<String>,
 }
 
 async fn get_workspace_settings(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Path(workspace_id): Path<String>,
 ) -> Result<Json<WorkspaceSettingsResponse>, (StatusCode, Json<ErrorResponse>)> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let record = state
-        .storage
-        .get_workspace_settings_state(&workspace_id)
+    enforce_workspace_settings_path_scope(&scope, &workspace_id)?;
+    let store = SurrealWorkspaceSettingsStore::new(state.surreal_storage.clone());
+    let record = store
+        .get(&scope.resource_scope(), &workspace_id)
         .await
-        .map_err(map_storage_error)?;
+        .map_err(map_workspace_settings_error)?;
 
     Ok(Json(match record {
         Some(record) => WorkspaceSettingsResponse {
             workspace_id: record.workspace_id,
             settings_state: Some(record.settings_state),
+            generation: Some(record.generation),
             updated_at: Some(record.updated_at),
             event_ledger_event_id: Some(record.event_ledger_event_id),
         },
         None => WorkspaceSettingsResponse {
             workspace_id,
             settings_state: None,
+            generation: None,
             updated_at: None,
             event_ledger_event_id: None,
         },
@@ -780,27 +791,84 @@ async fn get_workspace_settings(
 
 async fn save_workspace_settings(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Path(workspace_id): Path<String>,
     Json(payload): Json<SaveWorkspaceSettingsRequest>,
 ) -> Result<Json<WorkspaceSettingsResponse>, (StatusCode, Json<ErrorResponse>)> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let record = state
-        .storage
-        .save_workspace_settings_state(
+    enforce_workspace_settings_path_scope(&scope, &workspace_id)?;
+    let store = SurrealWorkspaceSettingsStore::new(state.surreal_storage.clone());
+    let record = store
+        .save(
+            &scope.resource_scope(),
             &workspace_id,
-            WorkspaceSettingsStateInput {
+            SurrealWorkspaceSettingsWrite {
                 settings_state: payload.settings_state,
+                expected_generation: payload.expected_generation,
+                idempotency_key: payload
+                    .idempotency_key
+                    .unwrap_or_else(|| Uuid::now_v7().to_string()),
             },
         )
         .await
-        .map_err(map_storage_error)?;
+        .map_err(map_workspace_settings_error)?;
 
     Ok(Json(WorkspaceSettingsResponse {
         workspace_id: record.workspace_id,
         settings_state: Some(record.settings_state),
+        generation: Some(record.generation),
         updated_at: Some(record.updated_at),
         event_ledger_event_id: Some(record.event_ledger_event_id),
     }))
+}
+
+fn enforce_workspace_settings_path_scope(
+    scope: &RequestAccountScope,
+    workspace_id: &str,
+) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
+    if scope.exact().workspace_id.as_str() == workspace_id {
+        Ok(())
+    } else {
+        Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: MISMATCHED_SCOPE_CODE,
+            }),
+        ))
+    }
+}
+
+fn map_workspace_settings_error(
+    error: SurrealWorkspaceSettingsError,
+) -> (StatusCode, Json<ErrorResponse>) {
+    match error {
+        SurrealWorkspaceSettingsError::IncompleteScope
+        | SurrealWorkspaceSettingsError::WorkspaceScopeMismatch => (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: MISMATCHED_SCOPE_CODE,
+            }),
+        ),
+        SurrealWorkspaceSettingsError::Validation(_) => (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "bad_request",
+            }),
+        ),
+        SurrealWorkspaceSettingsError::StaleGeneration { .. } => (
+            StatusCode::CONFLICT,
+            Json(ErrorResponse {
+                error: "workspace_settings_stale_generation",
+            }),
+        ),
+        SurrealWorkspaceSettingsError::IdempotencyConflict => (
+            StatusCode::CONFLICT,
+            Json(ErrorResponse {
+                error: "workspace_settings_idempotency_conflict",
+            }),
+        ),
+        SurrealWorkspaceSettingsError::Storage(_)
+        | SurrealWorkspaceSettingsError::CorruptAuthority => internal_error(error),
+    }
 }
 
 #[derive(Debug, Serialize)]

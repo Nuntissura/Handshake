@@ -7,7 +7,8 @@
 //! defect." This registry is the enforcement substrate:
 //!
 //! * Every WP-009 model-callable HTTP surface is a [`SurfaceDescriptor`] row.
-//! * The MT-195 gate test (`tests/user_manual_storage_tests.rs`) fails when a
+//! * The canonical embedded-store gate
+//!   (`tests/user_manual_behavior_coverage_tests.rs`) fails when a
 //!   registry row has no `http_route` anchor on a seeded UserManual page —
 //!   adding a surface here without seeding coverage breaks the build.
 //! * The MT-204 freshness check flips the direction: an `http_route` anchor
@@ -1026,7 +1027,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         SurfaceGroup::NotesLoom,
         "PUT",
         "/workspaces/:workspace_id/loom/collections/:collection_id/order",
-        "Replace a collection's member order (drag-reorder authority lives in PostgreSQL, not the client).",
+        "Replace a collection's member order (drag-reorder authority lives in embedded SurrealDB, not the client).",
         "JSON {asset_ids} in the new order.",
         "JSON {collection_id, title, members} reflecting the persisted order."
     ),
@@ -1035,7 +1036,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         SurfaceGroup::NotesLoom,
         "POST",
         "/workspaces/:workspace_id/loom/search-v2",
-        "LoomSearchV2: Postgres-native graph-blended hybrid search (full-text + pg_trgm + pgvector kNN). Embeds the query through the configured model runtime; a typed decline degrades to keyword/trigram instead of failing.",
+        "LoomSearchV2: SurrealDB-native graph-blended hybrid search (full-text + SurrealDB full-text indexes + SurrealDB vector indexes kNN). Embeds the query through the configured model runtime; a typed decline degrades to keyword/trigram instead of failing.",
         "JSON {query, content_type?, tag_ids?, graph_boost?, limit?, offset?}.",
         "JSON LoomSearchV2Response with per-modality scores, content facets, highlights, and a semantic_available flag."
     ),
@@ -1053,7 +1054,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         SurfaceGroup::NotesLoom,
         "POST",
         "/workspaces/:workspace_id/loom/quick-switcher/recents",
-        "Record one quick-switcher open so recency survives restart in PostgreSQL rather than client state.",
+        "Record one quick-switcher open so recency survives restart in embedded SurrealDB rather than client state.",
         "JSON QuickSwitcherRecentInput.",
         "JSON the recorded QuickSwitcherRecent row."
     ),
@@ -1125,7 +1126,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         SurfaceGroup::NotesLoom,
         "PUT",
         "/workspaces/:workspace_id/loom/canvas-boards/:block_id/viewport",
-        "Persist the canvas viewport (pan/zoom) so board state survives restart in PostgreSQL.",
+        "Persist the canvas viewport (pan/zoom) so board state survives restart in embedded SurrealDB.",
         "JSON {board_state}.",
         "JSON the updated LoomCanvasBoard row."
     ),
@@ -1206,7 +1207,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         SurfaceGroup::NotesLoom,
         "PATCH",
         "/workspaces/:workspace_id/loom/views/definitions/:block_id",
-        "Persist a new definition for a saved view — e.g. a table header click that re-sorts is stored in PostgreSQL, not localStorage.",
+        "Persist a new definition for a saved view — e.g. a table header click that re-sorts is stored in embedded SurrealDB, not localStorage.",
         "JSON {definition}.",
         "JSON the updated BlockViewRecord."
     ),
@@ -1291,16 +1292,16 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "/model-runtime/registry",
         "List durable model-runtime registry rows joined to current READY catalog state.",
         "None.",
-        "JSON hsk.model_runtime_registry_projection@3 with catalog revision, stable artifact identity, canonical path availability, adapter/runtime state, PostgreSQL active purposes, KV/LoRA/steering telemetry availability, ProcessOwnershipLedger link availability, performance availability, capability/compatibility-gated action availability and reasons, audit reference, and current live state."
+        "JSON hsk.model_runtime_registry_projection@3 with catalog revision, stable artifact identity, canonical path availability, adapter/runtime state, embedded SurrealDB active purposes, KV/LoRA/steering telemetry availability, ProcessOwnershipLedger link availability, performance availability, capability/compatibility-gated action availability and reasons, audit reference, and current live state."
     ),
     surface!(
         "model_runtime.selection.post",
         SurfaceGroup::ModelRuntimeRegistry,
         "POST",
         "/model-runtime/selection",
-        "Switch PostgreSQL application/default to another current READY completion model through a serialized audited SwapRequest.",
+        "Switch embedded SurrealDB application/default to another current READY completion model through a serialized audited SwapRequest.",
         "JSON {target_model_id, actor, reason}; all fields are bounded and control-free.",
-        "JSON hsk.model_runtime_registry_projection@3 with the new application/default row and selection_receipt_ref; stale/non-READY, embedding-role, integrity, timeout, audit, or PostgreSQL CAS failures preserve the prior durable selection."
+        "JSON hsk.model_runtime_registry_projection@3 with the new application/default row and selection_receipt_ref; stale/non-READY, embedding-role, integrity, timeout, audit, or embedded SurrealDB CAS failures preserve the prior durable selection."
     ),
     surface!(
         "model_runtime.control.post",
@@ -1362,7 +1363,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         SurfaceGroup::OperatorChat,
         "POST",
         "/operator-chat/routing/recover",
-        "Recover and resume one durable routing execution from PostgreSQL/EventLedger authority.",
+        "Recover and resume one durable routing execution from embedded SurrealDB/EventLedger authority.",
         "The original OperatorChatRoutingLifecycleRequest with the same execution_id and canonical run/stage bindings.",
         "JSON hsk.model_lane_routing_execution@5 state after fenced recovery; context or launch-plan drift fails closed."
     ),
@@ -1428,7 +1429,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         SurfaceGroup::ModelLaneNavigation,
         "GET",
         "/swarm/model-lanes/navigation/runs/:run_id",
-        "Load one Dexterity ModelLane run navigation projection from PostgreSQL/EventLedger authority.",
+        "Load one Dexterity ModelLane run navigation projection from embedded SurrealDB/EventLedger authority.",
         "run_id path param.",
         "JSON hsk.model_lane_navigation@1 projection with run, lanes, messages, artifacts, recovery, diagnostics, EventLedger refs, Flight Recorder refs, and manual refs."
     ),

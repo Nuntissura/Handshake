@@ -12,8 +12,6 @@ use handshake_core::{
     },
     process_ledger::{
         ProcessEngineKind, ProcessStart, ProcessStop, ReclaimClaim, ReclaimableProcess,
-        POSTGRES_ACTIVE_RECLAIM_QUERY_SQL, PROCESS_LEDGER_MIGRATION_SQL, PROCESS_START_INSERT_SQL,
-        PROCESS_STOP_UPSERT_SQL,
     },
 };
 use serde_json::Value;
@@ -113,13 +111,16 @@ fn focus_audit_report_flags_current_and_owned_process_pids_only() {
 }
 
 #[test]
-fn process_ownership_ledger_exposes_optional_postgres_os_pid_for_focus_correlation() {
-    let migration = PROCESS_LEDGER_MIGRATION_SQL;
-    assert!(migration.contains("os_pid BIGINT"));
-    assert!(migration.contains("idx_kernel_process_lifecycle_os_pid"));
-    assert!(PROCESS_START_INSERT_SQL.contains("os_pid"));
-    assert!(PROCESS_STOP_UPSERT_SQL.contains("os_pid"));
-    assert!(POSTGRES_ACTIVE_RECLAIM_QUERY_SQL.contains("os_pid"));
+fn process_ownership_ledger_exposes_optional_os_pid_for_focus_correlation() {
+    let schema = include_str!("../src/storage/surreal/schema.surql");
+    assert!(schema.contains(
+        "DEFINE FIELD OVERWRITE os_pid ON TABLE kernel_process_lifecycle TYPE option<int>"
+    ));
+    assert!(schema.contains("idx_kernel_process_lifecycle_os_pid"));
+
+    let provider = include_str!("../src/storage/surreal/process_ledger.rs");
+    assert!(provider.contains("incoming.os_pid"));
+    assert!(provider.contains("os_pid: row.os_pid"));
 
     let start = ProcessStart::new(
         ProcessEngineKind::HelperSubprocess,

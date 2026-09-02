@@ -9,11 +9,8 @@
 //!   receipt, assert honest empty/unavailable/dormant negative states, screenshot the main window, and
 //!   then detach the pane into a real second OS window and inspect + capture + steer it there.
 //! - **MT-012 Operator Chat** — inspect the picker/prompt/launch controls, set the prompt through
-//!   `argus.set_value` with a receipt and a re-observed value, prove the launch control fails closed
-//!   when no lane is launchable, and capture + inspect + steer the detached pop-out.
-//!   This proof deliberately never launches a real model session: the full launch/capture/recovery
-//!   lifecycle is proven by the backend suites (`operator_chat_capture_tests`), and starting a real
-//!   CLI session from a GUI proof would spawn an unowned OS process.
+//!   `argus.set_value`, select live governed-session and no-OS subagent inventory rows, launch through
+//!   the real backend, render its captured transcript, and prove docked/detached state continuity.
 //! - **MT-015 Settings cloud access (MAIN window)** — reach Settings through the MODELS menu, assert
 //!   the BYOK secret boundary structurally (no value, no `SetValue` action, refused writes) and prove
 //!   the canary never appears in `list_widgets` / `argus.inspect` / `argus.screenshot` responses, plus
@@ -21,8 +18,8 @@
 //!
 //! Every proof here drives the REAL `SwarmMcpServer` socket of a spawned production binary. There is
 //! no in-process harness and no transport mock. Each test is `#[ignore]`d behind the same environment
-//! gate as the existing live proof, because it opens real native windows and needs managed PostgreSQL
-//! plus a Palmistry-ready `handshake_core` on `127.0.0.1:37501`.
+//! gate as the existing live proof, because it opens real native windows and needs the injected
+//! embedded SurrealDB plus a Palmistry-ready `handshake_core` on `127.0.0.1:37501`.
 //!
 //! Run serially (`-- --ignored --test-threads=1`): each test spawns its own production window.
 
@@ -43,10 +40,11 @@ use handshake_native::model_runtime_panel::{
     surface_author_id, AUTHOR_ID_PREFIX,
 };
 use handshake_native::operator_chat_pane::{
-    ERROR_AUTHOR_ID, FOLDER_PICKER_AUTHOR_ID, LAUNCH_AUTHOR_ID, LAUNCH_STATUS_AUTHOR_ID,
-    MODEL_PICKER_AUTHOR_ID, PROMPT_INPUT_AUTHOR_ID, REFRESH_MODELS_AUTHOR_ID,
-    ROUTING_AUTHORITY_AUTHOR_ID, ROUTING_CANCEL_AUTHOR_ID, ROUTING_LIFECYCLE_AUTHOR_ID,
-    ROUTING_RECOVER_AUTHOR_ID, ROUTING_REQUEST_AUTHOR_ID, SURFACE_AUTHOR_ID, TRANSCRIPT_AUTHOR_ID,
+    ERROR_AUTHOR_ID, LAUNCH_AUTHOR_ID, LAUNCH_STATUS_AUTHOR_ID, MODEL_PICKER_AUTHOR_ID,
+    PROMPT_INPUT_AUTHOR_ID, REFRESH_MODELS_AUTHOR_ID, ROUTING_AUTHORITY_AUTHOR_ID,
+    ROUTING_CANCEL_AUTHOR_ID, ROUTING_LIFECYCLE_AUTHOR_ID, ROUTING_RECOVER_AUTHOR_ID,
+    ROUTING_REQUEST_AUTHOR_ID, SURFACE_AUTHOR_ID, TRANSCRIPT_AUTHOR_ID,
+    WORKTREE_SELECTION_AUTHOR_ID,
 };
 use handshake_native::pane_registry::PaneType;
 use handshake_native::popout_window::popout_window_author_id;
@@ -68,6 +66,7 @@ use live_socket::{
     pane_id_hosting, require_node, wait_for_author_id, wait_for_author_id_between, wait_for_window,
     LiveApp, SURFACE_TIMEOUT,
 };
+use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
 /// Every status string the production ModelRuntime panel can render. A live proof must recognise the
 /// state it observed instead of accepting any text, so a blank/placeholder status fails.
@@ -144,6 +143,110 @@ fn wait_for_settled_registry(
             &last["snapshot"]["root"],
             &status_author_id(pane_id)
         ))
+    );
+}
+
+fn foreground_process_id() -> u32 {
+    let window = unsafe { GetForegroundWindow() };
+    if window.is_null() {
+        return 0;
+    }
+    let mut pid = 0;
+    unsafe {
+        GetWindowThreadProcessId(window, &mut pid);
+    }
+    pid
+}
+
+fn wait_for_enabled_author_prefix(
+    app: &mut LiveApp,
+    window_id: &str,
+    prefix: &str,
+) -> (String, serde_json::Value) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(45);
+    let mut last = serde_json::Value::Null;
+    while std::time::Instant::now() < deadline {
+        last = app.client.poll_inspect(window_id);
+        let root = &last["snapshot"]["root"];
+        let mut candidates = collect_author_ids(root)
+            .into_iter()
+            .filter(|author_id| author_id.starts_with(prefix))
+            .collect::<Vec<_>>();
+        candidates.sort();
+        if let Some(author_id) = candidates.into_iter().find(|author_id| {
+            node_by_author_id(root, author_id).is_some_and(|node| !node_is_disabled(node))
+        }) {
+            let recorded = app.client.inspect(window_id);
+            if node_by_author_id(&recorded["snapshot"]["root"], &author_id)
+                .is_some_and(|node| !node_is_disabled(node))
+            {
+                return (author_id, recorded);
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    panic!(
+        "no enabled author_id with prefix `{prefix}` appeared in `{window_id}`; last ids: {:?}",
+        collect_author_ids(&last["snapshot"]["root"])
+    );
+}
+
+fn wait_for_operator_chat_launch_enabled(app: &mut LiveApp) -> serde_json::Value {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(45);
+    let mut last = serde_json::Value::Null;
+    while std::time::Instant::now() < deadline {
+        last = app.client.poll_inspect("main");
+        if node_by_author_id(&last["snapshot"]["root"], LAUNCH_AUTHOR_ID)
+            .is_some_and(|node| !node_is_disabled(node))
+        {
+            let recorded = app.client.inspect("main");
+            if node_by_author_id(&recorded["snapshot"]["root"], LAUNCH_AUTHOR_ID)
+                .is_some_and(|node| !node_is_disabled(node))
+            {
+                return recorded;
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    panic!(
+        "Operator Chat launch never became enabled; last surface: {}",
+        serde_json::to_string(&last["snapshot"]["root"]).unwrap_or_default()
+    );
+}
+
+fn wait_for_operator_chat_transcript(app: &mut LiveApp) -> serde_json::Value {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    let mut last = serde_json::Value::Null;
+    while std::time::Instant::now() < deadline {
+        last = app.client.poll_inspect("main");
+        let root = &last["snapshot"]["root"];
+        if let Some(error) = node_by_author_id(root, ERROR_AUTHOR_ID) {
+            panic!(
+                "real Operator Chat launch failed closed: {}",
+                node_text(error)
+            );
+        }
+        let has_transcript = collect_author_ids(root).iter().any(|author_id| {
+            author_id.starts_with("operator-chat.transcript.message.")
+                || author_id.starts_with("operator-chat.transcript.row.")
+        });
+        if contains_author_id(root, LAUNCH_STATUS_AUTHOR_ID) && has_transcript {
+            let recorded = app.client.inspect("main");
+            let recorded_root = &recorded["snapshot"]["root"];
+            if contains_author_id(recorded_root, LAUNCH_STATUS_AUTHOR_ID)
+                && collect_author_ids(recorded_root).iter().any(|author_id| {
+                    author_id.starts_with("operator-chat.transcript.message.")
+                        || author_id.starts_with("operator-chat.transcript.row.")
+                })
+            {
+                return recorded;
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    panic!(
+        "real Operator Chat launch produced no transcript; last surface: {}",
+        serde_json::to_string(&last["snapshot"]["root"]).unwrap_or_default()
     );
 }
 
@@ -322,8 +425,8 @@ fn assert_registry_rows_are_honest(
     artifacts
 }
 
-#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires managed \
-            PostgreSQL, Palmistry-ready handshake_core on 127.0.0.1:37501, \
+#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires injected \
+            embedded SurrealDB, Palmistry-ready handshake_core on 127.0.0.1:37501, \
             HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, and a shared HANDSHAKE_DIAGNOSTICS_DIR"]
 #[test]
 fn production_socket_model_runtime_rows_refresh_receipt_negative_states_and_detached_window() {
@@ -515,12 +618,12 @@ fn production_socket_model_runtime_rows_refresh_receipt_negative_states_and_deta
     app.shutdown();
 }
 
-#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires managed \
-            PostgreSQL, Palmistry-ready handshake_core on 127.0.0.1:37501, \
+#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires injected \
+            embedded SurrealDB, Palmistry-ready handshake_core on 127.0.0.1:37501, \
             HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, and a shared HANDSHAKE_DIAGNOSTICS_DIR"]
 #[test]
-fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_and_detached_window()
-{
+fn operator_chat_live_argus_docked_and_detached_launch_transcript() {
+    let foreground_before = foreground_process_id();
     let mut app = LiveApp::start("operator_chat");
 
     app.open_models_menu_leaf("menu.models.operator-chat");
@@ -533,7 +636,7 @@ fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_an
         SURFACE_AUTHOR_ID,
         MODEL_PICKER_AUTHOR_ID,
         REFRESH_MODELS_AUTHOR_ID,
-        FOLDER_PICKER_AUTHOR_ID,
+        WORKTREE_SELECTION_AUTHOR_ID,
         PROMPT_INPUT_AUTHOR_ID,
         LAUNCH_AUTHOR_ID,
         TRANSCRIPT_AUTHOR_ID,
@@ -548,6 +651,24 @@ fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_an
             "Operator Chat control {author_id} is not visible over the production socket"
         );
     }
+
+    let worktree = std::fs::canonicalize(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."),
+    )
+    .expect("resolve the production Handshake worktree")
+    .to_string_lossy()
+    .into_owned();
+    let worktree_node = require_node(&root, WORKTREE_SELECTION_AUTHOR_ID);
+    assert!(
+        node_supports(worktree_node, "SetValue"),
+        "the production worktree seam must be socket-settable without a native picker"
+    );
+    let worktree_receipt = app.client.mutation_on_live_surface(
+        "argus.set_value",
+        "main",
+        WORKTREE_SELECTION_AUTHOR_ID,
+        Some(("value", serde_json::Value::String(worktree.clone()))),
+    );
 
     // ── Prompt entry: real set_value with an applied receipt and a re-observed value ────────────
     let prompt_before = require_node(&root, PROMPT_INPUT_AUTHOR_ID);
@@ -576,50 +697,81 @@ fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_an
         Some(docked_prompt),
         "the operator prompt did not carry the value the production socket set"
     );
+    assert_eq!(
+        require_node(&after_prompt_root, WORKTREE_SELECTION_AUTHOR_ID)
+            .get("value")
+            .and_then(serde_json::Value::as_str),
+        Some(worktree.as_str()),
+        "the focus-safe worktree selection was not re-observed through the production socket"
+    );
 
-    // ── Launch fails closed while no lane is launchable ─────────────────────────────────────────
-    // The pane requires a governed owner session, a currently-available model, a working directory
-    // and a prompt. Only the prompt is set here, so the production control must refuse — and it must
-    // refuse VISIBLY (a disabled control), not by silently doing nothing.
-    let launch_node = require_node(&after_prompt_root, LAUNCH_AUTHOR_ID);
+    app.client
+        .mutation_on_live_surface("argus.click", "main", REFRESH_MODELS_AUTHOR_ID, None);
+    let (session_author_id, session_inventory) =
+        wait_for_enabled_author_prefix(&mut app, "main", "operator-chat.session.");
+    let session_label = node_text(require_node(
+        &session_inventory["snapshot"]["root"],
+        &session_author_id,
+    ));
     assert!(
-        node_is_disabled(launch_node),
-        "the Operator Chat launch control must be disabled while no lane is launchable: {launch_node}"
+        !session_label.trim().is_empty(),
+        "the selected governed session must have a live operator-readable label"
     );
+    let (model_author_id, model_inventory) =
+        wait_for_enabled_author_prefix(&mut app, "main", "operator-chat.model.subagent.");
+    let model_label = node_text(require_node(
+        &model_inventory["snapshot"]["root"],
+        &model_author_id,
+    ));
     assert!(
-        !contains_author_id(&after_prompt_root, LAUNCH_STATUS_AUTHOR_ID),
-        "no launch status may exist before any launch"
+        model_label.contains("SUBAGENT") && model_label.contains("available"),
+        "the live no-OS subagent row must be honestly selectable: `{model_label}`"
     );
-    let (_, refused_launch) =
+    app.client
+        .mutation_on_live_surface("argus.click", "main", &session_author_id, None);
+    app.client
+        .mutation_on_live_surface("argus.click", "main", &model_author_id, None);
+
+    // ── Real backend launch + captured transcript ───────────────────────────────────────────────
+    let launch_ready = wait_for_operator_chat_launch_enabled(&mut app);
+    assert!(
+        !node_is_disabled(require_node(
+            &launch_ready["snapshot"]["root"],
+            LAUNCH_AUTHOR_ID,
+        )),
+        "live governed session + subagent + worktree + prompt must enable launch"
+    );
+    let launch_receipt =
         app.client
-            .attempt_mutation("argus.click", "main", LAUNCH_AUTHOR_ID, None);
-    assert_not_applied(
-        &refused_launch,
-        "argus.click(operator-chat launch, no lane)",
-    );
-    let after_refusal = app.client.inspect("main");
-    let after_refusal_root = after_refusal["snapshot"]["root"].clone();
+            .mutation_on_live_surface("argus.click", "main", LAUNCH_AUTHOR_ID, None);
+    let launched = wait_for_operator_chat_transcript(&mut app);
+    let launched_root = launched["snapshot"]["root"].clone();
+    let launch_status = node_text(require_node(&launched_root, LAUNCH_STATUS_AUTHOR_ID));
     assert!(
-        !contains_author_id(&after_refusal_root, LAUNCH_STATUS_AUTHOR_ID),
-        "a refused launch must not publish a launch status"
+        launch_status.starts_with("launched run ")
+            && launch_status.contains("lane ")
+            && launch_status.contains("instance "),
+        "launch status must carry real backend run/lane/instance identity: `{launch_status}`"
     );
+    let transcript_author_ids = collect_author_ids(&launched_root)
+        .into_iter()
+        .filter(|author_id| {
+            author_id.starts_with("operator-chat.transcript.message.")
+                || author_id.starts_with("operator-chat.transcript.row.")
+        })
+        .collect::<Vec<_>>();
     assert!(
-        !collect_author_ids(&after_refusal_root)
-            .iter()
-            .any(
-                |author_id| author_id.starts_with("operator-chat.transcript.row.")
-                    || author_id.starts_with("operator-chat.transcript.message.")
-            ),
-        "a refused launch must not capture transcript rows"
+        !transcript_author_ids.is_empty(),
+        "the production launch must render backend-captured transcript rows"
     );
-    // If the pane surfaced an error at all, it must be the honest operator-facing reason.
-    if let Some(error) = node_by_author_id(&after_refusal_root, ERROR_AUTHOR_ID) {
-        let label = node_text(error);
-        assert!(
-            !label.trim().is_empty(),
-            "the Operator Chat error state must state a reason"
-        );
-    }
+    let transcript_text = node_text(require_node(&launched_root, TRANSCRIPT_AUTHOR_ID));
+    assert!(
+        transcript_author_ids.iter().all(|author_id| {
+            node_by_author_id(&launched_root, author_id)
+                .is_some_and(|node| !node_text(node).trim().is_empty())
+        }),
+        "every captured transcript row must expose nonblank production text: `{transcript_text}`"
+    );
 
     let docked_shot = app.client.screenshot("main");
     let docked_png = decode_verified_capture(
@@ -644,7 +796,7 @@ fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_an
     );
     for author_id in [
         MODEL_PICKER_AUTHOR_ID,
-        FOLDER_PICKER_AUTHOR_ID,
+        WORKTREE_SELECTION_AUTHOR_ID,
         PROMPT_INPUT_AUTHOR_ID,
         LAUNCH_AUTHOR_ID,
         TRANSCRIPT_AUTHOR_ID,
@@ -654,6 +806,15 @@ fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_an
             "detached Operator Chat lost control {author_id}"
         );
     }
+    for author_id in [&session_author_id, &model_author_id]
+        .into_iter()
+        .chain(transcript_author_ids.iter())
+    {
+        assert!(
+            contains_author_id(&detached_root, author_id),
+            "detached Operator Chat lost live state target {author_id}"
+        );
+    }
     assert_eq!(
         require_node(&detached_root, PROMPT_INPUT_AUTHOR_ID)
             .get("value")
@@ -661,9 +822,17 @@ fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_an
         Some(docked_prompt),
         "the detached window must render the SAME live pane state, not a fresh empty copy"
     );
-    assert!(
-        node_is_disabled(require_node(&detached_root, LAUNCH_AUTHOR_ID)),
-        "the detached launch control must fail closed exactly like the docked one"
+    assert_eq!(
+        require_node(&detached_root, WORKTREE_SELECTION_AUTHOR_ID)
+            .get("value")
+            .and_then(serde_json::Value::as_str),
+        Some(worktree.as_str()),
+        "detaching must preserve the injected production worktree"
+    );
+    assert_eq!(
+        node_text(require_node(&detached_root, LAUNCH_STATUS_AUTHOR_ID)),
+        launch_status,
+        "detached rendering must preserve the real backend launch identity"
     );
 
     let detached_shot = app.client.screenshot(&popout_window_id);
@@ -702,6 +871,33 @@ fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_an
         Some(detached_prompt),
         "merging back must preserve the live pane state the detached window edited"
     );
+    assert_eq!(
+        require_node(&remerged["snapshot"]["root"], WORKTREE_SELECTION_AUTHOR_ID,)
+            .get("value")
+            .and_then(serde_json::Value::as_str),
+        Some(worktree.as_str()),
+        "merging back must preserve the focus-safe worktree selection"
+    );
+    for author_id in &transcript_author_ids {
+        assert!(
+            contains_author_id(&remerged["snapshot"]["root"], author_id),
+            "merge-back lost captured transcript target {author_id}"
+        );
+    }
+
+    let foreground_after = foreground_process_id();
+    assert_ne!(
+        foreground_before, 0,
+        "MT-012 focus proof requires an identifiable foreground owner"
+    );
+    assert_eq!(
+        foreground_after, foreground_before,
+        "socket-driven Operator Chat launch changed the operator's foreground owner"
+    );
+    assert_ne!(
+        foreground_after, app.child_pid,
+        "socket-driven Operator Chat proof must not activate the production child"
+    );
 
     app.write_proof_artifact(
         "argus_production_socket_operator_chat_main.png",
@@ -723,6 +919,21 @@ fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_an
         "authenticated_agent_id": app.authenticated_agent_id,
         "navigation": ["menu-models", "menu.models.operator-chat"],
         "pane_id": pane_id,
+        "foreground_pid_before": foreground_before,
+        "foreground_pid_after": foreground_after,
+        "worktree_selection": {
+            "author_id": WORKTREE_SELECTION_AUTHOR_ID,
+            "status": worktree_receipt["result"]["status"],
+            "before_revision": worktree_receipt["result"]["before_revision"],
+            "after_revision": worktree_receipt["result"]["after_revision"],
+            "evidence_ref": worktree_receipt["result"]["evidence_ref"],
+        },
+        "live_inventory": {
+            "session_author_id": session_author_id,
+            "session_label": session_label,
+            "model_author_id": model_author_id,
+            "model_label": model_label,
+        },
         "docked_prompt_receipt": {
             "status": prompt_receipt["result"]["status"],
             "before_revision": prompt_receipt["result"]["before_revision"],
@@ -738,14 +949,14 @@ fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_an
             "after_revision": detached_receipt["result"]["after_revision"],
             "evidence_ref": detached_receipt["result"]["evidence_ref"],
         },
-        "fail_closed_launch": {
+        "real_backend_launch": {
             "control": LAUNCH_AUTHOR_ID,
-            "disabled_in_live_snapshot": true,
-            "click_status": refused_launch["result"]["status"],
-            "click_error": refused_launch["result"]["error"],
-            "launch_lifecycle_scope_note": "This GUI proof never launches a real model session; the \
-                                            launch/capture/recovery lifecycle is proven by the \
-                                            backend operator_chat_capture_tests suite.",
+            "click_status": launch_receipt["result"]["status"],
+            "before_revision": launch_receipt["result"]["before_revision"],
+            "after_revision": launch_receipt["result"]["after_revision"],
+            "evidence_ref": launch_receipt["result"]["evidence_ref"],
+            "launch_status": launch_status,
+            "transcript_author_ids": transcript_author_ids,
         },
         "captures": [
             {
@@ -776,8 +987,8 @@ fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_an
     app.shutdown();
 }
 
-#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires managed \
-            PostgreSQL, Palmistry-ready handshake_core on 127.0.0.1:37501, \
+#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires injected \
+            embedded SurrealDB, Palmistry-ready handshake_core on 127.0.0.1:37501, \
             HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, and a shared HANDSHAKE_DIAGNOSTICS_DIR"]
 #[test]
 fn production_socket_settings_cloud_access_login_states_and_no_secret_disclosure() {
@@ -1019,8 +1230,8 @@ fn production_socket_settings_cloud_access_login_states_and_no_secret_disclosure
 /// production Argus/Palmistry path. This is deliberately separate from the deterministic Settings
 /// tests: the acceptance gap was evidence from the running shell in both window hosts, not another
 /// in-process assertion over the same widget code.
-#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires managed \
-            PostgreSQL, Palmistry-ready handshake_core on 127.0.0.1:37501, \
+#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires injected \
+            embedded SurrealDB, Palmistry-ready handshake_core on 127.0.0.1:37501, \
             HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, and a shared HANDSHAKE_DIAGNOSTICS_DIR"]
 #[test]
 fn mt021_production_settings_consent_concurrency_and_console_main_detached() {

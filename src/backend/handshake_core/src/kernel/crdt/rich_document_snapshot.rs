@@ -121,11 +121,11 @@ pub fn validate_rich_document_snapshot_payload(
     }
 }
 
-/// Deterministic Postgres byte ref for a rich-document snapshot, matching
-/// the `postgres://kernel_crdt_snapshots/...` convention enforced by
+/// Deterministic embedded-Surreal byte ref for a rich-document snapshot,
+/// matching the `surreal://kernel_crdt_snapshots/...` convention enforced by
 /// `validate_crdt_snapshot_record`.
 pub fn rich_document_snapshot_bytes_ref(crdt_document_id: &str, snapshot_id: &str) -> String {
-    format!("postgres://kernel_crdt_snapshots/{crdt_document_id}/{snapshot_id}/snapshot_bytes")
+    format!("surreal://kernel_crdt_snapshots/{crdt_document_id}/{snapshot_id}/snapshot_bytes")
 }
 
 /// Build the durable snapshot envelope + payload bytes for a rich document.

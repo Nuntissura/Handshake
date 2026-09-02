@@ -1,10 +1,14 @@
 //! MT-202 UserManualContextBundleBridge: context bundles cite UserManual
 //! pages with version and source anchors.
 //!
-//! Path (reuses the existing bundle vocabulary, no schema change):
+//! Path (reuses the existing bundle vocabulary and ProjectKnowledgeIndex
+//! entity table):
 //! * a manual page is mirrored as a `knowledge_entities` row of kind
-//!   `user_manual_page` (natural key = slug; provenance carries the manual
-//!   version + content hash), so bundles cite it as `ref_kind = entity`;
+//!   `user_manual_page` under an exact `ResourceScope` (identity = exact
+//!   scope + kind + slug; provenance carries the manual version + content
+//!   hash), so bundles cite it as `ref_kind = entity`;
+//! * the entity mutation and its scoped EventLedger receipt commit atomically;
+//!   identical retries return the same durable evidence;
 //! * the bundle item's citation string is the manual citation
 //!   `usermanual:<slug>@<manual_version>#<anchor>@0-0@<hash8>` — version,
 //!   source anchor, AND a content-hash prefix so a consumer can detect drift
@@ -18,12 +22,10 @@ use super::store::{UserManualPage, UserManualSection};
 use crate::knowledge_retrieval::budget::PriorityTier;
 use crate::knowledge_retrieval::compiler::BundleCandidate;
 use crate::knowledge_retrieval::snippet::EvidenceSnippet;
-use crate::storage::knowledge::{
-    KnowledgeBundleItemRefKind, KnowledgeEntity, KnowledgeEntityKind, KnowledgeStore,
-    NewKnowledgeEntity,
-};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::knowledge::KnowledgeBundleItemRefKind;
+use crate::storage::surreal::{SurrealUserManualKnowledgeStore, UserManualKnowledgeEntityMutation};
 use crate::storage::StorageResult;
+use crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 
 /// The citation base for a manual page: `usermanual:<slug>@<version>#<anchor>`.
 /// The snippet machinery appends the span range and the content-hash prefix.
@@ -31,29 +33,47 @@ pub fn manual_citation_base(slug: &str, manual_version: &str, anchor: &str) -> S
     format!("usermanual:{slug}@{manual_version}#{anchor}")
 }
 
-/// Mirror a manual page into the workspace's knowledge graph (idempotent on
-/// (workspace, user_manual_page, slug)) so bundles can cite it as an entity.
+/// Mirror a manual page into the exact-scoped workspace knowledge graph so
+/// bundles can cite it as an entity. The provider is idempotent on the full
+/// scope plus `(user_manual_page, slug)` and returns stable receipt evidence.
 pub async fn ensure_manual_page_entity(
-    db: &PostgresDatabase,
-    workspace_id: &str,
+    store: &SurrealUserManualKnowledgeStore,
+    scope: &ExactResourceScopeAttribution,
     page: &UserManualPage,
-) -> StorageResult<KnowledgeEntity> {
-    db.upsert_knowledge_entity(NewKnowledgeEntity {
-        workspace_id: workspace_id.to_string(),
-        entity_kind: KnowledgeEntityKind::UserManualPage,
-        entity_key: page.slug.clone(),
-        display_name: page.title.clone(),
-        detection_provenance: json!({
-            "detector": "user_manual::bundle_bridge",
-            "manual_version": page.manual_version,
-            "content_hash": page.content_hash,
-            "page_kind": page.page_kind,
-        }),
-        primary_source_id: None,
-        detected_in_run: None,
-        evidence_span_ids: Vec::new(),
+) -> StorageResult<UserManualKnowledgeEntityMutation> {
+    store
+        .upsert_user_manual_page_entity(
+            scope,
+            &page.slug,
+            &page.title,
+            manual_entity_provenance(page),
+        )
+        .await
+}
+
+#[cfg(feature = "test-utils")]
+pub async fn insert_manual_page_orphan_receipt_fixture(
+    store: &SurrealUserManualKnowledgeStore,
+    scope: &ExactResourceScopeAttribution,
+    page: &UserManualPage,
+) -> StorageResult<String> {
+    store
+        .insert_orphan_receipt_fixture(
+            scope,
+            &page.slug,
+            &page.title,
+            manual_entity_provenance(page),
+        )
+        .await
+}
+
+fn manual_entity_provenance(page: &UserManualPage) -> serde_json::Value {
+    json!({
+        "detector": "user_manual::bundle_bridge",
+        "manual_version": page.manual_version,
+        "content_hash": page.content_hash,
+        "page_kind": page.page_kind,
     })
-    .await
 }
 
 /// Build a ranked bundle candidate citing a manual page section. The snippet

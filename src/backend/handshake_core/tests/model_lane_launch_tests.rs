@@ -6,21 +6,17 @@
 
 mod knowledge_pg_support;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::{
-    atomic::{AtomicUsize, Ordering},
     Arc,
+    atomic::{AtomicUsize, Ordering},
 };
 use std::time::Duration;
 
 use async_trait::async_trait;
-use futures::stream;
 use futures::StreamExt;
-use handshake_core::api::resolve_official_cli_config_from_path;
-use handshake_core::model_runtime::cloud::{
-    ByokProvider, CliBridgeProvider, CliSubprocessSpawner, LiveCliSpawner, OsKeychainSecretsVault,
-    SecretsVault, HANDSHAKE_KEYCHAIN_SERVICE,
-};
+use futures::stream;
+use handshake_core::model_runtime::cloud::{InMemorySecretsVault, SecretsVault};
 use handshake_core::model_runtime::registry::RuntimeBinding as RuntimeAdapterBinding;
 use handshake_core::model_runtime::{
     CancellationToken, Embedding, GenPrompt, GenerateRequest, KvCacheHandle, KvCachePolicy,
@@ -31,16 +27,18 @@ use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink, ProcessEngineKind,
     ProcessOwnershipRecordId, ProcessStart,
 };
+use handshake_core::storage::surreal::{SurrealStorage, SurrealStorageConfig};
 use handshake_core::swarm_orchestration::model_lane::{
-    dexterity_spawn_model_session_id, DexterityLaunchAdapterKind, DexterityLaunchAdapterRegistry,
-    DexterityLaunchAdapterRequest, DexterityLaunchContract, DexterityNormalizedLaunch,
-    ModelLaneCloudConsentReceiptStatus, ModelLaneCloudConsentScope, ModelLaneCloudExportPosture,
-    ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, ModelLaneError,
-    ModelLaneNavigationLookup, ModelLaneRecoveryState, ModelLaneStatus, ModelLaneStore,
-    NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan, RuntimeBinding,
+    DexterityLaunchAdapterKind, DexterityLaunchAdapterRegistry, DexterityLaunchAdapterRequest,
+    DexterityLaunchContract, DexterityNormalizedLaunch, ModelLaneCloudConsentReceiptStatus,
+    ModelLaneCloudConsentScope, ModelLaneCloudExportPosture, ModelLaneCloudProjectionPlanStatus,
+    ModelLaneCloudRetentionPolicy, ModelLaneError, ModelLaneNavigationLookup,
+    ModelLaneRecoveryState, ModelLaneStatus, ModelLaneStore, NewModelLaneCloudConsentReceipt,
+    NewModelLaneCloudProjectionPlan, RuntimeBinding, dexterity_spawn_model_session_id,
 };
 use handshake_core::swarm_orchestration::production_factory::{
-    build_production_swarm_coordinator, CloudLaneFactoryConfig,
+    CloudLaneFactoryConfig, CloudLiveRuntime, CloudRuntimeBuilder,
+    build_production_swarm_coordinator,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
     AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
@@ -50,8 +48,179 @@ use handshake_core::swarm_orchestration::{
     ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
     RecordingSwarmSink, RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+
+#[tokio::test]
+async fn model_lane_cloud_launch_is_no_egress_and_fail_closed_without_authority() {
+    let surreal_root = std::env::temp_dir().join(format!(
+        "handshake-mt003-launch-surreal-{}",
+        uuid::Uuid::now_v7().simple()
+    ));
+    std::fs::create_dir_all(&surreal_root).expect("create isolated MT-003 SurrealDB root");
+    let surreal_config = SurrealStorageConfig::for_data_dir(&surreal_root)
+        .expect("configure isolated MT-003 embedded SurrealDB");
+    let storage = SurrealStorage::open(surreal_config.clone())
+        .await
+        .expect("open isolated MT-003 embedded SurrealDB");
+    let exact_scope = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new("workspace-mt003-cloud-no-egress")
+            .expect("nonblank launch workspace"),
+    };
+    let launch_scope =
+        ResourceScope::new(exact_scope.owner_account_id, exact_scope.actor_principal_id)
+            .with_session(exact_scope.authenticated_session_id)
+            .with_access_space(exact_scope.access_space_id)
+            .with_workspace(exact_scope.workspace_id.clone());
+    let store = ModelLaneStore::new_surreal_scoped(storage.clone(), launch_scope.clone())
+        .await
+        .expect("bootstrap MT-003 embedded SurrealDB ModelLane authority");
+    let (ledger, _drain) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig {
+            capacity: 128,
+            ..LedgerBatcherConfig::default()
+        },
+        Arc::new(NoopOverflowSink),
+    )
+    .expect("manual process ledger");
+    let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
+    vault
+        .put("mt003-focused-inert-openai", "mt003-focused-inert-credential")
+        .expect("store generated inert credential in isolated test vault");
+    let cloud_builds = Arc::new(AtomicUsize::new(0));
+    let provider_calls = Arc::new(AtomicUsize::new(0));
+    let cloud = CloudLaneFactoryConfig {
+        openai: Some(Arc::new(NoEgressCloudBuilder::new(
+            ProviderKind::ByokCloud,
+            vault.clone(),
+            "mt003-focused-inert-openai",
+            cloud_builds.clone(),
+            provider_calls.clone(),
+        ))),
+        anthropic: None,
+        official_cli: None,
+        official_cli_by_provider: HashMap::new(),
+    };
+    let coordinator = build_production_swarm_coordinator(
+        ledger,
+        cloud,
+        store.clone(),
+        Some(2),
+        uuid::Uuid::now_v7(),
+        |_event| Ok(()),
+    );
+    let test_idx = 20_000 + (uuid::Uuid::now_v7().as_u128() as usize % 10_000);
+
+    let missing_raw = launch_request(
+        DexterityLaunchAdapterKind::ByokCloudOpenAi,
+        test_idx,
+        ModelLaneStatus::Ready,
+    );
+    let missing_normalized = DexterityLaunchAdapterRegistry::standard()
+        .normalize(missing_raw)
+        .expect("missing-authority cloud launch normalizes before durable preflight");
+    let missing_spawn = spawn_request_for_adapter(
+        DexterityLaunchAdapterKind::ByokCloudOpenAi,
+        test_idx,
+        spawn_contract_from_normalized(&missing_normalized),
+    );
+    let missing_error = coordinator
+        .spawn_session(missing_spawn)
+        .await
+        .expect_err("cloud launch without ProjectionPlan/ConsentReceipt must fail closed");
+    assert!(
+        missing_error.to_string().contains("CX-MM-007"),
+        "missing cloud authority must be a consent denial: {missing_error}"
+    );
+    assert_eq!(cloud_builds.load(Ordering::SeqCst), 0);
+    assert_eq!(provider_calls.load(Ordering::SeqCst), 0);
+
+    let valid_raw = launch_request(
+        DexterityLaunchAdapterKind::ByokCloudOpenAi,
+        test_idx + 1,
+        ModelLaneStatus::Ready,
+    );
+    let valid_normalized = DexterityLaunchAdapterRegistry::standard()
+        .normalize(valid_raw)
+        .expect("valid cloud launch normalizes through the registry");
+    let valid_spawn = spawn_request_for_adapter(
+        DexterityLaunchAdapterKind::ByokCloudOpenAi,
+        test_idx + 1,
+        spawn_contract_from_normalized(&valid_normalized),
+    );
+    seed_cloud_launch_authority(
+        &store,
+        &valid_spawn,
+        &DexterityLaunchAdapterKind::ByokCloudOpenAi,
+        test_idx + 1,
+    )
+    .await;
+    let expected_model_session = dexterity_spawn_model_session_id(&valid_spawn);
+    let seeded_authority = store
+        .replay_cloud_consent_authority(&valid_spawn.dexterity_launch.as_ref().unwrap().run_id)
+        .await
+        .expect("replay focused cloud authority");
+    assert_eq!(seeded_authority.projection_plans.len(), 1);
+    assert_eq!(
+        seeded_authority.projection_plans[0].model_session_id.as_deref(),
+        Some(expected_model_session.as_str())
+    );
+    let instance_id = valid_spawn.instance_id;
+    let valid_run_id = valid_spawn
+        .dexterity_launch
+        .as_ref()
+        .expect("valid launch retains Dexterity contract")
+        .run_id
+        .clone();
+    coordinator
+        .spawn_session(valid_spawn)
+        .await
+        .expect("valid inert-vault cloud launch uses the Rust registry");
+    prove_live_production_generation(
+        &coordinator,
+        instance_id,
+        &DexterityLaunchAdapterKind::ByokCloudOpenAi,
+    )
+    .await;
+    assert_eq!(cloud_builds.load(Ordering::SeqCst), 1);
+    assert_eq!(provider_calls.load(Ordering::SeqCst), 1);
+
+    drop(coordinator);
+    drop(store);
+    storage
+        .shutdown()
+        .await
+        .expect("close first MT-003 embedded SurrealDB handle");
+    let reopened_storage = SurrealStorage::open(surreal_config)
+        .await
+        .expect("reopen MT-003 embedded SurrealDB after component restart");
+    let reopened_store =
+        ModelLaneStore::new_surreal_scoped(reopened_storage.clone(), launch_scope)
+            .await
+            .expect("rebind MT-003 ModelLane authority after restart");
+    let replay_after_restart = reopened_store
+        .replay_cloud_consent_authority(&valid_run_id)
+        .await
+        .expect("replay durable MT-003 authority after restart");
+    assert_eq!(replay_after_restart.projection_plans.len(), 1);
+    assert_eq!(replay_after_restart.consent_receipts.len(), 1);
+    assert_eq!(
+        replay_after_restart.projection_plans[0]
+            .model_session_id
+            .as_deref(),
+        Some(expected_model_session.as_str())
+    );
+    drop(reopened_store);
+    reopened_storage
+        .shutdown()
+        .await
+        .expect("close reopened MT-003 embedded SurrealDB");
+    std::fs::remove_dir_all(&surreal_root).expect("remove isolated MT-003 SurrealDB root");
+}
 
 #[tokio::test]
 async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
@@ -96,43 +265,39 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
     );
     let local_gguf = required_real_gguf_artifact();
     let local_gguf_sha256 = sha256_file(&local_gguf);
-    let vault: Arc<dyn SecretsVault> =
-        Arc::new(OsKeychainSecretsVault::new(HANDSHAKE_KEYCHAIN_SERVICE));
-    for provider in [ByokProvider::OpenAi, ByokProvider::Anthropic] {
-        let secret = vault.get(provider.vault_lane()).unwrap_or_else(|error| {
-            panic!(
-                "MT-003 production launch proof requires configured operator-vault provider {} at lane {}: {error}",
-                provider.id(),
-                provider.vault_lane()
-            )
-        });
-        drop(secret);
-    }
-    let (cli_provider, cli_config) = CliBridgeProvider::OFFERED
-        .into_iter()
-        .find_map(|provider| {
-            resolve_official_cli_config_from_path(provider).map(|config| (provider, config))
-        })
-        .expect(
-            "MT-003 production launch proof requires a configured Claude Code or Codex executable on PATH",
-        );
-    let cli_model = match cli_provider {
-        CliBridgeProvider::ClaudeCode => "claude-sonnet-4",
-        CliBridgeProvider::Codex => "gpt-5-codex",
+    let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
+    vault
+        .put("mt003-inert-openai", "mt003-inert-openai-credential")
+        .expect("store generated inert OpenAI credential in isolated test vault");
+    vault
+        .put("mt003-inert-anthropic", "mt003-inert-anthropic-credential")
+        .expect("store generated inert Anthropic credential in isolated test vault");
+    let cloud_builds = Arc::new(AtomicUsize::new(0));
+    let provider_calls = Arc::new(AtomicUsize::new(0));
+    let cloud = CloudLaneFactoryConfig {
+        openai: Some(Arc::new(NoEgressCloudBuilder::new(
+            ProviderKind::ByokCloud,
+            vault.clone(),
+            "mt003-inert-openai",
+            cloud_builds.clone(),
+            provider_calls.clone(),
+        ))),
+        anthropic: Some(Arc::new(NoEgressCloudBuilder::new(
+            ProviderKind::ByokCloud,
+            vault.clone(),
+            "mt003-inert-anthropic",
+            cloud_builds.clone(),
+            provider_calls.clone(),
+        ))),
+        official_cli: Some(Arc::new(NoEgressCloudBuilder::new(
+            ProviderKind::OfficialCli,
+            vault.clone(),
+            "mt003-inert-openai",
+            cloud_builds.clone(),
+            provider_calls.clone(),
+        ))),
+        official_cli_by_provider: HashMap::new(),
     };
-    let live_cli_spawner = Arc::new(LiveCliSpawner::new(
-        Arc::new(ledger.clone()),
-        LiveCliSpawner::native_cli_registry(),
-    ));
-    live_cli_spawner
-        .pin_config(cli_config.launch_config())
-        .expect("pin the exact production official-CLI executable identity");
-    let cloud = CloudLaneFactoryConfig::from_vault(
-        vault,
-        Some(ByokProvider::Anthropic.vault_lane().to_string()),
-        Some(ByokProvider::OpenAi.vault_lane().to_string()),
-    )
-    .with_official_cli(live_cli_spawner, cli_config);
     let coordinator = build_production_swarm_coordinator(
         ledger,
         cloud,
@@ -140,6 +305,40 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
         Some(8),
         uuid::Uuid::now_v7(),
         |_event| Ok(()),
+    );
+    let missing_authority_launch = launch_request(
+        DexterityLaunchAdapterKind::ByokCloudOpenAi,
+        99,
+        ModelLaneStatus::Ready,
+    );
+    let missing_authority_normalized = DexterityLaunchAdapterRegistry::standard()
+        .normalize(missing_authority_launch.clone())
+        .expect("missing-authority cloud launch still normalizes before durable preflight");
+    let missing_authority_request = production_spawn_request_for_adapter(
+        DexterityLaunchAdapterKind::ByokCloudOpenAi,
+        99,
+        spawn_contract_from_normalized(&missing_authority_normalized),
+        &local_gguf,
+        &local_gguf_sha256,
+        "unused-inert-cli-model",
+    );
+    let missing_authority_error = coordinator
+        .spawn_session(missing_authority_request)
+        .await
+        .expect_err("cloud launch without ProjectionPlan/ConsentReceipt must fail closed");
+    assert!(
+        missing_authority_error.to_string().contains("CX-MM-007"),
+        "missing cloud authority must be a consent denial: {missing_authority_error}"
+    );
+    assert_eq!(
+        cloud_builds.load(Ordering::SeqCst),
+        0,
+        "missing cloud authority must reject before the cloud builder opens a runtime"
+    );
+    assert_eq!(
+        provider_calls.load(Ordering::SeqCst),
+        0,
+        "missing cloud authority must make no provider call"
     );
     let mut authority_instance_id = None;
     let mut live_revocation = None;
@@ -169,7 +368,7 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
                 spawn_contract_from_normalized(&launch),
                 &local_gguf,
                 &local_gguf_sha256,
-                cli_model,
+                "unused-inert-cli-model",
             );
             if adapter_kind == DexterityLaunchAdapterKind::LocalModelRuntime {
                 assert_eq!(spawn.runtime_binding, RuntimeAdapterBinding::LlamaCpp);
@@ -322,21 +521,29 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
             lane.runtime_binding,
             RuntimeBinding::Local | RuntimeBinding::Cloud | RuntimeBinding::CliBridge
         ) {
-            assert!(lane
-                .process_ownership_ref
-                .as_deref()
-                .expect("process-backed lane has ownership ref")
-                .starts_with("process-ledger://"));
+            assert!(
+                lane.process_ownership_ref
+                    .as_deref()
+                    .expect("process-backed lane has ownership ref")
+                    .starts_with("process-ledger://")
+            );
             assert!(lane.no_os_process_reason_ref.is_none());
         } else {
             assert!(lane.process_ownership_ref.is_none());
-            assert!(lane
-                .no_os_process_reason_ref
-                .as_deref()
-                .expect("no-OS-process lane has explicit equivalent")
-                .starts_with("no-os-process://"));
+            assert!(
+                lane.no_os_process_reason_ref
+                    .as_deref()
+                    .expect("no-OS-process lane has explicit equivalent")
+                    .starts_with("no-os-process://")
+            );
         }
     }
+
+    assert_eq!(
+        provider_calls.load(Ordering::SeqCst),
+        4,
+        "the four valid cloud lanes use the recording no-egress provider exactly once"
+    );
 
     let (system_terminal_run, system_terminal_lane) =
         system_terminal_proof.expect("the all-adapter proof includes a no-OS human lane");
@@ -1142,11 +1349,12 @@ async fn model_lane_launch_records_factory_failure_through_swarm_coordinator() {
     assert!(lane.startup_failure_ref.is_some());
     assert!(lane.reason_ref.is_some());
     assert!(lane.process_ownership_ref.is_none());
-    assert!(lane
-        .no_os_process_reason_ref
-        .as_deref()
-        .expect("failed-before-process lane records no-OS equivalent")
-        .starts_with("no-os-process://factory-create-failed/"));
+    assert!(
+        lane.no_os_process_reason_ref
+            .as_deref()
+            .expect("failed-before-process lane records no-OS equivalent")
+            .starts_with("no-os-process://factory-create-failed/")
+    );
 }
 
 #[tokio::test]
@@ -1227,21 +1435,27 @@ async fn model_lane_launch_cancellation_reclaim_contracts_all_lane_kinds() {
                 ModelLaneStatus::Ready,
             ))
             .expect("registered Dexterity adapter normalizes");
-        assert!(launch
-            .cancellation_ref
-            .as_deref()
-            .unwrap()
-            .starts_with("cancel-token://"));
-        assert!(launch
-            .reclaim_policy_ref
-            .as_deref()
-            .unwrap()
-            .starts_with("reclaim-policy://"));
-        assert!(launch
-            .terminal_status_mapping_ref
-            .as_deref()
-            .unwrap()
-            .starts_with("terminal-status://session-broker/"));
+        assert!(
+            launch
+                .cancellation_ref
+                .as_deref()
+                .unwrap()
+                .starts_with("cancel-token://")
+        );
+        assert!(
+            launch
+                .reclaim_policy_ref
+                .as_deref()
+                .unwrap()
+                .starts_with("reclaim-policy://")
+        );
+        assert!(
+            launch
+                .terminal_status_mapping_ref
+                .as_deref()
+                .unwrap()
+                .starts_with("terminal-status://session-broker/")
+        );
     }
 
     let mut missing_cancel = registry
@@ -2067,6 +2281,79 @@ impl ModelSessionFactory for CountingFactory {
     }
 }
 
+/// Deterministic cloud seam for MT-003 production-lane proof. It reads only
+/// generated inert credentials from an isolated test vault and returns the
+/// existing controllable runtime; no HTTP client, subprocess, or provider
+/// endpoint is constructed. `provider_calls` records valid-lane generation so
+/// the missing-authority preflight can assert that it stays at zero.
+struct NoEgressCloudBuilder {
+    provider: ProviderKind,
+    vault: Arc<dyn SecretsVault>,
+    lane: String,
+    builds: Arc<AtomicUsize>,
+    provider_calls: Arc<AtomicUsize>,
+}
+
+impl NoEgressCloudBuilder {
+    fn new(
+        provider: ProviderKind,
+        vault: Arc<dyn SecretsVault>,
+        lane: impl Into<String>,
+        builds: Arc<AtomicUsize>,
+        provider_calls: Arc<AtomicUsize>,
+    ) -> Self {
+        Self {
+            provider,
+            vault,
+            lane: lane.into(),
+            builds,
+            provider_calls,
+        }
+    }
+}
+
+#[async_trait]
+impl CloudRuntimeBuilder for NoEgressCloudBuilder {
+    fn provider(&self) -> ProviderKind {
+        self.provider
+    }
+
+    async fn build_loaded(
+        &self,
+        model_name: &str,
+        _invocation_context: Option<handshake_core::model_runtime::cloud::CliInvocationContext>,
+        _working_dir: Option<&str>,
+    ) -> Result<CloudLiveRuntime, String> {
+        self.vault
+            .get(&self.lane)
+            .map_err(|error| format!("isolated inert test credential unavailable: {error}"))?;
+        self.builds.fetch_add(1, Ordering::SeqCst);
+        let mut runtime = DexterityLaunchProofRuntime::new_with_provider_calls(
+            Arc::new(AtomicUsize::new(0)),
+            Arc::new(AtomicUsize::new(0)),
+            self.provider_calls.clone(),
+        );
+        let model_id = runtime
+            .load(LoadSpec {
+                artifact_path: std::path::PathBuf::new(),
+                sha256_expected: String::new(),
+                runtime_kind: RuntimeKind::LlamaCpp,
+                sampling_defaults: SamplingParams::default(),
+                kv_cache_policy: KvCachePolicy::default(),
+                declared_capabilities: ModelCapabilities::default(),
+                provider: self.provider,
+                engine_origin: Some(model_name.to_string()),
+                external_engine_import: None,
+            })
+            .await
+            .map_err(|error| format!("no-egress cloud runtime load failed: {error}"))?;
+        Ok(CloudLiveRuntime {
+            runtime: Arc::new(runtime),
+            model_id,
+        })
+    }
+}
+
 struct DexterityLaunchProofRuntime {
     capabilities: ModelCapabilities,
     kv: KvCacheHandle,
@@ -2074,10 +2361,27 @@ struct DexterityLaunchProofRuntime {
     steering: SteeringHookHandle,
     loads: Arc<AtomicUsize>,
     unloads: Arc<AtomicUsize>,
+    provider_calls: Option<Arc<AtomicUsize>>,
 }
 
 impl DexterityLaunchProofRuntime {
     fn new(loads: Arc<AtomicUsize>, unloads: Arc<AtomicUsize>) -> Self {
+        Self::new_with_optional_provider_calls(loads, unloads, None)
+    }
+
+    fn new_with_provider_calls(
+        loads: Arc<AtomicUsize>,
+        unloads: Arc<AtomicUsize>,
+        provider_calls: Arc<AtomicUsize>,
+    ) -> Self {
+        Self::new_with_optional_provider_calls(loads, unloads, Some(provider_calls))
+    }
+
+    fn new_with_optional_provider_calls(
+        loads: Arc<AtomicUsize>,
+        unloads: Arc<AtomicUsize>,
+        provider_calls: Option<Arc<AtomicUsize>>,
+    ) -> Self {
         Self {
             capabilities: ModelCapabilities::default(),
             kv: KvCacheHandle::new("dexterity-mt003-kv"),
@@ -2085,6 +2389,7 @@ impl DexterityLaunchProofRuntime {
             steering: SteeringHookHandle::new("dexterity-mt003-steering"),
             loads,
             unloads,
+            provider_calls,
         }
     }
 }
@@ -2102,6 +2407,9 @@ impl ModelRuntime for DexterityLaunchProofRuntime {
     }
 
     fn generate(&self, req: GenerateRequest) -> TokenStream {
+        if let Some(provider_calls) = &self.provider_calls {
+            provider_calls.fetch_add(1, Ordering::SeqCst);
+        }
         let cancel = req.cancel.clone();
         let items = (0..req.max_tokens.min(2)).map(move |i| {
             if cancel.is_cancelled() {
@@ -2161,5 +2469,88 @@ fn dexterity_load_spec_for_request(request: &SpawnRequest) -> LoadSpec {
         provider: request.provider.unwrap_or(ProviderKind::Local),
         engine_origin: Some("dexterity-mt003-proof-runtime".into()),
         external_engine_import: None,
+    }
+}
+
+#[test]
+fn model_lane_crdt_surreal_queries_scope_the_selected_row_on_all_five_fields() {
+    let provider = include_str!("../src/storage/surreal/model_lane.rs");
+    let scope_predicates = [
+        "owner_account_id = $owner_account_id",
+        "actor_principal_id = $actor_principal_id",
+        "authenticated_session_id = $authenticated_session_id",
+        "access_space_id = $access_space_id",
+        "workspace_id = $workspace_id",
+    ];
+    let crdt_query_lines = provider.lines().filter(|line| {
+        line.contains("FROM kernel_crdt_updates WHERE")
+            || line.contains("FROM kernel_crdt_snapshots WHERE")
+            || line.contains("FROM knowledge_crdt_agent_lane_leases WHERE")
+            || line.contains("FROM knowledge_crdt_ai_edit_proposals WHERE")
+    });
+    let mut query_count = 0;
+    for query in crdt_query_lines {
+        query_count += 1;
+        for predicate in scope_predicates {
+            assert!(
+                query.contains(predicate),
+                "CRDT query does not scope its selected durable row with {predicate}: {query}"
+            );
+        }
+    }
+    assert!(
+        query_count >= 11,
+        "expected every CRDT read and guarded subquery"
+    );
+    assert!(
+        !provider.contains("array::len((SELECT VALUE id FROM model_lane_authority"),
+        "an unrelated exact-scoped lane must never stand in for CRDT row scope"
+    );
+    assert!(
+        !provider.contains("OR scope_kind = 'document')"),
+        "historical document leases must bind the requested document identity"
+    );
+
+    let requested = (
+        "account-a",
+        "actor-a",
+        "session-a",
+        "space-a",
+        "workspace-a",
+    );
+    for mismatched in [
+        (
+            "account-b",
+            "actor-a",
+            "session-a",
+            "space-a",
+            "workspace-a",
+        ),
+        (
+            "account-a",
+            "actor-b",
+            "session-a",
+            "space-a",
+            "workspace-a",
+        ),
+        (
+            "account-a",
+            "actor-a",
+            "session-b",
+            "space-a",
+            "workspace-a",
+        ),
+        (
+            "account-a",
+            "actor-a",
+            "session-a",
+            "space-b",
+            "workspace-a",
+        ),
+    ] {
+        assert_ne!(
+            requested, mismatched,
+            "same-workspace partial scope must be denied"
+        );
     }
 }

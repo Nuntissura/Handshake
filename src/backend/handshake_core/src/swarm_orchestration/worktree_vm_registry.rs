@@ -20,13 +20,15 @@
 //! prevents stale snapshot reuse but does not fake live token generation.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock, Weak};
 
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row};
-use tokio::sync::Mutex;
+use sha2::{Digest, Sha256};
+use surrealdb::types::SurrealValue;
+use tokio::sync::{Mutex, OnceCell};
 use uuid::Uuid;
 
+use crate::kernel::context_bundle::{canonical_json_bytes, sha256_hex};
 use crate::model_runtime::{
     validate_ready_frame, WarmAgentGuestFrame, WarmAgentProtocolError, WarmVmSnapshotManifest,
     WarmVmSnapshotResourceScope,
@@ -36,9 +38,9 @@ use crate::sandbox::{
     ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, TrustClass,
     SANDBOX_MODE_METADATA_KEY, SANDBOX_MODE_PERSISTENT,
 };
+use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 use crate::swarm_orchestration::resource_scope::{
-    stored_resource_scope_from_row, ResourceAccessContext, ResourceScope, ScopeDenied,
-    RESOURCE_SCOPE_SELECT_COLUMNS,
+    ResourceAccessContext, ResourceScope, ScopeDenied,
 };
 
 /// Error type for the worktree VM registry. Wraps the adapter error plus the
@@ -52,7 +54,7 @@ pub enum WorktreeVmError {
     #[error(transparent)]
     Sandbox(#[from] SandboxAdapterError),
     #[error(transparent)]
-    Storage(#[from] sqlx::Error),
+    Storage(#[from] SurrealStorageError),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
@@ -87,6 +89,14 @@ pub enum WorktreeVmError {
     BindingScopeMismatch { dimension: &'static str },
     #[error("persisted worktree VM binding has unknown state `{state}`")]
     InvalidPersistedState { state: String },
+    #[error("persisted worktree VM binding is malformed: {reason}")]
+    InvalidPersistedBinding { reason: String },
+    #[error("durable worktree VM binding has no valid canonical EventLedger receipt")]
+    EventLedgerReceiptMissing,
+    #[error("durable worktree VM binding has ambiguous canonical EventLedger authority")]
+    EventLedgerReceiptAmbiguous,
+    #[error("durable worktree VM binding canonical EventLedger receipt is inconsistent")]
+    EventLedgerReceiptMismatch,
     #[error("worktree VM binding for `{worktree_id}` changed while `{operation}` was in progress")]
     StaleBinding {
         worktree_id: String,
@@ -180,9 +190,13 @@ pub(crate) struct WorktreeVmRestoreOutcome {
 
 #[derive(Clone)]
 struct WorktreeVmDurableStore {
-    pool: PgPool,
+    storage: SurrealStorage,
     access: ResourceAccessContext,
+    schema_ready: Arc<OnceCell<()>>,
 }
+
+static DURABLE_SERIALIZERS: OnceLock<std::sync::Mutex<HashMap<String, Weak<Mutex<()>>>>> =
+    OnceLock::new();
 
 /// Binds `worktree_id` -> a persistent microVM handle, with snapshot/restore.
 pub struct WorktreeVmRegistry {
@@ -209,18 +223,24 @@ impl WorktreeVmRegistry {
     }
 
     /// Construct a registry whose binding authority survives a registry/app
-    /// component restart. Reads are filtered in PostgreSQL and authorized again
-    /// after deserialization through the supplied account scope.
+    /// component restart in Handshake's embedded SurrealDB. The store lazily
+    /// bootstraps its MT-023 schema on first use; every durable read and
+    /// mutation predicates the complete five-field scope and every returned
+    /// row is authorized again after deserialization.
     pub fn new_durable(
         adapter: Arc<dyn SandboxAdapter>,
-        pool: PgPool,
+        storage: SurrealStorage,
         access: ResourceAccessContext,
     ) -> Self {
         Self {
             adapter,
             persistent: Mutex::new(HashMap::new()),
             pending: Mutex::new(HashMap::new()),
-            durable: Some(WorktreeVmDurableStore { pool, access }),
+            durable: Some(WorktreeVmDurableStore {
+                storage,
+                access,
+                schema_ready: Arc::new(OnceCell::new()),
+            }),
         }
     }
 
@@ -310,34 +330,21 @@ impl WorktreeVmRegistry {
             });
         }
 
-        // The in-memory mutex serializes one registry instance only. A
-        // transaction-scoped PostgreSQL advisory lock closes the cross-registry
-        // and cross-process load -> spawn -> bind race. Dropping this future
-        // rolls the transaction back and releases the lock automatically.
-        let mut durable_serialization = if let Some(durable) = &self.durable {
-            let lock_key = durable.serialization_key(worktree_id)?;
-            let mut transaction = durable.pool.begin().await?;
-            sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
-                .bind(lock_key)
-                .execute(&mut *transaction)
-                .await?;
-            Some(transaction)
+        // The process-local keyed mutex prevents duplicate side effects across
+        // registry instances in this process. Embedded SurrealDB remains the
+        // authority: a durable reservation record closes the cross-process
+        // load -> spawn -> bind race and fails closed when another process owns
+        // the reservation.
+        let _durable_guard = if let Some(durable) = &self.durable {
+            Some(durable.serializer(worktree_id)?.lock_owned().await)
         } else {
             None
         };
-
-        if let (Some(durable), Some(transaction)) = (&self.durable, durable_serialization.as_mut())
-        {
-            if let Some(binding) = durable
-                .load_physical_key_in_transaction(worktree_id, true, transaction)
-                .await?
-            {
+        let reservation_id = if let Some(durable) = &self.durable {
+            if let Some(binding) = durable.load_physical_key(worktree_id, true).await? {
                 let binding_id = binding.binding_id;
                 let generation = binding.generation;
                 let adopted = self.adopt_durable_binding(&mut map, binding).await?;
-                if let Some(transaction) = durable_serialization.take() {
-                    transaction.commit().await?;
-                }
                 return Ok(WorktreeVmEnsureOutcome {
                     handle: adopted.clone(),
                     created: false,
@@ -348,23 +355,43 @@ impl WorktreeVmRegistry {
                     }),
                 });
             }
-        }
+            Some(durable.reserve(worktree_id).await?)
+        } else {
+            None
+        };
 
-        let handle = self.adapter.spawn(spec).await?;
+        let handle = match self.adapter.spawn(spec).await {
+            Ok(handle) => handle,
+            Err(error) => {
+                if let (Some(durable), Some(reservation_id)) = (&self.durable, reservation_id) {
+                    if let Err(compensation) = durable
+                        .release_reservation(worktree_id, reservation_id)
+                        .await
+                    {
+                        return Err(WorktreeVmError::CompensationFailed {
+                            worktree_id: worktree_id.to_string(),
+                            operation: "spawn failure reservation compensation",
+                            primary: error.to_string(),
+                            cleanup: compensation.to_string(),
+                        });
+                    }
+                }
+                return Err(error.into());
+            }
+        };
         self.pending
             .lock()
             .await
             .insert(worktree_id.to_string(), handle.clone());
         let mut binding_identity = None;
-        if let (Some(durable), Some(transaction)) = (&self.durable, durable_serialization.as_mut())
-        {
+        if let (Some(durable), Some(reservation_id)) = (&self.durable, reservation_id) {
             match durable
-                .persist_handle_in_transaction(
+                .persist_reserved_handle(
                     worktree_id,
                     &handle,
                     None,
                     WorktreeVmBindingState::Active,
-                    transaction,
+                    reservation_id,
                 )
                 .await
             {
@@ -374,6 +401,17 @@ impl WorktreeVmRegistry {
                     return match cleanup {
                         Ok(()) => {
                             self.pending.lock().await.remove(worktree_id);
+                            if let Err(compensation) = durable
+                                .release_reservation(worktree_id, reservation_id)
+                                .await
+                            {
+                                return Err(WorktreeVmError::CompensationFailed {
+                                    worktree_id: worktree_id.to_string(),
+                                    operation: "binding failure reservation compensation",
+                                    primary: error.to_string(),
+                                    cleanup: compensation.to_string(),
+                                });
+                            }
                             Err(error)
                         }
                         Err(cleanup_error) => Err(WorktreeVmError::DurableHandleUnavailable {
@@ -385,24 +423,6 @@ impl WorktreeVmRegistry {
                         }),
                     };
                 }
-            }
-        }
-        if let Some(transaction) = durable_serialization.take() {
-            if let Err(error) = transaction.commit().await {
-                let cleanup = self.adapter.kill(&handle, Signal::Kill).await;
-                return match cleanup {
-                    Ok(()) => {
-                        self.pending.lock().await.remove(worktree_id);
-                        Err(error.into())
-                    }
-                    Err(cleanup_error) => Err(WorktreeVmError::DurableHandleUnavailable {
-                        worktree_id: worktree_id.to_string(),
-                        adapter_id: handle.adapter_id.to_string(),
-                        reason: format!(
-                            "durable binding commit failed ({error}); rollback kill also failed ({cleanup_error})"
-                        ),
-                    }),
-                };
             }
         }
         self.pending.lock().await.remove(worktree_id);
@@ -433,18 +453,16 @@ impl WorktreeVmRegistry {
             return Ok(self.adapter.snapshot(&handle).await?);
         };
 
-        let mut transaction = durable.begin_serialized(worktree_id).await?;
-        let binding = durable
-            .load_in_transaction(worktree_id, true, &mut transaction)
-            .await?
-            .ok_or_else(|| WorktreeVmError::NotBound {
-                worktree_id: worktree_id.to_string(),
-            })?;
+        let _durable_guard = durable.serializer(worktree_id)?.lock_owned().await;
+        let binding =
+            durable
+                .load(worktree_id, true)
+                .await?
+                .ok_or_else(|| WorktreeVmError::NotBound {
+                    worktree_id: worktree_id.to_string(),
+                })?;
         let snapshot = self.adapter.snapshot(&binding.process_handle).await?;
-        if let Err(primary) = durable
-            .record_snapshot_in_transaction(&binding, &snapshot, &mut transaction)
-            .await
-        {
+        if let Err(primary) = durable.record_snapshot(&binding, &snapshot).await {
             return Err(match self.adapter.delete_snapshot(&snapshot).await {
                 Ok(()) => primary,
                 Err(cleanup) => WorktreeVmError::CompensationFailed {
@@ -455,31 +473,23 @@ impl WorktreeVmRegistry {
                 },
             });
         }
-        if let Err(primary) = transaction.commit().await {
-            return Err(match self.adapter.delete_snapshot(&snapshot).await {
-                Ok(()) => primary.into(),
-                Err(cleanup) => WorktreeVmError::CompensationFailed {
-                    worktree_id: worktree_id.to_string(),
-                    operation: "snapshot commit",
-                    primary: primary.to_string(),
-                    cleanup: cleanup.to_string(),
-                },
-            });
-        }
         map.insert(worktree_id.to_string(), binding.process_handle);
         Ok(snapshot)
     }
 
     /// Restore a previously captured snapshot into a fresh microVM and REBIND
-    /// the worktree to the restored handle. Reuses the adapter's TOCTOU
-    /// clone-safety unchanged (it refuses a second concurrent restore of the
-    /// same snapshot). After this returns, the worktree's bound handle is the
-    /// restored VM.
+    /// the worktree to the restored handle. Durable registries must use
+    /// [`Self::restore_warm_model`] so the snapshot's persisted binding,
+    /// generation, and complete resource scope are authorized before restore.
+    /// The raw snapshot seam remains available only to non-durable registries.
     pub async fn restore(
         &self,
         worktree_id: &str,
         snapshot: &SnapshotRef,
     ) -> Result<ProcessHandle, WorktreeVmError> {
+        if self.durable.is_some() {
+            return Err(WorktreeVmError::SnapshotSourceMissing);
+        }
         Ok(self
             .restore_serialized(worktree_id, snapshot, None)
             .await?
@@ -506,15 +516,17 @@ impl WorktreeVmRegistry {
             });
         }
 
-        let mut durable_serialization = if let Some(durable) = &self.durable {
-            let mut transaction = durable.begin_serialized(worktree_id).await?;
+        let _durable_guard = if let Some(durable) = &self.durable {
+            Some(durable.serializer(worktree_id)?.lock_owned().await)
+        } else {
+            None
+        };
+        let reservation_id = if let Some(durable) = &self.durable {
             if let Some(manifest) = manifest {
-                durable
-                    .authorize_snapshot_source_in_transaction(manifest, &mut transaction)
-                    .await?;
+                durable.authorize_snapshot_source(manifest).await?;
             }
             if durable
-                .load_physical_key_in_transaction(worktree_id, true, &mut transaction)
+                .load_physical_key(worktree_id, true)
                 .await?
                 .is_some()
             {
@@ -522,31 +534,60 @@ impl WorktreeVmRegistry {
                     worktree_id: worktree_id.to_string(),
                 });
             }
-            Some(transaction)
+            Some(durable.reserve(worktree_id).await?)
         } else {
             None
         };
 
-        let handle = self.adapter.restore(snapshot).await?;
+        let handle = match self.adapter.restore(snapshot).await {
+            Ok(handle) => handle,
+            Err(error) => {
+                if let (Some(durable), Some(reservation_id)) = (&self.durable, reservation_id) {
+                    if let Err(compensation) = durable
+                        .release_reservation(worktree_id, reservation_id)
+                        .await
+                    {
+                        return Err(WorktreeVmError::CompensationFailed {
+                            worktree_id: worktree_id.to_string(),
+                            operation: "restore failure reservation compensation",
+                            primary: error.to_string(),
+                            cleanup: compensation.to_string(),
+                        });
+                    }
+                }
+                return Err(error.into());
+            }
+        };
         self.pending
             .lock()
             .await
             .insert(worktree_id.to_string(), handle.clone());
         let mut binding_identity = None;
-        if let (Some(durable), Some(transaction)) = (&self.durable, durable_serialization.as_mut())
-        {
+        if let (Some(durable), Some(reservation_id)) = (&self.durable, reservation_id) {
             match durable
-                .persist_handle_in_transaction(
+                .persist_reserved_handle(
                     worktree_id,
                     &handle,
                     Some(snapshot),
                     WorktreeVmBindingState::Snapshotted,
-                    transaction,
+                    reservation_id,
                 )
                 .await
             {
                 Ok(identity) => binding_identity = Some(identity),
                 Err(primary) => {
+                    let primary = match durable
+                        .release_reservation(worktree_id, reservation_id)
+                        .await
+                    {
+                        Ok(()) => primary,
+                        Err(compensation) => WorktreeVmError::CompensationFailed {
+                            worktree_id: worktree_id.to_string(),
+                            operation: "restore binding reservation compensation",
+                            primary: primary.to_string(),
+                            cleanup: compensation.to_string(),
+                        },
+                    };
                     return Err(self
                         .compensate_uncommitted_handle(
                             worktree_id,
@@ -556,18 +597,6 @@ impl WorktreeVmRegistry {
                         )
                         .await);
                 }
-            }
-        }
-        if let Some(transaction) = durable_serialization.take() {
-            if let Err(primary) = transaction.commit().await {
-                return Err(self
-                    .compensate_uncommitted_handle(
-                        worktree_id,
-                        &handle,
-                        "restore commit",
-                        primary.into(),
-                    )
-                    .await);
             }
         }
         self.pending.lock().await.remove(worktree_id);
@@ -779,10 +808,8 @@ impl WorktreeVmRegistry {
     ) -> Result<(), WorktreeVmError> {
         let mut map = self.persistent.lock().await;
         if let Some(durable) = &self.durable {
-            let mut transaction = durable.begin_serialized(worktree_id).await?;
-            let binding = durable
-                .load_in_transaction(worktree_id, false, &mut transaction)
-                .await?;
+            let _durable_guard = durable.serializer(worktree_id)?.lock_owned().await;
+            let binding = durable.load(worktree_id, false).await?;
             if binding.is_none() {
                 let local = map.get(worktree_id).cloned();
                 let pending = self.pending.lock().await.get(worktree_id).cloned();
@@ -840,7 +867,6 @@ impl WorktreeVmRegistry {
                         self.adapter.kill(handle, Signal::Term).await?;
                     }
                 }
-                transaction.commit().await?;
                 if let Some((handle, _)) = cleanup {
                     if map.get(worktree_id) == Some(&handle) {
                         map.remove(worktree_id);
@@ -891,10 +917,7 @@ impl WorktreeVmRegistry {
                         .kill(&binding.process_handle, Signal::Term)
                         .await?;
                 }
-                durable
-                    .mark_terminated_in_transaction(&binding, &mut transaction)
-                    .await?;
-                transaction.commit().await?;
+                durable.mark_terminated(&binding).await?;
                 map.remove(worktree_id);
                 self.pending.lock().await.remove(worktree_id);
                 return Ok(());
@@ -905,7 +928,6 @@ impl WorktreeVmRegistry {
                 .expect("absent durable binding returned through the reconciliation branch");
             self.reconcile_terminal_local_binding(&mut map, worktree_id, binding)
                 .await?;
-            transaction.commit().await?;
             map.remove(worktree_id);
             return Ok(());
         }
@@ -946,13 +968,13 @@ impl WorktreeVmRegistry {
         worktree_id: &str,
     ) -> Result<ProcessHandle, WorktreeVmError> {
         let mut map = self.persistent.lock().await;
-        if let Some(handle) = map.get(worktree_id) {
-            return Ok(handle.clone());
-        }
         let Some(durable) = &self.durable else {
-            return Err(WorktreeVmError::NotBound {
-                worktree_id: worktree_id.to_string(),
-            });
+            return map
+                .get(worktree_id)
+                .cloned()
+                .ok_or_else(|| WorktreeVmError::NotBound {
+                    worktree_id: worktree_id.to_string(),
+                });
         };
         let binding =
             durable
@@ -965,7 +987,7 @@ impl WorktreeVmRegistry {
     }
 
     /// Read this caller's durable binding, including terminal state, for
-    /// diagnostics and independent PostgreSQL verification.
+    /// diagnostics and independent embedded-SurrealDB verification.
     pub async fn durable_binding(
         &self,
         worktree_id: &str,
@@ -981,6 +1003,15 @@ impl WorktreeVmRegistry {
         map: &mut HashMap<String, ProcessHandle>,
         binding: WorktreeVmBindingRecord,
     ) -> Result<ProcessHandle, WorktreeVmError> {
+        if map
+            .get(&binding.worktree_id)
+            .is_some_and(|local| local != &binding.process_handle)
+        {
+            return Err(WorktreeVmError::StaleBinding {
+                worktree_id: binding.worktree_id,
+                operation: "durable handle adoption",
+            });
+        }
         match self.adapter.status(&binding.process_handle).await {
             Ok(crate::sandbox::ProcessStatus::Running) => {
                 map.insert(binding.worktree_id.clone(), binding.process_handle.clone());
@@ -998,6 +1029,180 @@ impl WorktreeVmRegistry {
             }),
         }
     }
+}
+
+const WORKTREE_VM_SCHEMA: &str = r#"
+DEFINE TABLE IF NOT EXISTS worktree_vm_bindings SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS binding_id ON worktree_vm_bindings TYPE string;
+DEFINE FIELD IF NOT EXISTS worktree_id ON worktree_vm_bindings TYPE string;
+DEFINE FIELD IF NOT EXISTS adapter_id ON worktree_vm_bindings TYPE string;
+DEFINE FIELD IF NOT EXISTS process_handle_json ON worktree_vm_bindings TYPE string;
+DEFINE FIELD IF NOT EXISTS latest_snapshot_json ON worktree_vm_bindings TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS binding_state ON worktree_vm_bindings TYPE string;
+DEFINE FIELD IF NOT EXISTS generation ON worktree_vm_bindings TYPE int;
+DEFINE FIELD IF NOT EXISTS failure_reason ON worktree_vm_bindings TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS reservation_id ON worktree_vm_bindings TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS owner_account_id ON worktree_vm_bindings TYPE string;
+DEFINE FIELD IF NOT EXISTS actor_principal_id ON worktree_vm_bindings TYPE string;
+DEFINE FIELD IF NOT EXISTS authenticated_session_id ON worktree_vm_bindings TYPE string;
+DEFINE FIELD IF NOT EXISTS access_space_id ON worktree_vm_bindings TYPE string;
+DEFINE FIELD IF NOT EXISTS workspace_id ON worktree_vm_bindings TYPE string;
+DEFINE FIELD IF NOT EXISTS updated_at_unix_ms ON worktree_vm_bindings TYPE int;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE worktree_vm_bindings TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE event_ledger_event_type ON TABLE worktree_vm_bindings TYPE string;
+DEFINE FIELD OVERWRITE event_ledger_payload_hash ON TABLE worktree_vm_bindings TYPE string;
+DEFINE INDEX IF NOT EXISTS worktree_vm_binding_id_unique ON worktree_vm_bindings FIELDS binding_id UNIQUE;
+"#;
+
+const EVENT_RESERVED: &str = "TASK_INTENT_RECORDED";
+const EVENT_STARTED: &str = "SESSION_STARTED";
+const EVENT_RESTORED: &str = "TRACE_REPLAYED";
+const EVENT_SNAPSHOTTED: &str = "ARTIFACT_STORED";
+const EVENT_TERMINATED: &str = "SESSION_COMPLETED";
+const EVENT_COMPENSATED: &str = "SESSION_FAILED";
+
+#[derive(Debug, SurrealValue)]
+struct EmptySurrealBindings {}
+
+#[derive(Clone, Debug)]
+struct DurableScopeStrings {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct RecordIdBindings {
+    record_id: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ReserveBindingBindings {
+    record_id: String,
+    reservation_id: String,
+    worktree_id: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+    updated_at_unix_ms: i64,
+    event_id: String,
+    event_type: String,
+    event_payload_hash: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct PersistReservedBindingBindings {
+    record_id: String,
+    reservation_id: String,
+    binding_id: String,
+    adapter_id: String,
+    process_handle_json: String,
+    latest_snapshot_json: Option<String>,
+    binding_state: String,
+    updated_at_unix_ms: i64,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+    event_id: String,
+    event_type: String,
+    event_payload_hash: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct FencedBindingMutationBindings {
+    record_id: String,
+    binding_id: String,
+    generation: i64,
+    latest_snapshot_json: Option<String>,
+    updated_at_unix_ms: i64,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+    event_id: String,
+    event_type: String,
+    event_payload_hash: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ReleaseReservationBindings {
+    record_id: String,
+    reservation_id: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+    updated_at_unix_ms: i64,
+    event_id: String,
+    event_type: String,
+    event_payload_hash: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct SnapshotSourceBindings {
+    binding_id: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct StoredBindingRow {
+    binding_id: String,
+    worktree_id: String,
+    adapter_id: String,
+    process_handle_json: String,
+    latest_snapshot_json: Option<String>,
+    binding_state: String,
+    generation: i64,
+    failure_reason: Option<String>,
+    reservation_id: Option<String>,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+    updated_at_unix_ms: i64,
+    event_ledger_event_id: String,
+    event_ledger_event_type: String,
+    event_ledger_payload_hash: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ReceiptBindings {
+    event_id: String,
+    record_id: String,
+    worktree_id: String,
+    binding_id: String,
+    binding_state: String,
+    event_type: String,
+    event_payload_hash: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct StoredReceiptRow {
+    event_id: String,
+    event_sequence: i64,
 }
 
 impl WorktreeVmDurableStore {
@@ -1019,294 +1224,1309 @@ impl WorktreeVmDurableStore {
     }
 
     fn serialization_key(&self, worktree_id: &str) -> Result<String, WorktreeVmError> {
+        self.require_scope()?;
+        Ok(format!("worktree-vm:{worktree_id}"))
+    }
+
+    fn serializer(&self, worktree_id: &str) -> Result<Arc<Mutex<()>>, WorktreeVmError> {
+        let key = self.serialization_key(worktree_id)?;
+        let serializers = DURABLE_SERIALIZERS.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
+        let mut serializers = serializers
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        serializers.retain(|_, serializer| serializer.strong_count() > 0);
+        if let Some(serializer) = serializers.get(&key).and_then(Weak::upgrade) {
+            return Ok(serializer);
+        }
+        let serializer = Arc::new(Mutex::new(()));
+        serializers.insert(key, Arc::downgrade(&serializer));
+        Ok(serializer)
+    }
+
+    fn scope_strings(&self) -> Result<DurableScopeStrings, WorktreeVmError> {
         let scope = self.require_scope()?;
-        Ok(format!(
-            "worktree-vm:{}:{}:{}",
-            scope.owner_account_id,
-            scope
+        Ok(DurableScopeStrings {
+            owner_account_id: scope.owner_account_id.as_uuid().to_string(),
+            actor_principal_id: scope.actor_principal_id.as_uuid().to_string(),
+            authenticated_session_id: scope
+                .authenticated_session
+                .ok_or(WorktreeVmError::AuthenticatedSessionScopeRequired)?
+                .as_uuid()
+                .to_string(),
+            access_space_id: scope
+                .access_space
+                .ok_or(WorktreeVmError::AccessSpaceScopeRequired)?
+                .as_uuid()
+                .to_string(),
+            workspace_id: scope
                 .workspace
                 .as_ref()
-                .map(|workspace| workspace.as_str())
-                .unwrap_or("<none>"),
-            worktree_id
+                .ok_or(WorktreeVmError::WorkspaceScopeRequired)?
+                .as_str()
+                .to_owned(),
+        })
+    }
+
+    fn record_id(&self, worktree_id: &str) -> Result<String, WorktreeVmError> {
+        let mut digest = Sha256::new();
+        digest.update(b"handshake.worktree-vm-binding.v1\0");
+        digest.update(self.serialization_key(worktree_id)?.as_bytes());
+        Ok(hex::encode(digest.finalize()))
+    }
+
+    fn event_digest(&self, domain: &[u8], values: &[&str]) -> Result<String, WorktreeVmError> {
+        let scope = self.scope_strings()?;
+        let mut digest = Sha256::new();
+        digest.update(domain);
+        for value in [
+            scope.owner_account_id.as_str(),
+            scope.actor_principal_id.as_str(),
+            scope.authenticated_session_id.as_str(),
+            scope.access_space_id.as_str(),
+            scope.workspace_id.as_str(),
+        ]
+        .into_iter()
+        .chain(values.iter().copied())
+        {
+            digest.update([0]);
+            digest.update(value.as_bytes());
+        }
+        Ok(hex::encode(digest.finalize()))
+    }
+
+    fn event_id(
+        &self,
+        record_id: &str,
+        event_type: &str,
+        operation_identity: &str,
+    ) -> Result<String, WorktreeVmError> {
+        Ok(format!(
+            "wvm-{}",
+            self.event_digest(
+                b"handshake.worktree-vm-event-id.v1",
+                &[record_id, event_type, operation_identity],
+            )?
         ))
     }
 
-    async fn begin_serialized(
+    fn event_payload_hash(
         &self,
-        worktree_id: &str,
-    ) -> Result<sqlx::Transaction<'_, sqlx::Postgres>, WorktreeVmError> {
-        let lock_key = self.serialization_key(worktree_id)?;
-        let mut transaction = self.pool.begin().await?;
-        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
-            .bind(lock_key)
-            .execute(&mut *transaction)
-            .await?;
-        Ok(transaction)
+        record_id: &str,
+        row: &StoredBindingRow,
+    ) -> Result<String, WorktreeVmError> {
+        Ok(Self::event_payload_hash_for_values(
+            record_id,
+            &row.worktree_id,
+            &row.binding_id,
+            &row.binding_state,
+            &row.event_ledger_event_type,
+        ))
     }
 
-    async fn persist_handle_in_transaction(
+    fn event_payload_hash_for_values(
+        record_id: &str,
+        worktree_id: &str,
+        binding_id: &str,
+        binding_state: &str,
+        event_type: &str,
+    ) -> String {
+        let payload = serde_json::json!({
+            "binding_id": binding_id,
+            "binding_state": binding_state,
+            "record_id": record_id,
+            "transition_event_type": event_type,
+            "worktree_id": worktree_id,
+        });
+        sha256_hex(&canonical_json_bytes(&payload))
+    }
+
+    fn validate_receipt_type(row: &StoredBindingRow) -> Result<(), WorktreeVmError> {
+        let valid = match row.binding_state.as_str() {
+            "reserved" => row.event_ledger_event_type == EVENT_RESERVED,
+            "active" => row.event_ledger_event_type == EVENT_STARTED,
+            "snapshotted" => matches!(
+                row.event_ledger_event_type.as_str(),
+                EVENT_RESTORED | EVENT_SNAPSHOTTED
+            ),
+            "terminated" => row.event_ledger_event_type == EVENT_TERMINATED,
+            "failed" => row.event_ledger_event_type == EVENT_COMPENSATED,
+            _ => false,
+        };
+        if valid {
+            Ok(())
+        } else {
+            Err(WorktreeVmError::EventLedgerReceiptMismatch)
+        }
+    }
+
+    fn scoped_record_bindings(
+        &self,
+        worktree_id: &str,
+    ) -> Result<RecordIdBindings, WorktreeVmError> {
+        let scope = self.scope_strings()?;
+        Ok(RecordIdBindings {
+            record_id: self.record_id(worktree_id)?,
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+        })
+    }
+
+    async fn ensure_schema(&self) -> Result<(), WorktreeVmError> {
+        self.schema_ready
+            .get_or_try_init(|| async {
+                self.storage
+                    .with_data_operation(|database| {
+                        Box::pin(async move {
+                            let _ = database
+                                .query_values::<surrealdb::types::Value, _>(
+                                    WORKTREE_VM_SCHEMA,
+                                    EmptySurrealBindings {},
+                                )
+                                .await?;
+                            Ok(())
+                        })
+                    })
+                    .await
+            })
+            .await?;
+        Ok(())
+    }
+
+    async fn verify_receipt_linkage(
+        &self,
+        worktree_id: &str,
+        row: &StoredBindingRow,
+    ) -> Result<(), WorktreeVmError> {
+        Self::validate_receipt_type(row)?;
+        let record_id = self.record_id(worktree_id)?;
+        let expected_hash = self.event_payload_hash(&record_id, row)?;
+        if row.worktree_id != worktree_id || row.event_ledger_payload_hash != expected_hash {
+            return Err(WorktreeVmError::EventLedgerReceiptMismatch);
+        }
+        let scope = self.scope_strings()?;
+        let bindings = ReceiptBindings {
+            event_id: row.event_ledger_event_id.clone(),
+            record_id,
+            worktree_id: worktree_id.to_owned(),
+            binding_id: row.binding_id.clone(),
+            binding_state: row.binding_state.clone(),
+            event_type: row.event_ledger_event_type.clone(),
+            event_payload_hash: expected_hash,
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+        };
+        let rows = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values::<StoredReceiptRow, _>(
+                            r#"
+                            SELECT event_id, event_sequence
+                            FROM kernel_event_ledger
+                            WHERE id = type::record('kernel_event_ledger', $event_id)
+                              AND event_id = $event_id
+                              AND idempotency_key = $event_id
+                              AND event_version = 'kernel_event_v1'
+                              AND kernel_task_run_id = $workspace_id
+                              AND session_run_id = $authenticated_session_id
+                              AND aggregate_type = 'worktree_vm_binding'
+                              AND aggregate_id = $record_id
+                              AND event_type = $event_type
+                              AND actor_kind = 'operator'
+                              AND actor_id = $actor_principal_id
+                              AND payload_hash = $event_payload_hash
+                              AND source_component = 'worktree_vm_registry'
+                              AND payload.transition_event_type = $event_type
+                              AND payload.record_id = $record_id
+                              AND payload.worktree_id = $worktree_id
+                              AND payload.binding_id = $binding_id
+                              AND payload.binding_state = $binding_state
+                              AND owner_account_id = $owner_account_id
+                              AND actor_principal_id = $actor_principal_id
+                              AND authenticated_session_id = $authenticated_session_id
+                              AND access_space_id = $access_space_id
+                              AND workspace_id = $workspace_id
+                              AND event_sequence > 0
+                            LIMIT 2;
+                            "#,
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await?;
+        match rows.as_slice() {
+            [receipt]
+                if receipt.event_id == row.event_ledger_event_id && receipt.event_sequence > 0 =>
+            {
+                Ok(())
+            }
+            [] => Err(WorktreeVmError::EventLedgerReceiptMissing),
+            [_] => Err(WorktreeVmError::EventLedgerReceiptMismatch),
+            _ => Err(WorktreeVmError::EventLedgerReceiptAmbiguous),
+        }
+    }
+
+    async fn reserve(&self, worktree_id: &str) -> Result<Uuid, WorktreeVmError> {
+        self.ensure_schema().await?;
+        let scope = self.scope_strings()?;
+        let reservation_id = Uuid::now_v7();
+        let reservation_text = reservation_id.to_string();
+        let record_id = self.record_id(worktree_id)?;
+        let event_type = EVENT_RESERVED.to_owned();
+        let event_id = self.event_id(&record_id, &event_type, &reservation_text)?;
+        let event_payload_hash = Self::event_payload_hash_for_values(
+            &record_id,
+            worktree_id,
+            &reservation_text,
+            "reserved",
+            &event_type,
+        );
+        let bindings = ReserveBindingBindings {
+            record_id,
+            reservation_id: reservation_text.clone(),
+            worktree_id: worktree_id.to_owned(),
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+            updated_at_unix_ms: chrono::Utc::now().timestamp_millis(),
+            event_id,
+            event_type,
+            event_payload_hash,
+        };
+        let rows = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values_at::<StoredBindingRow, _>(
+                            r#"
+                            BEGIN TRANSACTION;
+                            LET $record = type::record('worktree_vm_bindings', $record_id);
+                            LET $existing = (SELECT binding_id, worktree_id, adapter_id,
+                                process_handle_json, latest_snapshot_json, binding_state,
+                                generation, failure_reason, reservation_id, owner_account_id,
+                                actor_principal_id, authenticated_session_id, access_space_id,
+                                workspace_id, updated_at_unix_ms,
+                                record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                event_ledger_event_type, event_ledger_payload_hash FROM $record
+                                WHERE owner_account_id = $owner_account_id
+                                  AND actor_principal_id = $actor_principal_id
+                                  AND authenticated_session_id = $authenticated_session_id
+                                  AND access_space_id = $access_space_id
+                                  AND workspace_id = $workspace_id
+                                  AND event_ledger_event_id.owner_account_id = $owner_account_id
+                                  AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                                  AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                                  AND event_ledger_event_id.access_space_id = $access_space_id
+                                  AND event_ledger_event_id.workspace_id = $workspace_id
+                                  AND event_ledger_event_id.aggregate_type = 'worktree_vm_binding'
+                                  AND event_ledger_event_id.aggregate_id = $record_id
+                                  AND event_ledger_event_id.event_type = event_ledger_event_type
+                                  AND event_ledger_event_id.payload.transition_event_type = event_ledger_event_type
+                                  AND event_ledger_event_id.payload_hash = event_ledger_payload_hash
+                                  AND event_ledger_event_id.payload.record_id = $record_id
+                                  AND event_ledger_event_id.payload.worktree_id = worktree_id
+                                  AND event_ledger_event_id.payload.binding_id = binding_id
+                                  AND event_ledger_event_id.payload.binding_state = binding_state);
+                            IF array::len($existing) = 0 OR $existing[0].binding_state IN ['terminated', 'failed'] {
+                                LET $next_generation = IF array::len($existing) = 0 { 1 } ELSE { $existing[0].generation + 1 };
+                                LET $prior = (SELECT event_id FROM kernel_event_ledger
+                                    WHERE idempotency_key = $event_id
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id LIMIT 2);
+                                IF array::len($prior) != 0 { THROW 'worktree VM reservation EventLedger receipt is orphaned or ambiguous'; };
+                                LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT {
+                                    event_id: $event_id, event_version: 'kernel_event_v1',
+                                    kernel_task_run_id: $workspace_id,
+                                    session_run_id: $authenticated_session_id,
+                                    aggregate_type: 'worktree_vm_binding', aggregate_id: $record_id,
+                                    idempotency_key: $event_id, event_type: $event_type,
+                                    actor_kind: 'operator', actor_id: $actor_principal_id,
+                                    causation_id: IF array::len($existing) = 0 { NONE } ELSE { $existing[0].event_ledger_event_id },
+                                    correlation_id: $record_id, payload_hash: $event_payload_hash,
+                                    source_component: 'worktree_vm_registry',
+                                    payload: { transition_event_type: $event_type,
+                                        record_id: $record_id, worktree_id: $worktree_id,
+                                        binding_id: $reservation_id,
+                                        binding_state: 'reserved' },
+                                    owner_account_id: $owner_account_id,
+                                    actor_principal_id: $actor_principal_id,
+                                    authenticated_session_id: $authenticated_session_id,
+                                    access_space_id: $access_space_id, workspace_id: $workspace_id,
+                                    created_at: time::now()
+                                };
+                                LET $stored = IF array::len($existing) = 0 {
+                                  CREATE $record CONTENT {
+                                    binding_id: $reservation_id, worktree_id: $worktree_id,
+                                    adapter_id: '', process_handle_json: '',
+                                    latest_snapshot_json: NONE, binding_state: 'reserved',
+                                    generation: $next_generation, failure_reason: NONE,
+                                    reservation_id: $reservation_id,
+                                    owner_account_id: $owner_account_id,
+                                    actor_principal_id: $actor_principal_id,
+                                    authenticated_session_id: $authenticated_session_id,
+                                    access_space_id: $access_space_id,
+                                    workspace_id: $workspace_id,
+                                    updated_at_unix_ms: $updated_at_unix_ms,
+                                    event_ledger_event_id: type::record('kernel_event_ledger', $event_id),
+                                    event_ledger_event_type: $event_type,
+                                    event_ledger_payload_hash: $event_payload_hash
+                                  }
+                                } ELSE {
+                                  UPDATE $record CONTENT {
+                                    binding_id: $reservation_id, worktree_id: $worktree_id,
+                                    adapter_id: '', process_handle_json: '',
+                                    latest_snapshot_json: NONE, binding_state: 'reserved',
+                                    generation: $next_generation,
+                                    failure_reason: NONE, reservation_id: $reservation_id,
+                                    owner_account_id: $owner_account_id,
+                                    actor_principal_id: $actor_principal_id,
+                                    authenticated_session_id: $authenticated_session_id,
+                                    access_space_id: $access_space_id,
+                                    workspace_id: $workspace_id,
+                                    updated_at_unix_ms: $updated_at_unix_ms,
+                                    event_ledger_event_id: type::record('kernel_event_ledger', $event_id),
+                                    event_ledger_event_type: $event_type,
+                                    event_ledger_payload_hash: $event_payload_hash
+                                }
+                                WHERE owner_account_id = $owner_account_id
+                                  AND actor_principal_id = $actor_principal_id
+                                  AND authenticated_session_id = $authenticated_session_id
+                                  AND access_space_id = $access_space_id
+                                  AND workspace_id = $workspace_id
+                                };
+                                LET $verified = (SELECT binding_id, worktree_id, adapter_id,
+                                    process_handle_json, latest_snapshot_json, binding_state,
+                                    generation, failure_reason, reservation_id, owner_account_id,
+                                    actor_principal_id, authenticated_session_id, access_space_id,
+                                    workspace_id, updated_at_unix_ms,
+                                    record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                    event_ledger_event_type, event_ledger_payload_hash FROM $record
+                                    WHERE owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id
+                                      AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id)
+                                      AND event_ledger_event_id.owner_account_id = $owner_account_id
+                                      AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                                      AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                                      AND event_ledger_event_id.access_space_id = $access_space_id
+                                      AND event_ledger_event_id.workspace_id = $workspace_id
+                                      AND event_ledger_event_id.event_id = $event_id
+                                      AND event_ledger_event_id.idempotency_key = $event_id
+                                      AND event_ledger_event_id.event_version = 'kernel_event_v1'
+                                      AND event_ledger_event_id.kernel_task_run_id = $workspace_id
+                                      AND event_ledger_event_id.session_run_id = $authenticated_session_id
+                                      AND event_ledger_event_id.aggregate_type = 'worktree_vm_binding'
+                                      AND event_ledger_event_id.aggregate_id = $record_id
+                                      AND event_ledger_event_id.event_type = $event_type
+                                      AND event_ledger_event_id.payload.transition_event_type = $event_type
+                                      AND event_ledger_event_id.actor_kind = 'operator'
+                                      AND event_ledger_event_id.actor_id = $actor_principal_id
+                                      AND event_ledger_event_id.source_component = 'worktree_vm_registry'
+                                      AND event_ledger_event_id.payload_hash = $event_payload_hash
+                                    LIMIT 2);
+                                IF array::len($verified) != 1 { THROW 'worktree VM reservation receipt verification failed'; };
+                                RETURN $verified;
+                            } ELSE {
+                                RETURN $existing;
+                            };
+                            COMMIT TRANSACTION;
+                            "#,
+                            bindings,
+                            3,
+                        )
+                        .await
+                })
+            })
+            .await;
+        let rows = match rows {
+            Ok(rows) => rows,
+            Err(SurrealStorageError::Database(error))
+                if matches!(
+                    error.already_exists_details(),
+                    Some(surrealdb::types::AlreadyExistsError::Record { .. })
+                ) =>
+            {
+                match self.select_scoped_row(worktree_id).await? {
+                    Some(row) => vec![row],
+                    None => {
+                        return Err(WorktreeVmError::ScopeDenied(
+                            ScopeDenied::ExactAttributionMismatch,
+                        ));
+                    }
+                }
+            }
+            Err(error) => return Err(error.into()),
+        };
+        let row = rows.into_iter().next().ok_or(WorktreeVmError::ScopeDenied(
+            ScopeDenied::ExactAttributionMismatch,
+        ))?;
+        self.authorize_row_scope(&row)?;
+        self.verify_receipt_linkage(worktree_id, &row).await?;
+        if row.binding_state == "reserved"
+            && row.reservation_id.as_deref() == Some(reservation_text.as_str())
+        {
+            return Ok(reservation_id);
+        }
+        Err(WorktreeVmError::DurableHandleUnavailable {
+            worktree_id: worktree_id.to_owned(),
+            adapter_id: row.adapter_id,
+            reason: format!(
+                "embedded SurrealDB binding is already owned in state {}",
+                row.binding_state
+            ),
+        })
+    }
+
+    async fn release_reservation(
+        &self,
+        worktree_id: &str,
+        reservation_id: Uuid,
+    ) -> Result<(), WorktreeVmError> {
+        self.ensure_schema().await?;
+        let scope = self.scope_strings()?;
+        let record_id = self.record_id(worktree_id)?;
+        let reservation_text = reservation_id.to_string();
+        let event_type = EVENT_COMPENSATED.to_owned();
+        let event_id = self.event_id(&record_id, &event_type, &reservation_text)?;
+        let event_payload_hash = Self::event_payload_hash_for_values(
+            &record_id,
+            worktree_id,
+            &reservation_text,
+            "failed",
+            &event_type,
+        );
+        let bindings = ReleaseReservationBindings {
+            record_id,
+            reservation_id: reservation_text,
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+            updated_at_unix_ms: chrono::Utc::now().timestamp_millis(),
+            event_id,
+            event_type,
+            event_payload_hash,
+        };
+        let rows = self.storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values_at::<StoredBindingRow, _>(
+                            r#"
+                            BEGIN TRANSACTION;
+                            LET $record = type::record('worktree_vm_bindings', $record_id);
+                            LET $current = (SELECT binding_id, worktree_id, adapter_id,
+                                process_handle_json, latest_snapshot_json, binding_state,
+                                generation, failure_reason, reservation_id, owner_account_id,
+                                actor_principal_id, authenticated_session_id, access_space_id,
+                                workspace_id, updated_at_unix_ms,
+                                record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                event_ledger_event_type, event_ledger_payload_hash FROM $record
+                                WHERE owner_account_id = $owner_account_id
+                                  AND actor_principal_id = $actor_principal_id
+                                  AND authenticated_session_id = $authenticated_session_id
+                                  AND access_space_id = $access_space_id
+                                  AND workspace_id = $workspace_id
+                                  AND event_ledger_event_id.owner_account_id = $owner_account_id
+                                  AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                                  AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                                  AND event_ledger_event_id.access_space_id = $access_space_id
+                                  AND event_ledger_event_id.workspace_id = $workspace_id
+                                  AND event_ledger_event_id.aggregate_type = 'worktree_vm_binding'
+                                  AND event_ledger_event_id.aggregate_id = $record_id
+                                  AND event_ledger_event_id.event_type = event_ledger_event_type
+                                  AND event_ledger_event_id.payload_hash = event_ledger_payload_hash
+                                  AND event_ledger_event_id.payload.record_id = $record_id
+                                  AND event_ledger_event_id.payload.worktree_id = worktree_id
+                                  AND event_ledger_event_id.payload.binding_id = binding_id
+                                  AND event_ledger_event_id.payload.binding_state = binding_state);
+                            IF array::len($current) = 1
+                               AND $current[0].binding_state = 'failed'
+                               AND $current[0].event_ledger_event_id = $event_id {
+                                RETURN $current;
+                            } ELSE IF array::len($current) = 1
+                               AND $current[0].binding_state = 'reserved'
+                               AND $current[0].reservation_id = $reservation_id {
+                                LET $prior = (SELECT event_id FROM kernel_event_ledger
+                                    WHERE idempotency_key = $event_id
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id LIMIT 2);
+                                IF array::len($prior) != 0 { THROW 'worktree VM compensation EventLedger receipt is orphaned or ambiguous'; };
+                                LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT {
+                                    event_id: $event_id, event_version: 'kernel_event_v1',
+                                    kernel_task_run_id: $workspace_id,
+                                    session_run_id: $authenticated_session_id,
+                                    aggregate_type: 'worktree_vm_binding', aggregate_id: $record_id,
+                                    idempotency_key: $event_id, event_type: $event_type,
+                                    actor_kind: 'operator', actor_id: $actor_principal_id,
+                                    causation_id: $current[0].event_ledger_event_id,
+                                    correlation_id: $record_id, payload_hash: $event_payload_hash,
+                                    source_component: 'worktree_vm_registry',
+                                    payload: { transition_event_type: $event_type,
+                                        record_id: $record_id, worktree_id: $current[0].worktree_id,
+                                        binding_id: $reservation_id,
+                                        binding_state: 'failed' },
+                                    owner_account_id: $owner_account_id,
+                                    actor_principal_id: $actor_principal_id,
+                                    authenticated_session_id: $authenticated_session_id,
+                                    access_space_id: $access_space_id, workspace_id: $workspace_id,
+                                    created_at: time::now()
+                                };
+                                LET $stored = UPDATE $record SET
+                                    binding_state = 'failed', failure_reason = 'reservation_released',
+                                    reservation_id = NONE, updated_at_unix_ms = $updated_at_unix_ms,
+                                    event_ledger_event_id = type::record('kernel_event_ledger', $event_id),
+                                    event_ledger_event_type = $event_type,
+                                    event_ledger_payload_hash = $event_payload_hash
+                                    WHERE binding_state = 'reserved'
+                                      AND reservation_id = $reservation_id
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id;
+                                LET $verified = (SELECT binding_id, worktree_id, adapter_id,
+                                    process_handle_json, latest_snapshot_json, binding_state,
+                                    generation, failure_reason, reservation_id, owner_account_id,
+                                    actor_principal_id, authenticated_session_id, access_space_id,
+                                    workspace_id, updated_at_unix_ms,
+                                    record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                    event_ledger_event_type, event_ledger_payload_hash FROM $record
+                                    WHERE owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id
+                                      AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id)
+                                      AND event_ledger_event_id.owner_account_id = $owner_account_id
+                                      AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                                      AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                                      AND event_ledger_event_id.access_space_id = $access_space_id
+                                      AND event_ledger_event_id.workspace_id = $workspace_id
+                                      AND event_ledger_event_id.event_id = $event_id
+                                      AND event_ledger_event_id.idempotency_key = $event_id
+                                      AND event_ledger_event_id.event_version = 'kernel_event_v1'
+                                      AND event_ledger_event_id.kernel_task_run_id = $workspace_id
+                                      AND event_ledger_event_id.session_run_id = $authenticated_session_id
+                                      AND event_ledger_event_id.aggregate_type = 'worktree_vm_binding'
+                                      AND event_ledger_event_id.aggregate_id = $record_id
+                                      AND event_ledger_event_id.event_type = $event_type
+                                      AND event_ledger_event_id.actor_kind = 'operator'
+                                      AND event_ledger_event_id.actor_id = $actor_principal_id
+                                      AND event_ledger_event_id.source_component = 'worktree_vm_registry'
+                                      AND event_ledger_event_id.payload_hash = $event_payload_hash
+                                    LIMIT 2);
+                                IF array::len($verified) != 1 { THROW 'worktree VM compensation receipt verification failed'; };
+                                RETURN $verified;
+                            } ELSE {
+                                RETURN [];
+                            };
+                            COMMIT TRANSACTION;
+                            "#,
+                            bindings,
+                            3,
+                        )
+                        .await
+                })
+            })
+            .await?;
+        let row = rows
+            .into_iter()
+            .next()
+            .ok_or_else(|| WorktreeVmError::StaleBinding {
+                worktree_id: worktree_id.to_owned(),
+                operation: "reservation compensation",
+            })?;
+        self.authorize_row_scope(&row)?;
+        self.verify_receipt_linkage(worktree_id, &row).await?;
+        Ok(())
+    }
+
+    async fn persist_reserved_handle(
         &self,
         worktree_id: &str,
         handle: &ProcessHandle,
         snapshot: Option<&SnapshotRef>,
         state: WorktreeVmBindingState,
-        transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        reservation_id: Uuid,
     ) -> Result<WorktreeVmBindingIdentity, WorktreeVmError> {
-        self.require_scope()?;
-        let scope = self.access.insert_columns();
-        let query = sqlx::query(
-            r#"
-            INSERT INTO worktree_vm_bindings (
-                binding_id, worktree_id, adapter_id, process_handle,
-                latest_snapshot, binding_state, failure_reason,
-                owner_account_id, actor_principal_id, authenticated_session_id,
-                access_space_id, workspace_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, NULL, $7, $8, $9, $10, $11)
-            ON CONFLICT (owner_account_id, workspace_id, worktree_id)
-            DO UPDATE SET
-                binding_id = EXCLUDED.binding_id,
-                adapter_id = EXCLUDED.adapter_id,
-                process_handle = EXCLUDED.process_handle,
-                latest_snapshot = EXCLUDED.latest_snapshot,
-                binding_state = EXCLUDED.binding_state,
-                failure_reason = NULL,
-                actor_principal_id = EXCLUDED.actor_principal_id,
-                authenticated_session_id = EXCLUDED.authenticated_session_id,
-                access_space_id = EXCLUDED.access_space_id,
-                generation = worktree_vm_bindings.generation + 1,
-                updated_at = NOW()
-            WHERE worktree_vm_bindings.actor_principal_id IS NOT DISTINCT FROM EXCLUDED.actor_principal_id
-              AND worktree_vm_bindings.authenticated_session_id IS NOT DISTINCT FROM EXCLUDED.authenticated_session_id
-              AND worktree_vm_bindings.access_space_id IS NOT DISTINCT FROM EXCLUDED.access_space_id
-            RETURNING binding_id, generation
-            "#,
-        )
-        .bind(Uuid::now_v7())
-        .bind(worktree_id)
-        .bind(handle.adapter_id.as_str())
-        .bind(serde_json::to_value(handle)?)
-        .bind(snapshot.map(serde_json::to_value).transpose()?)
-        .bind(state.as_str());
-        let row = scope.bind(query).fetch_optional(&mut **transaction).await?;
-        let Some(row) = row else {
-            return Err(WorktreeVmError::BindingScopeMismatch {
-                dimension: "exact_resource_scope",
-            });
+        self.ensure_schema().await?;
+        let scope = self.scope_strings()?;
+        // The canonical binding identity is the immutable sandbox process UUID.
+        // Replaying the same reservation/handle therefore reuses the same
+        // mutation and EventLedger idempotency identity after an uncertain reply.
+        let binding_id = handle.id;
+        let binding_text = binding_id.to_string();
+        let record_id = self.record_id(worktree_id)?;
+        let process_handle_json = serde_json::to_string(handle)?;
+        let latest_snapshot_json = snapshot.map(serde_json::to_string).transpose()?;
+        let event_type = match state {
+            WorktreeVmBindingState::Active => EVENT_STARTED,
+            WorktreeVmBindingState::Snapshotted => EVENT_RESTORED,
+            _ => {
+                return Err(WorktreeVmError::InvalidPersistedBinding {
+                    reason: "reserved binding may only transition to active or restored".to_owned(),
+                });
+            }
+        }
+        .to_owned();
+        let event_id = self.event_id(&record_id, &event_type, &binding_text)?;
+        let event_payload_hash = Self::event_payload_hash_for_values(
+            &record_id,
+            worktree_id,
+            &binding_text,
+            state.as_str(),
+            &event_type,
+        );
+        let bindings = PersistReservedBindingBindings {
+            record_id,
+            reservation_id: reservation_id.to_string(),
+            binding_id: binding_text,
+            adapter_id: handle.adapter_id.as_str().to_owned(),
+            process_handle_json,
+            latest_snapshot_json,
+            binding_state: state.as_str().to_owned(),
+            updated_at_unix_ms: chrono::Utc::now().timestamp_millis(),
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+            event_id,
+            event_type,
+            event_payload_hash,
         };
+        let rows = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values_at::<StoredBindingRow, _>(
+                            r#"
+                            BEGIN TRANSACTION;
+                            LET $record = type::record('worktree_vm_bindings', $record_id);
+                            LET $current = (SELECT binding_id, worktree_id, adapter_id,
+                                process_handle_json, latest_snapshot_json, binding_state,
+                                generation, failure_reason, reservation_id, owner_account_id,
+                                actor_principal_id, authenticated_session_id, access_space_id,
+                                workspace_id, updated_at_unix_ms,
+                                record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                event_ledger_event_type, event_ledger_payload_hash FROM $record
+                                WHERE owner_account_id = $owner_account_id
+                                  AND actor_principal_id = $actor_principal_id
+                                  AND authenticated_session_id = $authenticated_session_id
+                                  AND access_space_id = $access_space_id
+                                  AND workspace_id = $workspace_id
+                                  AND event_ledger_event_id.owner_account_id = $owner_account_id
+                                  AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                                  AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                                  AND event_ledger_event_id.access_space_id = $access_space_id
+                                  AND event_ledger_event_id.workspace_id = $workspace_id
+                                  AND event_ledger_event_id.aggregate_type = 'worktree_vm_binding'
+                                  AND event_ledger_event_id.aggregate_id = $record_id
+                                  AND event_ledger_event_id.event_type = event_ledger_event_type
+                                  AND event_ledger_event_id.payload_hash = event_ledger_payload_hash
+                                  AND event_ledger_event_id.payload.record_id = $record_id
+                                  AND event_ledger_event_id.payload.worktree_id = worktree_id
+                                  AND event_ledger_event_id.payload.binding_id = binding_id
+                                  AND event_ledger_event_id.payload.binding_state = binding_state);
+                            IF array::len($current) = 1
+                               AND $current[0].binding_state = $binding_state
+                               AND $current[0].binding_id = $binding_id
+                               AND $current[0].event_ledger_event_id = $event_id {
+                                RETURN $current;
+                            } ELSE IF array::len($current) = 1
+                               AND $current[0].binding_state = 'reserved'
+                               AND $current[0].reservation_id = $reservation_id {
+                                LET $prior = (SELECT event_id FROM kernel_event_ledger
+                                    WHERE idempotency_key = $event_id
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id LIMIT 2);
+                                IF array::len($prior) != 0 { THROW 'worktree VM bind EventLedger receipt is orphaned or ambiguous'; };
+                                LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT {
+                                    event_id: $event_id, event_version: 'kernel_event_v1',
+                                    kernel_task_run_id: $workspace_id,
+                                    session_run_id: $authenticated_session_id,
+                                    aggregate_type: 'worktree_vm_binding', aggregate_id: $record_id,
+                                    idempotency_key: $event_id, event_type: $event_type,
+                                    actor_kind: 'operator', actor_id: $actor_principal_id,
+                                    causation_id: $current[0].event_ledger_event_id,
+                                    correlation_id: $record_id, payload_hash: $event_payload_hash,
+                                    source_component: 'worktree_vm_registry',
+                                    payload: { transition_event_type: $event_type,
+                                        record_id: $record_id, worktree_id: $current[0].worktree_id,
+                                        binding_id: $binding_id,
+                                        binding_state: $binding_state },
+                                    owner_account_id: $owner_account_id,
+                                    actor_principal_id: $actor_principal_id,
+                                    authenticated_session_id: $authenticated_session_id,
+                                    access_space_id: $access_space_id, workspace_id: $workspace_id,
+                                    created_at: time::now()
+                                };
+                                LET $stored = UPDATE $record SET
+                                    binding_id = $binding_id, adapter_id = $adapter_id,
+                                    process_handle_json = $process_handle_json,
+                                    latest_snapshot_json = $latest_snapshot_json,
+                                    binding_state = $binding_state, failure_reason = NONE,
+                                    reservation_id = NONE, updated_at_unix_ms = $updated_at_unix_ms,
+                                    event_ledger_event_id = type::record('kernel_event_ledger', $event_id),
+                                    event_ledger_event_type = $event_type,
+                                    event_ledger_payload_hash = $event_payload_hash
+                                    WHERE binding_state = 'reserved'
+                                      AND reservation_id = $reservation_id
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id;
+                                LET $verified = (SELECT binding_id, worktree_id, adapter_id,
+                                    process_handle_json, latest_snapshot_json, binding_state,
+                                    generation, failure_reason, reservation_id, owner_account_id,
+                                    actor_principal_id, authenticated_session_id, access_space_id,
+                                    workspace_id, updated_at_unix_ms,
+                                    record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                    event_ledger_event_type, event_ledger_payload_hash FROM $record
+                                    WHERE binding_id = $binding_id
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id
+                                      AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id)
+                                      AND event_ledger_event_id.owner_account_id = $owner_account_id
+                                      AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                                      AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                                      AND event_ledger_event_id.access_space_id = $access_space_id
+                                      AND event_ledger_event_id.workspace_id = $workspace_id
+                                      AND event_ledger_event_id.event_id = $event_id
+                                      AND event_ledger_event_id.idempotency_key = $event_id
+                                      AND event_ledger_event_id.event_version = 'kernel_event_v1'
+                                      AND event_ledger_event_id.kernel_task_run_id = $workspace_id
+                                      AND event_ledger_event_id.session_run_id = $authenticated_session_id
+                                      AND event_ledger_event_id.aggregate_type = 'worktree_vm_binding'
+                                      AND event_ledger_event_id.aggregate_id = $record_id
+                                      AND event_ledger_event_id.event_type = $event_type
+                                      AND event_ledger_event_id.actor_kind = 'operator'
+                                      AND event_ledger_event_id.actor_id = $actor_principal_id
+                                      AND event_ledger_event_id.source_component = 'worktree_vm_registry'
+                                      AND event_ledger_event_id.payload_hash = $event_payload_hash
+                                    LIMIT 2);
+                                IF array::len($verified) != 1 { THROW 'worktree VM bind receipt verification failed'; };
+                                RETURN $verified;
+                            } ELSE {
+                                RETURN [];
+                            };
+                            COMMIT TRANSACTION;
+                            "#,
+                            bindings,
+                            3,
+                        )
+                        .await
+                })
+            })
+            .await?;
+        let row = rows
+            .into_iter()
+            .next()
+            .ok_or_else(|| WorktreeVmError::StaleBinding {
+                worktree_id: worktree_id.to_owned(),
+                operation: "durable SurrealDB bind",
+            })?;
+        self.authorize_row_scope(&row)?;
+        self.verify_receipt_linkage(worktree_id, &row).await?;
         Ok(WorktreeVmBindingIdentity {
-            binding_id: row.try_get("binding_id")?,
-            generation: row.try_get("generation")?,
+            binding_id,
+            generation: row.generation,
             process_handle: handle.clone(),
         })
     }
-
-    async fn record_snapshot_in_transaction(
+    async fn record_snapshot(
         &self,
         binding: &WorktreeVmBindingRecord,
         snapshot: &SnapshotRef,
-        transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     ) -> Result<(), WorktreeVmError> {
-        self.require_scope()?;
-        let predicate = self.access.sql_predicate(5);
-        let sql = format!(
-            "UPDATE worktree_vm_bindings SET latest_snapshot = $4, binding_state = 'snapshotted', updated_at = NOW() WHERE worktree_id = $1 AND binding_id = $2 AND generation = $3 AND binding_state IN ('active', 'snapshotted'){}",
-            predicate.clause()
+        self.ensure_schema().await?;
+        let scope = self.scope_strings()?;
+        let record_id = self.record_id(&binding.worktree_id)?;
+        let binding_text = binding.binding_id.to_string();
+        let latest_snapshot_json = serde_json::to_string(snapshot)?;
+        let event_type = EVENT_SNAPSHOTTED.to_owned();
+        let operation_identity = self.event_digest(
+            b"handshake.worktree-vm-snapshot-operation.v1",
+            &[binding_text.as_str(), latest_snapshot_json.as_str()],
+        )?;
+        let event_id = self.event_id(&record_id, &event_type, &operation_identity)?;
+        let event_payload_hash = Self::event_payload_hash_for_values(
+            &record_id,
+            &binding.worktree_id,
+            &binding_text,
+            "snapshotted",
+            &event_type,
         );
-        let result = predicate
-            .bind(
-                sqlx::query(&sql)
-                    .bind(&binding.worktree_id)
-                    .bind(binding.binding_id)
-                    .bind(binding.generation)
-                    .bind(serde_json::to_value(snapshot)?),
-            )
-            .execute(&mut **transaction)
+        let bindings = FencedBindingMutationBindings {
+            record_id,
+            binding_id: binding_text,
+            generation: binding.generation,
+            latest_snapshot_json: Some(latest_snapshot_json),
+            updated_at_unix_ms: chrono::Utc::now().timestamp_millis(),
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+            event_id,
+            event_type,
+            event_payload_hash,
+        };
+        let rows = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values_at::<StoredBindingRow, _>(
+                            r#"
+                            BEGIN TRANSACTION;
+                            LET $record = type::record('worktree_vm_bindings', $record_id);
+                            LET $current = (SELECT binding_id, worktree_id, adapter_id,
+                                process_handle_json, latest_snapshot_json, binding_state,
+                                generation, failure_reason, reservation_id, owner_account_id,
+                                actor_principal_id, authenticated_session_id, access_space_id,
+                                workspace_id, updated_at_unix_ms,
+                                record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                event_ledger_event_type, event_ledger_payload_hash FROM $record
+                                WHERE binding_id = $binding_id
+                                  AND generation = $generation
+                                  AND binding_state IN ['active', 'snapshotted']
+                                  AND owner_account_id = $owner_account_id
+                                  AND actor_principal_id = $actor_principal_id
+                                  AND authenticated_session_id = $authenticated_session_id
+                                  AND access_space_id = $access_space_id
+                                  AND workspace_id = $workspace_id
+                                  AND event_ledger_event_id.owner_account_id = $owner_account_id
+                                  AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                                  AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                                  AND event_ledger_event_id.access_space_id = $access_space_id
+                                  AND event_ledger_event_id.workspace_id = $workspace_id
+                                  AND event_ledger_event_id.aggregate_type = 'worktree_vm_binding'
+                                  AND event_ledger_event_id.aggregate_id = $record_id
+                                  AND event_ledger_event_id.event_type = event_ledger_event_type
+                                  AND event_ledger_event_id.payload_hash = event_ledger_payload_hash
+                                  AND event_ledger_event_id.payload.record_id = $record_id
+                                  AND event_ledger_event_id.payload.worktree_id = worktree_id
+                                  AND event_ledger_event_id.payload.binding_id = binding_id
+                                  AND event_ledger_event_id.payload.binding_state = binding_state);
+                            IF array::len($current) = 1
+                               AND $current[0].event_ledger_event_id = $event_id {
+                                RETURN $current;
+                            } ELSE IF array::len($current) = 1 {
+                                LET $prior = (SELECT event_id FROM kernel_event_ledger
+                                    WHERE idempotency_key = $event_id
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id LIMIT 2);
+                                IF array::len($prior) != 0 { THROW 'worktree VM snapshot EventLedger receipt is orphaned or ambiguous'; };
+                                LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT {
+                                    event_id: $event_id, event_version: 'kernel_event_v1',
+                                    kernel_task_run_id: $workspace_id,
+                                    session_run_id: $authenticated_session_id,
+                                    aggregate_type: 'worktree_vm_binding', aggregate_id: $record_id,
+                                    idempotency_key: $event_id, event_type: $event_type,
+                                    actor_kind: 'operator', actor_id: $actor_principal_id,
+                                    causation_id: $current[0].event_ledger_event_id,
+                                    correlation_id: $record_id, payload_hash: $event_payload_hash,
+                                    source_component: 'worktree_vm_registry',
+                                    payload: { transition_event_type: $event_type,
+                                        record_id: $record_id, worktree_id: $current[0].worktree_id,
+                                        binding_id: $binding_id,
+                                        binding_state: 'snapshotted' },
+                                    owner_account_id: $owner_account_id,
+                                    actor_principal_id: $actor_principal_id,
+                                    authenticated_session_id: $authenticated_session_id,
+                                    access_space_id: $access_space_id, workspace_id: $workspace_id,
+                                    created_at: time::now()
+                                };
+                                LET $stored = UPDATE $record SET
+                                    latest_snapshot_json = $latest_snapshot_json,
+                                    binding_state = 'snapshotted',
+                                    updated_at_unix_ms = $updated_at_unix_ms,
+                                    event_ledger_event_id = type::record('kernel_event_ledger', $event_id),
+                                    event_ledger_event_type = $event_type,
+                                    event_ledger_payload_hash = $event_payload_hash
+                                    WHERE binding_id = $binding_id
+                                      AND generation = $generation
+                                      AND binding_state IN ['active', 'snapshotted']
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id;
+                                LET $verified = (SELECT binding_id, worktree_id, adapter_id,
+                                    process_handle_json, latest_snapshot_json, binding_state,
+                                    generation, failure_reason, reservation_id, owner_account_id,
+                                    actor_principal_id, authenticated_session_id, access_space_id,
+                                    workspace_id, updated_at_unix_ms,
+                                    record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                    event_ledger_event_type, event_ledger_payload_hash FROM $record
+                                    WHERE binding_id = $binding_id
+                                      AND generation = $generation
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id
+                                      AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id)
+                                      AND event_ledger_event_id.owner_account_id = $owner_account_id
+                                      AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                                      AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                                      AND event_ledger_event_id.access_space_id = $access_space_id
+                                      AND event_ledger_event_id.workspace_id = $workspace_id
+                                      AND event_ledger_event_id.event_id = $event_id
+                                      AND event_ledger_event_id.idempotency_key = $event_id
+                                      AND event_ledger_event_id.event_version = 'kernel_event_v1'
+                                      AND event_ledger_event_id.kernel_task_run_id = $workspace_id
+                                      AND event_ledger_event_id.session_run_id = $authenticated_session_id
+                                      AND event_ledger_event_id.aggregate_type = 'worktree_vm_binding'
+                                      AND event_ledger_event_id.aggregate_id = $record_id
+                                      AND event_ledger_event_id.event_type = $event_type
+                                      AND event_ledger_event_id.actor_kind = 'operator'
+                                      AND event_ledger_event_id.actor_id = $actor_principal_id
+                                      AND event_ledger_event_id.source_component = 'worktree_vm_registry'
+                                      AND event_ledger_event_id.payload_hash = $event_payload_hash
+                                    LIMIT 2);
+                                IF array::len($verified) != 1 { THROW 'worktree VM snapshot receipt verification failed'; };
+                                RETURN $verified;
+                            } ELSE {
+                                RETURN [];
+                            };
+                            COMMIT TRANSACTION;
+                            "#,
+                            bindings,
+                            3,
+                        )
+                        .await
+                })
+            })
             .await?;
-        if result.rows_affected() == 0 {
-            return Err(WorktreeVmError::StaleBinding {
+        let row = rows
+            .into_iter()
+            .next()
+            .ok_or_else(|| WorktreeVmError::StaleBinding {
                 worktree_id: binding.worktree_id.clone(),
                 operation: "snapshot",
-            });
-        }
+            })?;
+        self.authorize_row_scope(&row)?;
+        self.verify_receipt_linkage(&binding.worktree_id, &row)
+            .await?;
         Ok(())
     }
-
-    async fn mark_terminated_in_transaction(
+    async fn mark_terminated(
         &self,
         binding: &WorktreeVmBindingRecord,
-        transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     ) -> Result<(), WorktreeVmError> {
-        self.require_scope()?;
-        let predicate = self.access.sql_predicate(4);
-        let sql = format!(
-            "UPDATE worktree_vm_bindings SET binding_state = 'terminated', updated_at = NOW() WHERE worktree_id = $1 AND binding_id = $2 AND generation = $3 AND binding_state IN ('active', 'snapshotted'){}",
-            predicate.clause()
+        self.ensure_schema().await?;
+        let scope = self.scope_strings()?;
+        let record_id = self.record_id(&binding.worktree_id)?;
+        let binding_text = binding.binding_id.to_string();
+        let latest_snapshot_json = binding
+            .latest_snapshot
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        let event_type = EVENT_TERMINATED.to_owned();
+        let operation_identity = format!("{}:{}", binding.binding_id, binding.generation);
+        let event_id = self.event_id(&record_id, &event_type, &operation_identity)?;
+        let event_payload_hash = Self::event_payload_hash_for_values(
+            &record_id,
+            &binding.worktree_id,
+            &binding_text,
+            "terminated",
+            &event_type,
         );
-        let result = predicate
-            .bind(
-                sqlx::query(&sql)
-                    .bind(&binding.worktree_id)
-                    .bind(binding.binding_id)
-                    .bind(binding.generation),
-            )
-            .execute(&mut **transaction)
+        let bindings = FencedBindingMutationBindings {
+            record_id,
+            binding_id: binding_text,
+            generation: binding.generation,
+            latest_snapshot_json,
+            updated_at_unix_ms: chrono::Utc::now().timestamp_millis(),
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+            event_id,
+            event_type,
+            event_payload_hash,
+        };
+        let rows = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values_at::<StoredBindingRow, _>(
+                            r#"
+                            BEGIN TRANSACTION;
+                            LET $record = type::record('worktree_vm_bindings', $record_id);
+                            LET $current = (SELECT binding_id, worktree_id, adapter_id,
+                                process_handle_json, latest_snapshot_json, binding_state,
+                                generation, failure_reason, reservation_id, owner_account_id,
+                                actor_principal_id, authenticated_session_id, access_space_id,
+                                workspace_id, updated_at_unix_ms,
+                                record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                event_ledger_event_type, event_ledger_payload_hash FROM $record
+                                WHERE binding_id = $binding_id
+                                  AND generation = $generation
+                                  AND owner_account_id = $owner_account_id
+                                  AND actor_principal_id = $actor_principal_id
+                                  AND authenticated_session_id = $authenticated_session_id
+                                  AND access_space_id = $access_space_id
+                                  AND workspace_id = $workspace_id
+                                  AND event_ledger_event_id.owner_account_id = $owner_account_id
+                                  AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                                  AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                                  AND event_ledger_event_id.access_space_id = $access_space_id
+                                  AND event_ledger_event_id.workspace_id = $workspace_id
+                                  AND event_ledger_event_id.aggregate_type = 'worktree_vm_binding'
+                                  AND event_ledger_event_id.aggregate_id = $record_id
+                                  AND event_ledger_event_id.event_type = event_ledger_event_type
+                                  AND event_ledger_event_id.payload_hash = event_ledger_payload_hash
+                                  AND event_ledger_event_id.payload.record_id = $record_id
+                                  AND event_ledger_event_id.payload.worktree_id = worktree_id
+                                  AND event_ledger_event_id.payload.binding_id = binding_id
+                                  AND event_ledger_event_id.payload.binding_state = binding_state);
+                            IF array::len($current) = 1
+                               AND $current[0].binding_state = 'terminated'
+                               AND $current[0].event_ledger_event_id = $event_id {
+                                RETURN $current;
+                            } ELSE IF array::len($current) = 1
+                               AND $current[0].binding_state IN ['active', 'snapshotted'] {
+                                LET $prior = (SELECT event_id FROM kernel_event_ledger
+                                    WHERE idempotency_key = $event_id
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id LIMIT 2);
+                                IF array::len($prior) != 0 { THROW 'worktree VM teardown EventLedger receipt is orphaned or ambiguous'; };
+                                LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT {
+                                    event_id: $event_id, event_version: 'kernel_event_v1',
+                                    kernel_task_run_id: $workspace_id,
+                                    session_run_id: $authenticated_session_id,
+                                    aggregate_type: 'worktree_vm_binding', aggregate_id: $record_id,
+                                    idempotency_key: $event_id, event_type: $event_type,
+                                    actor_kind: 'operator', actor_id: $actor_principal_id,
+                                    causation_id: $current[0].event_ledger_event_id,
+                                    correlation_id: $record_id, payload_hash: $event_payload_hash,
+                                    source_component: 'worktree_vm_registry',
+                                    payload: { transition_event_type: $event_type,
+                                        record_id: $record_id, worktree_id: $current[0].worktree_id,
+                                        binding_id: $binding_id,
+                                        binding_state: 'terminated' },
+                                    owner_account_id: $owner_account_id,
+                                    actor_principal_id: $actor_principal_id,
+                                    authenticated_session_id: $authenticated_session_id,
+                                    access_space_id: $access_space_id, workspace_id: $workspace_id,
+                                    created_at: time::now()
+                                };
+                                LET $stored = UPDATE $record SET
+                                    binding_state = 'terminated', reservation_id = NONE,
+                                    updated_at_unix_ms = $updated_at_unix_ms,
+                                    event_ledger_event_id = type::record('kernel_event_ledger', $event_id),
+                                    event_ledger_event_type = $event_type,
+                                    event_ledger_payload_hash = $event_payload_hash
+                                    WHERE binding_id = $binding_id
+                                      AND generation = $generation
+                                      AND binding_state IN ['active', 'snapshotted']
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id;
+                                LET $verified = (SELECT binding_id, worktree_id, adapter_id,
+                                    process_handle_json, latest_snapshot_json, binding_state,
+                                    generation, failure_reason, reservation_id, owner_account_id,
+                                    actor_principal_id, authenticated_session_id, access_space_id,
+                                    workspace_id, updated_at_unix_ms,
+                                    record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                    event_ledger_event_type, event_ledger_payload_hash FROM $record
+                                    WHERE binding_id = $binding_id
+                                      AND generation = $generation
+                                      AND owner_account_id = $owner_account_id
+                                      AND actor_principal_id = $actor_principal_id
+                                      AND authenticated_session_id = $authenticated_session_id
+                                      AND access_space_id = $access_space_id
+                                      AND workspace_id = $workspace_id
+                                      AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id)
+                                      AND event_ledger_event_id.owner_account_id = $owner_account_id
+                                      AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+                                      AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+                                      AND event_ledger_event_id.access_space_id = $access_space_id
+                                      AND event_ledger_event_id.workspace_id = $workspace_id
+                                      AND event_ledger_event_id.event_id = $event_id
+                                      AND event_ledger_event_id.idempotency_key = $event_id
+                                      AND event_ledger_event_id.event_version = 'kernel_event_v1'
+                                      AND event_ledger_event_id.kernel_task_run_id = $workspace_id
+                                      AND event_ledger_event_id.session_run_id = $authenticated_session_id
+                                      AND event_ledger_event_id.aggregate_type = 'worktree_vm_binding'
+                                      AND event_ledger_event_id.aggregate_id = $record_id
+                                      AND event_ledger_event_id.event_type = $event_type
+                                      AND event_ledger_event_id.actor_kind = 'operator'
+                                      AND event_ledger_event_id.actor_id = $actor_principal_id
+                                      AND event_ledger_event_id.source_component = 'worktree_vm_registry'
+                                      AND event_ledger_event_id.payload_hash = $event_payload_hash
+                                    LIMIT 2);
+                                IF array::len($verified) != 1 { THROW 'worktree VM teardown receipt verification failed'; };
+                                RETURN $verified;
+                            } ELSE {
+                                RETURN [];
+                            };
+                            COMMIT TRANSACTION;
+                            "#,
+                            bindings,
+                            3,
+                        )
+                        .await
+                })
+            })
             .await?;
-        if result.rows_affected() == 0 {
-            return Err(WorktreeVmError::StaleBinding {
+        let row = rows
+            .into_iter()
+            .next()
+            .ok_or_else(|| WorktreeVmError::StaleBinding {
                 worktree_id: binding.worktree_id.clone(),
                 operation: "teardown",
-            });
-        }
+            })?;
+        self.authorize_row_scope(&row)?;
+        self.verify_receipt_linkage(&binding.worktree_id, &row)
+            .await?;
         Ok(())
     }
-
     async fn load(
         &self,
         worktree_id: &str,
         live_only: bool,
     ) -> Result<Option<WorktreeVmBindingRecord>, WorktreeVmError> {
-        self.require_scope()?;
-        let predicate = self.access.sql_predicate(2);
-        let live_clause = if live_only {
-            " AND binding_state IN ('active', 'snapshotted')"
-        } else {
-            ""
-        };
-        let sql = format!(
-            "SELECT binding_id, worktree_id, adapter_id, process_handle, latest_snapshot, binding_state, generation, failure_reason, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM worktree_vm_bindings WHERE worktree_id = $1{live_clause}{}",
-            predicate.clause()
-        );
-        let row = predicate
-            .bind(sqlx::query(&sql).bind(worktree_id))
-            .fetch_optional(&self.pool)
-            .await?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        let stored_scope = stored_resource_scope_from_row(&row)?;
-        self.access.authorize_row(&stored_scope)?;
-        authorize_exact_binding_scope(self.require_scope()?, &stored_scope)?;
-        let state = WorktreeVmBindingState::parse(row.try_get("binding_state")?)?;
-        if live_only && !state.is_live() {
-            return Ok(None);
-        }
-        Ok(Some(WorktreeVmBindingRecord {
-            binding_id: row.try_get("binding_id")?,
-            worktree_id: row.try_get("worktree_id")?,
-            adapter_id: row.try_get("adapter_id")?,
-            process_handle: serde_json::from_value(row.try_get("process_handle")?)?,
-            latest_snapshot: row
-                .try_get::<Option<serde_json::Value>, _>("latest_snapshot")?
-                .map(serde_json::from_value)
-                .transpose()?,
-            binding_state: state,
-            generation: row.try_get("generation")?,
-            failure_reason: row.try_get("failure_reason")?,
-        }))
+        self.load_physical_key(worktree_id, live_only).await
     }
 
-    async fn load_in_transaction(
+    async fn select_scoped_row(
+        &self,
+        worktree_id: &str,
+    ) -> Result<Option<StoredBindingRow>, WorktreeVmError> {
+        self.ensure_schema().await?;
+        let bindings = self.scoped_record_bindings(worktree_id)?;
+        let rows = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values::<StoredBindingRow, _>(
+                            r#"
+                            SELECT binding_id, worktree_id, adapter_id,
+                                   process_handle_json, latest_snapshot_json,
+                                   binding_state, generation, failure_reason,
+                                   reservation_id, owner_account_id,
+                                   actor_principal_id, authenticated_session_id,
+                                   access_space_id, workspace_id, updated_at_unix_ms,
+                                   record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                   event_ledger_event_type, event_ledger_payload_hash
+                            FROM type::record('worktree_vm_bindings', $record_id)
+                            WHERE owner_account_id = $owner_account_id
+                              AND actor_principal_id = $actor_principal_id
+                              AND authenticated_session_id = $authenticated_session_id
+                              AND access_space_id = $access_space_id
+                              AND workspace_id = $workspace_id;
+                            "#,
+                            bindings,
+                        )
+                        .await
+                })
+            })
+            .await?;
+        let row = rows.into_iter().next();
+        if let Some(row) = row.as_ref() {
+            self.authorize_row_scope(row)?;
+            self.verify_receipt_linkage(worktree_id, row).await?;
+        }
+        Ok(row)
+    }
+
+    async fn load_physical_key(
         &self,
         worktree_id: &str,
         live_only: bool,
-        transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     ) -> Result<Option<WorktreeVmBindingRecord>, WorktreeVmError> {
-        self.require_scope()?;
-        let predicate = self.access.sql_predicate(2);
-        let live_clause = if live_only {
-            " AND binding_state IN ('active', 'snapshotted')"
-        } else {
-            ""
-        };
-        let sql = format!(
-            "SELECT binding_id, worktree_id, adapter_id, process_handle, latest_snapshot, binding_state, generation, failure_reason, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM worktree_vm_bindings WHERE worktree_id = $1{live_clause}{}",
-            predicate.clause()
-        );
-        let row = predicate
-            .bind(sqlx::query(&sql).bind(worktree_id))
-            .fetch_optional(&mut **transaction)
-            .await?;
-        let Some(row) = row else {
+        let Some(row) = self.select_scoped_row(worktree_id).await? else {
             return Ok(None);
         };
-        let stored_scope = stored_resource_scope_from_row(&row)?;
-        self.access.authorize_row(&stored_scope)?;
-        authorize_exact_binding_scope(self.require_scope()?, &stored_scope)?;
-        let state = WorktreeVmBindingState::parse(row.try_get("binding_state")?)?;
+        if row.binding_state == "reserved" {
+            let age_ms = chrono::Utc::now()
+                .timestamp_millis()
+                .saturating_sub(row.updated_at_unix_ms);
+            if age_ms >= 10 * 60 * 1000 {
+                let reservation_id = row
+                    .reservation_id
+                    .as_deref()
+                    .ok_or_else(|| WorktreeVmError::InvalidPersistedBinding {
+                        reason: "reserved row has no reservation_id".to_owned(),
+                    })
+                    .and_then(|value| {
+                        Uuid::parse_str(value).map_err(|error| {
+                            WorktreeVmError::InvalidPersistedBinding {
+                                reason: format!("reservation_id is not a UUID: {error}"),
+                            }
+                        })
+                    })?;
+                self.release_reservation(worktree_id, reservation_id)
+                    .await?;
+                return Ok(None);
+            }
+            return Err(WorktreeVmError::DurableHandleUnavailable {
+                worktree_id: worktree_id.to_owned(),
+                adapter_id: row.adapter_id,
+                reason:
+                    "embedded SurrealDB binding is reserved by another create/restore operation"
+                        .to_owned(),
+            });
+        }
+        let state = WorktreeVmBindingState::parse(&row.binding_state)?;
         if live_only && !state.is_live() {
             return Ok(None);
         }
-        Ok(Some(WorktreeVmBindingRecord {
-            binding_id: row.try_get("binding_id")?,
-            worktree_id: row.try_get("worktree_id")?,
-            adapter_id: row.try_get("adapter_id")?,
-            process_handle: serde_json::from_value(row.try_get("process_handle")?)?,
-            latest_snapshot: row
-                .try_get::<Option<serde_json::Value>, _>("latest_snapshot")?
-                .map(serde_json::from_value)
-                .transpose()?,
-            binding_state: state,
-            generation: row.try_get("generation")?,
-            failure_reason: row.try_get("failure_reason")?,
-        }))
-    }
-
-    /// Probe the canonical physical uniqueness key while the matching advisory
-    /// lock is held. This intentionally uses only owner/workspace/worktree in
-    /// SQL so a row owned by another exact actor/session/AccessSpace cannot be
-    /// mistaken for absence and trigger a second VM spawn. Exact attribution is
-    /// checked before returning or crossing the adapter side-effect boundary.
-    async fn load_physical_key_in_transaction(
-        &self,
-        worktree_id: &str,
-        live_only: bool,
-        transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    ) -> Result<Option<WorktreeVmBindingRecord>, WorktreeVmError> {
-        let scope = self.require_scope()?;
-        let workspace = scope
-            .workspace
-            .as_ref()
-            .ok_or(WorktreeVmError::WorkspaceScopeRequired)?;
-        let row = sqlx::query(&format!(
-            "SELECT binding_id, worktree_id, adapter_id, process_handle, latest_snapshot, binding_state, generation, failure_reason, {RESOURCE_SCOPE_SELECT_COLUMNS} \
-             FROM worktree_vm_bindings \
-             WHERE owner_account_id = $1::uuid AND workspace_id = $2 AND worktree_id = $3"
-        ))
-        .bind(scope.owner_account_id.as_uuid())
-        .bind(workspace.as_str())
-        .bind(worktree_id)
-        .fetch_optional(&mut **transaction)
-        .await?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-        let stored_scope = stored_resource_scope_from_row(&row)?;
-        authorize_exact_binding_scope(scope, &stored_scope)?;
-        let state = WorktreeVmBindingState::parse(row.try_get("binding_state")?)?;
-        if live_only && !state.is_live() {
+        if state == WorktreeVmBindingState::Failed && row.process_handle_json.is_empty() {
             return Ok(None);
         }
-        Ok(Some(WorktreeVmBindingRecord {
-            binding_id: row.try_get("binding_id")?,
-            worktree_id: row.try_get("worktree_id")?,
-            adapter_id: row.try_get("adapter_id")?,
-            process_handle: serde_json::from_value(row.try_get("process_handle")?)?,
-            latest_snapshot: row
-                .try_get::<Option<serde_json::Value>, _>("latest_snapshot")?
-                .map(serde_json::from_value)
-                .transpose()?,
-            binding_state: state,
-            generation: row.try_get("generation")?,
-            failure_reason: row.try_get("failure_reason")?,
-        }))
+        Ok(Some(self.row_to_record(row, state)?))
     }
-
-    async fn authorize_snapshot_source_in_transaction(
+    async fn authorize_snapshot_source(
         &self,
         manifest: &WarmVmSnapshotManifest,
-        transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     ) -> Result<(), WorktreeVmError> {
+        self.ensure_schema().await?;
         let expected_scope = snapshot_resource_scope(self.require_scope()?);
         let manifest_scope = manifest
             .resource_scope
@@ -1319,38 +2539,125 @@ impl WorktreeVmDurableStore {
         let generation = manifest
             .source_binding_generation
             .ok_or(WorktreeVmError::SnapshotSourceMissing)?;
-
-        let predicate = self.access.sql_predicate(2);
-        let sql = format!(
-            "SELECT binding_id, generation, latest_snapshot, {RESOURCE_SCOPE_SELECT_COLUMNS} \
-             FROM worktree_vm_bindings WHERE binding_id = $1{}",
-            predicate.clause()
-        );
-        let row = predicate
-            .bind(sqlx::query(&sql).bind(binding_id))
-            .fetch_optional(&mut **transaction)
+        let scope = self.scope_strings()?;
+        let bindings = SnapshotSourceBindings {
+            binding_id: binding_id.to_string(),
+            owner_account_id: scope.owner_account_id,
+            actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id,
+            access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+        };
+        let rows = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values::<StoredBindingRow, _>(
+                            r#"
+                            SELECT binding_id, worktree_id, adapter_id,
+                                   process_handle_json, latest_snapshot_json,
+                                   binding_state, generation, failure_reason,
+                                   reservation_id, owner_account_id,
+                                   actor_principal_id, authenticated_session_id,
+                                   access_space_id, workspace_id, updated_at_unix_ms,
+                                   record::id(event_ledger_event_id) AS event_ledger_event_id,
+                                   event_ledger_event_type, event_ledger_payload_hash
+                            FROM worktree_vm_bindings
+                            WHERE binding_id = $binding_id
+                              AND owner_account_id = $owner_account_id
+                              AND actor_principal_id = $actor_principal_id
+                              AND authenticated_session_id = $authenticated_session_id
+                              AND access_space_id = $access_space_id
+                              AND workspace_id = $workspace_id
+                            LIMIT 1;
+                            "#,
+                            bindings,
+                        )
+                        .await
+                })
+            })
             .await?;
-        let Some(row) = row else {
+        let Some(row) = rows.into_iter().next() else {
             return Err(WorktreeVmError::SnapshotSourceMismatch);
         };
-        let stored_scope = stored_resource_scope_from_row(&row)?;
-        self.access.authorize_row(&stored_scope)?;
-        authorize_exact_binding_scope(self.require_scope()?, &stored_scope)?;
-        let stored_generation: i64 = row.try_get("generation")?;
-        let stored_snapshot: Option<serde_json::Value> = row.try_get("latest_snapshot")?;
-        if stored_generation != generation
-            || stored_snapshot
-                .map(serde_json::from_value::<SnapshotRef>)
-                .transpose()?
-                .as_ref()
-                != Some(&manifest.snapshot)
-        {
+        self.authorize_row_scope(&row)?;
+        self.verify_receipt_linkage(&row.worktree_id, &row).await?;
+        let stored_snapshot = row
+            .latest_snapshot_json
+            .as_deref()
+            .map(serde_json::from_str::<SnapshotRef>)
+            .transpose()?;
+        if row.generation != generation || stored_snapshot.as_ref() != Some(&manifest.snapshot) {
             return Err(WorktreeVmError::SnapshotSourceMismatch);
         }
         Ok(())
     }
-}
 
+    fn authorize_row_scope(&self, row: &StoredBindingRow) -> Result<(), WorktreeVmError> {
+        let expected = self.scope_strings()?;
+        for (dimension, actual, expected) in [
+            (
+                "owner_account_id",
+                row.owner_account_id.as_str(),
+                expected.owner_account_id.as_str(),
+            ),
+            (
+                "actor_principal_id",
+                row.actor_principal_id.as_str(),
+                expected.actor_principal_id.as_str(),
+            ),
+            (
+                "authenticated_session_id",
+                row.authenticated_session_id.as_str(),
+                expected.authenticated_session_id.as_str(),
+            ),
+            (
+                "access_space_id",
+                row.access_space_id.as_str(),
+                expected.access_space_id.as_str(),
+            ),
+            (
+                "workspace_id",
+                row.workspace_id.as_str(),
+                expected.workspace_id.as_str(),
+            ),
+        ] {
+            if actual != expected {
+                return Err(WorktreeVmError::BindingScopeMismatch { dimension });
+            }
+        }
+        Ok(())
+    }
+
+    fn row_to_record(
+        &self,
+        row: StoredBindingRow,
+        state: WorktreeVmBindingState,
+    ) -> Result<WorktreeVmBindingRecord, WorktreeVmError> {
+        let binding_id = Uuid::parse_str(&row.binding_id).map_err(|error| {
+            WorktreeVmError::InvalidPersistedBinding {
+                reason: format!("binding_id is not a UUID: {error}"),
+            }
+        })?;
+        let process_handle = serde_json::from_str(&row.process_handle_json)?;
+        let latest_snapshot = row
+            .latest_snapshot_json
+            .as_deref()
+            .map(serde_json::from_str)
+            .transpose()?;
+        Ok(WorktreeVmBindingRecord {
+            binding_id,
+            worktree_id: row.worktree_id,
+            adapter_id: row.adapter_id,
+            process_handle,
+            latest_snapshot,
+            binding_state: state,
+            generation: row.generation,
+            failure_reason: row.failure_reason,
+        })
+    }
+}
 fn transient_binding_identity(handle: &ProcessHandle) -> WorktreeVmBindingIdentity {
     WorktreeVmBindingIdentity {
         binding_id: handle.id,
@@ -1402,39 +2709,6 @@ fn authorize_snapshot_scope(
         });
     }
     Ok(())
-}
-
-fn authorize_exact_binding_scope(
-    expected: &ResourceScope,
-    actual: &crate::swarm_orchestration::resource_scope::StoredResourceScope,
-) -> Result<(), WorktreeVmError> {
-    let exact = snapshot_resource_scope(expected);
-    let stored = WarmVmSnapshotResourceScope {
-        owner_account_id: actual
-            .owner_account_id
-            .ok_or(WorktreeVmError::BindingScopeMismatch {
-                dimension: "owner_account_id",
-            })?
-            .as_uuid(),
-        actor_principal_id: actual
-            .actor_principal_id
-            .ok_or(WorktreeVmError::BindingScopeMismatch {
-                dimension: "actor_principal_id",
-            })?
-            .as_uuid(),
-        authenticated_session_id: actual.authenticated_session.map(|value| value.as_uuid()),
-        access_space_id: actual.access_space.map(|value| value.as_uuid()),
-        workspace_id: actual
-            .workspace
-            .as_ref()
-            .map(|value| value.as_str().to_string()),
-    };
-    authorize_snapshot_scope(&exact, &stored).map_err(|error| match error {
-        WorktreeVmError::SnapshotScopeMismatch { dimension } => {
-            WorktreeVmError::BindingScopeMismatch { dimension }
-        }
-        other => other,
-    })
 }
 
 #[cfg(test)]

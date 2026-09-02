@@ -6,6 +6,7 @@
 //! PostgreSQL authority.
 
 mod knowledge_pg_support;
+mod surreal_test_store_support;
 
 use handshake_core::storage::knowledge::{
     KnowledgeEntityKind, KnowledgeStore, NewKnowledgeEntity, NewKnowledgeRichDocument,
@@ -15,11 +16,20 @@ use handshake_core::storage::{
     LoomSearchFilters, LoomSearchSourceKind, NewLoomBlock, NewLoomEdge, WriteContext,
 };
 use handshake_core::user_manual::{
+    bundle_bridge::{ensure_manual_page_entity, insert_manual_page_orphan_receipt_fixture},
     store::{NewManualAnchor, NewManualSection, NewUserManualPage},
     USER_MANUAL_VERSION,
 };
+use handshake_core::{
+    storage::surreal::{bootstrap_schema, SurrealUserManualKnowledgeStore},
+    swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+        OwnerAccountId, WorkspaceScopeRef,
+    },
+};
 use knowledge_pg_support::knowledge_pg;
 use serde_json::json;
+use surreal_test_store_support::EmbeddedSurrealTestScope;
 
 macro_rules! pg_or_skip {
     () => {{
@@ -57,12 +67,14 @@ async fn insert_entity(
 }
 
 async fn insert_user_manual_page(
-    db: &handshake_core::storage::postgres::PostgresDatabase,
+    knowledge_store: &SurrealUserManualKnowledgeStore,
+    scope: &ExactResourceScopeAttribution,
     slug: &str,
     title: &str,
     body: &str,
 ) {
-    let store = handshake_core::user_manual::store::UserManualStore::new(db);
+    let store =
+        handshake_core::user_manual::store::UserManualStore::new(knowledge_store.storage().clone());
     store
         .upsert_page(
             &NewUserManualPage {
@@ -88,6 +100,155 @@ async fn insert_user_manual_page(
         )
         .await
         .expect("insert UserManual page");
+    let (page, _, _) = store
+        .get_page_by_slug(slug)
+        .await
+        .expect("read embedded UserManual page")
+        .expect("embedded UserManual page exists");
+    let first = ensure_manual_page_entity(knowledge_store, scope, &page)
+        .await
+        .expect("bridge UserManual page into scoped Surreal knowledge entity");
+    assert!(first.changed, "first scoped bridge write must mutate");
+    let retry = ensure_manual_page_entity(knowledge_store, scope, &page)
+        .await
+        .expect("retry scoped UserManual knowledge bridge");
+    assert_eq!(retry.entity.entity_id, first.entity.entity_id);
+    assert_eq!(retry.event_ledger_event_id, first.event_ledger_event_id);
+    assert!(!retry.changed, "identical bridge retry must be a no-op");
+    let exact = knowledge_store
+        .get_user_manual_page_entity_by_identity(scope, slug)
+        .await
+        .expect("exact scoped UserManual knowledge lookup")
+        .expect("scoped UserManual knowledge entity exists");
+    assert_eq!(exact.entity.entity_id, first.entity.entity_id);
+    assert_eq!(exact.event_ledger_event_id, first.event_ledger_event_id);
+}
+
+// MT-186 Loom search remains PostgreSQL-owned and cannot read the new
+// embedded knowledge entity yet. This independent historical query fixture
+// remains until the Loom storage lane migrates; it is not UserManual storage
+// or bundle-bridge authority.
+async fn insert_legacy_loom_user_manual_search_fixture(
+    db: &handshake_core::storage::postgres::PostgresDatabase,
+    workspace_id: &str,
+    slug: &str,
+    title: &str,
+) {
+    insert_entity(
+        db,
+        workspace_id,
+        KnowledgeEntityKind::UserManualPage,
+        slug,
+        title,
+    )
+    .await;
+}
+
+struct LoomUserManualFixture {
+    embedded: EmbeddedSurrealTestScope,
+    knowledge_store: SurrealUserManualKnowledgeStore,
+    scope: ExactResourceScopeAttribution,
+}
+
+impl LoomUserManualFixture {
+    async fn create(workspace_id: &str) -> Self {
+        let mut embedded = EmbeddedSurrealTestScope::create()
+            .await
+            .expect("create isolated embedded Loom/UserManual scope");
+        let storage = embedded
+            .activate_storage()
+            .await
+            .expect("activate embedded Loom/UserManual storage");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap embedded product schema");
+        let knowledge_store = SurrealUserManualKnowledgeStore::open(storage)
+            .await
+            .expect("bootstrap scoped UserManual knowledge provider");
+        knowledge_store
+            .ensure_workspace_fixture(workspace_id)
+            .await
+            .expect("create exact workspace fixture");
+        let scope = ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::mint(),
+            actor_principal_id: ActorPrincipalId::mint(),
+            authenticated_session_id: AuthenticatedSessionRef::mint(),
+            access_space_id: AccessSpaceRef::mint(),
+            workspace_id: WorkspaceScopeRef::new(workspace_id.to_owned())
+                .expect("non-empty workspace scope"),
+        };
+        Self {
+            embedded,
+            knowledge_store,
+            scope,
+        }
+    }
+
+    async fn cleanup(self) {
+        let Self {
+            mut embedded,
+            knowledge_store,
+            scope: _,
+        } = self;
+        knowledge_store
+            .storage()
+            .shutdown()
+            .await
+            .expect("close embedded Loom/UserManual storage");
+        drop(knowledge_store);
+        embedded
+            .shutdown_storage_for_reopen()
+            .await
+            .expect("release embedded Loom/UserManual storage handle");
+        embedded
+            .cleanup()
+            .await
+            .expect("clean embedded Loom/UserManual scope");
+    }
+}
+
+#[tokio::test]
+async fn mt022_usermanual_knowledge_bridge_rejects_receipt_without_mutation() {
+    let manual = LoomUserManualFixture::create("mt022-orphan-receipt-workspace").await;
+    let store = handshake_core::user_manual::store::UserManualStore::new(
+        manual.knowledge_store.storage().clone(),
+    );
+    let seed = NewUserManualPage {
+        slug: "mt022-orphan-receipt".to_owned(),
+        title: "MT-022 orphan receipt".to_owned(),
+        page_kind: "failure_mode",
+        audience: "model",
+        spec_anchors: vec!["MT-022".to_owned()],
+        sections: vec![NewManualSection {
+            section_kind: "failure_modes",
+            title: "Orphan receipt".to_owned(),
+            body_md: "A receipt without its knowledge mutation must fail closed.".to_owned(),
+            body_json: None,
+        }],
+        anchors: Vec::new(),
+    };
+    store
+        .upsert_page(&seed, USER_MANUAL_VERSION, "current")
+        .await
+        .expect("seed orphan-receipt manual page");
+    let (page, _, _) = store
+        .get_page_by_slug(&seed.slug)
+        .await
+        .expect("read orphan-receipt manual page")
+        .expect("orphan-receipt manual page exists");
+    insert_manual_page_orphan_receipt_fixture(&manual.knowledge_store, &manual.scope, &page)
+        .await
+        .expect("insert receipt without knowledge mutation");
+    let error = ensure_manual_page_entity(&manual.knowledge_store, &manual.scope, &page)
+        .await
+        .expect_err("orphan receipt must block the knowledge mutation");
+    assert!(
+        error
+            .to_string()
+            .contains("receipt exists without its entity mutation"),
+        "unexpected orphan-receipt error: {error}"
+    );
+    manual.cleanup().await;
 }
 
 async fn insert_loom_block(
@@ -156,6 +317,7 @@ async fn insert_rich_document(
 async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
     let pg = pg_or_skip!();
     let ws = pg.create_workspace().await;
+    let manual = LoomUserManualFixture::create(&ws).await;
     let ctx = WriteContext::human(None);
 
     let loom_block = pg
@@ -213,10 +375,18 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
     )
     .await;
     insert_user_manual_page(
-        &pg.db,
+        &manual.knowledge_store,
+        &manual.scope,
         "graph-search-alpha",
         "GraphSearchAlpha UserManual page",
         "Models use GraphSearchAlpha to find Loom notes, symbols, WPs, and MTs.",
+    )
+    .await;
+    insert_legacy_loom_user_manual_search_fixture(
+        &pg.db,
+        &ws,
+        "graph-search-alpha",
+        "GraphSearchAlpha UserManual page",
     )
     .await;
     let wiki_projection = pg
@@ -312,12 +482,14 @@ async fn mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters() {
         .await
         .expect("empty graph search");
     assert!(empty.is_empty(), "empty graph search should return no hits");
+    manual.cleanup().await;
 }
 
 #[tokio::test]
 async fn mt256_graph_search_matches_three_letter_abbreviations() {
     let pg = pg_or_skip!();
     let ws = pg.create_workspace().await;
+    let manual = LoomUserManualFixture::create(&ws).await;
     let ctx = WriteContext::human(None);
 
     let loom_block = pg
@@ -401,10 +573,18 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
     )
     .await;
     insert_user_manual_page(
-        &pg.db,
+        &manual.knowledge_store,
+        &manual.scope,
         "graph-search-alpha",
         "GraphSearchAlpha UserManual page",
         "Models use GraphSearchAlpha to find Loom notes, symbols, WPs, and MTs.",
+    )
+    .await;
+    insert_legacy_loom_user_manual_search_fixture(
+        &pg.db,
+        &ws,
+        "graph-search-alpha",
+        "GraphSearchAlpha UserManual page",
     )
     .await;
     let wiki_projection = pg
@@ -522,6 +702,7 @@ async fn mt256_graph_search_matches_three_letter_abbreviations() {
         }),
         "typo-tolerant hit must preserve direct-open wiki projection id: {typo_hit_keys:?}"
     );
+    manual.cleanup().await;
 }
 
 #[tokio::test]
@@ -970,6 +1151,7 @@ async fn mt186_graph_search_offsets_after_prefetching_each_source() {
 async fn mt186_block_scoped_filters_do_not_leak_non_block_hits() {
     let pg = pg_or_skip!();
     let ws = pg.create_workspace().await;
+    let manual = LoomUserManualFixture::create(&ws).await;
     let ctx = WriteContext::human(None);
 
     let tag = insert_loom_block(
@@ -1024,10 +1206,18 @@ async fn mt186_block_scoped_filters_do_not_leak_non_block_hits() {
     )
     .await;
     insert_user_manual_page(
-        &pg.db,
+        &manual.knowledge_store,
+        &manual.scope,
         "filter-leak-alpha",
         "FilterLeakAlpha UserManual page",
         "FilterLeakAlpha appears in manual content but cannot satisfy a Loom tag filter.",
+    )
+    .await;
+    insert_legacy_loom_user_manual_search_fixture(
+        &pg.db,
+        &ws,
+        "filter-leak-alpha",
+        "FilterLeakAlpha UserManual page",
     )
     .await;
 
@@ -1068,4 +1258,5 @@ async fn mt186_block_scoped_filters_do_not_leak_non_block_hits() {
         impossible_symbol.is_empty(),
         "source_kind=symbol cannot satisfy Loom tag filters"
     );
+    manual.cleanup().await;
 }

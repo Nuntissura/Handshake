@@ -4,6 +4,8 @@
 #[cfg(feature = "candle-runtime-engine")]
 #[path = "knowledge_pg_support.rs"]
 mod knowledge_pg_support;
+#[cfg(feature = "candle-runtime-engine")]
+mod process_ledger_surreal_support;
 
 use std::{
     collections::BTreeSet,
@@ -205,11 +207,13 @@ mod mt013_real_candle_ledger {
         process_ledger::{
             acquire_embedded_runtime_instance_lease, drain_and_join_ledger_writer,
             resolve_embedded_runtime_host_scope_with_override, LedgerBatcher, LedgerBatcherConfig,
-            NoopOverflowSink, PostgresProcessLedgerStore,
+            NoopOverflowSink,
         },
         storage::artifacts::{bundle_index_content_hash, bundle_index_json, BundleIndexEntry},
     };
     use sha2::{Digest, Sha256};
+
+    use crate::process_ledger_surreal_support::ProcessLedgerSurrealHarness;
 
     const MT013_REAL_CANDLE_MODEL_DIR_ENV: &str = "HANDSHAKE_TEST_CANDLE_MODEL_DIR";
     const MT013_REAL_CANDLE_PROOF_NONCE_ENV: &str = "HANDSHAKE_MT013_REAL_CANDLE_PROOF_NONCE";
@@ -328,7 +332,11 @@ mod mt013_real_candle_ledger {
         let registry_pool = sqlx::PgPool::connect(&pg.schema_url)
             .await
             .expect("connect real Candle proof to isolated migrated PostgreSQL schema");
-        let registry_store = ModelRegistryStore::new(registry_pool.clone());
+        let process_ledger = ProcessLedgerSurrealHarness::open().await;
+        let registry_store = ModelRegistryStore::new_scoped(
+            registry_pool.clone(),
+            process_ledger.model_resource_scope(),
+        );
         let explicit_scope = format!("mt013-real-candle-{}", uuid::Uuid::now_v7());
         let runtime_host_scope = resolve_embedded_runtime_host_scope_with_override(
             &pg.schema_url,
@@ -340,7 +348,7 @@ mod mt013_real_candle_ledger {
                 .expect("acquire real Candle runtime instance lease");
         let runtime_instance = runtime_instance_lease.descriptor().clone();
         let (ledger, ledger_writer) = LedgerBatcher::spawn(
-            Arc::new(PostgresProcessLedgerStore::new(registry_pool.clone())),
+            process_ledger.store(),
             Arc::new(NoopOverflowSink),
             LedgerBatcherConfig::default(),
         );
@@ -423,98 +431,89 @@ mod mt013_real_candle_ledger {
                 drain_outcome,
                 handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
             ),
-            "real PostgreSQL lifecycle writer must drain: {drain_outcome:?}"
+            "real embedded-Surreal lifecycle writer must drain: {drain_outcome:?}"
         );
 
-        let lifecycle: (
-            uuid::Uuid,
-            Option<i64>,
-            String,
-            chrono::DateTime<chrono::Utc>,
-            Option<chrono::DateTime<chrono::Utc>>,
-            Option<i32>,
-            Option<String>,
-            Option<String>,
-            serde_json::Value,
-            String,
-        ) = sqlx::query_as(
-            r#"
-            SELECT process_uuid, os_pid, engine_kind, started_at, stopped_at,
-                   exit_code, stop_reason, model_artifact_sha256, metadata_jsonb,
-                   owner_role
-            FROM kernel_process_lifecycle
-            WHERE process_uuid = $1
-            "#,
-        )
-        .bind(uuid::Uuid::parse_str(&profile_model_id).expect("profile model id is UUIDv7"))
-        .fetch_one(&registry_pool)
-        .await
-        .expect("read durable real Candle START/STOP lifecycle row");
-        assert_eq!(lifecycle.0.to_string(), profile_model_id);
-        assert_eq!(lifecycle.1, None, "in-process runtime remains pid-less");
-        assert_eq!(lifecycle.2, "candle");
-        assert!(lifecycle.4.is_some(), "durable STOP timestamp is required");
-        assert_eq!(lifecycle.5, Some(0));
-        assert_eq!(lifecycle.6.as_deref(), Some("llm-client-shutdown"));
-        assert_eq!(lifecycle.7.as_deref(), Some(sha_hex.as_str()));
-        assert_eq!(lifecycle.9, EMBEDDED_MODEL_OWNER_ROLE);
+        let lifecycle = process_ledger
+            .lifecycle(
+                uuid::Uuid::parse_str(&profile_model_id).expect("profile model id is UUIDv7"),
+            )
+            .await
+            .expect("read exact-scope durable real Candle START/STOP lifecycle row");
+        assert_eq!(lifecycle.process_uuid.to_string(), profile_model_id);
         assert_eq!(
-            lifecycle.8["source"].as_str(),
+            lifecycle.os_pid, None,
+            "in-process runtime remains pid-less"
+        );
+        assert_eq!(lifecycle.engine_kind, "candle");
+        assert!(
+            lifecycle.stopped_at.is_some(),
+            "durable STOP timestamp is required"
+        );
+        assert_eq!(lifecycle.exit_code, Some(0));
+        assert_eq!(
+            lifecycle.stop_reason.as_deref(),
+            Some("llm-client-shutdown")
+        );
+        assert_eq!(
+            lifecycle.model_artifact_sha256.as_deref(),
+            Some(sha_hex.as_str())
+        );
+        assert_eq!(lifecycle.owner_role, EMBEDDED_MODEL_OWNER_ROLE);
+        assert_eq!(
+            lifecycle.metadata["source"].as_str(),
             Some("wp1_mt013_embedded_model_load")
         );
         assert_eq!(
-            lifecycle.8["model_id"].as_str(),
+            lifecycle.metadata["model_id"].as_str(),
             Some(profile_model_id.as_str())
         );
         assert_eq!(
-            lifecycle.8["display_name"].as_str(),
+            lifecycle.metadata["display_name"].as_str(),
             Some("mt013-real-candle-default")
         );
         assert_eq!(
-            lifecycle.8["os_pid_absent_reason"].as_str(),
+            lifecycle.metadata["os_pid_absent_reason"].as_str(),
             Some("in_process_library_load_no_os_process")
         );
         assert_eq!(
-            lifecycle.8["runtime_instance_schema_id"].as_str(),
+            lifecycle.metadata["runtime_instance_schema_id"].as_str(),
             Some("hsk.embedded_runtime.instance@2")
         );
         assert_eq!(
-            lifecycle.8["runtime_instance_id"],
+            lifecycle.metadata["runtime_instance_id"],
             serde_json::json!(runtime_instance.instance_id.to_string())
         );
         assert_eq!(
-            lifecycle.8["runtime_host_scope_id"].as_str(),
+            lifecycle.metadata["runtime_host_scope_id"].as_str(),
             Some(runtime_instance.host_scope_id.as_str())
         );
         assert_eq!(
-            lifecycle.8["runtime_lease_protocol"].as_str(),
+            lifecycle.metadata["runtime_lease_protocol"].as_str(),
             Some(runtime_instance.lease_protocol.as_str())
         );
         assert_eq!(
-            lifecycle.8["runtime_lease_address"],
+            lifecycle.metadata["runtime_lease_address"],
             serde_json::json!(runtime_instance.loopback_address.to_string())
         );
         assert_eq!(
-            lifecycle.8["runtime_lease_port"].as_u64(),
+            lifecycle.metadata["runtime_lease_port"].as_u64(),
             Some(u64::from(runtime_instance.loopback_port))
         );
-        let lifecycle_counts: (i64, i64) = sqlx::query_as(
-            r#"
-            SELECT COUNT(*), COUNT(*) FILTER (WHERE stopped_at IS NULL)
-            FROM kernel_process_lifecycle
-            WHERE model_artifact_sha256 = $1
-            "#,
-        )
-        .bind(&sha_hex)
-        .fetch_one(&registry_pool)
-        .await
-        .expect("count real Candle lifecycle rows");
+        let artifact_lifecycles = process_ledger.lifecycles_for_artifact(&sha_hex).await;
+        let lifecycle_counts = (
+            artifact_lifecycles.len(),
+            artifact_lifecycles
+                .iter()
+                .filter(|row| row.stopped_at.is_none())
+                .count(),
+        );
         assert_eq!(
             lifecycle_counts,
             (1, 0),
             "real Candle boot must leave exactly one closed lifecycle and no duplicate/open row"
         );
-        let integrity = &lifecycle.8["artifact_integrity_receipt"];
+        let integrity = &lifecycle.metadata["artifact_integrity_receipt"];
         assert_eq!(
             integrity["schema_id"].as_str(),
             Some("handshake.model_artifact_integrity.candle.v1")
@@ -563,16 +562,16 @@ mod mt013_real_candle_ledger {
                 "live_model_id": profile_model_id,
             },
             "process_ledger": {
-                "process_uuid": lifecycle.0,
-                "os_pid": lifecycle.1,
-                "engine_kind": lifecycle.2,
-                "started_at": lifecycle.3,
-                "stopped_at": lifecycle.4,
-                "exit_code": lifecycle.5,
-                "stop_reason": lifecycle.6,
-                "model_artifact_sha256": lifecycle.7,
-                "metadata_jsonb": lifecycle.8,
-                "owner_role": lifecycle.9,
+                "process_uuid": lifecycle.process_uuid,
+                "os_pid": lifecycle.os_pid,
+                "engine_kind": lifecycle.engine_kind,
+                "started_at": lifecycle.started_at,
+                "stopped_at": lifecycle.stopped_at,
+                "exit_code": lifecycle.exit_code,
+                "stop_reason": lifecycle.stop_reason,
+                "model_artifact_sha256": lifecycle.model_artifact_sha256,
+                "metadata_jsonb": lifecycle.metadata,
+                "owner_role": lifecycle.owner_role,
             },
         });
         drop(client);
@@ -629,6 +628,7 @@ mod mt013_real_candle_ledger {
                 .expect("serialize registry + ledger dump")
         );
         eprintln!("[MT-013_REAL_CANDLE_LEDGER_PROOF] {}", proof_path.display());
+        process_ledger.close().await;
     }
 
     pub async fn run_real_candle_embedding_failure_rollback_proof() {
@@ -673,7 +673,9 @@ mod mt013_real_candle_ledger {
         let pool = sqlx::PgPool::connect(&pg.schema_url)
             .await
             .expect("connect partial-boot rollback proof schema");
-        let registry_store = ModelRegistryStore::new(pool.clone());
+        let process_ledger = ProcessLedgerSurrealHarness::open().await;
+        let registry_store =
+            ModelRegistryStore::new_scoped(pool.clone(), process_ledger.model_resource_scope());
         let explicit_scope = format!("mt013-partial-boot-{}", uuid::Uuid::now_v7());
         let runtime_host_scope = resolve_embedded_runtime_host_scope_with_override(
             &pg.schema_url,
@@ -685,7 +687,7 @@ mod mt013_real_candle_ledger {
                 .expect("acquire partial-boot runtime instance lease");
         let runtime_instance = runtime_instance_lease.descriptor().clone();
         let (ledger, ledger_writer) = LedgerBatcher::spawn(
-            Arc::new(PostgresProcessLedgerStore::new(pool.clone())),
+            process_ledger.store(),
             Arc::new(NoopOverflowSink),
             LedgerBatcherConfig::default(),
         );
@@ -719,45 +721,31 @@ mod mt013_real_candle_ledger {
             drain_outcome,
             handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
         ));
-        let primary_row: (
-            uuid::Uuid,
-            Option<chrono::DateTime<chrono::Utc>>,
-            Option<String>,
-        ) = sqlx::query_as(
-            r#"
-                SELECT process_uuid, stopped_at, stop_reason
-                FROM kernel_process_lifecycle
-                WHERE model_artifact_sha256 = $1
-                "#,
-        )
-        .bind(&primary_sha_hex)
-        .fetch_one(&pool)
-        .await
-        .expect("real primary load has durable rollback START/STOP");
-        assert!(primary_row.1.is_some());
+        let mut primary_rows = process_ledger
+            .lifecycles_for_artifact(&primary_sha_hex)
+            .await;
+        assert_eq!(primary_rows.len(), 1);
+        let primary_row = primary_rows
+            .pop()
+            .expect("real primary load has exact-scope durable rollback START/STOP");
+        assert!(primary_row.stopped_at.is_some());
         assert_eq!(
-            primary_row.2.as_deref(),
+            primary_row.stop_reason.as_deref(),
             Some("embedding-load-failed-primary-rollback")
         );
-        let primary_counts: (i64, i64) = sqlx::query_as(
-            r#"
-            SELECT COUNT(*), COUNT(*) FILTER (WHERE stopped_at IS NULL)
-            FROM kernel_process_lifecycle
-            WHERE model_artifact_sha256 = $1
-            "#,
-        )
-        .bind(&primary_sha_hex)
-        .fetch_one(&pool)
-        .await
-        .expect("count primary rollback lifecycle rows");
-        assert_eq!(primary_counts, (1, 0));
-        let embedding_rows: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_process_lifecycle WHERE model_artifact_sha256 = $1",
-        )
-        .bind(&embedding_sha_hex)
-        .fetch_one(&pool)
-        .await
-        .expect("count never-loaded embedding lifecycle rows");
+        assert_eq!(
+            process_ledger
+                .lifecycles_for_artifact(&primary_sha_hex)
+                .await
+                .iter()
+                .filter(|row| row.stopped_at.is_none())
+                .count(),
+            0
+        );
+        let embedding_rows = process_ledger
+            .lifecycles_for_artifact(&embedding_sha_hex)
+            .await
+            .len();
         assert_eq!(
             embedding_rows, 0,
             "never-loaded embedding gets no fake START"
@@ -782,9 +770,9 @@ mod mt013_real_candle_ledger {
             "[MT-013_REAL_CANDLE_PARTIAL_ROLLBACK_DUMP] {}",
             serde_json::to_string_pretty(&serde_json::json!({
                 "primary_artifact_sha256": primary_sha_hex,
-                "primary_process_uuid": primary_row.0,
-                "primary_stopped_at": primary_row.1,
-                "primary_stop_reason": primary_row.2,
+                "primary_process_uuid": primary_row.process_uuid,
+                "primary_stopped_at": primary_row.stopped_at,
+                "primary_stop_reason": primary_row.stop_reason,
                 "embedding_artifact_sha256": embedding_sha_hex,
                 "embedding_lifecycle_rows": embedding_rows,
                 "registry_rows": registry_rows,
@@ -797,6 +785,7 @@ mod mt013_real_candle_ledger {
             .release()
             .await
             .expect("release partial-boot runtime instance lease");
+        process_ledger.close().await;
     }
 
     pub async fn run_real_candle_registry_rollback_proof() {
@@ -841,8 +830,12 @@ mod mt013_real_candle_ledger {
             .await
             .expect("hold real PostgreSQL precommit fault gate");
         assert!(gate_acquired, "unique precommit fault gate must be free");
-        let registry_store = ModelRegistryStore::new(registry_pool.clone())
-            .with_precommit_advisory_gate_for_tests(gate_key);
+        let process_ledger = ProcessLedgerSurrealHarness::open().await;
+        let registry_store = ModelRegistryStore::new_scoped(
+            registry_pool.clone(),
+            process_ledger.model_resource_scope(),
+        )
+        .with_precommit_advisory_gate_for_tests(gate_key);
         let explicit_scope = format!("mt014-rollback-proof-{}", uuid::Uuid::now_v7());
         let runtime_host_scope = resolve_embedded_runtime_host_scope_with_override(
             &pg.schema_url,
@@ -854,7 +847,7 @@ mod mt013_real_candle_ledger {
                 .expect("acquire rollback-proof runtime instance lease");
         let runtime_instance = runtime_instance_lease.descriptor().clone();
         let (ledger, ledger_writer) = LedgerBatcher::spawn(
-            Arc::new(PostgresProcessLedgerStore::new(registry_pool.clone())),
+            process_ledger.store(),
             Arc::new(NoopOverflowSink),
             LedgerBatcherConfig::default(),
         );
@@ -905,38 +898,25 @@ mod mt013_real_candle_ledger {
             drain_outcome,
             handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
         ));
-        let rollback_lifecycle: (
-            uuid::Uuid,
-            Option<chrono::DateTime<chrono::Utc>>,
-            Option<String>,
-        ) = sqlx::query_as(
-            r#"
-                SELECT process_uuid, stopped_at, stop_reason
-                FROM kernel_process_lifecycle
-                WHERE model_artifact_sha256 = $1
-                "#,
-        )
-        .bind(&sha_hex)
-        .fetch_one(&registry_pool)
-        .await
-        .expect("read durable rollback START/STOP row");
-        assert!(rollback_lifecycle.1.is_some());
+        let mut rollback_lifecycles = process_ledger.lifecycles_for_artifact(&sha_hex).await;
+        assert_eq!(rollback_lifecycles.len(), 1);
+        let rollback_lifecycle = rollback_lifecycles
+            .pop()
+            .expect("read exact-scope durable rollback START/STOP row");
+        assert!(rollback_lifecycle.stopped_at.is_some());
         assert_eq!(
-            rollback_lifecycle.2.as_deref(),
+            rollback_lifecycle.stop_reason.as_deref(),
             Some("persistent-registry-commit-failed")
         );
-        let rollback_counts: (i64, i64) = sqlx::query_as(
-            r#"
-            SELECT COUNT(*), COUNT(*) FILTER (WHERE stopped_at IS NULL)
-            FROM kernel_process_lifecycle
-            WHERE model_artifact_sha256 = $1
-            "#,
-        )
-        .bind(&sha_hex)
-        .fetch_one(&registry_pool)
-        .await
-        .expect("count registry rollback lifecycle rows");
-        assert_eq!(rollback_counts, (1, 0));
+        assert_eq!(
+            process_ledger
+                .lifecycles_for_artifact(&sha_hex)
+                .await
+                .iter()
+                .filter(|row| row.stopped_at.is_none())
+                .count(),
+            0
+        );
 
         let registry_rows: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM model_runtime_registry WHERE artifact_sha256 = $1",
@@ -967,9 +947,9 @@ mod mt013_real_candle_ledger {
                 "registry_rows": registry_rows,
                 "selection_events": selection_events,
                 "process_ledger": {
-                    "process_uuid": rollback_lifecycle.0,
-                    "stopped_at": rollback_lifecycle.1,
-                    "stop_reason": rollback_lifecycle.2,
+                    "process_uuid": rollback_lifecycle.process_uuid,
+                    "stopped_at": rollback_lifecycle.stopped_at,
+                    "stop_reason": rollback_lifecycle.stop_reason,
                 },
             }))
             .expect("serialize real Candle rollback dump")
@@ -979,6 +959,7 @@ mod mt013_real_candle_ledger {
             .release()
             .await
             .expect("release rollback-proof runtime instance lease");
+        process_ledger.close().await;
     }
 
     fn required_real_candle_model_dir() -> PathBuf {

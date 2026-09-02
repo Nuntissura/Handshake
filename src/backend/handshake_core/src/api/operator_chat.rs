@@ -17,7 +17,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -26,6 +25,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
+use uuid::Uuid;
 
 use crate::api::account_scope::RequestAccountScope;
 use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError};
@@ -36,10 +36,12 @@ use crate::model_runtime::cloud::{
     ProviderAccessStatus,
 };
 use crate::storage::ModelSessionState;
+use crate::swarm_orchestration::model_lane::{ModelLaneStore, NewModelLaneSelectionAudit};
 use crate::swarm_orchestration::operator_chat::{
-    OperatorChatCloudRow, OperatorChatError, OperatorChatLaunchRequest, OperatorChatLaunchService,
-    OperatorChatModelInventory, OperatorChatModelRow, OperatorChatRoutingAuthorityRequest,
-    OperatorChatRoutingCancelRequest, OperatorChatRoutingLifecycleRequest, OperatorChatSessionRow,
+    OperatorChatCloudRow, OperatorChatError, OperatorChatLaneKind, OperatorChatLaunchRequest,
+    OperatorChatLaunchService, OperatorChatModelInventory, OperatorChatModelRow,
+    OperatorChatRoutingAuthorityRequest, OperatorChatRoutingCancelRequest,
+    OperatorChatRoutingLifecycleRequest, OperatorChatSessionRow,
     OperatorChatSingleRunCloudLaunchRequest, OperatorChatSingleRunCloudRevokeRequest,
     OperatorChatSubagentRow,
 };
@@ -128,6 +130,9 @@ impl OperatorChatState {
 /// Selection-decision audit request (spec 4.3.9.4.4). Distinct from launch.
 #[derive(Debug, Deserialize)]
 pub struct SelectionDecisionRequest {
+    /// Canonical ModelLaneRun whose Locus owns this selection decision. The
+    /// server resolves all remaining Locus fields from SurrealDB.
+    pub run_id: String,
     pub selected_model_id: String,
     #[serde(default)]
     pub lane_kind: Option<String>,
@@ -200,7 +205,7 @@ pub fn routes(state: OperatorChatState) -> Router {
 /// missing server authority and mismatches fail before handler side effects.
 pub fn scoped_routes(state: OperatorChatState) -> Router {
     Router::new()
-        .route("/operator-chat/models", get(enumerate_models))
+        .route("/operator-chat/models", get(scoped_enumerate_models))
         .route("/operator-chat/selection", post(scoped_record_selection))
         .route("/operator-chat/launch", post(scoped_launch_session))
         .route(
@@ -240,48 +245,62 @@ pub fn scoped_routes(state: OperatorChatState) -> Router {
 
 async fn scoped_get_swarm_max_concurrent(
     state: State<OperatorChatState>,
-    _scope: RequestAccountScope,
+    scope: RequestAccountScope,
 ) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
     get_swarm_max_concurrent(state).await
 }
 
 async fn scoped_set_swarm_max_concurrent(
     state: State<OperatorChatState>,
-    _scope: RequestAccountScope,
+    scope: RequestAccountScope,
     body: Json<SetMaxConcurrentBody>,
 ) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
     set_swarm_max_concurrent(state, body).await
+}
+
+async fn scoped_enumerate_models(
+    state: State<OperatorChatState>,
+    scope: RequestAccountScope,
+) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
+    Ok(enumerate_models(state).await)
 }
 
 async fn scoped_execute_routing_lifecycle(
     state: State<OperatorChatState>,
-    _scope: RequestAccountScope,
+    scope: RequestAccountScope,
     request: Json<OperatorChatRoutingLifecycleRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
     execute_routing_lifecycle(state, request).await
 }
 
 async fn scoped_recover_routing_lifecycle(
     state: State<OperatorChatState>,
-    _scope: RequestAccountScope,
+    scope: RequestAccountScope,
     request: Json<OperatorChatRoutingLifecycleRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
     recover_routing_lifecycle(state, request).await
 }
 
 async fn scoped_complete_routing_authority(
     state: State<OperatorChatState>,
-    _scope: RequestAccountScope,
+    scope: RequestAccountScope,
     request: Json<OperatorChatRoutingAuthorityRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
     complete_routing_authority(state, request).await
 }
 
 async fn scoped_cancel_routing_lifecycle(
     state: State<OperatorChatState>,
-    _scope: RequestAccountScope,
+    scope: RequestAccountScope,
     request: Json<OperatorChatRoutingCancelRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
     cancel_routing_lifecycle(state, request).await
 }
 
@@ -290,57 +309,63 @@ async fn scoped_record_selection(
     scope: RequestAccountScope,
     Json(request): Json<SelectionDecisionRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let context = selection_context(&request);
-    let scoped_recorder = ExactSelectionRecorder {
-        inner: state.recorder.as_ref(),
-        scope: scope.exact(),
-    };
-    state
-        .catalog
-        .record_selection_decision_with_context(
-            &scoped_recorder,
-            &request.selected_model_id,
-            &request.actor,
-            &request.reason,
-            context,
+    require_operator_chat_exact_scope(&state, scope.exact())?;
+    let selection_context = selection_context(&request);
+    let store = operator_chat_store(&state)?;
+    let replay = store.replay_run(&request.run_id).await.map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "selection_audit_failed"})),
         )
+    })?;
+    let run = replay.run;
+    let work_packet_id = run.work_packet_id.ok_or_else(|| {
+        (
+            StatusCode::CONFLICT,
+            Json(json!({"error": "selection_locus_incomplete"})),
+        )
+    })?;
+    let micro_task_id = run.micro_task_id.ok_or_else(|| {
+        (
+            StatusCode::CONFLICT,
+            Json(json!({"error": "selection_locus_incomplete"})),
+        )
+    })?;
+    let task_board_id = run.task_board_id.ok_or_else(|| {
+        (
+            StatusCode::CONFLICT,
+            Json(json!({"error": "selection_locus_incomplete"})),
+        )
+    })?;
+    let audit_id = format!("selection-audit-{}", Uuid::now_v7());
+    let audit = store
+        .record_selection_audit_atomic(NewModelLaneSelectionAudit {
+            audit_id: audit_id.clone(),
+            run_id: run.run_id,
+            selected_model_id: request.selected_model_id.clone(),
+            actor_ref: format!("principal://{}", scope.exact().actor_principal_id),
+            reason: request.reason,
+            selection_context,
+            event_ledger_stream_id: run.event_ledger_stream_id,
+            work_packet_id,
+            micro_task_id,
+            task_board_id,
+            owner_session: run.owner_session,
+            idempotency_key: format!("operator-chat:{audit_id}"),
+            created_at_utc: chrono::Utc::now().to_rfc3339(),
+        })
         .await
-        .map_err(|error| {
+        .map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "selection_audit_failed", "detail": error.to_string()})),
+                Json(json!({"error": "selection_audit_failed"})),
             )
         })?;
     Ok(Json(json!({
         "status": "recorded",
         "selected_model_id": request.selected_model_id,
+        "event_ledger_event_id": audit.event_ledger_event_id,
     })))
-}
-
-struct ExactSelectionRecorder<'a> {
-    inner: &'a dyn FlightRecorder,
-    scope: &'a ExactResourceScopeAttribution,
-}
-
-#[async_trait]
-impl FlightRecorder for ExactSelectionRecorder<'_> {
-    async fn record_event(&self, mut event: FlightRecorderEvent) -> Result<(), RecorderError> {
-        self.scope
-            .stamp_json_object(&mut event.payload)
-            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
-        self.inner.record_event(event).await
-    }
-
-    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
-        self.inner.enforce_retention().await
-    }
-
-    async fn list_events(
-        &self,
-        filter: EventFilter,
-    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
-        self.inner.list_events(filter).await
-    }
 }
 
 async fn scoped_launch_session(
@@ -348,6 +373,7 @@ async fn scoped_launch_session(
     scope: RequestAccountScope,
     request: Json<OperatorChatLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
     launch_session_for_scope(state, request, Some(scope.exact())).await
 }
 
@@ -356,6 +382,7 @@ async fn scoped_launch_single_run_cloud_consent(
     scope: RequestAccountScope,
     request: Json<OperatorChatSingleRunCloudLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
     let service = routing_service(&state)?;
     let launched = service
         .launch_single_run_cloud_consent_scoped(request.0, scope.exact())
@@ -371,6 +398,7 @@ async fn scoped_revoke_single_run_cloud_consent(
     scope: RequestAccountScope,
     request: Json<OperatorChatSingleRunCloudRevokeRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
     let service = routing_service(&state)?;
     let cancelled = service
         .revoke_single_run_cloud_consent_scoped(
@@ -389,10 +417,53 @@ async fn scoped_revoke_single_run_cloud_consent(
 
 async fn scoped_fetch_transcript(
     state: State<OperatorChatState>,
-    _scope: RequestAccountScope,
+    scope: RequestAccountScope,
     run_id: Path<String>,
 ) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
     fetch_transcript(state, run_id).await
+}
+
+fn require_operator_chat_exact_scope(
+    state: &OperatorChatState,
+    request_scope: &ExactResourceScopeAttribution,
+) -> Result<(), ApiError> {
+    let service = state.launch_service.as_ref().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "operator_chat_authority_unavailable"})),
+        )
+    })?;
+    let store = service.coordinator().model_lane_store().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "resource_scope_authority_unavailable"})),
+        )
+    })?;
+    store
+        .access()
+        .authorize_exact_request(request_scope)
+        .map_err(|denied| {
+            (
+                StatusCode::FORBIDDEN,
+                Json(json!({
+                    "error": "resource_access_denied",
+                    "code": denied.reason_code(),
+                })),
+            )
+        })
+}
+
+fn operator_chat_store(state: &OperatorChatState) -> Result<ModelLaneStore, ApiError> {
+    routing_service(state)?
+        .coordinator()
+        .model_lane_store()
+        .ok_or_else(|| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": "resource_scope_authority_unavailable"})),
+            )
+        })
 }
 
 /// Body for `PUT /operator-chat/swarm/max-concurrent`.
@@ -637,6 +708,80 @@ async fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInve
     }
 }
 
+fn validate_launch_request_against_inventory(
+    request: &OperatorChatLaunchRequest,
+    inventory: &OperatorChatModelInventory,
+) -> Result<(), &'static str> {
+    match request.lane_kind {
+        OperatorChatLaneKind::Local => {
+            if request.cloud_provider.is_some() || request.cli_provider.is_some() {
+                return Err("provider_config_mismatch");
+            }
+            inventory
+                .local
+                .iter()
+                .any(|row| row.model_id == request.model_id && row.ready)
+                .then_some(())
+                .ok_or("local_model_not_ready")
+        }
+        OperatorChatLaneKind::Cloud => {
+            if request.cli_provider.is_some() {
+                return Err("provider_config_mismatch");
+            }
+            let provider = request
+                .cloud_provider
+                .as_deref()
+                .ok_or("cloud_provider_required")?;
+            if !matches!(provider, "anthropic" | "openai") {
+                return Err("cloud_provider_unknown");
+            }
+            inventory
+                .cloud_byok
+                .iter()
+                .any(|row| {
+                    row.provider == provider
+                        && row.model_id == request.model_id
+                        && row.status == "configured"
+                })
+                .then_some(())
+                .ok_or("byok_provider_unavailable")
+        }
+        OperatorChatLaneKind::Cli => {
+            if request.cloud_provider.is_some() {
+                return Err("provider_config_mismatch");
+            }
+            let provider = request
+                .cli_provider
+                .as_deref()
+                .ok_or("cli_provider_required")?;
+            if !matches!(provider, "claude_code" | "codex") {
+                return Err("cli_provider_unknown");
+            }
+            inventory
+                .cloud_cli_bridge
+                .iter()
+                .any(|row| {
+                    row.provider == provider
+                        && row.model_id == request.model_id
+                        && row.status == "logged_in"
+                })
+                .then_some(())
+                .ok_or("cli_provider_unavailable")
+        }
+        OperatorChatLaneKind::Subagent => {
+            if request.cloud_provider.is_some() || request.cli_provider.is_some() {
+                return Err("provider_config_mismatch");
+            }
+            inventory
+                .subagents
+                .iter()
+                .any(|row| row.model_id == request.model_id && row.status == "available")
+                .then_some(())
+                .ok_or("subagent_unavailable")
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedOperatorChatLineage {
     pub owner_session_id: String,
@@ -682,29 +827,16 @@ pub async fn resolve_operator_chat_lineage(
 
 /// POST the selection-decision audit event (wires MT-014 record_selection_decision).
 async fn record_selection(
-    State(state): State<OperatorChatState>,
-    Json(req): Json<SelectionDecisionRequest>,
+    State(_state): State<OperatorChatState>,
+    Json(_req): Json<SelectionDecisionRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    state
-        .catalog
-        .record_selection_decision_with_context(
-            state.recorder.as_ref(),
-            &req.selected_model_id,
-            &req.actor,
-            &req.reason,
-            selection_context(&req),
-        )
-        .await
-        .map_err(|err| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "selection_audit_failed", "detail": err.to_string()})),
-            )
-        })?;
-    Ok(Json(json!({
-        "status": "recorded",
-        "selected_model_id": req.selected_model_id,
-    })))
+    Err((
+        StatusCode::FORBIDDEN,
+        Json(json!({
+            "error": "resource_scope_unavailable",
+            "detail": "operator-chat selection audit requires the scoped product router"
+        })),
+    ))
 }
 
 fn selection_context(req: &SelectionDecisionRequest) -> Value {
@@ -756,6 +888,16 @@ async fn launch_session_for_scope(
             })),
         ));
     };
+    validate_launch_request_against_inventory(&request, &enumerate_inventory(&state).await)
+        .map_err(|code| {
+            (
+                StatusCode::CONFLICT,
+                Json(json!({
+                    "error": "model_selection_unavailable",
+                    "code": code,
+                })),
+            )
+        })?;
     let lineage = resolve_operator_chat_lineage(&state.session_registry, &request.owner_session_id)
         .await
         .map_err(|code| {
@@ -831,23 +973,23 @@ async fn fetch_transcript(
 
 fn launch_api_error(err: OperatorChatError) -> ApiError {
     match err {
-        OperatorChatError::Invalid(detail) => (
+        OperatorChatError::Invalid(_) => (
             StatusCode::BAD_REQUEST,
-            Json(json!({"error": "bad_request", "detail": detail})),
+            Json(json!({"error": "bad_request"})),
         ),
         // Fail-closed launches (absent ModelLaneStore / bypass) surface here as a
         // SwarmError::LedgerFailed — a hard 500, never a partial success.
-        OperatorChatError::Swarm(swarm) => (
+        OperatorChatError::Swarm(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "launch_failed_closed", "detail": swarm.to_string()})),
+            Json(json!({"error": "launch_failed_closed"})),
         ),
-        OperatorChatError::ModelLane(model_lane) => (
+        OperatorChatError::ModelLane(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "model_lane_error", "detail": model_lane.to_string()})),
+            Json(json!({"error": "model_lane_error"})),
         ),
-        OperatorChatError::Recorder(rec) => (
+        OperatorChatError::Recorder(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "recorder_error", "detail": rec.to_string()})),
+            Json(json!({"error": "recorder_error"})),
         ),
     }
 }
@@ -873,5 +1015,141 @@ impl FlightRecorder for NoopOperatorChatRecorder {
         _filter: EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
         Ok(Vec::new())
+    }
+}
+
+#[cfg(test)]
+mod client_safety_tests {
+    use super::*;
+
+    fn request(lane_kind: OperatorChatLaneKind, model_id: &str) -> OperatorChatLaunchRequest {
+        OperatorChatLaunchRequest {
+            lane_kind,
+            model_id: model_id.to_owned(),
+            cloud_provider: None,
+            cli_provider: None,
+            working_dir: "worktree".to_owned(),
+            worktree_id: None,
+            prompt: "prompt".to_owned(),
+            owner_session_id: "owner".to_owned(),
+            work_packet_id: None,
+            micro_task_id: None,
+        }
+    }
+
+    fn inventory() -> OperatorChatModelInventory {
+        OperatorChatModelInventory {
+            inventory_source: "operator_chat_backend",
+            sessions: Vec::new(),
+            local: vec![OperatorChatModelRow {
+                model_id: "local-ready".to_owned(),
+                display_name: "Local ready".to_owned(),
+                runtime_binding: "embedded".to_owned(),
+                ready: true,
+            }],
+            cloud_byok: vec![OperatorChatCloudRow {
+                provider: "anthropic".to_owned(),
+                model_id: "claude-sonnet-4".to_owned(),
+                label: "Anthropic API key".to_owned(),
+                status: "configured".to_owned(),
+            }],
+            cloud_cli_bridge: vec![OperatorChatCloudRow {
+                provider: "codex".to_owned(),
+                model_id: "gpt-5-codex".to_owned(),
+                label: "GPT/Codex subscription".to_owned(),
+                status: "logged_in".to_owned(),
+            }],
+            subagents: vec![OperatorChatSubagentRow {
+                role: "subagent_coder".to_owned(),
+                model_id: "subagent://operator-chat/coder".to_owned(),
+                label: "Subagent Manager / Coder".to_owned(),
+                status: "available".to_owned(),
+            }],
+            excluded: vec!["gemini".to_owned()],
+        }
+    }
+
+    #[test]
+    fn canonical_ready_rows_are_launchable() {
+        let inventory = inventory();
+        let local = request(OperatorChatLaneKind::Local, "local-ready");
+        assert_eq!(
+            validate_launch_request_against_inventory(&local, &inventory),
+            Ok(())
+        );
+
+        let mut cloud = request(OperatorChatLaneKind::Cloud, "claude-sonnet-4");
+        cloud.cloud_provider = Some("anthropic".to_owned());
+        assert_eq!(
+            validate_launch_request_against_inventory(&cloud, &inventory),
+            Ok(())
+        );
+
+        let mut cli = request(OperatorChatLaneKind::Cli, "gpt-5-codex");
+        cli.cli_provider = Some("codex".to_owned());
+        assert_eq!(
+            validate_launch_request_against_inventory(&cli, &inventory),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn provider_mismatch_and_unknown_provider_fail_closed() {
+        let inventory = inventory();
+        let mut mismatch = request(OperatorChatLaneKind::Local, "local-ready");
+        mismatch.cloud_provider = Some("anthropic".to_owned());
+        assert_eq!(
+            validate_launch_request_against_inventory(&mismatch, &inventory),
+            Err("provider_config_mismatch")
+        );
+
+        let mut unknown = request(OperatorChatLaneKind::Cloud, "claude-sonnet-4");
+        unknown.cloud_provider = Some("gemini".to_owned());
+        assert_eq!(
+            validate_launch_request_against_inventory(&unknown, &inventory),
+            Err("cloud_provider_unknown")
+        );
+    }
+
+    #[test]
+    fn unavailable_or_missing_inventory_rows_fail_closed() {
+        let mut inventory = inventory();
+        inventory.local[0].ready = false;
+        inventory.cloud_byok[0].status = "unavailable".to_owned();
+        inventory.subagents[0].status = "unavailable".to_owned();
+
+        assert_eq!(
+            validate_launch_request_against_inventory(
+                &request(OperatorChatLaneKind::Local, "local-ready"),
+                &inventory,
+            ),
+            Err("local_model_not_ready")
+        );
+        let mut cloud = request(OperatorChatLaneKind::Cloud, "claude-sonnet-4");
+        cloud.cloud_provider = Some("anthropic".to_owned());
+        assert_eq!(
+            validate_launch_request_against_inventory(&cloud, &inventory),
+            Err("byok_provider_unavailable")
+        );
+        assert_eq!(
+            validate_launch_request_against_inventory(
+                &request(
+                    OperatorChatLaneKind::Subagent,
+                    "subagent://operator-chat/coder",
+                ),
+                &inventory,
+            ),
+            Err("subagent_unavailable")
+        );
+    }
+
+    #[test]
+    fn launch_api_errors_do_not_echo_dynamic_provider_or_model_text() {
+        let canary = "canary-secret-error";
+        let (status, Json(body)) = launch_api_error(OperatorChatError::Invalid(canary.to_owned()));
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body, json!({"error": "bad_request"}));
+        assert!(!body.to_string().contains(canary));
     }
 }

@@ -227,7 +227,7 @@ fn operator_chat_rejects_model_selection_when_audit_persistence_fails() {
     harness.run();
 
     harness.get_by_label(
-        "Model selection was not accepted because its audit record failed: 500 selection_audit_failed: recorder unavailable. Retry the selection.",
+        "Model selection was not accepted because its audit record failed. Retry the selection.",
     );
     assert!(
         node_by_author(&harness, LAUNCH_AUTHOR_ID)

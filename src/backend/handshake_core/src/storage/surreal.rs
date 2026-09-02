@@ -18,26 +18,89 @@ use surrealdb::{
 use thiserror::Error;
 use tokio::sync::{watch, Mutex, RwLock};
 
-use super::{DefaultStorageGuard, StorageGuard};
+use super::{DefaultStorageGuard, StorageGuard, StorageResult};
 
 // Embedded SurrealDB is Handshake's product database. Typed product modules
-// are ported onto this lifecycle-safe seam incrementally; they must not add a
-// PostgreSQL or SQLite fallback while their owning work is being remediated.
+// share this lifecycle-safe authority and must not add a second database path.
+mod ai_job_store;
+mod ai_ready_store;
+mod block_view_store;
+mod blocks;
+mod bridge_store;
+mod calendar_store;
+mod canvas_store;
 mod cloud_model_lane;
+mod database;
+mod documents;
+pub(crate) mod event_ledger;
+mod governance_check_store;
+mod kernel_crdt_store;
+mod kernel_queue_store;
+mod knowledge;
+pub(crate) mod locus_store;
+mod loom_canvas_store;
+mod loom_search;
+pub(crate) mod loom_store;
+mod mcp_store;
+mod model_lane;
+mod model_registry;
+mod palmistry;
+mod process_ledger;
+mod promotion_store;
 mod schema;
+mod search_store;
+mod session_store;
+mod state_store;
+pub(crate) mod structured_collab_store;
+mod swarm_outbox;
 #[cfg(test)]
 mod substrate_smoke;
 #[cfg(feature = "surreal-test-support")]
 mod test_inspector;
+mod user_manual_knowledge;
+mod visual_debug_store;
+mod wiki_store;
+mod workflow_store;
+mod workspaces;
+mod workspace_settings;
+
+pub use database::SurrealDatabase;
+pub(crate) use knowledge::KnowledgeRichDocumentDeleteOutcome;
 
 pub(crate) use cloud_model_lane::{
     bootstrap_cloud_model_lane_schema, CloudModelLaneRecordKind, CloudModelLaneScope,
     CloudModelLaneStore, CloudModelLaneStoredRow,
 };
+pub(crate) use model_lane::{
+    bootstrap_model_lane_schema, ModelLaneRecordKind, ModelLaneScope, SurrealModelLaneCrdtGuard,
+    SurrealModelLaneCrdtLease, SurrealModelLaneCrdtLeaseHistory, SurrealModelLaneCrdtProposal,
+    SurrealModelLaneCrdtSnapshot, SurrealModelLaneCrdtUpdate, SurrealModelLaneMessageGuard,
+    SurrealModelLaneRecord, SurrealModelLaneRoutingAttemptRow, SurrealModelLaneRoutingAttemptWrite,
+    SurrealModelLaneRoutingClaim, SurrealModelLaneRoutingCommit, SurrealModelLaneRoutingEventWrite,
+    SurrealModelLaneRoutingExecutionRow, SurrealModelLaneRoutingExecutionWrite,
+    SurrealModelLaneRoutingOutboxRow, SurrealModelLaneRoutingOutboxWrite,
+    SurrealModelLaneSchemaRow, SurrealModelLaneStore, SurrealModelLaneWrite,
+};
+pub use loom_search::{
+    bootstrap_loom_search_schema, SurrealEmbeddingRegistration, SurrealLoomIndexMutation,
+    SurrealLoomSearchEvidence, SurrealLoomSearchStore,
+};
+pub use model_registry::{bootstrap_model_registry_schema, SurrealModelRegistryStore};
+pub use palmistry::{
+    bootstrap_palmistry_schema, SurrealPalmistryError, SurrealPalmistryStore,
+    SurrealPalmistryVerifier,
+};
+pub use process_ledger::{
+    ProcessOwnershipInspection, SurrealModelLaneStaleSessionSource, SurrealProcessLedgerStore,
+};
 pub use schema::{
     bootstrap_schema, SchemaBootstrapReport, EXPECTED_SCHEMA_INFO_SHA256,
     GENERATED_SURREALQL_SHA256, SCHEMA_REVISION, SCHEMA_VERSION, SOURCE_FORWARD_MIGRATION_COUNT,
     SOURCE_FORWARD_WAVE_MANIFEST_SHA256,
+};
+pub use swarm_outbox::{
+    bootstrap_swarm_outbox_schema, SurrealSwarmOutboxError, SurrealSwarmOutboxEvent,
+    SurrealSwarmOutboxStore,
 };
 #[cfg(feature = "surreal-test-support")]
 pub use test_inspector::{
@@ -45,6 +108,33 @@ pub use test_inspector::{
     RowFilter, ScalarValue, SchemaCatalogSnapshot, SurrealTestInspector, SurrealTestInspectorError,
     TableCatalog, TableSelector,
 };
+pub use user_manual_knowledge::{
+    bootstrap_user_manual_knowledge_schema, SurrealUserManualKnowledgeStore,
+    UserManualKnowledgeEntityMutation,
+};
+pub use workspace_settings::{
+    bootstrap_workspace_settings_schema, SurrealWorkspaceSettingsError,
+    SurrealWorkspaceSettingsState, SurrealWorkspaceSettingsStore, SurrealWorkspaceSettingsWrite,
+};
+
+/// Bootstrap every production schema against the one process-owned embedded
+/// store. Dedicated schemas are ordered after the shared substrate and after
+/// any authority they reference; consumers receive clones of this same handle.
+pub async fn bootstrap_production_schemas(
+    storage: &SurrealStorage,
+) -> Result<SchemaBootstrapReport, SurrealStorageError> {
+    let report = schema::bootstrap_schema(storage).await?;
+    model_registry::bootstrap_model_registry_schema(storage).await?;
+    loom_search::bootstrap_loom_search_schema(storage).await?;
+    model_lane::bootstrap_model_lane_schema(storage).await?;
+    cloud_model_lane::bootstrap_cloud_model_lane_schema(storage).await?;
+    process_ledger::bootstrap_process_ledger_schema(storage).await?;
+    palmistry::bootstrap_palmistry_schema(storage).await?;
+    swarm_outbox::bootstrap_swarm_outbox_schema(storage).await?;
+    user_manual_knowledge::bootstrap_user_manual_knowledge_schema(storage).await?;
+    workspace_settings::bootstrap_workspace_settings_schema(storage).await?;
+    Ok(report)
+}
 
 pub const HANDSHAKE_DATA_DIR_ENV: &str = "HANDSHAKE_DATA_DIR";
 pub const DEFAULT_NAMESPACE: &str = "handshake";
@@ -74,6 +164,10 @@ pub enum SurrealStorageError {
     MissingApplicationDataDirectory,
     #[error("embedded database data directory must not be empty")]
     EmptyDataDirectory,
+    #[error("embedded database namespace must be a non-empty ASCII identifier")]
+    InvalidNamespace,
+    #[error("embedded database name must be a non-empty ASCII identifier")]
+    InvalidDatabase,
     #[error("embedded database path {path} is incompatible with the SurrealDB 3.2 endpoint parser: {reason}")]
     IncompatibleEndpointPath { path: PathBuf, reason: &'static str },
     #[error(
@@ -85,6 +179,8 @@ pub enum SurrealStorageError {
         actual_namespace: String,
         actual_database: String,
     },
+    #[error("invalid model-lane authority record: {reason}")]
+    InvalidModelLaneRecord { reason: &'static str },
     #[error("shutdown cannot be called from inside an embedded database operation")]
     ReentrantShutdown,
     #[error("embedded database shutdown failed: {0}")]
@@ -131,6 +227,37 @@ impl SurrealStorageConfig {
             return Err(SurrealStorageError::EmptyDataDirectory);
         }
         Self::for_store_path(data_dir.join(DEFAULT_STORE_DIRECTORY))
+    }
+
+    /// Configures one explicit embedded store and its exact SurrealDB scope.
+    ///
+    /// Relative paths are resolved from the caller's current project/runtime
+    /// root; no drive letter or machine-local root is embedded in the config.
+    pub fn for_scoped_store(
+        store_path: impl AsRef<Path>,
+        namespace: impl Into<String>,
+        database: impl Into<String>,
+    ) -> Result<Self, SurrealStorageError> {
+        let store_path = store_path.as_ref();
+        if store_path.as_os_str().is_empty() {
+            return Err(SurrealStorageError::EmptyDataDirectory);
+        }
+        let path = absolute_path(store_path.to_path_buf())?;
+        validate_supported_storage_path(&path)?;
+        let namespace = namespace.into();
+        let database = database.into();
+        if !is_scope_identifier(&namespace) {
+            return Err(SurrealStorageError::InvalidNamespace);
+        }
+        if !is_scope_identifier(&database) {
+            return Err(SurrealStorageError::InvalidDatabase);
+        }
+        Ok(Self {
+            path,
+            namespace,
+            database,
+            shutdown_wait: DEFAULT_SHUTDOWN_WAIT,
+        })
     }
 
     #[cfg(test)]
@@ -186,6 +313,8 @@ pub struct SurrealStorage {
 
 pub type SurrealOperation<'a, T> =
     Pin<Box<dyn Future<Output = Result<T, SurrealStorageError>> + Send + 'a>>;
+pub(crate) type SurrealStorageOperation<'a, T> =
+    Pin<Box<dyn Future<Output = StorageResult<T>> + Send + 'a>>;
 
 tokio::task_local! {
     static INSIDE_SURREAL_OPERATION: ();
@@ -203,6 +332,19 @@ pub struct SurrealDataContext<'a> {
 }
 
 impl SurrealDataContext<'_> {
+    pub(crate) async fn create_one<R, D>(
+        &self,
+        table: &str,
+        id: &str,
+        content: D,
+    ) -> Result<Option<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        D: surrealdb::types::SurrealValue,
+    {
+        Ok(self.client.create((table, id)).content(content).await?)
+    }
+
     pub(crate) async fn upsert_one<R, D>(
         &self,
         table: &str,
@@ -521,6 +663,25 @@ impl SurrealStorage {
             .await
     }
 
+    /// Runs one typed domain operation under this store's lifecycle lease.
+    /// The outer result reports lifecycle failure; the inner result preserves
+    /// the domain's provider-independent storage error.
+    pub(crate) async fn with_storage_operation<T, F>(
+        &self,
+        operation: F,
+    ) -> Result<StorageResult<T>, SurrealStorageError>
+    where
+        T: Send,
+        F: for<'a> FnOnce(SurrealDataContext<'a>) -> SurrealStorageOperation<'a, T>
+            + Send
+            + 'static,
+    {
+        self.with_data_operation(move |database| {
+            Box::pin(async move { Ok(operation(database).await) })
+        })
+        .await
+    }
+
     async fn with_admin_operation<T, F>(&self, operation: F) -> Result<T, SurrealStorageError>
     where
         T: Send,
@@ -717,6 +878,12 @@ fn absolute_path(path: PathBuf) -> Result<PathBuf, SurrealStorageError> {
     env::current_dir()
         .map(|current| current.join(&path))
         .map_err(|source| SurrealStorageError::Io { path, source })
+}
+
+fn is_scope_identifier(value: &str) -> bool {
+    let mut bytes = value.bytes();
+    matches!(bytes.next(), Some(b'a'..=b'z' | b'A'..=b'Z' | b'_'))
+        && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
 }
 
 fn validate_supported_storage_path(path: &Path) -> Result<(), SurrealStorageError> {

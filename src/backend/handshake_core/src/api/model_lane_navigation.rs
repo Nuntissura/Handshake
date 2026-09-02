@@ -40,7 +40,7 @@ pub struct DiagnosticNavigationQuery {
 /// Build a store from the server-owned exact scope, retaining all five durable
 /// attribution dimensions through SQL and post-decode authorization.
 fn store(state: &AppState, scope: &RequestAccountScope) -> ModelLaneStore {
-    ModelLaneStore::new_scoped(state.postgres_pool.clone(), scope.resource_scope())
+    ModelLaneStore::new_scoped(state.surreal_storage.clone(), scope.resource_scope())
 }
 
 type ApiError = (StatusCode, Json<Value>);

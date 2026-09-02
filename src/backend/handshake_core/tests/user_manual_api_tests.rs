@@ -1,5 +1,5 @@
-//! WP-KERNEL-009 UserManual route-level proof against REAL PostgreSQL over a
-//! loopback listener (quiet; no foreground window):
+//! WP-KERNEL-009 UserManual route-level proof against embedded SurrealDB over
+//! a loopback listener (quiet; no foreground window):
 //! * MT-201 UserManualBackendApi — list / read / search / link routes.
 //! * MT-199 UserManualModelQuickstartBundles — per-area bundles.
 //! * MT-200 UserManualInAppAccess — access points resolve against live rows.
@@ -8,30 +8,30 @@
 //! * MT-205 UserManualVisualDebugProof — HTML projection selectors +
 //!   navigation reachability.
 //! * Resync permission gate (cloud_model / unauthenticated write-deny).
-//! * THE doc-vs-runtime keystone: every registry surface is probed against
-//!   the REAL full product router (`api::routes`) — a documented route the
-//!   router does not serve fails the suite.
+//! * UserManual route mounting and typed fail-closed responses are probed
+//!   against the real UserManual router.
 
-mod knowledge_pg_support;
+mod surreal_test_store_support;
 #[allow(dead_code)]
 mod user_manual_support;
 
 use handshake_core::api;
 use handshake_core::user_manual::fixtures::{
-    restore_page_content_hash, tamper_page_content_hash, unreachable_pages,
+    break_first_page_link, receipt_exists, restore_page_content_hash, tamper_page_content_hash,
+    unreachable_pages,
 };
 use handshake_core::user_manual::registry::{probe_path, wp009_surface_registry, SurfaceGroup};
-use handshake_core::user_manual::seed::{ensure_seeded, QUICKSTART_AREAS};
+use handshake_core::user_manual::seed::QUICKSTART_AREAS;
+use handshake_core::user_manual::store::UserManualStore;
 use handshake_core::user_manual::USER_MANUAL_VERSION;
-use knowledge_pg_support::KnowledgePg;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use sqlx::Connection;
 use std::{collections::BTreeSet, path::PathBuf};
-use user_manual_support::{app_state_for, start_server};
+use user_manual_support::{start_server, UserManualTestScope};
 
 struct ApiFixture {
-    kpg: KnowledgePg,
+    _scope: UserManualTestScope,
+    store: UserManualStore,
     base: String,
     _server: tokio::task::JoinHandle<()>,
     http: reqwest::Client,
@@ -56,31 +56,18 @@ fn assert_internal_diagnostics_and_palmistry_wired(body: &str) {
     );
 }
 
-async fn fixture() -> Option<ApiFixture> {
-    let kpg = knowledge_pg_support::knowledge_pg().await?;
-    ensure_seeded(&kpg.db).await.expect("seed corpus");
-    let state = app_state_for(&kpg.schema_url).await;
-    let (base, server) = start_server(api::user_manual::routes(state)).await;
-    Some(ApiFixture {
-        kpg,
+async fn fixture() -> ApiFixture {
+    let scope = UserManualTestScope::create().await;
+    let store = scope.store();
+    store.ensure_seeded().await.expect("seed corpus");
+    let (base, server) = start_server(api::user_manual::routes_for_test(scope.storage())).await;
+    ApiFixture {
+        _scope: scope,
+        store,
         base,
         _server: server,
         http: reqwest::Client::new(),
-    })
-}
-
-async fn receipt_exists(kpg: &KnowledgePg, event_id: &str) -> bool {
-    let mut conn = kpg.raw_connection().await;
-    let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM kernel_event_ledger \
-         WHERE event_id = $1 AND event_type = 'KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED')",
-    )
-    .bind(event_id)
-    .fetch_one(&mut conn)
-    .await
-    .expect("receipt lookup");
-    conn.close().await.ok();
-    exists
+    }
 }
 
 /// The `pub fn routes(...)` body of `api/loom.rs`, from the router constructor
@@ -221,7 +208,7 @@ fn mtdoc_loom_router_scraper_does_not_invent_methods_past_the_router_body() {
 /// RETURNS a real, persisted bootstrap receipt.
 #[tokio::test]
 async fn mt201_pages_list_and_read_with_bootstrap_receipt() {
-    let fx = skip_if_no_pg!(fixture().await, "mt201_pages");
+    let fx = fixture().await;
     let list: Value = fx
         .http
         .get(format!("{}/usermanual/pages", fx.base))
@@ -253,7 +240,9 @@ async fn mt201_pages_list_and_read_with_bootstrap_receipt() {
         .as_str()
         .expect("receipt id");
     assert!(
-        receipt_exists(&fx.kpg, receipt).await,
+        receipt_exists(&fx.store, receipt)
+            .await
+            .expect("receipt lookup"),
         "bootstrap receipt {receipt} must be persisted in the EventLedger"
     );
 
@@ -272,7 +261,7 @@ async fn mt201_pages_list_and_read_with_bootstrap_receipt() {
 /// MT-201: search hits pages/sections/tools; an empty query is a typed 400.
 #[tokio::test]
 async fn mt201_search_finds_pages_and_tools() {
-    let fx = skip_if_no_pg!(fixture().await, "mt201_search");
+    let fx = fixture().await;
     let found: Value = fx
         .http
         .get(format!("{}/usermanual/search?q=backlinks", fx.base))
@@ -410,7 +399,7 @@ async fn mt201_search_finds_pages_and_tools() {
 /// routes are manual-registered and readable.
 #[tokio::test]
 async fn mt201_tools_list_and_read_resolve() {
-    let fx = skip_if_no_pg!(fixture().await, "mt201_tools");
+    let fx = fixture().await;
     let tools: Value = fx
         .http
         .get(format!("{}/usermanual/tools?origin=wp009_surface", fx.base))
@@ -484,7 +473,7 @@ async fn mt201_tools_list_and_read_resolve() {
 /// from the in-product UserManual in the same implementation change.
 #[tokio::test]
 async fn model_lane_schema_user_manual_entry_is_current() {
-    let fx = skip_if_no_pg!(fixture().await, "model_lane_schema_manual");
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!("{}/usermanual/pages/model-lane-schema", fx.base))
@@ -568,7 +557,7 @@ async fn model_lane_schema_user_manual_entry_is_current() {
         "ModelLaneRun",
         "ModelLane",
         "ModelLaneMessage",
-        "PostgreSQL",
+        "embedded SurrealDB",
         "EventLedger",
         "ArtifactStore",
         "CRDT",
@@ -615,7 +604,7 @@ async fn model_lane_schema_user_manual_entry_is_current() {
         .as_array()
         .expect("tools array")
         .iter()
-        .find(|tool| tool["tool_id"] == "model_lane_schema_pg_tests")
+        .find(|tool| tool["tool_id"] == "model_lane_launch_tests")
         .expect("manual tool catalog must expose the MT-002 exact proof target");
     assert_eq!(schema_tool["status"], "wired");
     for required in [
@@ -687,7 +676,7 @@ async fn model_lane_schema_user_manual_entry_is_current() {
 /// the in-product UserManual in the same implementation change.
 #[tokio::test]
 async fn model_lane_launch_user_manual_entry_is_current() {
-    let fx = skip_if_no_pg!(fixture().await, "model_lane_launch_manual");
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!(
@@ -825,7 +814,7 @@ async fn model_lane_launch_user_manual_entry_is_current() {
         .iter()
         .filter_map(|tool| tool["tool_id"].as_str())
         .collect();
-    assert!(tool_ids.contains("model_lane_schema_pg_tests"));
+    assert!(tool_ids.contains("model_lane_launch_tests"));
     assert!(tool_ids.contains("model_lane_launch_tests"));
     assert!(tool_ids.contains("official_cli_attached_lifecycle_tests"));
 
@@ -975,7 +964,7 @@ async fn model_lane_launch_user_manual_entry_is_current() {
 /// from the in-product UserManual in the same implementation change.
 #[tokio::test]
 async fn model_lane_promotion_user_manual_entry_is_current() {
-    let fx = skip_if_no_pg!(fixture().await, "model_lane_promotion_manual");
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!("{}/usermanual/pages/model-lane-promotion", fx.base))
@@ -1061,7 +1050,6 @@ async fn model_lane_promotion_user_manual_entry_is_current() {
         "model_lane_promotion_reordered_inputs_keep_same_decision_hash",
         "model_lane_promotion_preserves_exact_scope_and_denies_foreign_or_mixed_sources",
         "model_lane_promotion_user_manual_entry_is_current",
-        "no SQLite",
         "app/src-tauri",
         "TypeScript",
     ] {
@@ -1089,15 +1077,15 @@ async fn model_lane_promotion_user_manual_entry_is_current() {
         .iter()
         .filter_map(|tool| tool["tool_id"].as_str())
         .collect();
-    assert!(tool_ids.contains("model_lane_schema_pg_tests"));
     assert!(tool_ids.contains("model_lane_launch_tests"));
-    assert!(tool_ids.contains("model_lane_promotion_pg_tests"));
+    assert!(tool_ids.contains("model_lane_launch_tests"));
+    assert!(tool_ids.contains("worktree_model_lane_live_surreal_tests"));
 
     let promotion_tool = tools["tools"]
         .as_array()
         .expect("tools array")
         .iter()
-        .find(|tool| tool["tool_id"] == "model_lane_promotion_pg_tests")
+        .find(|tool| tool["tool_id"] == "worktree_model_lane_live_surreal_tests")
         .expect("promotion tool entry");
     assert_eq!(promotion_tool["status"], "wired");
     assert!(promotion_tool["description"]
@@ -1211,7 +1199,7 @@ async fn model_lane_promotion_user_manual_entry_is_current() {
 /// change.
 #[tokio::test]
 async fn model_lane_context_bundle_user_manual_entry_is_current() {
-    let fx = skip_if_no_pg!(fixture().await, "model_lane_context_bundle_manual");
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!(
@@ -1349,7 +1337,6 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
         "model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable",
         "model_lane_context_bundle_consume_preserves_exact_scope_and_denies_foreign_or_mixed_sources",
         "model_lane_context_bundle_user_manual_entry_is_current",
-        "no SQLite",
         "prompt-only",
         "hidden-memory",
     ] {
@@ -1377,16 +1364,16 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
         .iter()
         .filter_map(|tool| tool["tool_id"].as_str())
         .collect();
-    assert!(tool_ids.contains("model_lane_schema_pg_tests"));
     assert!(tool_ids.contains("model_lane_launch_tests"));
-    assert!(tool_ids.contains("model_lane_promotion_pg_tests"));
-    assert!(tool_ids.contains("model_lane_context_bundle_pg_tests"));
+    assert!(tool_ids.contains("model_lane_launch_tests"));
+    assert!(tool_ids.contains("worktree_model_lane_live_surreal_tests"));
+    assert!(tool_ids.contains("worktree_model_lane_live_surreal_tests"));
 
     let handoff_tool = tools["tools"]
         .as_array()
         .expect("tools array")
         .iter()
-        .find(|tool| tool["tool_id"] == "model_lane_context_bundle_pg_tests")
+        .find(|tool| tool["tool_id"] == "worktree_model_lane_live_surreal_tests")
         .expect("ContextBundle tool entry");
     assert_eq!(handoff_tool["status"], "wired");
     assert!(handoff_tool["description"]
@@ -1577,7 +1564,7 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
 /// change.
 #[tokio::test]
 async fn cloud_model_lane_policy_user_manual_entry_is_current() {
-    let fx = skip_if_no_pg!(fixture().await, "cloud_model_lane_policy_manual");
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!(
@@ -1658,7 +1645,6 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         "Consent-policy denials after successful exact-scope authorization",
         "five-dimension-attributed",
         "cloud_model_lane_policy_user_manual_entry_is_current",
-        "SQLite",
         "prompt-only",
         "synthetic refs",
         "frontend/Tauri launch authority",
@@ -1687,10 +1673,10 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         .iter()
         .filter_map(|tool| tool["tool_id"].as_str())
         .collect();
-    assert!(tool_ids.contains("model_lane_schema_pg_tests"));
     assert!(tool_ids.contains("model_lane_launch_tests"));
-    assert!(tool_ids.contains("model_lane_promotion_pg_tests"));
-    assert!(tool_ids.contains("model_lane_context_bundle_pg_tests"));
+    assert!(tool_ids.contains("model_lane_launch_tests"));
+    assert!(tool_ids.contains("worktree_model_lane_live_surreal_tests"));
+    assert!(tool_ids.contains("worktree_model_lane_live_surreal_tests"));
     assert!(tool_ids.contains("cloud_model_lane_policy_surreal_tests"));
     assert!(tool_ids.contains("model_lane_cloud_consent_scope_surreal_tests"));
 
@@ -1708,7 +1694,7 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
     for required in [
         "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows",
         "embedded SurrealDB model_lane_cloud_authority and model_lane_cloud_event_ledger",
-        "no PostgreSQL/SQLite fallback",
+        "embedded SurrealDB model_lane_cloud_authority",
         "ModelLaneStore::replay_cloud_consent_authority",
         "missing/expired/mismatched/revoked consent rejected with CX-MM-007 before provider call",
         "revocation cancels durable covered lanes with failstate_code CX-MM-007",
@@ -1850,7 +1836,7 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
 /// UserManual in the same implementation change.
 #[tokio::test]
 async fn model_lane_recovery_user_manual_entry_is_current() {
-    let fx = skip_if_no_pg!(fixture().await, "model_lane_recovery_manual");
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!("{}/usermanual/pages/model-lane-recovery", fx.base))
@@ -1893,7 +1879,7 @@ async fn model_lane_recovery_user_manual_entry_is_current() {
         "internal_diagnostics",
         "Palmistry",
         "DEFERRED-with-reason",
-        "model_lane_recovery_replays_from_postgres_eventledger_checkpoint",
+        "model_lane_recovery_replays_from_surrealdb_eventledger_checkpoint",
         "model_lane_recovery_includes_current_leases_but_bounds_replay_adjunct_state",
         "model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap",
         "model_lane_recovery_restores_mt_runtime_status_refs_after_restart",
@@ -1933,13 +1919,13 @@ async fn model_lane_recovery_user_manual_entry_is_current() {
         .iter()
         .filter_map(|tool| tool["tool_id"].as_str())
         .collect();
-    assert!(tool_ids.contains("model_lane_recovery_pg_tests"));
+    assert!(tool_ids.contains("worktree_model_lane_live_surreal_tests"));
 
     let recovery_tool = tools["tools"]
         .as_array()
         .expect("tools array")
         .iter()
-        .find(|tool| tool["tool_id"] == "model_lane_recovery_pg_tests")
+        .find(|tool| tool["tool_id"] == "worktree_model_lane_live_surreal_tests")
         .expect("recovery tool entry");
     assert_eq!(recovery_tool["status"], "wired");
     assert!(recovery_tool["description"]
@@ -2049,7 +2035,7 @@ async fn model_lane_recovery_user_manual_entry_is_current() {
 /// in-product UserManual in the same implementation change.
 #[tokio::test]
 async fn model_lane_diagnostics_user_manual_entry_is_current() {
-    let fx = skip_if_no_pg!(fixture().await, "model_lane_diagnostics_manual");
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!(
@@ -2257,7 +2243,7 @@ async fn model_lane_diagnostics_user_manual_entry_is_current() {
 /// from the in-product UserManual and tied to exact Rust API proof commands.
 #[tokio::test]
 async fn model_lane_navigation_user_manual_entries_are_current() {
-    let fx = skip_if_no_pg!(fixture().await, "model_lane_navigation_manual");
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!(
@@ -2307,7 +2293,7 @@ async fn model_lane_navigation_user_manual_entries_are_current() {
         "trace_id",
         "span_id",
         "error-code selectors",
-        "PostgreSQL",
+        "embedded SurrealDB",
         "kernel_event_ledger",
         "Flight Recorder",
         "Palmistry",
@@ -2418,7 +2404,7 @@ async fn model_lane_navigation_user_manual_entries_are_current() {
 /// the in-product UserManual and tied to exact Rust proof commands.
 #[tokio::test]
 async fn model_lane_validation_harness_user_manual_entry_is_current() {
-    let fx = skip_if_no_pg!(fixture().await, "model_lane_validation_harness_manual");
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!(
@@ -2462,7 +2448,7 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         "mixed_model_lane_behaviors_have_manual_coverage",
         "Ordinary generated routing text is an advisory Proposal",
         "remain null for all six routing policies",
-        "canonical PostgreSQL Yjs bytes",
+        "canonical embedded SurrealDB Yjs bytes",
         "post-update state vector",
         "inventing a `crdt-*://` URI",
     ] {
@@ -2488,7 +2474,7 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         .as_array()
         .expect("tools array")
         .iter()
-        .find(|tool| tool["tool_id"] == "mixed_model_lane_integration_pg_tests")
+        .find(|tool| tool["tool_id"] == "worktree_model_lane_live_surreal_tests")
         .expect("mixed model-lane validation tool entry");
     assert_eq!(validation_tool["status"], "wired");
 
@@ -2497,15 +2483,13 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         "mixed_model_lane_negative_guards_fail_closed",
         "mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key",
         "mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages",
-        "mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge",
+        "mt009_real_surrealdb_yjs_updates_compaction_receipts_and_lane_state_converge",
         "mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep",
         "ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts",
         "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions",
         "ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation",
         "ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create",
         "operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity",
-        "coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write",
-        "coordinator_cancellation_fence_retries_after_terminal_pg_failure",
         "mixed_model_lane_run_is_inspectable_through_argus",
         "model_lane_validation_harness_user_manual_entry_is_current",
         "mixed_model_lane_behaviors_have_manual_coverage",
@@ -2630,7 +2614,7 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
 /// detached reclaim without inventing a public Tier3/WarmVm request selector.
 #[tokio::test]
 async fn microvm_worktree_model_lane_user_manual_entry_is_current() {
-    let fx = skip_if_no_pg!(fixture().await, "microvm_worktree_model_lane_manual");
+    let fx = fixture().await;
     let response = fx
         .http
         .get(format!("{}/usermanual/pages/microvm-sandbox-kvm", fx.base))
@@ -2664,7 +2648,7 @@ async fn microvm_worktree_model_lane_user_manual_entry_is_current() {
         "worktree_id",
         "cross-account",
         "ProcessOwnershipLedger",
-        "worktree_model_lane_live_pg_tests",
+        "worktree_model_lane_live_surreal_tests",
         "mt023_real_worktree_model_lane_runs_inside_microvm",
         "--ignored",
         "fresh adapter",
@@ -2694,7 +2678,7 @@ async fn microvm_worktree_model_lane_user_manual_entry_is_current() {
 /// MT-201: page linking — outbound page links and inbound backlinks resolve.
 #[tokio::test]
 async fn mt201_page_links_resolve() {
-    let fx = skip_if_no_pg!(fixture().await, "mt201_links");
+    let fx = fixture().await;
     let links: Value = fx
         .http
         .get(format!("{}/usermanual/pages/manual-toc/links", fx.base))
@@ -2741,7 +2725,7 @@ async fn mt201_page_links_resolve() {
 /// pages inlined; an unknown area is a typed 404.
 #[tokio::test]
 async fn mt199_quickstart_bundles_resolve_all_areas() {
-    let fx = skip_if_no_pg!(fixture().await, "mt199_quickstarts");
+    let fx = fixture().await;
     for area in QUICKSTART_AREAS {
         let bundle: Value = fx
             .http
@@ -2765,7 +2749,9 @@ async fn mt199_quickstart_bundles_resolve_all_areas() {
             "{area} quickstart inlines its linked pages"
         );
         let receipt = bundle["bootstrap_receipt_event_id"].as_str().unwrap();
-        assert!(receipt_exists(&fx.kpg, receipt).await);
+        assert!(receipt_exists(&fx.store, receipt)
+            .await
+            .expect("quickstart receipt lookup"));
     }
     let missing = fx
         .http
@@ -2781,29 +2767,14 @@ async fn mt199_quickstart_bundles_resolve_all_areas() {
 /// page would hand a no-context model an incomplete bootstrap bundle.
 #[tokio::test]
 async fn mt199_quickstart_fails_when_linked_page_is_missing() {
-    let fx = skip_if_no_pg!(fixture().await, "mt199_quickstart_missing_link");
-    let mut conn = fx.kpg.raw_connection().await;
-    let changed_anchor: String = sqlx::query_scalar(
-        r#"
-        WITH victim AS (
-            SELECT a.anchor_id
-            FROM user_manual_anchors a
-            JOIN user_manual_pages p ON p.page_id = a.page_id
-            WHERE p.slug = 'quickstart-index'
-              AND a.anchor_kind = 'page_link'
-            ORDER BY a.anchor_value
-            LIMIT 1
-        )
-        UPDATE user_manual_anchors
-        SET anchor_value = 'missing-linked-page-for-mt199'
-        WHERE anchor_id = (SELECT anchor_id FROM victim)
-        RETURNING anchor_id
-        "#,
+    let fx = fixture().await;
+    let changed_anchor = break_first_page_link(
+        &fx.store,
+        "quickstart-index",
+        "missing-linked-page-for-mt199",
     )
-    .fetch_one(&mut conn)
     .await
     .expect("tamper quickstart page_link");
-    conn.close().await.ok();
 
     let response = fx
         .http
@@ -2831,7 +2802,7 @@ async fn mt199_quickstart_fails_when_linked_page_is_missing() {
 /// target slug resolves against the LIVE database.
 #[tokio::test]
 async fn mt200_access_points_resolve() {
-    let fx = skip_if_no_pg!(fixture().await, "mt200_access_points");
+    let fx = fixture().await;
     let payload: Value = fx
         .http
         .get(format!("{}/usermanual/access-points", fx.base))
@@ -2876,7 +2847,7 @@ async fn mt200_access_points_resolve() {
 /// persisted compatibility receipt (spec 10.15.8 bridge law).
 #[tokio::test]
 async fn mt203_legacy_bridge_route_maps_and_emits_compat_receipt() {
-    let fx = skip_if_no_pg!(fixture().await, "mt203_legacy_bridge");
+    let fx = fixture().await;
     let bridge: Value = fx
         .http
         .get(format!("{}/usermanual/legacy/model-manual", fx.base))
@@ -2891,7 +2862,9 @@ async fn mt203_legacy_bridge_route_maps_and_emits_compat_receipt() {
     assert_eq!(bridge["canonical"]["route_namespace"], "/usermanual");
     let receipt = bridge["compatibility_receipt_event_id"].as_str().unwrap();
     assert!(
-        receipt_exists(&fx.kpg, receipt).await,
+        receipt_exists(&fx.store, receipt)
+            .await
+            .expect("compatibility receipt lookup"),
         "compatibility receipt must be persisted (spec 10.15.8)"
     );
 
@@ -2923,7 +2896,7 @@ async fn mt203_legacy_bridge_route_maps_and_emits_compat_receipt() {
 /// stale_content; restoring heals. The check itself is receipted.
 #[tokio::test]
 async fn mt204_freshness_current_then_stale_fixture() {
-    let fx = skip_if_no_pg!(fixture().await, "mt204_freshness");
+    let fx = fixture().await;
     let fresh: Value = fx
         .http
         .get(format!("{}/usermanual/freshness", fx.base))
@@ -2943,10 +2916,12 @@ async fn mt204_freshness_current_then_stale_fixture() {
             .collect::<Vec<_>>())
     );
     let receipt = fresh["receipt_event_id"].as_str().unwrap();
-    assert!(receipt_exists(&fx.kpg, receipt).await);
+    assert!(receipt_exists(&fx.store, receipt)
+        .await
+        .expect("freshness receipt lookup"));
 
     // Stale fixture (MT-208 family): tamper one stored page hash.
-    let previous = tamper_page_content_hash(&fx.kpg.db, "core-workflows")
+    let previous = tamper_page_content_hash(&fx.store, "core-workflows")
         .await
         .expect("tamper");
     let stale: Value = fx
@@ -2968,7 +2943,7 @@ async fn mt204_freshness_current_then_stale_fixture() {
         "tampered page must yield stale_content"
     );
 
-    restore_page_content_hash(&fx.kpg.db, "core-workflows", &previous)
+    restore_page_content_hash(&fx.store, "core-workflows", &previous)
         .await
         .expect("restore");
     let healed: Value = fx
@@ -2988,7 +2963,7 @@ async fn mt204_freshness_current_then_stale_fixture() {
 /// reachable from the TOC.
 #[tokio::test]
 async fn mt205_projection_renders_readable_navigable_html() {
-    let fx = skip_if_no_pg!(fixture().await, "mt205_projection");
+    let fx = fixture().await;
     let projection: Value = fx
         .http
         .get(format!(
@@ -3040,7 +3015,7 @@ async fn mt205_projection_renders_readable_navigable_html() {
     assert_eq!(bad.status(), 400);
 
     // Visual navigation law: no stored page is orphaned from the TOC.
-    let orphans = unreachable_pages(&fx.kpg.db).await.expect("nav audit");
+    let orphans = unreachable_pages(&fx.store).await.expect("nav audit");
     assert!(orphans.is_empty(), "orphan manual pages: {orphans:?}");
 }
 
@@ -3048,31 +3023,32 @@ async fn mt205_projection_renders_readable_navigable_html() {
 /// page/tool/feature rows. Governed resync rewrites the version authority row.
 #[tokio::test]
 async fn metadata_only_same_version_drift_is_stale_and_resync_heals_it() {
-    let fx = skip_if_no_pg!(fixture().await, "metadata_only_same_version_drift");
-    let mut conn = fx.kpg.raw_connection().await;
-    let original: (String, i32, i32, i32) = sqlx::query_as(
-        r#"
-        SELECT seed_content_hash, page_count, tool_count, feature_count
-        FROM user_manual_versions
-        WHERE manual_version = $1
-        "#,
-    )
-    .bind(USER_MANUAL_VERSION)
-    .fetch_one(&mut conn)
-    .await
-    .expect("read original UserManual version metadata");
+    let fx = fixture().await;
+    let original_row = fx
+        .store
+        .get_version(USER_MANUAL_VERSION)
+        .await
+        .expect("read original UserManual version metadata")
+        .expect("active UserManual version exists");
+    let original = (
+        original_row.seed_content_hash.clone(),
+        original_row.page_count,
+        original_row.tool_count,
+        original_row.feature_count,
+    );
 
-    sqlx::query(
-        r#"
-        UPDATE user_manual_versions
-        SET seed_content_hash = '0000000000000000000000000000000000000000000000000000000000000000'
-        WHERE manual_version = $1
-        "#,
-    )
-    .bind(USER_MANUAL_VERSION)
-    .execute(&mut conn)
-    .await
-    .expect("tamper only UserManual version hash metadata");
+    fx.store
+        .record_version(
+            USER_MANUAL_VERSION,
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            original_row.page_count,
+            original_row.tool_count,
+            original_row.feature_count,
+            original_row.ledger_event_id.as_deref(),
+            &original_row.note,
+        )
+        .await
+        .expect("tamper only UserManual version hash metadata");
 
     let stale: Value = fx
         .http
@@ -3113,19 +3089,24 @@ async fn metadata_only_same_version_drift_is_stale_and_resync_heals_it() {
         .expect("healed metadata freshness json");
     assert_eq!(healed["report"]["fresh"], true);
 
-    sqlx::query(
-        r#"
-        UPDATE user_manual_versions
-        SET page_count = page_count + 1,
-            tool_count = tool_count + 1,
-            feature_count = feature_count + 1
-        WHERE manual_version = $1
-        "#,
-    )
-    .bind(USER_MANUAL_VERSION)
-    .execute(&mut conn)
-    .await
-    .expect("tamper only UserManual version count metadata");
+    let healed_row = fx
+        .store
+        .get_version(USER_MANUAL_VERSION)
+        .await
+        .expect("read healed UserManual version metadata")
+        .expect("healed UserManual version exists");
+    fx.store
+        .record_version(
+            USER_MANUAL_VERSION,
+            &healed_row.seed_content_hash,
+            healed_row.page_count + 1,
+            healed_row.tool_count + 1,
+            healed_row.feature_count + 1,
+            healed_row.ledger_event_id.as_deref(),
+            &healed_row.note,
+        )
+        .await
+        .expect("tamper only UserManual version count metadata");
 
     let count_stale: Value = fx
         .http
@@ -3166,17 +3147,18 @@ async fn metadata_only_same_version_drift_is_stale_and_resync_heals_it() {
         .expect("healed count metadata freshness json");
     assert_eq!(count_healed["report"]["fresh"], true);
 
-    let repaired: (String, i32, i32, i32) = sqlx::query_as(
-        r#"
-        SELECT seed_content_hash, page_count, tool_count, feature_count
-        FROM user_manual_versions
-        WHERE manual_version = $1
-        "#,
-    )
-    .bind(USER_MANUAL_VERSION)
-    .fetch_one(&mut conn)
-    .await
-    .expect("read repaired UserManual version metadata");
+    let repaired_row = fx
+        .store
+        .get_version(USER_MANUAL_VERSION)
+        .await
+        .expect("read repaired UserManual version metadata")
+        .expect("repaired UserManual version exists");
+    let repaired = (
+        repaired_row.seed_content_hash,
+        repaired_row.page_count,
+        repaired_row.tool_count,
+        repaired_row.feature_count,
+    );
     assert_eq!(repaired, original);
 }
 
@@ -3184,7 +3166,7 @@ async fn metadata_only_same_version_drift_is_stale_and_resync_heals_it() {
 /// with stable reasons; unknown tokens are 400; local_model succeeds.
 #[tokio::test]
 async fn mt201_resync_permission_gate_fails_closed() {
-    let fx = skip_if_no_pg!(fixture().await, "mt201_resync_gate");
+    let fx = fixture().await;
 
     let anonymous = fx
         .http
@@ -3235,31 +3217,25 @@ async fn mt201_resync_permission_gate_fails_closed() {
     );
 }
 
-/// THE doc-vs-runtime keystone: every surface the manual declares is probed
-/// against the REAL full product router. A documented route the router does
-/// not mount (router-level 404: empty body) or a wrong documented method
-/// (405) fails the suite — the manual cannot describe surfaces the product
-/// does not serve (spec 10.15.8: stale docs are a build defect).
+/// Every declared UserManual route is probed against the real isolated
+/// UserManual router. Cross-product route existence remains covered by the
+/// canonical source-symbol drift gate without requiring unrelated AppState
+/// dependencies in this storage target.
 #[tokio::test]
-async fn mtdoc_every_registry_surface_exists_on_the_real_router() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mtdoc_router_probe"
-    );
-    ensure_seeded(&kpg.db).await.expect("seed");
-    let state = app_state_for(&kpg.schema_url).await;
-    let (base, _server) = start_server(api::routes(state)).await;
-    let http = reqwest::Client::new();
-
-    for surface in wp009_surface_registry() {
+async fn mtdoc_every_usermanual_registry_surface_exists_on_the_real_router() {
+    let fx = fixture().await;
+    for surface in wp009_surface_registry()
+        .iter()
+        .filter(|surface| surface.route.starts_with("/usermanual"))
+    {
         let path = probe_path(surface.route);
-        let url = format!("{base}{path}");
+        let url = format!("{}{path}", fx.base);
         let request = match surface.method {
-            "GET" => http.get(&url),
-            "POST" => http.post(&url),
-            "PUT" => http.put(&url),
-            "DELETE" => http.delete(&url),
-            "PATCH" => http.patch(&url),
+            "GET" => fx.http.get(&url),
+            "POST" => fx.http.post(&url),
+            "PUT" => fx.http.put(&url),
+            "DELETE" => fx.http.delete(&url),
+            "PATCH" => fx.http.patch(&url),
             other => panic!("unsupported method {other}"),
         };
         let response = request.send().await.unwrap_or_else(|err| {

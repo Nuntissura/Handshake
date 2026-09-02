@@ -33,13 +33,12 @@ use crate::flight_recorder::FlightRecorder;
 use crate::loom_search::LOOM_SEARCH_EMBEDDING_DIM;
 use crate::model_runtime::{
     candle::CandleRuntime, llama_cpp::LlamaCppRuntime, BaseModelTag, KvCachePolicy, LoadSpec,
-    ModelCapabilities, ModelCatalog, ModelId, ModelRegistration, ModelRegistry, ModelRegistryStore,
-    ModelRuntime, ModelRuntimeError, ModelRuntimeRole, ModelRuntimeSelection,
-    ModelRuntimeSelectionPurpose, OperatorId, ProviderKind as RuntimeProviderKind,
-    RoleBoundModelRegistration, RuntimeArtifactIntegrityReceipt, RuntimeBinding, SamplingParams,
+    ModelCapabilities, ModelCatalog, ModelId, ModelRegistration, ModelRegistry, ModelRuntime,
+    ModelRuntimeError, ModelRuntimeRole, ModelRuntimeSelection, ModelRuntimeSelectionPurpose,
+    OperatorId, ProviderKind as RuntimeProviderKind, RoleBoundModelRegistration,
+    RuntimeArtifactIntegrityReceipt, RuntimeBinding, SamplingParams, ScopedModelRegistryAuthority,
 };
 use crate::process_ledger::{EmbeddedRuntimeInstanceDescriptor, LedgerBatcher};
-use crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 
 use super::embedded_ledger::EmbeddedModelProcess;
 use super::guard::CloudEscalationGuard;
@@ -52,10 +51,9 @@ use super::{DisabledLlmClient, LlmClient, LlmError, ModelProfile, ModelTier};
 /// the same bound the removed Ollama default used, kept for parity.
 const DEFAULT_LOCAL_MAX_CONTEXT_TOKENS: u32 = 8192;
 const DEFAULT_OPENAI_COMPAT_MAX_CONTEXT_TOKENS: u32 = 8192;
-// The first durable START can include PostgreSQL authority discovery, ACL
-// verification, crash-durability checks, and a synchronous commit. Keep boot
-// fail-closed, but do not misclassify a healthy authoritative write as failed
-// under normal host/CI contention.
+// The first durable START includes embedded authority checks and atomic
+// EventLedger-linked persistence. Keep boot fail-closed without imposing an
+// unrealistically short deadline on durable local storage.
 const EMBEDDED_START_DURABILITY_TIMEOUT: Duration = Duration::from_secs(30);
 
 struct AttestedEmbeddedLoad {
@@ -74,7 +72,7 @@ pub trait DefaultLocalClientFactory: Send + Sync {
         resolved: &ResolvedProvider,
         flight_recorder: Arc<dyn FlightRecorder>,
         ledger: Option<LedgerBatcher>,
-        model_registry_store: Option<ModelRegistryStore>,
+        model_registry_authority: Option<ScopedModelRegistryAuthority>,
         runtime_instance: Option<EmbeddedRuntimeInstanceDescriptor>,
     ) -> Arc<dyn LlmClient>;
 }
@@ -89,14 +87,14 @@ impl DefaultLocalClientFactory for ProductionDefaultLocalClientFactory {
         resolved: &ResolvedProvider,
         flight_recorder: Arc<dyn FlightRecorder>,
         ledger: Option<LedgerBatcher>,
-        model_registry_store: Option<ModelRegistryStore>,
+        model_registry_authority: Option<ScopedModelRegistryAuthority>,
         runtime_instance: Option<EmbeddedRuntimeInstanceDescriptor>,
     ) -> Arc<dyn LlmClient> {
         build_default_local_client(
             resolved,
             flight_recorder,
             ledger,
-            model_registry_store,
+            model_registry_authority,
             runtime_instance,
         )
         .await
@@ -122,13 +120,13 @@ pub fn resolved_provider_requires_embedded_runtime(resolved: &ResolvedProvider) 
 pub async fn resolve_default_llm_client(
     flight_recorder: Arc<dyn FlightRecorder>,
     ledger: Option<LedgerBatcher>,
-    model_registry_store: Option<ModelRegistryStore>,
+    model_registry_authority: Option<ScopedModelRegistryAuthority>,
     runtime_instance: Option<EmbeddedRuntimeInstanceDescriptor>,
 ) -> Arc<dyn LlmClient> {
     resolve_default_llm_client_with_factory(
         flight_recorder,
         ledger,
-        model_registry_store,
+        model_registry_authority,
         runtime_instance,
         Arc::new(ProductionDefaultLocalClientFactory),
     )
@@ -141,7 +139,7 @@ pub async fn resolve_default_llm_client(
 pub async fn resolve_default_llm_client_with_factory(
     flight_recorder: Arc<dyn FlightRecorder>,
     ledger: Option<LedgerBatcher>,
-    model_registry_store: Option<ModelRegistryStore>,
+    model_registry_authority: Option<ScopedModelRegistryAuthority>,
     runtime_instance: Option<EmbeddedRuntimeInstanceDescriptor>,
     local_factory: Arc<dyn DefaultLocalClientFactory>,
 ) -> Arc<dyn LlmClient> {
@@ -188,7 +186,7 @@ pub async fn resolve_default_llm_client_with_factory(
                     &resolved,
                     Arc::clone(&flight_recorder),
                     ledger,
-                    model_registry_store,
+                    model_registry_authority,
                     runtime_instance,
                 )
                 .await
@@ -242,7 +240,7 @@ pub async fn build_default_local_client(
     resolved: &ResolvedProvider,
     flight_recorder: Arc<dyn FlightRecorder>,
     ledger: Option<LedgerBatcher>,
-    model_registry_store: Option<ModelRegistryStore>,
+    model_registry_authority: Option<ScopedModelRegistryAuthority>,
     runtime_instance: Option<EmbeddedRuntimeInstanceDescriptor>,
 ) -> Arc<dyn LlmClient> {
     let Some(local) = resolved.local_model.as_ref() else {
@@ -308,10 +306,10 @@ pub async fn build_default_local_client(
 
     // MT-014 durable-selection gate. Environment decoding above reads only
     // configuration strings and the operator-supplied expected hash; it does
-    // not open the artifact. Verify PostgreSQL authority and the complete
-    // primary-plus-embedding immutable selection set before either runtime is
-    // allowed to read model weights.
-    let Some(model_registry_store) = model_registry_store else {
+    // not open the artifact. Verify the exact-scope embedded authority and the
+    // complete primary-plus-embedding immutable selection set before either
+    // runtime is allowed to read model weights.
+    let Some(model_registry_authority) = model_registry_authority else {
         let reason = "HSK-LOCAL-DISABLED: persistent model registry authority was not supplied; refusing model artifact access".to_string();
         tracing::error!(
             target: "handshake_core::llm",
@@ -324,27 +322,7 @@ pub async fn build_default_local_client(
             flight_recorder,
         ));
     };
-    let embedded_resource_scope = match model_registry_store.access().write_scope() {
-        None => None,
-        Some(scope) => match ExactResourceScopeAttribution::try_from_resource_scope(scope) {
-            Ok(exact) => Some(exact),
-            Err(error) => {
-                let reason = format!(
-                    "HSK-LOCAL-DISABLED: persistent model registry resource scope is incomplete: {error}"
-                );
-                tracing::error!(
-                    target: "handshake_core::llm",
-                    error = %reason,
-                    "LLM disabled before embedded model load"
-                );
-                return Arc::new(DisabledLlmClient::new_recorded(
-                    resolved.model_id.clone(),
-                    reason,
-                    flight_recorder,
-                ));
-            }
-        },
-    };
+    let embedded_resource_scope = Some(model_registry_authority.scope().clone());
     let mut configured_selections = vec![ModelRuntimeSelection {
         artifact_sha256: local.sha256,
         runtime_binding: local.runtime_binding,
@@ -364,8 +342,12 @@ pub async fn build_default_local_client(
             provider: RuntimeProviderKind::Local,
         });
     }
-    if let Err(err) = model_registry_store
-        .recover_configured_runtime_binding_set(&configured_selections)
+    if let Err(err) = model_registry_authority
+        .store()
+        .recover_configured_runtime_binding_set(
+            model_registry_authority.scope(),
+            &configured_selections,
+        )
         .await
     {
         let reason = format!(
@@ -818,8 +800,12 @@ pub async fn build_default_local_client(
     // Keep both runtimes mutable until the last fallible authority transition is
     // complete. If persistence fails, concrete unload results gate each STOP;
     // no Arc client or READY model can escape this branch.
-    let committed_registrations = match model_registry_store
-        .persist_role_bound_boot_set_and_read_back(&durable_registrations)
+    let committed_registrations = match model_registry_authority
+        .store()
+        .persist_role_bound_boot_set_and_read_back(
+            model_registry_authority.scope(),
+            &durable_registrations,
+        )
         .await
     {
         Ok(committed) => committed,
@@ -864,8 +850,9 @@ pub async fn build_default_local_client(
             embedding.sha256,
         ));
     }
-    let active_defaults = match model_registry_store
-        .ensure_active_defaults(&active_candidates)
+    let active_defaults = match model_registry_authority
+        .store()
+        .ensure_active_defaults(model_registry_authority.scope(), &active_candidates)
         .await
     {
         Ok(active) => active,
@@ -888,7 +875,7 @@ pub async fn build_default_local_client(
             return Arc::new(DisabledLlmClient::new_recorded(
                 resolved.model_id.clone(),
                 format!(
-                    "HSK-LOCAL-DISABLED: PostgreSQL active ModelRuntime default recovery failed: {err}"
+                    "HSK-LOCAL-DISABLED: embedded SurrealDB active ModelRuntime default recovery failed: {err}"
                 ),
                 flight_recorder,
             ));
@@ -931,7 +918,7 @@ pub async fn build_default_local_client(
         }
         return Arc::new(DisabledLlmClient::new_recorded(
             resolved.model_id.clone(),
-            "HSK-LOCAL-DISABLED: PostgreSQL active ModelRuntime default does not resolve to a READY configured artifact"
+            "HSK-LOCAL-DISABLED: embedded SurrealDB active ModelRuntime default does not resolve to a READY configured artifact"
                 .to_owned(),
             flight_recorder,
         ));
@@ -959,7 +946,7 @@ pub async fn build_default_local_client(
     )
     .with_runtime_control_authority(ledger.clone(), runtime_instance.clone())
     .with_durable_application_selection(
-        model_registry_store.clone(),
+        model_registry_authority.clone(),
         active_application.selection_revision,
     );
     for embedded_process in embedded_processes {

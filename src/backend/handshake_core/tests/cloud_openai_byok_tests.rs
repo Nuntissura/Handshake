@@ -31,7 +31,7 @@ use handshake_core::flight_recorder::{
 use handshake_core::model_runtime::cloud::{
     ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudConsentContext, CloudInvocationAuditRow,
     CloudInvocationAuditSink, CloudLaneObservability, ConsentDecision, ConsentGate,
-    ConsentGateError, ConsentProvider, OpenAiByokError, OpenAiByokRuntime,
+    ConsentGateError, ConsentProvider, OpenAiByokError, OpenAiByokRuntime, TransientApiKey,
     OPENAI_CHAT_COMPLETIONS_PATH, OPENAI_EMBEDDINGS_PATH,
 };
 use handshake_core::model_runtime::{
@@ -46,8 +46,8 @@ struct StaticKey {
     key: String,
 }
 impl ApiKeyProvider for StaticKey {
-    fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
-        Ok(self.key.clone())
+    fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
+        Ok(TransientApiKey::from_secret(self.key.clone()))
     }
 }
 
@@ -275,7 +275,7 @@ async fn openai_byok_generate_streams_tokens_against_wiremock() {
 struct EchoingFailKey;
 
 impl ApiKeyProvider for EchoingFailKey {
-    fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
+    fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
         Err(OpenAiByokError::AuditPersist(API_KEY_FIXTURE.to_string()))
     }
 }

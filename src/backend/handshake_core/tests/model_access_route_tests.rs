@@ -8,7 +8,7 @@
 //!
 //! * an in-memory-vault-backed provider (a shared `InMemorySecretsVault`), so
 //!   the store/enumerate paths are exercised WITHOUT touching the host keychain
-//!   and WITHOUT building a full `AppState` (no PostgreSQL); and
+//!   and WITHOUT building a full `AppState` or any durable database; and
 //! * a provider that always reports the keychain as unavailable, so the
 //!   fail-closed 503 path is reachable deterministically.
 //!

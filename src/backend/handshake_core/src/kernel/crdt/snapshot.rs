@@ -207,7 +207,7 @@ pub fn new_crdt_snapshot_record(input: CrdtSnapshotRecordInputV1<'_>) -> CrdtSna
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
-        storage_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        storage_authority: CrdtStorageAuthorityPosture::EmbeddedSurrealDb,
     }
 }
 
@@ -253,16 +253,16 @@ pub fn validate_crdt_snapshot_record(
             message: "value must be a 64-character sha256 hex digest",
         });
     }
-    if !snapshot.snapshot_bytes_ref.starts_with("postgres://") {
+    if !snapshot.snapshot_bytes_ref.starts_with("surreal://") {
         errors.push(CrdtSnapshotRecordValidationError {
             field: "snapshot_bytes_ref",
-            message: "CRDT snapshot bytes must be referenced from Postgres storage",
+            message: "CRDT snapshot bytes must be referenced from embedded SurrealDB storage",
         });
     }
-    if snapshot.storage_authority != CrdtStorageAuthorityPosture::PostgresEventLedger {
+    if snapshot.storage_authority != CrdtStorageAuthorityPosture::EmbeddedSurrealDb {
         errors.push(CrdtSnapshotRecordValidationError {
             field: "storage_authority",
-            message: "CRDT snapshot authority must be Postgres plus EventLedger",
+            message: "CRDT snapshot authority must be embedded SurrealDB plus EventLedger",
         });
     }
     if snapshot

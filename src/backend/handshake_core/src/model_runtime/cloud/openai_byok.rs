@@ -28,9 +28,9 @@
 //!   un-approved OpenAI model cannot be invoked.
 //! - Every call writes a [`CloudInvocationAuditRow`] through the
 //!   [`CloudInvocationAuditSink`] trait (Started / Succeeded /
-//!   Failed / Cancelled). The concrete Postgres
-//!   `cloud_invocations` table wiring is the sink impl, not the
-//!   runtime.
+//!   Failed / Cancelled). Durable production sinks must append through the
+//!   embedded SurrealDB/EventLedger authority; this runtime remains
+//!   sink-agnostic and has no SQL compatibility path.
 //! - No [`crate::process_ledger`] row is written: BYOK invocations
 //!   do not spawn a Handshake-owned process, so there is no PID to
 //!   register (per MT-066 ExternalCompat semantics extended to
@@ -47,6 +47,7 @@ use async_trait::async_trait;
 use futures::{stream, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use zeroize::Zeroizing;
 
 use crate::flight_recorder::events_llm_infer::{
     infer_end_event, infer_start_event, infer_token_event, new_llm_infer_request_id,
@@ -116,13 +117,34 @@ fn redacted_provider_response_body(response: &reqwest::Response) -> String {
     diagnostic
 }
 
-/// Boundary trait for the operator-managed API key. The runtime
-/// holds an `Arc<dyn ApiKeyProvider>`; the secret string never
-/// surfaces in struct Debug / Display / FR event payloads. The
-/// production impl reads from `OperatorSecretsVault`; the test
-/// impl returns a literal string for mock-server verification.
+/// Opaque, zeroizing ownership for an operator-managed API key.
+///
+/// The inner allocation is never cloneable and Debug is always redacted.
+pub struct TransientApiKey(Zeroizing<String>);
+
+impl TransientApiKey {
+    /// Construct a transient key at an external secret-ingress boundary.
+    pub fn from_secret(secret: String) -> Self {
+        Self(Zeroizing::new(secret))
+    }
+
+    pub(crate) fn from_zeroizing(secret: Zeroizing<String>) -> Self {
+        Self(secret)
+    }
+
+    pub(crate) fn expose_secret(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl std::fmt::Debug for TransientApiKey {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("TransientApiKey([REDACTED])")
+    }
+}
+
 pub trait ApiKeyProvider: Send + Sync {
-    fn fetch_api_key(&self) -> Result<String, OpenAiByokError>;
+    fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError>;
 }
 
 /// Per-registered-model handle. Maps the Handshake `ModelId` (UUID
@@ -135,9 +157,9 @@ pub struct OpenAiModelHandle {
 }
 
 /// Audit row written for every cloud call per MT-125 red_team
-/// minimum_controls. The concrete Postgres `cloud_invocations`
-/// table wiring is the [`CloudInvocationAuditSink`] impl; the
-/// runtime is sink-agnostic.
+/// minimum_controls. Durable production wiring belongs behind
+/// [`CloudInvocationAuditSink`] and must use embedded SurrealDB/EventLedger;
+/// the runtime itself is sink-agnostic.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CloudInvocationAuditRow {
     pub model_id: ModelId,
@@ -602,10 +624,9 @@ impl OpenAiByokRuntime {
             .ok_or(OpenAiByokError::ModelNotRegistered(model_id))
     }
 
-    /// Convenience: fetch the secret from the provider. The key is
-    /// returned by value to the caller; ensure it is dropped quickly
-    /// and never logged.
-    pub fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
+    /// Fetch the secret into zeroizing ownership. The runtime never exposes a
+    /// plain owned key after this boundary.
+    pub fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
         self.api_key_provider
             .fetch_api_key()
             .map_err(|err| OpenAiByokError::ApiKeyFetch {
@@ -791,7 +812,7 @@ fn single_error_stream(err: ModelRuntimeError) -> TokenStream {
 fn async_token_stream(
     client: reqwest::Client,
     url: String,
-    api_key: String,
+    api_key: TransientApiKey,
     body_json: Vec<u8>,
     cancel_req: CancellationToken,
     cancel_runtime: CancellationToken,
@@ -910,7 +931,7 @@ impl Drop for OwnedCloudTokenStream {
 async fn run_live_stream(
     client: reqwest::Client,
     url: String,
-    api_key: String,
+    api_key: TransientApiKey,
     body_json: Vec<u8>,
     cancel_req: CancellationToken,
     cancel_runtime: CancellationToken,
@@ -953,13 +974,14 @@ async fn run_live_stream(
     }
 
     let connect_deadline = invocation_deadline.min(tokio::time::Instant::now() + timeouts.connect);
+    let request = client
+        .post(&url)
+        .bearer_auth(api_key.expose_secret())
+        .header("Content-Type", "application/json")
+        .body(body_json);
+    drop(api_key);
     let response = match await_provider_step(
-        client
-            .post(&url)
-            .bearer_auth(&api_key)
-            .header("Content-Type", "application/json")
-            .body(body_json)
-            .send(),
+        request.send(),
         &cancel_req,
         &cancel_runtime,
         &owner_cancel,
@@ -992,11 +1014,6 @@ async fn run_live_stream(
             return;
         }
     };
-
-    // Drop the api_key as soon as the request has been sent;
-    // it lives in the Authorization header on the wire, but the
-    // local memory copy is no longer needed.
-    drop(api_key);
 
     if !response.status().is_success() {
         let status = response.status().as_u16();
@@ -1376,13 +1393,15 @@ impl ModelRuntime for OpenAiByokRuntime {
             finished_at_utc: None,
             status: CloudCallStatus::Started,
         });
+        let request = self
+            .client
+            .post(&url)
+            .bearer_auth(api_key.expose_secret())
+            .header("Content-Type", "application/json")
+            .json(&body);
+        drop(api_key);
         let response = await_runtime_step(
-            self.client
-                .post(&url)
-                .bearer_auth(&api_key)
-                .header("Content-Type", "application/json")
-                .json(&body)
-                .send(),
+            request.send(),
             &self.runtime_cancel,
             invocation_deadline.min(tokio::time::Instant::now() + self.timeouts.connect),
         )
@@ -1407,7 +1426,6 @@ impl ModelRuntime for OpenAiByokRuntime {
                 "OpenAI BYOK transport failed; operation=score; code={code}"
             ))
         })?;
-        drop(api_key);
         if !response.status().is_success() {
             let status = response.status().as_u16();
             let body = redacted_provider_response_body(&response);
@@ -1520,13 +1538,15 @@ impl ModelRuntime for OpenAiByokRuntime {
             finished_at_utc: None,
             status: CloudCallStatus::Started,
         });
+        let request = self
+            .client
+            .post(&url)
+            .bearer_auth(api_key.expose_secret())
+            .header("Content-Type", "application/json")
+            .json(&body);
+        drop(api_key);
         let response = await_runtime_step(
-            self.client
-                .post(&url)
-                .bearer_auth(&api_key)
-                .header("Content-Type", "application/json")
-                .json(&body)
-                .send(),
+            request.send(),
             &self.runtime_cancel,
             invocation_deadline.min(tokio::time::Instant::now() + self.timeouts.connect),
         )
@@ -1551,7 +1571,6 @@ impl ModelRuntime for OpenAiByokRuntime {
                 "OpenAI BYOK transport failed; operation=embed; code={code}"
             ))
         })?;
-        drop(api_key);
         if !response.status().is_success() {
             let status = response.status().as_u16();
             let body = redacted_provider_response_body(&response);
@@ -1670,8 +1689,8 @@ mod tests {
         key: String,
     }
     impl ApiKeyProvider for StaticKeyProvider {
-        fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
-            Ok(self.key.clone())
+        fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
+            Ok(TransientApiKey::from_secret(self.key.clone()))
         }
     }
 
@@ -1778,7 +1797,8 @@ mod tests {
     fn fetch_api_key_returns_provider_value_and_does_not_log_it() {
         let runtime = fixture_runtime();
         let key = runtime.fetch_api_key().expect("fetch");
-        assert!(key.starts_with("sk-"));
+        assert!(key.expose_secret().starts_with("sk-"));
+        assert_eq!(format!("{key:?}"), "TransientApiKey([REDACTED])");
     }
 
     #[test]

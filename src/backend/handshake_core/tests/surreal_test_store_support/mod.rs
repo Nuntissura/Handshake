@@ -1,15 +1,21 @@
+use std::collections::BTreeSet;
 use std::fs::{self, File, OpenOptions};
+use std::future::Future;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use handshake_core::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
 use handshake_core::storage::{NewWorkspace, Workspace, WriteContext};
+use surrealdb::engine::local::{Db, RocksDb};
+use surrealdb::types::{SurrealValue, Value as SurrealValueData};
+use surrealdb::Surreal;
 use uuid::Uuid;
 
 pub const TEST_STORE_ROOT_ENV: &str = "HANDSHAKE_SURREAL_TEST_STORE_ROOT";
 pub const TEST_STORE_STALE_AGE_MS_ENV: &str = "HANDSHAKE_SURREAL_TEST_STORE_STALE_AGE_MS";
 pub const DEFAULT_STALE_AGE: Duration = Duration::ZERO;
+pub const DEFAULT_EMBEDDED_SCOPE_TIMEOUT: Duration = Duration::from_secs(10);
 
 const SCOPE_PREFIX: &str = "surreal-test-store-";
 const OWNER_MARKER_SUFFIX: &str = ".owner";
@@ -288,6 +294,684 @@ impl Drop for IsolatedSurrealTestStore {
             }
         }
     }
+}
+
+const EMBEDDED_NAMESPACE_PREFIX: &str = "hs_test_ns_";
+const EMBEDDED_DATABASE_PREFIX: &str = "hs_test_db_";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmbeddedSurrealCleanupDiagnostics {
+    pub namespace: String,
+    pub database: String,
+    pub store_path: PathBuf,
+    pub timeout: Duration,
+    pub database_absent: bool,
+    pub namespace_absent_after_reopen: bool,
+    pub elapsed: Duration,
+    pub error: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmbeddedSurrealCleanupAttempt {
+    pub namespace: String,
+    pub database: String,
+    pub succeeded: bool,
+    pub diagnostics: EmbeddedSurrealCleanupDiagnostics,
+}
+
+const FOREIGN_SURVIVAL_SENTINEL_TABLE: &str = "mt024_scope_sentinel";
+const FOREIGN_SURVIVAL_SENTINEL_ID: &str = "foreign_survival";
+const FOREIGN_SURVIVAL_SENTINEL_VALUE: &str = "survives-earlier-cleanup";
+
+#[derive(Clone, Debug, Eq, PartialEq, SurrealValue)]
+struct ForeignSurvivalSentinel {
+    value: String,
+}
+
+/// One exact, allocator-owned namespace/database in a private embedded store.
+///
+/// Cleanup authority comes only from generated identifiers. Catalog listings
+/// are verification inputs and are never used to select deletion targets.
+pub struct EmbeddedSurrealTestScope {
+    root: PathBuf,
+    scope_path: PathBuf,
+    marker_path: PathBuf,
+    store_path: PathBuf,
+    identity: StoreIdentity,
+    namespace: String,
+    database: String,
+    client: Option<Surreal<Db>>,
+    storage: Option<SurrealStorage>,
+    owner_marker: Option<File>,
+    timeout: Duration,
+    storage_shutdown_timeout: Duration,
+    successful_cleanup: Option<EmbeddedSurrealCleanupDiagnostics>,
+    last_cleanup: Option<EmbeddedSurrealCleanupDiagnostics>,
+}
+
+impl EmbeddedSurrealCleanupDiagnostics {
+    fn pending(scope: &EmbeddedSurrealTestScope) -> Self {
+        Self {
+            namespace: scope.namespace.clone(),
+            database: scope.database.clone(),
+            store_path: scope.store_path.clone(),
+            timeout: scope.timeout,
+            database_absent: false,
+            namespace_absent_after_reopen: false,
+            elapsed: Duration::ZERO,
+            error: None,
+        }
+    }
+}
+
+impl EmbeddedSurrealTestScope {
+    pub async fn create() -> io::Result<Self> {
+        Self::create_in(configured_test_store_root()).await
+    }
+
+    pub async fn create_in(root: impl AsRef<Path>) -> io::Result<Self> {
+        Self::create_in_with_timeout(root, DEFAULT_EMBEDDED_SCOPE_TIMEOUT).await
+    }
+
+    pub async fn create_in_with_timeout(
+        root: impl AsRef<Path>,
+        timeout: Duration,
+    ) -> io::Result<Self> {
+        if timeout.is_zero() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "embedded SurrealDB scope timeout must be greater than zero",
+            ));
+        }
+        let root = prepare_root(root.as_ref())?;
+        let _ = sweep_prepared_root(&root, DEFAULT_STALE_AGE)?;
+        let identity = StoreIdentity::generate();
+        let scope_path = root.join(identity.scope_name());
+        let marker_path = root.join(identity.marker_name());
+        let store_path = scope_path.join("embedded");
+        let namespace = format!("{EMBEDDED_NAMESPACE_PREFIX}{}", identity.id.simple());
+        let database = format!("{EMBEDDED_DATABASE_PREFIX}{}", identity.token.simple());
+        validate_embedded_identifier(&namespace, EMBEDDED_NAMESPACE_PREFIX)?;
+        validate_embedded_identifier(&database, EMBEDDED_DATABASE_PREFIX)?;
+
+        let mut owner_marker = create_held_owner_marker(&marker_path)?;
+        if let Err(error) = owner_marker
+            .write_all(identity.marker_body().as_bytes())
+            .and_then(|()| owner_marker.sync_data())
+        {
+            drop(owner_marker);
+            let _ = fs::remove_file(&marker_path);
+            return Err(error);
+        }
+        if let Err(error) = fs::create_dir(&scope_path) {
+            drop(owner_marker);
+            let _ = fs::remove_file(&marker_path);
+            return Err(error);
+        }
+
+        let client = match open_embedded_root(&store_path, timeout, "allocate").await {
+            Ok(client) => client,
+            Err(error) => {
+                let _ =
+                    remove_owned_scope(&root, &scope_path, &marker_path, &identity, owner_marker);
+                return Err(error);
+            }
+        };
+        let allocation = async {
+            checked_query(
+                &client,
+                format!("DEFINE NAMESPACE {namespace};"),
+                timeout,
+                "define namespace",
+            )
+            .await?;
+            bounded_sdk(
+                timeout,
+                "select namespace",
+                client.use_ns(namespace.as_str()),
+            )
+            .await?;
+            checked_query(
+                &client,
+                format!("DEFINE DATABASE {database};"),
+                timeout,
+                "define database",
+            )
+            .await?;
+            bounded_sdk(timeout, "select database", client.use_db(database.as_str())).await?;
+            verify_context(&client, &namespace, &database, timeout).await
+        }
+        .await;
+        if let Err(error) = allocation {
+            let _ = close_embedded_client(client, &store_path, timeout, "failed allocation").await;
+            let _ = remove_owned_scope(&root, &scope_path, &marker_path, &identity, owner_marker);
+            return Err(error);
+        }
+
+        Ok(Self {
+            root,
+            scope_path,
+            marker_path,
+            store_path,
+            identity,
+            namespace,
+            database,
+            client: Some(client),
+            storage: None,
+            owner_marker: Some(owner_marker),
+            timeout,
+            storage_shutdown_timeout: timeout,
+            successful_cleanup: None,
+            last_cleanup: None,
+        })
+    }
+
+    pub fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    pub fn database(&self) -> &str {
+        &self.database
+    }
+
+    pub fn store_path(&self) -> &Path {
+        &self.store_path
+    }
+
+    pub async fn write_foreign_survival_sentinel(&self) -> io::Result<()> {
+        let client = self.client.as_ref().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotConnected, "embedded test scope is closed")
+        })?;
+        let stored: Option<ForeignSurvivalSentinel> = bounded_sdk(
+            self.timeout,
+            "write fixed foreign-survival sentinel",
+            client
+                .upsert((
+                    FOREIGN_SURVIVAL_SENTINEL_TABLE,
+                    FOREIGN_SURVIVAL_SENTINEL_ID,
+                ))
+                .content(ForeignSurvivalSentinel {
+                    value: FOREIGN_SURVIVAL_SENTINEL_VALUE.to_owned(),
+                }),
+        )
+        .await?;
+        if stored.as_ref().map(|row| row.value.as_str()) != Some(FOREIGN_SURVIVAL_SENTINEL_VALUE) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "fixed foreign-survival sentinel was not stored",
+            ));
+        }
+        Ok(())
+    }
+
+    pub async fn foreign_survival_sentinel_exists(&self) -> io::Result<bool> {
+        let client = self.client.as_ref().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotConnected, "embedded test scope is closed")
+        })?;
+        let stored: Option<ForeignSurvivalSentinel> = bounded_sdk(
+            self.timeout,
+            "read fixed foreign-survival sentinel",
+            client.select((
+                FOREIGN_SURVIVAL_SENTINEL_TABLE,
+                FOREIGN_SURVIVAL_SENTINEL_ID,
+            )),
+        )
+        .await?;
+        Ok(stored.as_ref().map(|row| row.value.as_str()) == Some(FOREIGN_SURVIVAL_SENTINEL_VALUE))
+    }
+
+    pub fn last_cleanup_diagnostics(&self) -> Option<&EmbeddedSurrealCleanupDiagnostics> {
+        self.last_cleanup.as_ref()
+    }
+
+    pub fn set_storage_shutdown_timeout_for_proof(&mut self, timeout: Duration) -> io::Result<()> {
+        if timeout.is_zero() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "embedded SurrealDB scope timeout must be greater than zero",
+            ));
+        }
+        if self.storage.is_some() {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                "storage shutdown timeout cannot change while production storage is active",
+            ));
+        }
+        self.storage_shutdown_timeout = timeout;
+        Ok(())
+    }
+
+    /// Activates the production storage wrapper on this allocator's exact scope.
+    pub async fn activate_storage(&mut self) -> io::Result<SurrealStorage> {
+        if let Some(storage) = &self.storage {
+            return Ok(storage.clone());
+        }
+        self.close_direct_client().await?;
+        let config = SurrealStorageConfig::for_scoped_store(
+            &self.store_path,
+            self.namespace.clone(),
+            self.database.clone(),
+        )
+        .and_then(|config| config.with_shutdown_wait_timeout(self.storage_shutdown_timeout))
+        .map_err(storage_error)?;
+        let storage = SurrealStorage::open(config).await.map_err(storage_error)?;
+        self.storage = Some(storage.clone());
+        Ok(storage)
+    }
+
+    /// Closes the retained production wrapper and every returned shared clone.
+    /// An in-flight escaped operation produces a bounded, observable error.
+    pub async fn shutdown_storage_for_reopen(&mut self) -> io::Result<()> {
+        if let Some(storage) = self.storage.as_ref() {
+            storage.shutdown().await.map_err(storage_error)?;
+        }
+        drop(self.storage.take());
+        Ok(())
+    }
+
+    async fn close_direct_client(&mut self) -> io::Result<()> {
+        let Some(client) = self.client.take() else {
+            return Ok(());
+        };
+        close_embedded_client(client, &self.store_path, self.timeout, "close for reopen").await
+    }
+
+    pub async fn close_for_reopen(&mut self) -> io::Result<()> {
+        self.shutdown_storage_for_reopen().await?;
+        self.close_direct_client().await
+    }
+
+    pub async fn reopen(&mut self) -> io::Result<()> {
+        if self.successful_cleanup.is_some() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "cleaned embedded test scope cannot be reopened",
+            ));
+        }
+        if self.client.is_some() {
+            return Ok(());
+        }
+        let client = open_embedded_root(&self.store_path, self.timeout, "reopen").await?;
+        let selection =
+            select_existing_scope(&client, &self.namespace, &self.database, self.timeout).await;
+        if let Err(error) = selection {
+            let _ = close_embedded_client(client, &self.store_path, self.timeout, "failed reopen")
+                .await;
+            return Err(error);
+        }
+        self.client = Some(client);
+        Ok(())
+    }
+
+    pub async fn cleanup(&mut self) -> io::Result<EmbeddedSurrealCleanupDiagnostics> {
+        if let Some(receipt) = &self.successful_cleanup {
+            return Ok(receipt.clone());
+        }
+        let started = Instant::now();
+        let mut diagnostics = EmbeddedSurrealCleanupDiagnostics::pending(self);
+        let result = self.cleanup_once(&mut diagnostics).await;
+        diagnostics.elapsed = started.elapsed();
+        if let Err(error) = &result {
+            diagnostics.error = Some(error.to_string());
+        }
+        self.last_cleanup = Some(diagnostics.clone());
+        if result.is_ok() {
+            self.successful_cleanup = Some(diagnostics.clone());
+        }
+        result.map(|()| diagnostics)
+    }
+
+    async fn cleanup_once(
+        &mut self,
+        diagnostics: &mut EmbeddedSurrealCleanupDiagnostics,
+    ) -> io::Result<()> {
+        self.close_for_reopen().await?;
+        let client = open_embedded_root(&self.store_path, self.timeout, "cleanup reopen").await?;
+        let namespaces_before = catalog_names(
+            &client,
+            "INFO FOR ROOT;",
+            "namespaces",
+            self.timeout,
+            "read root catalog before cleanup",
+        )
+        .await?;
+        if namespaces_before.contains(&self.namespace) {
+            bounded_sdk(
+                self.timeout,
+                "select exact cleanup namespace",
+                client.use_ns(self.namespace.as_str()),
+            )
+            .await?;
+            checked_query(
+                &client,
+                format!("REMOVE DATABASE IF EXISTS {};", self.database),
+                self.timeout,
+                "remove exact database",
+            )
+            .await?;
+            let databases_after = catalog_names(
+                &client,
+                "INFO FOR NS;",
+                "databases",
+                self.timeout,
+                "verify database absence",
+            )
+            .await?;
+            diagnostics.database_absent = !databases_after.contains(&self.database);
+            if !diagnostics.database_absent {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("database {} remained after exact cleanup", self.database),
+                ));
+            }
+            checked_query(
+                &client,
+                format!("REMOVE NAMESPACE IF EXISTS {};", self.namespace),
+                self.timeout,
+                "remove exact namespace",
+            )
+            .await?;
+        } else {
+            diagnostics.database_absent = true;
+        }
+        close_embedded_client(client, &self.store_path, self.timeout, "cleanup mutation").await?;
+
+        let verifier =
+            open_embedded_root(&self.store_path, self.timeout, "absence verifier").await?;
+        let namespaces_after = catalog_names(
+            &verifier,
+            "INFO FOR ROOT;",
+            "namespaces",
+            self.timeout,
+            "independent root reread",
+        )
+        .await?;
+        diagnostics.namespace_absent_after_reopen = !namespaces_after.contains(&self.namespace);
+        if !diagnostics.namespace_absent_after_reopen {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("namespace {} remained after exact cleanup", self.namespace),
+            ));
+        }
+        close_embedded_client(verifier, &self.store_path, self.timeout, "absence verifier").await?;
+
+        let marker = self.owner_marker.take().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                "embedded scope owner marker is missing",
+            )
+        })?;
+        remove_owned_scope(
+            &self.root,
+            &self.scope_path,
+            &self.marker_path,
+            &self.identity,
+            marker,
+        )?;
+        Ok(())
+    }
+}
+
+impl Drop for EmbeddedSurrealTestScope {
+    fn drop(&mut self) {
+        if self.successful_cleanup.is_none() {
+            let _ = writeln!(
+                io::stderr().lock(),
+                "embedded_surreal_cleanup_pending namespace={} database={} store={} diagnostics={:?}",
+                self.namespace,
+                self.database,
+                self.store_path.display(),
+                self.last_cleanup
+            );
+            if let Some(marker) = self.owner_marker.take() {
+                std::mem::forget(marker);
+            }
+        }
+    }
+}
+
+/// Gives every exact scope its own bounded cleanup attempt and continues after errors.
+pub async fn cleanup_embedded_surreal_scopes(
+    scopes: &mut [EmbeddedSurrealTestScope],
+) -> Vec<EmbeddedSurrealCleanupAttempt> {
+    let mut attempts = Vec::with_capacity(scopes.len());
+    for scope in scopes {
+        let namespace = scope.namespace.clone();
+        let database = scope.database.clone();
+        let result = scope.cleanup().await;
+        let succeeded = result.is_ok();
+        let diagnostics = result.unwrap_or_else(|error| {
+            scope.last_cleanup.clone().unwrap_or_else(|| {
+                let mut diagnostics = EmbeddedSurrealCleanupDiagnostics::pending(scope);
+                diagnostics.error = Some(error.to_string());
+                diagnostics
+            })
+        });
+        attempts.push(EmbeddedSurrealCleanupAttempt {
+            namespace,
+            database,
+            succeeded,
+            diagnostics,
+        });
+    }
+    attempts
+}
+
+fn validate_embedded_identifier(value: &str, prefix: &str) -> io::Result<()> {
+    if value.strip_prefix(prefix).is_some_and(is_lower_hex) {
+        return Ok(());
+    }
+    Err(io::Error::new(
+        io::ErrorKind::InvalidInput,
+        "embedded SurrealDB identifier is not allocator-generated",
+    ))
+}
+
+async fn bounded_sdk<T, E, F>(timeout: Duration, label: &str, operation: F) -> io::Result<T>
+where
+    E: std::fmt::Display,
+    F: Future<Output = Result<T, E>>,
+{
+    match tokio::time::timeout(timeout, operation).await {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(error)) => Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("embedded SurrealDB {label} failed: {error}"),
+        )),
+        Err(_) => Err(io::Error::new(
+            io::ErrorKind::TimedOut,
+            format!(
+                "embedded SurrealDB {label} exceeded its independent {} ms timeout",
+                timeout.as_millis()
+            ),
+        )),
+    }
+}
+
+async fn open_embedded_root(
+    store_path: &Path,
+    timeout: Duration,
+    label: &str,
+) -> io::Result<Surreal<Db>> {
+    fs::create_dir_all(store_path)?;
+    bounded_sdk(timeout, label, Surreal::new::<RocksDb>(store_path)).await
+}
+
+async fn checked_query(
+    client: &Surreal<Db>,
+    statement: String,
+    timeout: Duration,
+    label: &str,
+) -> io::Result<()> {
+    let response = bounded_sdk(timeout, label, client.query(statement)).await?;
+    response.check().map_err(storage_error)?;
+    Ok(())
+}
+
+async fn catalog_names(
+    client: &Surreal<Db>,
+    statement: &str,
+    field: &str,
+    timeout: Duration,
+    label: &str,
+) -> io::Result<BTreeSet<String>> {
+    let response = bounded_sdk(timeout, label, client.query(statement)).await?;
+    let mut response = response.check().map_err(storage_error)?;
+    let info: SurrealValueData = response.take(0).map_err(storage_error)?;
+    let SurrealValueData::Object(info) = info else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("embedded SurrealDB {label} returned a non-object catalog"),
+        ));
+    };
+    let Some(SurrealValueData::Object(entries)) = info.get(field) else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("embedded SurrealDB {label} omitted object field {field}"),
+        ));
+    };
+    Ok(entries.keys().cloned().collect())
+}
+
+async fn select_existing_scope(
+    client: &Surreal<Db>,
+    namespace: &str,
+    database: &str,
+    timeout: Duration,
+) -> io::Result<()> {
+    let namespaces = catalog_names(
+        client,
+        "INFO FOR ROOT;",
+        "namespaces",
+        timeout,
+        "verify namespace before reopen",
+    )
+    .await?;
+    if !namespaces.contains(namespace) {
+        return Err(missing_catalog_entry("namespace", namespace));
+    }
+    bounded_sdk(
+        timeout,
+        "select reopened namespace",
+        client.use_ns(namespace),
+    )
+    .await?;
+    let databases = catalog_names(
+        client,
+        "INFO FOR NS;",
+        "databases",
+        timeout,
+        "verify database before reopen",
+    )
+    .await?;
+    if !databases.contains(database) {
+        return Err(missing_catalog_entry("database", database));
+    }
+    bounded_sdk(timeout, "select reopened database", client.use_db(database)).await?;
+    verify_context(client, namespace, database, timeout).await
+}
+
+async fn verify_context(
+    client: &Surreal<Db>,
+    namespace: &str,
+    database: &str,
+    timeout: Duration,
+) -> io::Result<()> {
+    let response = bounded_sdk(
+        timeout,
+        "verify selected context",
+        client.query("RETURN session::ns(); RETURN session::db();"),
+    )
+    .await?;
+    let mut response = response.check().map_err(storage_error)?;
+    let actual_namespace: Option<String> = response.take(0).map_err(storage_error)?;
+    let actual_database: Option<String> = response.take(1).map_err(storage_error)?;
+    if actual_namespace.as_deref() != Some(namespace)
+        || actual_database.as_deref() != Some(database)
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "embedded context mismatch: expected {namespace}/{database}, observed {}/{}",
+                actual_namespace.as_deref().unwrap_or("<none>"),
+                actual_database.as_deref().unwrap_or("<none>")
+            ),
+        ));
+    }
+    Ok(())
+}
+
+async fn close_embedded_client(
+    client: Surreal<Db>,
+    store_path: &Path,
+    timeout: Duration,
+    label: &str,
+) -> io::Result<()> {
+    checked_query(
+        &client,
+        "RETURN true;".to_owned(),
+        timeout,
+        &format!("{label} barrier"),
+    )
+    .await?;
+    drop(client);
+    wait_for_embedded_release(store_path, timeout, label).await
+}
+
+#[cfg(windows)]
+async fn wait_for_embedded_release(
+    store_path: &Path,
+    timeout: Duration,
+    label: &str,
+) -> io::Result<()> {
+    use std::os::windows::fs::OpenOptionsExt;
+
+    let started = Instant::now();
+    let lock_path = store_path.join("LOCK");
+    let mut backoff = Duration::from_millis(5);
+    let mut last_error = None;
+    loop {
+        match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .share_mode(0)
+            .open(&lock_path)
+        {
+            Ok(_) => return Ok(()),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => last_error = Some(error.to_string()),
+        }
+        if started.elapsed() >= timeout {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!(
+                    "embedded SurrealDB {label} release exceeded {} ms at {}: {}",
+                    timeout.as_millis(),
+                    lock_path.display(),
+                    last_error.as_deref().unwrap_or("unknown lock error")
+                ),
+            ));
+        }
+        tokio::time::sleep(backoff).await;
+        backoff = (backoff * 2).min(Duration::from_millis(250));
+    }
+}
+
+#[cfg(not(windows))]
+async fn wait_for_embedded_release(
+    _store_path: &Path,
+    _timeout: Duration,
+    _label: &str,
+) -> io::Result<()> {
+    tokio::task::yield_now().await;
+    Ok(())
+}
+
+fn missing_catalog_entry(kind: &str, name: &str) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::NotFound,
+        format!("allocated embedded SurrealDB {kind} {name} is absent"),
+    )
 }
 
 fn storage_error(error: impl std::fmt::Display) -> io::Error {

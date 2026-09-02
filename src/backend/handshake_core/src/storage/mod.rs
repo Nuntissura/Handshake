@@ -26,10 +26,9 @@ pub mod knowledge_memory;
 pub mod knowledge_retrieval;
 pub mod loom;
 pub mod loom_ai;
-pub mod postgres;
 pub mod retention;
-/// Handshake's embedded SurrealDB product-database seam. Product modules move
-/// onto this lifecycle-safe authority without PostgreSQL or SQLite fallbacks.
+/// Handshake's embedded SurrealDB product-database seam. Product modules share
+/// this lifecycle-safe authority without a second database path.
 pub mod surreal;
 
 pub use calendar::*;
@@ -42,7 +41,7 @@ pub mod tests;
 pub type StorageResult<T> = Result<T, StorageError>;
 
 /// One proposed CRDT update plus its EventLedger receipt, to be committed as
-/// one Postgres transaction. `provisional_record.event_ledger_event_id` is
+/// one embedded SurrealDB transaction. `provisional_record.event_ledger_event_id` is
 /// intentionally empty: the storage implementation appends `event` first
 /// inside the transaction, stamps its generated event id into the record, and
 /// then inserts the CRDT row before committing both writes together.
@@ -144,138 +143,7 @@ pub struct DebugBreakpoint {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StorageBackendKind {
-    Postgres,
-}
-
-pub const DATABASE_URL_ENV: &str = "DATABASE_URL";
-pub const HANDSHAKE_STORAGE_MODE_ENV: &str = "HANDSHAKE_STORAGE_MODE";
-pub const HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES_ENV: &str =
-    "HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES";
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ControlPlaneStorageMode {
-    PostgresPrimary,
-}
-
-impl ControlPlaneStorageMode {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::PostgresPrimary => "postgres_primary",
-        }
-    }
-
-    pub fn is_control_plane_authority(&self) -> bool {
-        matches!(self, Self::PostgresPrimary)
-    }
-
-    pub fn authority_label(&self) -> &'static str {
-        match self {
-            Self::PostgresPrimary => "primary_authority",
-        }
-    }
-
-    pub fn freshness_label(&self) -> &'static str {
-        match self {
-            Self::PostgresPrimary => "current_source_of_truth",
-        }
-    }
-}
-
-impl std::fmt::Display for ControlPlaneStorageMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for ControlPlaneStorageMode {
-    type Err = StorageError;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "postgres_primary" => Ok(Self::PostgresPrimary),
-            _ => Err(StorageError::Validation("unsupported storage mode")),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ControlPlaneStorageConfig {
-    pub mode: ControlPlaneStorageMode,
-    pub database_url: String,
-}
-
-impl ControlPlaneStorageConfig {
-    pub fn from_env() -> Result<Self, StorageError> {
-        let mode = std::env::var(HANDSHAKE_STORAGE_MODE_ENV).ok();
-        let requires_postgres = std::env::var(HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES_ENV).ok();
-        let database_url = std::env::var(DATABASE_URL_ENV).ok();
-
-        Self::resolve(
-            mode.as_deref(),
-            requires_postgres.as_deref(),
-            database_url.as_deref(),
-        )
-    }
-
-    pub fn resolve(
-        mode: Option<&str>,
-        requires_postgres: Option<&str>,
-        database_url: Option<&str>,
-    ) -> Result<Self, StorageError> {
-        let mode = match non_empty(mode) {
-            Some(value) => ControlPlaneStorageMode::from_str(value)?,
-            None if parse_requires_postgres(requires_postgres)? => {
-                ControlPlaneStorageMode::PostgresPrimary
-            }
-            None if non_empty(database_url).is_some_and(is_postgres_url) => {
-                ControlPlaneStorageMode::PostgresPrimary
-            }
-            None => ControlPlaneStorageMode::PostgresPrimary,
-        };
-
-        let database_url = match mode {
-            ControlPlaneStorageMode::PostgresPrimary => {
-                let url = non_empty(database_url).ok_or(StorageError::Validation(
-                    "postgres_primary requires DATABASE_URL",
-                ))?;
-                if !is_postgres_url(url) {
-                    return Err(StorageError::Validation(
-                        "postgres_primary requires a PostgreSQL DATABASE_URL",
-                    ));
-                }
-                url.to_string()
-            }
-        };
-
-        Ok(Self { mode, database_url })
-    }
-}
-
-fn non_empty(value: Option<&str>) -> Option<&str> {
-    value.map(str::trim).filter(|value| !value.is_empty())
-}
-
-fn is_postgres_url(value: &str) -> bool {
-    value.starts_with("postgres://") || value.starts_with("postgresql://")
-}
-
-fn parse_requires_postgres(value: Option<&str>) -> Result<bool, StorageError> {
-    match non_empty(value).map(|value| value.to_ascii_lowercase()) {
-        None => Ok(false),
-        Some(value)
-            if matches!(
-                value.as_str(),
-                "1" | "true" | "yes" | "required" | "postgres_primary"
-            ) =>
-        {
-            Ok(true)
-        }
-        Some(value) if matches!(value.as_str(), "0" | "false" | "no" | "optional") => Ok(false),
-        Some(_) => Err(StorageError::Validation(
-            "invalid HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES value",
-        )),
-    }
+    Surreal,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -288,12 +156,12 @@ pub struct StorageCapabilitySnapshot {
 impl StorageCapabilitySnapshot {
     pub fn loom_search_observability_tier(&self) -> u8 {
         match self.backend {
-            StorageBackendKind::Postgres => 2,
+            StorageBackendKind::Surreal => 2,
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, sqlx::FromRow)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StructuredCollabWorkPacketRow {
     pub wp_id: String,
     pub version: i64,
@@ -344,30 +212,13 @@ pub enum StorageError {
     Migration(String),
 }
 
-// [§2.3.12.3] Manual From impl to convert sqlx::Error -> StorageError::Database
-// This preserves the error message while hiding the sqlx type from public API.
-impl From<sqlx::Error> for StorageError {
-    fn from(err: sqlx::Error) -> Self {
-        StorageError::Database(err.to_string())
-    }
-}
-
-// [§2.3.12.3] Manual From impl to convert MigrateError -> StorageError::Migration
-// This preserves the error message while hiding the sqlx::migrate type from public API.
-impl From<sqlx::migrate::MigrateError> for StorageError {
-    fn from(err: sqlx::migrate::MigrateError) -> Self {
-        StorageError::Migration(err.to_string())
-    }
-}
-
 impl From<serde_json::Error> for StorageError {
     fn from(value: serde_json::Error) -> Self {
         StorageError::Serialization(value.to_string())
     }
 }
 
-/// Embedded-store errors convert the same way the sqlx impls above do: keep
-/// the driver's message, keep the driver type out of the public API.
+/// Keep embedded-driver details opaque at the provider-independent boundary.
 impl From<surreal::SurrealStorageError> for StorageError {
     fn from(err: surreal::SurrealStorageError) -> Self {
         StorageError::Database(err.to_string())
@@ -1911,7 +1762,7 @@ impl From<GuardError> for StorageError {
     }
 }
 
-#[derive(Clone, Debug, sqlx::FromRow)]
+#[derive(Clone, Debug)]
 pub struct MutationTraceabilityRow {
     pub last_actor_kind: String,
     pub last_actor_id: Option<String>,
@@ -2261,10 +2112,9 @@ pub trait Database: Send + Sync {
         ))
     }
 
-    /// WP-KERNEL-009 MT-264 LoomSearchV2: hybrid Postgres-native search fusing
-    /// FTS (ts_rank) + pg_trgm similarity + pgvector kNN, with ts_headline
-    /// highlight, content_type facets, and loom_edges graph-blend ranking, in a
-    /// single SQL query joined against the canonical loom_blocks table.
+    /// WP-KERNEL-009 MT-264 LoomSearchV2: hybrid embedded-Surreal search fusing
+    /// lexical, vector, facet, and graph signals in one bounded query against
+    /// the canonical Loom block authority.
     async fn loom_search_v2(
         &self,
         _workspace_id: &str,
@@ -2316,8 +2166,8 @@ pub trait Database: Send + Sync {
     ) -> StorageResult<WorkspaceSettingsState> {
         Err(StorageError::NotImplemented("workspace settings backend"))
     }
-    /// MT-258 durable workspace search bookmarks (saved searches). Replaces the
-    /// localStorage-only authority with PostgreSQL + EventLedger persistence.
+    /// MT-258 durable workspace search bookmarks (saved searches), persisted
+    /// in embedded SurrealDB with EventLedger linkage.
     async fn get_workspace_search_bookmark_state(
         &self,
         _workspace_id: &str,
@@ -2360,8 +2210,8 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("loom canvas board backend"))
     }
 
-    /// Persist a new viewport (pan/zoom) for a board, leaving an EventLedger
-    /// receipt. Authority is PostgreSQL, never localStorage.
+    /// Persist a new viewport (pan/zoom) for a board in embedded SurrealDB,
+    /// leaving an EventLedger receipt.
     async fn update_canvas_board_state(
         &self,
         _ctx: &WriteContext,
@@ -2434,8 +2284,8 @@ pub trait Database: Send + Sync {
     /// persisted in the dedicated `view_definition_json` column (NOT a
     /// derived_json overload). The block must already exist (created via
     /// `create_loom_block` + bridge); this sets its content_type + definition.
-    /// Authority is PostgreSQL + EventLedger; there is NO parallel/localStorage
-    /// store for view definitions.
+    /// Authority is embedded SurrealDB + EventLedger; there is no parallel
+    /// localStorage store for view definitions.
     async fn create_block_view(
         &self,
         _ctx: &WriteContext,
@@ -2464,7 +2314,7 @@ pub trait Database: Send + Sync {
 
     /// Replace a saved view's definition (e.g. a table header click re-sorting
     /// the view persists the new sort), leaving an updated_at bump. Authority is
-    /// PostgreSQL; never localStorage.
+    /// embedded SurrealDB; never localStorage.
     async fn update_block_view_definition(
         &self,
         _ctx: &WriteContext,
@@ -2527,10 +2377,10 @@ pub trait Database: Send + Sync {
 
     // -- MT-177 LoomBlockKnowledgeBridge ---------------------------------------
     /// The single authority backend for the Loom surface. WP-KERNEL-009
-    /// §10.12 #9.1.1 forbids any SQLite/cache/offline/sidecar authority path;
-    /// the only durable Loom authority is PostgreSQL + EventLedger.
+    /// §10.12 #9.1.1 forbids cache/offline/sidecar authority paths; the durable
+    /// Loom authority is embedded SurrealDB + EventLedger.
     fn loom_authority_backend(&self) -> LoomAuthorityBackend {
-        LoomAuthorityBackend::PostgresEventLedger
+        LoomAuthorityBackend::SurrealEventLedger
     }
 
     /// Bridge a `LoomBlock` to the ProjectKnowledgeIndex + EventLedger
@@ -2854,7 +2704,7 @@ pub trait Database: Send + Sync {
     /// tree, create a RichDocument (authority) + a LoomBlock (note) bridged to
     /// the ProjectKnowledgeIndex, and return the new LoomBlock plus any import
     /// warnings. The markdown SOURCE is NEVER recorded as authority — only the
-    /// parsed authority rows in PostgreSQL (MT-187). A vault/file layout cannot
+    /// parsed authority rows in embedded SurrealDB (MT-187). A vault/file layout cannot
     /// become the source of truth.
     async fn import_markdown_to_loom(
         &self,
@@ -3026,7 +2876,7 @@ pub trait Database: Send + Sync {
         _events: Vec<NewKernelEvent>,
     ) -> StorageResult<Vec<KernelEvent>> {
         Err(StorageError::NotImplemented(
-            "atomic kernel EventLedger append requires Postgres",
+            "atomic kernel EventLedger append requires embedded SurrealDB authority",
         ))
     }
     async fn append_kernel_event_pair_atomic_with_causation(
@@ -3035,7 +2885,7 @@ pub trait Database: Send + Sync {
         _second: NewKernelEvent,
     ) -> StorageResult<Vec<KernelEvent>> {
         Err(StorageError::NotImplemented(
-            "atomic causation-linked kernel EventLedger append requires Postgres",
+            "atomic causation-linked kernel EventLedger append requires embedded SurrealDB authority",
         ))
     }
     /// WP-KERNEL-009 authority-hardening #2: promote a graph proposal into a
@@ -3053,7 +2903,7 @@ pub trait Database: Send + Sync {
         _fact: knowledge_crdt::NewPromotedFact,
     ) -> StorageResult<knowledge_crdt::PromotedFactRow> {
         Err(StorageError::NotImplemented(
-            "atomic graph-fact promotion requires Postgres",
+            "atomic graph-fact promotion requires embedded SurrealDB authority",
         ))
     }
     async fn list_kernel_events_for_session(
@@ -3071,12 +2921,12 @@ pub trait Database: Send + Sync {
         _update_bytes: Vec<u8>,
     ) -> StorageResult<CrdtUpdateRecordV1> {
         Err(StorageError::NotImplemented(
-            "kernel CRDT update persistence requires Postgres",
+            "kernel CRDT update persistence requires embedded SurrealDB authority",
         ))
     }
     /// Atomically serialize one CRDT document update with its EventLedger
-    /// receipt. The Postgres implementation holds a transaction-scoped,
-    /// database-wide document lock, checks the durable head and idempotency
+    /// receipt. The embedded implementation uses one transaction-scoped
+    /// document CAS, checks the durable head and idempotency
     /// row, appends the event, inserts the CRDT receipt, and commits once.
     /// This prevents an EventLedger success receipt without its update row on
     /// cross-process races or mid-write failures.
@@ -3085,7 +2935,7 @@ pub trait Database: Send + Sync {
         _request: KernelCrdtAtomicAppendRequest,
     ) -> StorageResult<KernelCrdtAtomicAppendOutcome> {
         Err(StorageError::NotImplemented(
-            "atomic kernel CRDT update plus EventLedger persistence requires Postgres",
+            "atomic kernel CRDT update plus EventLedger persistence requires embedded SurrealDB authority",
         ))
     }
     async fn list_kernel_crdt_updates(
@@ -3095,7 +2945,7 @@ pub trait Database: Send + Sync {
         _crdt_document_id: &str,
     ) -> StorageResult<Vec<CrdtUpdateRecordV1>> {
         Err(StorageError::NotImplemented(
-            "kernel CRDT update replay requires Postgres",
+            "kernel CRDT update replay requires embedded SurrealDB authority",
         ))
     }
     async fn read_kernel_crdt_update_bytes(
@@ -3103,7 +2953,7 @@ pub trait Database: Send + Sync {
         _update_bytes_ref: &str,
     ) -> StorageResult<Vec<u8>> {
         Err(StorageError::NotImplemented(
-            "kernel CRDT update byte reads require Postgres",
+            "kernel CRDT update byte reads require embedded SurrealDB authority",
         ))
     }
     async fn append_kernel_crdt_snapshot(
@@ -3112,7 +2962,7 @@ pub trait Database: Send + Sync {
         _snapshot_bytes: Vec<u8>,
     ) -> StorageResult<CrdtSnapshotRecordV1> {
         Err(StorageError::NotImplemented(
-            "kernel CRDT snapshot persistence requires Postgres",
+            "kernel CRDT snapshot persistence requires embedded SurrealDB authority",
         ))
     }
     async fn list_kernel_crdt_snapshots(
@@ -3122,7 +2972,7 @@ pub trait Database: Send + Sync {
         _crdt_document_id: &str,
     ) -> StorageResult<Vec<CrdtSnapshotRecordV1>> {
         Err(StorageError::NotImplemented(
-            "kernel CRDT snapshot replay requires Postgres",
+            "kernel CRDT snapshot replay requires embedded SurrealDB authority",
         ))
     }
     async fn read_kernel_crdt_snapshot_bytes(
@@ -3130,7 +2980,7 @@ pub trait Database: Send + Sync {
         _snapshot_bytes_ref: &str,
     ) -> StorageResult<Vec<u8>> {
         Err(StorageError::NotImplemented(
-            "kernel CRDT snapshot byte reads require Postgres",
+            "kernel CRDT snapshot byte reads require embedded SurrealDB authority",
         ))
     }
     async fn enqueue_kernel_session_run(&self, session: SessionRun) -> StorageResult<SessionRun>;
@@ -3256,7 +3106,7 @@ pub trait Database: Send + Sync {
     /// Run database migrations.
     async fn run_migrations(&self) -> StorageResult<()>;
 
-    /// Returns the current schema migration version from `_sqlx_migrations`.
+    /// Returns the current embedded SurrealDB schema revision.
     async fn migration_version(&self) -> StorageResult<i64>;
 
     async fn execute_locus_operation(
@@ -3395,17 +3245,8 @@ where
     T: Database + ?Sized,
 {
     fn storage_capabilities(&self) -> StorageCapabilitySnapshot {
-        let backend = match (
-            self.loom_search_observability_tier(),
-            self.supports_loom_graph_filtering(),
-        ) {
-            (2, _) => StorageBackendKind::Postgres,
-            (_, true) => StorageBackendKind::Postgres,
-            _ => StorageBackendKind::Postgres,
-        };
-
         StorageCapabilitySnapshot {
-            backend,
+            backend: StorageBackendKind::Surreal,
             supports_structured_collab_artifacts: self.supports_structured_collab_artifacts(),
             supports_loom_graph_filtering: self.supports_loom_graph_filtering(),
         }
@@ -3498,48 +3339,4 @@ where
     ) -> StorageResult<Vec<(String, String)>> {
         Database::structured_collab_micro_task_rows(self, wp_id).await
     }
-}
-
-use std::sync::Arc;
-
-/// [CX-DBP-041] Initialize the storage backend based on environment configuration.
-/// Resolves the explicit control-plane storage mode before opening the backend.
-pub async fn init_storage() -> Result<Arc<dyn Database>, StorageError> {
-    let config = ControlPlaneStorageConfig::from_env()?;
-    init_storage_with_config(&config).await
-}
-
-#[derive(Clone)]
-pub struct ControlPlaneStorage {
-    pub database: Arc<dyn Database>,
-    pub postgres_pool: sqlx::postgres::PgPool,
-}
-
-pub async fn init_control_plane_storage() -> Result<ControlPlaneStorage, StorageError> {
-    let config = ControlPlaneStorageConfig::from_env()?;
-    init_control_plane_storage_with_config(&config).await
-}
-
-pub async fn init_control_plane_storage_with_config(
-    config: &ControlPlaneStorageConfig,
-) -> Result<ControlPlaneStorage, StorageError> {
-    match config.mode {
-        ControlPlaneStorageMode::PostgresPrimary => {
-            let db = postgres::PostgresDatabase::connect(&config.database_url, 5).await?;
-            db.run_migrations().await?;
-            let postgres_pool = db.pool().clone();
-            Ok(ControlPlaneStorage {
-                database: db.into_arc(),
-                postgres_pool,
-            })
-        }
-    }
-}
-
-pub async fn init_storage_with_config(
-    config: &ControlPlaneStorageConfig,
-) -> Result<Arc<dyn Database>, StorageError> {
-    Ok(init_control_plane_storage_with_config(config)
-        .await?
-        .database)
 }

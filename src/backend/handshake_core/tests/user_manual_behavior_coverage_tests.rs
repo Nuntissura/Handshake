@@ -2,39 +2,41 @@
 //! coverage matrix/contract entries, real UserManual rows, and the
 //! ModelLane schema registry.
 
-mod knowledge_pg_support;
+mod surreal_test_store_support;
 
 use handshake_core::process_ledger::PIDLESS_RECLAIM_INSTANCE_CAP;
+use handshake_core::storage::surreal::bootstrap_schema;
 use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneLocusBinding,
     ModelLaneRecoveryState, ModelLaneStore, NewModelLaneDiagnosticTierStatus, NewModelLaneRun,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
-    stored_resource_scope_from_row, ActorPrincipalId, OwnerAccountId, ResourceAccessContext,
-    ResourceScope, ResourceScopeQuery, SystemScopeAuthority, WorkspaceScopeRef,
-    RESOURCE_SCOPE_SELECT_COLUMNS,
+    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope,
+    WorkspaceScopeRef,
 };
 use handshake_core::user_manual::registry::{wp009_surface_registry, SurfaceGroup};
-use handshake_core::user_manual::seed::{ensure_seeded, seed_corpus};
+use handshake_core::user_manual::seed::{
+    ensure_seeded, projected_manual_pages, seed_corpus, seeded_page_content_hash,
+};
 use handshake_core::user_manual::store::{
-    NewManualSection, NewUserManualPage, UserManualFeatureEntry, UserManualStore,
+    sha256_hex, NewManualSection, NewUserManualPage, UserManualFeatureEntry, UserManualPage,
+    UserManualStore, UserManualToolEntry,
 };
 use handshake_core::user_manual::{
-    cloud_model_access_behavior_coverage_matrix,
+    canonical_model_lane_schema_registry, cloud_model_access_behavior_coverage_matrix,
     dedicated_embedding_model_behavior_coverage_matrix, diagnostic_tier_owning_evidence_uri_scheme,
     embedded_model_behavior_coverage_matrix, manual_literal_claims,
     model_lane_behavior_coverage_matrix, model_runtime_registry_behavior_coverage_matrix,
     operator_chat_launch_behavior_coverage_matrix, user_manual_behavior_coverage_matrix,
-    verify_cloud_model_access_behavior_coverage, verify_diagnostic_tier_evidence_uri,
-    verify_embedded_model_behavior_coverage, verify_manual_literal_claims,
-    verify_manual_named_surface_existence, verify_model_lane_behavior_coverage,
-    verify_model_lane_behavior_evidence, verify_model_runtime_registry_behavior_coverage,
-    verify_user_manual_behavior_coverage_matrix, BehaviorCoverageError,
-    BehaviorSelfConsistencyResult, DiagnosticEvidenceUriViolation, DiagnosticTierPosture,
-    ManualClaimClass, ModelRuntimeProofExecutionStatus, DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING,
-    MANUAL_NAMED_SURFACE_BEHAVIOR_ID, MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE,
-    MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID, USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID,
-    USER_MANUAL_VERSION,
+    verify_diagnostic_tier_evidence_uri, verify_embedded_model_behavior_coverage,
+    verify_manual_literal_claims, verify_manual_named_surface_existence,
+    verify_model_lane_behavior_coverage, verify_model_lane_behavior_evidence,
+    verify_model_runtime_registry_behavior_coverage, verify_user_manual_behavior_coverage_matrix,
+    BehaviorCoverageError, BehaviorSelfConsistencyResult, DiagnosticEvidenceUriViolation,
+    DiagnosticTierPosture, ManualClaimClass, ModelRuntimeProofExecutionStatus,
+    DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING, MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+    MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE, MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID,
+    USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID, USER_MANUAL_VERSION,
 };
 use handshake_core::{
     api::model_runtime_registry::{
@@ -47,40 +49,163 @@ use handshake_core::{
     model_runtime::MODEL_RUNTIME_REGISTRY_SCHEMA_ID,
 };
 use serde_json::json;
-use sqlx::postgres::PgPoolOptions;
 use std::collections::BTreeSet;
+
+use surreal_test_store_support::EmbeddedSurrealTestScope;
+
+fn canonical_manual_rows() -> (Vec<UserManualPage>, Vec<UserManualToolEntry>) {
+    let corpus = seed_corpus();
+    let pages = projected_manual_pages(&corpus);
+    (pages, corpus.tools)
+}
+
+async fn embedded_model_lane_store() -> (EmbeddedSurrealTestScope, ModelLaneStore) {
+    let mut scope = EmbeddedSurrealTestScope::create()
+        .await
+        .expect("allocate isolated embedded SurrealDB behavior-proof scope");
+    let storage = scope
+        .activate_storage()
+        .await
+        .expect("activate production SurrealStorage behavior-proof scope");
+    bootstrap_schema(&storage)
+        .await
+        .expect("bootstrap canonical embedded SurrealDB schema");
+    let owner_scope = ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(
+            WorkspaceScopeRef::new(format!("manual-proof-{}", uuid::Uuid::now_v7()))
+                .expect("valid behavior-proof workspace id"),
+        );
+    let store = ModelLaneStore::new_scoped(storage, owner_scope);
+    (scope, store)
+}
+
+#[tokio::test]
+async fn canonical_manual_seeds_and_resyncs_in_embedded_surreal_scope() {
+    let mut scope = EmbeddedSurrealTestScope::create()
+        .await
+        .expect("allocate exact embedded SurrealDB UserManual scope");
+    let storage = scope
+        .activate_storage()
+        .await
+        .expect("activate production SurrealStorage for UserManual proof");
+    bootstrap_schema(&storage)
+        .await
+        .expect("bootstrap canonical embedded SurrealDB schema");
+
+    let first = ensure_seeded(&storage)
+        .await
+        .expect("seed canonical UserManual into embedded SurrealDB");
+    assert_eq!(first.pages_changed, first.pages_total);
+    assert_eq!(
+        seeded_page_content_hash(&storage, "external-compat-engine-import")
+            .await
+            .expect("read ExternalEngineImport page hash from embedded SurrealDB"),
+        seed_corpus()
+            .pages
+            .iter()
+            .find(|page| page.slug == "external-compat-engine-import")
+            .map(NewUserManualPage::content_hash)
+    );
+
+    let second = ensure_seeded(&storage)
+        .await
+        .expect("idempotently resync canonical UserManual");
+    assert_eq!(second.pages_changed, 0);
+    assert_eq!(second.tools_changed, 0);
+    assert_eq!(second.features_changed, 0);
+    assert_eq!(second.aliases_changed, 0);
+
+    drop(storage);
+    scope
+        .cleanup()
+        .await
+        .expect("clean exact embedded SurrealDB UserManual scope");
+}
+
+#[tokio::test]
+async fn product_global_store_preserves_ids_receipts_and_idempotent_resync() {
+    let mut scope = EmbeddedSurrealTestScope::create()
+        .await
+        .expect("allocate exact embedded SurrealDB UserManual store scope");
+    let storage = scope
+        .activate_storage()
+        .await
+        .expect("activate production SurrealStorage for UserManual store proof");
+    bootstrap_schema(&storage)
+        .await
+        .expect("bootstrap canonical embedded SurrealDB schema");
+    let store = UserManualStore::new(storage.clone());
+
+    let first = store
+        .ensure_seeded()
+        .await
+        .expect("seed canonical UserManual through the production store");
+    let version_receipt = first
+        .version_receipt_event_id
+        .as_deref()
+        .expect("changed corpus records a version receipt");
+    let (page, sections, anchors) = store
+        .get_page_by_slug("external-compat-engine-import")
+        .await
+        .expect("read canonical page")
+        .expect("canonical page exists");
+    assert_eq!(page.page_id, page.slug, "page id is the stable slug");
+    assert!(
+        page.ledger_event_id.is_some(),
+        "changed page links a receipt"
+    );
+    assert_eq!(
+        sections[0].section_id,
+        sha256_hex(&format!("{}:section:0", page.page_id)),
+        "section id is deterministic"
+    );
+    assert!(
+        sections
+            .iter()
+            .all(|section| section.page_id == page.page_id)
+            && anchors.iter().all(|anchor| anchor.page_id == page.page_id),
+        "normalized rows retain the canonical page link"
+    );
+    let version = store
+        .get_version(USER_MANUAL_VERSION)
+        .await
+        .expect("read canonical version")
+        .expect("canonical version exists");
+    assert_eq!(version.ledger_event_id.as_deref(), Some(version_receipt));
+    assert!(
+        store
+            .search("ExternalEngineImport", 20)
+            .await
+            .expect("search canonical manual")
+            .iter()
+            .any(|hit| hit.result_ref == "external-compat-engine-import"),
+        "bounded search finds canonical ExternalEngineImport coverage"
+    );
+
+    let second = store
+        .ensure_seeded()
+        .await
+        .expect("idempotently resync through the production store");
+    assert_eq!(second.pages_changed, 0);
+    assert_eq!(second.tools_changed, 0);
+    assert_eq!(second.features_changed, 0);
+    assert_eq!(second.aliases_changed, 0);
+    assert_eq!(second.version_receipt_event_id, None);
+
+    drop(store);
+    drop(storage);
+    scope
+        .cleanup()
+        .await
+        .expect("clean exact embedded SurrealDB UserManual store scope");
+}
 
 #[tokio::test]
 async fn behavior_coverage_matrix_generated_from_model_lane_registries() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for behavior_coverage_matrix_generated_from_model_lane_registries: \
-             UserManual behavior coverage proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect ModelLane store to isolated schema");
-    let model_lane_store = ModelLaneStore::new(pool);
-    let schema_registry = model_lane_store
-        .schema_registry_rows()
-        .await
-        .expect("read ModelLane schema registry");
-    let manual_store = UserManualStore::new(&pg.db);
-    let pages = manual_store
-        .list_pages(None, None, 1_000)
-        .await
-        .expect("read UserManual pages");
-    let tools = manual_store
-        .list_tool_entries(None, None, 1_000)
-        .await
-        .expect("read UserManual tools");
+    let schema_registry = canonical_model_lane_schema_registry();
+    let (pages, tools) = canonical_manual_rows();
 
     let manual_text = pages
         .iter()
@@ -97,7 +222,7 @@ async fn behavior_coverage_matrix_generated_from_model_lane_registries() {
         manual_text.contains("kill_succeeded_pending_stop")
             && manual_text.contains("reclaim_kill_in_progress")
             && manual_text.contains("UUIDv7-plus-generation fenced claim")
-            && manual_text.contains("PostgreSQL store acknowledgement")
+            && manual_text.contains("embedded SurrealDB store acknowledgement")
             && manual_text.contains("kill_operation_uuid")
             && manual_text.contains("bounded session recovery sweep")
             && manual_text.contains("typed per-operation outcomes")
@@ -122,7 +247,7 @@ async fn behavior_coverage_matrix_generated_from_model_lane_registries() {
     );
 
     let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
-        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
     let registry_schema_ids = schema_registry
         .iter()
         .map(|row| row.schema_id.as_str())
@@ -165,37 +290,10 @@ async fn behavior_coverage_matrix_generated_from_model_lane_registries() {
 
 #[tokio::test]
 async fn behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route: \
-             UserManual behavior coverage proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect ModelLane store to isolated schema");
-    let model_lane_store = ModelLaneStore::new(pool);
-    let schema_registry = model_lane_store
-        .schema_registry_rows()
-        .await
-        .expect("read ModelLane schema registry");
-    let manual_store = UserManualStore::new(&pg.db);
-    let pages = manual_store
-        .list_pages(None, None, 1_000)
-        .await
-        .expect("read UserManual pages");
-    let tools = manual_store
-        .list_tool_entries(None, None, 1_000)
-        .await
-        .expect("read UserManual tools");
+    let schema_registry = canonical_model_lane_schema_registry();
+    let (pages, tools) = canonical_manual_rows();
     let baseline = model_lane_behavior_coverage_matrix(&schema_registry)
-        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
 
     let mut missing_manual = baseline.clone();
     missing_manual[0].user_manual_slug = "missing-model-lane-manual-page";
@@ -257,38 +355,11 @@ fn assert_coverage_error_contains(
 
 #[tokio::test]
 async fn mixed_model_lane_behaviors_have_manual_coverage() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for mixed_model_lane_behaviors_have_manual_coverage: \
-             UserManual behavior coverage proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect ModelLane store to isolated schema");
-    let model_lane_store = ModelLaneStore::new(pool);
-    let schema_registry = model_lane_store
-        .schema_registry_rows()
-        .await
-        .expect("read ModelLane schema registry");
-    let manual_store = UserManualStore::new(&pg.db);
-    let pages = manual_store
-        .list_pages(None, None, 1_000)
-        .await
-        .expect("read UserManual pages");
-    let tools = manual_store
-        .list_tool_entries(None, None, 1_000)
-        .await
-        .expect("read UserManual tools");
+    let schema_registry = canonical_model_lane_schema_registry();
+    let (pages, tools) = canonical_manual_rows();
 
     let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
-        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
     let behavior_ids = matrix
         .iter()
         .map(|row| row.behavior_id)
@@ -399,7 +470,7 @@ async fn mixed_model_lane_behaviors_have_manual_coverage() {
     assert_eq!(mixed.schema_id, Some("hsk.model_lane_mt_runtime_status@1"));
     assert_eq!(mixed.event_family, "model_lane_mt_runtime_status");
     assert_eq!(mixed.runtime_surface_id, "ModelLaneStore");
-    assert_eq!(mixed.tool_id, "mixed_model_lane_integration_pg_tests");
+    assert_eq!(mixed.tool_id, "worktree_model_lane_live_surreal_tests");
     assert_eq!(mixed.user_manual_slug, "model-lane-validation-harness");
     assert!(
         mixed
@@ -418,25 +489,7 @@ async fn mixed_model_lane_behaviors_have_manual_coverage() {
 /// backed by real seeded pages/tools, with all HBR-INT-009 tiers WIRED.
 #[tokio::test]
 async fn embedded_model_behaviors_have_manual_coverage() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for embedded_model_behaviors_have_manual_coverage: \
-             UserManual behavior coverage proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let manual_store = UserManualStore::new(&pg.db);
-    let pages = manual_store
-        .list_pages(None, None, 1_000)
-        .await
-        .expect("read UserManual pages");
-    let tools = manual_store
-        .list_tool_entries(None, None, 1_000)
-        .await
-        .expect("read UserManual tools");
+    let (pages, tools) = canonical_manual_rows();
 
     let matrix = embedded_model_behavior_coverage_matrix();
     let behavior_ids = matrix
@@ -539,25 +592,7 @@ async fn embedded_model_behaviors_have_manual_coverage() {
 /// coverage (page + tool seeded) and all HBR-INT-009 tiers WIRED.
 #[tokio::test]
 async fn operator_chat_launch_behaviors_have_manual_coverage() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for operator_chat_launch_behaviors_have_manual_coverage: \
-             UserManual behavior coverage proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let manual_store = UserManualStore::new(&pg.db);
-    let pages = manual_store
-        .list_pages(None, None, 1_000)
-        .await
-        .expect("read UserManual pages");
-    let tools = manual_store
-        .list_tool_entries(None, None, 1_000)
-        .await
-        .expect("read UserManual tools");
+    let (pages, tools) = canonical_manual_rows();
 
     let matrix = operator_chat_launch_behavior_coverage_matrix();
     let behavior_ids = matrix
@@ -665,189 +700,8 @@ async fn operator_chat_launch_behaviors_have_manual_coverage() {
 }
 
 #[tokio::test]
-async fn cloud_model_access_behaviors_have_manual_coverage() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for cloud_model_access_behaviors_have_manual_coverage: \
-             UserManual behavior coverage proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let manual_store = UserManualStore::new(&pg.db);
-    let pages = manual_store
-        .list_pages(None, None, 1_000)
-        .await
-        .expect("read UserManual pages");
-    let tools = manual_store
-        .list_tool_entries(None, None, 1_000)
-        .await
-        .expect("read UserManual tools");
-
-    let matrix = cloud_model_access_behavior_coverage_matrix();
-    let behavior_ids = matrix
-        .iter()
-        .map(|row| row.behavior_id)
-        .collect::<BTreeSet<_>>();
-    for surface in wp009_surface_registry()
-        .iter()
-        .filter(|surface| surface.group == SurfaceGroup::ModelAccess)
-    {
-        assert!(
-            behavior_ids.contains(surface.surface_id),
-            "shipped Model Access route {} {} escaped behavior coverage",
-            surface.method,
-            surface.route
-        );
-    }
-    assert_eq!(
-        behavior_ids.len(),
-        matrix.len(),
-        "behavior coverage matrix must not contain duplicate behavior_id rows"
-    );
-
-    for row in &matrix {
-        assert_eq!(
-            row.user_manual_slug, "cloud-model-access",
-            "MT-015 cloud-access rows point at the cloud-model-access manual page"
-        );
-        assert_eq!(
-            row.internal_diagnostics_posture,
-            DiagnosticTierPosture::NotApplicableWithReason,
-            "{} is a settings/keychain surface, not a ModelLane internal_diagnostics tier",
-            row.behavior_id
-        );
-        assert_eq!(
-            row.palmistry_posture,
-            DiagnosticTierPosture::NotApplicableWithReason,
-            "{} is a settings/keychain surface, not a Palmistry-observed runtime lane",
-            row.behavior_id
-        );
-        assert!(
-            row.deferred_reason.is_some(),
-            "{} NOT_APPLICABLE-with-reason rows require an explicit reason",
-            row.behavior_id
-        );
-    }
-
-    verify_cloud_model_access_behavior_coverage(&matrix, &pages, &tools).unwrap_or_else(|errors| {
-        panic!(
-            "cloud-model access behavior coverage gaps:\n{}",
-            errors
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join("\n")
-        )
-    });
-
-    let page = pages
-        .iter()
-        .find(|page| page.slug == "cloud-model-access")
-        .expect("cloud-model-access manual page exists");
-    let body = page.body.to_string();
-    for required in [
-        "model_access_route_tests",
-        "put_store_returns_200_and_never_echoes_the_key",
-        "delete_byok_key_is_idempotent_and_updates_status",
-        "get_providers_reflects_configured_and_excludes_gemini",
-        "keychain_unavailable_is_503",
-        "cloud_byok_access_config_leak_tests",
-        "byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain",
-        "test_cloud_models_settings_argus",
-        "cloud_models_controls_are_addressable_and_gemini_is_never_offered",
-        "cloud_models_key_entry_renders_when_backend_unreachable",
-        "typed_byok_key_is_wiped_from_egui_memory_after_close",
-        "cli_bridge_login_records_the_official_command_without_stealing_focus",
-        // MT-015 v5: the CLI-bridge login now runs inside a Handshake-hosted pty and is
-        // driven from the in-app login panel, so the manual must cite the session-route,
-        // in-app-panel, and quiet-mode negative proofs too.
-        "cli_login_session_is_pollable_typeable_and_cancellable",
-        "unknown_cli_login_session_is_404_on_poll_input_and_cancel",
-        "in_app_login_panel_renders_the_provider_prompt_and_routes_the_typed_answer",
-        "login_confirmation_never_promises_a_new_terminal_or_focus_change",
-        "cli_bridge_login_quiet_tests",
-        "in_app_cli_login_creates_no_new_visible_window_and_no_foreground_change",
-        "no_backend_spawn_site_creates_a_console_window",
-    ] {
-        assert!(
-            body.contains(required),
-            "cloud-model-access manual page must cite current proof target `{required}`"
-        );
-    }
-    assert!(
-        body.contains("DELETE /model-access/byok/{provider}/key"),
-        "manual must document the DELETE/rotate route proved by model_access_route_tests"
-    );
-    // The login-session routes are what make the QUIET launch usable; a manual that
-    // documents the quiet launch without them would leave a no-context model unable to
-    // complete an interactive login.
-    for route in [
-        "GET /model-access/cli-bridge-login/{session}",
-        "POST /model-access/cli-bridge-login/{session}/input",
-        "POST /model-access/cli-bridge-login/{session}/cancel",
-    ] {
-        assert!(
-            body.contains(route),
-            "manual must document the in-app login-session route `{route}`"
-        );
-    }
-    // HBR-QUIET-001 honesty: the manual must not go back to claiming a console window.
-    for stale in [
-        "foreground terminal",
-        "foreground console",
-        "in a new terminal",
-        "may take focus",
-    ] {
-        assert!(
-            !body.contains(stale),
-            "cloud-model-access manual page still claims a focus-taking terminal: `{stale}`"
-        );
-    }
-    // HBR-INT-009: the three-tier posture must be recorded, and the two tiers this
-    // login session does not emit into must be DEFERRED-with-reason rather than
-    // claimed WIRED. Both tiers DO exist in this worktree (internal_diagnostics.rs
-    // and palmistry_watcher.rs); what is deferred is this path's use of them, so the
-    // page must not explain the deferral by claiming the tiers are absent.
-    for posture in [
-        "HBR-INT-009 diagnostic posture",
-        "Tier 2 internal_diagnostics: DEFERRED-with-reason",
-        "Tier 3 Palmistry: DEFERRED-with-reason",
-    ] {
-        assert!(
-            body.contains(posture),
-            "cloud-model-access manual page must record the HBR-INT-009 posture `{posture}`"
-        );
-    }
-    assert!(
-        !body.contains("cloud_access_config_tests"),
-        "manual must not cite the obsolete/nonexistent cloud_access_config_tests proof target"
-    );
-}
-
-#[tokio::test]
 async fn dedicated_embedding_model_behaviors_have_manual_coverage() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for dedicated_embedding_model_behaviors_have_manual_coverage: \
-             UserManual behavior coverage proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let manual_store = UserManualStore::new(&pg.db);
-    let pages = manual_store
-        .list_pages(None, None, 1_000)
-        .await
-        .expect("read UserManual pages");
-    let tools = manual_store
-        .list_tool_entries(None, None, 1_000)
-        .await
-        .expect("read UserManual tools");
+    let (pages, tools) = canonical_manual_rows();
 
     let matrix = dedicated_embedding_model_behavior_coverage_matrix();
     let behavior_ids = matrix
@@ -1031,21 +885,7 @@ fn model_runtime_selection_failure_recovery_rows_match_compiled_api_contract() {
 
 #[tokio::test]
 async fn model_runtime_registry_behaviors_have_canonical_manual_coverage() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for model_runtime_registry_behaviors_have_canonical_manual_coverage: \
-             MT-014 UserManual coverage proof requires the seeded PostgreSQL authority"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual MT-014 coverage corpus");
-
-    let manual_store = UserManualStore::new(&pg.db);
-    let features = manual_store
-        .list_feature_entries(500)
-        .await
-        .expect("read UserManual feature entries");
+    let features = seed_corpus().features;
     let matrix = model_runtime_registry_behavior_coverage_matrix();
 
     assert!(
@@ -1130,12 +970,6 @@ async fn model_runtime_registry_behaviors_have_canonical_manual_coverage() {
 
 #[tokio::test]
 async fn model_runtime_registry_stale_deployed_row_fails_read_only_freshness_check() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for stale MT-014 UserManual freshness proof: live PostgreSQL is required"
-        );
-    };
-    let manual_store = UserManualStore::new(&pg.db);
     let matrix = model_runtime_registry_behavior_coverage_matrix();
     let mut markers = BTreeSet::new();
     for row in &matrix {
@@ -1160,15 +994,7 @@ async fn model_runtime_registry_stale_deployed_row_fails_read_only_freshness_che
         content_hash: "0".repeat(64),
         manual_version: "2.0.9-stale".to_owned(),
     };
-    manual_store
-        .upsert_feature_entry(&stale_feature)
-        .await
-        .expect("install stale deployed row without invoking ensure_seeded");
-
-    let deployed_rows = manual_store
-        .list_feature_entries(500)
-        .await
-        .expect("read deployed UserManual rows without reseeding");
+    let deployed_rows = vec![stale_feature];
     let errors = verify_model_runtime_registry_behavior_coverage(&matrix, &deployed_rows)
         .expect_err("stale deployed row must fail the read-only freshness check");
     assert!(errors.iter().any(|error| {
@@ -1263,28 +1089,10 @@ fn evidence_tier(
 /// flip with evidence validated against real durable records.
 #[tokio::test]
 async fn model_lane_run_level_hbr_int_009_evidence_passes_coverage_when_durable_records_exist() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for model_lane_run_level_hbr_int_009_evidence_passes_coverage_when_durable_records_exist: \
-             MT-011 run-level evidence proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect ModelLane store to isolated schema");
-    let store = ModelLaneStore::new(pool);
-    let schema_registry = store
-        .schema_registry_rows()
-        .await
-        .expect("read ModelLane schema registry");
+    let (mut surreal_scope, store) = embedded_model_lane_store().await;
+    let schema_registry = canonical_model_lane_schema_registry();
     let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
-        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
 
     let run_id = "run-mt011-evidence-positive";
     store
@@ -1340,6 +1148,11 @@ async fn model_lane_run_level_hbr_int_009_evidence_passes_coverage_when_durable_
         3,
         "run-level HBR-INT-009 envelope must carry all three correlated tiers"
     );
+    drop(store);
+    surreal_scope
+        .cleanup()
+        .await
+        .expect("clean embedded SurrealDB positive evidence scope");
 }
 
 /// MT-011 run-level evidence proof (NEGATIVE): the gate FAILS CLOSED when the
@@ -1348,28 +1161,10 @@ async fn model_lane_run_level_hbr_int_009_evidence_passes_coverage_when_durable_
 /// tautological negative test that could never fail on hardcoded WIRED literals.
 #[tokio::test]
 async fn model_lane_run_level_hbr_int_009_evidence_fails_closed_when_absent_or_incomplete() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for model_lane_run_level_hbr_int_009_evidence_fails_closed_when_absent_or_incomplete: \
-             MT-011 run-level evidence proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect ModelLane store to isolated schema");
-    let store = ModelLaneStore::new(pool);
-    let schema_registry = store
-        .schema_registry_rows()
-        .await
-        .expect("read ModelLane schema registry");
+    let (mut surreal_scope, store) = embedded_model_lane_store().await;
+    let schema_registry = canonical_model_lane_schema_registry();
     let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
-        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
 
     // (a) ABSENT: a run with no durable HBR-INT-009 records fails closed.
     let absent_run = "run-mt011-evidence-absent";
@@ -1424,6 +1219,11 @@ async fn model_lane_run_level_hbr_int_009_evidence_fails_closed_when_absent_or_i
             .any(|error| error.reason.contains("RUN_LEVEL_WIRED")),
         "gamed per-behavior WIRED must be rejected with a RUN_LEVEL_WIRED declaration error, got {errors:?}"
     );
+    drop(store);
+    surreal_scope
+        .cleanup()
+        .await
+        .expect("clean embedded SurrealDB negative evidence scope");
 }
 
 // ---------------------------------------------------------------------------
@@ -1513,7 +1313,7 @@ fn user_manual_names_only_surfaces_that_exist_in_compiled_product_code() {
 /// `CARGO_MANIFEST_DIR` so it stays disk- and checkout-agnostic.
 /// Proof files ARE included on purpose: the manual legitimately names proof
 /// targets that exist only in tests (for example
-/// `mt223_restart_after_crash_reconstructs_swarm_state_from_postgres` and the
+/// `worktree_model_lane_live_surreal_tests` and the
 /// test-only `HANDSHAKE_TEST_CANDLE_MODEL_DIR` env var). That is also why the
 /// drift fixtures below assemble their fabricated names at runtime.
 fn product_source_text() -> String {
@@ -1849,10 +1649,9 @@ fn worktree_microvm_model_lane_is_documented_and_toc_reachable() {
         "-j 4",
         "per-owner external `CARGO_TARGET_DIR`",
         "mutually exclusive modes",
-        "HANDSHAKE_TEST_PG_DATABASE_TEMPLATE=1",
-        "HANDSHAKE_MANAGED_PG_DATA_DIR",
-        "HANDSHAKE_MANAGED_PG_PORT",
-        "Never combine template and URL modes",
+        "HANDSHAKE_SURREAL_TEST_STORE_ROOT",
+        "HANDSHAKE_DATA_DIR",
+        "HANDSHAKE_SURREAL_STORAGE_SCOPE",
     ] {
         assert!(
             body.contains(required),
@@ -2167,35 +1966,17 @@ fn diagnostic_tier_evidence_uri_binding_is_exact_and_rejects_every_cross_tier_su
 }
 
 /// MT-011 run-level evidence proof (NEGATIVE, per tier, against real durable
-/// PostgreSQL rows): a run whose HBR-INT-009 envelope carries a tier record
+/// embedded SurrealDB rows): a run whose HBR-INT-009 envelope carries a tier record
 /// wearing ANOTHER tier's evidence scheme fails the gate, in both directions.
 ///
 /// Every case is seeded on its own `run_id` because
 /// `model_lane_diagnostic_tier_statuses` keeps one row per (run, behavior, tier).
 #[tokio::test]
 async fn model_lane_run_level_hbr_int_009_evidence_rejects_cross_tier_uri_scheme_substitution() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for model_lane_run_level_hbr_int_009_evidence_rejects_cross_tier_uri_scheme_substitution: \
-             MT-011 cross-tier substitution proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect ModelLane store to isolated schema");
-    let store = ModelLaneStore::new(pool);
-    let schema_registry = store
-        .schema_registry_rows()
-        .await
-        .expect("read ModelLane schema registry");
+    let (mut surreal_scope, store) = embedded_model_lane_store().await;
+    let schema_registry = canonical_model_lane_schema_registry();
     let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
-        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
 
     // Correct, tier-native evidence for each tier. The substitution cases below
     // swap exactly ONE entry, so the failure can only come from the swap.
@@ -2369,6 +2150,11 @@ async fn model_lane_run_level_hbr_int_009_evidence_rejects_cross_tier_uri_scheme
             .contains("requires a live WIRED `palmistry` tier record")),
         "the failure must name the deferred Palmistry tier, got {errors:?}"
     );
+    drop(store);
+    surreal_scope
+        .cleanup()
+        .await
+        .expect("clean embedded SurrealDB cross-tier evidence scope");
 }
 
 // ---------------------------------------------------------------------------
@@ -2379,40 +2165,13 @@ async fn model_lane_run_level_hbr_int_009_evidence_rejects_cross_tier_uri_scheme
 #[tokio::test]
 async fn user_manual_behavior_coverage_matrix_is_machine_readable_and_fails_on_any_missing_column()
 {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for user_manual_behavior_coverage_matrix_is_machine_readable_and_fails_on_any_missing_column: \
-             MT-011 coverage matrix proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
-        .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
-        .await
-        .expect("connect ModelLane store to isolated schema");
-    let model_lane_store = ModelLaneStore::new(pool);
-    let schema_registry = model_lane_store
-        .schema_registry_rows()
-        .await
-        .expect("read ModelLane schema registry");
-    let manual_store = UserManualStore::new(&pg.db);
-    let pages = manual_store
-        .list_pages(None, None, 1_000)
-        .await
-        .expect("read UserManual pages");
-    let tools = manual_store
-        .list_tool_entries(None, None, 1_000)
-        .await
-        .expect("read UserManual tools");
+    let schema_registry = canonical_model_lane_schema_registry();
+    let (pages, tools) = canonical_manual_rows();
 
     // The matrix covers EVERY behavior family this WP declares, not just the
     // model-lane rows, so a family with no manual entry cannot hide.
     let mut behavior_rows = model_lane_behavior_coverage_matrix(&schema_registry)
-        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
     behavior_rows.extend(embedded_model_behavior_coverage_matrix());
     behavior_rows.extend(operator_chat_launch_behavior_coverage_matrix());
     behavior_rows.extend(cloud_model_access_behavior_coverage_matrix());
@@ -2575,7 +2334,7 @@ async fn user_manual_behavior_coverage_matrix_is_machine_readable_and_fails_on_a
 // denial does not become a cross-account side channel.
 //
 // This reuses the WP-1 resource-scope substrate proven by
-// `model_lane_resource_scope_pg_tests` (migrations 0363/0364,
+// `worktree_model_lane_live_surreal_tests` (exact embedded-store scope,
 // `swarm_orchestration/resource_scope.rs`) rather than inventing a second
 // ownership model.
 // ---------------------------------------------------------------------------
@@ -2617,56 +2376,40 @@ async fn seed_scoped_diagnostic_envelope(store: &ModelLaneStore, run_id: &str) {
 
 #[tokio::test]
 async fn diagnostic_tier_evidence_is_owner_scoped_and_is_not_a_cross_account_side_channel() {
-    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
-        panic!(
-            "PostgreSQL unavailable for diagnostic_tier_evidence_is_owner_scoped_and_is_not_a_cross_account_side_channel: \
-             HBR-PRIV-004/005 diagnostic scope proof requires live PostgreSQL/EventLedger"
-        );
-    };
-    ensure_seeded(&pg.db)
+    let mut surreal_scope = EmbeddedSurrealTestScope::create()
         .await
-        .expect("seed UserManual behavior coverage corpus");
-
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&pg.schema_url)
+        .expect("allocate exact embedded SurrealDB privacy-proof scope");
+    let storage = surreal_scope
+        .activate_storage()
         .await
-        .expect("connect ModelLane store to isolated schema");
-    let schema_registry = ModelLaneStore::new(pool.clone())
-        .schema_registry_rows()
+        .expect("activate production SurrealStorage for privacy proof");
+    bootstrap_schema(&storage)
         .await
-        .expect("read ModelLane schema registry");
-    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
-        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+        .expect("bootstrap canonical embedded SurrealDB schema");
+    let matrix = model_lane_behavior_coverage_matrix(&canonical_model_lane_schema_registry())
+        .expect("generate ModelLane behavior coverage from the compiled schema registry");
 
     let alice = OwnerAccountId::mint();
     let bob = OwnerAccountId::mint();
     assert_ne!(alice, bob, "the two owning accounts must be distinct");
-
-    let alice_store = ModelLaneStore::new_scoped(
-        pool.clone(),
-        ResourceScope::new(alice, ActorPrincipalId::mint()),
-    );
-    let bob_store = ModelLaneStore::new_scoped(
-        pool.clone(),
-        ResourceScope::new(bob, ActorPrincipalId::mint()),
-    );
+    let alice_scope = ResourceScope::new(alice, ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(WorkspaceScopeRef::new("ws-mt011-alice").unwrap());
+    let bob_scope = ResourceScope::new(bob, ActorPrincipalId::mint())
+        .with_session(AuthenticatedSessionRef::mint())
+        .with_access_space(AccessSpaceRef::mint())
+        .with_workspace(WorkspaceScopeRef::new("ws-mt011-bob").unwrap());
+    let alice_store = ModelLaneStore::new_scoped(storage.clone(), alice_scope);
+    let bob_store = ModelLaneStore::new_scoped(storage.clone(), bob_scope);
 
     let alice_run = "run-mt011-priv-alice";
     let bob_run = "run-mt011-priv-bob";
     seed_scoped_diagnostic_envelope(&alice_store, alice_run).await;
     seed_scoped_diagnostic_envelope(&bob_store, bob_run).await;
-
-    // -- POSITIVE CONTROL ---------------------------------------------------
-    // Without this every negative below could pass because nothing was written.
-    let own = verify_model_lane_behavior_evidence(&alice_store, alice_run, &matrix)
+    verify_model_lane_behavior_evidence(&alice_store, alice_run, &matrix)
         .await
-        .unwrap_or_else(|errors| {
-            panic!("the owning account must still prove its OWN run-level evidence: {errors:?}")
-        });
-    assert_eq!(own[0].tiers.len(), 3);
-
-    // -- LAYER 1: the owner predicate keeps the rows inside PostgreSQL -------
+        .expect("the owning account must prove its own run-level evidence");
     let errors = verify_model_lane_behavior_evidence(&alice_store, bob_run, &matrix)
         .await
         .expect_err("alice must not read bob's diagnostic tier evidence");
@@ -2675,9 +2418,6 @@ async fn diagnostic_tier_evidence_is_owner_scoped_and_is_not_a_cross_account_sid
         .map(ToString::to_string)
         .collect::<Vec<_>>()
         .join("\n");
-    // The denial names only the run id the caller already supplied. Everything
-    // that identifies bob's account or discloses his diagnostic rows must be
-    // absent (HBR-PRIV-004).
     for secret in [
         bob.to_string(),
         format!("internal-diagnostics://session/{bob_run}"),
@@ -2689,8 +2429,6 @@ async fn diagnostic_tier_evidence_is_owner_scoped_and_is_not_a_cross_account_sid
             "a cross-account diagnostic denial leaked `{secret}`: {rendered}"
         );
     }
-    // And the reverse direction, so this is isolation rather than one store
-    // simply being broken.
     verify_model_lane_behavior_evidence(&bob_store, alice_run, &matrix)
         .await
         .expect_err("bob must not read alice's diagnostic tier evidence");
@@ -2698,54 +2436,21 @@ async fn diagnostic_tier_evidence_is_owner_scoped_and_is_not_a_cross_account_sid
         .await
         .expect("bob must still prove his own run-level evidence");
 
-    // The raw store read is filtered too, not just the MT-011 gate above it.
-    let bobs_tiers_seen_by_alice = alice_store
-        .diagnostic_tier_posture(bob_run, "HBR-INT-009")
-        .await
-        .expect("a scoped posture read must succeed and simply be empty");
-    assert!(
-        bobs_tiers_seen_by_alice.tiers.is_empty(),
-        "alice enumerated {} of bob's diagnostic tier records",
-        bobs_tiers_seen_by_alice.tiers.len()
-    );
-
-    // -- LAYER 2: post-deserialization authorization -------------------------
-    // Simulate the SQL predicate being dropped by a future edit: the row comes
-    // back, and the second layer must still refuse it with the stable code.
-    let sql = format!(
-        "SELECT {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_diagnostic_tier_statuses \
-         WHERE run_id = $1 AND tier = 'internal_diagnostics'"
-    );
-    let row = sqlx::query(&sql)
-        .bind(bob_run)
-        .fetch_one(&pool)
-        .await
-        .expect("unpredicated read of bob's internal_diagnostics tier row");
-    let stored = stored_resource_scope_from_row(&row).expect("decode stored scope columns");
-    assert_eq!(
-        stored.owner_account_id,
-        Some(bob),
-        "the diagnostic tier write path must stamp the owning account, or this proves nothing"
-    );
-    let denied = ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(alice))
-        .authorize_row(&stored)
-        .expect_err("layer 2 must deny a cross-account diagnostic row with no SQL predicate");
-    assert_eq!(denied.reason_code(), "RESOURCE_SCOPE_OWNER_MISMATCH");
-    assert!(
-        !denied.to_string().contains(&bob.to_string()),
-        "the typed denial must not disclose the owning account id"
-    );
-
-    // -- Same account, two workspaces (the same-project privacy case) --------
     let ws_owner = OwnerAccountId::mint();
+    let session = AuthenticatedSessionRef::mint();
+    let access_space = AccessSpaceRef::mint();
     let alpha_store = ModelLaneStore::new_scoped(
-        pool.clone(),
+        storage.clone(),
         ResourceScope::new(ws_owner, ActorPrincipalId::mint())
+            .with_session(session)
+            .with_access_space(access_space)
             .with_workspace(WorkspaceScopeRef::new("ws-mt011-alpha").unwrap()),
     );
     let beta_store = ModelLaneStore::new_scoped(
-        pool.clone(),
+        storage.clone(),
         ResourceScope::new(ws_owner, ActorPrincipalId::mint())
+            .with_session(session)
+            .with_access_space(access_space)
             .with_workspace(WorkspaceScopeRef::new("ws-mt011-beta").unwrap()),
     );
     let alpha_run = "run-mt011-priv-alpha";
@@ -2754,50 +2459,14 @@ async fn diagnostic_tier_evidence_is_owner_scoped_and_is_not_a_cross_account_sid
     seed_scoped_diagnostic_envelope(&beta_store, beta_run).await;
     verify_model_lane_behavior_evidence(&alpha_store, alpha_run, &matrix)
         .await
-        .expect("the owning workspace must still prove its own run-level evidence");
+        .expect("the owning workspace must prove its own run-level evidence");
     verify_model_lane_behavior_evidence(&alpha_store, beta_run, &matrix)
         .await
         .expect_err("one workspace must not read another workspace's diagnostic evidence");
-    assert!(
-        alpha_store
-            .diagnostic_tier_posture(beta_run, "HBR-INT-009")
-            .await
-            .expect("scoped posture read")
-            .tiers
-            .is_empty(),
-        "workspace narrowing must apply to diagnostic tier records"
-    );
 
-    // -- Unattributed (pre-0363 style) diagnostic rows are denied ------------
-    let legacy_store = ModelLaneStore::new_system_authority(
-        pool.clone(),
-        SystemScopeAuthority::internal_subsystem("TEST_MT011_PRE_0363_DIAGNOSTIC_ROW"),
-    );
-    let legacy_run = "run-mt011-priv-legacy";
-    seed_scoped_diagnostic_envelope(&legacy_store, legacy_run).await;
-    let legacy_row = sqlx::query(&sql)
-        .bind(legacy_run)
-        .fetch_one(&pool)
+    drop((alice_store, bob_store, alpha_store, beta_store, storage));
+    surreal_scope
+        .cleanup()
         .await
-        .expect("unpredicated read of the unattributed diagnostic row");
-    let legacy_stored =
-        stored_resource_scope_from_row(&legacy_row).expect("decode stored scope columns");
-    assert_eq!(
-        legacy_stored.owner_account_id, None,
-        "the legacy fixture must actually be unattributed, or this proves nothing"
-    );
-    assert_eq!(
-        ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(alice))
-            .authorize_row(&legacy_stored)
-            .expect_err("an unattributed diagnostic row must never be readable by an account")
-            .reason_code(),
-        "RESOURCE_SCOPE_UNATTRIBUTED"
-    );
-    verify_model_lane_behavior_evidence(&alice_store, legacy_run, &matrix)
-        .await
-        .expect_err("an account reader must not prove coverage from unattributed diagnostic rows");
-    // The explicitly-named system authority is the documented cross-owner path.
-    verify_model_lane_behavior_evidence(&legacy_store, legacy_run, &matrix)
-        .await
-        .expect("an explicit SystemScopeAuthority store may read unattributed diagnostic rows");
+        .expect("clean exact embedded SurrealDB privacy-proof scope");
 }

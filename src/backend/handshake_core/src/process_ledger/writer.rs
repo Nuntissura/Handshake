@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     sync::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
@@ -11,12 +11,11 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sqlx::{postgres::PgPool, Postgres, Row, Transaction};
 use thiserror::Error;
 use tokio::{
     sync::{
         mpsc::{self, error::TrySendError, OwnedPermit, Receiver, Sender},
-        oneshot, Mutex, Notify, OnceCell,
+        oneshot, Mutex, Notify,
     },
     task::JoinHandle,
     time::{self, MissedTickBehavior},
@@ -25,22 +24,13 @@ use uuid::Uuid;
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 
-use super::reclaim::{
-    assert_process_ledger_authority_relation, force_all_constraints_immediate,
-    lock_process_ledger_authority_relation, pin_transaction_search_path,
-    require_postgres_crash_durability, require_synchronous_commit,
-    resolve_process_ledger_authority_relation, ProcessLedgerAuthorityLockMode,
-    ProcessLedgerAuthorityRelation,
-};
 use super::table::{
     LedgerEvent, LedgerEventKind, ProcessStart, ProcessStop, PROCESS_LEDGER_DEFAULT_BATCH_SIZE,
     PROCESS_LEDGER_DEFAULT_CHANNEL_CAPACITY, PROCESS_LEDGER_DEFAULT_FLUSH_INTERVAL_MS,
-    PROCESS_LEDGER_MIGRATION_SQL, PROCESS_START_INSERT_SQL, PROCESS_STOP_UPSERT_SQL,
 };
 
 pub const FR_EVT_LEDGER_OVERFLOW: &str = "FR_EVT_LEDGER_OVERFLOW";
 const PROCESS_LEDGER_SOURCE_COMPONENT: &str = "process_ledger_writer";
-const PROCESS_LEDGER_AUTHORITY_LOCK_TIMEOUT: &str = "2000ms";
 
 /// Upper bound on the writer's in-flight START identity index.
 ///
@@ -64,7 +54,6 @@ static GLOBAL_LEDGER_FLUSH_FAILED_ROWS: AtomicU64 = AtomicU64::new(0);
 pub fn is_degraded() -> bool {
     GLOBAL_DEGRADED_WRITERS.load(Ordering::SeqCst) > 0
 }
-
 /// Cumulative row-attempt volume across failed store writes process-wide.
 ///
 /// Non-zero means at least one write attempt failed. Rows are retained for
@@ -84,8 +73,6 @@ pub enum ProcessLedgerError {
     OverflowEmit(String),
     #[error("PROCESS_LEDGER_STORE: {0}")]
     Store(String),
-    #[error("PROCESS_LEDGER_POSTGRES: {source}")]
-    Postgres { source: sqlx::Error },
     #[error("PROCESS_LEDGER_EVENT: {0}")]
     Event(String),
     #[error("PROCESS_LEDGER_START_IDENTITY_CONFLICT: process_uuid {process_uuid} already belongs to a different lifecycle")]
@@ -115,12 +102,6 @@ pub enum ProcessLedgerError {
         process_uuid: Uuid,
         reason: String,
     },
-}
-
-impl From<sqlx::Error> for ProcessLedgerError {
-    fn from(source: sqlx::Error) -> Self {
-        Self::Postgres { source }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -382,12 +363,12 @@ pub struct ProcessLedgerWriter {
     /// START rows this writer accepted whose matching STOP row has not been
     /// accepted yet, keyed by `process_uuid`.
     ///
-    /// The authoritative STOP upsert only updates a lifecycle row when every
-    /// immutable identity column of the STOP is byte-identical to the persisted
-    /// START (see `PROCESS_STOP_UPSERT_SQL`). A terminal owner that did not
+    /// The authoritative Surreal STOP mutation only updates a lifecycle row when
+    /// every immutable identity field is byte-identical to the persisted START.
+    /// A terminal owner that did not
     /// author the START therefore cannot synthesize a valid STOP from its own
     /// defaults: `started_at`, `wp_id`/`mt_id` lineage, and `metadata_jsonb`
-    /// diverge and PostgreSQL rejects the row as a STOP identity conflict. This
+    /// diverge and the durable store rejects the row as a STOP identity conflict. This
     /// index makes the accepted START identity retrievable so the terminal path
     /// can derive a symmetric STOP instead of inventing a conflicting one.
     recorded_starts: Arc<std::sync::Mutex<HashMap<Uuid, ProcessStart>>>,
@@ -1462,281 +1443,4 @@ fn clear_degraded(degraded: &AtomicBool) {
     if degraded.swap(false, Ordering::SeqCst) {
         GLOBAL_DEGRADED_WRITERS.fetch_sub(1, Ordering::SeqCst);
     }
-}
-
-pub struct PostgresProcessLedgerStore {
-    pool: PgPool,
-    authority: OnceCell<ProcessLedgerAuthorityRelation>,
-}
-
-impl PostgresProcessLedgerStore {
-    pub fn new(pool: PgPool) -> Self {
-        Self {
-            pool,
-            authority: OnceCell::new(),
-        }
-    }
-
-    pub fn pool(&self) -> &PgPool {
-        &self.pool
-    }
-
-    pub(super) async fn authority(
-        &self,
-    ) -> Result<&ProcessLedgerAuthorityRelation, ProcessLedgerError> {
-        self.authority
-            .get_or_try_init(|| resolve_process_ledger_authority_relation(&self.pool))
-            .await
-    }
-
-    pub async fn apply_migration(&self) -> Result<(), ProcessLedgerError> {
-        for statement in PROCESS_LEDGER_MIGRATION_SQL
-            .split(';')
-            .map(str::trim)
-            .filter(|statement| !statement.is_empty())
-        {
-            sqlx::query(statement).execute(&self.pool).await?;
-        }
-        // Resolve and cache the authoritative relation as part of preflight.
-        // Leaving this catalog lookup lazy charges its latency to the first
-        // process START durability deadline, which can reject a valid launch
-        // before the writer reaches the insert on a catalog-heavy database.
-        self.authority().await?;
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl ProcessLedgerStore for PostgresProcessLedgerStore {
-    async fn preflight(&self) -> Result<(), ProcessLedgerError> {
-        self.authority().await?;
-        Ok(())
-    }
-
-    async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
-        if events.is_empty() {
-            return Ok(());
-        }
-        let authority = self.authority().await?.clone();
-        let mut tx = self.pool.begin().await?;
-        let configured_lock_timeout: String =
-            sqlx::query_scalar("SELECT pg_catalog.set_config('lock_timeout', $1, true)")
-                .bind(PROCESS_LEDGER_AUTHORITY_LOCK_TIMEOUT)
-                .fetch_one(&mut *tx)
-                .await?;
-        if configured_lock_timeout.trim().is_empty() {
-            return Err(ProcessLedgerError::Store(
-                "failed to bound PostgreSQL process-ledger authority lock waits".to_string(),
-            ));
-        }
-        pin_transaction_search_path(&mut tx, &authority.schema).await?;
-        lock_process_ledger_authority_relation(
-            &mut tx,
-            &authority,
-            ProcessLedgerAuthorityLockMode::RowExclusive,
-        )
-        .await?;
-        assert_process_ledger_authority_relation(&mut tx, &authority).await?;
-        require_postgres_crash_durability(&mut tx, "process-ledger mutation").await?;
-        require_synchronous_commit(&mut tx, "process-ledger mutation").await?;
-        for event in &events {
-            match event {
-                LedgerEvent::Start(start) => insert_start(&mut tx, start).await?,
-                LedgerEvent::Stop(stop) => upsert_stop(&mut tx, stop).await?,
-            }
-        }
-        force_all_constraints_immediate(&mut tx).await?;
-        assert_process_ledger_authority_relation(&mut tx, &authority).await?;
-        verify_final_event_rows(&mut tx, &authority, &events).await?;
-        require_synchronous_commit(&mut tx, "process-ledger mutation commit").await?;
-        tx.commit().await?;
-        Ok(())
-    }
-}
-
-async fn verify_final_event_rows(
-    tx: &mut Transaction<'_, Postgres>,
-    authority: &ProcessLedgerAuthorityRelation,
-    events: &[LedgerEvent],
-) -> Result<(), ProcessLedgerError> {
-    let readback_sql = format!(
-        r#"
-        SELECT os_pid, parent_session_id, parent_process_id, sandbox_adapter_id,
-               sandbox_internal_id, engine_kind, started_at, stopped_at, exit_code,
-               stop_reason, model_artifact_sha256, work_profile_id, owner_role,
-               owner_wp, role_id, wp_id, mt_id, sandbox_capabilities_snapshot,
-               metadata_jsonb
-        FROM ONLY {}
-        WHERE process_uuid = $1
-        "#,
-        authority.qualified_table
-    );
-    let mut verified = HashSet::with_capacity(events.len());
-    for event in events.iter().rev() {
-        let process_uuid = event.process_uuid();
-        if !verified.insert(process_uuid) {
-            continue;
-        }
-        let row = sqlx::query(&readback_sql)
-            .bind(process_uuid)
-            .fetch_optional(&mut **tx)
-            .await?
-            .ok_or_else(|| {
-                ProcessLedgerError::Store(format!(
-                    "process-ledger final readback found no row for {process_uuid}"
-                ))
-            })?;
-        let os_pid: Option<i64> = row.try_get("os_pid")?;
-        let parent_session_id: Option<String> = row.try_get("parent_session_id")?;
-        let parent_process_id: Option<Uuid> = row.try_get("parent_process_id")?;
-        let sandbox_adapter_id: Option<String> = row.try_get("sandbox_adapter_id")?;
-        let sandbox_internal_id: Option<String> = row.try_get("sandbox_internal_id")?;
-        let engine_kind: String = row.try_get("engine_kind")?;
-        let started_at: DateTime<Utc> = row.try_get("started_at")?;
-        let stopped_at: Option<DateTime<Utc>> = row.try_get("stopped_at")?;
-        let exit_code: Option<i32> = row.try_get("exit_code")?;
-        let stop_reason: Option<String> = row.try_get("stop_reason")?;
-        let model_artifact_sha256: Option<String> = row.try_get("model_artifact_sha256")?;
-        let work_profile_id: Option<String> = row.try_get("work_profile_id")?;
-        let owner_role: String = row.try_get("owner_role")?;
-        let owner_wp: Option<String> = row.try_get("owner_wp")?;
-        let role_id: Option<String> = row.try_get("role_id")?;
-        let wp_id: Option<String> = row.try_get("wp_id")?;
-        let mt_id: Option<String> = row.try_get("mt_id")?;
-        let sandbox_capabilities_snapshot: Value = row.try_get("sandbox_capabilities_snapshot")?;
-        let metadata_jsonb: Value = row.try_get("metadata_jsonb")?;
-        let valid = match event {
-            LedgerEvent::Start(start) => {
-                os_pid == start.os_pid.map(i64::from)
-                    && parent_session_id == start.parent_session_id
-                    && parent_process_id == start.parent_process_id
-                    && sandbox_adapter_id == start.sandbox_adapter_id
-                    && sandbox_internal_id == start.sandbox_internal_id
-                    && engine_kind == start.engine_kind.as_str()
-                    && started_at.timestamp_micros() == start.started_at.timestamp_micros()
-                    && stopped_at.is_none()
-                    && exit_code.is_none()
-                    && stop_reason.is_none()
-                    && model_artifact_sha256 == start.model_artifact_sha256
-                    && work_profile_id == start.work_profile_id
-                    && owner_role == start.owner_role
-                    && owner_wp == start.owner_wp
-                    && role_id == start.role_id
-                    && wp_id == start.wp_id
-                    && mt_id == start.mt_id
-                    && sandbox_capabilities_snapshot == start.sandbox_capabilities_snapshot
-                    && metadata_jsonb == start.metadata_jsonb
-            }
-            LedgerEvent::Stop(stop) => {
-                os_pid == stop.os_pid.map(i64::from)
-                    && parent_session_id == stop.parent_session_id
-                    && parent_process_id == stop.parent_process_id
-                    && sandbox_adapter_id == stop.sandbox_adapter_id
-                    && sandbox_internal_id == stop.sandbox_internal_id
-                    && engine_kind == stop.engine_kind.as_str()
-                    && started_at.timestamp_micros() == stop.started_at.timestamp_micros()
-                    && stopped_at.as_ref().map(DateTime::timestamp_micros)
-                        == Some(stop.stopped_at.timestamp_micros())
-                    && exit_code == stop.exit_code
-                    && stop_reason == stop.stop_reason
-                    && model_artifact_sha256 == stop.model_artifact_sha256
-                    && work_profile_id == stop.work_profile_id
-                    && owner_role == stop.owner_role
-                    && owner_wp == stop.owner_wp
-                    && role_id == stop.role_id
-                    && wp_id == stop.wp_id
-                    && mt_id == stop.mt_id
-                    && sandbox_capabilities_snapshot == stop.sandbox_capabilities_snapshot
-                    && metadata_jsonb == stop.metadata_jsonb
-            }
-        };
-        if !valid {
-            return Err(ProcessLedgerError::Store(format!(
-                "process-ledger final readback did not match the last {:?} event for {process_uuid}",
-                event.kind()
-            )));
-        }
-    }
-    Ok(())
-}
-
-async fn insert_start(
-    tx: &mut Transaction<'_, Postgres>,
-    start: &ProcessStart,
-) -> Result<(), ProcessLedgerError> {
-    let result = sqlx::query(PROCESS_START_INSERT_SQL)
-        .bind(start.process_uuid.to_string())
-        .bind(start.os_pid.map(i64::from))
-        .bind(start.parent_session_id.clone())
-        .bind(start.parent_process_id.map(|id| id.to_string()))
-        .bind(start.sandbox_adapter_id.clone())
-        .bind(start.sandbox_internal_id.clone())
-        .bind(start.engine_kind.as_str())
-        .bind(start.started_at)
-        .bind(start.model_artifact_sha256.clone())
-        .bind(start.work_profile_id.clone())
-        .bind(start.owner_role.clone())
-        .bind(start.owner_wp.clone())
-        .bind(start.role_id.clone())
-        .bind(start.wp_id.clone())
-        .bind(start.mt_id.clone())
-        .bind(start.runtime_owner.as_ref().map(|owner| owner.runtime_instance_id.to_string()))
-        .bind(start.runtime_owner.as_ref().map(|owner| owner.host_scope_id.clone()))
-        .bind(start.runtime_owner.as_ref().map(|owner| owner.lease_schema_id.clone()))
-        .bind(start.runtime_owner.as_ref().map(|owner| owner.lease_protocol.clone()))
-        .bind(start.runtime_owner.as_ref().map(|owner| owner.lease_address.clone()))
-        .bind(start.runtime_owner.as_ref().map(|owner| i32::from(owner.lease_port)))
-        .bind(start.sandbox_capabilities_snapshot.to_string())
-        .bind(start.metadata_jsonb.to_string())
-        .execute(&mut **tx)
-        .await?;
-    if result.rows_affected() != 1 {
-        return Err(ProcessLedgerError::StartIdentityConflict {
-            process_uuid: start.process_uuid,
-            conflicting_start: Box::new(start.clone()),
-        });
-    }
-    Ok(())
-}
-
-async fn upsert_stop(
-    tx: &mut Transaction<'_, Postgres>,
-    stop: &ProcessStop,
-) -> Result<(), ProcessLedgerError> {
-    let result = sqlx::query(PROCESS_STOP_UPSERT_SQL)
-        .bind(stop.process_uuid.to_string())
-        .bind(stop.os_pid.map(i64::from))
-        .bind(stop.parent_session_id.clone())
-        .bind(stop.parent_process_id.map(|id| id.to_string()))
-        .bind(stop.sandbox_adapter_id.clone())
-        .bind(stop.sandbox_internal_id.clone())
-        .bind(stop.engine_kind.as_str())
-        .bind(stop.started_at)
-        .bind(stop.stopped_at)
-        .bind(stop.exit_code)
-        .bind(stop.stop_reason.clone())
-        .bind(stop.model_artifact_sha256.clone())
-        .bind(stop.work_profile_id.clone())
-        .bind(stop.owner_role.clone())
-        .bind(stop.owner_wp.clone())
-        .bind(stop.role_id.clone())
-        .bind(stop.wp_id.clone())
-        .bind(stop.mt_id.clone())
-        .bind(stop.runtime_owner.as_ref().map(|owner| owner.runtime_instance_id.to_string()))
-        .bind(stop.runtime_owner.as_ref().map(|owner| owner.host_scope_id.clone()))
-        .bind(stop.runtime_owner.as_ref().map(|owner| owner.lease_schema_id.clone()))
-        .bind(stop.runtime_owner.as_ref().map(|owner| owner.lease_protocol.clone()))
-        .bind(stop.runtime_owner.as_ref().map(|owner| owner.lease_address.clone()))
-        .bind(stop.runtime_owner.as_ref().map(|owner| i32::from(owner.lease_port)))
-        .bind(stop.sandbox_capabilities_snapshot.to_string())
-        .bind(stop.metadata_jsonb.to_string())
-        .execute(&mut **tx)
-        .await?;
-    if result.rows_affected() != 1 {
-        return Err(ProcessLedgerError::StopIdentityConflict {
-            process_uuid: stop.process_uuid,
-            conflicting_stop: Box::new(stop.clone()),
-        });
-    }
-    Ok(())
 }

@@ -756,8 +756,8 @@ pub struct QuickSwitcherRecent {
 // MT-191 LoomVisualDebugViews
 //
 // A bounded backend debug payload for no-context models and visual-debug
-// surfaces. This is a projection over Loom authority rows (PostgreSQL +
-// EventLedger bridge evidence), never a parallel graph/search store and never a
+// surfaces. This is a projection over embedded Loom authority rows and
+// EventLedger bridge evidence, never a parallel graph/search store and never a
 // full-content export.
 // ---------------------------------------------------------------------------
 
@@ -881,35 +881,40 @@ pub struct LoomVisualDebugSnapshot {
 // The authority binding that makes the Loom surface resolve to the
 // ProjectKnowledgeIndex (knowledge_entities) + EventLedger, rather than living
 // as a parallel store. Per Master Spec §10.12 #9.1.1 (WP-KERNEL-009 authority
-// supersession) the ONLY authority path is PostgreSQL + EventLedger; this is
-// the positive binding for that rule.
+// supersession) the product authority path is embedded SurrealDB + EventLedger;
+// this is the positive binding for that rule.
 // ---------------------------------------------------------------------------
 
 /// The single authority backend for the Loom surface under WP-KERNEL-009.
 ///
-/// There is intentionally only one variant. §10.12 #9.1.1 forbids any SQLite /
-/// cache / offline / sidecar authority path for WP-009 Loom; the storage crate
-/// compiles no `sqlite` module (see `storage/mod.rs`), so Postgres is the only
-/// reachable backend and this enum makes that explicit and assertable in tests.
+/// §10.12 #9.1.1 forbids compatibility, cache, offline, and sidecar authority paths.
+/// Each variant therefore names a durable EventLedger-linked authority rather
+/// than a compatibility or projection backend.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum LoomAuthorityBackend {
-    /// PostgreSQL + EventLedger — the sole WP-009 Loom authority.
+    /// Legacy relational authority retained only for the relational adapter.
     PostgresEventLedger,
+    /// Embedded SurrealDB + canonical kernel EventLedger authority.
+    SurrealEventLedger,
 }
 
 impl LoomAuthorityBackend {
     pub fn as_str(&self) -> &'static str {
         match self {
             LoomAuthorityBackend::PostgresEventLedger => "postgres_event_ledger",
+            LoomAuthorityBackend::SurrealEventLedger => "surreal_event_ledger",
         }
     }
 
     /// True iff this backend is a single-source-of-truth authority path (never
-    /// a cache / offline / sidecar). Always true: the only variant is the
-    /// Postgres+EventLedger authority.
+    /// a cache / offline / sidecar). Both adapters bind to their canonical
+    /// EventLedger rather than a projection.
     pub fn is_authority(&self) -> bool {
-        matches!(self, LoomAuthorityBackend::PostgresEventLedger)
+        matches!(
+            self,
+            LoomAuthorityBackend::PostgresEventLedger | LoomAuthorityBackend::SurrealEventLedger
+        )
     }
 }
 
@@ -917,7 +922,7 @@ impl LoomAuthorityBackend {
 /// ProjectKnowledgeIndex entity (`knowledge_entities`, entity_kind=`loom_block`)
 /// plus the EventLedger receipt that proves the bridge/index operation.
 ///
-/// Backed by the `loom_block_knowledge_bridge` table (migration 0292).
+/// Backed by the embedded `loom_block_knowledge_bridge` table.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LoomKnowledgeBridge {
     /// The bridged LoomBlock (`loom_blocks.block_id`).
@@ -1151,9 +1156,9 @@ pub fn loom_find_unlinked_term(text: &str, term: &str) -> Option<(usize, usize)>
 //
 // Master Spec §7.1.4.3 / MT-181: a persistent Loom folder hierarchy with color
 // labels, sort modes, and project membership ("links are the new folders" but
-// an explicit tree is still offered). Authority = PostgreSQL (loom_folders +
-// loom_folder_members). An organizational overlay over LoomBlocks, never a
-// second source of block truth.
+// an explicit tree is still offered). The embedded `loom_folders` and
+// `loom_folder_members` rows are an organizational overlay over LoomBlocks,
+// never a second source of block truth.
 // ---------------------------------------------------------------------------
 
 /// Sort mode for a folder's contents.
@@ -1352,7 +1357,7 @@ pub struct LoomBreadcrumbTrail {
 /// The result of importing a markdown-like note into Loom authority (MT-187):
 /// the created authority LoomBlock + the backing RichDocument id, plus any
 /// import warnings (unsupported features). The markdown source is never stored
-/// as authority — only these PostgreSQL authority rows.
+/// as authority — only the embedded Loom and RichDocument authority rows.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LoomMarkdownImport {
     /// The new authority LoomBlock (content_type=note), bridged to the
@@ -1373,14 +1378,15 @@ pub struct LoomMarkdownImport {
 // are block-id REFERENCES (FK, never content copies); semantic edges are real
 // `loom_edges` (via create_loom_edge); visual-only edges are board-local
 // decoration that is EXPLICITLY NOT graph authority. Board state (viewport) is
-// JSONB on the canvas row, mirroring the 0323 workbench-layout-state precedent.
-// Authority = PostgreSQL + EventLedger; the React canvas is a projection only.
+// structured data on the Canvas row, mirroring the workbench-layout-state
+// precedent. Authority = embedded SurrealDB + EventLedger; the React canvas is
+// a projection only.
 //
 // TRAP GUARD: this is the NEW LoomBoard, NOT the legacy Excalidraw sketch canvas
-// (`canvas_nodes`/`canvas_edges`, migration 0005), which stores content COPIES.
+// (`canvas_nodes`/`canvas_edges`), which stores content COPIES.
 // ---------------------------------------------------------------------------
 
-/// The board-state (viewport) JSONB schema id (CHECK on `loom_canvas_boards`).
+/// The board-state (viewport) structured-value schema id.
 pub const LOOM_CANVAS_BOARD_SCHEMA_ID: &str = "hsk.loom_canvas_board@1";
 
 /// A canvas board: the typed LoomBlock plus its viewport state and the
@@ -1390,7 +1396,7 @@ pub struct LoomCanvasBoard {
     /// The canvas LoomBlock id (content_type=`canvas`). Board row PK == block_id.
     pub block_id: String,
     pub workspace_id: String,
-    /// Viewport / board-level state JSONB
+    /// Viewport / board-level structured state.
     /// (`{schema_id, pan_x, pan_y, zoom}`).
     pub board_state: serde_json::Value,
     pub created_at: DateTime<Utc>,

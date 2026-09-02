@@ -1,26 +1,25 @@
 //! WP-KERNEL-009 MT-239 UserManualFreshnessFixture.
 //!
-//! Real PostgreSQL proof that UserManual freshness rejects false PASS states
-//! when stored child rows drift without changing page row hashes or row counts.
+//! Embedded SurrealDB proof that UserManual freshness rejects false PASS
+//! states when stored child records drift without changing page hashes or
+//! child counts.
 
-mod knowledge_pg_support;
+mod surreal_test_store_support;
 #[allow(dead_code)]
 mod user_manual_support;
 
+use handshake_core::user_manual::fixtures::tamper_section;
 use handshake_core::user_manual::freshness::{check_freshness, FreshnessVerdictKind};
 use handshake_core::user_manual::seed::ensure_seeded;
-use handshake_core::user_manual::store::UserManualStore;
-use sqlx::Connection;
+use user_manual_support::UserManualTestScope;
 
 #[tokio::test]
 async fn model_lane_user_manual_freshness_detects_stale_code_truth() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "model_lane_user_manual_freshness_detects_stale_code_truth"
-    );
-    ensure_seeded(&kpg.db).await.expect("seed");
-    let store = UserManualStore::new(&kpg.db);
-    let clean = check_freshness(&kpg.db)
+    let scope = UserManualTestScope::create().await;
+    let storage = scope.storage();
+    let store = scope.store();
+    ensure_seeded(&storage).await.expect("seed");
+    let clean = check_freshness(&storage)
         .await
         .expect("freshness before model-lane tamper");
     assert!(clean.fresh, "seeded manual must start fresh: {:?}", clean);
@@ -35,21 +34,16 @@ async fn model_lane_user_manual_freshness_detects_stale_code_truth() {
         .find(|section| section.title == "Behavior coverage matrix")
         .expect("model-lane validation harness has behavior matrix section");
 
-    let mut conn = kpg.raw_connection().await;
-    sqlx::query(
-        r#"
-        UPDATE user_manual_sections
-        SET body_md = 'tampered MT-011 self-consistency proof text'
-        WHERE section_id = $1
-        "#,
+    tamper_section(
+        &store,
+        &section.section_id,
+        &section.title,
+        "tampered MT-011 self-consistency proof text",
     )
-    .bind(&section.section_id)
-    .execute(&mut conn)
     .await
     .expect("tamper model-lane behavior matrix section");
-    conn.close().await.ok();
 
-    let stale = check_freshness(&kpg.db)
+    let stale = check_freshness(&storage)
         .await
         .expect("freshness after model-lane behavior matrix tamper");
     assert!(
@@ -67,22 +61,23 @@ async fn model_lane_user_manual_freshness_detects_stale_code_truth() {
         stale.verdicts
     );
 
-    let healed = ensure_seeded(&kpg.db).await.expect("healing reseed");
+    let healed = ensure_seeded(&storage).await.expect("healing reseed");
     assert!(
         healed.pages_changed >= 1,
         "reseed must heal model-lane UserManual drift"
     );
+    drop(store);
+    drop(storage);
+    scope.cleanup().await;
 }
 
 #[tokio::test]
 async fn mt239_freshness_detects_same_count_page_child_tampering() {
-    let kpg = skip_if_no_pg!(
-        knowledge_pg_support::knowledge_pg().await,
-        "mt239_same_count_child_tamper"
-    );
-    ensure_seeded(&kpg.db).await.expect("seed");
-    let store = UserManualStore::new(&kpg.db);
-    let clean = check_freshness(&kpg.db)
+    let scope = UserManualTestScope::create().await;
+    let storage = scope.storage();
+    let store = scope.store();
+    ensure_seeded(&storage).await.expect("seed");
+    let clean = check_freshness(&storage)
         .await
         .expect("freshness before tamper");
     assert!(clean.fresh, "seeded manual must start fresh: {:?}", clean);
@@ -98,44 +93,31 @@ async fn mt239_freshness_detects_same_count_page_child_tampering() {
     let original_title = section.title.clone();
     let original_body = section.body_md.clone();
 
-    let mut conn = kpg.raw_connection().await;
-    sqlx::query(
-        r#"
-        UPDATE user_manual_sections
-        SET title = 'tampered same-count section title',
-            body_md = 'tampered same-count section body'
-        WHERE section_id = $1
-        "#,
+    tamper_section(
+        &store,
+        &section.section_id,
+        "tampered same-count section title",
+        "tampered same-count section body",
     )
-    .bind(&section.section_id)
-    .execute(&mut conn)
     .await
     .expect("tamper section in place");
-    let stored_hash_after_tamper: String =
-        sqlx::query_scalar("SELECT content_hash FROM user_manual_pages WHERE page_id = $1")
-            .bind(&page.page_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("page hash after tamper");
-    let section_count_after_tamper: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM user_manual_sections WHERE page_id = $1")
-            .bind(&page.page_id)
-            .fetch_one(&mut conn)
-            .await
-            .expect("section count after tamper");
-    conn.close().await.ok();
+    let (stored_after_tamper, sections_after_tamper, _) = store
+        .get_page_by_slug(&page.slug)
+        .await
+        .expect("page after tamper")
+        .expect("page remains present after child tamper");
 
     assert_eq!(
-        stored_hash_after_tamper, page.content_hash,
+        stored_after_tamper.content_hash, page.content_hash,
         "fixture must not update the page row hash"
     );
     assert_eq!(
-        section_count_after_tamper as usize,
+        sections_after_tamper.len(),
         sections.len(),
         "fixture must keep the child row count unchanged"
     );
 
-    let stale = check_freshness(&kpg.db)
+    let stale = check_freshness(&storage)
         .await
         .expect("freshness after same-count child tamper");
     assert!(
@@ -153,7 +135,7 @@ async fn mt239_freshness_detects_same_count_page_child_tampering() {
         stale.verdicts
     );
 
-    let healed = ensure_seeded(&kpg.db).await.expect("healing reseed");
+    let healed = ensure_seeded(&storage).await.expect("healing reseed");
     assert!(
         healed.pages_changed >= 1,
         "reseed must heal same-count child row tampering"
@@ -166,4 +148,7 @@ async fn mt239_freshness_detects_same_count_page_child_tampering() {
     assert_eq!(healed_sections.len(), sections.len());
     assert_eq!(healed_sections[0].title, original_title);
     assert_eq!(healed_sections[0].body_md, original_body);
+    drop(store);
+    drop(storage);
+    scope.cleanup().await;
 }

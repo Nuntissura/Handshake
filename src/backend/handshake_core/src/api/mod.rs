@@ -43,7 +43,9 @@ pub mod user_manual;
 pub mod workspaces;
 
 pub fn routes(state: AppState) -> Router {
-    let ApiRoutes { router, runtime } = routes_with_runtime(state);
+    let product_scope = ProductLocalResourceScope::from_env()
+        .expect("API routes require the strict product-local ResourceScope authority");
+    let ApiRoutes { router, runtime } = routes_with_runtime_and_scope(state, product_scope);
     router.layer(Extension(runtime))
 }
 
@@ -51,7 +53,7 @@ pub fn routes_with_product_local_scope(
     state: AppState,
     product_scope: ProductLocalResourceScope,
 ) -> Router {
-    let ApiRoutes { router, runtime } = routes_with_runtime_and_scope(state, Some(product_scope));
+    let ApiRoutes { router, runtime } = routes_with_runtime_and_scope(state, product_scope);
     router.layer(Extension(runtime))
 }
 
@@ -65,22 +67,29 @@ pub struct ApiRouteRuntime {
     shared_process_runtime: Option<crate::process_ledger::ProcessReclaimRuntime>,
     operator_chat_process_ledger: Option<crate::process_ledger::RetainedLedgerBatcher>,
     process_reclaim_task: Option<crate::process_ledger::ManagedStalenessReclaimTask>,
-    _legacy_runtime_lease: Option<Arc<crate::process_ledger::EmbeddedRuntimeInstanceLease>>,
+    swarm_event_drain: Option<crate::swarm_orchestration::events::DurableSwarmFrDrain>,
+    _standalone_runtime_lease: Option<Arc<crate::process_ledger::EmbeddedRuntimeInstanceLease>>,
 }
 
 #[derive(Debug)]
 pub struct ApiRouteRuntimeDrainReport {
     pub operator_chat_process_ledger: crate::process_ledger::LedgerDrainJoinOutcome,
     pub process_reclaim_quiesced: bool,
+    pub swarm_events_flushed: bool,
 }
 
 impl ApiRouteRuntime {
     pub async fn drain_and_join(&self, timeout: std::time::Duration) -> ApiRouteRuntimeDrainReport {
+        let swarm_events_flushed = match &self.swarm_event_drain {
+            Some(drain) => drain.drain_and_join(timeout).await,
+            None => true,
+        };
         if let Some(runtime) = &self.shared_process_runtime {
             let report = runtime.shutdown_and_drain(timeout).await;
             return ApiRouteRuntimeDrainReport {
                 process_reclaim_quiesced: report.reclaim_task_quiesced,
                 operator_chat_process_ledger: report.ledger,
+                swarm_events_flushed,
             };
         }
         let process_reclaim_quiesced = match &self.process_reclaim_task {
@@ -89,11 +98,12 @@ impl ApiRouteRuntime {
         };
         ApiRouteRuntimeDrainReport {
             process_reclaim_quiesced,
+            swarm_events_flushed,
             operator_chat_process_ledger: self
                 .operator_chat_process_ledger
                 .as_ref()
                 .map(|ledger| ledger.clone())
-                .expect("legacy API runtime must retain its process ledger")
+                .expect("standalone API runtime must retain its process ledger")
                 .drain_and_join(timeout)
                 .await,
         }
@@ -101,38 +111,44 @@ impl ApiRouteRuntime {
 }
 
 pub fn routes_with_runtime(state: AppState) -> ApiRoutes {
-    routes_with_runtime_and_scope(state, None)
+    let product_scope = ProductLocalResourceScope::from_env()
+        .expect("API routes require the strict product-local ResourceScope authority");
+    routes_with_runtime_and_scope(state, product_scope)
 }
 
 fn routes_with_runtime_and_scope(
     state: AppState,
-    product_scope: Option<ProductLocalResourceScope>,
+    product_scope: ProductLocalResourceScope,
 ) -> ApiRoutes {
     // One process-wide owner registry is shared by launch and crash recovery;
     // reclaim must dispatch through the same SandboxAdapter authority that
     // created an official-CLI child.
     let cli_sandbox_registry = crate::process_ledger::production_process_sandbox_registry();
-    let legacy_runtime_lease = Arc::new(
+    let runtime_host_scope_id = crate::process_ledger::resolve_embedded_runtime_host_scope()
+        .expect("standalone API routes require an explicit embedded runtime host scope");
+    let standalone_runtime_lease = Arc::new(
         crate::process_ledger::acquire_embedded_runtime_instance_lease(
             uuid::Uuid::now_v7(),
-            "legacy-api-route-fixture-host",
+            runtime_host_scope_id,
         )
-        .expect("legacy API route runtime must acquire an OS liveness lease"),
+        .expect("standalone API route runtime must acquire an OS liveness lease"),
     );
     let operator_chat_process_ledger =
         crate::process_ledger::RetainedLedgerBatcher::spawn_with_runtime_owner(
-            Arc::new(crate::process_ledger::PostgresProcessLedgerStore::new(
-                state.postgres_pool.clone(),
+            Arc::new(crate::process_ledger::SurrealProcessLedgerStore::new(
+                state.surreal_storage.clone(),
             )),
             Arc::new(crate::process_ledger::NoopOverflowSink),
             crate::process_ledger::LedgerBatcherConfig::default(),
-            legacy_runtime_lease.descriptor().process_runtime_owner(),
+            standalone_runtime_lease
+                .descriptor()
+                .process_runtime_owner(),
         );
-    let reclaim_store = Arc::new(crate::process_ledger::PostgresProcessLedgerStore::new(
-        state.postgres_pool.clone(),
+    let reclaim_store = Arc::new(crate::process_ledger::SurrealProcessLedgerStore::new(
+        state.surreal_storage.clone(),
     ));
     let reclaim_killer = Arc::new(crate::process_ledger::ProductionSandboxKill::with_registry(
-        state.postgres_pool.clone(),
+        state.surreal_storage.clone(),
         Arc::clone(&cli_sandbox_registry),
     ));
     let reclaim = Arc::new(crate::process_ledger::Reclaim::new(
@@ -141,9 +157,9 @@ fn routes_with_runtime_and_scope(
         Arc::new(operator_chat_process_ledger.ledger()),
     ));
     let stale_source = Arc::new(
-        crate::process_ledger::PostgresModelLaneStaleSessionSource::new(
-            state.postgres_pool.clone(),
-            legacy_runtime_lease.descriptor().clone(),
+        crate::process_ledger::SurrealModelLaneStaleSessionSource::new(
+            state.surreal_storage.clone(),
+            standalone_runtime_lease.descriptor().clone(),
         ),
     );
     let process_reclaim_task = crate::process_ledger::spawn_managed_staleness_reclaim_task(
@@ -151,7 +167,7 @@ fn routes_with_runtime_and_scope(
         stale_source,
         crate::process_ledger::StalenessReclaimConfig::default(),
     );
-    let router = routes_with_operator_chat_runtime(
+    let (router, swarm_event_drain) = routes_with_operator_chat_runtime(
         state,
         operator_chat_process_ledger.clone(),
         Arc::clone(&reclaim),
@@ -164,7 +180,8 @@ fn routes_with_runtime_and_scope(
             shared_process_runtime: None,
             operator_chat_process_ledger: Some(operator_chat_process_ledger),
             process_reclaim_task: Some(process_reclaim_task),
-            _legacy_runtime_lease: Some(legacy_runtime_lease),
+            swarm_event_drain: Some(swarm_event_drain),
+            _standalone_runtime_lease: Some(standalone_runtime_lease),
         },
     }
 }
@@ -175,12 +192,12 @@ pub fn routes_with_process_reclaim_runtime(
     product_scope: ProductLocalResourceScope,
 ) -> ApiRoutes {
     let operator_chat_process_ledger = process_runtime.ledger();
-    let router = routes_with_operator_chat_runtime(
+    let (router, swarm_event_drain) = routes_with_operator_chat_runtime(
         state,
         operator_chat_process_ledger,
         process_runtime.reclaim(),
         process_runtime.sandbox_registry(),
-        Some(product_scope),
+        product_scope,
     );
     ApiRoutes {
         router,
@@ -188,7 +205,8 @@ pub fn routes_with_process_reclaim_runtime(
             shared_process_runtime: Some(process_runtime),
             operator_chat_process_ledger: None,
             process_reclaim_task: None,
-            _legacy_runtime_lease: None,
+            swarm_event_drain: Some(swarm_event_drain),
+            _standalone_runtime_lease: None,
         },
     }
 }
@@ -198,8 +216,11 @@ fn routes_with_operator_chat_runtime(
     operator_chat_process_ledger: crate::process_ledger::RetainedLedgerBatcher,
     reclaim: Arc<crate::process_ledger::Reclaim>,
     cli_sandbox_registry: Arc<crate::sandbox::SandboxAdapterRegistry>,
-    product_scope: Option<ProductLocalResourceScope>,
-) -> Router {
+    product_scope: ProductLocalResourceScope,
+) -> (
+    Router,
+    crate::swarm_orchestration::events::DurableSwarmFrDrain,
+) {
     let workspace_routes = workspaces::routes(state.clone());
     let canvas_routes = canvases::routes(state.clone());
     let job_routes = jobs::routes(state.clone());
@@ -207,10 +228,14 @@ fn routes_with_operator_chat_runtime(
     let flight_recorder_routes = flight_recorder::routes(state.clone());
     let diagnostics_routes = diagnostics::routes(state.clone());
     let model_lane_navigation_routes = model_lane_navigation::routes(state.clone());
-    let model_runtime_registry_routes = model_runtime_registry::routes(state.clone());
+    let model_runtime_registry_routes =
+        model_runtime_registry::routes(model_runtime_registry::ModelRuntimeRegistryApiState::new(
+            state.surreal_storage.clone(),
+            state.llm_client.clone(),
+        ));
     // MT-012 (F3): wire the LIVE operator chat/launch surface from AppState. The
     // launch service is backed by a real `SwarmCoordinator` + `ModelLaneStore`
-    // (the shared PostgreSQL pool), so `POST /operator-chat/launch` performs a real
+    // (the shared injected SurrealStorage), so `POST /operator-chat/launch` performs a real
     // launch (never an inert `503 launch_not_wired`) and `GET
     // /operator-chat/transcript/:run_id` reads captured ModelLaneMessage rows.
     // Cloud/official-CLI lanes are wired from the same production access service
@@ -238,29 +263,17 @@ fn routes_with_operator_chat_runtime(
             cli_auth_probe.clone(),
             cli_login_launcher,
         ));
-    let operator_chat_launch_service = match product_scope.as_ref() {
-        Some(scope) => crate::swarm_orchestration::production_factory::build_scoped_operator_chat_launch_service_with_sandbox_registry(
-            state.postgres_pool.clone(),
-            state.flight_recorder.clone(),
-            operator_chat_catalog.clone(),
-            operator_chat_process_ledger.clone(),
-            Arc::clone(&reclaim),
-            operator_chat_cloud_wiring.factory,
-            Some(cli_sandbox_registry),
-            scope.resource_scope(),
-            uuid::Uuid::new_v4(),
-        ),
-        None => crate::swarm_orchestration::production_factory::build_operator_chat_launch_service_with_sandbox_registry(
-            state.postgres_pool.clone(),
-            state.flight_recorder.clone(),
-            operator_chat_catalog.clone(),
-            operator_chat_process_ledger.clone(),
-            Arc::clone(&reclaim),
-            operator_chat_cloud_wiring.factory,
-            Some(cli_sandbox_registry),
-            uuid::Uuid::new_v4(),
-        ),
-    };
+    let (operator_chat_launch_service, swarm_event_drain) = crate::swarm_orchestration::production_factory::build_scoped_operator_chat_launch_service_with_sandbox_registry(
+        state.surreal_storage.clone(),
+        state.flight_recorder.clone(),
+        operator_chat_catalog.clone(),
+        operator_chat_process_ledger.clone(),
+        Arc::clone(&reclaim),
+        operator_chat_cloud_wiring.factory,
+        Some(cli_sandbox_registry),
+        product_scope.exact().clone(),
+        uuid::Uuid::new_v4(),
+    );
     let operator_chat_cloud_registry = operator_chat_cloud_registry();
     let operator_chat_state = operator_chat::OperatorChatState::production()
         .with_launch_service(operator_chat_launch_service)
@@ -270,15 +283,12 @@ fn routes_with_operator_chat_runtime(
         .with_recorder(state.flight_recorder.clone())
         .with_cli_bridge_auth_probe(cli_auth_probe)
         .with_cli_bridge_launchable_providers(operator_chat_cloud_wiring.launchable_providers);
-    let operator_chat_routes = match product_scope.as_ref() {
-        Some(_) => operator_chat::scoped_routes(operator_chat_state),
-        None => operator_chat::routes(operator_chat_state),
-    };
+    let operator_chat_routes = operator_chat::scoped_routes(operator_chat_state);
     let palmistry_routes = palmistry::routes(palmistry::PalmistryLaunchState::new(
         operator_chat_process_ledger.ledger(),
         state.flight_recorder.clone(),
-        state.storage.clone(),
-        state.postgres_pool.clone(),
+        state.surreal_storage.clone(),
+        product_scope.exact().clone(),
         Arc::clone(&reclaim),
     ));
     let bundle_routes = bundles::routes(state.clone());
@@ -332,10 +342,7 @@ fn routes_with_operator_chat_runtime(
         .merge(source_control_routes)
         .merge(debug_adapter_routes)
         .merge(console_stream_routes);
-    match product_scope {
-        Some(scope) => router.layer(Extension(scope)),
-        None => router,
-    }
+    (router.layer(Extension(product_scope)), swarm_event_drain)
 }
 
 fn operator_chat_cloud_registry() -> Arc<dyn crate::model_runtime::cloud::ProviderAccessRegistry> {

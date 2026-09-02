@@ -22,7 +22,12 @@ use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 pub const SURFACE_CONTRACT_ID: &str = "native_operator_chat_launch";
 pub const SURFACE_AUTHOR_ID: &str = "operator-chat.surface";
 pub const MODEL_PICKER_AUTHOR_ID: &str = "operator-chat.picker.model";
-pub const FOLDER_PICKER_AUTHOR_ID: &str = "operator-chat.picker.folder";
+/// Focus-safe production worktree selection. Argus can set this text field over
+/// the authenticated socket; no native folder picker or foreground activation
+/// is required.
+pub const WORKTREE_SELECTION_AUTHOR_ID: &str = "operator-chat.picker.folder";
+/// Compatibility alias for existing in-process proofs and external clients.
+pub const FOLDER_PICKER_AUTHOR_ID: &str = WORKTREE_SELECTION_AUTHOR_ID;
 pub const PROMPT_INPUT_AUTHOR_ID: &str = "operator-chat.input.prompt";
 pub const LAUNCH_AUTHOR_ID: &str = "operator-chat.action.launch";
 pub const REFRESH_MODELS_AUTHOR_ID: &str = "operator-chat.action.refresh-models";
@@ -311,29 +316,33 @@ impl OperatorChatUiState {
     fn selected_model_is_canonical_and_available(&self) -> bool {
         self.selected
             .as_ref()
-            .is_some_and(|selected| match selected.lane_kind.as_str() {
-                "local" => self
-                    .inventory
-                    .local
-                    .iter()
-                    .any(|row| row.model_id == selected.model_id && row.ready),
-                "cloud" => self.inventory.cloud_byok.iter().any(|row| {
-                    row.model_id == selected.model_id
-                        && selected.cloud_provider.as_deref() == Some(row.provider.as_str())
-                        && row.status == "configured"
-                }),
-                "cli" => self.inventory.cloud_cli_bridge.iter().any(|row| {
-                    row.model_id == selected.model_id
-                        && selected.cli_provider.as_deref() == Some(row.provider.as_str())
-                        && row.status == "logged_in"
-                }),
-                "subagent" => self
-                    .inventory
-                    .subagents
-                    .iter()
-                    .any(|row| row.model_id == selected.model_id && row.status == "available"),
-                _ => false,
-            })
+            .is_some_and(|selected| self.selection_is_canonical_and_available(selected))
+    }
+
+    fn selection_is_canonical_and_available(&self, selected: &OperatorChatLaunchSelection) -> bool {
+        match selected.lane_kind.as_str() {
+            "local" => self
+                .inventory
+                .local
+                .iter()
+                .any(|row| row.model_id == selected.model_id && row.ready),
+            "cloud" => self.inventory.cloud_byok.iter().any(|row| {
+                row.model_id == selected.model_id
+                    && selected.cloud_provider.as_deref() == Some(row.provider.as_str())
+                    && row.status == "configured"
+            }),
+            "cli" => self.inventory.cloud_cli_bridge.iter().any(|row| {
+                row.model_id == selected.model_id
+                    && selected.cli_provider.as_deref() == Some(row.provider.as_str())
+                    && row.status == "logged_in"
+            }),
+            "subagent" => self
+                .inventory
+                .subagents
+                .iter()
+                .any(|row| row.model_id == selected.model_id && row.status == "available"),
+            _ => false,
+        }
     }
 
     fn reconcile_with_refreshed_inventory(&mut self, inventory: OperatorChatModelInventory) {
@@ -350,12 +359,71 @@ impl OperatorChatUiState {
             self.selected_model.clear();
             invalidated.push("selected model is no longer ready or available");
         }
+        if self
+            .pending_selection
+            .as_ref()
+            .is_some_and(|(selection, _)| !self.selection_is_canonical_and_available(selection))
+        {
+            self.pending_selection = None;
+            invalidated.push("pending model selection is no longer ready or available");
+        }
         if !invalidated.is_empty() {
             self.error = Some(format!(
                 "Inventory refresh cleared selection: {}. Select an available row before launch.",
                 invalidated.join("; ")
             ));
         }
+    }
+
+    fn fail_inventory_refresh(&mut self) {
+        self.inventory = OperatorChatModelInventory::default();
+        self.selected = None;
+        self.selected_model.clear();
+        self.selected_owner_session_id = None;
+        self.pending_selection = None;
+        self.error = Some(
+            "Model inventory refresh failed; all model and session selections were cleared."
+                .to_owned(),
+        );
+    }
+}
+
+fn session_row_state(row: &OperatorChatSessionRow) -> (bool, &'static str) {
+    if row.status == "available"
+        && !row.session_id.trim().is_empty()
+        && row
+            .parent_session_id
+            .as_deref()
+            .is_some_and(|parent| !parent.trim().is_empty())
+    {
+        (true, "available")
+    } else {
+        (false, "governed owner/parent lineage unavailable")
+    }
+}
+
+fn byok_row_state(row: &OperatorChatCloudRow) -> (bool, &'static str) {
+    if row.status == "configured" {
+        (true, "configured")
+    } else {
+        (false, "key not configured or keychain unavailable")
+    }
+}
+
+fn cli_row_state(row: &OperatorChatCloudRow) -> (bool, &'static str) {
+    match row.status.as_str() {
+        "logged_in" => (true, "logged in"),
+        "logged_out" => (false, "official CLI sign-in required"),
+        "expired" => (false, "official CLI sign-in expired"),
+        _ => (false, "official CLI unavailable"),
+    }
+}
+
+fn subagent_row_state(row: &OperatorChatSubagentRow) -> (bool, &'static str) {
+    if row.status == "available" {
+        (true, "available")
+    } else {
+        (false, "subagent manager unavailable")
     }
 }
 
@@ -411,7 +479,7 @@ impl OperatorChatLaunchPaneFactory {
                     state.pending_models = false;
                     match result {
                         Ok(inventory) => state.reconcile_with_refreshed_inventory(inventory),
-                        Err(err) => state.error = Some(err),
+                        Err(_) => state.fail_inventory_refresh(),
                     }
                 }
             }
@@ -432,10 +500,11 @@ impl OperatorChatLaunchPaneFactory {
                                     .to_owned(),
                             );
                         }
-                        (Err(error), _) => {
-                            state.error = Some(format!(
-                                "Model selection was not accepted because its audit record failed: {error}. Retry the selection."
-                            ));
+                        (Err(_), _) => {
+                            state.error = Some(
+                                "Model selection was not accepted because its audit record failed. Retry the selection."
+                                    .to_owned(),
+                            );
                         }
                     }
                 }
@@ -464,7 +533,12 @@ impl OperatorChatLaunchPaneFactory {
                                 );
                             }
                         }
-                        Err(err) => state.error = Some(err),
+                        Err(_) => {
+                            state.error = Some(
+                                "Operator-chat launch failed; refresh inventory and retry."
+                                    .to_owned(),
+                            )
+                        }
                     }
                 }
             }
@@ -488,7 +562,12 @@ impl OperatorChatLaunchPaneFactory {
                                 state.transcript.push(row);
                             }
                         }
-                        Err(err) => state.error = Some(err),
+                        Err(_) => {
+                            state.error = Some(
+                                "Captured transcript could not be loaded from the backend."
+                                    .to_owned(),
+                            )
+                        }
                     }
                 }
             }
@@ -498,11 +577,13 @@ impl OperatorChatLaunchPaneFactory {
                 if let Ok(mut state) = self.state.lock() {
                     state.pending_routing = false;
                     match result {
-                        Ok(value) => {
-                            state.routing_status = Some(value.to_string());
+                        Ok(_) => {
+                            state.routing_status = Some("Routing action completed.".to_owned());
                             state.error = None;
                         }
-                        Err(error) => state.error = Some(error),
+                        Err(_) => {
+                            state.error = Some("Routing action failed in the backend.".to_owned())
+                        }
                     }
                 }
             }
@@ -705,22 +786,23 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
 
             ui.label(format!(
                 "Inventory authority: {}",
-                if state.inventory.inventory_source.is_empty() {
-                    "not loaded"
+                if state.inventory.inventory_source == "operator_chat_backend" {
+                    "operator_chat_backend"
                 } else {
-                    state.inventory.inventory_source.as_str()
+                    "not loaded"
                 }
             ));
             ui.label("Governed owner session");
             for row in &state.inventory.sessions {
                 let author = session_selection_author_id(&row.session_id);
-                let label = format!("SESSION  {}  [{}]", row.label, row.status);
-                if row.status == "available" && labelled_button(ui, &author, &label) {
+                let (available, status) = session_row_state(row);
+                let label = format!("SESSION  {}  [{}]", row.label, status);
+                if available && labelled_button(ui, &author, &label) {
                     // Applied effect: the owner session is selected below (unconditional). Ack so an
                     // out-of-process argus.click on this row resolves Applied.
                     crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
                     select_session = Some(row.session_id.clone());
-                } else if row.status != "available" {
+                } else if !available {
                     labelled_disabled_button(ui, &author, &label);
                 }
             }
@@ -750,7 +832,11 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
             }
             for row in &state.inventory.local {
                 let author = model_selection_author_id("local", None, &row.model_id);
-                let status = if row.ready { "ready" } else { "unavailable" };
+                let status = if row.ready {
+                    "ready"
+                } else {
+                    "runtime not ready"
+                };
                 let label = format!("LOCAL  {}  ({})  [{}]", row.display_name, row.runtime_binding, status);
                 if row.ready && labelled_button(ui, &author, &label) {
                     // Ack only when the selection will actually be recorded (a selection audit is not
@@ -769,8 +855,9 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
             for row in &state.inventory.cloud_byok {
                 let author =
                     model_selection_author_id("cloud", Some(&row.provider), &row.model_id);
-                let label = format!("CLOUD  {}  [{}]", row.label, row.status);
-                if row.status == "configured" && labelled_button(ui, &author, &label) {
+                let (available, status) = byok_row_state(row);
+                let label = format!("CLOUD  {}  [{}]", row.label, status);
+                if available && labelled_button(ui, &author, &label) {
                     if state.pending_selection.is_none() {
                         crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
                     }
@@ -781,14 +868,15 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                         ),
                         format!("{} / {}", row.provider, row.model_id),
                     ));
-                } else if row.status != "configured" {
+                } else if !available {
                     labelled_disabled_button(ui, &author, &label);
                 }
             }
             for row in &state.inventory.cloud_cli_bridge {
                 let author = model_selection_author_id("cli", Some(&row.provider), &row.model_id);
-                let label = format!("CLI  {}  [{}]", row.label, row.status);
-                if row.status == "logged_in" && labelled_button(ui, &author, &label) {
+                let (available, status) = cli_row_state(row);
+                let label = format!("CLI  {}  [{}]", row.label, status);
+                if available && labelled_button(ui, &author, &label) {
                     if state.pending_selection.is_none() {
                         crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
                     }
@@ -799,14 +887,15 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                         ),
                         format!("{} / {}", row.provider, row.model_id),
                     ));
-                } else if row.status != "logged_in" {
+                } else if !available {
                     labelled_disabled_button(ui, &author, &label);
                 }
             }
             for row in &state.inventory.subagents {
                 let author = model_selection_author_id("subagent", Some(&row.role), &row.model_id);
-                let label = format!("SUBAGENT  {}  [{}]", row.label, row.status);
-                if row.status == "available" && labelled_button(ui, &author, &label) {
+                let (available, status) = subagent_row_state(row);
+                let label = format!("SUBAGENT  {}  [{}]", row.label, status);
+                if available && labelled_button(ui, &author, &label) {
                     if state.pending_selection.is_none() {
                         crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
                     }
@@ -814,18 +903,19 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                         OperatorChatLaunchSelection::subagent(row.model_id.clone()),
                         format!("{} / {}", row.role, row.model_id),
                     ));
-                } else if row.status != "available" {
+                } else if !available {
                     labelled_disabled_button(ui, &author, &label);
                 }
             }
 
-            // Folder / worktree picker.
+            // Focus-safe folder/worktree injection; this is an ordinary text
+            // field and never invokes a native foreground picker.
             ui.horizontal(|ui| {
                 ui.label("Folder / worktree");
                 labelled_text_edit(
                     ui,
                     ctx.egui_id,
-                    FOLDER_PICKER_AUTHOR_ID,
+                    WORKTREE_SELECTION_AUTHOR_ID,
                     "Working directory",
                     &mut state.folder,
                     false,
@@ -982,5 +1072,98 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
 
     fn accesskit_role(&self) -> accesskit::Role {
         accesskit::Role::Pane
+    }
+}
+
+#[cfg(test)]
+mod client_safety_tests {
+    use super::*;
+
+    #[test]
+    fn inventory_refresh_failure_clears_stale_launch_identity() {
+        let mut state = OperatorChatUiState {
+            inventory: OperatorChatModelInventory {
+                inventory_source: "operator_chat_backend".to_owned(),
+                ..Default::default()
+            },
+            selected_model: "gpt-5-codex".to_owned(),
+            selected: Some(OperatorChatLaunchSelection::cli("gpt-5-codex", "codex")),
+            selected_owner_session_id: Some("owner".to_owned()),
+            pending_selection: Some((
+                OperatorChatLaunchSelection::cli("gpt-5-codex", "codex"),
+                "GPT/Codex subscription".to_owned(),
+            )),
+            ..Default::default()
+        };
+
+        state.fail_inventory_refresh();
+
+        assert!(state.inventory.inventory_source.is_empty());
+        assert!(state.selected.is_none());
+        assert!(state.selected_model.is_empty());
+        assert!(state.selected_owner_session_id.is_none());
+        assert!(state.pending_selection.is_none());
+        assert!(!state.owner_session_is_canonical_and_available());
+        assert!(!state.selected_model_is_canonical_and_available());
+    }
+
+    #[test]
+    fn successful_refresh_clears_a_pending_selection_that_became_unavailable() {
+        let mut state = OperatorChatUiState {
+            pending_selection: Some((
+                OperatorChatLaunchSelection::cli("gpt-5-codex", "codex"),
+                "GPT/Codex subscription".to_owned(),
+            )),
+            ..Default::default()
+        };
+        let inventory = OperatorChatModelInventory {
+            inventory_source: "operator_chat_backend".to_owned(),
+            cloud_cli_bridge: vec![OperatorChatCloudRow {
+                provider: "codex".to_owned(),
+                model_id: "gpt-5-codex".to_owned(),
+                label: "GPT/Codex subscription".to_owned(),
+                status: "unavailable".to_owned(),
+            }],
+            ..Default::default()
+        };
+
+        state.reconcile_with_refreshed_inventory(inventory);
+
+        assert!(state.pending_selection.is_none());
+        assert!(state
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("pending model selection")));
+    }
+
+    #[test]
+    fn disabled_reasons_do_not_echo_untrusted_status_values() {
+        let canary = "canary-secret-status";
+        let byok = OperatorChatCloudRow {
+            status: canary.to_owned(),
+            ..Default::default()
+        };
+        let cli = OperatorChatCloudRow {
+            status: canary.to_owned(),
+            ..Default::default()
+        };
+        let session = OperatorChatSessionRow {
+            status: canary.to_owned(),
+            ..Default::default()
+        };
+        let subagent = OperatorChatSubagentRow {
+            status: canary.to_owned(),
+            ..Default::default()
+        };
+
+        for (available, reason) in [
+            byok_row_state(&byok),
+            cli_row_state(&cli),
+            session_row_state(&session),
+            subagent_row_state(&subagent),
+        ] {
+            assert!(!available);
+            assert!(!reason.contains(canary));
+        }
     }
 }

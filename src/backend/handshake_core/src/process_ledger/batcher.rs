@@ -312,8 +312,8 @@ pub enum LedgerDrainJoinOutcome {
 
 /// WP-1 MT-013 (F1 graceful shutdown): close `ledger`'s writer channel and await
 /// the spawned writer's `JoinHandle` under a bounded `timeout`, so a
-/// just-enqueued embedded-model STOP row is durably flushed to PostgreSQL BEFORE
-/// the managed cluster is stopped. `timeout` bounds the graceful wait; after the
+/// just-enqueued embedded-model STOP row is durably flushed to the injected store BEFORE
+/// embedded storage shutdown begins. `timeout` bounds the graceful wait; after the
 /// deadline the task is aborted and awaited so it cannot detach into teardown.
 pub async fn drain_and_join_ledger_writer(
     ledger: &LedgerBatcher,
@@ -327,7 +327,7 @@ pub async fn drain_and_join_ledger_writer(
         Ok(Err(_join_error)) => LedgerDrainJoinOutcome::JoinError,
         Err(_elapsed) => {
             // Dropping a Tokio JoinHandle detaches the task. A timed-out ledger
-            // writer must not outlive shutdown and later write through a pool
+            // writer must not outlive shutdown and later write through a store
             // the caller is already tearing down, so cancel it and observe its
             // terminal join result before returning.
             writer_join.abort();

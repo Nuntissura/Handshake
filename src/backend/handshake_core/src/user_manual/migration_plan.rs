@@ -9,7 +9,7 @@
 //!
 //! Split-brain law (spec 10.15.8): a legacy path may exist ONLY while it maps
 //! deterministically onto UserManual authority. The mapping here is seeded
-//! into PostgreSQL (`user_manual_legacy_aliases`, migration 0310) by
+//! into deterministic embedded SurrealDB `user_manual_legacy_aliases` records by
 //! [`crate::user_manual::seed`], and `tests/user_manual_storage_tests.rs`
 //! enforces:
 //! * every `*model_manual*` source file in this crate has a `PlanRow`
@@ -83,7 +83,7 @@ impl ShimState {
 #[serde(rename_all = "snake_case")]
 pub enum MigrationPhase {
     /// THIS work packet (MT-193..MT-208): canonical `user_manual` module,
-    /// PostgreSQL authority, aliases, receipts, freshness, fixtures.
+    /// embedded SurrealDB authority, aliases, receipts, freshness, fixtures.
     P1CanonicalAuthority,
     /// Frontend lane / follow-up: rename Tauri commands + app help surface to
     /// `/usermanual` routes; legacy command names become thin wrappers.
@@ -126,7 +126,7 @@ pub struct PlanRow {
 }
 
 /// A legacy callable name and the canonical surface it must resolve to.
-/// Seeded into `user_manual_legacy_aliases` (migration 0310) so the mapping
+/// Seeded into deterministic `user_manual_legacy_aliases` records so the mapping
 /// is queryable authority, not source-only lore.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct LegacyAlias {
@@ -167,7 +167,7 @@ const PLAN_ROWS: &[PlanRow] = &[
         legacy_kind: LegacyKind::Module,
         legacy_id: "crate::model_manual (mod.rs/types.rs/content.rs/projection.rs)",
         legacy_path: "src/backend/handshake_core/src/model_manual/",
-        canonical_ref: "crate::user_manual (PostgreSQL authority via user_manual::store)",
+        canonical_ref: "crate::user_manual (embedded SurrealDB authority via user_manual::store)",
         phase: MigrationPhase::P3FileRetirement,
         shim_state: ShimState::MappedSeedSource,
         owner_lane: "backend_later_wp",
@@ -287,7 +287,7 @@ const PLAN_ROWS: &[PlanRow] = &[
         legacy_kind: LegacyKind::Projection,
         legacy_id: "bin/model_manual_md_gen",
         legacy_path: "src/backend/handshake_core/src/bin/model_manual_md_gen.rs",
-        canonical_ref: "user_manual::projection::render_page_markdown over PostgreSQL rows",
+        canonical_ref: "user_manual::projection::render_page_markdown over embedded SurrealDB records",
         phase: MigrationPhase::P3FileRetirement,
         shim_state: ShimState::ActiveShim,
         owner_lane: "backend_later_wp",

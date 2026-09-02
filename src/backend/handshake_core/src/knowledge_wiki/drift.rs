@@ -28,7 +28,7 @@ use crate::kernel::{KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
     KnowledgeRebuildStatus, KnowledgeStore, KnowledgeWikiProjection,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealStorage;
 use crate::storage::Database;
 
 use super::compiler::WikiCompileContext;
@@ -63,15 +63,15 @@ pub struct WikiDriftReport {
 
 /// The MT-242 drift checker.
 pub struct WikiDriftChecker {
-    db: Arc<PostgresDatabase>,
+    db: Arc<SurrealStorage>,
 }
 
 impl WikiDriftChecker {
-    pub fn new(db: Arc<PostgresDatabase>) -> Self {
+    pub fn new(db: Arc<SurrealStorage>) -> Self {
         Self { db }
     }
 
-    pub fn db(&self) -> &PostgresDatabase {
+    pub fn db(&self) -> &SurrealStorage {
         &self.db
     }
 

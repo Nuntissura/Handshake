@@ -1,6 +1,6 @@
 //! WP-KERNEL-009 RichDocumentCore (MT-145..MT-160): the backend HTTP surface
-//! for the RichDocument authority model, wiring the editor to PostgreSQL +
-//! EventLedger authority (NO mocks, no SQLite).
+//! for the RichDocument authority model, wiring the editor to embedded
+//! SurrealDB + EventLedger authority (NO mocks or compatibility fallback).
 //!
 //! This is the keystone API for the group:
 //!   * MT-145 identity + MT-149 save/load: create / load / save a RichDocument
@@ -55,7 +55,7 @@ use crate::storage::knowledge::{
     NewKnowledgeSource, UpsertKnowledgeDocumentBacklink, UpsertKnowledgeDocumentEmbed,
     UpsertKnowledgeRichDocumentDraft,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::AppState;
 
@@ -117,8 +117,8 @@ pub fn routes(state: AppState) -> Router {
 
 type ApiError = (StatusCode, Json<Value>);
 
-fn db_for(state: &AppState) -> PostgresDatabase {
-    PostgresDatabase::new(state.postgres_pool.clone())
+fn db_for(state: &AppState) -> SurrealDatabase {
+    SurrealDatabase::new(state.surreal_storage.clone())
 }
 
 fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
@@ -144,7 +144,7 @@ fn canonical_rich_document_crdt_document_id(rich_document_id: &str) -> String {
 }
 
 async fn validated_save_crdt_document_id(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     rich_document_id: &str,
     requested_crdt_document_id: Option<&str>,
 ) -> Result<Option<String>, ApiError> {
@@ -291,7 +291,7 @@ fn api_error_detail(err: &ApiError) -> String {
 /// MT-149): a receipt failure must never turn a committed write into an error
 /// response — it is recorded in the response (and the log) instead.
 async fn record_receipt_non_fatal(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     ctx: &DocContext,
     event_type: KernelEventType,
     rich_document_id: &str,
@@ -323,7 +323,7 @@ async fn record_receipt_non_fatal(
 /// through the entity surface and the blocks' bytes are the source's
 /// content-hash-tracked indexing unit.
 async fn index_document_into_knowledge_index(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     document: &KnowledgeRichDocument,
 ) -> Result<(), StorageError> {
     let source = match db
@@ -387,7 +387,7 @@ async fn index_document_into_knowledge_index(
 /// Run the MT-154 index step post-commit and RECORD a failure instead of
 /// erroring a committed write (MT-149 law). Returns (indexed, error).
 async fn index_document_non_fatal(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     document: &KnowledgeRichDocument,
 ) -> (bool, Option<String>) {
     match index_document_into_knowledge_index(db, document).await {
@@ -423,7 +423,7 @@ fn embed_upserts(
 
 /// Append a document EventLedger receipt (save/promotion/nav) and return its id.
 async fn record_receipt(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     ctx: &DocContext,
     event_type: KernelEventType,
     rich_document_id: &str,
@@ -805,7 +805,7 @@ async fn load_document_draft(
 }
 
 /// PUT /knowledge/documents/:document_id/draft — persist unsaved editor
-/// content to PostgreSQL so a crash/reopen can offer restore/discard (MT-255).
+/// content to embedded SurrealDB so a crash/reopen can offer restore/discard (MT-255).
 async fn upsert_document_draft(
     State(state): State<AppState>,
     Path(document_id): Path<String>,

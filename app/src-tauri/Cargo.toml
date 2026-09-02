@@ -48,7 +48,6 @@ which = "8"
 chrono = { version = "0.4", features = ["serde", "clock"] }
 secrecy = { version = "0.10", features = ["serde"] }
 thiserror = "2.0"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres"] }
 tracing = "0.1"
 
 # NATIVE focus-safe visual debugger (Windows/WebView2 only). Pinned to match the

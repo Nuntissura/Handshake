@@ -215,7 +215,7 @@ impl SwarmLaneDiagnosticsTransport for SwarmLaneDiagnosticsClient {
     }
 }
 
-/// Client for the PostgreSQL-backed ModelRuntime registry projection and its
+/// Client for the backend-owned ModelRuntime registry projection and its
 /// explicit control receipts.
 /// Every request is spawned on the app runtime; the egui frame thread only
 /// drains the one-slot delivery cell.
@@ -661,6 +661,112 @@ struct OperatorChatTranscriptResponse {
     rows: Vec<OperatorChatTranscriptRowDto>,
 }
 
+fn sanitize_operator_chat_inventory(
+    mut inventory: crate::operator_chat_pane::OperatorChatModelInventory,
+) -> Result<crate::operator_chat_pane::OperatorChatModelInventory, AppError> {
+    if inventory.inventory_source != "operator_chat_backend" {
+        return Err(AppError::Parse(
+            "operator-chat inventory authority is unavailable".to_owned(),
+        ));
+    }
+
+    let mut providers = std::collections::BTreeSet::new();
+    for row in &mut inventory.cloud_byok {
+        let (model_id, label) = match row.provider.as_str() {
+            "anthropic" => ("claude-sonnet-4", "Anthropic API key"),
+            "openai" => ("gpt-4o", "OpenAI API key"),
+            _ => {
+                return Err(AppError::Parse(
+                    "operator-chat inventory contains an unsupported BYOK provider".to_owned(),
+                ));
+            }
+        };
+        if !providers.insert(row.provider.clone()) {
+            return Err(AppError::Parse(
+                "operator-chat inventory contains a duplicate BYOK provider".to_owned(),
+            ));
+        }
+        row.model_id = model_id.to_owned();
+        row.label = label.to_owned();
+        if row.status != "configured" {
+            row.status = "unavailable".to_owned();
+        }
+    }
+
+    providers.clear();
+    for row in &mut inventory.cloud_cli_bridge {
+        let (model_id, label) = match row.provider.as_str() {
+            "claude_code" => ("claude-sonnet-4", "Claude Code subscription"),
+            "codex" => ("gpt-5-codex", "GPT/Codex subscription"),
+            _ => {
+                return Err(AppError::Parse(
+                    "operator-chat inventory contains an unsupported CLI provider".to_owned(),
+                ));
+            }
+        };
+        if !providers.insert(row.provider.clone()) {
+            return Err(AppError::Parse(
+                "operator-chat inventory contains a duplicate CLI provider".to_owned(),
+            ));
+        }
+        row.model_id = model_id.to_owned();
+        row.label = label.to_owned();
+        if !matches!(
+            row.status.as_str(),
+            "logged_in" | "logged_out" | "expired" | "unavailable"
+        ) {
+            row.status = "unavailable".to_owned();
+        }
+    }
+
+    let mut session_ids = std::collections::BTreeSet::new();
+    for row in &mut inventory.sessions {
+        let has_governed_lineage = !row.session_id.trim().is_empty()
+            && row
+                .parent_session_id
+                .as_deref()
+                .is_some_and(|parent| !parent.trim().is_empty());
+        if !session_ids.insert(row.session_id.clone()) {
+            return Err(AppError::Parse(
+                "operator-chat inventory contains a duplicate governed session".to_owned(),
+            ));
+        }
+        if row.status != "available" || !has_governed_lineage {
+            row.status = "unavailable".to_owned();
+        }
+    }
+
+    let mut local_model_ids = std::collections::BTreeSet::new();
+    for row in &inventory.local {
+        if row.model_id.trim().is_empty() || !local_model_ids.insert(row.model_id.clone()) {
+            return Err(AppError::Parse(
+                "operator-chat inventory contains an invalid local model identity".to_owned(),
+            ));
+        }
+    }
+
+    let mut subagent_model_ids = std::collections::BTreeSet::new();
+    for row in &mut inventory.subagents {
+        if row.role != "subagent_coder" || row.model_id != "subagent://operator-chat/coder" {
+            return Err(AppError::Parse(
+                "operator-chat inventory contains an unsupported subagent".to_owned(),
+            ));
+        }
+        if !subagent_model_ids.insert(row.model_id.clone()) {
+            return Err(AppError::Parse(
+                "operator-chat inventory contains a duplicate subagent".to_owned(),
+            ));
+        }
+        row.label = "Subagent Manager / Coder".to_owned();
+        if row.status != "available" {
+            row.status = "unavailable".to_owned();
+        }
+    }
+
+    inventory.excluded = vec!["gemini".to_owned()];
+    Ok(inventory)
+}
+
 impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
     /// Fetch the picker inventory into `cell`.
     fn fetch_models(&self, cell: crate::operator_chat_pane::ModelsCell) {
@@ -675,6 +781,7 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
                     )
                     .map_err(|e| AppError::Parse(e.to_string()))
                 })
+                .and_then(sanitize_operator_chat_inventory)
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result);
@@ -695,7 +802,7 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
         let client = self.client.clone();
         let body = spec.body.unwrap_or_default();
         self.runtime.spawn(async move {
-            let result = post_json(&client, &spec.url, &body)
+            let result = post_operator_chat_json(&client, &spec.url, &body)
                 .await
                 .map(|_| ())
                 .map_err(|error| error.to_string());
@@ -719,7 +826,7 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
         let client = self.client.clone();
         let body = spec.body.unwrap_or_default();
         self.runtime.spawn(async move {
-            let result = post_json(&client, &spec.url, &body)
+            let result = post_operator_chat_json(&client, &spec.url, &body)
                 .await
                 .and_then(|v| {
                     serde_json::from_value::<crate::operator_chat_pane::OperatorChatLaunched>(v)
@@ -802,7 +909,7 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
         self.runtime.spawn(async move {
             let mut last_error = None;
             for _ in 0..10 {
-                match post_json(&client, &url, &body).await {
+                match post_operator_chat_json(&client, &url, &body).await {
                     Ok(_) => return,
                     Err(error) => last_error = Some(error),
                 }
@@ -833,7 +940,7 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
         let client = self.client.clone();
         let body = spec.body.unwrap_or_default();
         self.runtime.spawn(async move {
-            let result = post_json(&client, &spec.url, &body)
+            let result = post_operator_chat_json(&client, &spec.url, &body)
                 .await
                 .map_err(|error| error.to_string());
             if let Ok(mut slot) = cell.lock() {
@@ -841,6 +948,31 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
             }
         });
     }
+}
+
+/// POST an operator-chat request without exposing response bodies in native
+/// status, errors, diagnostics, or UI. Provider-side details remain backend-only.
+async fn post_operator_chat_json(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, AppError> {
+    let resp = client
+        .post(url)
+        .timeout(Duration::from_secs(15))
+        .json(body)
+        .send()
+        .await
+        .map_err(|_| AppError::Http("operator-chat request transport failed".to_owned()))?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(AppError::Http(format!(
+            "operator-chat request failed with status {status}"
+        )));
+    }
+    resp.json()
+        .await
+        .map_err(|_| AppError::Parse("operator-chat response was invalid".to_owned()))
 }
 
 /// POST `body` and return the parsed JSON response. Non-success status is an
@@ -940,11 +1072,11 @@ pub async fn fetch_health(url: &str) -> Result<HealthInfo, AppError> {
     })
 }
 
-/// REST client for the backend's PostgreSQL-authoritative workbench-layout surface
+/// REST client for the backend-authoritative workbench-layout surface
 /// (`GET`/`PUT /workspaces/:workspace_id/workbench/layout`, migration `0323_workbench_layout_state`).
 ///
 /// This is the REAL [`LayoutTransport`] the app wires into its [`LayoutPersistenceManager`]: the
-/// native layout persists THROUGH this REST endpoint into PostgreSQL/EventLedger — there is no local
+/// native layout persists through this REST endpoint into backend durable state — there is no local
 /// file authority (CX-503S / Data Posture). The endpoint stores the snapshot as an opaque JSONB
 /// `layout_state` blob, so this client speaks `serde_json::Value` directly and never depends on the
 /// `handshake_core` crate's types.
@@ -1719,11 +1851,14 @@ impl CloudAccessClient {
         let body = StoreKeyBody {
             api_key: api_key.as_str(),
         };
-        let resp = self
+        let request = self
             .client
             .put(&url)
             .timeout(Duration::from_secs(5))
-            .json(&body)
+            .json(&body);
+        drop(body);
+        drop(api_key);
+        let resp = request
             .send()
             .await
             .map_err(|e| AppError::Http(e.to_string()))?;
@@ -3448,5 +3583,84 @@ mod tests {
             }
         });
         assert_eq!(cell.lock().unwrap().take(), Some(Ok(serde_json::json!({}))));
+    }
+
+    #[test]
+    fn operator_chat_inventory_canonicalizes_labels_and_unknown_statuses() {
+        let sanitized = sanitize_operator_chat_inventory(
+            crate::operator_chat_pane::OperatorChatModelInventory {
+                inventory_source: "operator_chat_backend".to_owned(),
+                sessions: vec![crate::operator_chat_pane::OperatorChatSessionRow {
+                    session_id: "owner".to_owned(),
+                    parent_session_id: Some("parent".to_owned()),
+                    label: "Governed session".to_owned(),
+                    status: "canary-secret-status".to_owned(),
+                }],
+                local: vec![crate::operator_chat_pane::OperatorChatModelRow {
+                    model_id: "local-model".to_owned(),
+                    display_name: "Local model".to_owned(),
+                    runtime_binding: "embedded".to_owned(),
+                    ready: false,
+                }],
+                cloud_byok: vec![crate::operator_chat_pane::OperatorChatCloudRow {
+                    provider: "anthropic".to_owned(),
+                    model_id: "spoofed".to_owned(),
+                    label: "canary-secret-label".to_owned(),
+                    status: "canary-secret-status".to_owned(),
+                }],
+                cloud_cli_bridge: vec![crate::operator_chat_pane::OperatorChatCloudRow {
+                    provider: "codex".to_owned(),
+                    model_id: "spoofed".to_owned(),
+                    label: "canary-secret-label".to_owned(),
+                    status: "canary-secret-status".to_owned(),
+                }],
+                subagents: vec![crate::operator_chat_pane::OperatorChatSubagentRow {
+                    role: "subagent_coder".to_owned(),
+                    model_id: "subagent://operator-chat/coder".to_owned(),
+                    label: "canary-secret-label".to_owned(),
+                    status: "canary-secret-status".to_owned(),
+                }],
+                excluded: vec!["spoofed".to_owned()],
+            },
+        )
+        .expect("canonical inventory");
+
+        assert_eq!(sanitized.cloud_byok[0].label, "Anthropic API key");
+        assert_eq!(sanitized.cloud_byok[0].model_id, "claude-sonnet-4");
+        assert_eq!(sanitized.cloud_byok[0].status, "unavailable");
+        assert_eq!(
+            sanitized.cloud_cli_bridge[0].label,
+            "GPT/Codex subscription"
+        );
+        assert_eq!(sanitized.cloud_cli_bridge[0].model_id, "gpt-5-codex");
+        assert_eq!(sanitized.cloud_cli_bridge[0].status, "unavailable");
+        assert_eq!(sanitized.sessions[0].status, "unavailable");
+        assert_eq!(sanitized.subagents[0].label, "Subagent Manager / Coder");
+        assert_eq!(sanitized.subagents[0].status, "unavailable");
+        assert_eq!(sanitized.excluded, vec!["gemini"]);
+    }
+
+    #[test]
+    fn operator_chat_inventory_rejection_does_not_echo_untrusted_values() {
+        let error = sanitize_operator_chat_inventory(
+            crate::operator_chat_pane::OperatorChatModelInventory {
+                inventory_source: "operator_chat_backend".to_owned(),
+                cloud_byok: vec![crate::operator_chat_pane::OperatorChatCloudRow {
+                    provider: "canary-secret-provider".to_owned(),
+                    model_id: "canary-secret-model".to_owned(),
+                    label: "canary-secret-label".to_owned(),
+                    status: "configured".to_owned(),
+                }],
+                ..Default::default()
+            },
+        )
+        .expect_err("unsupported provider must fail closed")
+        .to_string();
+
+        assert_eq!(
+            error,
+            "parse: operator-chat inventory contains an unsupported BYOK provider"
+        );
+        assert!(!error.contains("canary-secret"));
     }
 }

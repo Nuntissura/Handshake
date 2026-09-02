@@ -31,13 +31,12 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::knowledge_document::permission::DocumentActorKind;
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealStorage;
 use crate::storage::StorageError;
-use crate::user_manual::freshness::check_freshness;
 use crate::user_manual::migration_plan::naming_migration_plan;
 use crate::user_manual::projection::{render_page_html, render_page_markdown};
 use crate::user_manual::registry::{user_manual_access_points, wp009_surface_registry};
-use crate::user_manual::seed::{ensure_seeded, QUICKSTART_AREAS};
+use crate::user_manual::seed::QUICKSTART_AREAS;
 use crate::user_manual::spec_seed::spec_enrichment_seed;
 use crate::user_manual::store::{UserManualStore, LIST_CAP};
 use crate::user_manual::{ROUTE_NAMESPACE, USER_MANUAL_VERSION};
@@ -49,6 +48,20 @@ const HSK_HEADER_KERNEL_TASK_RUN_ID: &str = "x-hsk-kernel-task-run-id";
 const HSK_HEADER_SESSION_RUN_ID: &str = "x-hsk-session-run-id";
 
 pub fn routes(state: AppState) -> Router {
+    routes_for_storage(state.surreal_storage)
+}
+
+#[cfg(feature = "test-utils")]
+pub fn routes_for_test(storage: SurrealStorage) -> Router {
+    routes_for_storage(storage)
+}
+
+#[derive(Clone)]
+struct UserManualApiState {
+    storage: SurrealStorage,
+}
+
+fn routes_for_storage(storage: SurrealStorage) -> Router {
     Router::new()
         .route("/usermanual/pages", get(list_pages))
         .route("/usermanual/pages/:slug", get(get_page))
@@ -69,13 +82,13 @@ pub fn routes(state: AppState) -> Router {
             get(spec_enrichment_seed_rows),
         )
         .route("/usermanual/resync", post(resync))
-        .with_state(state)
+        .with_state(UserManualApiState { storage })
 }
 
 type ApiError = (StatusCode, Json<Value>);
 
-fn db_for(state: &AppState) -> PostgresDatabase {
-    PostgresDatabase::new(state.postgres_pool.clone())
+fn store_for(state: &UserManualApiState) -> UserManualStore {
+    UserManualStore::new(state.storage.clone())
 }
 
 fn bad_request(detail: impl Into<String>) -> ApiError {
@@ -139,12 +152,11 @@ fn manual_identity(headers: &HeaderMap) -> ManualIdentity {
 }
 
 async fn append_read_receipt(
-    db: &PostgresDatabase,
+    store: &UserManualStore,
     identity: &ManualIdentity,
     action: &str,
     subject: &str,
 ) -> Result<String, ApiError> {
-    let store = UserManualStore::new(db);
     store
         .append_manual_receipt(
             action,
@@ -172,11 +184,10 @@ struct ListPagesQuery {
 }
 
 async fn list_pages(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     Query(params): Query<ListPagesQuery>,
 ) -> Result<Json<Value>, ApiError> {
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+    let store = store_for(&state);
     let pages = store
         .list_pages(
             params.kind.as_deref(),
@@ -203,19 +214,18 @@ async fn list_pages(
 }
 
 async fn get_page(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     Path(slug): Path<String>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+    let store = store_for(&state);
     let Some((page, sections, anchors)) =
         store.get_page_by_slug(&slug).await.map_err(storage_error)?
     else {
         return Err(not_found(format!("no UserManual page with slug '{slug}'")));
     };
     let identity = manual_identity(&headers);
-    let receipt = append_read_receipt(&db, &identity, "page_opened", &slug).await?;
+    let receipt = append_read_receipt(&store, &identity, "page_opened", &slug).await?;
     Ok(Json(json!({
         "page": page,
         "sections": sections,
@@ -226,11 +236,10 @@ async fn get_page(
 }
 
 async fn page_links(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     Path(slug): Path<String>,
 ) -> Result<Json<Value>, ApiError> {
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+    let store = store_for(&state);
     let Some((outbound, inbound)) = store.page_links(&slug).await.map_err(storage_error)? else {
         return Err(not_found(format!("no UserManual page with slug '{slug}'")));
     };
@@ -247,7 +256,7 @@ struct ProjectionQuery {
 }
 
 async fn page_projection(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     Path(slug): Path<String>,
     Query(params): Query<ProjectionQuery>,
 ) -> Result<Json<Value>, ApiError> {
@@ -257,8 +266,7 @@ async fn page_projection(
             "unsupported projection format '{format}' (html | markdown)"
         )));
     }
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+    let store = store_for(&state);
     let Some((page, sections, anchors)) =
         store.get_page_by_slug(&slug).await.map_err(storage_error)?
     else {
@@ -274,7 +282,7 @@ async fn page_projection(
         "manual_version": page.manual_version,
         "content_hash": page.content_hash,
         "rendered": rendered,
-        "note": "projection only — the PostgreSQL UserManual rows remain canonical",
+        "note": "projection only — the embedded SurrealDB UserManual rows remain canonical",
     })))
 }
 
@@ -289,15 +297,14 @@ struct SearchQuery {
 }
 
 async fn search(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     Query(params): Query<SearchQuery>,
 ) -> Result<Json<Value>, ApiError> {
     let query = params.q.unwrap_or_default();
     if query.trim().is_empty() {
         return Err(bad_request("query parameter 'q' is required and non-empty"));
     }
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+    let store = store_for(&state);
     let hits = store
         .search(&query, params.limit.unwrap_or(50))
         .await
@@ -317,11 +324,10 @@ struct ListToolsQuery {
 }
 
 async fn list_tools(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     Query(params): Query<ListToolsQuery>,
 ) -> Result<Json<Value>, ApiError> {
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+    let store = store_for(&state);
     let tools = store
         .list_tool_entries(
             params.status.as_deref(),
@@ -334,11 +340,10 @@ async fn list_tools(
 }
 
 async fn get_tool(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     Path(tool_id): Path<String>,
 ) -> Result<Json<Value>, ApiError> {
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+    let store = store_for(&state);
     let Some(tool) = store
         .get_tool_entry(&tool_id)
         .await
@@ -349,9 +354,8 @@ async fn get_tool(
     Ok(Json(json!({"tool": tool})))
 }
 
-async fn list_features(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+async fn list_features(State(state): State<UserManualApiState>) -> Result<Json<Value>, ApiError> {
+    let store = store_for(&state);
     let features = store
         .list_feature_entries(LIST_CAP)
         .await
@@ -364,7 +368,7 @@ async fn list_features(State(state): State<AppState>) -> Result<Json<Value>, Api
 // ---------------------------------------------------------------------------
 
 async fn quickstart(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     Path(area): Path<String>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
@@ -375,8 +379,7 @@ async fn quickstart(
             QUICKSTART_AREAS.join(", ")
         )));
     }
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+    let store = store_for(&state);
     let quickstart_slug = format!("quickstart-{area}");
     let Some((page, sections, anchors)) = store
         .get_page_by_slug(&quickstart_slug)
@@ -412,7 +415,7 @@ async fn quickstart(
     }
     let identity = manual_identity(&headers);
     let receipt =
-        append_read_receipt(&db, &identity, "quickstart_opened", &quickstart_slug).await?;
+        append_read_receipt(&store, &identity, "quickstart_opened", &quickstart_slug).await?;
     Ok(Json(json!({
         "area": area,
         "manual_version": page.manual_version,
@@ -432,13 +435,12 @@ async fn quickstart(
 // ---------------------------------------------------------------------------
 
 async fn freshness(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    let db = db_for(&state);
-    let report = check_freshness(&db).await.map_err(storage_error)?;
+    let store = store_for(&state);
+    let report = store.check_freshness().await.map_err(storage_error)?;
     let identity = manual_identity(&headers);
-    let store = UserManualStore::new(&db);
     let receipt = store
         .append_manual_receipt(
             "freshness_checked",
@@ -463,11 +465,10 @@ async fn freshness(
 // MT-200 access points + registry projections.
 // ---------------------------------------------------------------------------
 
-async fn access_points(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
+async fn access_points(State(state): State<UserManualApiState>) -> Result<Json<Value>, ApiError> {
     // Verify targets resolve against the LIVE database (an access point to a
     // missing page is a defect surfaced here, not in the UI).
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+    let store = store_for(&state);
     let mut rows = Vec::new();
     for ap in user_manual_access_points() {
         let resolves = store
@@ -512,11 +513,10 @@ async fn spec_enrichment_seed_rows() -> Json<Value> {
 // ---------------------------------------------------------------------------
 
 async fn legacy_model_manual(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+    let store = store_for(&state);
     let identity = manual_identity(&headers);
     // Spec 10.15.8: a legacy path "emits a compatibility receipt when used".
     let receipt = store
@@ -555,9 +555,8 @@ async fn legacy_model_manual(
     })))
 }
 
-async fn legacy_aliases(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
-    let db = db_for(&state);
-    let store = UserManualStore::new(&db);
+async fn legacy_aliases(State(state): State<UserManualApiState>) -> Result<Json<Value>, ApiError> {
+    let store = store_for(&state);
     let aliases = store.list_legacy_aliases().await.map_err(storage_error)?;
     Ok(Json(json!({"count": aliases.len(), "aliases": aliases})))
 }
@@ -567,7 +566,7 @@ async fn legacy_aliases(State(state): State<AppState>) -> Result<Json<Value>, Ap
 // ---------------------------------------------------------------------------
 
 async fn resync(
-    State(state): State<AppState>,
+    State(state): State<UserManualApiState>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
     // Fail-closed actor gate (mirrors the documents permission law): absent
@@ -587,8 +586,8 @@ async fn resync(
             return Err(forbidden("unauthenticated_resync_denied"));
         }
     }
-    let db = db_for(&state);
-    let report = ensure_seeded(&db).await.map_err(storage_error)?;
+    let store = store_for(&state);
+    let report = store.ensure_seeded().await.map_err(storage_error)?;
     Ok(Json(json!({"resync": report})))
 }
 

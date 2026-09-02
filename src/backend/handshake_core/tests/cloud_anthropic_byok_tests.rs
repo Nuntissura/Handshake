@@ -31,6 +31,7 @@ use handshake_core::model_runtime::cloud::{
     AnthropicByokError, AnthropicByokRuntime, ApiKeyProvider, CloudCallKind, CloudCallStatus,
     CloudConsentContext, CloudInvocationAuditRow, CloudInvocationAuditSink, CloudLaneObservability,
     ConsentDecision, ConsentGate, ConsentGateError, ConsentProvider, OpenAiByokError,
+    TransientApiKey,
     ANTHROPIC_API_KEY_HEADER, ANTHROPIC_API_VERSION, ANTHROPIC_MESSAGES_PATH,
     ANTHROPIC_VERSION_HEADER,
 };
@@ -46,8 +47,8 @@ struct StaticKey {
     key: String,
 }
 impl ApiKeyProvider for StaticKey {
-    fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
-        Ok(self.key.clone())
+    fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
+        Ok(TransientApiKey::from_secret(self.key.clone()))
     }
 }
 
@@ -312,7 +313,7 @@ async fn anthropic_byok_generate_streams_tokens_against_wiremock() {
 struct EchoingFailKey;
 
 impl ApiKeyProvider for EchoingFailKey {
-    fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
+    fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
         Err(OpenAiByokError::AuditPersist(API_KEY_FIXTURE.to_string()))
     }
 }

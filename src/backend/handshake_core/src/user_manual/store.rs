@@ -1,24 +1,28 @@
-//! MT-194 UserManualStorageModel: PostgreSQL store for UserManual pages,
+//! MT-194 UserManualStorageModel: embedded SurrealDB store for UserManual pages,
 //! sections, anchors, tool entries, feature entries, version metadata, and
-//! legacy aliases (migration 0310). EventLedger receipts use the
+//! legacy aliases. EventLedger receipts use the
 //! `KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED` family.
 //!
 //! Authority law (spec 2.3.13.11 / 10.15.8): these rows ARE the UserManual.
 //! The compiled-in seed corpus (`super::seed`) is the deterministic input;
 //! rendered markdown/HTML are projections. All list reads are bounded.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::Row;
+use surrealdb::types::{RecordId, SurrealValue};
 use uuid::Uuid;
 
-use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
-use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
-use crate::storage::{Database, StorageError, StorageResult};
+use super::freshness::{FreshnessReport, FreshnessVerdict, FreshnessVerdictKind};
+use super::registry::wp009_surface_registry;
+use super::seed::{corpus_hash, seed_corpus, SeedReport};
+use super::USER_MANUAL_VERSION;
+use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
+use crate::storage::surreal::SurrealStorage;
+use crate::storage::{StorageError, StorageResult};
 
 /// Bound for list/search reads (matches the knowledge API convention).
 pub const LIST_CAP: i64 = 500;
@@ -27,7 +31,7 @@ pub const LIST_CAP: i64 = 500;
 // Row types.
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
 pub struct UserManualPage {
     pub page_id: String,
     pub slug: String,
@@ -46,7 +50,7 @@ pub struct UserManualPage {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
 pub struct UserManualSection {
     pub section_id: String,
     pub page_id: String,
@@ -57,7 +61,7 @@ pub struct UserManualSection {
     pub body_json: Option<Value>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
 pub struct UserManualAnchor {
     pub anchor_id: String,
     pub page_id: String,
@@ -67,7 +71,7 @@ pub struct UserManualAnchor {
     pub http_method: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
 pub struct UserManualToolEntry {
     pub tool_id: String,
     pub page_id: Option<String>,
@@ -89,7 +93,7 @@ pub struct UserManualToolEntry {
     pub manual_version: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
 pub struct UserManualFeatureEntry {
     pub feature_id: String,
     pub title: String,
@@ -100,7 +104,7 @@ pub struct UserManualFeatureEntry {
     pub manual_version: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
 pub struct UserManualVersionRow {
     pub manual_version: String,
     pub seeded_at: DateTime<Utc>,
@@ -112,7 +116,7 @@ pub struct UserManualVersionRow {
     pub note: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
 pub struct LegacyAliasRow {
     pub alias: String,
     pub alias_kind: String,
@@ -122,7 +126,7 @@ pub struct LegacyAliasRow {
     pub manual_version: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, SurrealValue)]
 pub struct ManualSearchHit {
     /// `page` | `section` | `tool`.
     pub result_kind: String,
@@ -185,7 +189,7 @@ impl NewUserManualPage {
         )
     }
 
-    /// The denormalized `body` JSONB mirror persisted on the page row.
+    /// The denormalized `body` object persisted on the page record.
     pub fn body_json(&self) -> Value {
         json!({
             "sections": self.sections,
@@ -243,19 +247,409 @@ fn anchor_rows_match_seed(stored: &[UserManualAnchor], expected: &[NewManualAnch
 // Store.
 // ---------------------------------------------------------------------------
 
-/// PostgreSQL-backed UserManual store. Thin: borrows the shared
-/// [`PostgresDatabase`] (same pool the API layer holds), owns no state.
-pub struct UserManualStore<'a> {
-    db: &'a PostgresDatabase,
+#[derive(Debug, SurrealValue)]
+struct RecordLookup {
+    record: RecordId,
 }
 
-impl<'a> UserManualStore<'a> {
-    pub fn new(db: &'a PostgresDatabase) -> Self {
-        Self { db }
+#[derive(Debug, SurrealValue)]
+struct StringLookup {
+    value: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct FilteredListBindings {
+    first: Option<String>,
+    second: Option<String>,
+    limit: i64,
+}
+
+#[derive(Debug, SurrealValue)]
+struct PageRecordBindings {
+    page: RecordId,
+    limit: i64,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ReceiptEventWrite {
+    event_id: String,
+    event_version: String,
+    kernel_task_run_id: String,
+    session_run_id: String,
+    aggregate_type: String,
+    aggregate_id: String,
+    idempotency_key: String,
+    event_type: String,
+    actor_kind: String,
+    actor_id: String,
+    causation_id: Option<String>,
+    correlation_id: Option<String>,
+    payload_hash: String,
+    source_component: String,
+    payload: Value,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ReceiptWriteBindings {
+    event: ReceiptEventWrite,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ReceiptResult {
+    event_id: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualPageContent {
+    page_id: String,
+    slug: String,
+    title: String,
+    page_kind: String,
+    audience: String,
+    body: Value,
+    content_hash: String,
+    manual_version: String,
+    source_kind: String,
+    spec_anchors: Vec<String>,
+    status: String,
+    superseded_by_slug: Option<String>,
+    ledger_event_id: RecordId,
+    updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualSectionContent {
+    section_id: String,
+    page_id: RecordId,
+    position: i64,
+    section_kind: String,
+    title: String,
+    body_md: String,
+    body_json: Option<Value>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualAnchorContent {
+    anchor_id: String,
+    page_id: RecordId,
+    anchor_kind: String,
+    anchor_value: String,
+    http_method: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct SectionWrite {
+    record: RecordId,
+    content: ManualSectionContent,
+}
+
+#[derive(Debug, SurrealValue)]
+struct AnchorWrite {
+    record: RecordId,
+    content: ManualAnchorContent,
+}
+
+#[derive(Debug, SurrealValue)]
+struct PageWriteBindings {
+    page_record: RecordId,
+    page: ManualPageContent,
+    sections: Vec<SectionWrite>,
+    anchors: Vec<AnchorWrite>,
+    event: ReceiptEventWrite,
+}
+
+#[derive(Debug, SurrealValue)]
+struct PageWriteResult {
+    page_id: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct PageSearchRow {
+    slug: String,
+    title: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct SectionSearchRow {
+    page_slug: String,
+    title: String,
+    body_md: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ToolSearchRow {
+    tool_id: String,
+    name: String,
+    description: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct SearchBindings {
+    needle: String,
+    limit: i64,
+}
+
+#[derive(Debug, SurrealValue)]
+struct StringRow {
+    value: String,
+}
+
+#[cfg(feature = "test-utils")]
+#[derive(Debug, SurrealValue)]
+struct RecordStringBindings {
+    record: RecordId,
+    value: String,
+}
+
+#[cfg(feature = "test-utils")]
+#[derive(Debug, SurrealValue)]
+struct RecordTwoStringsBindings {
+    record: RecordId,
+    first: String,
+    second: String,
+}
+
+#[cfg(feature = "test-utils")]
+#[derive(Debug, SurrealValue)]
+struct TwoStringsBindings {
+    first: String,
+    second: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct LimitBindings {
+    limit: i64,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualToolContent {
+    tool_id: String,
+    page_id: Option<RecordId>,
+    name: String,
+    status: String,
+    ipc_channel: Option<String>,
+    tauri_command: Option<String>,
+    cli_flag: Option<String>,
+    http_route: Option<String>,
+    http_method: String,
+    description: String,
+    expected_input: String,
+    expected_output: String,
+    schema_fields: Vec<String>,
+    common_errors: Vec<String>,
+    recovery_steps: Vec<String>,
+    origin: String,
+    content_hash: String,
+    manual_version: String,
+    updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualFeatureContent {
+    feature_id: String,
+    title: String,
+    description: String,
+    tool_ids: Vec<String>,
+    origin: String,
+    content_hash: String,
+    manual_version: String,
+    updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualAliasContent {
+    alias: String,
+    alias_kind: String,
+    canonical_kind: String,
+    canonical_ref: String,
+    deprecation_note: String,
+    manual_version: String,
+    updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualVersionContent {
+    manual_version: String,
+    seeded_at: DateTime<Utc>,
+    seed_content_hash: String,
+    page_count: i64,
+    tool_count: i64,
+    feature_count: i64,
+    ledger_event_id: Option<RecordId>,
+    note: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct VersionReceiptBindings {
+    version_record: RecordId,
+    version: ManualVersionContent,
+    event: ReceiptEventWrite,
+}
+
+const APPEND_RECEIPT_QUERY: &str = r#"
+BEGIN TRANSACTION;
+LET $existing = (SELECT event_id FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 2);
+IF array::len($existing) > 1 {
+    THROW 'user manual receipt identity is ambiguous';
+} ELSE IF array::len($existing) = 1 {
+    RETURN $existing;
+} ELSE {
+    CREATE type::record('kernel_event_ledger', $event.event_id) CONTENT {
+        event_id: $event.event_id,
+        event_version: $event.event_version,
+        kernel_task_run_id: $event.kernel_task_run_id,
+        session_run_id: $event.session_run_id,
+        aggregate_type: $event.aggregate_type,
+        aggregate_id: $event.aggregate_id,
+        idempotency_key: $event.idempotency_key,
+        event_type: $event.event_type,
+        actor_kind: $event.actor_kind,
+        actor_id: $event.actor_id,
+        causation_id: $event.causation_id,
+        correlation_id: $event.correlation_id,
+        payload_hash: $event.payload_hash,
+        source_component: $event.source_component,
+        payload: $event.payload
+    };
+    RETURN [{ event_id: $event.event_id }];
+};
+COMMIT TRANSACTION;
+"#;
+
+const UPSERT_PAGE_QUERY: &str = r#"
+BEGIN TRANSACTION;
+LET $event_existing = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 2);
+IF array::len($event_existing) != 0 {
+    THROW 'user manual page receipt already exists without this mutation';
+};
+CREATE type::record('kernel_event_ledger', $event.event_id) CONTENT {
+    event_id: $event.event_id,
+    event_version: $event.event_version,
+    kernel_task_run_id: $event.kernel_task_run_id,
+    session_run_id: $event.session_run_id,
+    aggregate_type: $event.aggregate_type,
+    aggregate_id: $event.aggregate_id,
+    idempotency_key: $event.idempotency_key,
+    event_type: $event.event_type,
+    actor_kind: $event.actor_kind,
+    actor_id: $event.actor_id,
+    causation_id: $event.causation_id,
+    correlation_id: $event.correlation_id,
+    payload_hash: $event.payload_hash,
+    source_component: $event.source_component,
+    payload: $event.payload
+};
+UPSERT $page_record MERGE $page;
+DELETE user_manual_sections WHERE page_id = $page_record;
+DELETE user_manual_anchors WHERE page_id = $page_record;
+FOR $section IN $sections {
+    UPSERT $section.record CONTENT $section.content;
+};
+FOR $anchor IN $anchors {
+    UPSERT $anchor.record CONTENT $anchor.content;
+};
+RETURN [{ page_id: $page.page_id }];
+COMMIT TRANSACTION;
+"#;
+
+const UPSERT_VERSION_WITH_RECEIPT_QUERY: &str = r#"
+BEGIN TRANSACTION;
+LET $event_existing = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 2);
+IF array::len($event_existing) != 0 {
+    THROW 'user manual version receipt already exists without this mutation';
+};
+CREATE type::record('kernel_event_ledger', $event.event_id) CONTENT {
+    event_id: $event.event_id,
+    event_version: $event.event_version,
+    kernel_task_run_id: $event.kernel_task_run_id,
+    session_run_id: $event.session_run_id,
+    aggregate_type: $event.aggregate_type,
+    aggregate_id: $event.aggregate_id,
+    idempotency_key: $event.idempotency_key,
+    event_type: $event.event_type,
+    actor_kind: $event.actor_kind,
+    actor_id: $event.actor_id,
+    causation_id: $event.causation_id,
+    correlation_id: $event.correlation_id,
+    payload_hash: $event.payload_hash,
+    source_component: $event.source_component,
+    payload: $event.payload
+};
+UPSERT $version_record CONTENT $version;
+RETURN [{ event_id: $event.event_id }];
+COMMIT TRANSACTION;
+"#;
+
+/// Product-global UserManual store over the shared embedded database. The
+/// cloned handle retains only the lifecycle-managed SurrealStorage authority.
+#[derive(Clone)]
+pub struct UserManualStore {
+    storage: SurrealStorage,
+}
+
+impl UserManualStore {
+    pub fn new(storage: SurrealStorage) -> Self {
+        Self { storage }
     }
 
-    pub fn db(&self) -> &'a PostgresDatabase {
-        self.db
+    pub fn storage(&self) -> &SurrealStorage {
+        &self.storage
+    }
+
+    async fn query_values<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> StorageResult<Vec<R>>
+    where
+        R: SurrealValue + Send,
+        B: SurrealValue + Send,
+    {
+        Ok(self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move { database.query_values(statement, bindings).await })
+            })
+            .await?)
+    }
+
+    async fn query_values_at<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+        result_index: usize,
+    ) -> StorageResult<Vec<R>>
+    where
+        R: SurrealValue + Send,
+        B: SurrealValue + Send,
+    {
+        Ok(self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values_at(statement, bindings, result_index)
+                        .await
+                })
+            })
+            .await?)
+    }
+
+    async fn query_first<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> StorageResult<Option<R>>
+    where
+        R: SurrealValue + Send,
+        B: SurrealValue + Send,
+    {
+        Ok(self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move { database.query_first(statement, bindings).await })
+            })
+            .await?)
     }
 
     /// Append a `KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED` EventLedger receipt for
@@ -267,6 +661,45 @@ impl<'a> UserManualStore<'a> {
         subject: &str,
         payload: Value,
     ) -> StorageResult<NewKernelEvent> {
+        self.manual_receipt_event_with_key(
+            action,
+            subject,
+            payload,
+            format!("UMR-{}", Uuid::now_v7()),
+        )
+    }
+
+    fn manual_mutation_receipt_event(
+        &self,
+        action: &str,
+        subject: &str,
+        payload: Value,
+        predecessor: &str,
+    ) -> StorageResult<NewKernelEvent> {
+        let target = serde_json::to_string(&payload)
+            .map_err(|_| StorageError::Validation("user manual mutation payload invalid"))?;
+        let idempotency_key = format!(
+            "UMR-MUT-{}",
+            sha256_hex(&format!("{action}\0{subject}\0{predecessor}\0{target}"))
+        );
+        self.manual_receipt_event_with_key(
+            action,
+            subject,
+            json!({
+                "predecessor_fingerprint": predecessor,
+                "target": payload,
+            }),
+            idempotency_key,
+        )
+    }
+
+    fn manual_receipt_event_with_key(
+        &self,
+        action: &str,
+        subject: &str,
+        payload: Value,
+        idempotency_key: String,
+    ) -> StorageResult<NewKernelEvent> {
         NewKernelEvent::builder(
             format!("UM-{}", Uuid::now_v7()),
             format!("UMS-{}", Uuid::now_v7()),
@@ -274,7 +707,7 @@ impl<'a> UserManualStore<'a> {
             KernelActor::System("user_manual".to_string()),
         )
         .aggregate("user_manual_entry", subject)
-        .idempotency_key(format!("UMR-{}", Uuid::now_v7()))
+        .idempotency_key(idempotency_key)
         .source_component("user_manual::store")
         .payload(json!({
             "action": action,
@@ -291,21 +724,32 @@ impl<'a> UserManualStore<'a> {
         subject: &str,
         payload: Value,
     ) -> StorageResult<String> {
-        let event = self.manual_receipt_event(action, subject, payload)?;
-        let recorded = self.db.append_kernel_event(event).await?;
-        Ok(recorded.event_id)
+        let event = receipt_write(self.manual_receipt_event(action, subject, payload)?);
+        let mut rows = self
+            .query_values_at::<ReceiptResult, _>(
+                APPEND_RECEIPT_QUERY,
+                ReceiptWriteBindings { event },
+                2,
+            )
+            .await?;
+        rows.pop()
+            .map(|row| row.event_id)
+            .ok_or(StorageError::Validation(
+                "user manual receipt transaction returned no event",
+            ))
     }
 
     // -- pages ---------------------------------------------------------------
 
     /// Idempotent page upsert keyed on `slug`. Returns `(page_id, changed)`:
-    /// `changed == false` means the stored row already matches the seed —
-    /// content hash AND child-row content (a tampered/partially-deleted
-    /// section or anchor set is NOT current even when the page hash matches,
-    /// so resync heals it). On change, sections and anchors are replaced
-    /// transactionally and a receipt is appended. The page row write is a
-    /// single `ON CONFLICT (slug)` upsert (stable `page_id`), so concurrent
-    /// seeders (startup + test, parallel lanes) cannot race an INSERT.
+    /// `changed == false` means the stored record already matches the target
+    /// content hash, version, status, and child-record content (a tampered or
+    /// partially deleted section/anchor set is NOT current even when the page
+    /// hash matches, so resync heals it). On change, sections and anchors are replaced
+    /// transactionally and a receipt is appended. The deterministic Surreal
+    /// record identity `user_manual_pages:<slug>` keeps `page_id` stable; the
+    /// receipt, page record, deterministic section/anchor records, and child
+    /// replacement commit in one embedded transaction.
     pub async fn upsert_page(
         &self,
         page: &NewUserManualPage,
@@ -313,23 +757,28 @@ impl<'a> UserManualStore<'a> {
         status: &str,
     ) -> StorageResult<(String, bool)> {
         let content_hash = page.content_hash();
-        let existing: Option<(String, String)> =
-            sqlx::query("SELECT page_id, content_hash FROM user_manual_pages WHERE slug = $1")
-                .bind(&page.slug)
-                .fetch_optional(self.db.pool())
-                .await?
-                .map(|row| (row.get("page_id"), row.get("content_hash")));
-
-        if let Some((page_id, stored_hash)) = &existing {
-            if stored_hash == &content_hash
-                && self.page_child_rows_match_seed(page_id, page).await?
+        let existing = self.get_page_by_slug(&page.slug).await?;
+        if let Some((stored, sections, anchors)) = &existing {
+            if stored.content_hash == content_hash
+                && stored.manual_version == manual_version
+                && stored.status == status
+                && section_rows_match_seed(sections, &page.sections)
+                && anchor_rows_match_seed(anchors, &page.anchors)
             {
-                return Ok((page_id.clone(), false));
+                return Ok((stored.page_id.clone(), false));
             }
         }
 
-        let mut tx = self.db.pool().begin().await?;
-        let receipt_event = self.manual_receipt_event(
+        let predecessor = existing
+            .as_ref()
+            .map(|stored| {
+                serde_json::to_string(stored)
+                    .map(|value| sha256_hex(&value))
+                    .map_err(|_| StorageError::Validation("user manual page predecessor invalid"))
+            })
+            .transpose()?
+            .unwrap_or_else(|| "absent".to_owned());
+        let receipt_event = receipt_write(self.manual_mutation_receipt_event(
             if existing.is_some() {
                 "page_updated"
             } else {
@@ -340,94 +789,82 @@ impl<'a> UserManualStore<'a> {
                 "content_hash": content_hash,
                 "manual_version": manual_version,
                 "page_kind": page.page_kind,
+                "status": status,
             }),
-        )?;
-        let receipt_id = append_kernel_event_with_executor(&mut *tx, receipt_event)
-            .await?
-            .event_id;
-        let page_id: String = sqlx::query(
-            r#"
-            INSERT INTO user_manual_pages (
-                page_id, slug, title, page_kind, audience, body,
-                content_hash, manual_version, source_kind, spec_anchors,
-                status, ledger_event_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'builtin_seed', $9, $10, $11)
-            ON CONFLICT (slug) DO UPDATE SET
-                title = EXCLUDED.title,
-                page_kind = EXCLUDED.page_kind,
-                audience = EXCLUDED.audience,
-                body = EXCLUDED.body,
-                content_hash = EXCLUDED.content_hash,
-                manual_version = EXCLUDED.manual_version,
-                spec_anchors = EXCLUDED.spec_anchors,
-                status = EXCLUDED.status,
-                ledger_event_id = EXCLUDED.ledger_event_id,
-                updated_at = NOW()
-            RETURNING page_id
-            "#,
-        )
-        .bind(format!("UMP-{}", Uuid::now_v7()))
-        .bind(&page.slug)
-        .bind(&page.title)
-        .bind(page.page_kind)
-        .bind(page.audience)
-        .bind(page.body_json())
-        .bind(&content_hash)
-        .bind(manual_version)
-        .bind(json!(page.spec_anchors))
-        .bind(status)
-        .bind(&receipt_id)
-        .fetch_one(&mut *tx)
-        .await?
-        .get("page_id");
-        sqlx::query("DELETE FROM user_manual_sections WHERE page_id = $1")
-            .bind(&page_id)
-            .execute(&mut *tx)
+            &predecessor,
+        )?);
+        let page_id = page.slug.clone();
+        let page_record = RecordId::new("user_manual_pages", page_id.clone());
+        let receipt_record = RecordId::new("kernel_event_ledger", receipt_event.event_id.clone());
+        let sections = page
+            .sections
+            .iter()
+            .enumerate()
+            .map(|(position, section)| {
+                let section_id = sha256_hex(&format!("{page_id}:section:{position}"));
+                SectionWrite {
+                    record: RecordId::new("user_manual_sections", section_id.clone()),
+                    content: ManualSectionContent {
+                        section_id,
+                        page_id: page_record.clone(),
+                        position: position as i64,
+                        section_kind: section.section_kind.to_owned(),
+                        title: section.title.clone(),
+                        body_md: section.body_md.clone(),
+                        body_json: section.body_json.clone(),
+                    },
+                }
+            })
+            .collect();
+        let anchors = page
+            .anchors
+            .iter()
+            .map(|anchor| {
+                let anchor_id = sha256_hex(&format!(
+                    "{page_id}:anchor:{}:{}:{}",
+                    anchor.anchor_kind, anchor.anchor_value, anchor.http_method
+                ));
+                AnchorWrite {
+                    record: RecordId::new("user_manual_anchors", anchor_id.clone()),
+                    content: ManualAnchorContent {
+                        anchor_id,
+                        page_id: page_record.clone(),
+                        anchor_kind: anchor.anchor_kind.to_owned(),
+                        anchor_value: anchor.anchor_value.clone(),
+                        http_method: anchor.http_method.to_owned(),
+                    },
+                }
+            })
+            .collect();
+        let bindings = PageWriteBindings {
+            page_record,
+            page: ManualPageContent {
+                page_id: page_id.clone(),
+                slug: page.slug.clone(),
+                title: page.title.clone(),
+                page_kind: page.page_kind.to_owned(),
+                audience: page.audience.to_owned(),
+                body: page.body_json(),
+                content_hash,
+                manual_version: manual_version.to_owned(),
+                source_kind: "builtin_seed".to_owned(),
+                spec_anchors: page.spec_anchors.clone(),
+                status: status.to_owned(),
+                superseded_by_slug: None,
+                ledger_event_id: receipt_record,
+                updated_at: Utc::now(),
+            },
+            sections,
+            anchors,
+            event: receipt_event,
+        };
+        let mut rows = self
+            .query_values_at::<PageWriteResult, _>(UPSERT_PAGE_QUERY, bindings, 9)
             .await?;
-        sqlx::query("DELETE FROM user_manual_anchors WHERE page_id = $1")
-            .bind(&page_id)
-            .execute(&mut *tx)
-            .await?;
-
-        for (position, section) in page.sections.iter().enumerate() {
-            sqlx::query(
-                r#"
-                INSERT INTO user_manual_sections (
-                    section_id, page_id, position, section_kind, title,
-                    body_md, body_json
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-                "#,
-            )
-            .bind(format!("UMS-{}", Uuid::now_v7()))
-            .bind(&page_id)
-            .bind(position as i32)
-            .bind(section.section_kind)
-            .bind(&section.title)
-            .bind(&section.body_md)
-            .bind(&section.body_json)
-            .execute(&mut *tx)
-            .await?;
-        }
-        for anchor in &page.anchors {
-            sqlx::query(
-                r#"
-                INSERT INTO user_manual_anchors (
-                    anchor_id, page_id, anchor_kind, anchor_value, http_method
-                ) VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT (page_id, anchor_kind, anchor_value, http_method)
-                DO NOTHING
-                "#,
-            )
-            .bind(format!("UMA-{}", Uuid::now_v7()))
-            .bind(&page_id)
-            .bind(anchor.anchor_kind)
-            .bind(&anchor.anchor_value)
-            .bind(anchor.http_method)
-            .execute(&mut *tx)
-            .await?;
-        }
-        tx.commit().await?;
-        Ok((page_id, true))
+        let stored = rows.pop().ok_or(StorageError::Validation(
+            "user manual page transaction returned no page",
+        ))?;
+        Ok((stored.page_id, true))
     }
 
     pub(crate) async fn page_child_rows_match_seed(
@@ -453,66 +890,63 @@ impl<'a> UserManualStore<'a> {
             Vec<UserManualAnchor>,
         )>,
     > {
-        let Some(row) = sqlx::query(
-            r#"
+        let rows = self
+            .query_values::<UserManualPage, _>(
+                r#"
             SELECT page_id, slug, title, page_kind, audience, body, content_hash,
                    manual_version, source_kind, spec_anchors, status,
-                   superseded_by_slug, ledger_event_id, created_at, updated_at
-            FROM user_manual_pages WHERE slug = $1
+                   superseded_by_slug, record::id(ledger_event_id) AS ledger_event_id,
+                   created_at, updated_at
+            FROM user_manual_pages WHERE slug = $value LIMIT 2
             "#,
-        )
-        .bind(slug)
-        .fetch_optional(self.db.pool())
-        .await?
-        else {
+                StringLookup {
+                    value: slug.to_owned(),
+                },
+            )
+            .await?;
+        if rows.len() > 1 {
+            return Err(StorageError::Validation(
+                "user manual page slug identity is ambiguous",
+            ));
+        }
+        let Some(page) = rows.into_iter().next() else {
             return Ok(None);
         };
-        let page = page_from_row(&row)?;
         let sections = self.sections_for(&page.page_id).await?;
         let anchors = self.anchors_for(&page.page_id).await?;
         Ok(Some((page, sections, anchors)))
     }
 
     pub async fn sections_for(&self, page_id: &str) -> StorageResult<Vec<UserManualSection>> {
-        let rows = sqlx::query(
+        self.query_values(
             r#"
-            SELECT section_id, page_id, position, section_kind, title, body_md, body_json
-            FROM user_manual_sections WHERE page_id = $1
-            ORDER BY position ASC LIMIT $2
+            SELECT section_id, record::id(page_id) AS page_id, position,
+                   section_kind, title, body_md, body_json
+            FROM user_manual_sections WHERE page_id = $page
+            ORDER BY position ASC LIMIT $limit
             "#,
+            PageRecordBindings {
+                page: RecordId::new("user_manual_pages", page_id.to_owned()),
+                limit: LIST_CAP,
+            },
         )
-        .bind(page_id)
-        .bind(LIST_CAP)
-        .fetch_all(self.db.pool())
-        .await?;
-        rows.iter()
-            .map(|row| {
-                Ok(UserManualSection {
-                    section_id: row.get("section_id"),
-                    page_id: row.get("page_id"),
-                    position: row.get("position"),
-                    section_kind: row.get("section_kind"),
-                    title: row.get("title"),
-                    body_md: row.get("body_md"),
-                    body_json: row.get("body_json"),
-                })
-            })
-            .collect()
+        .await
     }
 
     pub async fn anchors_for(&self, page_id: &str) -> StorageResult<Vec<UserManualAnchor>> {
-        let rows = sqlx::query(
+        self.query_values(
             r#"
-            SELECT anchor_id, page_id, anchor_kind, anchor_value, http_method
-            FROM user_manual_anchors WHERE page_id = $1
-            ORDER BY anchor_kind, anchor_value LIMIT $2
+            SELECT anchor_id, record::id(page_id) AS page_id, anchor_kind,
+                   anchor_value, http_method
+            FROM user_manual_anchors WHERE page_id = $page
+            ORDER BY anchor_kind, anchor_value LIMIT $limit
             "#,
+            PageRecordBindings {
+                page: RecordId::new("user_manual_pages", page_id.to_owned()),
+                limit: LIST_CAP,
+            },
         )
-        .bind(page_id)
-        .bind(LIST_CAP)
-        .fetch_all(self.db.pool())
-        .await?;
-        Ok(rows.iter().map(anchor_from_row).collect())
+        .await
     }
 
     pub async fn list_pages(
@@ -522,41 +956,42 @@ impl<'a> UserManualStore<'a> {
         limit: i64,
     ) -> StorageResult<Vec<UserManualPage>> {
         let limit = limit.clamp(1, LIST_CAP);
-        let rows = sqlx::query(
+        self.query_values(
             r#"
             SELECT page_id, slug, title, page_kind, audience, body, content_hash,
                    manual_version, source_kind, spec_anchors, status,
-                   superseded_by_slug, ledger_event_id, created_at, updated_at
+                   superseded_by_slug, record::id(ledger_event_id) AS ledger_event_id,
+                   created_at, updated_at
             FROM user_manual_pages
-            WHERE ($1::text IS NULL OR page_kind = $1)
-              AND ($2::text IS NULL OR audience = $2)
+            WHERE ($first = NONE OR page_kind = $first)
+              AND ($second = NONE OR audience = $second)
             ORDER BY slug ASC
-            LIMIT $3
+            LIMIT $limit
             "#,
+            FilteredListBindings {
+                first: page_kind.map(str::to_owned),
+                second: audience.map(str::to_owned),
+                limit,
+            },
         )
-        .bind(page_kind)
-        .bind(audience)
-        .bind(limit)
-        .fetch_all(self.db.pool())
-        .await?;
-        rows.iter().map(page_from_row).collect()
+        .await
     }
 
     /// All anchors of a kind across pages (the MT-195 coverage gate and the
     /// MT-204 freshness check run over these).
     pub async fn anchors_by_kind(&self, anchor_kind: &str) -> StorageResult<Vec<UserManualAnchor>> {
-        let rows = sqlx::query(
+        self.query_values(
             r#"
-            SELECT anchor_id, page_id, anchor_kind, anchor_value, http_method
-            FROM user_manual_anchors WHERE anchor_kind = $1
-            ORDER BY anchor_value LIMIT $2
+            SELECT anchor_id, record::id(page_id) AS page_id, anchor_kind,
+                   anchor_value, http_method
+            FROM user_manual_anchors WHERE anchor_kind = $value
+            ORDER BY anchor_value LIMIT 500
             "#,
+            StringLookup {
+                value: anchor_kind.to_owned(),
+            },
         )
-        .bind(anchor_kind)
-        .bind(LIST_CAP)
-        .fetch_all(self.db.pool())
-        .await?;
-        Ok(rows.iter().map(anchor_from_row).collect())
+        .await
     }
 
     /// MT-201 linking: pages this page links to (`page_link` anchors out) and
@@ -565,43 +1000,40 @@ impl<'a> UserManualStore<'a> {
         &self,
         slug: &str,
     ) -> StorageResult<Option<(Vec<String>, Vec<String>)>> {
-        let Some(row) = sqlx::query("SELECT page_id FROM user_manual_pages WHERE slug = $1")
-            .bind(slug)
-            .fetch_optional(self.db.pool())
-            .await?
-        else {
+        let Some((page, _, _)) = self.get_page_by_slug(slug).await? else {
             return Ok(None);
         };
-        let page_id: String = row.get("page_id");
-        let outbound: Vec<String> = sqlx::query(
-            r#"
-            SELECT anchor_value FROM user_manual_anchors
-            WHERE page_id = $1 AND anchor_kind = 'page_link'
-            ORDER BY anchor_value LIMIT $2
-            "#,
-        )
-        .bind(&page_id)
-        .bind(LIST_CAP)
-        .fetch_all(self.db.pool())
-        .await?
-        .iter()
-        .map(|r| r.get("anchor_value"))
-        .collect();
-        let inbound: Vec<String> = sqlx::query(
-            r#"
-            SELECT p.slug FROM user_manual_anchors a
-            JOIN user_manual_pages p ON p.page_id = a.page_id
-            WHERE a.anchor_kind = 'page_link' AND a.anchor_value = $1
-            ORDER BY p.slug LIMIT $2
-            "#,
-        )
-        .bind(slug)
-        .bind(LIST_CAP)
-        .fetch_all(self.db.pool())
-        .await?
-        .iter()
-        .map(|r| r.get("slug"))
-        .collect();
+        let outbound = self
+            .query_values::<StringRow, _>(
+                r#"
+                SELECT anchor_value AS value FROM user_manual_anchors
+                WHERE page_id = $page AND anchor_kind = 'page_link'
+                ORDER BY anchor_value LIMIT $limit
+                "#,
+                PageRecordBindings {
+                    page: RecordId::new("user_manual_pages", page.page_id),
+                    limit: LIST_CAP,
+                },
+            )
+            .await?
+            .into_iter()
+            .map(|row| row.value)
+            .collect();
+        let inbound = self
+            .query_values::<StringRow, _>(
+                r#"
+                SELECT page_id.slug AS value FROM user_manual_anchors
+                WHERE anchor_kind = 'page_link' AND anchor_value = $value
+                ORDER BY value LIMIT 500
+                "#,
+                StringLookup {
+                    value: slug.to_owned(),
+                },
+            )
+            .await?
+            .into_iter()
+            .map(|row| row.value)
+            .collect();
         Ok(Some((outbound, inbound)))
     }
 
@@ -612,79 +1044,79 @@ impl<'a> UserManualStore<'a> {
             return Ok(Vec::new());
         }
         let limit = limit.clamp(1, LIST_CAP);
-        // Escape LIKE wildcards so a query is literal text, never a pattern.
-        let escaped = trimmed
-            .replace('\\', "\\\\")
-            .replace('%', "\\%")
-            .replace('_', "\\_");
-        let pattern = format!("%{escaped}%");
+        let needle = trimmed.to_lowercase();
         let mut hits = Vec::new();
 
-        let page_rows = sqlx::query(
-            r#"
+        let page_rows = self
+            .query_values::<PageSearchRow, _>(
+                r#"
             SELECT slug, title FROM user_manual_pages
-            WHERE title ILIKE $1 OR slug ILIKE $1
-            ORDER BY slug LIMIT $2
+            WHERE string::lowercase(title) CONTAINS $needle
+               OR string::lowercase(slug) CONTAINS $needle
+            ORDER BY slug LIMIT $limit
             "#,
-        )
-        .bind(&pattern)
-        .bind(limit)
-        .fetch_all(self.db.pool())
-        .await?;
-        for row in &page_rows {
-            let slug: String = row.get("slug");
+                SearchBindings {
+                    needle: needle.clone(),
+                    limit,
+                },
+            )
+            .await?;
+        for row in page_rows {
+            let slug = row.slug;
             hits.push(ManualSearchHit {
                 result_kind: "page".into(),
                 result_ref: slug.clone(),
                 page_slug: Some(slug),
-                title: row.get("title"),
+                title: row.title,
                 excerpt: String::new(),
             });
         }
 
-        let section_rows = sqlx::query(
-            r#"
-            SELECT p.slug AS page_slug, s.title, s.body_md
-            FROM user_manual_sections s
-            JOIN user_manual_pages p ON p.page_id = s.page_id
-            WHERE s.title ILIKE $1 OR s.body_md ILIKE $1
-            ORDER BY p.slug, s.position LIMIT $2
+        let section_rows = self
+            .query_values::<SectionSearchRow, _>(
+                r#"
+            SELECT page_id.slug AS page_slug, title, body_md
+            FROM user_manual_sections
+            WHERE string::lowercase(title) CONTAINS $needle
+               OR string::lowercase(body_md) CONTAINS $needle
+            ORDER BY page_slug, position LIMIT $limit
             "#,
-        )
-        .bind(&pattern)
-        .bind(limit)
-        .fetch_all(self.db.pool())
-        .await?;
-        for row in &section_rows {
-            let body: String = row.get("body_md");
+                SearchBindings {
+                    needle: needle.clone(),
+                    limit,
+                },
+            )
+            .await?;
+        for row in section_rows {
             hits.push(ManualSearchHit {
                 result_kind: "section".into(),
-                result_ref: row.get("page_slug"),
-                page_slug: Some(row.get("page_slug")),
-                title: row.get("title"),
-                excerpt: excerpt_around(&body, trimmed),
+                result_ref: row.page_slug.clone(),
+                page_slug: Some(row.page_slug),
+                title: row.title,
+                excerpt: excerpt_around(&row.body_md, trimmed),
             });
         }
 
-        let tool_rows = sqlx::query(
-            r#"
+        let tool_rows = self
+            .query_values::<ToolSearchRow, _>(
+                r#"
             SELECT tool_id, name, description FROM user_manual_tool_entries
-            WHERE tool_id ILIKE $1 OR name ILIKE $1 OR description ILIKE $1
-               OR http_route ILIKE $1
-            ORDER BY tool_id LIMIT $2
+            WHERE string::lowercase(tool_id) CONTAINS $needle
+               OR string::lowercase(name) CONTAINS $needle
+               OR string::lowercase(description) CONTAINS $needle
+               OR (http_route != NONE AND string::lowercase(http_route) CONTAINS $needle)
+            ORDER BY tool_id LIMIT $limit
             "#,
-        )
-        .bind(&pattern)
-        .bind(limit)
-        .fetch_all(self.db.pool())
-        .await?;
-        for row in &tool_rows {
+                SearchBindings { needle, limit },
+            )
+            .await?;
+        for row in tool_rows {
             hits.push(ManualSearchHit {
                 result_kind: "tool".into(),
-                result_ref: row.get("tool_id"),
+                result_ref: row.tool_id,
                 page_slug: None,
-                title: row.get("name"),
-                excerpt: row.get("description"),
+                title: row.name,
+                excerpt: row.description,
             });
         }
 
@@ -699,55 +1131,40 @@ impl<'a> UserManualStore<'a> {
         if stored.as_ref() == Some(entry) {
             return Ok(false);
         }
-        sqlx::query(
-            r#"
-            INSERT INTO user_manual_tool_entries (
-                tool_id, page_id, name, status, ipc_channel, tauri_command,
-                cli_flag, http_route, http_method, description, expected_input,
-                expected_output, schema_fields, common_errors, recovery_steps,
-                origin, content_hash, manual_version
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
-            ON CONFLICT (tool_id) DO UPDATE SET
-                page_id = EXCLUDED.page_id,
-                name = EXCLUDED.name,
-                status = EXCLUDED.status,
-                ipc_channel = EXCLUDED.ipc_channel,
-                tauri_command = EXCLUDED.tauri_command,
-                cli_flag = EXCLUDED.cli_flag,
-                http_route = EXCLUDED.http_route,
-                http_method = EXCLUDED.http_method,
-                description = EXCLUDED.description,
-                expected_input = EXCLUDED.expected_input,
-                expected_output = EXCLUDED.expected_output,
-                schema_fields = EXCLUDED.schema_fields,
-                common_errors = EXCLUDED.common_errors,
-                recovery_steps = EXCLUDED.recovery_steps,
-                origin = EXCLUDED.origin,
-                content_hash = EXCLUDED.content_hash,
-                manual_version = EXCLUDED.manual_version,
-                updated_at = NOW()
-            "#,
-        )
-        .bind(&entry.tool_id)
-        .bind(&entry.page_id)
-        .bind(&entry.name)
-        .bind(&entry.status)
-        .bind(&entry.ipc_channel)
-        .bind(&entry.tauri_command)
-        .bind(&entry.cli_flag)
-        .bind(&entry.http_route)
-        .bind(&entry.http_method)
-        .bind(&entry.description)
-        .bind(&entry.expected_input)
-        .bind(&entry.expected_output)
-        .bind(json!(entry.schema_fields))
-        .bind(json!(entry.common_errors))
-        .bind(json!(entry.recovery_steps))
-        .bind(&entry.origin)
-        .bind(&entry.content_hash)
-        .bind(&entry.manual_version)
-        .execute(self.db.pool())
-        .await?;
+        let tool_id = entry.tool_id.clone();
+        let content = ManualToolContent {
+            tool_id: tool_id.clone(),
+            page_id: entry
+                .page_id
+                .as_ref()
+                .map(|id| RecordId::new("user_manual_pages", id.clone())),
+            name: entry.name.clone(),
+            status: entry.status.clone(),
+            ipc_channel: entry.ipc_channel.clone(),
+            tauri_command: entry.tauri_command.clone(),
+            cli_flag: entry.cli_flag.clone(),
+            http_route: entry.http_route.clone(),
+            http_method: entry.http_method.clone(),
+            description: entry.description.clone(),
+            expected_input: entry.expected_input.clone(),
+            expected_output: entry.expected_output.clone(),
+            schema_fields: entry.schema_fields.clone(),
+            common_errors: entry.common_errors.clone(),
+            recovery_steps: entry.recovery_steps.clone(),
+            origin: entry.origin.clone(),
+            content_hash: entry.content_hash.clone(),
+            manual_version: entry.manual_version.clone(),
+            updated_at: Utc::now(),
+        };
+        self.storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .upsert_one::<Value, _>("user_manual_tool_entries", &tool_id, content)
+                        .await
+                })
+            })
+            .await?;
         Ok(true)
     }
 
@@ -755,19 +1172,20 @@ impl<'a> UserManualStore<'a> {
         &self,
         tool_id: &str,
     ) -> StorageResult<Option<UserManualToolEntry>> {
-        let row = sqlx::query(
+        self.query_first(
             r#"
-            SELECT tool_id, page_id, name, status, ipc_channel, tauri_command,
+            SELECT tool_id, record::id(page_id) AS page_id, name, status,
+                   ipc_channel, tauri_command,
                    cli_flag, http_route, http_method, description, expected_input,
                    expected_output, schema_fields, common_errors, recovery_steps,
                    origin, content_hash, manual_version
-            FROM user_manual_tool_entries WHERE tool_id = $1
+            FROM $record
             "#,
+            RecordLookup {
+                record: RecordId::new("user_manual_tool_entries", tool_id.to_owned()),
+            },
         )
-        .bind(tool_id)
-        .fetch_optional(self.db.pool())
-        .await?;
-        row.as_ref().map(tool_from_row).transpose()
+        .await
     }
 
     pub async fn list_tool_entries(
@@ -777,24 +1195,25 @@ impl<'a> UserManualStore<'a> {
         limit: i64,
     ) -> StorageResult<Vec<UserManualToolEntry>> {
         let limit = limit.clamp(1, LIST_CAP);
-        let rows = sqlx::query(
+        self.query_values(
             r#"
-            SELECT tool_id, page_id, name, status, ipc_channel, tauri_command,
+            SELECT tool_id, record::id(page_id) AS page_id, name, status,
+                   ipc_channel, tauri_command,
                    cli_flag, http_route, http_method, description, expected_input,
                    expected_output, schema_fields, common_errors, recovery_steps,
                    origin, content_hash, manual_version
             FROM user_manual_tool_entries
-            WHERE ($1::text IS NULL OR status = $1)
-              AND ($2::text IS NULL OR origin = $2)
-            ORDER BY tool_id LIMIT $3
+            WHERE ($first = NONE OR status = $first)
+              AND ($second = NONE OR origin = $second)
+            ORDER BY tool_id LIMIT $limit
             "#,
+            FilteredListBindings {
+                first: status.map(str::to_owned),
+                second: origin.map(str::to_owned),
+                limit,
+            },
         )
-        .bind(status)
-        .bind(origin)
-        .bind(limit)
-        .fetch_all(self.db.pool())
-        .await?;
-        rows.iter().map(tool_from_row).collect()
+        .await
     }
 
     // -- feature entries --------------------------------------------------------
@@ -807,31 +1226,26 @@ impl<'a> UserManualStore<'a> {
         if stored.as_ref() == Some(entry) {
             return Ok(false);
         }
-        sqlx::query(
-            r#"
-            INSERT INTO user_manual_feature_entries (
-                feature_id, title, description, tool_ids, origin,
-                content_hash, manual_version
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7)
-            ON CONFLICT (feature_id) DO UPDATE SET
-                title = EXCLUDED.title,
-                description = EXCLUDED.description,
-                tool_ids = EXCLUDED.tool_ids,
-                origin = EXCLUDED.origin,
-                content_hash = EXCLUDED.content_hash,
-                manual_version = EXCLUDED.manual_version,
-                updated_at = NOW()
-            "#,
-        )
-        .bind(&entry.feature_id)
-        .bind(&entry.title)
-        .bind(&entry.description)
-        .bind(json!(entry.tool_ids))
-        .bind(&entry.origin)
-        .bind(&entry.content_hash)
-        .bind(&entry.manual_version)
-        .execute(self.db.pool())
-        .await?;
+        let feature_id = entry.feature_id.clone();
+        let content = ManualFeatureContent {
+            feature_id: feature_id.clone(),
+            title: entry.title.clone(),
+            description: entry.description.clone(),
+            tool_ids: entry.tool_ids.clone(),
+            origin: entry.origin.clone(),
+            content_hash: entry.content_hash.clone(),
+            manual_version: entry.manual_version.clone(),
+            updated_at: Utc::now(),
+        };
+        self.storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .upsert_one::<Value, _>("user_manual_feature_entries", &feature_id, content)
+                        .await
+                })
+            })
+            .await?;
         Ok(true)
     }
 
@@ -839,17 +1253,17 @@ impl<'a> UserManualStore<'a> {
         &self,
         feature_id: &str,
     ) -> StorageResult<Option<UserManualFeatureEntry>> {
-        let row = sqlx::query(
+        self.query_first(
             r#"
             SELECT feature_id, title, description, tool_ids, origin,
                    content_hash, manual_version
-            FROM user_manual_feature_entries WHERE feature_id = $1
+            FROM $record
             "#,
+            RecordLookup {
+                record: RecordId::new("user_manual_feature_entries", feature_id.to_owned()),
+            },
         )
-        .bind(feature_id)
-        .fetch_optional(self.db.pool())
-        .await?;
-        row.as_ref().map(feature_from_row).transpose()
+        .await
     }
 
     pub async fn list_feature_entries(
@@ -857,17 +1271,15 @@ impl<'a> UserManualStore<'a> {
         limit: i64,
     ) -> StorageResult<Vec<UserManualFeatureEntry>> {
         let limit = limit.clamp(1, LIST_CAP);
-        let rows = sqlx::query(
+        self.query_values(
             r#"
             SELECT feature_id, title, description, tool_ids, origin,
                    content_hash, manual_version
-            FROM user_manual_feature_entries ORDER BY feature_id LIMIT $1
+            FROM user_manual_feature_entries ORDER BY feature_id LIMIT $limit
             "#,
+            LimitBindings { limit },
         )
-        .bind(limit)
-        .fetch_all(self.db.pool())
-        .await?;
-        rows.iter().map(feature_from_row).collect()
+        .await
     }
 
     // -- legacy aliases -----------------------------------------------------------
@@ -877,75 +1289,52 @@ impl<'a> UserManualStore<'a> {
         if stored.as_ref() == Some(alias) {
             return Ok(false);
         }
-        sqlx::query(
-            r#"
-            INSERT INTO user_manual_legacy_aliases (
-                alias, alias_kind, canonical_kind, canonical_ref,
-                deprecation_note, manual_version
-            ) VALUES ($1,$2,$3,$4,$5,$6)
-            ON CONFLICT (alias) DO UPDATE SET
-                alias_kind = EXCLUDED.alias_kind,
-                canonical_kind = EXCLUDED.canonical_kind,
-                canonical_ref = EXCLUDED.canonical_ref,
-                deprecation_note = EXCLUDED.deprecation_note,
-                manual_version = EXCLUDED.manual_version,
-                updated_at = NOW()
-            "#,
-        )
-        .bind(&alias.alias)
-        .bind(&alias.alias_kind)
-        .bind(&alias.canonical_kind)
-        .bind(&alias.canonical_ref)
-        .bind(&alias.deprecation_note)
-        .bind(&alias.manual_version)
-        .execute(self.db.pool())
-        .await?;
+        let alias_id = alias.alias.clone();
+        let content = ManualAliasContent {
+            alias: alias.alias.clone(),
+            alias_kind: alias.alias_kind.clone(),
+            canonical_kind: alias.canonical_kind.clone(),
+            canonical_ref: alias.canonical_ref.clone(),
+            deprecation_note: alias.deprecation_note.clone(),
+            manual_version: alias.manual_version.clone(),
+            updated_at: Utc::now(),
+        };
+        self.storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .upsert_one::<Value, _>("user_manual_legacy_aliases", &alias_id, content)
+                        .await
+                })
+            })
+            .await?;
         Ok(true)
     }
 
     pub async fn get_legacy_alias(&self, alias: &str) -> StorageResult<Option<LegacyAliasRow>> {
-        let row = sqlx::query(
+        self.query_first(
             r#"
             SELECT alias, alias_kind, canonical_kind, canonical_ref,
                    deprecation_note, manual_version
-            FROM user_manual_legacy_aliases WHERE alias = $1
+            FROM $record
             "#,
+            RecordLookup {
+                record: RecordId::new("user_manual_legacy_aliases", alias.to_owned()),
+            },
         )
-        .bind(alias)
-        .fetch_optional(self.db.pool())
-        .await?;
-        Ok(row.map(|row| LegacyAliasRow {
-            alias: row.get("alias"),
-            alias_kind: row.get("alias_kind"),
-            canonical_kind: row.get("canonical_kind"),
-            canonical_ref: row.get("canonical_ref"),
-            deprecation_note: row.get("deprecation_note"),
-            manual_version: row.get("manual_version"),
-        }))
+        .await
     }
 
     pub async fn list_legacy_aliases(&self) -> StorageResult<Vec<LegacyAliasRow>> {
-        let rows = sqlx::query(
+        self.query_values(
             r#"
             SELECT alias, alias_kind, canonical_kind, canonical_ref,
                    deprecation_note, manual_version
-            FROM user_manual_legacy_aliases ORDER BY alias LIMIT $1
+            FROM user_manual_legacy_aliases ORDER BY alias LIMIT $limit
             "#,
+            LimitBindings { limit: LIST_CAP },
         )
-        .bind(LIST_CAP)
-        .fetch_all(self.db.pool())
-        .await?;
-        Ok(rows
-            .iter()
-            .map(|row| LegacyAliasRow {
-                alias: row.get("alias"),
-                alias_kind: row.get("alias_kind"),
-                canonical_kind: row.get("canonical_kind"),
-                canonical_ref: row.get("canonical_ref"),
-                deprecation_note: row.get("deprecation_note"),
-                manual_version: row.get("manual_version"),
-            })
-            .collect())
+        .await
     }
 
     // -- version metadata ----------------------------------------------------------
@@ -960,31 +1349,27 @@ impl<'a> UserManualStore<'a> {
         ledger_event_id: Option<&str>,
         note: &str,
     ) -> StorageResult<()> {
-        sqlx::query(
-            r#"
-            INSERT INTO user_manual_versions (
-                manual_version, seed_content_hash, page_count, tool_count,
-                feature_count, ledger_event_id, note
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7)
-            ON CONFLICT (manual_version) DO UPDATE SET
-                seed_content_hash = EXCLUDED.seed_content_hash,
-                page_count = EXCLUDED.page_count,
-                tool_count = EXCLUDED.tool_count,
-                feature_count = EXCLUDED.feature_count,
-                ledger_event_id = EXCLUDED.ledger_event_id,
-                note = EXCLUDED.note,
-                seeded_at = NOW()
-            "#,
-        )
-        .bind(manual_version)
-        .bind(seed_content_hash)
-        .bind(page_count)
-        .bind(tool_count)
-        .bind(feature_count)
-        .bind(ledger_event_id)
-        .bind(note)
-        .execute(self.db.pool())
-        .await?;
+        let version_id = manual_version.to_owned();
+        let content = ManualVersionContent {
+            manual_version: version_id.clone(),
+            seeded_at: Utc::now(),
+            seed_content_hash: seed_content_hash.to_owned(),
+            page_count: i64::from(page_count),
+            tool_count: i64::from(tool_count),
+            feature_count: i64::from(feature_count),
+            ledger_event_id: ledger_event_id
+                .map(|id| RecordId::new("kernel_event_ledger", id.to_owned())),
+            note: note.to_owned(),
+        };
+        self.storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .upsert_one::<Value, _>("user_manual_versions", &version_id, content)
+                        .await
+                })
+            })
+            .await?;
         Ok(())
     }
 
@@ -998,38 +1383,34 @@ impl<'a> UserManualStore<'a> {
         receipt_payload: Value,
         note: &str,
     ) -> StorageResult<String> {
-        let mut tx = self.db.pool().begin().await?;
-        let receipt_event =
-            self.manual_receipt_event("corpus_seeded", manual_version, receipt_payload)?;
-        let receipt_id = append_kernel_event_with_executor(&mut *tx, receipt_event)
-            .await?
-            .event_id;
-        sqlx::query(
-            r#"
-            INSERT INTO user_manual_versions (
-                manual_version, seed_content_hash, page_count, tool_count,
-                feature_count, ledger_event_id, note
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7)
-            ON CONFLICT (manual_version) DO UPDATE SET
-                seed_content_hash = EXCLUDED.seed_content_hash,
-                page_count = EXCLUDED.page_count,
-                tool_count = EXCLUDED.tool_count,
-                feature_count = EXCLUDED.feature_count,
-                ledger_event_id = EXCLUDED.ledger_event_id,
-                note = EXCLUDED.note,
-                seeded_at = NOW()
-            "#,
-        )
-        .bind(manual_version)
-        .bind(seed_content_hash)
-        .bind(page_count)
-        .bind(tool_count)
-        .bind(feature_count)
-        .bind(&receipt_id)
-        .bind(note)
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
+        let event = receipt_write(self.manual_receipt_event(
+            "corpus_seeded",
+            manual_version,
+            receipt_payload,
+        )?);
+        let receipt_id = event.event_id.clone();
+        let bindings = VersionReceiptBindings {
+            version_record: RecordId::new("user_manual_versions", manual_version.to_owned()),
+            version: ManualVersionContent {
+                manual_version: manual_version.to_owned(),
+                seeded_at: Utc::now(),
+                seed_content_hash: seed_content_hash.to_owned(),
+                page_count: i64::from(page_count),
+                tool_count: i64::from(tool_count),
+                feature_count: i64::from(feature_count),
+                ledger_event_id: Some(RecordId::new("kernel_event_ledger", receipt_id.clone())),
+                note: note.to_owned(),
+            },
+            event,
+        };
+        let rows = self
+            .query_values_at::<ReceiptResult, _>(UPSERT_VERSION_WITH_RECEIPT_QUERY, bindings, 5)
+            .await?;
+        if rows.len() != 1 || rows[0].event_id != receipt_id {
+            return Err(StorageError::Validation(
+                "user manual version transaction returned an invalid receipt",
+            ));
+        }
         Ok(receipt_id)
     }
 
@@ -1037,101 +1418,619 @@ impl<'a> UserManualStore<'a> {
         &self,
         manual_version: &str,
     ) -> StorageResult<Option<UserManualVersionRow>> {
-        let row = sqlx::query(
+        self.query_first(
             r#"
             SELECT manual_version, seeded_at, seed_content_hash, page_count,
-                   tool_count, feature_count, ledger_event_id, note
-            FROM user_manual_versions WHERE manual_version = $1
+                   tool_count, feature_count,
+                   record::id(ledger_event_id) AS ledger_event_id, note
+            FROM $record
             "#,
+            RecordLookup {
+                record: RecordId::new("user_manual_versions", manual_version.to_owned()),
+            },
         )
-        .bind(manual_version)
-        .fetch_optional(self.db.pool())
+        .await
+    }
+
+    /// Idempotently materialize the one canonical compiled corpus through this
+    /// store so changed pages and the version row retain EventLedger linkage.
+    pub async fn ensure_seeded(&self) -> StorageResult<SeedReport> {
+        let corpus = seed_corpus();
+        let seed_content_hash = corpus_hash(&corpus);
+        let page_count = i32::try_from(corpus.pages.len()).map_err(|_| {
+            StorageError::Validation("user manual page count exceeds storage range")
+        })?;
+        let tool_count = i32::try_from(corpus.tools.len()).map_err(|_| {
+            StorageError::Validation("user manual tool count exceeds storage range")
+        })?;
+        let feature_count = i32::try_from(corpus.features.len()).map_err(|_| {
+            StorageError::Validation("user manual feature count exceeds storage range")
+        })?;
+
+        let mut pages_changed = 0usize;
+        for page in &corpus.pages {
+            if self
+                .upsert_page(page, USER_MANUAL_VERSION, "current")
+                .await?
+                .1
+            {
+                pages_changed += 1;
+            }
+        }
+        let mut tools_changed = 0usize;
+        for tool in &corpus.tools {
+            if self.upsert_tool_entry(tool).await? {
+                tools_changed += 1;
+            }
+        }
+        let mut features_changed = 0usize;
+        for feature in &corpus.features {
+            if self.upsert_feature_entry(feature).await? {
+                features_changed += 1;
+            }
+        }
+        let mut aliases_changed = 0usize;
+        for alias in &corpus.aliases {
+            if self.upsert_legacy_alias(alias).await? {
+                aliases_changed += 1;
+            }
+        }
+
+        let version_changed =
+            self.get_version(USER_MANUAL_VERSION)
+                .await?
+                .map_or(true, |version| {
+                    version.seed_content_hash != seed_content_hash
+                        || version.page_count != page_count
+                        || version.tool_count != tool_count
+                        || version.feature_count != feature_count
+                });
+        let corpus_changed = pages_changed + tools_changed + features_changed + aliases_changed > 0;
+        let version_receipt_event_id = if corpus_changed || version_changed {
+            Some(
+                self.record_version_with_receipt(
+                    USER_MANUAL_VERSION,
+                    &seed_content_hash,
+                    page_count,
+                    tool_count,
+                    feature_count,
+                    json!({
+                        "pages_total": corpus.pages.len(),
+                        "pages_changed": pages_changed,
+                        "tools_total": corpus.tools.len(),
+                        "tools_changed": tools_changed,
+                        "features_total": corpus.features.len(),
+                        "features_changed": features_changed,
+                        "aliases_total": corpus.aliases.len(),
+                        "aliases_changed": aliases_changed,
+                    }),
+                    "WP-1 MT-022 canonical built-in UserManual seed corpus",
+                )
+                .await?,
+            )
+        } else {
+            None
+        };
+
+        Ok(SeedReport {
+            manual_version: USER_MANUAL_VERSION.to_owned(),
+            seed_content_hash,
+            pages_total: corpus.pages.len(),
+            pages_changed,
+            tools_total: corpus.tools.len(),
+            tools_changed,
+            features_total: corpus.features.len(),
+            features_changed,
+            aliases_total: corpus.aliases.len(),
+            aliases_changed,
+            version_receipt_event_id,
+        })
+    }
+
+    /// Compare the product-global embedded projection with the canonical
+    /// corpus and mounted-surface registry.
+    pub async fn check_freshness(&self) -> StorageResult<FreshnessReport> {
+        let corpus = seed_corpus();
+        let seed_hash = corpus_hash(&corpus);
+        let mut verdicts = Vec::new();
+
+        match self.get_version(USER_MANUAL_VERSION).await? {
+            Some(row)
+                if row.seed_content_hash == seed_hash
+                    && row.page_count as usize == corpus.pages.len()
+                    && row.tool_count as usize == corpus.tools.len()
+                    && row.feature_count as usize == corpus.features.len() => {}
+            Some(row) => verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::UnseededVersion,
+                subject: USER_MANUAL_VERSION.to_owned(),
+                detail: format!(
+                    "stored version metadata differs from the compiled-in corpus: hash {}/{}, pages {}/{}, tools {}/{}, features {}/{} — run POST /usermanual/resync",
+                    row.seed_content_hash,
+                    seed_hash,
+                    row.page_count,
+                    corpus.pages.len(),
+                    row.tool_count,
+                    corpus.tools.len(),
+                    row.feature_count,
+                    corpus.features.len(),
+                ),
+            }),
+            None => verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::UnseededVersion,
+                subject: USER_MANUAL_VERSION.to_owned(),
+                detail:
+                    "no user_manual_versions row for this binary's corpus — run POST /usermanual/resync"
+                        .to_owned(),
+            }),
+        }
+
+        let stored_pages = self.list_pages(None, None, LIST_CAP).await?;
+        let stored_by_slug: BTreeMap<&str, &UserManualPage> = stored_pages
+            .iter()
+            .map(|page| (page.slug.as_str(), page))
+            .collect();
+        let seed_slugs: BTreeSet<&str> =
+            corpus.pages.iter().map(|page| page.slug.as_str()).collect();
+        for page in &corpus.pages {
+            match stored_by_slug.get(page.slug.as_str()) {
+                None => verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::MissingPage,
+                    subject: page.slug.clone(),
+                    detail: "seed expects this page; the database does not hold it".to_owned(),
+                }),
+                Some(stored) if stored.content_hash != page.content_hash() => {
+                    verdicts.push(FreshnessVerdict {
+                        kind: FreshnessVerdictKind::StaleContent,
+                        subject: page.slug.clone(),
+                        detail: format!(
+                            "stored hash {} != seed hash {}",
+                            stored.content_hash,
+                            page.content_hash()
+                        ),
+                    });
+                }
+                Some(stored) => {
+                    let (kind, detail) = if self
+                        .page_child_rows_match_seed(&stored.page_id, page)
+                        .await?
+                    {
+                        (FreshnessVerdictKind::Current, String::new())
+                    } else {
+                        (
+                            FreshnessVerdictKind::StaleContent,
+                            "stored page child rows differ from the seed corpus despite matching page hash"
+                                .to_owned(),
+                        )
+                    };
+                    verdicts.push(FreshnessVerdict {
+                        kind,
+                        subject: page.slug.clone(),
+                        detail,
+                    });
+                }
+            }
+        }
+
+        let stored_tools = self.list_tool_entries(None, None, LIST_CAP).await?;
+        let stored_tools_by_id: BTreeMap<&str, &UserManualToolEntry> = stored_tools
+            .iter()
+            .map(|tool| (tool.tool_id.as_str(), tool))
+            .collect();
+        let seed_tool_ids: BTreeSet<&str> = corpus
+            .tools
+            .iter()
+            .map(|tool| tool.tool_id.as_str())
+            .collect();
+        for tool in &corpus.tools {
+            match stored_tools_by_id.get(tool.tool_id.as_str()) {
+                None => verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::MissingToolEntry,
+                    subject: tool.tool_id.clone(),
+                    detail: "seed expects this tool entry; the database does not hold it"
+                        .to_owned(),
+                }),
+                Some(stored) if *stored != tool => verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::StaleToolEntry,
+                    subject: tool.tool_id.clone(),
+                    detail: "stored tool entry row differs from the seed corpus".to_owned(),
+                }),
+                Some(_) => {}
+            }
+        }
+        for stored in &stored_tools {
+            if !seed_tool_ids.contains(stored.tool_id.as_str()) {
+                verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::StaleToolEntry,
+                    subject: stored.tool_id.clone(),
+                    detail: "database holds a tool entry the seed corpus does not declare"
+                        .to_owned(),
+                });
+            }
+        }
+
+        let stored_features = self.list_feature_entries(LIST_CAP).await?;
+        let stored_features_by_id: BTreeMap<&str, &UserManualFeatureEntry> = stored_features
+            .iter()
+            .map(|feature| (feature.feature_id.as_str(), feature))
+            .collect();
+        let seed_feature_ids: BTreeSet<&str> = corpus
+            .features
+            .iter()
+            .map(|feature| feature.feature_id.as_str())
+            .collect();
+        for feature in &corpus.features {
+            match stored_features_by_id.get(feature.feature_id.as_str()) {
+                None => verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::MissingFeatureEntry,
+                    subject: feature.feature_id.clone(),
+                    detail: "seed expects this feature entry; the database does not hold it"
+                        .to_owned(),
+                }),
+                Some(stored) if *stored != feature => verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::StaleFeatureEntry,
+                    subject: feature.feature_id.clone(),
+                    detail: "stored feature entry row differs from the seed corpus".to_owned(),
+                }),
+                Some(_) => {}
+            }
+        }
+        for stored in &stored_features {
+            if !seed_feature_ids.contains(stored.feature_id.as_str()) {
+                verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::StaleFeatureEntry,
+                    subject: stored.feature_id.clone(),
+                    detail: "database holds a feature entry the seed corpus does not declare"
+                        .to_owned(),
+                });
+            }
+        }
+
+        let stored_aliases = self.list_legacy_aliases().await?;
+        let stored_aliases_by_id: BTreeMap<&str, &LegacyAliasRow> = stored_aliases
+            .iter()
+            .map(|alias| (alias.alias.as_str(), alias))
+            .collect();
+        let seed_alias_ids: BTreeSet<&str> = corpus
+            .aliases
+            .iter()
+            .map(|alias| alias.alias.as_str())
+            .collect();
+        for alias in &corpus.aliases {
+            match stored_aliases_by_id.get(alias.alias.as_str()) {
+                None => verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::MissingLegacyAlias,
+                    subject: alias.alias.clone(),
+                    detail: "seed expects this legacy alias; the database does not hold it"
+                        .to_owned(),
+                }),
+                Some(stored) if *stored != alias => verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::StaleLegacyAlias,
+                    subject: alias.alias.clone(),
+                    detail: "stored legacy alias row differs from the seed corpus".to_owned(),
+                }),
+                Some(_) => {}
+            }
+        }
+        for stored in &stored_aliases {
+            if !seed_alias_ids.contains(stored.alias.as_str()) {
+                verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::StaleLegacyAlias,
+                    subject: stored.alias.clone(),
+                    detail: "database holds a legacy alias the seed corpus does not declare"
+                        .to_owned(),
+                });
+            }
+        }
+
+        for (subject, stored_count, seed_count) in [
+            ("user_manual_pages", stored_pages.len(), corpus.pages.len()),
+            (
+                "user_manual_tool_entries",
+                stored_tools.len(),
+                corpus.tools.len(),
+            ),
+            (
+                "user_manual_feature_entries",
+                stored_features.len(),
+                corpus.features.len(),
+            ),
+            (
+                "user_manual_legacy_aliases",
+                stored_aliases.len(),
+                corpus.aliases.len(),
+            ),
+        ] {
+            if stored_count != seed_count {
+                verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::StaleContent,
+                    subject: subject.to_owned(),
+                    detail: format!(
+                        "stored row count {stored_count} differs from seed corpus count {seed_count}"
+                    ),
+                });
+            }
+        }
+
+        let route_anchors = self.anchors_by_kind("http_route").await?;
+        let covered: BTreeSet<(String, String)> = route_anchors
+            .iter()
+            .map(|anchor| (anchor.http_method.clone(), anchor.anchor_value.clone()))
+            .collect();
+        for surface in wp009_surface_registry() {
+            if !covered.contains(&(surface.method.to_owned(), surface.route.to_owned())) {
+                verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::UncoveredSurface,
+                    subject: format!("{} {}", surface.method, surface.route),
+                    detail: format!(
+                        "registry surface {} has no http_route anchor on any UserManual page",
+                        surface.surface_id
+                    ),
+                });
+            }
+        }
+
+        let declared: BTreeSet<(String, String)> = wp009_surface_registry()
+            .iter()
+            .map(|surface| (surface.method.to_owned(), surface.route.to_owned()))
+            .collect();
+        for anchor in &route_anchors {
+            if !declared.contains(&(anchor.http_method.clone(), anchor.anchor_value.clone())) {
+                verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::DanglingAnchor,
+                    subject: format!("{} {}", anchor.http_method, anchor.anchor_value),
+                    detail:
+                        "http_route anchor documents a surface the WP-009 registry does not declare"
+                            .to_owned(),
+                });
+            }
+        }
+
+        let stored_slugs: BTreeSet<&str> =
+            stored_pages.iter().map(|page| page.slug.as_str()).collect();
+        for anchor in self.anchors_by_kind("page_link").await? {
+            if !stored_slugs.contains(anchor.anchor_value.as_str())
+                && !seed_slugs.contains(anchor.anchor_value.as_str())
+            {
+                verdicts.push(FreshnessVerdict {
+                    kind: FreshnessVerdictKind::DanglingAnchor,
+                    subject: anchor.anchor_value,
+                    detail: "page_link anchor targets a page that exists neither in the database nor in the seed"
+                        .to_owned(),
+                });
+            }
+        }
+
+        let current_count = verdicts
+            .iter()
+            .filter(|verdict| verdict.kind == FreshnessVerdictKind::Current)
+            .count();
+        let problem_count = verdicts
+            .iter()
+            .filter(|verdict| verdict.kind.is_problem())
+            .count();
+        Ok(FreshnessReport {
+            manual_version: USER_MANUAL_VERSION.to_owned(),
+            seed_content_hash: seed_hash,
+            fresh: problem_count == 0,
+            current_count,
+            problem_count,
+            verdicts,
+        })
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub(super) async fn fixture_receipt_exists(&self, event_id: &str) -> StorageResult<bool> {
+        let rows = self
+            .query_values::<ReceiptResult, _>(
+                r#"
+                SELECT event_id FROM $record
+                WHERE event_type = 'KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED'
+                "#,
+                RecordLookup {
+                    record: RecordId::new("kernel_event_ledger", event_id.to_owned()),
+                },
+            )
+            .await?;
+        if rows.len() > 1 {
+            return Err(StorageError::Validation(
+                "user manual receipt record identity is ambiguous",
+            ));
+        }
+        Ok(rows.len() == 1)
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub(super) async fn fixture_receipt_count(&self) -> StorageResult<usize> {
+        Ok(self
+            .query_values::<ReceiptResult, _>(
+                r#"
+                SELECT event_id FROM kernel_event_ledger
+                WHERE event_type = 'KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED'
+                LIMIT $limit
+                "#,
+                LimitBindings { limit: 1000 },
+            )
+            .await?
+            .len())
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub(super) async fn fixture_set_page_content_hash(
+        &self,
+        slug: &str,
+        content_hash: &str,
+    ) -> StorageResult<()> {
+        let Some((page, _, _)) = self.get_page_by_slug(slug).await? else {
+            return Err(StorageError::Validation(
+                "user manual page fixture target is missing",
+            ));
+        };
+        self.query_values::<Value, _>(
+            "UPDATE $record SET content_hash = $value",
+            RecordStringBindings {
+                record: RecordId::new("user_manual_pages", page.page_id),
+                value: content_hash.to_owned(),
+            },
+        )
         .await?;
-        Ok(row.map(|row| UserManualVersionRow {
-            manual_version: row.get("manual_version"),
-            seeded_at: row.get("seeded_at"),
-            seed_content_hash: row.get("seed_content_hash"),
-            page_count: row.get("page_count"),
-            tool_count: row.get("tool_count"),
-            feature_count: row.get("feature_count"),
-            ledger_event_id: row.get("ledger_event_id"),
-            note: row.get("note"),
-        }))
+        Ok(())
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub(super) async fn fixture_delete_page(&self, slug: &str) -> StorageResult<bool> {
+        let Some((page, _, _)) = self.get_page_by_slug(slug).await? else {
+            return Ok(false);
+        };
+        self.query_values::<Value, _>(
+            "DELETE $record",
+            RecordLookup {
+                record: RecordId::new("user_manual_pages", page.page_id),
+            },
+        )
+        .await?;
+        Ok(self.get_page_by_slug(slug).await?.is_none())
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub(super) async fn fixture_delete_page_sections(&self, page_id: &str) -> StorageResult<()> {
+        self.query_values::<Value, _>(
+            "DELETE user_manual_sections WHERE page_id = $record",
+            RecordLookup {
+                record: RecordId::new("user_manual_pages", page_id.to_owned()),
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub(super) async fn fixture_tamper_section(
+        &self,
+        section_id: &str,
+        title: &str,
+        body_md: &str,
+    ) -> StorageResult<()> {
+        self.query_values::<Value, _>(
+            "UPDATE $record SET title = $first, body_md = $second",
+            RecordTwoStringsBindings {
+                record: RecordId::new("user_manual_sections", section_id.to_owned()),
+                first: title.to_owned(),
+                second: body_md.to_owned(),
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub(super) async fn fixture_delete_route_anchor(&self, route: &str) -> StorageResult<usize> {
+        let before = self
+            .anchors_by_kind("http_route")
+            .await?
+            .into_iter()
+            .filter(|anchor| anchor.anchor_value == route)
+            .count();
+        self.query_values::<Value, _>(
+            "DELETE user_manual_anchors WHERE anchor_kind = $first AND anchor_value = $second",
+            TwoStringsBindings {
+                first: "http_route".to_owned(),
+                second: route.to_owned(),
+            },
+        )
+        .await?;
+        Ok(before)
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub(super) async fn fixture_break_first_page_link(
+        &self,
+        slug: &str,
+        missing_target: &str,
+    ) -> StorageResult<String> {
+        let Some((_, _, anchors)) = self.get_page_by_slug(slug).await? else {
+            return Err(StorageError::Validation(
+                "user manual page-link fixture target is missing",
+            ));
+        };
+        let anchor = anchors
+            .into_iter()
+            .filter(|anchor| anchor.anchor_kind == "page_link")
+            .min_by(|left, right| left.anchor_value.cmp(&right.anchor_value))
+            .ok_or(StorageError::Validation(
+                "user manual page-link fixture has no page link",
+            ))?;
+        self.query_values::<Value, _>(
+            "UPDATE $record SET anchor_value = $value",
+            RecordStringBindings {
+                record: RecordId::new("user_manual_anchors", anchor.anchor_id.clone()),
+                value: missing_target.to_owned(),
+            },
+        )
+        .await?;
+        Ok(anchor.anchor_id)
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub(super) async fn fixture_inject_page_receipt_without_mutation(
+        &self,
+        page: &NewUserManualPage,
+        manual_version: &str,
+    ) -> StorageResult<String> {
+        if self.get_page_by_slug(&page.slug).await?.is_some() {
+            return Err(StorageError::Validation(
+                "orphan receipt fixture requires an absent page",
+            ));
+        }
+        let content_hash = page.content_hash();
+        let event = receipt_write(self.manual_mutation_receipt_event(
+            "page_seeded",
+            &page.slug,
+            json!({
+                "content_hash": content_hash,
+                "manual_version": manual_version,
+                "page_kind": page.page_kind,
+                "status": "current",
+            }),
+            "absent",
+        )?);
+        let expected_event_id = event.event_id.clone();
+        let rows = self
+            .query_values_at::<ReceiptResult, _>(
+                APPEND_RECEIPT_QUERY,
+                ReceiptWriteBindings { event },
+                2,
+            )
+            .await?;
+        if rows.len() != 1 || rows[0].event_id != expected_event_id {
+            return Err(StorageError::Validation(
+                "orphan receipt fixture returned unstable evidence",
+            ));
+        }
+        Ok(expected_event_id)
     }
 }
 
-// ---------------------------------------------------------------------------
-// Row mapping.
-// ---------------------------------------------------------------------------
-
-fn page_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<UserManualPage> {
-    Ok(UserManualPage {
-        page_id: row.get("page_id"),
-        slug: row.get("slug"),
-        title: row.get("title"),
-        page_kind: row.get("page_kind"),
-        audience: row.get("audience"),
-        body: row.get("body"),
-        content_hash: row.get("content_hash"),
-        manual_version: row.get("manual_version"),
-        source_kind: row.get("source_kind"),
-        spec_anchors: string_vec(row.get("spec_anchors"))?,
-        status: row.get("status"),
-        superseded_by_slug: row.get("superseded_by_slug"),
-        ledger_event_id: row.get("ledger_event_id"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    })
-}
-
-fn anchor_from_row(row: &sqlx::postgres::PgRow) -> UserManualAnchor {
-    UserManualAnchor {
-        anchor_id: row.get("anchor_id"),
-        page_id: row.get("page_id"),
-        anchor_kind: row.get("anchor_kind"),
-        anchor_value: row.get("anchor_value"),
-        http_method: row.get("http_method"),
+fn receipt_write(event: NewKernelEvent) -> ReceiptEventWrite {
+    let event = KernelEvent::from_new(event);
+    let actor_kind = event.actor.actor_kind().to_owned();
+    let actor_id = event.actor.actor_id().to_owned();
+    ReceiptEventWrite {
+        event_id: event.event_id,
+        event_version: event.event_version,
+        kernel_task_run_id: event.kernel_task_run_id,
+        session_run_id: event.session_run_id,
+        aggregate_type: event.aggregate_type,
+        aggregate_id: event.aggregate_id,
+        idempotency_key: event.idempotency_key,
+        event_type: event.event_type.to_string(),
+        actor_kind,
+        actor_id,
+        causation_id: event.causation_id,
+        correlation_id: event.correlation_id,
+        payload_hash: event.payload_hash,
+        source_component: event.source_component,
+        payload: event.payload,
     }
-}
-
-fn tool_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<UserManualToolEntry> {
-    Ok(UserManualToolEntry {
-        tool_id: row.get("tool_id"),
-        page_id: row.get("page_id"),
-        name: row.get("name"),
-        status: row.get("status"),
-        ipc_channel: row.get("ipc_channel"),
-        tauri_command: row.get("tauri_command"),
-        cli_flag: row.get("cli_flag"),
-        http_route: row.get("http_route"),
-        http_method: row.get("http_method"),
-        description: row.get("description"),
-        expected_input: row.get("expected_input"),
-        expected_output: row.get("expected_output"),
-        schema_fields: string_vec(row.get("schema_fields"))?,
-        common_errors: string_vec(row.get("common_errors"))?,
-        recovery_steps: string_vec(row.get("recovery_steps"))?,
-        origin: row.get("origin"),
-        content_hash: row.get("content_hash"),
-        manual_version: row.get("manual_version"),
-    })
-}
-
-fn feature_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<UserManualFeatureEntry> {
-    Ok(UserManualFeatureEntry {
-        feature_id: row.get("feature_id"),
-        title: row.get("title"),
-        description: row.get("description"),
-        tool_ids: string_vec(row.get("tool_ids"))?,
-        origin: row.get("origin"),
-        content_hash: row.get("content_hash"),
-        manual_version: row.get("manual_version"),
-    })
-}
-
-fn string_vec(value: Value) -> StorageResult<Vec<String>> {
-    serde_json::from_value(value)
-        .map_err(|_| StorageError::Validation("user manual JSONB string array is malformed"))
 }
 
 /// Bounded excerpt centred on the first case-insensitive match.

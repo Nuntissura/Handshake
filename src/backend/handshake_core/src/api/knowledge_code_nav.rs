@@ -11,8 +11,8 @@
 //! Conventions mirror `api/knowledge_ingestion.rs`: a `routes(state)` builder,
 //! handlers over the shared `AppState`, JSON errors with typed `error` codes,
 //! reads bounded by `LIST_CAP`. All graph reads go through
-//! `storage::knowledge::KnowledgeStore` over the shared `postgres_pool` —
-//! PostgreSQL + EventLedger authority only, no SQLite, no re-parsing.
+//! `storage::knowledge::KnowledgeStore` over the shared embedded database —
+//! SurrealDB + EventLedger authority only, with no re-parsing.
 //!
 //! Backend-navigation receipt law (spec 2.3.13.11): a navigation query is a
 //! retrieval action and MUST be attributable. Every nav endpoint therefore
@@ -59,12 +59,13 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+use crate::api::account_scope::RequestAccountScope;
 use crate::knowledge_code_index::monaco_bridge::build_monaco_payload;
 use crate::storage::knowledge::{
     KnowledgeCodeParseStatus, KnowledgeEdgeType, KnowledgeEntity, KnowledgeEntityKind,
     KnowledgeSpanKind, KnowledgeStore,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::swarm_orchestration::state_recovery::{
     AgentLaneIdentity, AgentLaneKind, AttributionMode, LocalCloudAttribution,
@@ -108,8 +109,8 @@ pub fn routes(state: AppState) -> Router {
 
 type ApiError = (StatusCode, Json<Value>);
 
-fn db_for(state: &AppState) -> PostgresDatabase {
-    PostgresDatabase::new(state.postgres_pool.clone())
+fn db_for(state: &AppState) -> SurrealDatabase {
+    SurrealDatabase::new(state.surreal_storage.clone())
 }
 
 fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
@@ -202,7 +203,7 @@ fn nav_context(headers: &HeaderMap) -> Result<NavContext, ApiError> {
 /// navigation is auditable. A receipt failure is surfaced (the nav is not served
 /// silently without its trace).
 async fn record_nav_receipt(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     ctx: &NavContext,
     query_kind: &str,
     query: Value,
@@ -235,6 +236,7 @@ async fn record_nav_receipt(
 
 async fn record_quiet_nav_receipt(
     state: &AppState,
+    scope: &RequestAccountScope,
     ctx: &NavContext,
     workspace_id: &str,
     nav_receipt_event_id: &str,
@@ -256,8 +258,10 @@ async fn record_quiet_nav_receipt(
         },
     )
     .map_err(|err| bad_request(format!("invalid navigation quiet lane: {err}")))?;
-    let store =
-        ParallelSwarmStateRecoveryStore::new(state.postgres_pool.clone(), state.storage.clone());
+    let store = ParallelSwarmStateRecoveryStore::with_surreal_lifecycle(
+        state.surreal_storage.clone(),
+        scope.exact().clone(),
+    );
     let record = store
         .record_quiet_background_work(QuietBackgroundWorkRequest {
             lane,
@@ -322,7 +326,7 @@ struct LensParams {
 /// This guarantees a stale/failed symbol is FLAGGED rather than served as
 /// authoritative. The flag is intentionally conservative: anything not provably
 /// fresh is surfaced as not-fresh so a consumer never mistakes it for current.
-async fn served_staleness(db: &PostgresDatabase, source_id: Option<&str>) -> Value {
+async fn served_staleness(db: &SurrealDatabase, source_id: Option<&str>) -> Value {
     let Some(source_id) = source_id else {
         return json!({"state": "unindexed", "fresh": false,
             "detail": "symbol has no primary source"});
@@ -352,7 +356,7 @@ async fn served_staleness(db: &PostgresDatabase, source_id: Option<&str>) -> Val
 }
 
 /// The JSON projection of a symbol entity + its definition span + staleness.
-async fn symbol_to_json(db: &PostgresDatabase, symbol: &KnowledgeEntity) -> Value {
+async fn symbol_to_json(db: &SurrealDatabase, symbol: &KnowledgeEntity) -> Value {
     let symbol_kind = symbol
         .detection_provenance
         .get("symbol_kind")
@@ -400,6 +404,7 @@ async fn symbol_to_json(db: &PostgresDatabase, symbol: &KnowledgeEntity) -> Valu
 /// `GET /knowledge/code/symbols` — symbol lookup by name and/or path.
 async fn lookup_symbols(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     headers: HeaderMap,
     Query(params): Query<LookupParams>,
 ) -> Result<Json<Value>, ApiError> {
@@ -483,7 +488,7 @@ async fn lookup_symbols(
     )
     .await?;
     let quiet_receipt =
-        record_quiet_nav_receipt(&state, &ctx, &params.workspace_id, &receipt).await?;
+        record_quiet_nav_receipt(&state, &scope, &ctx, &params.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "workspace_id": params.workspace_id,
@@ -496,6 +501,7 @@ async fn lookup_symbols(
 /// `GET /knowledge/code/symbols/:entity_id` — one symbol with its definition.
 async fn get_symbol(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     headers: HeaderMap,
     Path(entity_id): Path<String>,
 ) -> Result<Json<Value>, ApiError> {
@@ -506,7 +512,7 @@ async fn get_symbol(
     let receipt =
         record_nav_receipt(&db, &ctx, "symbol_get", json!({"entity_id": entity_id})).await?;
     let quiet_receipt =
-        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
+        record_quiet_nav_receipt(&state, &scope, &ctx, &symbol.workspace_id, &receipt).await?;
     Ok(Json(
         json!({"symbol": body, "nav_receipt_event_id": receipt, "quiet_background_work_receipt_id": quiet_receipt}),
     ))
@@ -515,6 +521,7 @@ async fn get_symbol(
 /// `GET /knowledge/code/symbols/:entity_id/references` — callers + callees.
 async fn symbol_references(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     headers: HeaderMap,
     Path(entity_id): Path<String>,
 ) -> Result<Json<Value>, ApiError> {
@@ -572,7 +579,7 @@ async fn symbol_references(
     )
     .await?;
     let quiet_receipt =
-        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
+        record_quiet_nav_receipt(&state, &scope, &ctx, &symbol.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
@@ -587,6 +594,7 @@ async fn symbol_references(
 /// `GET /knowledge/code/symbols/:entity_id/tests` — tests validating a symbol.
 async fn symbol_tests(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     headers: HeaderMap,
     Path(entity_id): Path<String>,
 ) -> Result<Json<Value>, ApiError> {
@@ -629,7 +637,7 @@ async fn symbol_tests(
     )
     .await?;
     let quiet_receipt =
-        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
+        record_quiet_nav_receipt(&state, &scope, &ctx, &symbol.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
@@ -643,6 +651,7 @@ async fn symbol_tests(
 /// `GET /knowledge/code/symbols/:entity_id/spans` — citation spans of a symbol.
 async fn symbol_spans(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     headers: HeaderMap,
     Path(entity_id): Path<String>,
 ) -> Result<Json<Value>, ApiError> {
@@ -684,7 +693,7 @@ async fn symbol_spans(
     )
     .await?;
     let quiet_receipt =
-        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
+        record_quiet_nav_receipt(&state, &scope, &ctx, &symbol.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
@@ -698,6 +707,7 @@ async fn symbol_spans(
 /// `GET /knowledge/code/files/:path/lens` — Monaco code-lens payload (MT-109).
 async fn file_lens(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     headers: HeaderMap,
     Path(path): Path<String>,
     Query(params): Query<LensParams>,
@@ -732,7 +742,7 @@ async fn file_lens(
     )
     .await?;
     let quiet_receipt =
-        record_quiet_nav_receipt(&state, &ctx, &params.workspace_id, &receipt).await?;
+        record_quiet_nav_receipt(&state, &scope, &ctx, &params.workspace_id, &receipt).await?;
 
     let mut body = serde_json::to_value(&payload).map_err(|err| {
         (
@@ -756,7 +766,7 @@ async fn file_lens(
 
 /// Resolve an entity id, 404 if missing, 400 if it is not a code symbol.
 async fn require_symbol(
-    db: &PostgresDatabase,
+    db: &SurrealDatabase,
     entity_id: &str,
 ) -> Result<KnowledgeEntity, ApiError> {
     let entity = db
@@ -774,7 +784,7 @@ async fn require_symbol(
 }
 
 /// The evidence span refs of an edge as JSON (id + line range), best-effort.
-async fn edge_span_refs(db: &PostgresDatabase, edge_id: &str) -> Vec<Value> {
+async fn edge_span_refs(db: &SurrealDatabase, edge_id: &str) -> Vec<Value> {
     let mut out = Vec::new();
     if let Ok(span_ids) = db.list_knowledge_edge_span_ids(edge_id).await {
         for span_id in span_ids {

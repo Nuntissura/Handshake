@@ -29,9 +29,9 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::Row;
 
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
+use crate::storage::surreal::SurrealSwarmOutboxStore;
 use uuid::Uuid;
 
 use super::ids::ModelInstanceId;
@@ -533,6 +533,34 @@ pub struct DurableSwarmFrBridge {
     terminal_retry_count: Arc<AtomicU64>,
 }
 
+#[derive(Clone)]
+pub struct DurableSwarmFrDrain {
+    bridge: DurableSwarmFrBridge,
+    task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    drain_failed: Arc<AtomicBool>,
+}
+
+impl DurableSwarmFrDrain {
+    pub async fn drain_and_join(&self, timeout: Duration) -> bool {
+        self.bridge.begin_shutdown();
+        let mut task = self.task.lock().await;
+        let Some(join_handle) = task.as_mut() else {
+            return true;
+        };
+        let joined = match tokio::time::timeout(timeout, join_handle).await {
+            Ok(result) => {
+                task.take();
+                result.is_ok()
+            }
+            Err(_) => false,
+        };
+        joined
+            && !self.drain_failed.load(Ordering::Acquire)
+            && !self.bridge.terminal_is_fenced()
+            && self.bridge.dropped_count() == 0
+    }
+}
+
 struct DurableTerminalCommand {
     event: FlightRecorderEvent,
     ack: std::sync::mpsc::SyncSender<Result<(), String>>,
@@ -548,35 +576,53 @@ impl DurableSwarmFrBridge {
         recorder: std::sync::Arc<dyn crate::flight_recorder::FlightRecorder>,
         capacity: usize,
     ) -> (Self, tokio::task::JoinHandle<()>) {
-        Self::spawn_inner(recorder, None, capacity)
+        let (bridge, task, _) = Self::spawn_inner(recorder, None, capacity);
+        (bridge, task)
     }
 
-    /// Production bridge backed by the migration-0361 PostgreSQL outbox.
+    /// Production bridge backed by the embedded Surreal outbox.
     /// Terminal emit returns success only after its outbox transaction commits.
-    pub fn spawn_with_postgres_outbox(
+    pub fn spawn_with_surreal_outbox(
         recorder: std::sync::Arc<dyn crate::flight_recorder::FlightRecorder>,
-        pool: sqlx::PgPool,
+        outbox: SurrealSwarmOutboxStore,
         capacity: usize,
-    ) -> (Self, tokio::task::JoinHandle<()>) {
-        Self::spawn_inner(recorder, Some(pool), capacity)
+    ) -> (Self, DurableSwarmFrDrain) {
+        let (bridge, task, drain_failed) = Self::spawn_inner(recorder, Some(outbox), capacity);
+        let drain = DurableSwarmFrDrain {
+            bridge: bridge.clone(),
+            task: Arc::new(tokio::sync::Mutex::new(Some(task))),
+            drain_failed,
+        };
+        (bridge, drain)
     }
 
-    /// Degraded production mode when PostgreSQL is available but the primary
+    /// Degraded production mode when the embedded authority is available but the primary
     /// Flight Recorder is not. Terminal events are still acknowledged only
     /// after an outbox commit and deliberately remain there for a later healthy
     /// startup to deliver; they are never downgraded to stderr-only success.
     pub fn spawn_outbox_only(
-        pool: sqlx::PgPool,
+        outbox: SurrealSwarmOutboxStore,
         capacity: usize,
-    ) -> (Self, tokio::task::JoinHandle<()>) {
-        Self::spawn_inner(Arc::new(UnavailableFlightRecorder), Some(pool), capacity)
+    ) -> (Self, DurableSwarmFrDrain) {
+        let (bridge, task, drain_failed) =
+            Self::spawn_inner(Arc::new(UnavailableFlightRecorder), Some(outbox), capacity);
+        let drain = DurableSwarmFrDrain {
+            bridge: bridge.clone(),
+            task: Arc::new(tokio::sync::Mutex::new(Some(task))),
+            drain_failed,
+        };
+        (bridge, drain)
     }
 
     fn spawn_inner(
         recorder: std::sync::Arc<dyn crate::flight_recorder::FlightRecorder>,
-        outbox_pool: Option<sqlx::PgPool>,
+        outbox: Option<SurrealSwarmOutboxStore>,
         capacity: usize,
-    ) -> (Self, tokio::task::JoinHandle<()>) {
+    ) -> (
+        Self,
+        tokio::task::JoinHandle<()>,
+        Arc<AtomicBool>,
+    ) {
         let capacity = capacity.max(1);
         let (tx, mut rx) = tokio::sync::mpsc::channel::<FlightRecorderEvent>(capacity.max(1));
         let (terminal_tx, mut terminal_rx) =
@@ -587,6 +633,8 @@ impl DurableSwarmFrBridge {
         let task_terminal_fenced = Arc::clone(&terminal_fenced);
         let terminal_retry_count = Arc::new(AtomicU64::new(0));
         let task_retry_count = Arc::clone(&terminal_retry_count);
+        let drain_failed = Arc::new(AtomicBool::new(false));
+        let task_drain_failed = Arc::clone(&drain_failed);
         let task = tokio::spawn(async move {
             let mut retry_tick = tokio::time::interval(Duration::from_millis(100));
             loop {
@@ -599,7 +647,7 @@ impl DurableSwarmFrBridge {
                             while let Some(command) = terminal_rx.recv().await {
                                 persist_and_attempt_terminal(
                                     &recorder,
-                                    outbox_pool.as_ref(),
+                                    outbox.as_ref(),
                                     capacity,
                                     command,
                                     &task_retry_count,
@@ -607,6 +655,7 @@ impl DurableSwarmFrBridge {
                             }
                             while let Some(event) = rx.recv().await {
                                 if let Err(error) = recorder.record_event(event).await {
+                                    task_drain_failed.store(true, Ordering::Release);
                                     tracing::warn!(
                                         target: "handshake_core::swarm_orchestration",
                                         %error,
@@ -614,11 +663,23 @@ impl DurableSwarmFrBridge {
                                     );
                                 }
                             }
-                            // One bounded recovery attempt is enough at shutdown:
-                            // failed rows remain committed for the next startup.
-                            if let Some(pool) = outbox_pool.as_ref() {
-                                if retry_one_terminal_outbox(pool, &recorder, &task_retry_count).await.is_ok() {
-                                    task_terminal_fenced.store(false, Ordering::Release);
+                            if let Some(outbox) = outbox.as_ref() {
+                                loop {
+                                    match retry_one_terminal_outbox(outbox, &recorder, &task_retry_count).await {
+                                        Ok(true) => {
+                                            task_terminal_fenced.store(false, Ordering::Release);
+                                        }
+                                        Ok(false) => break,
+                                        Err(error) => {
+                                            task_drain_failed.store(true, Ordering::Release);
+                                            tracing::warn!(
+                                                target: "handshake_core::swarm_orchestration",
+                                                %error,
+                                                "terminal swarm outbox remains pending after shutdown drain"
+                                            );
+                                            break;
+                                        }
+                                    }
                                 }
                             }
                             break;
@@ -627,7 +688,7 @@ impl DurableSwarmFrBridge {
                     command = terminal_rx.recv() => if let Some(command) = command {
                         persist_and_attempt_terminal(
                             &recorder,
-                            outbox_pool.as_ref(),
+                            outbox.as_ref(),
                             capacity,
                             command,
                             &task_retry_count,
@@ -636,6 +697,7 @@ impl DurableSwarmFrBridge {
                     event = rx.recv() => match event {
                         Some(event) => {
                             if let Err(error) = recorder.record_event(event).await {
+                                task_drain_failed.store(true, Ordering::Release);
                                 tracing::warn!(
                                     target: "handshake_core::swarm_orchestration",
                                     %error,
@@ -647,9 +709,9 @@ impl DurableSwarmFrBridge {
                             if terminal_rx.is_closed() { break; }
                         }
                     },
-                    _ = retry_tick.tick(), if outbox_pool.is_some() => {
-                        if let Some(pool) = outbox_pool.as_ref() {
-                            if retry_one_terminal_outbox(pool, &recorder, &task_retry_count).await.is_ok() {
+                    _ = retry_tick.tick(), if outbox.is_some() => {
+                        if let Some(outbox) = outbox.as_ref() {
+                            if matches!(retry_one_terminal_outbox(outbox, &recorder, &task_retry_count).await, Ok(true)) {
                                 task_terminal_fenced.store(false, Ordering::Release);
                             }
                         }
@@ -668,11 +730,12 @@ impl DurableSwarmFrBridge {
                 terminal_retry_count,
             },
             task,
+            drain_failed,
         )
     }
 
     /// Synchronous emit for the `FlightRecorderSwarmSink` closure. Terminal
-    /// success means the PostgreSQL outbox commit was acknowledged; rejection
+    /// success means the embedded outbox commit was acknowledged; rejection
     /// is returned to the lifecycle producer and fences later terminal writes.
     pub fn emit(&self, event: FlightRecorderEvent) -> Result<(), String> {
         if !self.accepting.load(Ordering::Acquire) {
@@ -754,7 +817,7 @@ impl crate::flight_recorder::FlightRecorder for UnavailableFlightRecorder {
         _event: FlightRecorderEvent,
     ) -> Result<(), crate::flight_recorder::RecorderError> {
         Err(crate::flight_recorder::RecorderError::SinkError(
-            "primary Flight Recorder unavailable; retain PostgreSQL outbox row".to_string(),
+            "primary Flight Recorder unavailable; retain embedded outbox row".to_string(),
         ))
     }
 
@@ -772,23 +835,23 @@ impl crate::flight_recorder::FlightRecorder for UnavailableFlightRecorder {
 
 async fn persist_and_attempt_terminal(
     recorder: &Arc<dyn crate::flight_recorder::FlightRecorder>,
-    outbox_pool: Option<&sqlx::PgPool>,
+    outbox: Option<&SurrealSwarmOutboxStore>,
     capacity: usize,
     command: DurableTerminalCommand,
     retry_count: &AtomicU64,
 ) {
     let DurableTerminalCommand { event, ack } = command;
-    if let Some(pool) = outbox_pool {
-        match persist_terminal_outbox(pool, &event, capacity).await {
+    if let Some(outbox) = outbox {
+        match persist_terminal_outbox(outbox, &event, capacity).await {
             Ok(()) => {
                 let _ = ack.send(Ok(()));
-                if let Err(error) = deliver_terminal_outbox_event(pool, recorder, &event).await {
+                if let Err(error) = deliver_terminal_outbox_event(outbox, recorder, &event).await {
                     retry_count.fetch_add(1, Ordering::Relaxed);
                     tracing::warn!(
                         target: "handshake_core::swarm_orchestration",
                         %error,
                         event_id = %event.event_id,
-                        "terminal swarm event remains in durable PostgreSQL outbox"
+                        "terminal swarm event remains in durable embedded outbox"
                     );
                 }
             }
@@ -797,7 +860,7 @@ async fn persist_and_attempt_terminal(
             }
         }
     } else {
-        // Test/legacy seam: the recorder itself is the durable acknowledgement.
+        // Focused test seam: the recorder itself is the durable acknowledgement.
         match recorder.record_event(event).await {
             Ok(()) => {
                 let _ = ack.send(Ok(()));
@@ -813,110 +876,62 @@ async fn persist_and_attempt_terminal(
 }
 
 async fn persist_terminal_outbox(
-    pool: &sqlx::PgPool,
+    outbox: &SurrealSwarmOutboxStore,
     event: &FlightRecorderEvent,
     capacity: usize,
 ) -> Result<(), String> {
-    let mut tx = pool.begin().await.map_err(|error| error.to_string())?;
-    sqlx::query("SELECT pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('swarm_terminal_event_outbox', 361))")
-        .execute(&mut *tx)
+    let event_json = serde_json::to_string(event).map_err(|error| error.to_string())?;
+    outbox
+        .persist(&event.event_id.to_string(), event_json, capacity)
         .await
-        .map_err(|error| error.to_string())?;
-    let already_present: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM swarm_terminal_event_outbox WHERE event_id = $1)",
-    )
-    .bind(event.event_id)
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(|error| error.to_string())?;
-    let row_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM swarm_terminal_event_outbox")
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|error| error.to_string())?;
-    if !already_present && row_count >= i64::try_from(capacity).unwrap_or(i64::MAX) {
-        return Err(format!(
-            "terminal swarm PostgreSQL outbox reached bounded capacity {capacity}"
-        ));
-    }
-    let event_json = serde_json::to_value(event).map_err(|error| error.to_string())?;
-    sqlx::query(
-        r#"
-        INSERT INTO swarm_terminal_event_outbox (event_id, event_jsonb)
-        VALUES ($1, $2)
-        ON CONFLICT (event_id) DO NOTHING
-        "#,
-    )
-    .bind(event.event_id)
-    .bind(event_json)
-    .execute(&mut *tx)
-    .await
-    .map_err(|error| error.to_string())?;
-    tx.commit().await.map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())
 }
 
 async fn deliver_terminal_outbox_event(
-    pool: &sqlx::PgPool,
+    outbox: &SurrealSwarmOutboxStore,
     recorder: &Arc<dyn crate::flight_recorder::FlightRecorder>,
     event: &FlightRecorderEvent,
 ) -> Result<(), String> {
     match recorder.record_event(event.clone()).await {
         Ok(()) => {
-            sqlx::query("DELETE FROM swarm_terminal_event_outbox WHERE event_id = $1")
-                .bind(event.event_id)
-                .execute(pool)
+            outbox
+                .mark_delivered(&event.event_id.to_string())
                 .await
                 .map_err(|error| error.to_string())?;
             Ok(())
         }
         Err(error) => {
-            sqlx::query(
-                r#"
-                UPDATE swarm_terminal_event_outbox
-                SET attempts = attempts + 1,
-                    last_error = $2,
-                    last_attempt_at_utc = NOW()
-                WHERE event_id = $1
-                "#,
-            )
-            .bind(event.event_id)
-            .bind(error.to_string())
-            .execute(pool)
-            .await
-            .map_err(|update_error| update_error.to_string())?;
+            outbox
+                .record_failure(&event.event_id.to_string(), &error.to_string())
+                .await
+                .map_err(|update_error| update_error.to_string())?;
             Err(error.to_string())
         }
     }
 }
 
 async fn retry_one_terminal_outbox(
-    pool: &sqlx::PgPool,
+    outbox: &SurrealSwarmOutboxStore,
     recorder: &Arc<dyn crate::flight_recorder::FlightRecorder>,
     retry_count: &AtomicU64,
-) -> Result<(), String> {
-    let row = sqlx::query(
-        r#"
-        SELECT event_jsonb
-        FROM swarm_terminal_event_outbox
-        ORDER BY created_at_utc, event_id
-        LIMIT 1
-        "#,
-    )
-    .fetch_optional(pool)
-    .await
-    .map_err(|error| error.to_string())?;
-    let Some(row) = row else {
-        return Ok(());
+) -> Result<bool, String> {
+    let Some(row) = outbox
+        .next_pending()
+        .await
+        .map_err(|error| error.to_string())?
+    else {
+        return Ok(false);
     };
-    let event_json: serde_json::Value = row
-        .try_get("event_jsonb")
-        .map_err(|error| error.to_string())?;
     let event: FlightRecorderEvent =
-        serde_json::from_value(event_json).map_err(|error| error.to_string())?;
-    if let Err(error) = deliver_terminal_outbox_event(pool, recorder, &event).await {
+        serde_json::from_str(&row.event_json).map_err(|error| error.to_string())?;
+    if event.event_id.to_string() != row.event_id {
+        return Err("embedded swarm outbox event identity mismatch".to_string());
+    }
+    if let Err(error) = deliver_terminal_outbox_event(outbox, recorder, &event).await {
         retry_count.fetch_add(1, Ordering::Relaxed);
         return Err(error);
     }
-    Ok(())
+    Ok(true)
 }
 
 fn is_terminal_flight_recorder_event(event: &FlightRecorderEvent) -> bool {

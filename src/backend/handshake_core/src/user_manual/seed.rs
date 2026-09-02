@@ -7,7 +7,7 @@
 //!   generated from [`registry::wp009_surface_registry`] + the legacy static
 //!   manifest so the catalog can never drift from the declared inventory).
 //! * MT-198 UserManualFailureRecoveryPages — common failures, diagnostics,
-//!   recovery steps, repair queues, stale state, missing-Postgres behavior.
+//!   recovery steps, repair queues, stale state, missing-SurrealDB behavior.
 //! * MT-199 UserManualModelQuickstartBundles — per-area quickstart pages.
 //! * MT-206 UserManualStateRecoveryGuide — session compaction, interrupted
 //!   MTs, failed builds, validation reentry.
@@ -15,25 +15,27 @@
 //! ACCURACY IS LAW: every command, route, header, error code, permission
 //! decision, and port documented here is exercised by the doc-vs-runtime
 //! consistency tests (`tests/user_manual_content_tests.rs`,
-//! `tests/user_manual_api_tests.rs`). A seed claim the product does not
+//! `tests/user_manual_behavior_coverage_tests.rs`). A seed claim the product does not
 //! honor is a test failure, not a doc nit.
 //!
 //! Seeding is idempotent: pages/tools short-circuit on content hash, receipts
 //! (`KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED`) are appended only for changed
 //! rows, and the corpus version lands in `user_manual_versions`.
 
-use serde_json::json;
+use chrono::{DateTime, Utc};
+use serde_json::{json, Value};
+use surrealdb::types::{RecordId, SurrealValue};
 
 use super::migration_plan::naming_migration_plan;
 use super::registry::{wp009_surface_registry, SurfaceGroup};
 use super::store::{
     sha256_hex, LegacyAliasRow, NewManualAnchor, NewManualSection, NewUserManualPage,
-    UserManualFeatureEntry, UserManualStore, UserManualToolEntry,
+    UserManualFeatureEntry, UserManualPage, UserManualToolEntry,
 };
 use super::USER_MANUAL_VERSION;
 use crate::kernel::model_manual::kernel002_no_context_model_manual;
 use crate::model_manual::{model_manual, CommandStatus};
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::surreal::SurrealStorage;
 use crate::storage::StorageResult;
 
 /// Everything the seeder writes.
@@ -58,6 +60,126 @@ pub struct SeedReport {
     pub aliases_total: usize,
     pub aliases_changed: usize,
     pub version_receipt_event_id: Option<String>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct StoredContentHash {
+    content_hash: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct StoredVersionMetadata {
+    seed_content_hash: String,
+    page_count: i64,
+    tool_count: i64,
+    feature_count: i64,
+}
+
+#[derive(Debug, SurrealValue)]
+struct RecordLookup {
+    record: RecordId,
+}
+
+#[derive(Debug, SurrealValue)]
+struct PageChildrenLookup {
+    page: RecordId,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualPageContent {
+    page_id: String,
+    slug: String,
+    title: String,
+    page_kind: String,
+    audience: String,
+    body: Value,
+    content_hash: String,
+    manual_version: String,
+    source_kind: String,
+    spec_anchors: Vec<String>,
+    status: String,
+    superseded_by_slug: Option<String>,
+    ledger_event_id: Option<RecordId>,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualSectionContent {
+    section_id: String,
+    page_id: RecordId,
+    position: i64,
+    section_kind: String,
+    title: String,
+    body_md: String,
+    body_json: Option<Value>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualAnchorContent {
+    anchor_id: String,
+    page_id: RecordId,
+    anchor_kind: String,
+    anchor_value: String,
+    http_method: String,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualToolContent {
+    tool_id: String,
+    page_id: Option<RecordId>,
+    name: String,
+    status: String,
+    ipc_channel: Option<String>,
+    tauri_command: Option<String>,
+    cli_flag: Option<String>,
+    http_route: Option<String>,
+    http_method: String,
+    description: String,
+    expected_input: String,
+    expected_output: String,
+    schema_fields: Vec<String>,
+    common_errors: Vec<String>,
+    recovery_steps: Vec<String>,
+    origin: String,
+    content_hash: String,
+    manual_version: String,
+    updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualFeatureContent {
+    feature_id: String,
+    title: String,
+    description: String,
+    tool_ids: Vec<String>,
+    origin: String,
+    content_hash: String,
+    manual_version: String,
+    updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualAliasContent {
+    alias: String,
+    alias_kind: String,
+    canonical_kind: String,
+    canonical_ref: String,
+    deprecation_note: String,
+    manual_version: String,
+    updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, SurrealValue)]
+struct ManualVersionContent {
+    manual_version: String,
+    seeded_at: DateTime<Utc>,
+    seed_content_hash: String,
+    page_count: i64,
+    tool_count: i64,
+    feature_count: i64,
+    ledger_event_id: Option<RecordId>,
+    note: String,
 }
 
 fn section(kind: &'static str, title: &str, body_md: &str) -> NewManualSection {
@@ -198,7 +320,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_usermanual_surface(),
         page_failure_modes_and_recovery(),
         page_repair_queues_and_staleness(),
-        page_missing_postgres_behavior(),
+        page_missing_storage_behavior(),
         page_state_recovery_guide(),
         page_kernel_write_governance(),
         page_microvm_sandbox(),
@@ -241,7 +363,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "usermanual-surface",
         "failure-modes-and-recovery",
         "repair-queues-and-staleness",
-        "missing-postgres-behavior",
+        "missing-storage-behavior",
         "state-recovery-guide",
         "kernel-write-governance",
         "microvm-sandbox-kvm",
@@ -266,7 +388,7 @@ fn page_manual_toc() -> NewUserManualPage {
                 "navigation",
                 "How to use this manual",
                 "This is the Handshake UserManual: the built-in, no-context operating manual for \
-                 models and operators. Every page is a PostgreSQL authority row served over \
+                 models and operators. Every page is a embedded SurrealDB authority row served over \
                  `GET /usermanual/pages/:slug`. Start here with no prior context:\n\n\
                  1. `GET /usermanual/pages` — list all pages.\n\
                  2. `GET /usermanual/pages/handshake-product-purpose` — what Handshake is.\n\
@@ -303,7 +425,7 @@ fn page_product_purpose() -> NewUserManualPage {
                 "purpose",
                 "What Handshake is",
                 "Handshake is a local-first creative + execution workbench where operators and \
-                 models co-author work over ONE authority substrate: PostgreSQL plus the \
+                 models co-author work over ONE authority substrate: embedded SurrealDB plus the \
                  EventLedger. WP-KERNEL-009 adds the Project Knowledge Index (typed knowledge \
                  about a project's sources, code symbols, claims, and media), a Tiptap/ProseMirror \
                  rich document editor with embedded Monaco code nodes, the Notes surface \
@@ -318,12 +440,12 @@ fn page_product_purpose() -> NewUserManualPage {
             section(
                 "purpose",
                 "Authority model",
-                "PostgreSQL + EventLedger is canonical for durable state, receipts, indexing \
+                "embedded SurrealDB + EventLedger is canonical for durable state, receipts, indexing \
                  evidence, and validation. Generated markdown, wiki pages, HTML exports, context \
                  bundles, debug reports, and UI projections are PROJECTIONS — useful, never \
-                 authority. There is no SQLite, no Docker dependency, no external daemon: \
-                 Handshake manages its own PostgreSQL cluster (see \
-                 [[missing-postgres-behavior]]).",
+                 authority. There is no embedded SurrealDB, no Docker dependency, no external daemon: \
+                 Handshake manages its own embedded SurrealDB cluster (see \
+                 [[missing-storage-behavior]]).",
             ),
             section(
                 "navigation",
@@ -338,7 +460,7 @@ fn page_product_purpose() -> NewUserManualPage {
         anchors: vec![
             page_link("startup-and-run-commands"),
             page_link("backend-navigation-and-identity"),
-            page_link("missing-postgres-behavior"),
+            page_link("missing-storage-behavior"),
             page_link("failure-modes-and-recovery"),
             spec_anchor("2.3.13.11"),
             spec_anchor("7.1.1.9"),
@@ -452,17 +574,15 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
                  ```\n\n\
                  The server binds `127.0.0.1:37501` and mounts every API both at `/` and under \
                  `/api` (e.g. `/usermanual/pages` and `/api/usermanual/pages` are the same \
-                 surface). On startup Handshake ensures its own managed PostgreSQL cluster is \
-                 running (default port 5544, data dir `Handshake_Artifacts/managed_pgdata` in the \
-                 shared `Handshake_Artifacts` root beside the repo — the worktrees' sibling, not \
-                 inside the worktree) — no Docker, no external daemon. Quiet by design: no foreground \
-                 window is popped.",
+                 surface). On startup Handshake opens embedded SurrealDB under the configured \
+                 `HANDSHAKE_DATA_DIR`; there is no network database service, Docker dependency, or \
+                 external daemon. Quiet by design: no foreground window is popped.",
                 json!({
                     "run_command": "cargo run -p handshake_core --bin handshake_core --features app-runtime",
                     "listen_addr": "127.0.0.1:37501",
                     "api_mounts": ["/", "/api"],
-                    "managed_postgres_port": 5544,
-                    "managed_postgres_data_dir": "Handshake_Artifacts/managed_pgdata"
+                    "storage_authority": "embedded_surrealdb",
+                    "storage_root_env": "HANDSHAKE_DATA_DIR"
                 }),
             ),
             section(
@@ -470,7 +590,7 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
                 "Probe health",
                 "```\ncurl http://127.0.0.1:37501/health\n```\n\n\
                  `GET /health` answers when the server is up. If it does not answer, see \
-                 [[missing-postgres-behavior]] and [[state-recovery-guide]].",
+                 [[missing-storage-behavior]] and [[state-recovery-guide]].",
             ),
             section(
                 "run_commands",
@@ -478,13 +598,14 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
                 "Always run SCOPED test targets, one cargo invocation at a time — never the full \
                  suite in shared worktrees:\n\n\
                  ```\n\
-                 cargo test -p handshake_core --features test-utils --test user_manual_api_tests\n\
+                 cargo test -p handshake_core --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code\n\
                  cargo test -p handshake_core --features test-utils --test knowledge_code_nav_api_tests\n\
                  cargo test -p handshake_core --lib user_manual\n\
                  ```\n\n\
-                 Integration tests provision an isolated schema per test on the real cluster \
-                 (`POSTGRES_TEST_URL` > `DATABASE_URL` > managed cluster) and fail hard when \
-                 PostgreSQL is unavailable. There is no SQLite or mock fallback.",
+                 Integration tests allocate an exact namespace/database inside a private embedded \
+                 store through `EmbeddedSurrealTestScope`; `HANDSHAKE_SURREAL_TEST_STORE_ROOT` \
+                 selects only the test-store root. An unavailable store fails the proof. There is \
+                 no alternate database, in-memory authority, or mock fallback.",
             ),
             section(
                 "inputs_outputs",
@@ -496,7 +617,7 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
             ),
         ],
         anchors: vec![
-            page_link("missing-postgres-behavior"),
+            page_link("missing-storage-behavior"),
             page_link("state-recovery-guide"),
             page_link("backend-navigation-and-identity"),
             NewManualAnchor {
@@ -507,7 +628,7 @@ fn page_startup_and_run_commands() -> NewUserManualPage {
             },
             NewManualAnchor {
                 anchor_kind: "cli_command",
-                anchor_value: "cargo test -p handshake_core --features test-utils --test user_manual_api_tests"
+                anchor_value: "cargo test -p handshake_core --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code"
                     .into(),
                 http_method: "",
             },
@@ -574,7 +695,7 @@ fn page_backend_navigation_and_identity() -> NewUserManualPage {
                  AccessSpace, and workspace before mounting account-facing routes. Request \
                  headers never create or select authority.\n\n\
                  WHAT THIS IS NOT. This is NOT multi-user authentication, ResourceGrant, or \
-                 PostgreSQL RLS, and it does not implement `WP-KERNEL-006` or \
+                 embedded SurrealDB RLS, and it does not implement `WP-KERNEL-006` or \
                  `WP-KERNEL-007`. It is one opaque, persisted product-local isolation scope that \
                  keeps WP-1 resources and derived telemetry attributable and non-widening until \
                  those later WPs replace the installation-local authority with authenticated \
@@ -626,11 +747,11 @@ fn page_backend_navigation_and_identity() -> NewUserManualPage {
                  `account_scope::tests::a_blank_workspace_header_is_malformed_rather_than_a_silent_widening`; \
                  `account_scope::tests::matching_headers_yield_the_full_server_owned_exact_scope`; \
                  `account_scope::tests::mismatched_owner_and_workspace_assertions_are_denied`; \
-                 `model_lane_resource_scope_pg_tests::two_accounts_cannot_read_each_others_lane_rows`; \
-                 `model_lane_resource_scope_pg_tests::one_account_cannot_read_across_its_own_workspaces`; \
-                 `model_lane_resource_scope_pg_tests::an_unattributed_legacy_row_is_denied_not_grandfathered`; \
-                 `model_lane_resource_scope_pg_tests::a_cross_account_denial_leaks_no_identifiers_or_row_contents`; \
-                 `model_lane_resource_scope_pg_tests::boot_recovery_refuses_to_run_from_an_account_scoped_store`.\n\n\
+                 `worktree_model_lane_live_surreal_tests::two_accounts_cannot_read_each_others_lane_rows`; \
+                 `worktree_model_lane_live_surreal_tests::one_account_cannot_read_across_its_own_workspaces`; \
+                 `worktree_model_lane_live_surreal_tests::an_unattributed_legacy_row_is_denied_not_grandfathered`; \
+                 `worktree_model_lane_live_surreal_tests::a_cross_account_denial_leaks_no_identifiers_or_row_contents`; \
+                 `worktree_model_lane_live_surreal_tests::boot_recovery_refuses_to_run_from_an_account_scoped_store`.\n\n\
                  HBR-INT-009 diagnostic posture for the account-scope seam (recorded, never \
                  silently skipped):\n\
                  - Tier 1 Flight Recorder / EventLedger: WIRED for the SCOPE STAMP. Every durable \
@@ -749,7 +870,7 @@ fn page_permissions_and_safety() -> NewUserManualPage {
                 "safety",
                 "Safety constraints",
                 "- Never treat projections (markdown exports, wiki pages, UI state, this page's \
-                 rendered HTML) as authority; authority is the PostgreSQL row + EventLedger \
+                 rendered HTML) as authority; authority is the embedded SurrealDB row + EventLedger \
                  receipt.\n\
                  - Never invent write paths: if no documented route performs the mutation, stop \
                  and record the gap; do not poke tables directly.\n\
@@ -806,6 +927,11 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  prompt is still readable and answerable in the in-app login panel that opens under the \
                  provider row. The GUI performs no shell or PATH resolution, receives no executable path, \
                  argv, or child pid, and provider response data is never interpolated into a command.\n\
+                 Handshake preserves the provider-owned CLI profile/configuration: `claude auth status --json` \
+                 and `codex login status` inspect the same profiles used by those official login commands, \
+                 including the configured `CODEX_HOME`. API-key/token environment variables are not inherited \
+                 across this boundary, so Operator credentials are never required or substituted for the \
+                 subscription session.\n\
                  - BYOK (available, not required): paste an Anthropic or OpenAI API key. The key is \
                  stored ONLY in the OS keychain (Windows Credential Manager / macOS Keychain / Linux \
                  Secret Service). It is NEVER written to logs, the Flight Recorder, the EventLedger, the \
@@ -966,9 +1092,11 @@ fn page_cloud_model_access() -> NewUserManualPage {
             section(
                 "run_commands",
                 "Behavior matrix + proof targets",
-                "MT-015 cloud model access coverage is tracked by \
+                 "MT-015 cloud model access coverage is tracked by \
                  `cloud_model_access_behavior_coverage_matrix()` and verified by \
-                 `cloud_model_access_behaviors_have_manual_coverage`. The behavior matrix rows are \
+                 `cloud_model_access_manual_coverage_tests::cloud_model_access_behaviors_have_manual_coverage_without_legacy_database`, \
+                 which reads the canonical compiled UserManual corpus and creates no durable test state. The \
+                 behavior matrix rows are \
                  `wp1.cloud_access.providers_enumeration`, `wp1.cloud_access.byok_store`, \
                  `wp1.cloud_access.byok_delete`, `wp1.cloud_access.secret_leak_guard`, \
                  `wp1.cloud_access.settings_argus`, and `wp1.cloud_access.cli_bridge_login`. \
@@ -1116,7 +1244,7 @@ fn page_wp1_orchestration_console() -> NewUserManualPage {
                 "Authority posture",
                 "This console is a DISPLAY/STREAM buffer only. It is an ADDITIONAL, best-effort tee of \
                  WP-1 orchestration events — it is NEVER the durable authority. The authoritative record \
-                 of every event remains PostgreSQL/EventLedger plus the Flight Recorder; dropping, \
+                 of every event remains embedded SurrealDB/EventLedger plus the Flight Recorder; dropping, \
                  lagging, or closing this stream never affects durable state. The tee is composed AFTER \
                  the durable Flight Recorder sink (see the swarm coordinator fanout), so the durable \
                  emission and its terminal-persistence guarantees are undisturbed.",
@@ -1256,7 +1384,7 @@ fn page_external_compat_engine_import() -> NewUserManualPage {
                  `HANDSHAKE_LOCAL_MODEL_SHA256`; see [[startup-and-run-commands]].",
             ),
             section(
-                "recovery",
+                "hooks",
                 "HBR-INT-009 diagnostic posture",
                 "- Tier-1 Flight Recorder / EventLedger: WIRED. Completions served through this \
                  lane emit a `FlightRecorderEventType::LlmInference` record carrying \
@@ -1421,7 +1549,7 @@ fn page_swarm_budget_and_spawn_rejection() -> NewUserManualPage {
                  on failure; the coordinator owns the STOP on every terminal path.",
             ),
             section(
-                "recovery",
+                "hooks",
                 "HBR-INT-009 diagnostic posture",
                 "- Tier-1 Flight Recorder / EventLedger: WIRED. Every rejection and every \
                  breaker trip is built into a Flight Recorder event by \
@@ -1498,7 +1626,7 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
         "knowledge-index-surface",
         "Project Knowledge Index — Ingestion And Code Navigation",
         SurfaceGroup::KnowledgeIngestion,
-        "The Project Knowledge Index turns configured project roots into typed PostgreSQL \
+        "The Project Knowledge Index turns configured project roots into typed embedded SurrealDB \
          knowledge: sources with content hashes, extraction receipts, entities, edges, evidence \
          spans, and code symbols. Ingestion routes manage roots/runs/repairs; the code-navigation \
          routes (listed below with the ingestion routes) answer symbol questions WITHOUT an \
@@ -1539,8 +1667,8 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
                  refused the operation.\n\
                  - `io_error` — source unreadable at extraction time (queues a repair, never a \
                  silent skip).\n\
-                 - 500 `internal_error` / `storage_error` — PostgreSQL unavailable: fail-closed, \
-                 no data is served (see [[missing-postgres-behavior]]).",
+                 - 500 `internal_error` / `storage_error` — embedded SurrealDB unavailable: fail-closed, \
+                 no data is served (see [[missing-storage-behavior]]).",
             ),
             section(
                 "recovery",
@@ -1558,7 +1686,7 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
             // so the MT-195 gate sees full coverage (this is also the MT-112
             // closure: /knowledge/code/* is manual-registered).
             let mut extra = group_route_anchors(SurfaceGroup::CodeNavigation);
-            extra.push(page_link("missing-postgres-behavior"));
+            extra.push(page_link("missing-storage-behavior"));
             extra.push(page_link("repair-queues-and-staleness"));
             extra
         },
@@ -1626,7 +1754,7 @@ fn page_rich_documents_surface() -> NewUserManualPage {
         "rich-documents-surface",
         "Rich Documents — Authority, History, Projections, Embeds",
         SurfaceGroup::RichDocuments,
-        "RichDocuments are versioned Tiptap/ProseMirror JSON authority rows in PostgreSQL with \
+        "RichDocuments are versioned Tiptap/ProseMirror JSON authority rows in embedded SurrealDB with \
          EventLedger receipts on every save (`KNOWLEDGE_RICH_DOCUMENT_SAVED`). The editor (and \
          embedded Monaco code nodes) renders the typed block tree; saves are optimistic \
          (expected_version) so concurrent writers get a 409 instead of clobbering each other. \
@@ -1808,7 +1936,7 @@ fn page_model_lane_schema() -> NewUserManualPage {
                 "What Dexterity records",
                 "Dexterity is the internal kernel for model switching and model launching. It \
                  records every launchable or switchable participant as ModelLaneRun, ModelLane, \
-                 and ModelLaneMessage rows in PostgreSQL. Cloud, local, CLI, human, subagent, \
+                 and ModelLaneMessage rows in embedded SurrealDB. Cloud, local, CLI, human, subagent, \
                  and validator lanes do not speak through hidden peer chat authority: models \
                  propose typed messages and artifacts, while Handshake performs deterministic \
                  storage, EventLedger append, validation, promotion, and replay.",
@@ -1869,14 +1997,14 @@ fn page_model_lane_schema() -> NewUserManualPage {
                  status updates, tool results, promotion requests, or recovery messages. \
                  `record_message` is idempotent by `idempotency_key`: same key and same \
                  `payload_sha256` returns the existing message; same key with a different \
-                 payload fails closed. Same-key write races serialize through PostgreSQL \
-                 transaction-scoped advisory locks before EventLedger append. Replay uses \
+                 payload fails closed. Same-key write races resolve through one atomic embedded \
+                 SurrealDB idempotency record before EventLedger append. Replay uses \
                  `event_ledger_seq`, not timestamps.",
             ),
             section(
                 "recovery",
                 "Recovery and diagnostics",
-                "Recovery starts from PostgreSQL plus EventLedger: reload ModelLaneRun, lanes, \
+                "Recovery starts from embedded SurrealDB plus EventLedger: reload ModelLaneRun, lanes, \
                  and messages ordered by `event_ledger_seq`; inspect `recovery_state`, \
                  failstate refs, lease/reclaim fields, and Locus ownership before relaunch. \
                  HBR-INT-009 posture: Flight Recorder/EventLedger is WIRED through \
@@ -1887,21 +2015,21 @@ fn page_model_lane_schema() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact ModelLane schema proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_serializes_competing_terminal_updates -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact`. \
-                 These exercise real PostgreSQL, EventLedger, schema registry rows, \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_serializes_competing_terminal_updates -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact`. \
+                 These exercise real embedded SurrealDB, EventLedger, schema registry rows, \
                  SwarmCoordinator runtime launch wiring, ContextBundle, ToolGate, ArtifactStore, \
                  Locus validation, capability validation, idempotency, and replay. There is no \
-                 SQLite, mock, or structs-only fallback for Dexterity proof.",
+                 embedded SurrealDB, mock, or structs-only fallback for Dexterity proof.",
             ),
         ],
         anchors: vec![
             spec_anchor("4.3.9.2.5"),
             NewManualAnchor {
                 anchor_kind: "test",
-                anchor_value: "model_lane_schema_pg_tests".into(),
+                anchor_value: "model_lane_launch_tests".into(),
                 http_method: "",
             },
         ],
@@ -1924,7 +2052,7 @@ fn page_model_runtime_registry_and_loom_degrade() -> NewUserManualPage {
                  `Settings` then `Model Runtime` then `Open Model Runtime` \
                  (`settings.model-runtime.open`). The pane reads the production \
                  `GET /model-runtime/registry` projection off the frame thread. Refresh re-reads \
-                 PostgreSQL/EventLedger authority. A row is `LIVE / READY` only when its current \
+                 embedded SurrealDB/EventLedger authority. A row is `LIVE / READY` only when its current \
                  runtime UUID and label equal the atomically committed last observation; unloaded \
                  rows remain `DORMANT` and expose no current UUID. Inspect model id, canonical artifact \
                  path plus SHA-256, adapter/runtime state, KV bytes/cap/hit rate/quantization, ordered \
@@ -1948,11 +2076,11 @@ fn page_model_runtime_registry_and_loom_degrade() -> NewUserManualPage {
                  names that target explicitly as `Swap to CandleRuntime` or `Swap to LlamaCppRuntime` \
                  and stays disabled if no compatible target exists. Success means the \
                  target adapter loaded and durably STARTed, the source quiesced/unloaded and durably \
-                 STOPped, PostgreSQL adapter selection rebound, the catalog replacement published, \
+                 STOPped, embedded SurrealDB adapter selection rebound, the catalog replacement published, \
                  application selection rebound when applicable, and `result_model_id` names the new \
                  boot UUID. Any capability, compatibility, CAS, lifecycle, or receipt mismatch stays \
                  fail-closed and Refresh re-observes authority. \
-                 PostgreSQL owns `application/default` and \
+                 embedded SurrealDB owns `application/default` and \
                  `embeddings/default`; boot restores both by stable artifact SHA-256 before exposing \
                  routing. The `ACTIVE DEFAULT MODEL` row owns new application default-routed calls. \
                  Only a READY completion-role row with `default_selectable = true` exposes `Switch to …`; \
@@ -1961,10 +2089,10 @@ fn page_model_runtime_registry_and_loom_degrade() -> NewUserManualPage {
                  posts `POST /model-runtime/selection`, serializes against concurrent swaps, \
                  prevalidates projection integrity, and rejects stale, non-READY, or embedding-role \
                  targets before mutation. It appends the active-selection EventLedger event and \
-                 PostgreSQL compare-and-set in one transaction, then publishes the committed selection \
+                 embedded SurrealDB compare-and-set in one transaction, then publishes the committed selection \
                  to the current router projection and cancels prior-default requests. Success returns \
                  `selection_receipt_ref`. Invalid input, stale target, embedding-role target, integrity \
-                 failure, timeout, audit failure, or PostgreSQL revision conflict leaves the prior \
+                 failure, timeout, audit failure, or embedded SurrealDB revision conflict leaves the prior \
                  durable model selected and shows typed recovery guidance. Database or authority \
                  failure returns `503 MODEL_RUNTIME_REGISTRY_UNAVAILABLE`; restore authority, then \
                  Refresh to re-observe the durable projection.",
@@ -1976,7 +2104,7 @@ fn page_model_runtime_registry_and_loom_degrade() -> NewUserManualPage {
                  capabilities, explicit persisted `completion` or `embedding` runtime role, and causation-linked selection history. Outputs are stable \
                  registry rows and `ModelCatalog` entries containing the per-boot model UUID, \
                  display/base-model label, artifact SHA-256, runtime binding, embedding \
-                 capability/dimension, runtime role, `default_selectable`, READY state, and PostgreSQL active-purpose markers/revisions. The selector \
+                 capability/dimension, runtime role, `default_selectable`, READY state, and embedded SurrealDB active-purpose markers/revisions. The selector \
                  changes only `application/default`; `embeddings/default` is restored independently. Durable artifact-to-adapter rebinding remains \
                  a separate governed operation and is not performed by this panel. Unknown model lookup returns the explicit \
                  `unknown model` sentinel; an empty registry returns an empty list.",
@@ -1989,11 +2117,11 @@ fn page_model_runtime_registry_and_loom_degrade() -> NewUserManualPage {
                  `semantic_unavailable_reason = DimMismatch{expected, actual}` and the runtime emits \
                  `FR-EVT-LOOM-SEMANTIC-DEGRADED`. Recover by configuring the dedicated embedding \
                  model documented in [[dedicated-embedding-model-routing]] with the required \
-                 dimension, then retry. Missing migrations, PostgreSQL failure, malformed rows, \
+                 dimension, then retry. Missing migrations, embedded SurrealDB failure, malformed rows, \
                  duplicate artifact hashes, adapter/role conflicts, or an invalid EventLedger selection \
                  chain fail closed; restore the current migration/database authority and the \
                  persisted SHA/binding rather than editing durable rows or revisions. HBR-INT-009 \
-                 posture is explicit here: PostgreSQL/EventLedger plus Tier-1 Flight Recorder are \
+                 posture is explicit here: embedded SurrealDB/EventLedger plus Tier-1 Flight Recorder are \
                  WIRED; native `internal_diagnostics` is WIRED through its producer and Problems \
                  projection; Palmistry is WIRED through its authenticated watcher and survivor \
                  recovery importer.",
@@ -2063,7 +2191,7 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  fabricating Candle config or tokenizer components. Boot validates either receipt \
                  against the configured primary artifact digest. After each real load, \
                  `EmbeddedModelProcess::record_reserved_load_with_durable_ack` \
-                 consumes its START permit; boot waits for the canonical PostgreSQL transaction to commit \
+                 consumes its START permit; boot waits for the canonical embedded SurrealDB transaction to commit \
                  with `synchronous_commit=on` before registration or READY exposure. The ownership handle \
                  writes `model_artifact_sha256` from the verified receipt and embeds the complete \
                  `artifact_integrity_receipt` in bounded START metadata, so the durable row names the \
@@ -2087,7 +2215,7 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  to drain, then runs an ordered teardown: cancel/join background AppState owners \
                  -> close runtime admission and quiesce actual workers -> emit STOP only on \
                  proven idle -> drop the final runtime-owning AppState -> bounded ledger \
-                 drain-and-join -> stop the managed cluster -> finish remaining shutdown checks \
+                 drain-and-join -> close the embedded store -> finish remaining shutdown checks \
                  -> release the OS-owned runtime lease immediately before backend return. \
                  The writer stops receiving \
                  when a retained failed batch reaches capacity, applies channel backpressure, and \
@@ -2121,16 +2249,16 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  Each backend that resolves an actually configured embedded local lane holds an \
                  exclusive OS-owned loopback UDP lease and stamps the exact versioned descriptor \
                  into every embedded START: instance UUID, host-scope id, \
-                 protocol, loopback address, and port. PostgreSQL connection loss or restart does \
+                 protocol, loopback address, and port. embedded SurrealDB connection loss or restart does \
                  not release that lease. On the next boot, \
                  `reclaim_pidless_embedded_orphans` strictly decodes each prior descriptor. It \
                  ignores foreign-host rows, while incomplete, malformed, conflicting, ambiguous, \
                  or internally terminal rows stay open and make the typed report deferred/incomplete. For \
                  a same-host candidate it tries to bind the exact endpoint: address-in-use protects \
                  a live owner (or safe port reuse), while a successful exclusive claim is held \
-                 through a short transaction-scoped PostgreSQL mutex and the exact descriptor \
-                 update. Transaction-local two-second lock and three-second statement deadlines \
-                 leave contended rows open and report them as deferred instead of hanging boot. \
+                 through a fenced embedded SurrealDB compare-and-set and the exact descriptor \
+                 update. A bounded storage-operation deadline leaves contended rows open and \
+                 reports them as deferred instead of hanging boot. \
                  Each boot examines at most 16 eligible runtime-instance groups through a durable \
                  per-host cyclic keyset cursor. The cursor advances across live/protected and \
                  malformed-ID groups so a fixed leading page cannot starve later stale instances; \
@@ -2148,7 +2276,7 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  successful automatic STOP. \
                  Session-scoped process reclaim reserves a lossless STOP queue permit before kill, \
                  renews a UUIDv7-plus-generation fenced claim during slow termination, and reports \
-                 STOP only after PostgreSQL store acknowledgement. A post-kill write failure remains \
+                 STOP only after embedded SurrealDB store acknowledgement. A post-kill write failure remains \
                  `kill_succeeded_pending_stop`; retry persists STOP without killing again, while stale \
                  claimant tokens cannot renew, release, or finalize a newer claim. Before kill, the \
                  claimant durably enters `reclaim_kill_in_progress`; that phase is never lease-taken \
@@ -2165,10 +2293,10 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  Re-run the sweep after adapter recovery; never fabricate STOP from unknown evidence. \
                   `HANDSHAKE_HOST_SCOPE_ID`, when set, must be stable and globally unique per OS \
                   or network namespace and must never be copied to another host. It is mandatory \
-                  for non-loopback PostgreSQL and for a loopback URL that reaches PostgreSQL \
+                  for non-loopback embedded SurrealDB and for a loopback URL that reaches embedded SurrealDB \
                   through an SSH tunnel, port forward, container, WSL, or another network \
                   namespace. Automatic loopback derivation is allowed only when this backend \
-                  process started the exact managed PostgreSQL endpoint; an adopted, external, \
+                  process started the exact embedded SurrealDB store; an adopted, external, \
                   forwarded, or otherwise unproven loopback endpoint fails closed without the \
                   explicit value. This provenance gate prevents two hosts connected through \
                   identical localhost tunnel URLs from sharing an inferred host scope. Legacy \
@@ -2191,7 +2319,7 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  pid-less embedded orphans above, and they are reconciled by three distinct passes. \
                  (1) BOOT: `ProcessReclaimRuntime::production_with_lease` runs \
                  `reconcile_restart_orphans_at_boot` inline under a 30s startup timeout. \
-                 `restart_sessions` is the PostgreSQL-authoritative surfacing step: it only surfaces \
+                 `restart_sessions` is the embedded SurrealDB-authoritative surfacing step: it only surfaces \
                  a session whose every open sandbox-owned row belongs to a runtime instance on THIS \
                  host scope that is provably dead. Liveness is inferred from the prior owner's \
                  exclusive loopback UDP lease, and that inference now requires TWO observations of a \
@@ -2203,7 +2331,7 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  out on is re-surfaced without waiting for the next restart. The stale-lane pass \
                  fails closed with `STALE_RECLAIM_OWNER_SCOPE_REQUIRED` before recovery, claim, or \
                  kill when a custom stale source cannot provide its runtime-owner scope; restore the \
-                 production PostgreSQL stale source with its embedded-runtime descriptor rather than \
+                 production embedded SurrealDB stale source with its embedded-runtime descriptor rather than \
                  falling back to a session-wide reclaim. Selection, atomic claim, and crash-left \
                  in-progress recovery preserve the same exact `owner_runtime_instance_id` plus \
                  `owner_host_scope_id`, `sandbox_adapter_id IS NOT NULL`, and sorted authorized \
@@ -2232,12 +2360,12 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  errors, and a boot-reconcile TIMEOUT remain fail-closed and abort startup. \
                  RECOVERY-ONLY EXCLUSION: `HANDSHAKE_STARTUP_RECOVERY_ONLY=1` returns before the \
                  normal process-runtime composition, so it used to run only the pid-less embedded \
-                 sweep. It now also runs one restart-orphan reconcile pass, before managed PostgreSQL \
+                 sweep. It now also runs one restart-orphan reconcile pass, before embedded-store startup \
                  is stopped. Because that process is short-lived it usually records only the FIRST \
                  dead-owner observation, so run it twice, or start the backend normally, to complete \
                  the corroboration. \
                  The embedded-runtime loopback lease is NEVER released while this process is alive: \
-                 draining the process runtime releases it only after PostgreSQL proves this instance \
+                 draining the process runtime releases it only after embedded SurrealDB proves this instance \
                  owns zero open lifecycle rows, and the guard's Drop path always retains it (the OS \
                  frees the socket at real process exit). Releasing it early is what advertises this \
                  instance as dead to every other Handshake instance's restart sweep, and the identity \
@@ -2271,12 +2399,10 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  PowerShell: `$env:CARGO_TARGET_DIR = Join-Path $env:HANDSHAKE_ARTIFACTS_DIR \
                  'handshake-cargo-target/<owner-slug>'`. POSIX: \
                  `export CARGO_TARGET_DIR=\"$HANDSHAKE_ARTIFACTS_DIR/handshake-cargo-target/<owner-slug>\"`. \
-                 For the embedded-ledger, local-routing, and process-ledger-writer suites, use template-owned \
-                 PostgreSQL mode: unset `POSTGRES_TEST_URL` and `DATABASE_URL`, set \
-                 `HANDSHAKE_TEST_PG_DATABASE_TEMPLATE=1` and `HANDSHAKE_MANAGED_PG_ENABLED=1`, and assign \
-                 a fresh per-run `HANDSHAKE_MANAGED_PG_DATA_DIR` plus a free `HANDSHAKE_MANAGED_PG_PORT`. \
-                 Owned-cluster shutdown uses a separate, fixed 120-second budget so a loaded final \
-                 checkpoint is not constrained by the 30-second startup budget. \
+                 For the embedded-ledger, local-routing, and process-ledger-writer suites, set \
+                 `HANDSHAKE_SURREAL_TEST_STORE_ROOT` to an external test root and allocate each \
+                 proof through `EmbeddedSurrealTestScope`. Its bounded shutdown and cleanup receipt \
+                 prove that the exact namespace/database and store were released. \
                  Exact Rust proof targets: \
                  `cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests` \
                    (a valid embedded load emits a pid-less START keyed on the minted UUIDv7, while \
@@ -2295,15 +2421,15 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                   `cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --lib model_runtime::candle::generate::activity_tests::bounded_stream_reserves_terminal_slot_and_cancellation_releases_full_worker -- --exact` \
                   and `cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,llama-cpp-runtime-engine\" --lib llama_stream_reserves_terminal_slot_under_saturated_cancellation` \
                    prove saturated cancellation preserves the explicit terminal outcome. These are supporting deterministic proofs; MT-013 \
-                  READY_FOR_VALIDATION additionally requires external PostgreSQL mode with \
-                  `POSTGRES_TEST_URL` set to the dedicated test database and the template-mode variables unset, \
+                  READY_FOR_VALIDATION additionally requires external embedded SurrealDB mode with \
+                  `HANDSHAKE_SURREAL_TEST_STORE_ROOT` set to the dedicated test database and the template-mode variables unset, \
                   then the live real-load proof command \
                   `cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture` \
                   with `HANDSHAKE_TEST_CANDLE_MODEL_DIR` pointing at real Candle weights and output \
                   containing `[MT-013_REAL_CANDLE_LEDGER_DUMP]` with matching START/STOP rows. The \
-                  deterministic suite exercises real PostgreSQL/EventLedger for the orphan-reconcile \
+                  deterministic suite exercises real embedded SurrealDB/EventLedger for the orphan-reconcile \
                   leg; the live Candle command fails loudly when the real model directory is absent; \
-                  there is no SQLite or mock fallback.",
+                  there is no embedded SurrealDB or mock fallback.",
             ),
         ],
         anchors: vec![
@@ -2356,7 +2482,7 @@ fn page_dedicated_embedding_model_routing() -> NewUserManualPage {
             section(
                 "workflows",
                 "Reindex and search",
-                "On reindex, LoomSearchV2 resolves the READY 768-dimensional embedding registration and calls `LlmClient::embedding` with that registration's per-boot UUIDv7. The durable search row stores a stable embedding-space key in `loom_block_search_index.embedding_model` (`embedspace:<artifact_sha256>:dim:<dimension>`), not the per-boot routing UUID. On search, the query vector carries the same `query_embedding_model` embedding-space key; PostgreSQL computes vector similarity only against rows whose stored `embedding_model` matches, preventing cross-model vector-space contamination while preserving same-model scoring across restart.",
+                "On reindex, LoomSearchV2 resolves the READY 768-dimensional embedding registration and calls `LlmClient::embedding` with that registration's per-boot UUIDv7. The durable search row stores a stable embedding-space key in `loom_block_search_index.embedding_model` (`embedspace:<artifact_sha256>:dim:<dimension>`), not the per-boot routing UUID. On search, the query vector carries the same `query_embedding_model` embedding-space key; embedded SurrealDB computes vector similarity only against rows whose stored `embedding_model` matches, preventing cross-model vector-space contamination while preserving same-model scoring across restart.",
             ),
             section(
                 "failure_modes",
@@ -2531,7 +2657,7 @@ fn page_operator_chat_launch() -> NewUserManualPage {
             section(
                 "recovery",
                 "Fail-closed and HBR-INT-009 posture",
-                "If the coordinator has no ModelLaneStore/PostgreSQL authority the launch is torn \
+                "If the coordinator has no ModelLaneStore/embedded SurrealDB authority the launch is torn \
                  down and returns a LedgerFailed error (the route surfaces `launch_failed_closed`); \
                  no partial lane authority is created. The SHIPPED route is wired to a live \
                  `SwarmCoordinator` + `ModelLaneStore` from `AppState` (via \
@@ -2765,7 +2891,7 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                  `HandshakeNativeSandboxAdapter::spawn_attached_with_stdio`; every terminal path \
                  converges on `GuardedCliChild::terminate_and_collect`. Models \
                  propose edits and messages; Handshake performs deterministic validation, \
-                 PostgreSQL storage, EventLedger append, replay, promotion, and recovery.",
+                 embedded SurrealDB storage, EventLedger append, replay, promotion, and recovery.",
             ),
             section_with_json(
                 "schema",
@@ -2811,7 +2937,7 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                 "Tauri IPC (`kernel_swarm_spawn_session`) and scheduled spin-up are request \
                  sources only, not launch authority. The live app bootstraps its \
                  `SwarmCoordinator` through `build_production_swarm_coordinator` with a \
-                 PostgreSQL `ModelLaneStore`; if that store is \
+                 embedded SurrealDB `ModelLaneStore`; if that store is \
                  unavailable, model launch startup fails closed instead of constructing a \
                  no-store coordinator. Manual IPC spawns and calendar scheduled spin-ups attach \
                  a core-generated Dexterity contract through \
@@ -2895,18 +3021,18 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_ready_transition_before_persistence_commit -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancel_session_records_terminal_model_lane_state -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_reaper_records_terminal_state_before_teardown -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib model_runtime::cloud::official_cli_bridge::tests::explicit_failed_terminate_leaves_start_open_without_stop -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests failed_termination_with_never_eof_pipe_returns_within_cleanup_deadline -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests continuous_output_cannot_starve_live_timeout_polling -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests continuous_output_cannot_starve_live_cancellation_polling -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact`. \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`. \
                  These exercise real Rust backend registry normalization, SwarmCoordinator \
                  preflight, coordinator-owned no-OS launch records, ModelRuntime load/unload, \
-                 PostgreSQL/EventLedger stream rows, production builder store wiring, factory \
+                 embedded SurrealDB/EventLedger stream rows, production builder store wiring, factory \
                  failure persistence, fail-closed bypass rejection, no Ready/runtime exposure \
                  before ModelLane persistence, cancellation boundaries, durable cancellation \
                  terminal state, retryable terminal intent before runtime teardown, cleanup-owner \
@@ -3041,7 +3167,7 @@ fn page_model_lane_promotion() -> NewUserManualPage {
                 "Write advisory `ModelLaneMessage` rows first. Then call \
                  `ModelLaneStore::record_promotion_decision` with all candidate refs and the \
                  expected CRDT/EventLedger/schema state. Dexterity resolves every \
-                 `model-lane-message://...` ref from PostgreSQL, derives current CRDT \
+                 `model-lane-message://...` ref from embedded SurrealDB, derives current CRDT \
                  base/state from the selected advisory rows, and rejects phantom, cross-run, or \
                  non-advisory refs. Approved decisions walk the deterministic \
                  state path `advisory -> promotion_requested -> pending_policy -> \
@@ -3098,7 +3224,7 @@ fn page_model_lane_promotion() -> NewUserManualPage {
             section(
                 "recovery",
                 "Recovery and diagnostics",
-                "Recover by replaying PostgreSQL rows through \
+                "Recover by replaying embedded SurrealDB rows through \
                  `ModelLaneStore::replay_promotion_decisions(run_id)` ordered by \
                  `event_ledger_seq`, then compare each row to its `kernel_event_ledger` receipt. \
                  Inspect `canonical_hash_basis`, `canonical_decision_hash`, \
@@ -3115,18 +3241,18 @@ fn page_model_lane_promotion() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-004 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_preserves_exact_scope_and_denies_foreign_or_mixed_sources -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact`. \
-                 These exercise real PostgreSQL, EventLedger append/replay, schema registry \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_preserves_exact_scope_and_denies_foreign_or_mixed_sources -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`. \
+                 These exercise real embedded SurrealDB, EventLedger append/replay, schema registry \
                  rows, DB-derived CRDT base/state-vector guards, exact promotion decision and \
                  artifact binding, phantom input-ref denial, direct authority mutation rejection, \
                  duplicate idempotency conflict, deterministic sorted refs, typed message routing, \
                  exact owner/Principal/session/AccessSpace/workspace inheritance, cross-scope \
                  default denial before mutation, mixed-source non-widening, and manual parity. \
-                 There is no SQLite, mock, app/src, app/src-tauri, TypeScript, or structs-only \
+                 There is no embedded SurrealDB, mock, app/src, app/src-tauri, TypeScript, or structs-only \
                  proof path for Dexterity promotion.",
             ),
         ],
@@ -3137,7 +3263,7 @@ fn page_model_lane_promotion() -> NewUserManualPage {
             page_link("model-lane-context-bundle-handoff"),
             NewManualAnchor {
                 anchor_kind: "test",
-                anchor_value: "model_lane_promotion_pg_tests".into(),
+                anchor_value: "worktree_model_lane_live_surreal_tests".into(),
                 http_method: "",
             },
         ],
@@ -3243,7 +3369,7 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  for every output the downstream lane may see, derive the shared \
                  `context_bundle_id` with `model_lane_context_bundle_id_for_handoff`, then call \
                  `record_context_bundle_handoff`. Dexterity resolves `source_message_id` and \
-                 the artifact binding from PostgreSQL inside the transaction, checks same-run \
+                 the artifact binding from embedded SurrealDB inside the transaction, checks same-run \
                  and source-lane parity, requires `artifact_ref`, `artifact_sha256`, and \
                  `content_hash` to match both the source message and artifact binding, appends \
                  `CONTEXT_BUNDLE_RECORDED` to EventLedger, stamps the final EventLedger id/seq \
@@ -3296,7 +3422,7 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  `lease_admitted_at_utc` in both the message projection and its immutable \
                  `MODEL_RESPONSE_RECORDED` EventLedger payload. The existing `replay_metadata` object is \
                  authoritative: its `replay_order_key`, `dependency_update_ids`, and \
-                 `schema_version` must exactly match the persisted PostgreSQL update replay \
+                 `schema_version` must exactly match the persisted embedded SurrealDB update replay \
                  metadata. `promotion_gate_ref` must equal \
                  `promotion-gate://model-lane-message/<source_message_id>`, \
                  `validation_runner_ref` must equal `eventledger://<update_event_id>`, and \
@@ -3384,7 +3510,7 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  lease id/correlation/scope/claimed/expiry/admission evidence, \
                  update id/sequence/bytes ref, snapshot ref, vector, projection hash, proposal ref, \
                  and update EventLedger event. Lease claim, renew, release, expiry sweep, takeover, \
-                 and ModelLane admission share one PostgreSQL transaction advisory-lock domain. \
+                 and ModelLane admission share one embedded SurrealDB transaction advisory-lock domain. \
                  Locks are ordered deterministically by `workspace:<workspace_id>` then \
                  `crdt_document:<crdt_document_id>`, so release, sweep, and a second covering claim \
                  cannot appear as phantoms between admission and `MODEL_RESPONSE_RECORDED`. Re-run \
@@ -3409,12 +3535,12 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-005 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_consume_preserves_exact_scope_and_denies_foreign_or_mixed_sources -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_context_bundle_user_manual_entry_is_current -- --exact`. \
-                 These exercise real PostgreSQL, EventLedger append/replay, schema registry rows, \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_consume_preserves_exact_scope_and_denies_foreign_or_mixed_sources -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`. \
+                 These exercise real embedded SurrealDB, EventLedger append/replay, schema registry rows, \
                  selected/rejected/unresolved/superseded replay, artifact binding authority, \
                  downstream-only consumption, coordinator adapter invocation, kernel \
                  ContextBundle CTX-hash conversion, fail-closed \
@@ -3424,8 +3550,8 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  state-vector and Yjs update ref validation, exact active lease admission, \
                  released/expired/correlation/scope/ambiguity denial probes, historical replay \
                  after lease release, exact-owner downstream consume, foreign-scope default deny, \
-                 mixed-source non-widening without PostgreSQL or EventLedger mutation, Loom evidence refs, Flight Recorder \
-                 refs, and manual parity. There is no SQLite, mock, \
+                 mixed-source non-widening without embedded SurrealDB or EventLedger mutation, Loom evidence refs, Flight Recorder \
+                 refs, and manual parity. There is no embedded SurrealDB, mock, \
                  app/src, app/src-tauri, TypeScript, \
                  prompt-only, or hidden-memory proof path for Dexterity ContextBundle handoffs.",
             ),
@@ -3436,7 +3562,7 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
             page_link("model-lane-promotion"),
             NewManualAnchor {
                 anchor_kind: "test",
-                anchor_value: "model_lane_context_bundle_pg_tests".into(),
+                anchor_value: "worktree_model_lane_live_surreal_tests".into(),
                 http_method: "",
             },
         ],
@@ -3471,7 +3597,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                 "The stable machine schemas are `hsk.model_lane_cloud_projection_plan@2` and \
                  `hsk.model_lane_cloud_consent_receipt@2`. The embedded SurrealDB authority \
                  tables are `model_lane_cloud_authority` and \
-                 `model_lane_cloud_event_ledger`; there is no PostgreSQL or SQLite fallback. \
+                 `model_lane_cloud_event_ledger`; there is no embedded SurrealDB or embedded SurrealDB fallback. \
                  `single_lane` authority binds `run_id`, \
                  `lane_id`, `model_session_id`, `provider_kind`, and `requested_model_id` \
                  exactly. `single_run` authority drops those lane identity bindings and \
@@ -3673,10 +3799,10 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  `cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_lane_rejects_missing_expired_mismatched_revoked_and_unscoped_consent_before_provider_call -- --exact --nocapture`; \
                  `cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_consent_revocation_and_context_switch_cancel_covered_lanes_with_eventledger_evidence -- --exact --nocapture`; \
                  `cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_http_launch_enforces_cross_account_and_delegated_audience_scope -- --exact --nocapture`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests cloud_model_lane_policy_user_manual_entry_is_current -- --exact`. \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`. \
                  Use `-j 1` locally because the embedded RocksDB native build is intentionally \
                  bounded on Windows. Passing tests use isolated embedded SurrealDB plus \
-                 EventLedger and must not rely on PostgreSQL, SQLite, prompt-only state, synthetic refs, \
+                 EventLedger and must not rely on embedded SurrealDB, embedded SurrealDB, prompt-only state, synthetic refs, \
                  or frontend/Tauri launch authority.",
             ),
         ],
@@ -3713,7 +3839,7 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                 "What recovery reconstructs",
                 "Dexterity recovery reconstructs ModelLaneRun, ModelLane, ModelLaneMessage, \
                  ArtifactStore payload refs, lane leases, diagnostic posture, and MT runtime \
-                 status from PostgreSQL plus kernel_event_ledger. It must not depend on chat \
+                 status from embedded SurrealDB plus kernel_event_ledger. It must not depend on chat \
                  history, terminal scrollback, UI rows, provider traces, or prompt-only state. \
                  Models keep proposing; Handshake performs deterministic checkpoint, replay, \
                  validation, and typed failure recording.",
@@ -3803,7 +3929,7 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                  `behavior_id`, tier, state, reason, `follow_up_ref`, and `evidence_ref`. \
                   Flight Recorder/EventLedger evidence alone must fail. `internal_diagnostics` is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer. Operator-facing recovery \
                  should inspect this page, \
-                 `model_lane_recovery_pg_tests`, and the native diagnostic surface from MT-008.",
+                 `worktree_model_lane_live_surreal_tests`, and the native diagnostic surface from MT-008.",
             ),
             section(
                 "safety",
@@ -3864,17 +3990,17 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-007 proof commands: \
-                `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_includes_current_leases_but_bounds_replay_adjunct_state -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_missing_payload_stale_crdt_and_duplicate_idempotency -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_uses_eventledger_checkpoint_authority_over_mutable_row -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_post_checkpoint_payload_and_crdt_repairs -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_preserves_exact_scope_and_denies_foreign_stale_replay -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_scope_api_pg_tests recovery_route_is_exact_scoped_and_revoked_authority_is_absent_shaped -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_recovery_user_manual_entry_is_current -- --exact`.",
+                `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_replays_from_surrealdb_eventledger_checkpoint -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_includes_current_leases_but_bounds_replay_adjunct_state -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_rejects_missing_payload_stale_crdt_and_duplicate_idempotency -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_uses_eventledger_checkpoint_authority_over_mutable_row -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_rejects_post_checkpoint_payload_and_crdt_repairs -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_preserves_exact_scope_and_denies_foreign_stale_replay -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests recovery_route_is_exact_scoped_and_revoked_authority_is_absent_shaped -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`.",
             ),
         ],
         anchors: vec![
@@ -3883,7 +4009,7 @@ fn page_model_lane_recovery() -> NewUserManualPage {
             page_link("model-lane-cloud-projection-consent"),
             NewManualAnchor {
                 anchor_kind: "test",
-                anchor_value: "model_lane_recovery_pg_tests".into(),
+                anchor_value: "worktree_model_lane_live_surreal_tests".into(),
                 http_method: "",
             },
         ],
@@ -3903,7 +4029,7 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
                 "What the diagnostics pane proves",
                 "Dexterity Lane Diagnostics is the native Rust operator/model surface for \
                  inspecting live and recovered ModelLaneRun state. It reads \
-                 `ModelLaneStore::diagnostics_projection(run_id)` through PostgreSQL plus \
+                 `ModelLaneStore::diagnostics_projection(run_id)` through embedded SurrealDB plus \
                  kernel_event_ledger, never from chat history, terminal scrollback, \
                  provider state, Tauri/WebView authority, React state, or prompt-only \
                  diagnostics. Models propose lane work; Handshake records, projects, \
@@ -4094,14 +4220,14 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-008 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests swarm_lane_diagnostics_backend_projection_matches_eventledger -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_lane_diagnostics_backend_projection_matches_eventledger -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_lists_filters_and_drills_down -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar run_menu_opens_swarm_lane_diagnostics -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_command_palette typing_diagnostics_filters_to_swarm_lane_diagnostics_and_runs -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog swarm_lane_diagnostics_setting_persists -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_diagnostics_user_manual_entry_is_current -- --exact`.",
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`.",
             ),
         ],
         anchors: vec![
@@ -4110,7 +4236,7 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
             page_link("usermanual-surface"),
             NewManualAnchor {
                 anchor_kind: "test",
-                anchor_value: "swarm_lane_diagnostics_pg_tests".into(),
+                anchor_value: "user_manual_behavior_coverage_tests".into(),
                 http_method: "",
             },
         ],
@@ -4124,7 +4250,7 @@ fn page_model_lane_navigation() -> NewUserManualPage {
         SurfaceGroup::ModelLaneNavigation,
         "Dexterity ModelLane navigation is the no-context lookup surface for model-lane \
          runtime state. It resolves runs, lanes, messages, artifact/context bundle rows, \
-         traces/spans, diagnostic tiers, and recovery rows from PostgreSQL plus \
+         traces/spans, diagnostic tiers, and recovery rows from embedded SurrealDB plus \
          kernel_event_ledger. The navigation projection is read-only: models propose edits, \
          Handshake validates and performs deterministic writes elsewhere, and this surface \
          shows the linked authority, Flight Recorder aliases, Locus/Loom/FEMS refs, \
@@ -4169,7 +4295,7 @@ fn page_model_lane_navigation() -> NewUserManualPage {
                         "GET /swarm/model-lanes/navigation/lookup"
                     ],
                     "authority": [
-                        "PostgreSQL",
+                        "embedded SurrealDB",
                         "kernel_event_ledger",
                         "model_lane_runs",
                         "model_lanes",
@@ -4209,7 +4335,7 @@ fn page_model_lane_navigation() -> NewUserManualPage {
                  artifact/context query omits both an artifact selector and \
                  `context_bundle_id`, multiple distinct artifact selector values are supplied, \
                  a shared artifact hash/MemoryPack selector spans multiple runs without \
-                 `run_id`, PostgreSQL is unavailable, or diagnostics detects mutable \
+                 `run_id`, embedded SurrealDB is unavailable, or diagnostics detects mutable \
                   projection drift against EventLedger authority. Treat empty `event_ledger_refs` \
                   as a producing-lane defect. internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer. None of \
                  these gaps permits inference from chat history.",
@@ -4223,7 +4349,7 @@ fn page_model_lane_navigation() -> NewUserManualPage {
                  identify workspace artifacts, FEMS/MemoryPack refs identify bounded memory \
                  capsules, ContextBundle refs identify model-to-model handoff payloads, and \
                  Palmistry refs are observation evidence only; none of these replace \
-                 PostgreSQL/EventLedger authority.",
+                 embedded SurrealDB/EventLedger authority.",
             ),
             section(
                 "run_commands",
@@ -4231,7 +4357,7 @@ fn page_model_lane_navigation() -> NewUserManualPage {
                 "Exact MT-010 proof commands: \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact`.",
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`.",
             ),
         ],
         vec![
@@ -4267,7 +4393,7 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                 "What the validation harness proves",
                 "The mixed-lane validation harness proves that Dexterity can create a \
                  mixed local/cloud/subagent ModelLaneRun using deterministic provider fakes, \
-                 persist it through PostgreSQL and kernel_event_ledger, replay and recover it \
+                 persist it through embedded SurrealDB and kernel_event_ledger, replay and recover it \
                  after restart, inspect it through native_swarm_lane_diagnostics, and fail \
                  closed for direct endpoints, missing consent, stale CRDT base state, missing \
                  payload authority, and FlightRecorder-only diagnostic posture. The harness is \
@@ -4286,7 +4412,7 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  artifact-binding, or Flight Recorder activity authority. A Flight Recorder event \
                  for a capture that was already durably accepted may be emitted after the terminal \
                  receipt as delayed diagnostic correlation, never as a standalone capture claim. \
-                 CRDT update receipts are atomically committed with append-only PostgreSQL \
+                 CRDT update receipts are atomically committed with append-only embedded SurrealDB \
                  `kernel_crdt_updates` and EventLedger evidence; append-only snapshot rows retain \
                  explicit EventLedger linkage and promotion evidence. Canonical resolution locks \
                  the cited snapshot and contiguous dependency-resolved update chain, validates \
@@ -4308,7 +4434,7 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  mutation: `proposal_ref`, `crdt_update_ref`, `crdt_base_snapshot_ref`, \
                  `crdt_state_vector`, `crdt_proposal_ref`, and `crdt_stale_base_ref` remain null \
                  for all six routing policies. Non-null CRDT posture is accepted only as a \
-                 complete set backed by canonical PostgreSQL Yjs bytes (format `yjs_update_v1`), a \
+                 complete set backed by canonical embedded SurrealDB Yjs bytes (format `yjs_update_v1`), a \
                  verified update hash, \
                  and the post-update state vector; partial, missing, hash-mismatched, stale, or \
                  replay-reordered CRDT authority fails closed. \
@@ -4317,14 +4443,13 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  to an APPROVED (or promoted) `knowledge_crdt_ai_edit_proposals` row. Two \
                  SEPARATE hash spaces meet on that row and must never be equated: \
                  `applied_update_sha256` is the approved-DIFF hash \
-                 (`sha256(serde_json::to_vec(applied_diff))`, pinned to `diff_sha256` by \
-                 migration 0192), while `kernel_crdt_updates.update_sha256` is the hash of the \
+                 (`sha256(serde_json::to_vec(applied_diff))`, pinned to `diff_sha256` by the \
+                 canonical Surreal schema), while `kernel_crdt_updates.update_sha256` is the hash of the \
                  Yjs v1 BINARY update. Yjs update identity is carried SOLELY by \
                  `applied_update_id`, which together with the proposal's \
                  workspace/document/crdt_document columns pins the full `kernel_crdt_updates` \
-                 primary key; migration 0362 adds the composite foreign key that makes that \
-                 identity binding a schema invariant, and migration 0192's \
-                 `applied_update_sha256 = diff_sha256` CHECK is RETAINED with clarified \
+                 record identity; the canonical Surreal schema makes that identity binding an \
+                 invariant and retains `applied_update_sha256 = diff_sha256` with clarified \
                  diff-hash semantics. Admission therefore checks identity \
                  (`applied_update_id == kernel_crdt_updates.update_id`) plus internal \
                  consistency (`applied_update_sha256 == the proposal's own diff_sha256`) plus \
@@ -4434,28 +4559,28 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-009 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create -- --exact --nocapture --test-threads=1`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mixed_model_lane_negative_guards_fail_closed -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mt009_real_surrealdb_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create -- --exact --nocapture --test-threads=1`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests external_compat_engine_import_lane_is_documented_and_toc_reachable -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_budget_rejection_and_recovery_is_documented_and_toc_reachable -- --exact`; \
                  Proposal-anchored CRDT admission (MT-018) proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt018_ -- --test-threads=1`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mt018_ -- --test-threads=1`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_crdt_proposal_tests -- --test-threads=1`; \
                  The backend mixed-run command and native Argus command must run in the same shell \
                  with canonical `HANDSHAKE_ARTIFACTS_DIR` and one fresh \
                  `HANDSHAKE_MT009_DIAGNOSTICS_PROOF_NONCE`; the backend produces the typed \
                  projection/provenance artifact before native consumes it. Then run \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_validation_harness_user_manual_entry_is_current -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact`.",
             ),
             section(
@@ -4482,7 +4607,7 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
             page_link("model-lane-diagnostics"),
             NewManualAnchor {
                 anchor_kind: "test",
-                anchor_value: "mixed_model_lane_integration_pg_tests".into(),
+                anchor_value: "worktree_model_lane_live_surreal_tests".into(),
                 http_method: "",
             },
             NewManualAnchor {
@@ -4500,7 +4625,7 @@ fn page_usermanual_surface() -> NewUserManualPage {
         "UserManual — This Surface",
         SurfaceGroup::UserManual,
         "The UserManual is itself a product surface: pages/sections/anchors/tool entries are \
-         PostgreSQL rows (migration 0310), seeded from a compiled-in corpus, receipted through \
+         embedded SurrealDB rows (the canonical user_manual schema), seeded from a compiled-in corpus, receipted through \
          `KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED` events, and served read-only over \
          `/usermanual/*`. Anonymous reads are allowed (this is the bootstrap surface); the only \
          write surface is the gated `POST /usermanual/resync`.",
@@ -4600,13 +4725,13 @@ fn page_failure_modes_and_recovery() -> NewUserManualPage {
                  - Stale wiki -> `POST /workspaces/:workspace_id/loom/wiki/:projection_id/regenerate`\n\
                  - Stale manual -> `POST /usermanual/resync`\n\
                  - Lost session state -> [[state-recovery-guide]]\n\
-                 - DB down -> [[missing-postgres-behavior]]",
+                 - DB down -> [[missing-storage-behavior]]",
             ),
         ],
         anchors: vec![
             page_link("repair-queues-and-staleness"),
             page_link("state-recovery-guide"),
-            page_link("missing-postgres-behavior"),
+            page_link("missing-storage-behavior"),
             route_anchor("POST", "/knowledge/documents/embeds/:embed_id/repair"),
         ],
     }
@@ -4651,10 +4776,10 @@ fn page_repair_queues_and_staleness() -> NewUserManualPage {
     }
 }
 
-fn page_missing_postgres_behavior() -> NewUserManualPage {
+fn page_missing_storage_behavior() -> NewUserManualPage {
     NewUserManualPage {
-        slug: "missing-postgres-behavior".into(),
-        title: "Missing PostgreSQL Behavior".into(),
+        slug: "missing-storage-behavior".into(),
+        title: "Missing embedded SurrealDB Behavior".into(),
         page_kind: "failure_recovery",
         audience: "model_and_operator",
         spec_anchors: vec!["2.3.13.11".into()],
@@ -4662,27 +4787,25 @@ fn page_missing_postgres_behavior() -> NewUserManualPage {
             section(
                 "failure_modes",
                 "What happens without the database",
-                "PostgreSQL is the only authority store — there is NO SQLite, in-memory, or mock \
-                 fallback anywhere in the product. Behavior when it is unavailable:\n\n\
+                "embedded SurrealDB is the only authority store — there is no alternate database, \
+                 in-memory authority, or mock fallback anywhere in the product. Behavior when it is unavailable:\n\n\
                  - **Product runtime**: knowledge routes FAIL CLOSED with 500 \
                  `internal_error`/`storage_error` envelopes; no fail-open path serves data when \
                  the store errors.\n\
-                 - **Startup**: the server ensures the Handshake-managed cluster \
-                 (default `127.0.0.1:5544`, data dir `Handshake_Artifacts/managed_pgdata`) is \
-                 running before serving; an adopted external cluster is left untouched at \
-                 shutdown.\n\
-                 - **Tests**: integration tests resolve `POSTGRES_TEST_URL` > `DATABASE_URL` > \
-                 managed cluster; when PostgreSQL is unavailable they fail hard. A green run \
-                 therefore requires real PostgreSQL, not SQLite, mocks, or skipped proof.",
+                 - **Startup**: the server opens its embedded store under `HANDSHAKE_DATA_DIR` \
+                 before serving and closes it through the bounded storage shutdown barrier.\n\
+                 - **Tests**: `EmbeddedSurrealTestScope` allocates an exact private store plus \
+                 namespace/database and proves cleanup. An unavailable store fails hard; a green \
+                 run cannot come from a mock or skipped proof.",
             ),
             section(
                 "recovery",
                 "Recovery",
-                "1. Probe: `curl http://127.0.0.1:37501/health` and check the cluster port 5544.\n\
-                 2. Restart the backend — startup re-ensures the managed cluster.\n\
-                 3. If the data dir is corrupt, the managed cluster logs name the failure; the \
-                 EventLedger and all manual/knowledge rows live IN PostgreSQL, so never delete \
-                 `Handshake_Artifacts/managed_pgdata` to 'fix' a startup error without a backup.\n\
+                "1. Probe: `curl http://127.0.0.1:37501/health` and inspect the embedded-storage diagnostic.\n\
+                 2. Restart the backend so startup reopens the configured embedded store.\n\
+                 3. If the data dir is corrupt, the storage diagnostics name the failure; the \
+                 EventLedger and all manual/knowledge rows live IN embedded SurrealDB, so never delete \
+                 `Handshake_Artifacts/embedded_store` to 'fix' a startup error without a backup.\n\
                  4. Re-run the smallest scoped test that exercises your surface to confirm \
                  recovery.",
             ),
@@ -4731,7 +4854,7 @@ fn page_state_recovery_guide() -> NewUserManualPage {
             section_with_json(
                 "recovery",
                 "Parallel swarm operation and recovery",
-                "Parallel local/cloud agents recover from the PostgreSQL/EventLedger swarm \
+                "Parallel local/cloud agents recover from the embedded SurrealDB/EventLedger swarm \
                  surface, not from chat history or UI state. Use the live runtime symbols as the \
                  recovery map:\n\n\
                  - `AgentLaneIdentity` names the lane, actor, provider attribution, and \
@@ -4757,9 +4880,9 @@ fn page_state_recovery_guide() -> NewUserManualPage {
                  `mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts`, \
                  `mt223_quiet_receipt_failure_rolls_back_index_run_and_lease`, \
                  `mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer`, and \
-                 `mt223_restart_after_crash_reconstructs_swarm_state_from_postgres`. These \
+                 `mt223_restart_after_crash_reconstructs_swarm_state_from_surrealdb`. These \
                  prove false receipts are not emitted, queue order survives stale reclaim, and \
-                 a fresh store can reconstruct state from Postgres alone.",
+                 a fresh store can reconstruct state from SurrealDB alone.",
                 json!({
                     "runtime_symbols": [
                         "AgentLaneIdentity",
@@ -4778,10 +4901,10 @@ fn page_state_recovery_guide() -> NewUserManualPage {
                         "mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts",
                         "mt223_quiet_receipt_failure_rolls_back_index_run_and_lease",
                         "mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer",
-                        "mt223_restart_after_crash_reconstructs_swarm_state_from_postgres"
+                        "mt223_restart_after_crash_reconstructs_swarm_state_from_surrealdb"
                     ],
                     "authority": [
-                        "PostgreSQL",
+                        "embedded SurrealDB",
                         "kernel_event_ledger",
                         "knowledge_agent_worktree_claims",
                         "knowledge_agent_role_mailbox_handoffs",
@@ -4799,10 +4922,9 @@ fn page_state_recovery_guide() -> NewUserManualPage {
                  --test <target>` (one cargo invocation at a time; lock waits under a shared \
                  target dir are normal — never kill a peer's build).\n\
                  2. Read the FIRST compile error; later errors usually cascade.\n\
-                 3. If the failure names a missing table, the migration chain is behind: \
-                 migrations run automatically per isolated test schema; check the migration file \
-                 numbering for collisions.\n\
-                 4. A PostgreSQL availability failure is not a pass — provision the cluster.",
+                 3. If the failure names a missing table, verify `bootstrap_schema` completed for \
+                 the exact namespace/database allocated by `EmbeddedSurrealTestScope`.\n\
+                 4. An embedded SurrealDB availability failure is not a pass — repair the scoped store.",
             ),
             section(
                 "recovery",
@@ -4907,7 +5029,7 @@ fn page_microvm_sandbox() -> NewUserManualPage {
                  - Worktree authority: `WorktreeVmRegistry` durably maps the five-part resource \
                  scope (`owner_account_id`, `actor_principal_id`, `authenticated_session_id`, \
                  `access_space_id`, and `workspace_id`) plus `worktree_id` to the adapter handle, \
-                 snapshot, lifecycle state, and generation in PostgreSQL. Reads and mutations \
+                 snapshot, lifecycle state, and generation in embedded SurrealDB. Reads and mutations \
                  re-check the same scope.\n\
                  - Launch path: `ModelLaneStore -> SwarmCoordinator -> \
                  ProductionModelSessionFactory -> WorktreeVmRegistry -> \
@@ -4947,15 +5069,12 @@ fn page_microvm_sandbox() -> NewUserManualPage {
                  6. From the product worktree root, set a per-owner external \
                  `CARGO_TARGET_DIR`, then run \
                  `cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 4 \
-                 --test worktree_model_lane_live_pg_tests \
+                 --test worktree_model_lane_live_surreal_tests \
                  mt023_real_worktree_model_lane_runs_inside_microvm -- --ignored --exact \
-                 --nocapture --test-threads=1`. PostgreSQL has three supported, mutually \
-                 exclusive modes: `POSTGRES_TEST_URL`, `DATABASE_URL`, or the task-owned managed \
-                 template. For the managed-template proof, unset both URL variables and set \
-                 `HANDSHAKE_TEST_PG_DATABASE_TEMPLATE=1`, a fresh \
-                 `HANDSHAKE_MANAGED_PG_DATA_DIR` under the external `Handshake_Artifacts` root, \
-                 and a verified free `HANDSHAKE_MANAGED_PG_PORT`. Never combine template and URL \
-                 modes. The proof also requires `HANDSHAKE_MT023_LIVE=1`, the worktree root, GGUF \
+                 --nocapture --test-threads=1`. Set `HANDSHAKE_SURREAL_TEST_STORE_ROOT` to an \
+                 external test-store root; `EmbeddedSurrealTestScope` allocates the exact private \
+                 store and generated namespace/database beneath it. The proof also requires \
+                 `HANDSHAKE_MT023_LIVE=1`, the worktree root, GGUF \
                  path/hash, static package paths, sandbox root, and Cloud Hypervisor \
                  resource/time budgets.",
             ),
@@ -5029,7 +5148,7 @@ fn page_microvm_sandbox() -> NewUserManualPage {
                  a fresh Cloud Hypervisor adapter can inspect and reclaim the exact durable VM, \
                  but cannot resume the lost in-memory token transport. Call \
                  `WorktreeVmRegistry::teardown_worktree_vm`, verify the binding becomes terminal, \
-                 then relaunch or restore rather than treating a PostgreSQL row as a live channel.\n\
+                 then relaunch or restore rather than treating a embedded SurrealDB row as a live channel.\n\
                  - The async production registry omits `cloud_hypervisor`: its real availability \
                  probe failed, so startup skipped an unavailable Tier-3 adapter. Check the \
                  configured binary, kernel, initramfs, work root, `/dev/kvm`, and probe timeout; \
@@ -5061,7 +5180,7 @@ fn page_microvm_sandbox() -> NewUserManualPage {
                 "PROVEN: a real worktree-scoped model lane now runs through ModelLaneStore -> \
                  SwarmCoordinator -> WorktreeVmRegistry -> CloudHypervisorAdapter, loads a real \
                  GGUF inside KVM, verifies the intended `/worktree` inside the guest, generates \
-                 real tokens, persists scoped VM authority in PostgreSQL, denies cross-account \
+                 real tokens, persists scoped VM authority in embedded SurrealDB, denies cross-account \
                  control, and cancels without a live VM or persistent scratch root.\n\n\
                  SHIPPED REGISTRATION: `production_process_sandbox_registry_async` performs the \
                  real adapter probes and includes `CloudHypervisorAdapter` when available; the \
@@ -5071,7 +5190,7 @@ fn page_microvm_sandbox() -> NewUserManualPage {
                  `/operator-chat/launch` request currently has no Tier3/WarmVm field, so the \
                  proven VM lane is reached through the governed programmatic SpawnRequest path.\n\n\
                  RECOVERY: after full host-process loss, reconstruct the scoped \
-                 `WorktreeVmRegistry` from PostgreSQL and call \
+                 `WorktreeVmRegistry` from embedded SurrealDB and call \
                  `WorktreeVmRegistry::teardown_worktree_vm`. A fresh adapter verifies the exact \
                  executable and VM root, reclaims that durable handle, removes its root, and marks \
                  the binding terminal. If continued inference is required, relaunch or restore to \
@@ -5112,7 +5231,7 @@ fn page_legacy_bridge() -> NewUserManualPage {
                 "Migration plan",
                 "The full machine-readable plan: `GET /usermanual/migration-plan`. Summary of \
                  phases:\n\n\
-                 - **P1 (this WP)**: canonical `user_manual` module + PostgreSQL authority + \
+                 - **P1 (this WP)**: canonical `user_manual` module + embedded SurrealDB authority + \
                  aliases + receipts (DONE by MT-193..MT-208).\n\
                  - **P2 (frontend lane)**: rename Tauri commands \
                  (`model_manual_get` -> canonical `/usermanual` routes), app help surface.\n\
@@ -5244,10 +5363,10 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
         quickstart(
             "validation",
             "Quickstart — Validation",
-            "1. Run the surface's SCOPED test target on real PostgreSQL \
+            "1. Run the surface's SCOPED test target on real embedded SurrealDB \
              ([[startup-and-run-commands]]): `cargo test -p handshake_core --features \
              test-utils --test <surface>_tests`.\n\
-             2. A PostgreSQL availability failure is NOT a pass — provision PostgreSQL.\n\
+             2. A embedded SurrealDB availability failure is NOT a pass — provision embedded SurrealDB.\n\
              3. Check negative fixtures stay red-on-defect (stale, missing, denied, conflict \
              paths).\n\
              4. `GET /usermanual/freshness` — manual-vs-product drift must be `current`.\n\
@@ -5285,7 +5404,7 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "404 not_found (unknown root/source/repair id)".into(),
             "409 conflict / policy_denied (allowlist or secret policy refused)".into(),
             "io_error (source unreadable; queues a repair)".into(),
-            "500 internal_error (PostgreSQL unavailable; fail-closed)".into(),
+            "500 internal_error (embedded SurrealDB unavailable; fail-closed)".into(),
         ],
         SurfaceGroup::CodeNavigation => vec![
             "400 bad_request (missing identity headers)".into(),
@@ -5332,7 +5451,7 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "400 MODEL_RUNTIME_SELECTION_INVALID (missing, oversized, or control-bearing selection input)".into(),
             "409 MODEL_RUNTIME_SELECTION_REJECTED (stale current model, non-READY target, timeout, or audit failure)".into(),
             "500 MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR (durable/catalog identity drift)".into(),
-            "503 MODEL_RUNTIME_REGISTRY_UNAVAILABLE (PostgreSQL authority unavailable)".into(),
+            "503 MODEL_RUNTIME_REGISTRY_UNAVAILABLE (embedded SurrealDB authority unavailable)".into(),
         ],
         SurfaceGroup::OperatorChat => vec![
             "400 bad_request (invalid operator chat launch selection)".into(),
@@ -5352,7 +5471,7 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
                 .into(),
             "404 not_found (unknown run/lane/message/trace/artifact/context id)".into(),
             "diagnostics projection row drift against kernel_event_ledger".into(),
-            "500 internal_error (PostgreSQL unavailable; fail-closed)".into(),
+            "500 internal_error (embedded SurrealDB unavailable; fail-closed)".into(),
         ],
         SurfaceGroup::UserManual => vec![
             "400 bad_request (empty query / bad token)".into(),
@@ -5789,29 +5908,29 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
 
     let model_lane_tool_hash = sha256_hex(
         &serde_json::to_string(&json!({
-            "id": "model_lane_schema_pg_tests",
-            "name": "Dexterity ModelLane PostgreSQL proof",
+            "id": "model_lane_launch_tests",
+            "name": "Dexterity ModelLane embedded SurrealDB proof",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests",
             "exact_commands": [
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_serializes_competing_terminal_updates -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact"
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_serializes_competing_terminal_updates -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact"
             ],
             "manual_version": USER_MANUAL_VERSION,
         }))
         .expect("model lane tool serializes"),
     );
     tools.push(UserManualToolEntry {
-        tool_id: "model_lane_schema_pg_tests".into(),
+        tool_id: "model_lane_launch_tests".into(),
         page_id: None,
-        name: "Dexterity ModelLane PostgreSQL proof".into(),
+        name: "Dexterity ModelLane embedded SurrealDB proof".into(),
         status: "wired".into(),
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests".into(),
         ),
         http_route: None,
         http_method: String::new(),
@@ -5819,7 +5938,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for Dexterity ModelLaneRun, ModelLane, ModelLaneMessage storage, and SwarmCoordinator runtime launch wiring."
                 .into(),
         expected_input:
-            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled."
+            "An EmbeddedSurrealTestScope rooted under HANDSHAKE_SURREAL_TEST_STORE_ROOT; test-utils feature enabled."
                 .into(),
         expected_output:
             "EventLedger-backed ModelLane rows, schema registry rows, runtime spawn_session launch rows, idempotency behavior, and replay ordered by event_ledger_seq."
@@ -5852,7 +5971,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Palmistry".into(),
         ],
         common_errors: vec![
-            "missing PostgreSQL/EventLedger migration".into(),
+            "missing embedded SurrealDB/EventLedger migration".into(),
             "missing locus_binding_ref".into(),
             "mismatched Locus WP/MT/task-board/session owner".into(),
             "unsupported provider_kind or missing capability snapshot".into(),
@@ -5862,7 +5981,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "idempotency conflict".into(),
         ],
         recovery_steps: vec![
-            "Run migrations against the active PostgreSQL authority.".into(),
+            "Run migrations against the active embedded SurrealDB authority.".into(),
             "Replay by event_ledger_seq and compare ModelLane records to EventLedger rows.".into(),
             "Reuse the same idempotency_key only when payload_sha256 is unchanged.".into(),
             "For HBR-INT-009, inspect Flight Recorder/EventLedger rows; internal_diagnostics is WIRED through the native producer and Problems projection, and Palmistry is WIRED through the authenticated watcher and survivor recovery importer.".into(),
@@ -5887,9 +6006,9 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_ready_transition_before_persistence_commit -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancel_session_records_terminal_model_lane_state -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_reaper_records_terminal_state_before_teardown -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact"
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact"
             ],
             "manual_version": USER_MANUAL_VERSION,
         }))
@@ -5911,7 +6030,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for Dexterity launch adapter normalization and runtime-owned launch paths across local, cloud, CLI, human, subagent, and validator lanes."
                 .into(),
         expected_input:
-            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled."
+            "An EmbeddedSurrealTestScope rooted under HANDSHAKE_SURREAL_TEST_STORE_ROOT; test-utils feature enabled."
                 .into(),
         expected_output:
             "Registry-normalized launches, SwarmCoordinator preflight, coordinator-owned no-OS lanes with live-authority caller receipts, ModelRuntime load/unload proof, no Ready/runtime exposure before ModelLane persistence, EventLedger stream-backed rows, production builder store wiring, missing-contract bypass rejection, factory failure records, terminal-failure refs for runtime failed state, durable cancellation terminal state, lease-reaper terminal persistence before teardown, retryable terminal intent before runtime teardown, per-lane terminal serialization, bypass rejection, cancellation/reclaim contracts, schema runtime proof, and manual parity."
@@ -5958,7 +6077,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ],
         recovery_steps: vec![
             "Route through DexterityLaunchAdapterRegistry, attach SpawnRequest::with_dexterity_launch, and call SwarmCoordinator before runtime creation.".into(),
-            "Use ModelLaneStore on the same PostgreSQL/EventLedger authority path as the runtime.".into(),
+            "Use ModelLaneStore on the same embedded SurrealDB/EventLedger authority path as the runtime.".into(),
             "For cloud lanes, provide explicit BYOK provider, projection_plan_ref, and consent_receipt_ref.".into(),
             "For no-OS lanes, authorize from a live Ready/Generating authority session and record no_os_process_reason_ref instead of faking a process.".into(),
             "If terminal lane persistence fails, retry the terminal action while the live handle still exists; terminal writes serialize by lane_id.".into(),
@@ -5971,15 +6090,15 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
 
     let model_lane_promotion_tool_hash = sha256_hex(
         &serde_json::to_string(&json!({
-            "id": "model_lane_promotion_pg_tests",
+            "id": "worktree_model_lane_live_surreal_tests",
             "name": "Dexterity promotion decision runtime proof",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests",
             "exact_commands": [
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact"
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact"
             ],
             "hardening": [
                 "final_state",
@@ -5993,14 +6112,14 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         .expect("model lane promotion tool serializes"),
     );
     tools.push(UserManualToolEntry {
-        tool_id: "model_lane_promotion_pg_tests".into(),
+        tool_id: "worktree_model_lane_live_surreal_tests".into(),
         page_id: None,
         name: "Dexterity promotion decision runtime proof".into(),
         status: "wired".into(),
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests".into(),
         ),
         http_route: None,
         http_method: String::new(),
@@ -6008,7 +6127,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for Dexterity routing policies and advisory-to-authority promotion decisions."
                 .into(),
         expected_input:
-            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; advisory ModelLaneMessage rows with CRDT refs."
+            "An EmbeddedSurrealTestScope rooted under HANDSHAKE_SURREAL_TEST_STORE_ROOT; test-utils feature enabled; advisory ModelLaneMessage rows with CRDT refs."
                 .into(),
         expected_output:
             "EventLedger-backed ModelLanePromotionDecision rows, replay ordered by event_ledger_seq, typed approved/denied state_history plus final_state, DB-derived CRDT base/state-vector denials, schema and aggregate-version denials, phantom input-ref denial, exact promotion_decision_id and promoted artifact binding, direct authority mutation rejection, duplicate idempotency conflict, typed message routing, and canonical decision hash stable across reordered input refs."
@@ -6084,19 +6203,19 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
 
     let model_lane_context_bundle_tool_hash = sha256_hex(
         &serde_json::to_string(&json!({
-            "id": "model_lane_context_bundle_pg_tests",
+            "id": "worktree_model_lane_live_surreal_tests",
             "name": "Dexterity ContextBundle handoff runtime proof",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests",
             "exact_commands": [
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_context_bundle_user_manual_entry_is_current -- --exact"
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact"
             ],
             "hardening": [
                 "artifact_binding_authority_table",
-                "dedicated_postgresql_handoff_table",
+                "dedicated_surrealdb_handoff_table",
                 "eventledger_artifact_stored",
                 "eventledger_context_bundle_recorded",
                 "source_message_artifact_ref_hash_match",
@@ -6119,14 +6238,14 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         .expect("model lane ContextBundle tool serializes"),
     );
     tools.push(UserManualToolEntry {
-        tool_id: "model_lane_context_bundle_pg_tests".into(),
+        tool_id: "worktree_model_lane_live_surreal_tests".into(),
         page_id: None,
         name: "Dexterity ContextBundle handoff runtime proof".into(),
         status: "wired".into(),
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests".into(),
         ),
         http_route: None,
         http_method: String::new(),
@@ -6134,10 +6253,10 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for Dexterity model-to-model ContextBundle handoff persistence with artifact binding, downstream replay, CRDT/Loom/FEMS binding, and fail-closed artifact refs."
                 .into(),
         expected_input:
-            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; ModelLaneStore::new_scoped with server-derived exact owner_account_id/actor_principal_id/authenticated_session_id/access_space_id/workspace_id authority; source ModelLaneMessage rows with replayable payload refs; NewModelLaneContextBundleArtifactBinding rows whose payload_json sha256 equals artifact_sha256/content_hash; downstream_lane_id; work_packet_id; micro_task_id; task_board_id; explicit reviewed MemoryPack refs for cloud lanes."
+            "An EmbeddedSurrealTestScope rooted under HANDSHAKE_SURREAL_TEST_STORE_ROOT; test-utils feature enabled; ModelLaneStore::new_scoped with server-derived exact owner_account_id/actor_principal_id/authenticated_session_id/access_space_id/workspace_id authority; source ModelLaneMessage rows with replayable payload refs; NewModelLaneContextBundleArtifactBinding rows whose payload_json sha256 equals artifact_sha256/content_hash; downstream_lane_id; work_packet_id; micro_task_id; task_board_id; explicit reviewed MemoryPack refs for cloud lanes."
                 .into(),
         expected_output:
-            "EventLedger-backed ModelLaneContextBundleArtifactBindingRecord and ModelLaneContextBundleHandoff rows, exact five-field resource scope retained on ContextBundle and derived artifact refs, SQL plus post-decode default-deny across owner/Principal/authenticated session/AccessSpace/workspace switches, ARTIFACT_STORED payload stamping, model_lane_context_bundle_artifacts authority rows with artifact_manifest_ref/artifact_payload_ref/payload_json/artifact_binding_hash, replay ordered by event_ledger_seq for one context_bundle_id, downstream-only ModelLaneDownstreamContextBundle consumption through ModelLaneStore::consume_context_bundle_for_downstream and SwarmCoordinator::context_bundle_for_downstream_lane, SwarmCoordinator::invoke_downstream_context_bundle adapter invocation, to_kernel_context_bundle conversion with ContextBundle V1 CTX-<hash> identity, selected/rejected/unresolved/superseded selection states, schema registry rows hsk.model_lane_context_bundle_artifact@1 and hsk.model_lane_context_bundle_handoff@1, fail-closed missing source and artifact_ref/artifact_sha256/content_hash mismatch against ArtifactStore/EventLedger authority, cloud-safe FEMS MemoryPack enforcement, local_only_context cloud rejection, review_status reviewed, operator_reviewed, or validator_reviewed, hidden provider/session memory rejection including projection_ref and normalized hidden-memory URI checks, memory_pack_refs exceeds bounded FEMS limit, canonical append-only PostgreSQL/EventLedger CRDT state_vector/base_snapshot_ref/update_bytes_ref validation with Yjs-compatible format yjs_update_v1 only, exact replay_metadata replay_order_key/dependency_update_ids/schema_version parity with the persisted update, forged replay metadata producing no handoff row, full crdt_authority_binding parity, exact promotion/validation refs, null advisory promotion receipt, materialized_projection_hash verification, Loom event_ledger_evidence_ref and flight_recorder_evidence_ref replay, loom_refs exceeds bounded limit, duplicate idempotency returning the original context_bundle_hash, and manual parity."
+            "EventLedger-backed ModelLaneContextBundleArtifactBindingRecord and ModelLaneContextBundleHandoff rows, exact five-field resource scope retained on ContextBundle and derived artifact refs, SQL plus post-decode default-deny across owner/Principal/authenticated session/AccessSpace/workspace switches, ARTIFACT_STORED payload stamping, model_lane_context_bundle_artifacts authority rows with artifact_manifest_ref/artifact_payload_ref/payload_json/artifact_binding_hash, replay ordered by event_ledger_seq for one context_bundle_id, downstream-only ModelLaneDownstreamContextBundle consumption through ModelLaneStore::consume_context_bundle_for_downstream and SwarmCoordinator::context_bundle_for_downstream_lane, SwarmCoordinator::invoke_downstream_context_bundle adapter invocation, to_kernel_context_bundle conversion with ContextBundle V1 CTX-<hash> identity, selected/rejected/unresolved/superseded selection states, schema registry rows hsk.model_lane_context_bundle_artifact@1 and hsk.model_lane_context_bundle_handoff@1, fail-closed missing source and artifact_ref/artifact_sha256/content_hash mismatch against ArtifactStore/EventLedger authority, cloud-safe FEMS MemoryPack enforcement, local_only_context cloud rejection, review_status reviewed, operator_reviewed, or validator_reviewed, hidden provider/session memory rejection including projection_ref and normalized hidden-memory URI checks, memory_pack_refs exceeds bounded FEMS limit, canonical append-only embedded SurrealDB/EventLedger CRDT state_vector/base_snapshot_ref/update_bytes_ref validation with Yjs-compatible format yjs_update_v1 only, exact replay_metadata replay_order_key/dependency_update_ids/schema_version parity with the persisted update, forged replay metadata producing no handoff row, full crdt_authority_binding parity, exact promotion/validation refs, null advisory promotion receipt, materialized_projection_hash verification, Loom event_ledger_evidence_ref and flight_recorder_evidence_ref replay, loom_refs exceeds bounded limit, duplicate idempotency returning the original context_bundle_hash, and manual parity."
                 .into(),
         schema_fields: vec![
             "ModelLaneContextBundleArtifactBindingRecord".into(),
@@ -6246,7 +6365,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Recover artifact authority first with ModelLaneStore::record_context_bundle_artifact_binding and verify model_lane_context_bundle_artifacts.payload_json hashes to artifact_sha256/content_hash.".into(),
             "Replay handoffs with ModelLaneStore::replay_context_bundle_handoffs(run_id, context_bundle_id) and compare event_ledger_seq to kernel_event_ledger.".into(),
             "For downstream recovery, call ModelLaneStore::consume_context_bundle_for_downstream or SwarmCoordinator::context_bundle_for_downstream_lane, convert ModelLaneDownstreamContextBundle with to_kernel_context_bundle, and verify the kernel ContextBundle id follows CTX-<hash>.".into(),
-            "For runtime model invocation, call SwarmCoordinator::invoke_downstream_context_bundle so the adapter receives ModelAdapterRequest.context_bundle from PostgreSQL/EventLedger replay.".into(),
+            "For runtime model invocation, call SwarmCoordinator::invoke_downstream_context_bundle so the adapter receives ModelAdapterRequest.context_bundle from embedded SurrealDB/EventLedger replay.".into(),
             "For missing source failures, record the source ModelLaneMessage first and retry with a new idempotency_key.".into(),
             "For artifact failures, copy artifact_ref/artifact_sha256/content_hash from the source ModelLaneMessage row instead of trusting caller memory.".into(),
             "For scope denial, restore the original server-derived owner/Principal/authenticated session/AccessSpace/workspace context; never copy or retarget scope fields from a payload or foreign row.".into(),
@@ -6271,7 +6390,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
                 "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_lane_rejects_missing_expired_mismatched_revoked_and_unscoped_consent_before_provider_call -- --exact --nocapture",
                 "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_consent_revocation_and_context_switch_cancel_covered_lanes_with_eventledger_evidence -- --exact --nocapture",
                 "cargo test --locked -j 1 --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests cloud_http_launch_enforces_cross_account_and_delegated_audience_scope -- --exact --nocapture",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests cloud_model_lane_policy_user_manual_entry_is_current -- --exact"
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact"
             ],
             "hardening": [
                 "durable_projection_plan_table",
@@ -6305,7 +6424,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "An isolated embedded SurrealDB namespace/database; test-utils and surreal-test-support features; generated inert BYOK identifiers; deterministic no-egress provider recorder; NewModelLaneCloudProjectionPlan and NewModelLaneCloudConsentReceipt rows; cloud ModelLane rows with projection_plan_ref and consent_receipt_ref; revoked receipt id for cancellation proof."
                 .into(),
         expected_output:
-            "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows in embedded SurrealDB model_lane_cloud_authority and model_lane_cloud_event_ledger, with no PostgreSQL/SQLite fallback; replay through ModelLaneStore::replay_cloud_consent_authority; missing/expired/mismatched/revoked consent rejected with CX-MM-007 before provider call; revocation cancels durable covered lanes with failstate_code CX-MM-007 and terminal SurrealDB EventLedger evidence."
+            "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows in embedded SurrealDB model_lane_cloud_authority and model_lane_cloud_event_ledger, with no embedded SurrealDB/embedded SurrealDB fallback; replay through ModelLaneStore::replay_cloud_consent_authority; missing/expired/mismatched/revoked consent rejected with CX-MM-007 before provider call; revocation cancels durable covered lanes with failstate_code CX-MM-007 and terminal SurrealDB EventLedger evidence."
                 .into(),
         schema_fields: vec![
             "NewModelLaneCloudProjectionPlan".into(),
@@ -6435,34 +6554,34 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
 
     let model_lane_recovery_tool_hash = sha256_hex(
         &serde_json::to_string(&json!({
-            "id": "model_lane_recovery_pg_tests",
+            "id": "worktree_model_lane_live_surreal_tests",
             "name": "Dexterity recovery and replay runtime proof",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests",
             "exact_commands": [
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_includes_current_leases_but_bounds_replay_adjunct_state -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_missing_payload_stale_crdt_and_duplicate_idempotency -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_uses_eventledger_checkpoint_authority_over_mutable_row -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_post_checkpoint_payload_and_crdt_repairs -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_recovery_user_manual_entry_is_current -- --exact"
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_replays_from_surrealdb_eventledger_checkpoint -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_includes_current_leases_but_bounds_replay_adjunct_state -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_rejects_missing_payload_stale_crdt_and_duplicate_idempotency -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_uses_eventledger_checkpoint_authority_over_mutable_row -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_rejects_post_checkpoint_payload_and_crdt_repairs -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact"
             ],
             "manual_version": USER_MANUAL_VERSION,
         }))
         .expect("model-lane recovery tool serializes"),
     );
     tools.push(UserManualToolEntry {
-        tool_id: "model_lane_recovery_pg_tests".into(),
+        tool_id: "worktree_model_lane_live_surreal_tests".into(),
         page_id: None,
         name: "Dexterity recovery and replay runtime proof".into(),
         status: "wired".into(),
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests".into(),
         ),
         http_route: None,
         http_method: String::new(),
@@ -6470,7 +6589,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for Dexterity checkpoint/EventLedger recovery, lane leases, payload authority, CRDT stale-base rejection, MT runtime status restoration, and HBR-INT-009 diagnostic posture."
                 .into(),
         expected_input:
-            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; ModelLaneRun/ModelLane/ModelLaneMessage rows; ArtifactStore context-bundle artifact bindings; recovery checkpoint/event/lease/diagnostic/MT-status rows."
+            "An EmbeddedSurrealTestScope rooted under HANDSHAKE_SURREAL_TEST_STORE_ROOT; test-utils feature enabled; ModelLaneRun/ModelLane/ModelLaneMessage rows; ArtifactStore context-bundle artifact bindings; recovery checkpoint/event/lease/diagnostic/MT-status rows."
                 .into(),
         expected_output:
             "EventLedger-backed ModelLaneRecoveryCheckpointRecord, ModelLaneRecoveryEventRecord, ModelLaneLeaseRecord, ModelLaneDiagnosticTierStatusRecord, and ModelLaneMtRuntimeStatusRecord rows; checkpoint-bounded replay through ModelLaneStore::recover_run_after_restart; payload refs resolved through model_lane_context_bundle_artifacts plus kernel_event_ledger; CRDT base/state-vector validation; checkpoint-bounded failed cloud consent denial receipts; active versus expired lease classification from latest committed current lease authority without widening replay; durable CX-MM-009 orphan_detected events for expired leases including post-checkpoint leases; divergent idempotency rejected; CX-MM-006 and CX-MM-009 failure paths; Flight Recorder-only HBR-INT-009 evidence rejected; manual parity."
@@ -6535,16 +6654,16 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
                 "GET /swarm/model-lanes/diagnostics/latest",
                 "GET /swarm/model-lanes/diagnostics/{run_id}"
             ],
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests",
             "exact_commands": [
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests swarm_lane_diagnostics_backend_projection_matches_eventledger -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_lane_diagnostics_backend_projection_matches_eventledger -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_lists_filters_and_drills_down -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar run_menu_opens_swarm_lane_diagnostics -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_command_palette typing_diagnostics_filters_to_swarm_lane_diagnostics_and_runs -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog swarm_lane_diagnostics_setting_persists -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_diagnostics_user_manual_entry_is_current -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact",
                 "$env:HANDSHAKE_ARGUS_LIVE_BACKEND_READY='1'; $env:HANDSHAKE_DIAGNOSTICS_DIR='<absolute-shared-diagnostics-dir>'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='<absolute-proof-root>'; $env:HANDSHAKE_MT008_ARGUS_PROOF_NONCE='<fresh-single-use-nonce>'; cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live mt008_production_socket_diagnostics_scope_and_detached_capture -- --ignored --exact --test-threads=1"
             ],
             "manual_version": USER_MANUAL_VERSION,
@@ -6559,7 +6678,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests".into(),
         ),
         http_route: Some("/swarm/model-lanes/diagnostics/latest".into()),
         http_method: "GET".into(),
@@ -6567,7 +6686,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for the Dexterity Lane Diagnostics native pane, backend diagnostics projection, settings/menu/palette paths, five-dimensional privacy scope and metadata-safe denial posture, docked/edge/main-while-detached/constrained-detached visual matrix, renderer/runtime scan, and HBR-INT-009 posture."
                 .into(),
         expected_input:
-            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; ModelLaneRun/ModelLane/ModelLaneMessage rows; EventLedger rows; diagnostic tier and MT runtime status rows; native Rust app AccessKit/Argus harness. The ignored production-socket proof additionally requires a running Palmistry-ready handshake_core on 127.0.0.1:37501, HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, an absolute shared HANDSHAKE_DIAGNOSTICS_DIR, an absolute HANDSHAKE_PROOF_ARTIFACT_DIR, and a fresh single-use HANDSHAKE_MT008_ARGUS_PROOF_NONCE."
+            "An EmbeddedSurrealTestScope rooted under HANDSHAKE_SURREAL_TEST_STORE_ROOT; test-utils feature enabled; ModelLaneRun/ModelLane/ModelLaneMessage rows; EventLedger rows; diagnostic tier and MT runtime status rows; native Rust app AccessKit/Argus harness. The ignored production-socket proof additionally requires a running Palmistry-ready handshake_core on 127.0.0.1:37501, HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, an absolute shared HANDSHAKE_DIAGNOSTICS_DIR, an absolute HANDSHAKE_PROOF_ARTIFACT_DIR, and a fresh single-use HANDSHAKE_MT008_ARGUS_PROOF_NONCE."
                 .into(),
         expected_output:
             "A native_swarm_lane_diagnostics projection from ModelLaneStore::diagnostics_projection; GET /swarm/model-lanes/diagnostics/latest and GET /swarm/model-lanes/diagnostics/{run_id}; stable AccessKit author IDs for menu.models.swarm-lane-diagnostics, swarm-lane-diagnostics.surface, run/lane/message filters, payload and promotion drilldowns, visible active-account/Principal/session/AccessSpace/workspace backend-process-keyed fingerprint rows, explicit exact-scope visibility and metadata-safe denial posture, and settings.swarm-lane-diagnostics-default-open. Fingerprints are stable only within one backend process, preventing offline guessing and persistent cross-run correlation. The production-socket proof publishes a nonce-scoped ten-file bundle: main.png, edge-empty.png, main-detached.png, popout.png, transcript_commitment.json, backend_commitment.json, provenance.json with typed action-id/method/window/target/evidence bindings, evidence_chain.json, visual_inspection.json, and renderer_error_scan.json. Raw scope identifiers remain absent from Argus transcript and capture-bound UI evidence. Lanes and messages remain linked to EventLedger, FlightRecorder, trace/span/link, CRDT, Locus/Loom/FEMS, context bundle, memory pack, artifact, HBR-INT-009 tier, and MT runtime status refs."
@@ -6638,7 +6757,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "If HBR posture is suspected to be FlightRecorder-only, run swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture before trusting the diagnostics pane.".into(),
             "internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer; do not silently skip HBR-INT-009.".into(),
             "The HBR-INT-009 envelope is emitted once per ModelLaneRun (run-level, coverage posture RUN_LEVEL_WIRED, proven by verify_model_lane_behavior_evidence against the run's durable records), not per behavior; a tier that is genuinely unavailable is recorded as NOT_APPLICABLE-with-reason or DEFERRED-with-reason with a follow_up_ref, never fabricated per behavior.".into(),
-            "If the production-socket proof cannot start, first verify the managed PostgreSQL-backed handshake_core is listening on 127.0.0.1:37501, Palmistry readiness is present, and HANDSHAKE_DIAGNOSTICS_DIR names the same absolute directory used by the backend and native child; do not replace this with a mock backend.".into(),
+            "If the production-socket proof cannot start, first verify the embedded-SurrealDB-backed handshake_core is listening on 127.0.0.1:37501, Palmistry readiness is present, and HANDSHAKE_DIAGNOSTICS_DIR names the same absolute directory used by the backend and native child; do not replace this with a mock backend.".into(),
             "If proof publication rejects the nonce, set HANDSHAKE_MT008_ARGUS_PROOF_NONCE to a new single-use value and rerun the exact ignored test; never overwrite or reuse a published nonce-scoped bundle.".into(),
             "If renderer_error_scan.json reports any failed event, panic, panic_observed, or ring_publish_failed event, inspect that exact child process in the shared internal_diagnostics ring, remediate the runtime failure, and recapture all four visual states.".into(),
             "If privacy validation fails, compare the authorized backend resource_scope across owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id; expose only backend-process-keyed opaque fingerprints plus visible denial posture in UI/provenance and rerun the raw-value HTTP/transcript plus encoded/decoded capture scans. Fingerprints are stable only for the backend process and must not be treated as persistent cross-run identifiers.".into(),
@@ -6667,7 +6786,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "exact_commands": [
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact"
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact"
             ],
             "manual_version": USER_MANUAL_VERSION,
         }))
@@ -6703,7 +6822,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
              posture, and Locus, Loom, FEMS, ContextBundle, and MemoryPack refs."
                 .into(),
         expected_input:
-            "Real PostgreSQL/EventLedger test schema; ModelLaneRun, lane, message, artifact binding, recovery, lease, diagnostic tier, and MT status rows with trace/span, Locus, Loom, FEMS, ContextBundle, MemoryPack, Flight Recorder, and Palmistry refs."
+            "Real embedded SurrealDB/EventLedger test schema; ModelLaneRun, lane, message, artifact binding, recovery, lease, diagnostic tier, and MT status rows with trace/span, Locus, Loom, FEMS, ContextBundle, MemoryPack, Flight Recorder, and Palmistry refs."
                 .into(),
         expected_output:
             "ModelLaneNavigationProjection rows from every navigation route with hsk.model_lane_navigation@1 schema, route_id, lookup_kind, run/lane/message/artifact/context/recovery/diagnostic/MT rows, EventLedger refs, Flight Recorder refs, error codes, recovery routes, UserManual page links, runtime router rows, WP-009 registry rows, and tool/manual parity."
@@ -6772,26 +6891,26 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
 
     let mixed_model_lane_validation_tool_hash = sha256_hex(
         &serde_json::to_string(&json!({
-            "id": "mixed_model_lane_integration_pg_tests",
+            "id": "worktree_model_lane_live_surreal_tests",
             "name": "Dexterity mixed-lane validation harness",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests",
             "exact_commands": [
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create -- --exact --nocapture --test-threads=1",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mixed_model_lane_negative_guards_fail_closed -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mt009_real_surrealdb_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create -- --exact --nocapture --test-threads=1",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests external_compat_engine_import_lane_is_documented_and_toc_reachable -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_budget_rejection_and_recovery_is_documented_and_toc_reachable -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_validation_harness_user_manual_entry_is_current -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact"
             ],
             "manual_version": USER_MANUAL_VERSION,
@@ -6799,14 +6918,14 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         .expect("mixed model lane validation tool serializes"),
     );
     tools.push(UserManualToolEntry {
-        tool_id: "mixed_model_lane_integration_pg_tests".into(),
+        tool_id: "worktree_model_lane_live_surreal_tests".into(),
         page_id: None,
         name: "Dexterity mixed-lane validation harness".into(),
         status: "wired".into(),
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests".into(),
         ),
         http_route: None,
         http_method: "".into(),
@@ -6814,10 +6933,10 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for mixed local/cloud/subagent ModelLaneRun persistence, replay, recovery, diagnostics projection, negative guards, real Yjs atomicity, coordinator-owned cancellation capture, and UserManual behavior coverage."
                 .into(),
         expected_input:
-            "Real PostgreSQL/EventLedger test schema; deterministic local/cloud/subagent lane fixtures; ProjectionPlan/ConsentReceipt rows; bounded payload artifacts; CRDT base/state-vector refs; recovery checkpoints; diagnostic tier rows; native AccessKit Argus harness."
+            "Real embedded SurrealDB/EventLedger test schema; deterministic local/cloud/subagent lane fixtures; ProjectionPlan/ConsentReceipt rows; bounded payload artifacts; CRDT base/state-vector refs; recovery checkpoints; diagnostic tier rows; native AccessKit Argus harness."
                 .into(),
         expected_output:
-            "A replayable mixed ModelLaneRun with backend lane/message counts matching native diagnostics rows; EventLedger IDs/sequences on all authority rows; stable-lane restart_generation advancement with generation-scoped launch/terminal authority; exactly-once teardown under concurrent cancellation; atomic PostgreSQL/EventLedger Yjs receipts under cross-connection races; coordinator cancellation preserving a captured prefix while rejecting late message/tool/artifact/Flight Recorder activity; recovery from checkpoint without FlightRecorder/provider history; explicit cloud consent denial and stale CRDT/missing payload/direct endpoint failures; hsk.user_manual_behavior_coverage@1 Rust coverage matrix/contract entries covering every model-lane behavior with FlightRecorder/internal_diagnostics/Palmistry posture."
+            "A replayable mixed ModelLaneRun with backend lane/message counts matching native diagnostics rows; EventLedger IDs/sequences on all authority rows; stable-lane restart_generation advancement with generation-scoped launch/terminal authority; exactly-once teardown under concurrent cancellation; atomic embedded SurrealDB/EventLedger Yjs receipts under cross-connection races; coordinator cancellation preserving a captured prefix while rejecting late message/tool/artifact/Flight Recorder activity; recovery from checkpoint without FlightRecorder/provider history; explicit cloud consent denial and stale CRDT/missing payload/direct endpoint failures; hsk.user_manual_behavior_coverage@1 Rust coverage matrix/contract entries covering every model-lane behavior with FlightRecorder/internal_diagnostics/Palmistry posture."
                 .into(),
         schema_fields: vec![
             "hsk.user_manual_behavior_coverage@1".into(),
@@ -6851,24 +6970,24 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "orphaned_session_teardown".into(),
         ],
         recovery_steps: vec![
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create -- --exact --nocapture --test-threads=1".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mixed_model_lane_negative_guards_fail_closed -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mt009_real_surrealdb_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_cancel_terminalizes_parallel_siblings_and_live_sessions -- --exact --nocapture --test-threads=1".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation -- --exact --nocapture --test-threads=1".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create -- --exact --nocapture --test-threads=1".into(),
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests external_compat_engine_import_lane_is_documented_and_toc_reachable -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_budget_rejection_and_recovery_is_documented_and_toc_reachable -- --exact".into(),
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact".into(),
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_validation_harness_user_manual_entry_is_current -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact".into(),
             "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact".into(),
             "Replay ModelLaneStore::replay_run(run_id) before trusting UI row counts.".into(),
-            "Use ModelLaneStore::recover_run_after_restart(run_id) to reconstruct checkpoint, recovery events, leases, cloud denial, and MT runtime status from PostgreSQL/EventLedger.".into(),
+            "Use ModelLaneStore::recover_run_after_restart(run_id) to reconstruct checkpoint, recovery events, leases, cloud denial, and MT runtime status from embedded SurrealDB/EventLedger.".into(),
             "For routing retry conflicts, compare claim.attempt N to durable restart_generation N-1 and inspect the generation-scoped model_lane/model_lane_terminal EventLedger keys before changing code or assertions.".into(),
             "Repair missing payloads by recording model_lane_context_bundle_artifacts rows that bind payload_ref to bounded artifact refs and EventLedger evidence.".into(),
             "Reject stale CRDT bases until state_vector and base_snapshot_ref match the current replay posture.".into(),
@@ -6907,7 +7026,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
              "Exact Rust proof targets for the embedded-model ProcessOwnershipLedger obligation: all-or-none pre-artifact START+STOP reservation, store-acknowledged pid-less START on load (normally keyed on the minted UUIDv7, with a distinct quarantine UUID for invalid/duplicate returned identities), a pre-reserved STOP emitted only after worker quiescence and offered to a bounded background-writer drain, and OS-loopback-lease-aware hard-crash reconciliation when graceful durability cannot be proven."
                 .into(),
         expected_input:
-            "test-utils feature enabled; CARGO_TARGET_DIR set to an absolute per-owner child of the external artifacts root; template-owned PostgreSQL mode with POSTGRES_TEST_URL and DATABASE_URL unset, HANDSHAKE_TEST_PG_DATABASE_TEMPLATE=1, HANDSHAKE_MANAGED_PG_ENABLED=1, a fresh per-run HANDSHAKE_MANAGED_PG_DATA_DIR, and a free HANDSHAKE_MANAGED_PG_PORT."
+            "test-utils feature enabled; CARGO_TARGET_DIR set to an absolute per-owner child of the external artifacts root; HANDSHAKE_SURREAL_TEST_STORE_ROOT set to an external test-store root; EmbeddedSurrealTestScope owns the generated private store and exact namespace/database."
                 .into(),
         expected_output:
              "A store-acknowledged pid-less ProcessOwnershipLedger START row (os_pid=NULL; valid path process_uuid == model UUIDv7; identity-contract failures use a distinct quarantine UUID and metadata), a matching pre-reserved STOP emitted via LlmClient::shutdown_gracefully only after the exact runtime workers exit and durably flushed on a successful drain-and-join, plus open-START reconciliation when shutdown or drain cannot prove success."
@@ -6935,7 +7054,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "token_stream_terminal_missing_under_backpressure".into(),
         ],
         recovery_steps: vec![
-            "If the STOP row is missing after Ctrl-C/SIGTERM, confirm Axum completed its connection drain, the exact runtime worker barriers reached idle, and the process-ledger drain completed before managed PostgreSQL stop and final OS-lease release. Connection-drain or quiescence timeout intentionally leaves START open for next-boot reconciliation rather than reporting a graceful STOP.".into(),
+            "If the STOP row is missing after Ctrl-C/SIGTERM, confirm Axum completed its connection drain, the exact runtime worker barriers reached idle, and the process-ledger drain completed before embedded-store shutdown and final OS-lease release. Connection-drain or quiescence timeout intentionally leaves START open for next-boot reconciliation rather than reporting a graceful STOP.".into(),
             "If an orphan persists, inspect runtime_instance_schema_id, runtime_instance_id, runtime_host_scope_id, runtime_lease_protocol, runtime_lease_address, and runtime_lease_port. Reconciliation intentionally skips missing, malformed, foreign-host, conflicting, or address-in-use evidence; never force-close it from age alone.".into(),
             "If boot reports deferred orphan reconciliation, inspect the typed lock-timeout and instance-cap fields. Leave the START open, remove the contending database transaction if appropriate, and allow a later bounded boot sweep to retry; never rewrite terminal columns by hand.".into(),
         ],
@@ -6972,7 +7091,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Non-skipping MT-013 managed-resource proof for the default embedded LlmClient path: it loads real Candle weights through build_default_local_client, drains the ProcessOwnershipLedger, calls LlmClient::shutdown_gracefully to quiesce real workers before STOP, drains again, and prints [MT-013_REAL_CANDLE_LEDGER_DUMP] containing the matching pid-less START/STOP rows."
                 .into(),
         expected_input:
-            "Features test-utils,candle-runtime-engine enabled; HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a directory containing real model.safetensors and tokenizer.json; CARGO_TARGET_DIR set to an absolute per-owner child of the external artifacts root; external POSTGRES_TEST_URL set to the dedicated test database with template-mode variables unset."
+            "Features test-utils,candle-runtime-engine enabled; HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a directory containing real model.safetensors and tokenizer.json; CARGO_TARGET_DIR set to an absolute per-owner child of the external artifacts root; external HANDSHAKE_SURREAL_TEST_STORE_ROOT set to the dedicated test database with template-mode variables unset."
                 .into(),
         expected_output:
             "Exactly one real Candle START row keyed on the LlmClient profile UUIDv7, os_pid=NULL with os_pid_absent_reason=in_process_library_load_no_os_process, model_artifact_sha256 matching the real artifact, then exactly one STOP row with stop_reason=llm-client-shutdown; missing model env fails loudly, not skipped."
@@ -7029,7 +7148,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for the MT-012 operator chat/launch surface: a non-mocked lane launch through SwarmCoordinator::spawn_session persists ModelLaneRun/ModelLane; a realistic multi-line stream-json turn yields exactly ONE ModelLaneMessage per completed activity block (ToolCall->ToolRequest, rendered tool_result->ToolResult, prompt/answer/thought->Status discriminated by diagnostic_payload.activity_kind) with a matching FR-EVT-AGENT-* event; the operator prompt is a HUMAN_OPERATOR message; the selection decision emits FR-EVT-MODEL-SELECTION-RECORDED; a launch without a ModelLaneStore fails closed; the operator working_dir is the real CLI subprocess cwd."
                 .into(),
         expected_input:
-            "test-utils feature enabled; real Handshake-managed PostgreSQL (127.0.0.1:5544) or an isolated POSTGRES_TEST_URL schema; the real parse_agent_activity_line parser + a capturing FlightRecorder; the LiveCliSpawner for the real-cwd leg."
+            "test-utils feature enabled; an EmbeddedSurrealTestScope rooted under HANDSHAKE_SURREAL_TEST_STORE_ROOT; the real parse_agent_activity_line parser + a capturing FlightRecorder; the LiveCliSpawner for the real-cwd leg."
                 .into(),
         expected_output:
             "One ModelLaneMessage per completed activity block persisted + replayable under the run; typed kinds and activity_kind labels; a capturing recorder holding FR-EVT-AGENT-* and FR-EVT-MODEL-SELECTION-RECORDED events; a fail-closed LedgerFailed error when the coordinator has no ModelLaneStore; a launched subprocess whose cwd equals the operator selection."
@@ -7083,7 +7202,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Exact Rust proof targets for master-spec §4.2.3.2(3) Flight Recorder emission on EVERY LlmClient call path: fail-closed DisabledLlmClient::completion and ::embedding, local completion error branches, and the embedding lane (success + error) — all emitted at CALL TIME, never at construction."
                 .into(),
         expected_input:
-            "test-utils feature enabled; CARGO_TARGET_DIR set to an absolute per-owner child of the external artifacts root; template-owned PostgreSQL mode configured as on the embedded-model lifecycle page; a capturing FlightRecorder; configurable in-process ModelRuntime and a recorder-wired DisabledLlmClient fallback."
+            "test-utils feature enabled; CARGO_TARGET_DIR set to an absolute per-owner child of the external artifacts root; an EmbeddedSurrealTestScope rooted under HANDSHAKE_SURREAL_TEST_STORE_ROOT; a capturing FlightRecorder; configurable in-process ModelRuntime and a recorder-wired DisabledLlmClient fallback."
                 .into(),
         expected_output:
             "One Flight Recorder event per call: zeroed-usage llm_inference events (error_kind llm_disabled / llm_error / embedding_disabled) on error/disabled paths and data_embedding_computed on embedding success; no construction-time emission."
@@ -7136,10 +7255,10 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Representative Rust proof target plus machine-readable references for the full MT-016 proof suite: ModelCapabilities consistency, ready catalog selection by embedding dimension, shared boot registry with distinct chat and embedding registrations, LoomSearchV2 reindex/search using the stable embedding-space id, no chat embedding fallback, and UserManual behavior coverage."
                 .into(),
         expected_input:
-            "test-utils feature enabled; in-process fake ModelRuntime for boot proof; real Handshake-managed PostgreSQL or POSTGRES_TEST_URL isolated schema for LoomSearchV2 storage proof; model catalog fixtures with chat-only and embedding-capable registrations."
+            "test-utils feature enabled; in-process fake ModelRuntime for boot proof; an EmbeddedSurrealTestScope rooted under HANDSHAKE_SURREAL_TEST_STORE_ROOT for LoomSearchV2 storage proof; model catalog fixtures with chat-only and embedding-capable registrations."
                 .into(),
         expected_output:
-            "The chat/completion model remains profile().model_id; ModelCatalog selects the READY supports_embedding=true embedding_dimension=768 registration; LocalRouter rejects chat UUIDv7 embedding calls before runtime dispatch; LoomSearchV2 routes calls with the dedicated embedding model UUID but stores and queries with the stable embedding-space id; PostgreSQL vector scoring ignores rows from another embedding space; no-model fallback does not call the chat model."
+            "The chat/completion model remains profile().model_id; ModelCatalog selects the READY supports_embedding=true embedding_dimension=768 registration; LocalRouter rejects chat UUIDv7 embedding calls before runtime dispatch; LoomSearchV2 routes calls with the dedicated embedding model UUID but stores and queries with the stable embedding-space id; embedded SurrealDB vector scoring ignores rows from another embedding space; no-model fallback does not call the chat model."
                 .into(),
         schema_fields: vec![
             "ModelCapabilities::supports_embedding".into(),
@@ -7169,7 +7288,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Configure HANDSHAKE_LOCAL_EMBEDDING_MODEL_PATH and HANDSHAKE_LOCAL_EMBEDDING_MODEL_SHA256 for the dedicated embedding artifact.".into(),
             "Set HANDSHAKE_LOCAL_EMBEDDING_MODEL_DIMENSION to 768 or leave it unset for the 768 default.".into(),
             "Reindex Loom blocks after changing the embedding model so loom_block_search_index.embedding_model matches the active model.".into(),
-            "If semantic search is unavailable, inspect the catalog for a READY supports_embedding=true embedding_dimension=768 row before debugging PostgreSQL.".into(),
+            "If semantic search is unavailable, inspect the catalog for a READY supports_embedding=true embedding_dimension=768 row before debugging embedded SurrealDB.".into(),
         ],
         origin: "wp1_mt016_dedicated_embedding_model".into(),
         content_hash: dedicated_embedding_tool_hash,
@@ -7251,15 +7370,15 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
     }
 
     let tool_ids = vec![
-        "model_lane_schema_pg_tests".to_string(),
+        "model_lane_launch_tests".to_string(),
         "model_lane_launch_tests".to_string(),
         "official_cli_attached_lifecycle_tests".to_string(),
-        "model_lane_promotion_pg_tests".to_string(),
-        "model_lane_context_bundle_pg_tests".to_string(),
+        "worktree_model_lane_live_surreal_tests".to_string(),
+        "worktree_model_lane_live_surreal_tests".to_string(),
         "cloud_model_lane_policy_surreal_tests".to_string(),
-        "model_lane_recovery_pg_tests".to_string(),
+        "worktree_model_lane_live_surreal_tests".to_string(),
         "swarm_lane_diagnostics_runtime_proof".to_string(),
-        "mixed_model_lane_integration_pg_tests".to_string(),
+        "worktree_model_lane_live_surreal_tests".to_string(),
     ];
     let title = "WP-1 Dexterity model-lane launch, storage, promotion, handoff, cloud consent, recovery, and diagnostics"
         .to_string();
@@ -7301,7 +7420,7 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "mt014_registry_authority_shape_rejects_semantic_drift".to_string(),
         "mt014_registry_rejects_eventledger_chain_and_immutable_row_tampering".to_string(),
         "mt014_non_advisory_row_lock_times_out_without_registry_or_audit_mutation".to_string(),
-        "mt014_registry_api_joins_real_pg_rows_to_current_ready_catalog_by_sha256".to_string(),
+        "model_runtime_registry_behaviors_have_canonical_manual_coverage".to_string(),
         "mt014_registry_api_rejects_ready_catalog_capability_drift".to_string(),
         "mt014_registry_api_rejects_unloaded_catalog_row_without_durable_authority".to_string(),
         "mt014_registry_api_rejects_duplicate_ready_and_unloaded_catalog_sha".to_string(),
@@ -7315,21 +7434,20 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract".to_string(),
         "mt014_stable_switch_author_id_posts_then_reobserves_backend_projection".to_string(),
         "mt014_embedding_role_row_has_no_default_switch_action".to_string(),
-        "mt014_argus_renders_real_pg_live_and_dormant_registry_rows".to_string(),
-        "mt014_argus_operator_menu_fetches_real_pg_projection_through_production_transport"
-            .to_string(),
-        "mt014_model_runtime_real_pg_frame_png".to_string(),
+        "model_runtime_registry_behaviors_have_canonical_manual_coverage".to_string(),
+        "user_manual_names_only_surfaces_that_exist_in_compiled_product_code".to_string(),
+        "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract".to_string(),
         "run_menu_opens_real_model_runtime_pane".to_string(),
         "mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search".to_string(),
         "mt014_provider_ref_migrates_ollama_to_local_runtime".to_string(),
     ];
     let title = "WP-1 MT-014 durable model-runtime registry, shared catalog, Loom embedding-dim degrade, and provider_ref resolver".to_string();
     let description = concat!(
-        "PURPOSE: persist the selected embedded runtime adapter in PostgreSQL, then expose the ",
+        "PURPOSE: persist the selected embedded runtime adapter in embedded SurrealDB, then expose the ",
         "same successfully loaded registration through one shared, enumerable, labeled live ",
-        "catalog. STARTUP: the normal handshake_core binary starts/adopts managed PostgreSQL, ",
-        "runs the migration chain (including `0348_model_runtime_registry.sql` and `0356_model_runtime_role_authority.sql`), and passes that ",
-        "pool into `ModelRegistryStore` before resolving a configured local model. No separate ",
+        "catalog. STARTUP: the normal handshake_core binary opens embedded SurrealDB, ",
+        "bootstraps the canonical schema, and passes that storage handle into `ModelRegistryStore` ",
+        "before resolving a configured local model. No separate ",
         "registry daemon or operator-started database is required. INPUTS: ",
         "`HANDSHAKE_LOCAL_MODEL_PATH`, `HANDSHAKE_LOCAL_MODEL_SHA256`, ",
         "`HANDSHAKE_LOCAL_MODEL_BINDING`, and optional `HANDSHAKE_LOCAL_MODEL_NAME`; the ",
@@ -7345,17 +7463,17 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "back the complete primary-plus-embedding boot set, appending ",
         "`KernelEventType::ModelRuntimeSelectionRecorded` as the typed EventLedger evidence for ",
         "each persistent adapter selection, and only then exposes the client and ",
-        "live `ModelCatalog`. OUTPUTS: each PostgreSQL row carries `schema_id`, stable artifact ",
+        "live `ModelCatalog`. OUTPUTS: each embedded SurrealDB row carries `schema_id`, stable artifact ",
         "locator/hash, selected runtime binding, explicit runtime role/default eligibility and capabilities, selection revision, mutable ",
         "last-observed runtime UUID/label/actor/timestamp, and the EventLedger audit reference. ",
         "Every read validates the complete causation-linked EventLedger selection chain, canonical ",
         "payload hashes, revisions, endpoints, and immutable-selection continuity in the same ",
-        "PostgreSQL snapshot. A normal restart or display-name/path change preserves selection ",
-        "revision; a conflicting adapter/capability choice fails closed, including any conflicting runtime-role choice. PostgreSQL separately owns `application/default` and `embeddings/default` by stable artifact SHA-256; boot restores both before routing exposure. The panel switches only ",
+        "embedded SurrealDB snapshot. A normal restart or display-name/path change preserves selection ",
+        "revision; a conflicting adapter/capability choice fails closed, including any conflicting runtime-role choice. embedded SurrealDB separately owns `application/default` and `embeddings/default` by stable artifact SHA-256; boot restores both before routing exposure. The panel switches only ",
         "`application/default` between current READY completion-role models; an embedding-role row may own `embeddings/default` but is not eligible for that application switch and is excluded from Operator Chat default-model inventory. It never rewrites durable artifact-to-adapter binding. A ",
         "non-active READY row posts `POST /model-runtime/selection`. The local runtime serializes ",
         "the SwapRequest after the API prevalidates the durable/catalog projection, current selection, and target UUIDv7/READY/default-selectable state, resolves ",
-        "the actual runtime, appends the active-selection EventLedger record and compare-and-set in one PostgreSQL transaction, then publishes the committed model to the current router projection and cancels old-default in-flight requests. Success advances the already-validated projection in memory and returns `selection_receipt_ref`. Audit failure, PostgreSQL revision conflict, stale ",
+        "the actual runtime, appends the active-selection EventLedger record and compare-and-set in one embedded SurrealDB transaction, then publishes the committed model to the current router projection and cancels old-default in-flight requests. Success advances the already-validated projection in memory and returns `selection_receipt_ref`. Audit failure, embedded SurrealDB revision conflict, stale ",
         "invalid target_model_id, actor, or reason input, stale current selection, non-READY or embedding-role target, integrity failure, or timeout keeps the prior active model. NAVIGATION: in the Rust-native app choose ",
         "`RUN` then `Open Model Runtime`; the action switches through the existing `STUDIO` module ",
         "workflow and activates its `Model Runtime` surface. The equivalent direct path is `STUDIO` ",
@@ -7376,7 +7494,7 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "the 'unknown model' sentinel for an unknown id (never panic/blank); an empty registry ",
         "lists nothing. `ModelCatalog::record_selection_decision` separately emits ",
         "`FR-EVT-MODEL-SELECTION-RECORDED` for interactive picker decisions. FAILURE/RECOVERY: ",
-        "missing migration, malformed schema/constraints/nullability, PostgreSQL failure (`503 MODEL_RUNTIME_REGISTRY_UNAVAILABLE`), ",
+        "missing migration, malformed schema/constraints/nullability, embedded SurrealDB failure (`503 MODEL_RUNTIME_REGISTRY_UNAVAILABLE`), ",
         "selection conflict, invalid EventLedger selection chain, or partial primary/embedding conflict blocks ",
         "model exposure and returns a typed disabled-client reason. Restore the current migration ",
         "chain/database authority and restore configuration to the persisted SHA/binding. Inspect ",
@@ -7393,7 +7511,7 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "provider id set (`local_runtime`, `openai_compat`); the retired `ollama` id migrates ",
         "deterministically to `local_runtime`, surfaced via an `FR-EVT-PROFILE-` event (never a ",
         "silent rewrite); an unrecognized provider_ref resolves to a typed Unknown. ",
-        "HBR-INT-009 posture: PostgreSQL/EventLedger authority and Tier-1 Flight Recorder events ",
+        "HBR-INT-009 posture: embedded SurrealDB/EventLedger authority and Tier-1 Flight Recorder events ",
         "are WIRED for durable adapter selection inspection, interactive selection, semantic ",
         "degrade, and provider_ref migration; Tier-2 internal_diagnostics is WIRED through the native producer and Problems projection; ",
         "Tier-3 Palmistry is WIRED through the authenticated watcher and survivor recovery importer.",
@@ -7444,76 +7562,375 @@ fn seed_aliases() -> Vec<LegacyAliasRow> {
 // The idempotent seeder.
 // ---------------------------------------------------------------------------
 
-/// Seed (or re-sync) the UserManual corpus into PostgreSQL. Idempotent: rows
-/// short-circuit on content hash; receipts are appended only for changed
-/// pages plus one summary receipt when anything changed. Always records the
-/// `user_manual_versions` row.
-pub async fn ensure_seeded(db: &PostgresDatabase) -> StorageResult<SeedReport> {
-    let store = UserManualStore::new(db);
+async fn stored_content_hash(
+    storage: &SurrealStorage,
+    table: &'static str,
+    record_id: &str,
+) -> StorageResult<Option<String>> {
+    let record = RecordId::new(table, record_id.to_owned());
+    Ok(storage
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database
+                    .query_first::<StoredContentHash, _>(
+                        "SELECT content_hash FROM $record;",
+                        RecordLookup { record },
+                    )
+                    .await
+            })
+        })
+        .await?
+        .map(|row| row.content_hash))
+}
+
+async fn replace_page_children(
+    storage: &SurrealStorage,
+    page_id: &str,
+    page: &NewUserManualPage,
+) -> StorageResult<()> {
+    let page_record = RecordId::new("user_manual_pages", page_id.to_owned());
+    for table in ["user_manual_sections", "user_manual_anchors"] {
+        let page = page_record.clone();
+        storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_values::<surrealdb::types::Value, _>(
+                            match table {
+                                "user_manual_sections" => {
+                                    "DELETE user_manual_sections WHERE page_id = $page;"
+                                }
+                                _ => "DELETE user_manual_anchors WHERE page_id = $page;",
+                            },
+                            PageChildrenLookup { page },
+                        )
+                        .await
+                })
+            })
+            .await?;
+    }
+
+    for (position, section) in page.sections.iter().enumerate() {
+        let section_id = sha256_hex(&format!("{page_id}:section:{position}"));
+        let content = ManualSectionContent {
+            section_id: section_id.clone(),
+            page_id: page_record.clone(),
+            position: position as i64,
+            section_kind: section.section_kind.to_owned(),
+            title: section.title.clone(),
+            body_md: section.body_md.clone(),
+            body_json: section.body_json.clone(),
+        };
+        storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .upsert_one::<surrealdb::types::Value, _>(
+                            "user_manual_sections",
+                            &section_id,
+                            content,
+                        )
+                        .await
+                })
+            })
+            .await?;
+    }
+    for anchor in &page.anchors {
+        let anchor_id = sha256_hex(&format!(
+            "{page_id}:anchor:{}:{}:{}",
+            anchor.anchor_kind, anchor.anchor_value, anchor.http_method
+        ));
+        let content = ManualAnchorContent {
+            anchor_id: anchor_id.clone(),
+            page_id: page_record.clone(),
+            anchor_kind: anchor.anchor_kind.to_owned(),
+            anchor_value: anchor.anchor_value.clone(),
+            http_method: anchor.http_method.to_owned(),
+        };
+        storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .upsert_one::<surrealdb::types::Value, _>(
+                            "user_manual_anchors",
+                            &anchor_id,
+                            content,
+                        )
+                        .await
+                })
+            })
+            .await?;
+    }
+    Ok(())
+}
+
+/// Materialize canonical page projections without inventing a second manual.
+pub fn projected_manual_pages(corpus: &SeedCorpus) -> Vec<UserManualPage> {
+    let now = Utc::now();
+    corpus
+        .pages
+        .iter()
+        .map(|page| UserManualPage {
+            page_id: page.slug.clone(),
+            slug: page.slug.clone(),
+            title: page.title.clone(),
+            page_kind: page.page_kind.to_owned(),
+            audience: page.audience.to_owned(),
+            body: page.body_json(),
+            content_hash: page.content_hash(),
+            manual_version: USER_MANUAL_VERSION.to_owned(),
+            source_kind: "builtin_seed".to_owned(),
+            spec_anchors: page.spec_anchors.clone(),
+            status: "current".to_owned(),
+            superseded_by_slug: None,
+            ledger_event_id: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .collect()
+}
+
+/// Read one canonical page hash through the production embedded-store lease.
+pub async fn seeded_page_content_hash(
+    storage: &SurrealStorage,
+    slug: &str,
+) -> StorageResult<Option<String>> {
+    stored_content_hash(storage, "user_manual_pages", slug).await
+}
+
+/// Seed (or re-sync) the canonical UserManual corpus into embedded SurrealDB.
+/// Rows short-circuit on their canonical content hashes; changed pages replace
+/// their normalized sections and anchors before the version row is advanced.
+pub async fn ensure_seeded(storage: &SurrealStorage) -> StorageResult<SeedReport> {
     let corpus = seed_corpus();
     let seed_hash = corpus_hash(&corpus);
+    let now = Utc::now();
 
     let mut pages_changed = 0usize;
     for page in &corpus.pages {
-        let (_, changed) = store
-            .upsert_page(page, USER_MANUAL_VERSION, "current")
-            .await?;
-        if changed {
+        let content_hash = page.content_hash();
+        if stored_content_hash(storage, "user_manual_pages", &page.slug).await?
+            != Some(content_hash.clone())
+        {
+            let page_id = page.slug.clone();
+            let content = ManualPageContent {
+                page_id: page_id.clone(),
+                slug: page.slug.clone(),
+                title: page.title.clone(),
+                page_kind: page.page_kind.to_owned(),
+                audience: page.audience.to_owned(),
+                body: page.body_json(),
+                content_hash,
+                manual_version: USER_MANUAL_VERSION.to_owned(),
+                source_kind: "builtin_seed".to_owned(),
+                spec_anchors: page.spec_anchors.clone(),
+                status: "current".to_owned(),
+                superseded_by_slug: None,
+                ledger_event_id: None,
+                created_at: now,
+                updated_at: now,
+            };
+            storage
+                .with_data_operation(|database| {
+                    Box::pin(async move {
+                        database
+                            .upsert_one::<surrealdb::types::Value, _>(
+                                "user_manual_pages",
+                                &page_id,
+                                content,
+                            )
+                            .await
+                    })
+                })
+                .await?;
+            replace_page_children(storage, &page.slug, page).await?;
             pages_changed += 1;
         }
     }
     let mut tools_changed = 0usize;
     for tool in &corpus.tools {
-        if store.upsert_tool_entry(tool).await? {
+        if stored_content_hash(storage, "user_manual_tool_entries", &tool.tool_id).await?
+            != Some(tool.content_hash.clone())
+        {
+            let tool_id = tool.tool_id.clone();
+            let content = ManualToolContent {
+                tool_id: tool_id.clone(),
+                page_id: tool
+                    .page_id
+                    .as_ref()
+                    .map(|page_id| RecordId::new("user_manual_pages", page_id.clone())),
+                name: tool.name.clone(),
+                status: tool.status.clone(),
+                ipc_channel: tool.ipc_channel.clone(),
+                tauri_command: tool.tauri_command.clone(),
+                cli_flag: tool.cli_flag.clone(),
+                http_route: tool.http_route.clone(),
+                http_method: tool.http_method.clone(),
+                description: tool.description.clone(),
+                expected_input: tool.expected_input.clone(),
+                expected_output: tool.expected_output.clone(),
+                schema_fields: tool.schema_fields.clone(),
+                common_errors: tool.common_errors.clone(),
+                recovery_steps: tool.recovery_steps.clone(),
+                origin: tool.origin.clone(),
+                content_hash: tool.content_hash.clone(),
+                manual_version: tool.manual_version.clone(),
+                updated_at: now,
+            };
+            storage
+                .with_data_operation(|database| {
+                    Box::pin(async move {
+                        database
+                            .upsert_one::<surrealdb::types::Value, _>(
+                                "user_manual_tool_entries",
+                                &tool_id,
+                                content,
+                            )
+                            .await
+                    })
+                })
+                .await?;
             tools_changed += 1;
         }
     }
     let mut features_changed = 0usize;
     for feature in &corpus.features {
-        if store.upsert_feature_entry(feature).await? {
+        if stored_content_hash(storage, "user_manual_feature_entries", &feature.feature_id).await?
+            != Some(feature.content_hash.clone())
+        {
+            let feature_id = feature.feature_id.clone();
+            let content = ManualFeatureContent {
+                feature_id: feature_id.clone(),
+                title: feature.title.clone(),
+                description: feature.description.clone(),
+                tool_ids: feature.tool_ids.clone(),
+                origin: feature.origin.clone(),
+                content_hash: feature.content_hash.clone(),
+                manual_version: feature.manual_version.clone(),
+                updated_at: now,
+            };
+            storage
+                .with_data_operation(|database| {
+                    Box::pin(async move {
+                        database
+                            .upsert_one::<surrealdb::types::Value, _>(
+                                "user_manual_feature_entries",
+                                &feature_id,
+                                content,
+                            )
+                            .await
+                    })
+                })
+                .await?;
             features_changed += 1;
         }
     }
     let mut aliases_changed = 0usize;
     for alias in &corpus.aliases {
-        if store.upsert_legacy_alias(alias).await? {
+        let alias_hash =
+            sha256_hex(&serde_json::to_string(alias).expect("canonical manual alias serializes"));
+        let stored_alias_hash = storage
+            .with_data_operation(|database| {
+                let record = RecordId::new("user_manual_legacy_aliases", alias.alias.clone());
+                Box::pin(async move {
+                    database
+                        .query_first::<ManualAliasContent, _>(
+                            "SELECT alias, alias_kind, canonical_kind, canonical_ref, deprecation_note, manual_version, updated_at FROM $record;",
+                            RecordLookup { record },
+                        )
+                        .await
+                })
+            })
+            .await?
+            .map(|stored| {
+                sha256_hex(
+                    &serde_json::to_string(&json!({
+                        "alias": stored.alias,
+                        "alias_kind": stored.alias_kind,
+                        "canonical_kind": stored.canonical_kind,
+                        "canonical_ref": stored.canonical_ref,
+                        "deprecation_note": stored.deprecation_note,
+                        "manual_version": stored.manual_version,
+                    }))
+                    .expect("stored manual alias serializes"),
+                )
+            });
+        if stored_alias_hash != Some(alias_hash) {
+            let alias_id = alias.alias.clone();
+            let content = ManualAliasContent {
+                alias: alias.alias.clone(),
+                alias_kind: alias.alias_kind.clone(),
+                canonical_kind: alias.canonical_kind.clone(),
+                canonical_ref: alias.canonical_ref.clone(),
+                deprecation_note: alias.deprecation_note.clone(),
+                manual_version: alias.manual_version.clone(),
+                updated_at: now,
+            };
+            storage
+                .with_data_operation(|database| {
+                    Box::pin(async move {
+                        database
+                            .upsert_one::<surrealdb::types::Value, _>(
+                                "user_manual_legacy_aliases",
+                                &alias_id,
+                                content,
+                            )
+                            .await
+                    })
+                })
+                .await?;
             aliases_changed += 1;
         }
     }
 
     let anything_changed = pages_changed + tools_changed + features_changed + aliases_changed > 0;
-    let existing_version = store.get_version(USER_MANUAL_VERSION).await?;
+    let version_record = RecordId::new("user_manual_versions", USER_MANUAL_VERSION);
+    let existing_version = storage
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database
+                    .query_first::<StoredVersionMetadata, _>(
+                        "SELECT seed_content_hash, page_count, tool_count, feature_count FROM $record;",
+                        RecordLookup {
+                            record: version_record,
+                        },
+                    )
+                    .await
+            })
+        })
+        .await?;
     let version_metadata_changed = existing_version.as_ref().is_some_and(|row| {
         row.seed_content_hash != seed_hash
-            || row.page_count != corpus.pages.len() as i32
-            || row.tool_count != corpus.tools.len() as i32
-            || row.feature_count != corpus.features.len() as i32
+            || row.page_count != corpus.pages.len() as i64
+            || row.tool_count != corpus.tools.len() as i64
+            || row.feature_count != corpus.features.len() as i64
     });
-    let version_receipt =
-        if anything_changed || existing_version.is_none() || version_metadata_changed {
-            Some(
-                store
-                    .record_version_with_receipt(
-                        USER_MANUAL_VERSION,
-                        &seed_hash,
-                        corpus.pages.len() as i32,
-                        corpus.tools.len() as i32,
-                        corpus.features.len() as i32,
-                        json!({
-                            "seed_content_hash": seed_hash,
-                            "pages_changed": pages_changed,
-                            "tools_changed": tools_changed,
-                            "features_changed": features_changed,
-                            "aliases_changed": aliases_changed,
-                            "version_metadata_changed": version_metadata_changed,
-                        }),
-                        "WP-KERNEL-009 MT-193..MT-208 built-in seed corpus",
-                    )
-                    .await?,
-            )
-        } else {
-            None
+    if anything_changed || existing_version.is_none() || version_metadata_changed {
+        let version_id = USER_MANUAL_VERSION.to_owned();
+        let version = ManualVersionContent {
+            manual_version: version_id.clone(),
+            seeded_at: now,
+            seed_content_hash: seed_hash.clone(),
+            page_count: corpus.pages.len() as i64,
+            tool_count: corpus.tools.len() as i64,
+            feature_count: corpus.features.len() as i64,
+            ledger_event_id: None,
+            note: "WP-1 MT-022 canonical built-in UserManual seed corpus".to_owned(),
         };
+        storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .upsert_one::<surrealdb::types::Value, _>(
+                            "user_manual_versions",
+                            &version_id,
+                            version,
+                        )
+                        .await
+                })
+            })
+            .await?;
+    }
 
     Ok(SeedReport {
         manual_version: USER_MANUAL_VERSION.into(),
@@ -7526,7 +7943,7 @@ pub async fn ensure_seeded(db: &PostgresDatabase) -> StorageResult<SeedReport> {
         features_changed,
         aliases_total: corpus.aliases.len(),
         aliases_changed,
-        version_receipt_event_id: version_receipt,
+        version_receipt_event_id: None,
     })
 }
 

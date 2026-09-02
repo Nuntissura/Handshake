@@ -27,13 +27,12 @@ use crate::{
     },
     model_runtime::{
         CancellationToken, ExplicitModelRuntimeRebind, GenPrompt, GenerateRequest, KvCachePolicy,
-        LoadSpec, ModelCatalog, ModelId, ModelRegistration, ModelRegistry, ModelRegistryStore,
-        ModelRuntime, ModelRuntimeAvailability, ModelRuntimeError, ModelRuntimeSelection,
+        LoadSpec, ModelCatalog, ModelId, ModelRegistration, ModelRegistry, ModelRuntime,
+        ModelRuntimeAvailability, ModelRuntimeError, ModelRuntimeSelection,
         ModelRuntimeSelectionPurpose, ProviderKind, RuntimeBinding, RuntimeVramResidency,
-        SamplingParams,
+        SamplingParams, ScopedModelRegistryAuthority,
     },
     process_ledger::{EmbeddedRuntimeInstanceDescriptor, LedgerBatcher},
-    swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
 };
 
 use super::{
@@ -191,7 +190,7 @@ pub struct LocalModelRuntimeLlmClient {
     flight_recorder: Arc<dyn FlightRecorder>,
     profile: ModelProfile,
     selected_model_id: Mutex<String>,
-    durable_selection_store: Option<ModelRegistryStore>,
+    durable_selection_authority: Option<ScopedModelRegistryAuthority>,
     active_application_selection_revision: Mutex<Option<u64>>,
     active_requests: Mutex<HashMap<Uuid, ActiveLocalRequest>>,
     // MT-144 wiring: optional MemoryCapsule injection per HBR-INT-006.
@@ -292,7 +291,7 @@ impl LocalModelRuntimeLlmClient {
             flight_recorder,
             profile,
             selected_model_id: Mutex::new(selected_model_id),
-            durable_selection_store: None,
+            durable_selection_authority: None,
             active_application_selection_revision: Mutex::new(None),
             active_requests: Mutex::new(HashMap::new()),
             capsule_injector: None,
@@ -398,14 +397,15 @@ impl LocalModelRuntimeLlmClient {
         self
     }
 
-    /// Attach the PostgreSQL authority that owns application/default. The
-    /// process-local id/revision remain a current-boot projection only.
+    /// Attach the exact-scope embedded authority that owns
+    /// `application/default`. The process-local id/revision remain a
+    /// current-boot projection only.
     pub fn with_durable_application_selection(
         mut self,
-        store: ModelRegistryStore,
+        authority: ScopedModelRegistryAuthority,
         selection_revision: u64,
     ) -> Self {
-        self.durable_selection_store = Some(store);
+        self.durable_selection_authority = Some(authority);
         self.active_application_selection_revision = Mutex::new(Some(selection_revision));
         self
     }
@@ -1293,11 +1293,13 @@ impl LlmClient for LocalModelRuntimeLlmClient {
                         target_binding.adapter_id()
                     )));
                 }
-                let durable_store = self.durable_selection_store.as_ref().ok_or_else(|| {
-                    LlmError::ProviderError(
-                        "adapter swap has no PostgreSQL model-selection authority".to_string(),
-                    )
-                })?;
+                let durable_authority =
+                    self.durable_selection_authority.as_ref().ok_or_else(|| {
+                        LlmError::ProviderError(
+                            "adapter swap has no embedded SurrealDB model-selection authority"
+                                .to_string(),
+                        )
+                    })?;
                 let rebind_request = ExplicitModelRuntimeRebind::new(
                     KernelActor::Operator("model-runtime-control".to_string()),
                     format!(
@@ -1404,17 +1406,7 @@ impl LlmClient for LocalModelRuntimeLlmClient {
                         )));
                     }
                 };
-                let replacement_resource_scope = self
-                    .durable_selection_store
-                    .as_ref()
-                    .and_then(|store| store.access().write_scope())
-                    .map(ExactResourceScopeAttribution::try_from_resource_scope)
-                    .transpose()
-                    .map_err(|error| {
-                        LlmError::ProviderError(format!(
-                            "adapter swap resource scope is incomplete: {error}"
-                        ))
-                    })?;
+                let replacement_resource_scope = Some(durable_authority.scope().clone());
                 let (replacement_process, start_ack) =
                     match EmbeddedModelProcess::record_reserved_load_with_durable_ack_scoped(
                         reservation,
@@ -1614,8 +1606,10 @@ impl LlmClient for LocalModelRuntimeLlmClient {
                     registered_by: source.registered_by.clone(),
                     provider: ProviderKind::Local,
                 };
-                let rebind_result = durable_store
+                let rebind_result = durable_authority
+                    .store()
                     .rebind_selection_after_verified_unload(
+                        durable_authority.scope(),
                         &ModelRuntimeSelection {
                             artifact_sha256: source.sha256,
                             runtime_binding: target_binding,
@@ -1724,6 +1718,10 @@ impl LlmClient for LocalModelRuntimeLlmClient {
         }
     }
 
+    fn scoped_model_registry_authority(&self) -> Option<ScopedModelRegistryAuthority> {
+        self.durable_selection_authority.clone()
+    }
+
     fn model_runtime_control_capabilities(
         &self,
         model_id: &str,
@@ -1740,7 +1738,7 @@ impl LlmClient for LocalModelRuntimeLlmClient {
             swap_compatible_adapter: has_lifecycle
                 && self.runtime_control_ledger.is_some()
                 && self.runtime_instance.is_some()
-                && self.durable_selection_store.is_some(),
+                && self.durable_selection_authority.is_some(),
         }
     }
 
@@ -1802,20 +1800,50 @@ impl LlmClient for LocalModelRuntimeLlmClient {
             })
             .map(str::to_owned)
             .unwrap_or_else(|| format!("{:?}", req.requester.subsystem).to_ascii_lowercase());
-        let store = self.durable_selection_store.as_ref().ok_or_else(|| {
-            LlmError::ProviderError(
-                "CX-MM-003: PostgreSQL active-selection authority is unavailable".to_owned(),
-            )
-        })?;
-        let expected_revision = self
-            .active_application_selection_revision
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+        let selection_request_id = req
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.get("selection_request_id"))
+            .and_then(serde_json::Value::as_str)
             .ok_or_else(|| {
                 LlmError::ProviderError(
-                    "CX-MM-003: application/default revision is unavailable".to_owned(),
+                    "CX-MM-003: selection_request_id is required for durable idempotency"
+                        .to_owned(),
                 )
             })?;
+        if selection_request_id != req.request_id || Uuid::parse_str(selection_request_id).is_err()
+        {
+            return Err(LlmError::ProviderError(
+                "CX-MM-003: selection_request_id must be the API-forwarded request_id UUID"
+                    .to_owned(),
+            ));
+        }
+        let expected_revision = req
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.get("expected_selection_revision"))
+            .and_then(serde_json::Value::as_u64)
+            .filter(|revision| *revision != 0)
+            .ok_or_else(|| {
+                LlmError::ProviderError(
+                    "CX-MM-003: expected_selection_revision is required for durable CAS".to_owned(),
+                )
+            })?;
+        let committed_revision = expected_revision.checked_add(1).ok_or_else(|| {
+            LlmError::ProviderError(
+                "CX-MM-003: expected_selection_revision cannot be incremented".to_owned(),
+            )
+        })?;
+        let durable_selection_reason = format!(
+            "selection_request_id={selection_request_id}; {}",
+            req.reason
+        );
+        let authority = self.durable_selection_authority.as_ref().ok_or_else(|| {
+            LlmError::ProviderError(
+                "CX-MM-003: embedded SurrealDB active-selection authority is unavailable"
+                    .to_owned(),
+            )
+        })?;
         let target_bytes = hex::decode(&target.artifact_sha256).map_err(|error| {
             LlmError::ProviderError(format!(
                 "CX-MM-003: target stable artifact anchor is invalid: {error}"
@@ -1827,13 +1855,15 @@ impl LlmClient for LocalModelRuntimeLlmClient {
                 bytes.len()
             ))
         })?;
-        let committed = store
+        let committed = authority
+            .store()
             .select_active_model(
+                authority.scope(),
                 ModelRuntimeSelectionPurpose::ApplicationDefault,
                 target_sha256,
                 expected_revision,
                 KernelActor::Operator(selection_actor),
-                &req.reason,
+                &durable_selection_reason,
             )
             .await
             .map_err(|error| {
@@ -1841,6 +1871,23 @@ impl LlmClient for LocalModelRuntimeLlmClient {
                     "CX-MM-003: durable active selection failed: {error}"
                 ))
             })?;
+        if committed.selection_revision != committed_revision
+            || committed.artifact_sha256 != target_sha256
+        {
+            return Err(LlmError::ProviderError(
+                "CX-MM-003: durable active-selection receipt does not match the request CAS"
+                    .to_owned(),
+            ));
+        }
+
+        if current_model_id == req.target_model_id {
+            *self
+                .active_application_selection_revision
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+                Some(committed.selection_revision);
+            return Ok(());
+        }
 
         if let Some(current) = Self::parse_local_model_id(&current_model_id)? {
             let active_tokens = self

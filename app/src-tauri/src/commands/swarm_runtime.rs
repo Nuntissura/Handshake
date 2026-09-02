@@ -72,12 +72,13 @@ use handshake_core::model_runtime::{
     SamplingParams, WarmVmSnapshotManifest,
 };
 use handshake_core::process_ledger::{
-    LedgerBatcher, LedgerBatcherConfig, LedgerEvent, LedgerOverflowEvent,
-    PostgresProcessLedgerStore, ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore,
-    ProcessReclaimRuntime, RetainedLedgerBatcher,
+    LedgerBatcher, LedgerBatcherConfig, LedgerEvent, LedgerOverflowEvent, ProcessLedgerError,
+    ProcessLedgerOverflowSink, ProcessLedgerStore, ProcessReclaimRuntime, ReclaimResourceScope,
+    RetainedLedgerBatcher,
 };
 use handshake_core::sandbox::SandboxAdapterRegistry;
-use handshake_core::storage::ControlPlaneStorage;
+use handshake_core::storage::surreal::{SurrealStorage, SurrealSwarmOutboxStore};
+use handshake_core::swarm_orchestration::events::DurableSwarmFrDrain;
 use handshake_core::swarm_orchestration::ids::LocalExecutionMode;
 use handshake_core::swarm_orchestration::model_lane::{DexterityLaunchContract, ModelLaneStore};
 use handshake_core::swarm_orchestration::operator_chat::{
@@ -89,7 +90,7 @@ use handshake_core::swarm_orchestration::resource_scope::ExactResourceScopeAttri
 use handshake_core::swarm_orchestration::state_recovery::{
     AgentLaneIdentity, AgentLaneKind, AttributionMode, CloudAssistanceOutputKind,
     CloudAssistanceRequest, CloudFallbackBasisRequest, CloudFallbackReason, LocalCloudAttribution,
-    ModelProviderKind, ParallelSwarmStateRecoveryStore,
+    ModelProviderKind,
 };
 use handshake_core::swarm_orchestration::{
     BroadcastSwarmSink, ByokCloudProvider, CloudLaneFactoryConfig, DurableSwarmFrBridge,
@@ -142,10 +143,8 @@ const CHAT_MAX_TOKENS: u32 = 256;
 const SWARM_COMMITTED_MEMORY_CEILING_BYTES_ENV: &str =
     "HANDSHAKE_SWARM_COMMITTED_MEMORY_CEILING_BYTES";
 
-/// In-process observation mirror for the swarm process ledger. Production uses
-/// PostgreSQL as the acknowledged primary store and writes this mirror only
-/// after the durable write succeeds; test-only constructors may use the mirror
-/// directly when no control-plane pool is supplied.
+/// In-process process-ledger store used only by isolated constructor tests.
+/// Product construction injects the embedded Surreal authority instead.
 #[derive(Clone, Default)]
 pub struct InProcessLedgerStore {
     events: Arc<Mutex<Vec<LedgerEvent>>>,
@@ -168,19 +167,6 @@ impl ProcessLedgerStore for InProcessLedgerStore {
             .map_err(|_| ProcessLedgerError::Store("swarm ledger store poisoned".to_string()))?
             .extend(events);
         Ok(())
-    }
-}
-
-struct MirroredPostgresLedgerStore {
-    primary: PostgresProcessLedgerStore,
-    mirror: InProcessLedgerStore,
-}
-
-#[async_trait]
-impl ProcessLedgerStore for MirroredPostgresLedgerStore {
-    async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
-        self.primary.write_batch(events.clone()).await?;
-        self.mirror.write_batch(events).await
     }
 }
 
@@ -291,15 +277,16 @@ impl ModelSessionFactory for TrackingFactory {
     }
 }
 
-/// Managed app state holding the production swarm coordinator + its ledger
-/// store, the app-side session side-table, plus the writer-task join handle so
-/// it is not dropped (which would stop the background ledger writer).
+/// Managed app state holding the production swarm coordinator, the app-side
+/// session side-table, and retained durable writer/drain handles.
 pub struct SwarmRuntimeState {
     coordinator: Arc<SwarmCoordinator>,
     /// Legacy Tauri routing IPC delegates to this canonical core service. It
     /// never replays, validates, mutates, builds, or executes lifecycle state.
     operator_chat_launch_service: Option<Arc<OperatorChatLaunchService>>,
-    ledger_store: InProcessLedgerStore,
+    /// Test-only observation store. Product construction writes exclusively to
+    /// the injected embedded-Surreal ProcessLedger and leaves this absent.
+    ledger_store: Option<InProcessLedgerStore>,
     sessions: SessionTable,
     /// The concurrency cap the coordinator's semaphore was built with. The
     /// coordinator does not expose its `max_concurrent` publicly, so the app
@@ -315,11 +302,11 @@ pub struct SwarmRuntimeState {
     /// this (alongside the FR sink); the Tauri board forwarder subscribes here and
     /// re-emits typed deltas to the React board, replacing the 1500ms poll.
     board_events: Arc<BroadcastSwarmSink>,
-    /// rank-3: the durable FR bridge drain task (when a recorder is wired). Held
-    /// so it lives for the app's lifetime; dropping it stops persisting swarm
-    /// events. `None` when no recorder was supplied (the eprintln fallback).
+    /// Durable embedded-Surreal outbox drain. Product construction always
+    /// supplies this from the same storage clone as ModelLane and ProcessLedger.
     fr_bridge: Option<DurableSwarmFrBridge>,
-    fr_drain_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    fr_drain: Option<DurableSwarmFrDrain>,
+    fr_test_drain_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
     /// Integrated Terminal capture seam (spec §10.1). When wired (by lib.rs from
     /// the managed `TerminalRuntimeState`), a swarm spawn ALSO opens a read-only
     /// AiJob capture session bound to the swarm_id swimlane, so the operator can
@@ -371,7 +358,7 @@ impl std::fmt::Debug for SwarmRuntimeState {
                 "operator_chat_launch_service",
                 &self.operator_chat_launch_service.is_some(),
             )
-            .field("ledger_store", &"<InProcessLedgerStore>")
+            .field("test_ledger_store", &self.ledger_store.is_some())
             .field("sessions", &"<SessionTable>")
             .field("dexterity_launch_required", &self.dexterity_launch_required)
             .finish()
@@ -441,6 +428,7 @@ impl SwarmRuntimeState {
     /// typed `ProviderNotConfigured` otherwise. Lane ids default to
     /// `"anthropic"` / `"openai"` and can be overridden via
     /// `HANDSHAKE_SWARM_ANTHROPIC_LANE` / `HANDSHAKE_SWARM_OPENAI_LANE`.
+    #[cfg(test)]
     pub fn production(app_data_root: &Path) -> Self {
         let vault: Arc<dyn SecretsVault> = Arc::new(
             handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
@@ -465,11 +453,12 @@ impl SwarmRuntimeState {
     /// sandboxed-local runtime even when the durable Flight Recorder fell back to
     /// the stderr sink (the FR-up path uses `production_with_fr_recorder`). Keeps
     /// `production`'s signature unchanged for the test seams that call it.
+    #[cfg(test)]
     pub fn production_with_registry(
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
-        Self::production_with_registry_internal(app_data_root, sandbox_registry, None, None)
+        Self::production_with_registry_internal(app_data_root, sandbox_registry, None)
     }
 
     /// Compatibility constructor for a ModelLane-backed Tauri runtime. Product
@@ -480,7 +469,8 @@ impl SwarmRuntimeState {
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         model_lane_store: ModelLaneStore,
-        process_ledger_store: PostgresProcessLedgerStore,
+        surreal_storage: SurrealStorage,
+        reclaim_resource_scope: ReclaimResourceScope,
         host_scope_id: String,
     ) -> Result<Self, String> {
         let durable_projection_scope = model_lane_store
@@ -494,19 +484,14 @@ impl SwarmRuntimeState {
             })?;
         let sandbox_registry = sandbox_registry
             .unwrap_or_else(handshake_core::process_ledger::production_process_sandbox_registry);
-        let pool = process_ledger_store.pool().clone();
         if host_scope_id.trim().is_empty() {
             return Err("Tauri process-runtime host scope must not be empty".to_string());
         }
-        let mirror = InProcessLedgerStore::default();
         let overflow: Arc<dyn ProcessLedgerOverflowSink> =
             Arc::new(CountingOverflowSink::default());
         let shared_process_runtime = ProcessReclaimRuntime::production(
-            pool.clone(),
-            Arc::new(MirroredPostgresLedgerStore {
-                primary: process_ledger_store,
-                mirror: mirror.clone(),
-            }),
+            surreal_storage.clone(),
+            reclaim_resource_scope,
             Some(overflow),
             Arc::clone(&sandbox_registry),
             host_scope_id,
@@ -536,9 +521,14 @@ impl SwarmRuntimeState {
             Some(sandbox_registry),
             committed_memory_ceiling_from_env(),
             Some(model_lane_store),
-            None,
             true,
-            Some((shared_process_runtime, mirror, pool)),
+            Some((
+                shared_process_runtime,
+                SurrealSwarmOutboxStore::new_exact(
+                    surreal_storage,
+                    durable_projection_scope.clone(),
+                ),
+            )),
         );
         debug_assert_eq!(
             state.spawn_template_store.resource_scope(),
@@ -552,11 +542,11 @@ impl SwarmRuntimeState {
         Ok(state)
     }
 
+    #[cfg(test)]
     fn production_with_registry_internal(
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         model_lane_store: Option<ModelLaneStore>,
-        process_ledger_store: Option<PostgresProcessLedgerStore>,
     ) -> Self {
         let vault: Arc<dyn SecretsVault> = Arc::new(
             handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
@@ -579,7 +569,6 @@ impl SwarmRuntimeState {
             app_data_root,
             sandbox_registry,
             model_lane_store,
-            process_ledger_store,
             true,
         )
     }
@@ -588,6 +577,7 @@ impl SwarmRuntimeState {
     /// built from a caller-supplied vault + lane ids. This is the seam tests
     /// (and alternate wirings) use to inject an `InMemorySecretsVault` so the
     /// cloud dispatch path is provable without touching the OS keychain.
+    #[cfg(test)]
     pub fn production_with_cloud_vault(
         vault: Arc<dyn SecretsVault>,
         anthropic_lane: Option<String>,
@@ -601,6 +591,7 @@ impl SwarmRuntimeState {
     /// factory wrapped in a [`TrackingFactory`], a structured flight-recorder
     /// sink, with the supplied [`CloudLaneFactoryConfig`]. Starts the lease/TTL
     /// reaper so stale sessions are reclaimed for the app's lifetime.
+    #[cfg(test)]
     pub fn production_with_cloud(cloud: CloudLaneFactoryConfig) -> Self {
         // No app_data_root => no stored CLI-bridge config is loaded; the
         // official_cli lane stays None (the explicit-cloud seam is for callers
@@ -614,26 +605,21 @@ impl SwarmRuntimeState {
     /// Recorder) via the DurableSwarmFrBridge, so swarm/VM lifecycle events are
     /// durable + replayable for the board drill-down + audit -- not just stderr.
     /// Mirrors `production()`'s cloud-lane wiring.
+    #[cfg(test)]
     pub fn production_with_fr_recorder(
         recorder: Arc<dyn FlightRecorder>,
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
-        Self::production_with_fr_recorder_internal(
-            recorder,
-            app_data_root,
-            sandbox_registry,
-            None,
-            None,
-        )
+        Self::production_with_fr_recorder_internal(recorder, app_data_root, sandbox_registry, None)
     }
 
+    #[cfg(test)]
     fn production_with_fr_recorder_internal(
         recorder: Arc<dyn FlightRecorder>,
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         model_lane_store: Option<ModelLaneStore>,
-        process_ledger_store: Option<PostgresProcessLedgerStore>,
     ) -> Self {
         let vault: Arc<dyn SecretsVault> = Arc::new(
             handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
@@ -656,11 +642,11 @@ impl SwarmRuntimeState {
             app_data_root,
             sandbox_registry,
             model_lane_store,
-            process_ledger_store,
             true,
         )
     }
 
+    #[cfg(test)]
     fn production_with_cloud_and_recorder(
         cloud: CloudLaneFactoryConfig,
         recorder: Option<Arc<dyn FlightRecorder>>,
@@ -673,18 +659,17 @@ impl SwarmRuntimeState {
             app_data_root,
             sandbox_registry,
             None,
-            None,
             true,
         )
     }
 
+    #[cfg(test)]
     fn production_with_cloud_and_recorder_with_model_lane_store(
         cloud: CloudLaneFactoryConfig,
         recorder: Option<Arc<dyn FlightRecorder>>,
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         model_lane_store: Option<ModelLaneStore>,
-        process_ledger_store: Option<PostgresProcessLedgerStore>,
         dexterity_launch_required: bool,
     ) -> Self {
         let committed_memory_ceiling_bytes = committed_memory_ceiling_from_env();
@@ -695,12 +680,12 @@ impl SwarmRuntimeState {
             sandbox_registry,
             committed_memory_ceiling_bytes,
             model_lane_store,
-            process_ledger_store,
             dexterity_launch_required,
             None,
         )
     }
 
+    #[cfg(test)]
     fn production_with_cloud_and_recorder_and_committed_memory_ceiling(
         cloud: CloudLaneFactoryConfig,
         recorder: Option<Arc<dyn FlightRecorder>>,
@@ -715,7 +700,6 @@ impl SwarmRuntimeState {
             sandbox_registry,
             committed_memory_ceiling_bytes,
             None,
-            None,
             true,
             None,
         )
@@ -729,7 +713,6 @@ impl SwarmRuntimeState {
             cloud,
             None,
             Path::new(""),
-            None,
             None,
             None,
             None,
@@ -753,7 +736,6 @@ impl SwarmRuntimeState {
             sandbox_registry,
             committed_memory_ceiling_bytes,
             None,
-            None,
             false,
             None,
         )
@@ -766,13 +748,8 @@ impl SwarmRuntimeState {
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         committed_memory_ceiling_bytes: Option<u64>,
         model_lane_store: Option<ModelLaneStore>,
-        process_ledger_store: Option<PostgresProcessLedgerStore>,
         dexterity_launch_required: bool,
-        prebuilt_process_runtime: Option<(
-            ProcessReclaimRuntime,
-            InProcessLedgerStore,
-            sqlx::PgPool,
-        )>,
+        prebuilt_process_runtime: Option<(ProcessReclaimRuntime, SurrealSwarmOutboxStore)>,
     ) -> Self {
         let projection_scope = model_lane_store.as_ref().and_then(|store| {
             store.write_scope().map(|scope| {
@@ -784,32 +761,28 @@ impl SwarmRuntimeState {
             })
         });
         let operator_chat_recorder = recorder.clone();
-        let (process_reclaim_runtime, process_ledger_runtime, store, terminal_outbox_pool) =
+        let (process_reclaim_runtime, process_ledger_runtime, store, terminal_outbox) =
             match prebuilt_process_runtime {
-                Some((runtime, store, pool)) => {
+                Some((runtime, outbox)) => {
                     let ledger = runtime.ledger();
-                    (Some(runtime), ledger, store, Some(pool))
+                    (Some(runtime), ledger, None, Some(outbox))
                 }
                 None => {
-                    let store = InProcessLedgerStore::default();
-                    let overflow = Arc::new(CountingOverflowSink::default());
-                    let terminal_outbox_pool = process_ledger_store
-                        .as_ref()
-                        .map(|store| store.pool().clone());
-                    let process_ledger_store: Arc<dyn ProcessLedgerStore> =
-                        match process_ledger_store {
-                            Some(primary) => Arc::new(MirroredPostgresLedgerStore {
-                                primary,
-                                mirror: store.clone(),
-                            }),
-                            None => Arc::new(store.clone()),
-                        };
-                    let ledger = RetainedLedgerBatcher::spawn(
-                        process_ledger_store,
-                        overflow,
-                        LedgerBatcherConfig::default(),
-                    );
-                    (None, ledger, store, terminal_outbox_pool)
+                    #[cfg(not(test))]
+                    panic!("product swarm runtime requires injected embedded Surreal authority");
+                    #[cfg(test)]
+                    {
+                        let store = InProcessLedgerStore::default();
+                        let overflow = Arc::new(CountingOverflowSink::default());
+                        let process_ledger_store: Arc<dyn ProcessLedgerStore> =
+                            Arc::new(store.clone());
+                        let ledger = RetainedLedgerBatcher::spawn(
+                            process_ledger_store,
+                            overflow,
+                            LedgerBatcherConfig::default(),
+                        );
+                        (None, ledger, Some(store), None)
+                    }
                 }
             };
         let ledger = process_ledger_runtime.ledger();
@@ -878,17 +851,17 @@ impl SwarmRuntimeState {
         });
 
         let trace_id = Uuid::now_v7();
-        // rank-3: when a recorder is supplied, persist every SwarmEvent durably
-        // via the bridge (sync sink emit -> bounded channel -> async record_event);
-        // otherwise fall back to structured stderr. Hold the bridge drain task.
-        let (fr_sink, fr_bridge, fr_drain): (
+        // Product events commit through the embedded Surreal outbox built from
+        // the same injected storage and exact scope as ModelLane/ProcessLedger.
+        let (fr_sink, fr_bridge, fr_drain, fr_test_drain_task): (
             Arc<dyn SwarmEventSink>,
             Option<DurableSwarmFrBridge>,
+            Option<DurableSwarmFrDrain>,
             Option<tokio::task::JoinHandle<()>>,
-        ) = match (recorder, terminal_outbox_pool) {
-            (Some(rec), Some(pool)) => {
+        ) = match (recorder, terminal_outbox) {
+            (Some(rec), Some(outbox)) => {
                 let (bridge, drain) =
-                    DurableSwarmFrBridge::spawn_with_postgres_outbox(rec, pool, 1024);
+                    DurableSwarmFrBridge::spawn_with_surreal_outbox(rec, outbox, 1024);
                 let sink_bridge = bridge.clone();
                 let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
                     Some(scope) => Arc::new(FlightRecorderSwarmSink::new_scoped(
@@ -900,53 +873,63 @@ impl SwarmRuntimeState {
                         sink_bridge.emit(fr_event)
                     })),
                 };
-                (sink, Some(bridge), Some(drain))
+                (sink, Some(bridge), Some(drain), None)
             }
+            (None, Some(outbox)) => {
+                let (bridge, drain) = DurableSwarmFrBridge::spawn_outbox_only(outbox, 1024);
+                let sink_bridge = bridge.clone();
+                let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
+                    Some(scope) => Arc::new(FlightRecorderSwarmSink::new_scoped(
+                        trace_id,
+                        scope,
+                        move |fr_event| sink_bridge.emit(fr_event),
+                    )),
+                    None => Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
+                        sink_bridge.emit(fr_event)
+                    })),
+                };
+                (sink, Some(bridge), Some(drain), None)
+            }
+            #[cfg(test)]
+            (Some(rec), None) => {
+                let (bridge, drain) = DurableSwarmFrBridge::spawn(rec, 1024);
+                let sink_bridge = bridge.clone();
+                let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
+                    Some(scope) => Arc::new(FlightRecorderSwarmSink::new_scoped(
+                        trace_id,
+                        scope,
+                        move |fr_event| sink_bridge.emit(fr_event),
+                    )),
+                    None => Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
+                        sink_bridge.emit(fr_event)
+                    })),
+                };
+                (sink, Some(bridge), None, Some(drain))
+            }
+            #[cfg(not(test))]
             (Some(_), None) => {
-                // A deployed recorder without PostgreSQL outbox authority is
-                // fail-closed. The old recorder-only bridge could acknowledge
-                // a terminal event without a recoverable outbox row.
-                let emit = |_fr_event| {
-                    Err("durable swarm terminal outbox unavailable: PostgreSQL authority is required".to_string())
-                };
-                let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
-                    Some(scope) => {
-                        Arc::new(FlightRecorderSwarmSink::new_scoped(trace_id, scope, emit))
-                    }
-                    None => Arc::new(FlightRecorderSwarmSink::new(trace_id, emit)),
-                };
-                (sink, None, None)
-            }
-            (None, Some(pool)) => {
-                let (bridge, drain) = DurableSwarmFrBridge::spawn_outbox_only(pool, 1024);
-                let sink_bridge = bridge.clone();
-                let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
-                    Some(scope) => Arc::new(FlightRecorderSwarmSink::new_scoped(
-                        trace_id,
-                        scope,
-                        move |fr_event| sink_bridge.emit(fr_event),
-                    )),
-                    None => Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
-                        sink_bridge.emit(fr_event)
-                    })),
-                };
-                (sink, Some(bridge), Some(drain))
+                panic!("product swarm recorder requires injected embedded Surreal outbox")
             }
             (None, None) => {
-                let emit = |event: handshake_core::flight_recorder::FlightRecorderEvent| {
-                    eprintln!(
-                        "{FR_EVT_SWARM_LIFECYCLE}: {}",
-                        serde_json::to_string(&event.payload).unwrap_or_default()
-                    );
-                    Ok(())
-                };
-                let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
-                    Some(scope) => {
-                        Arc::new(FlightRecorderSwarmSink::new_scoped(trace_id, scope, emit))
-                    }
-                    None => Arc::new(FlightRecorderSwarmSink::new(trace_id, emit)),
-                };
-                (sink, None, None)
+                #[cfg(not(test))]
+                panic!("product swarm runtime requires injected embedded Surreal outbox");
+                #[cfg(test)]
+                {
+                    let emit = |event: handshake_core::flight_recorder::FlightRecorderEvent| {
+                        eprintln!(
+                            "{FR_EVT_SWARM_LIFECYCLE}: {}",
+                            serde_json::to_string(&event.payload).unwrap_or_default()
+                        );
+                        Ok(())
+                    };
+                    let sink: Arc<dyn SwarmEventSink> = match projection_scope.clone() {
+                        Some(scope) => {
+                            Arc::new(FlightRecorderSwarmSink::new_scoped(trace_id, scope, emit))
+                        }
+                        None => Arc::new(FlightRecorderSwarmSink::new(trace_id, emit)),
+                    };
+                    (sink, None, None, None)
+                }
             }
         };
         // rank-4: fan out to BOTH the FR sink and the live board broadcast, so one
@@ -1025,7 +1008,8 @@ impl SwarmRuntimeState {
             official_cli_preflight_spawner,
             board_events,
             fr_bridge,
-            fr_drain_task: Mutex::new(fr_drain),
+            fr_drain,
+            fr_test_drain_task: Mutex::new(fr_test_drain_task),
             terminal_capture: None,
             capture_sinks: Arc::new(Mutex::new(HashMap::new())),
             spawn_template_store,
@@ -1195,7 +1179,10 @@ impl SwarmRuntimeState {
     /// The durable swarm ledger rows recorded so far (observability + the
     /// no-orphan invariant: START count must equal STOP count once drained).
     pub fn ledger_rows(&self) -> Vec<LedgerEvent> {
-        self.ledger_store.rows()
+        self.ledger_store
+            .as_ref()
+            .map(InProcessLedgerStore::rows)
+            .unwrap_or_default()
     }
 
     pub async fn drain_process_ledger(
@@ -1220,27 +1207,48 @@ impl SwarmRuntimeState {
             errors.push(format!("swarm coordinator shutdown drain failed: {error}"));
         }
 
-        if let Some(bridge) = &self.fr_bridge {
-            bridge.begin_shutdown();
-            let drain = self
-                .fr_drain_task
-                .lock()
-                .expect("Flight Recorder drain task mutex poisoned")
-                .take();
-            if let Some(mut drain) = drain {
-                match tokio::time::timeout(infrastructure_timeout, &mut drain).await {
-                    Ok(Ok(())) => {}
-                    Ok(Err(error)) => {
-                        errors.push(format!("swarm Flight Recorder bridge join failed: {error}"));
-                    }
-                    Err(_) => {
-                        drain.abort();
-                        let _ = drain.await;
-                        errors.push(format!(
-                            "swarm Flight Recorder bridge drain timed out with {} terminal retries and {} rejected events",
+        if let Some(drain) = &self.fr_drain {
+            if !drain.drain_and_join(infrastructure_timeout).await {
+                let detail = self.fr_bridge.as_ref().map_or_else(
+                    || "bridge unavailable".to_string(),
+                    |bridge| {
+                        format!(
+                            "{} terminal retries and {} rejected events",
                             bridge.terminal_retry_count(),
                             bridge.dropped_count()
-                        ));
+                        )
+                    },
+                );
+                errors.push(format!(
+                    "swarm embedded-Surreal outbox drain failed: {detail}"
+                ));
+            }
+        }
+
+        #[cfg(test)]
+        if let Some(bridge) = &self.fr_bridge {
+            if self.fr_drain.is_none() {
+                bridge.begin_shutdown();
+                let drain = self
+                    .fr_test_drain_task
+                    .lock()
+                    .expect("test Flight Recorder drain task mutex poisoned")
+                    .take();
+                if let Some(mut drain) = drain {
+                    match tokio::time::timeout(infrastructure_timeout, &mut drain).await {
+                        Ok(Ok(())) => {}
+                        Ok(Err(error)) => {
+                            errors.push(format!(
+                                "test swarm Flight Recorder bridge join failed: {error}"
+                            ));
+                        }
+                        Err(_) => {
+                            errors.push(format!(
+                                "test swarm Flight Recorder bridge drain timed out with {} terminal retries and {} rejected events",
+                                bridge.terminal_retry_count(),
+                                bridge.dropped_count()
+                            ));
+                        }
                     }
                 }
             }
@@ -2076,63 +2084,6 @@ pub trait CloudAssistanceReceiptRecorder: Send + Sync {
         &self,
         request: CloudAssistanceRuntimeReceiptRequest,
     ) -> Result<CloudAssistanceReceiptRefIpc, String>;
-}
-
-pub struct PostgresCloudAssistanceReceiptRecorder {
-    store: ParallelSwarmStateRecoveryStore,
-}
-
-impl PostgresCloudAssistanceReceiptRecorder {
-    pub fn from_control_plane(control_plane: ControlPlaneStorage) -> Self {
-        Self {
-            store: ParallelSwarmStateRecoveryStore::new(
-                control_plane.postgres_pool,
-                control_plane.database,
-            ),
-        }
-    }
-}
-
-#[async_trait]
-impl CloudAssistanceReceiptRecorder for PostgresCloudAssistanceReceiptRecorder {
-    async fn record_cloud_fallback_basis(
-        &self,
-        request: CloudFallbackBasisRuntimeRequest,
-    ) -> Result<CloudFallbackBasisRefIpc, String> {
-        let core_request = cloud_fallback_basis_request_from_runtime(request)?;
-        let receipt = self
-            .store
-            .record_cloud_fallback_basis(core_request)
-            .await
-            .map_err(|error| error.to_string())?;
-        Ok(CloudFallbackBasisRefIpc {
-            basis_id: receipt.basis_id,
-            fallback_basis_event_id: receipt.fallback_basis_event_id,
-        })
-    }
-
-    async fn record_cloud_assistance(
-        &self,
-        request: CloudAssistanceRuntimeReceiptRequest,
-    ) -> Result<CloudAssistanceReceiptRefIpc, String> {
-        let cloud_assistance_request = cloud_assistance_request_from_runtime(request)?;
-        let receipt = self
-            .store
-            .record_cloud_assistance_output(cloud_assistance_request)
-            .await
-            .map_err(|error| error.to_string())?;
-
-        Ok(CloudAssistanceReceiptRefIpc {
-            receipt_id: receipt.receipt_id,
-            fallback_basis_event_id: receipt.fallback_basis_event_id,
-            handoff_id: receipt.handoff_id,
-            cloud_assistance_event_id: receipt.cloud_assistance_event_id,
-            output_sha256: receipt.output_sha256,
-            review_state: receipt.review_state,
-            non_authoritative: receipt.non_authoritative,
-            requires_promotion: receipt.requires_promotion,
-        })
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -4417,34 +4368,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn postgres_ledger_failure_does_not_advance_the_observation_mirror() {
-        let unavailable_pool = sqlx::postgres::PgPoolOptions::new()
-            .acquire_timeout(std::time::Duration::from_millis(100))
-            .connect_lazy("postgresql://127.0.0.1:1/handshake_swarm_ledger_unavailable")
-            .expect("create deterministic unavailable PostgreSQL pool");
-        let mirror = InProcessLedgerStore::default();
-        let store = MirroredPostgresLedgerStore {
-            primary: PostgresProcessLedgerStore::new(unavailable_pool),
-            mirror: mirror.clone(),
-        };
-        let result = store
-            .write_batch(vec![LedgerEvent::Start(
-                handshake_core::process_ledger::ProcessStart::new(
-                    handshake_core::process_ledger::ProcessEngineKind::ExternalCompat,
-                    "postgres-primary-test",
-                    None,
-                ),
-            )])
-            .await;
-
-        assert!(result.is_err(), "unavailable PostgreSQL must fail closed");
-        assert!(
-            mirror.rows().is_empty(),
-            "the observation mirror must not advance before PostgreSQL acknowledges durability"
-        );
-    }
-
-    #[tokio::test]
     async fn production_state_wires_committed_memory_ceiling_into_budget() {
         let state =
             SwarmRuntimeState::production_with_cloud_and_recorder_and_committed_memory_ceiling(
@@ -4660,113 +4583,6 @@ mod tests {
         );
         assert_eq!(state.coordinator().live_session_count(), 0);
         assert!(state.live_tracked_sessions().is_empty());
-    }
-
-    #[tokio::test]
-    async fn tauri_process_runtime_fails_closed_when_reclaim_authority_is_unavailable() {
-        let unavailable_pool = sqlx::postgres::PgPoolOptions::new()
-            .acquire_timeout(std::time::Duration::from_millis(100))
-            .connect_lazy("postgresql://127.0.0.1:1/handshake_ac10_unavailable")
-            .expect("create deterministic unavailable PostgreSQL pool");
-        let result = SwarmRuntimeState::production_bootstrap_with_model_lane_store(
-            None,
-            std::path::Path::new(""),
-            None,
-            ModelLaneStore::new(unavailable_pool.clone()),
-            PostgresProcessLedgerStore::new(unavailable_pool),
-            "test-unavailable-host-scope".to_string(),
-        )
-        .await;
-
-        assert!(
-            result.is_err(),
-            "production Tauri boot must not launch model work without bounded reclaim reconciliation"
-        );
-        assert!(result
-            .expect_err("unscoped durable bootstrap must fail")
-            .contains("requires a scoped ModelLaneStore"));
-    }
-
-    #[tokio::test]
-    async fn tauri_durable_bootstrap_rejects_incomplete_projection_scope_before_io() {
-        use handshake_core::swarm_orchestration::resource_scope::{
-            ActorPrincipalId, OwnerAccountId, ResourceScope,
-        };
-        let unavailable_pool = sqlx::postgres::PgPoolOptions::new()
-            .acquire_timeout(std::time::Duration::from_millis(100))
-            .connect_lazy("postgresql://127.0.0.1:1/handshake_ac10_unavailable")
-            .expect("create deterministic unavailable PostgreSQL pool");
-        let store = ModelLaneStore::new_scoped(
-            unavailable_pool.clone(),
-            ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint()),
-        );
-        let error = SwarmRuntimeState::production_bootstrap_with_model_lane_store(
-            None,
-            std::path::Path::new(""),
-            None,
-            store,
-            PostgresProcessLedgerStore::new(unavailable_pool),
-            "test-unavailable-host-scope".to_string(),
-        )
-        .await
-        .expect_err("incomplete scope must fail before database IO");
-        assert!(error.contains("exact five-field"), "{error}");
-        assert!(error.contains("authenticated_session_id"), "{error}");
-    }
-
-    #[tokio::test]
-    async fn tauri_scoped_runtime_stamps_emitted_console_event_with_exact_scope() {
-        use handshake_core::swarm_orchestration::resource_scope::{
-            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
-            ResourceScope, WorkspaceScopeRef,
-        };
-
-        let scope = ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
-            .with_session(AuthenticatedSessionRef::mint())
-            .with_access_space(AccessSpaceRef::mint())
-            .with_workspace(WorkspaceScopeRef::new("tauri-event-workspace").expect("workspace"));
-        let exact_scope = ExactResourceScopeAttribution::try_from_resource_scope(&scope)
-            .expect("complete exact scope");
-        let unavailable_pool = sqlx::postgres::PgPoolOptions::new()
-            .connect_lazy("postgresql://127.0.0.1:1/tauri_event_scope")
-            .expect("create lazy PostgreSQL pool");
-        let console = ConsoleBroadcast::shared();
-        let mut console_rx = console.subscribe();
-        let temp = tempfile::tempdir().expect("app data root");
-        let state = SwarmRuntimeState::production_with_cloud_and_recorder_and_committed_memory_ceiling_with_model_lane_store(
-            CloudLaneFactoryConfig::unconfigured(),
-            None,
-            temp.path(),
-            None,
-            Some(1),
-            Some(ModelLaneStore::new_scoped(unavailable_pool, scope)),
-            None,
-            true,
-            None,
-        );
-        let mut request = local_request("not-read-before-budget-rejection.safetensors");
-        request.committed_memory_bytes = Some(2);
-        let spawn = build_spawn_request(&request).expect("valid bounded spawn request");
-        let expected_subject = spawn.instance_id.to_string();
-
-        let error = state
-            .coordinator()
-            .spawn_session(spawn)
-            .await
-            .expect_err("memory ceiling must reject before model or PostgreSQL IO");
-        assert!(matches!(error, SwarmError::BudgetExhausted { .. }));
-
-        let emitted = tokio::time::timeout(std::time::Duration::from_secs(1), async {
-            loop {
-                let entry = console_rx.recv().await.expect("scoped console event");
-                if entry.subject == expected_subject {
-                    break entry;
-                }
-            }
-        })
-        .await
-        .expect("Tauri runtime must emit the scoped rejection event");
-        assert_eq!(emitted.resource_scope, Some(exact_scope));
     }
 
     #[test]

@@ -1,0 +1,17 @@
+DEFINE TABLE OVERWRITE swarm_terminal_event_outbox SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE event_id ON TABLE swarm_terminal_event_outbox TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE event_json ON TABLE swarm_terminal_event_outbox TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE event_json_sha256 ON TABLE swarm_terminal_event_outbox TYPE string ASSERT string::len($value) = 64;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE swarm_terminal_event_outbox TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE swarm_terminal_event_outbox TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE actor_principal_id ON TABLE swarm_terminal_event_outbox TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE swarm_terminal_event_outbox TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE access_space_id ON TABLE swarm_terminal_event_outbox TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE workspace_id ON TABLE swarm_terminal_event_outbox TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE attempts ON TABLE swarm_terminal_event_outbox TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE last_error ON TABLE swarm_terminal_event_outbox TYPE option<string>;
+DEFINE FIELD OVERWRITE created_at ON TABLE swarm_terminal_event_outbox TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE last_attempt_at ON TABLE swarm_terminal_event_outbox TYPE option<datetime>;
+DEFINE FIELD OVERWRITE storage_authority ON TABLE swarm_terminal_event_outbox TYPE 'embedded_surrealdb' DEFAULT 'embedded_surrealdb';
+DEFINE INDEX OVERWRITE swarm_terminal_event_outbox_scope_event_unique ON TABLE swarm_terminal_event_outbox FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, event_id UNIQUE;
+DEFINE INDEX OVERWRITE swarm_terminal_event_outbox_scope_created_idx ON TABLE swarm_terminal_event_outbox FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, created_at;

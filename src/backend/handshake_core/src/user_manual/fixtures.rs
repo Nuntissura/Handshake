@@ -1,120 +1,131 @@
-//! MT-208 UserManualFixtures: negative-path fixture builders that prove the
-//! manual surface cannot false-PASS.
+//! MT-208 bounded embedded-SurrealDB negative-path fixtures.
 //!
-//! Fixture families (each driven to its negative verdict by
-//! `tests/user_manual_content_tests.rs`):
-//! * stale manual detection — tamper a stored page's content hash and the
-//!   freshness check MUST flip to `stale_content`;
-//! * missing page — delete a seeded page and freshness MUST report
-//!   `missing_page` (and the read route 404s);
-//! * legacy name redirect — every legacy alias resolves; an unknown alias
-//!   MUST NOT resolve;
-//! * search — a seeded corpus term is findable; a nonsense term returns
-//!   empty (bounded, no fuzzy false hits);
-//! * context bundle citation — a manual citation carries slug + version +
-//!   anchor + hash prefix;
-//! * visual navigation — the TOC reaches every page; severing the link graph
-//!   MUST be detected as an orphan.
+//! Each mutation is a fixed UserManual-local operation. The seam deliberately
+//! exposes no raw query or database-client authority to integration tests.
 
-use sqlx::Row;
+use std::collections::{BTreeMap, BTreeSet};
 
-use super::store::sha256_hex;
-use crate::storage::postgres::PostgresDatabase;
-use crate::storage::StorageResult;
+use super::store::{sha256_hex, NewManualSection, NewUserManualPage, UserManualStore};
+use super::USER_MANUAL_VERSION;
+use crate::storage::{StorageError, StorageResult};
 
-/// Tamper a stored page's content hash (simulates seed/code drift or row
-/// tampering). Returns the previous hash so the test can restore it.
-pub async fn tamper_page_content_hash(db: &PostgresDatabase, slug: &str) -> StorageResult<String> {
-    let row = sqlx::query("SELECT content_hash FROM user_manual_pages WHERE slug = $1")
-        .bind(slug)
-        .fetch_one(db.pool())
-        .await?;
-    let previous: String = row.get("content_hash");
+pub async fn receipt_exists(store: &UserManualStore, event_id: &str) -> StorageResult<bool> {
+    store.fixture_receipt_exists(event_id).await
+}
+
+pub async fn receipt_count(store: &UserManualStore) -> StorageResult<usize> {
+    store.fixture_receipt_count().await
+}
+
+pub async fn tamper_page_content_hash(
+    store: &UserManualStore,
+    slug: &str,
+) -> StorageResult<String> {
+    let previous = store
+        .get_page_by_slug(slug)
+        .await?
+        .map(|(page, _, _)| page.content_hash)
+        .ok_or(StorageError::Validation(
+            "user manual page fixture target is missing",
+        ))?;
     let tampered = sha256_hex(&format!("tampered:{previous}"));
-    sqlx::query("UPDATE user_manual_pages SET content_hash = $2 WHERE slug = $1")
-        .bind(slug)
-        .bind(&tampered)
-        .execute(db.pool())
-        .await?;
+    store.fixture_set_page_content_hash(slug, &tampered).await?;
     Ok(previous)
 }
 
-/// Restore a page hash after the stale fixture.
 pub async fn restore_page_content_hash(
-    db: &PostgresDatabase,
+    store: &UserManualStore,
     slug: &str,
     content_hash: &str,
 ) -> StorageResult<()> {
-    sqlx::query("UPDATE user_manual_pages SET content_hash = $2 WHERE slug = $1")
-        .bind(slug)
-        .bind(content_hash)
-        .execute(db.pool())
+    store
+        .fixture_set_page_content_hash(slug, content_hash)
+        .await
+}
+
+pub async fn delete_page(store: &UserManualStore, slug: &str) -> StorageResult<u64> {
+    Ok(u64::from(store.fixture_delete_page(slug).await?))
+}
+
+pub async fn delete_page_sections(store: &UserManualStore, page_id: &str) -> StorageResult<()> {
+    store.fixture_delete_page_sections(page_id).await
+}
+
+pub async fn tamper_section(
+    store: &UserManualStore,
+    section_id: &str,
+    title: &str,
+    body_md: &str,
+) -> StorageResult<()> {
+    store
+        .fixture_tamper_section(section_id, title, body_md)
+        .await
+}
+
+pub async fn delete_route_anchor(store: &UserManualStore, route: &str) -> StorageResult<usize> {
+    store.fixture_delete_route_anchor(route).await
+}
+
+pub async fn break_first_page_link(
+    store: &UserManualStore,
+    slug: &str,
+    missing_target: &str,
+) -> StorageResult<String> {
+    store
+        .fixture_break_first_page_link(slug, missing_target)
+        .await
+}
+
+pub async fn inject_page_receipt_without_mutation(
+    store: &UserManualStore,
+    page: &NewUserManualPage,
+) -> StorageResult<String> {
+    store
+        .fixture_inject_page_receipt_without_mutation(page, USER_MANUAL_VERSION)
+        .await
+}
+
+pub async fn insert_orphan_page(store: &UserManualStore) -> StorageResult<String> {
+    let page = NewUserManualPage {
+        slug: "fixture-orphan-page".to_owned(),
+        title: "Fixture Orphan".to_owned(),
+        page_kind: "surface_guide",
+        audience: "model",
+        spec_anchors: Vec::new(),
+        sections: vec![NewManualSection {
+            section_kind: "purpose",
+            title: "Fixture purpose".to_owned(),
+            body_md: "Negative reachability fixture.".to_owned(),
+            body_json: None,
+        }],
+        anchors: Vec::new(),
+    };
+    store
+        .upsert_page(&page, USER_MANUAL_VERSION, "current")
         .await?;
-    Ok(())
+    Ok(page.slug)
 }
 
-/// Delete a seeded page (missing-page fixture). Sections/anchors cascade.
-pub async fn delete_page(db: &PostgresDatabase, slug: &str) -> StorageResult<u64> {
-    let result = sqlx::query("DELETE FROM user_manual_pages WHERE slug = $1")
-        .bind(slug)
-        .execute(db.pool())
-        .await?;
-    Ok(result.rows_affected())
-}
+pub async fn unreachable_pages(store: &UserManualStore) -> StorageResult<Vec<String>> {
+    let pages = store.list_pages(None, None, super::store::LIST_CAP).await?;
+    let page_slugs: BTreeMap<String, String> = pages
+        .iter()
+        .map(|page| (page.page_id.clone(), page.slug.clone()))
+        .collect();
+    let links: Vec<(String, String)> = store
+        .anchors_by_kind("page_link")
+        .await?
+        .into_iter()
+        .filter_map(|anchor| {
+            page_slugs
+                .get(&anchor.page_id)
+                .cloned()
+                .map(|from| (from, anchor.anchor_value))
+        })
+        .collect();
 
-/// Insert an orphan page that nothing links to (visual-navigation fixture):
-/// the navigation audit MUST flag it as unreachable from the TOC.
-pub async fn insert_orphan_page(db: &PostgresDatabase) -> StorageResult<String> {
-    let slug = "fixture-orphan-page";
-    let body = serde_json::json!({"sections": [], "anchors": []});
-    let hash = sha256_hex("fixture-orphan-page-body");
-    sqlx::query(
-        r#"
-        INSERT INTO user_manual_pages (
-            page_id, slug, title, page_kind, audience, body, content_hash,
-            manual_version, source_kind, spec_anchors, status
-        ) VALUES ($1, $2, 'Fixture Orphan', 'surface_guide', 'model', $3, $4,
-                  'fixture', 'runtime_edit', '[]'::jsonb, 'current')
-        ON CONFLICT (slug) DO NOTHING
-        "#,
-    )
-    .bind(format!("UMP-fixture-{}", uuid::Uuid::now_v7()))
-    .bind(slug)
-    .bind(body)
-    .bind(hash)
-    .execute(db.pool())
-    .await?;
-    Ok(slug.to_string())
-}
-
-/// Audit TOC reachability over the STORED rows (not the seed): BFS from
-/// `manual-toc` across `page_link` anchors; returns slugs of stored pages
-/// that are not reachable. The healthy corpus returns an empty list; the
-/// orphan fixture must appear here.
-pub async fn unreachable_pages(db: &PostgresDatabase) -> StorageResult<Vec<String>> {
-    let pages: Vec<(String, String)> =
-        sqlx::query("SELECT page_id, slug FROM user_manual_pages WHERE status = 'current'")
-            .fetch_all(db.pool())
-            .await?
-            .iter()
-            .map(|row| (row.get("page_id"), row.get("slug")))
-            .collect();
-    let links: Vec<(String, String)> = sqlx::query(
-        r#"
-        SELECT p.slug AS from_slug, a.anchor_value AS to_slug
-        FROM user_manual_anchors a
-        JOIN user_manual_pages p ON p.page_id = a.page_id
-        WHERE a.anchor_kind = 'page_link'
-        "#,
-    )
-    .fetch_all(db.pool())
-    .await?
-    .iter()
-    .map(|row| (row.get("from_slug"), row.get("to_slug")))
-    .collect();
-
-    let mut reachable = std::collections::BTreeSet::new();
-    let mut queue = vec!["manual-toc".to_string()];
+    let mut reachable = BTreeSet::new();
+    let mut queue = vec!["manual-toc".to_owned()];
     while let Some(slug) = queue.pop() {
         if !reachable.insert(slug.clone()) {
             continue;
@@ -127,7 +138,7 @@ pub async fn unreachable_pages(db: &PostgresDatabase) -> StorageResult<Vec<Strin
     }
     Ok(pages
         .into_iter()
-        .map(|(_, slug)| slug)
-        .filter(|slug| !reachable.contains(slug))
+        .filter(|page| page.status == "current" && !reachable.contains(&page.slug))
+        .map(|page| page.slug)
         .collect())
 }

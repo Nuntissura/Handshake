@@ -239,9 +239,9 @@ async fn create_diagnostic(
 }
 
 /// Server-authoritative exact scope retains actor, session, AccessSpace, and
-/// required workspace through both SQL and post-decode authorization.
+/// required workspace through both durable predicates and post-decode authorization.
 fn model_lane_store(state: &AppState, scope: &RequestAccountScope) -> ModelLaneStore {
-    ModelLaneStore::new_scoped(state.postgres_pool.clone(), scope.resource_scope())
+    ModelLaneStore::new_scoped(state.surreal_storage.clone(), scope.resource_scope())
 }
 
 async fn latest_model_lane_diagnostics(
@@ -290,13 +290,10 @@ fn map_model_lane_diagnostics_error(
             ModelLaneDiagnosticsApiError::not_found("model lane run not found")
         }
         ModelLaneError::ScopeDenied(denied) => ModelLaneDiagnosticsApiError::scope_denied(&denied),
-        // A database that is unreachable is NOT an integrity failure. Routing it
-        // to 500 (as this did after the scoped-store change removed the inline
-        // SQL probes) tells the caller "this server is broken" when the truthful
-        // answer is "the authority store is unavailable, retry" - and it makes a
-        // transient outage indistinguishable from a real corruption bug, which is
-        // the one distinction an operator staring at diagnostics needs most.
-        ModelLaneError::Sqlx(err) => ModelLaneDiagnosticsApiError::authority_unavailable(err),
+        // An unavailable embedded authority is not an integrity failure. Keep a
+        // transient storage outage distinct from a corrupt durable record.
+        ModelLaneError::Surreal(err) => ModelLaneDiagnosticsApiError::authority_unavailable(err),
+        ModelLaneError::Storage(err) => ModelLaneDiagnosticsApiError::authority_unavailable(err),
         other => ModelLaneDiagnosticsApiError::integrity(other),
     }
 }
@@ -323,11 +320,8 @@ impl ModelLaneDiagnosticsApiError {
         }
     }
 
-    /// The storage-unavailable contract. The two ModelLane handlers no longer
-    /// run their own inline SQL probes (those probes were the unscoped
-    /// disclosure the scoped-store change removed), so this is now reached
-    /// through `map_model_lane_diagnostics_error`'s `Sqlx` arm instead.
-    fn authority_unavailable(error: sqlx::Error) -> Self {
+    /// The storage-unavailable contract for the injected embedded authority.
+    fn authority_unavailable(error: impl std::fmt::Display) -> Self {
         Self {
             status: StatusCode::SERVICE_UNAVAILABLE,
             code: "MODEL_LANE_DIAGNOSTICS_AUTHORITY_UNAVAILABLE",

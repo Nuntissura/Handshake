@@ -1,0 +1,51 @@
+DEFINE FIELD IF NOT EXISTS owner_runtime_instance_id ON kernel_process_lifecycle TYPE option<uuid>;
+DEFINE FIELD IF NOT EXISTS owner_host_scope_id ON kernel_process_lifecycle TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD IF NOT EXISTS owner_lease_schema_id ON kernel_process_lifecycle TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD IF NOT EXISTS owner_lease_protocol ON kernel_process_lifecycle TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD IF NOT EXISTS owner_lease_address ON kernel_process_lifecycle TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD IF NOT EXISTS owner_lease_port ON kernel_process_lifecycle TYPE option<int> ASSERT $value = NONE OR ($value > 0 AND $value <= 65535);
+DEFINE FIELD IF NOT EXISTS owner_account_id ON kernel_process_lifecycle TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS actor_principal_id ON kernel_process_lifecycle TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS authenticated_session_id ON kernel_process_lifecycle TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS access_space_id ON kernel_process_lifecycle TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS workspace_id ON kernel_process_lifecycle TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS reclaim_claimant_uuid ON kernel_process_lifecycle TYPE option<uuid>;
+DEFINE FIELD IF NOT EXISTS reclaim_kill_operation_uuid ON kernel_process_lifecycle TYPE option<uuid>;
+DEFINE FIELD IF NOT EXISTS reclaim_generation ON kernel_process_lifecycle TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD IF NOT EXISTS reclaim_claimed_at_unix_ms ON kernel_process_lifecycle TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS reclaim_lease_expires_at_unix_ms ON kernel_process_lifecycle TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS reclaim_state ON kernel_process_lifecycle TYPE option<string> ASSERT $value = NONE OR $value IN ['claimed', 'kill_in_progress', 'kill_succeeded_pending_stop'];
+DEFINE FIELD IF NOT EXISTS event_ledger_event_id ON kernel_process_lifecycle TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE INDEX IF NOT EXISTS idx_kernel_process_lifecycle_runtime_owner ON kernel_process_lifecycle FIELDS owner_runtime_instance_id, owner_host_scope_id, stopped_at;
+DEFINE INDEX IF NOT EXISTS idx_kernel_process_lifecycle_exact_scope ON kernel_process_lifecycle FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id;
+DEFINE INDEX IF NOT EXISTS idx_kernel_process_lifecycle_reclaim ON kernel_process_lifecycle FIELDS parent_session_id, stopped_at, reclaim_state, reclaim_lease_expires_at_unix_ms;
+
+DEFINE FIELD IF NOT EXISTS owner_account_id ON kernel_session_queue TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS actor_principal_id ON kernel_session_queue TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS authenticated_session_id ON kernel_session_queue TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS access_space_id ON kernel_session_queue TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS workspace_id ON kernel_session_queue TYPE option<string> ASSERT $value = NONE OR string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS recovery_error ON kernel_session_queue TYPE option<object> FLEXIBLE;
+DEFINE FIELD IF NOT EXISTS recovery_error.* ON kernel_session_queue TYPE any;
+DEFINE INDEX IF NOT EXISTS idx_kernel_session_queue_exact_scope ON kernel_session_queue FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, state;
+
+DEFINE FIELD IF NOT EXISTS owner_account_id ON kernel_session_checkpoint TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS actor_principal_id ON kernel_session_checkpoint TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS authenticated_session_id ON kernel_session_checkpoint TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS access_space_id ON kernel_session_checkpoint TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS workspace_id ON kernel_session_checkpoint TYPE option<string> ASSERT $value = NONE OR string::len($value) > 0;
+DEFINE INDEX IF NOT EXISTS idx_kernel_session_checkpoint_exact_scope ON kernel_session_checkpoint FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, session_id, created_at_utc;
+
+DEFINE FIELD IF NOT EXISTS owner_account_id ON kernel_restart_resume_report TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS actor_principal_id ON kernel_restart_resume_report TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS authenticated_session_id ON kernel_restart_resume_report TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS access_space_id ON kernel_restart_resume_report TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS workspace_id ON kernel_restart_resume_report TYPE option<string> ASSERT $value = NONE OR string::len($value) > 0;
+DEFINE INDEX IF NOT EXISTS idx_kernel_restart_resume_report_exact_scope ON kernel_restart_resume_report FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, started_at_utc;
+
+DEFINE FIELD IF NOT EXISTS owner_account_id ON kernel_mt_loop_checkpoint TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS actor_principal_id ON kernel_mt_loop_checkpoint TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS authenticated_session_id ON kernel_mt_loop_checkpoint TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS access_space_id ON kernel_mt_loop_checkpoint TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS workspace_id ON kernel_mt_loop_checkpoint TYPE option<string> ASSERT $value = NONE OR string::len($value) > 0;
+DEFINE INDEX IF NOT EXISTS idx_kernel_mt_loop_checkpoint_exact_scope ON kernel_mt_loop_checkpoint FIELDS owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, job_id, created_at_utc;

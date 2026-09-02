@@ -45,6 +45,7 @@ pub mod media;
 pub mod model_lease;
 pub mod model_manual_merge;
 pub mod moodboards;
+pub mod persistence;
 pub mod pose;
 pub mod relationships;
 pub mod scripts;

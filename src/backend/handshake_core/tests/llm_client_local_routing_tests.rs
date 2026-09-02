@@ -4,6 +4,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+mod surreal_test_store_support;
+
 use async_trait::async_trait;
 use chrono::Utc;
 use futures::stream;
@@ -20,14 +22,21 @@ use handshake_core::{
     model_runtime::{
         BaseModelTag, CancellationToken, Embedding, FinishReason, GenPrompt, GenerateRequest,
         GeneratedToken, KvCacheHandle, LoraStackHandle, ModelCapabilities, ModelCatalog, ModelId,
-        ModelRegistration, ModelRegistry, ModelRuntime, ModelRuntimeError, OperatorId,
-        ProviderKind, RuntimeBinding, Score, SteeringHookHandle, TokenStream,
+        ModelRegistration, ModelRegistry, ModelRegistryStore, ModelRuntime, ModelRuntimeError,
+        ModelRuntimeSelectionPurpose, OperatorId, ProviderKind, RuntimeBinding,
+        ScopedModelRegistryAuthority, Score, SteeringHookHandle, TokenStream,
+    },
+    storage::surreal::{bootstrap_model_registry_schema, bootstrap_schema},
+    swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+        OwnerAccountId, WorkspaceScopeRef,
     },
     workflows::{
         ModelSwapPriority, ModelSwapRequestV0_4, ModelSwapRequesterSubsystem,
         ModelSwapRequesterV0_4, ModelSwapRole, ModelSwapStrategy,
     },
 };
+use surreal_test_store_support::EmbeddedSurrealTestScope;
 use tokio::{sync::Notify, time::Duration};
 
 #[derive(Clone)]
@@ -305,15 +314,53 @@ async fn wait_for_runtime_request(runtime: &RecordingRuntime) -> GenerateRequest
     panic!("timed out waiting for runtime request");
 }
 
-fn ready_model_swap_request(current: ModelId, target: ModelId) -> ModelSwapRequestV0_4 {
+fn exact_local_routing_scope() -> ExactResourceScopeAttribution {
+    ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::mint(),
+        actor_principal_id: ActorPrincipalId::mint(),
+        authenticated_session_id: AuthenticatedSessionRef::mint(),
+        access_space_id: AccessSpaceRef::mint(),
+        workspace_id: WorkspaceScopeRef::new("WS-LLM-LOCAL-ROUTING")
+            .expect("valid local-routing workspace id"),
+    }
+}
+
+fn ready_model_swap_request(
+    current: ModelId,
+    target: ModelId,
+    expected_selection_revision: u64,
+) -> ModelSwapRequestV0_4 {
+    ready_model_swap_request_with_id(
+        current,
+        target,
+        expected_selection_revision,
+        uuid::Uuid::now_v7(),
+    )
+}
+
+fn ready_model_swap_request_with_id(
+    current: ModelId,
+    target: ModelId,
+    expected_selection_revision: u64,
+    selection_request_id: uuid::Uuid,
+) -> ModelSwapRequestV0_4 {
+    let request_id = selection_request_id.to_string();
     let mut metadata = std::collections::BTreeMap::new();
     metadata.insert(
         "actor".to_owned(),
         serde_json::json!("native-model-runtime-panel"),
     );
+    metadata.insert(
+        "selection_request_id".to_owned(),
+        serde_json::json!(request_id.clone()),
+    );
+    metadata.insert(
+        "expected_selection_revision".to_owned(),
+        serde_json::json!(expected_selection_revision),
+    );
     ModelSwapRequestV0_4 {
         schema_version: "hsk.model_swap@0.4".to_owned(),
-        request_id: format!("swap{}", uuid::Uuid::now_v7().simple()),
+        request_id,
         current_model_id: current.to_string(),
         target_model_id: target.to_string(),
         role: ModelSwapRole::Orchestrator,
@@ -338,6 +385,26 @@ fn ready_model_swap_request(current: ModelId, target: ModelId) -> ModelSwapReque
 
 #[tokio::test]
 async fn ready_model_swap_is_serialized_audited_and_changes_default_routing() {
+    let mut surreal_scope = EmbeddedSurrealTestScope::create()
+        .await
+        .expect("allocate isolated embedded-Surreal local-routing scope");
+    let storage = surreal_scope
+        .activate_storage()
+        .await
+        .expect("activate embedded-Surreal local-routing storage");
+    bootstrap_schema(&storage)
+        .await
+        .expect("bootstrap shared embedded-Surreal schema");
+    bootstrap_model_registry_schema(&storage)
+        .await
+        .expect("bootstrap embedded-Surreal model-registry schema");
+    let exact_scope = exact_local_routing_scope();
+    let registry_store = ModelRegistryStore::new(storage.clone());
+    registry_store
+        .ensure_workspace_for_tests(&exact_scope)
+        .await
+        .expect("seed exact local-routing workspace");
+
     let current = ModelId::new_v7();
     let target = ModelId::new_v7();
     let not_ready = ModelId::new_v7();
@@ -346,20 +413,47 @@ async fn ready_model_swap_is_serialized_audited_and_changes_default_routing() {
     current_registration.sha256 = [1; 32];
     current_registration.base_model_tag = BaseModelTag::new("current-ready");
     registry
-        .register(current_registration)
+        .register(current_registration.clone())
         .expect("register current READY model");
     let mut target_registration = registration(target, RuntimeBinding::Candle);
     target_registration.sha256 = [2; 32];
     target_registration.base_model_tag = BaseModelTag::new("target-ready");
     registry
-        .register(target_registration)
+        .register(target_registration.clone())
         .expect("register target READY model");
     let mut dormant_registration = registration(not_ready, RuntimeBinding::Candle);
     dormant_registration.sha256 = [3; 32];
     dormant_registration.base_model_tag = BaseModelTag::new("not-ready");
     registry
-        .register(dormant_registration)
+        .register(dormant_registration.clone())
         .expect("register non-READY model");
+
+    registry_store
+        .persist_boot_set_and_read_back(
+            &exact_scope,
+            &[
+                current_registration.clone(),
+                target_registration.clone(),
+                dormant_registration,
+            ],
+        )
+        .await
+        .expect("persist local-routing registry in embedded Surreal");
+    let initial_application_default = registry_store
+        .ensure_active_defaults(
+            &exact_scope,
+            &[(
+                ModelRuntimeSelectionPurpose::ApplicationDefault,
+                current_registration.sha256,
+            )],
+        )
+        .await
+        .expect("seed durable application default")
+        .into_iter()
+        .find(|selection| selection.purpose == ModelRuntimeSelectionPurpose::ApplicationDefault)
+        .expect("seeded durable application default remains present");
+    let initial_selection_revision = initial_application_default.selection_revision;
+
     registry.mark_loaded(current).expect("mark current loaded");
     registry.mark_loaded(target).expect("mark target loaded");
 
@@ -378,13 +472,93 @@ async fn ready_model_swap_is_serialized_audited_and_changes_default_routing() {
         recorder.clone(),
         ModelProfile::new(current.to_string(), 8192).with_streaming(true),
     )
-    .with_catalog(catalog);
+    .with_catalog(catalog)
+    .with_durable_application_selection(
+        ScopedModelRegistryAuthority::new(registry_store.clone(), exact_scope.clone()),
+        initial_selection_revision,
+    );
 
+    let selection_request_id = uuid::Uuid::now_v7();
     client
-        .swap_model(ready_model_swap_request(current, target))
+        .swap_model(ready_model_swap_request_with_id(
+            current,
+            target,
+            initial_selection_revision,
+            selection_request_id,
+        ))
         .await
         .expect("switch between current READY models");
     assert_eq!(client.selected_model_id(), target.to_string());
+    let durable_application_default = registry_store
+        .list_active_selections(&exact_scope)
+        .await
+        .expect("read durable application default from the injected Surreal store")
+        .into_iter()
+        .find(|selection| selection.purpose == ModelRuntimeSelectionPurpose::ApplicationDefault)
+        .expect("durable application default remains present");
+    assert_eq!(durable_application_default.artifact_sha256, [2; 32]);
+    assert_eq!(
+        durable_application_default.selection_revision,
+        initial_selection_revision + 1
+    );
+
+    let cancellation_count_before_retry = runtime.cancel_count();
+    client
+        .swap_model(ready_model_swap_request_with_id(
+            target,
+            target,
+            initial_selection_revision,
+            selection_request_id,
+        ))
+        .await
+        .expect("identical durable selection retry returns stable success");
+    assert_eq!(
+        runtime.cancel_count(),
+        cancellation_count_before_retry,
+        "identical durable retry must not repeat runtime cancellation"
+    );
+    let durable_after_retry = registry_store
+        .list_active_selections(&exact_scope)
+        .await
+        .expect("read durable application default after identical retry")
+        .into_iter()
+        .find(|selection| selection.purpose == ModelRuntimeSelectionPurpose::ApplicationDefault)
+        .expect("durable application default remains present after retry");
+    assert_eq!(durable_after_retry.artifact_sha256, [2; 32]);
+    assert_eq!(
+        durable_after_retry.selection_revision,
+        initial_selection_revision + 1,
+        "identical retry must preserve the committed revision"
+    );
+
+    let conflicting_retry = client
+        .swap_model(ready_model_swap_request(
+            target,
+            target,
+            initial_selection_revision,
+        ))
+        .await
+        .expect_err("same stale CAS with a different request id must fail closed");
+    assert!(
+        conflicting_retry
+            .to_string()
+            .contains("durable active selection failed"),
+        "got {conflicting_retry}"
+    );
+    let durable_after_conflict = registry_store
+        .list_active_selections(&exact_scope)
+        .await
+        .expect("read durable application default after conflicting retry")
+        .into_iter()
+        .find(|selection| selection.purpose == ModelRuntimeSelectionPurpose::ApplicationDefault)
+        .expect("durable application default remains present after conflicting retry");
+    assert_eq!(durable_after_conflict.artifact_sha256, [2; 32]);
+    assert_eq!(
+        durable_after_conflict.selection_revision,
+        initial_selection_revision + 1,
+        "conflicting retry must not mutate the durable revision"
+    );
+
     let response = client
         .completion(CompletionRequest::new(
             uuid::Uuid::now_v7(),
@@ -402,7 +576,11 @@ async fn ready_model_swap_is_serialized_audited_and_changes_default_routing() {
     }));
 
     let stale = client
-        .swap_model(ready_model_swap_request(current, target))
+        .swap_model(ready_model_swap_request(
+            current,
+            target,
+            initial_selection_revision,
+        ))
         .await
         .expect_err("stale concurrent selector state must fail closed");
     assert!(
@@ -412,7 +590,11 @@ async fn ready_model_swap_is_serialized_audited_and_changes_default_routing() {
     assert_eq!(client.selected_model_id(), target.to_string());
 
     let not_ready_error = client
-        .swap_model(ready_model_swap_request(target, not_ready))
+        .swap_model(ready_model_swap_request(
+            target,
+            not_ready,
+            initial_selection_revision + 1,
+        ))
         .await
         .expect_err("a catalog row without READY state must not be selectable");
     assert!(
@@ -420,6 +602,14 @@ async fn ready_model_swap_is_serialized_audited_and_changes_default_routing() {
         "got {not_ready_error}"
     );
     assert_eq!(client.selected_model_id(), target.to_string());
+
+    drop(client);
+    drop(registry_store);
+    drop(storage);
+    surreal_scope
+        .cleanup()
+        .await
+        .expect("clean embedded-Surreal local-routing scope");
 }
 
 #[tokio::test]

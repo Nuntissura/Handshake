@@ -6,18 +6,20 @@ use handshake_core::{
     flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
     llm::{boot::resolve_default_llm_client, LlmClient},
     logging,
-    model_runtime::ModelRegistryStore,
+    model_runtime::{ModelRegistryStore, ScopedModelRegistryAuthority},
     models::HealthResponse,
     process_ledger::{
         restart_resume::{
-            BoundedRestartResumeOutcome, PostgresRestartResumeRunner,
+            BoundedRestartResumeOutcome, SurrealRestartResumeRunner,
             RESTART_RESUME_BOOT_TIMEOUT_DEFAULT,
         },
-        LedgerBatcher, PostgresProcessLedgerStore, ProcessReclaimRuntime,
+        LedgerBatcher, ProcessReclaimRuntime, ReclaimResourceScope,
     },
     storage::{
-        self,
         retention::{Janitor, JanitorConfig},
+        surreal::{
+            bootstrap_production_schemas, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
+        },
     },
     workflows, AppState,
 };
@@ -48,12 +50,6 @@ async fn main() {
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = ([127, 0, 0, 1], 37501).into();
 
-    // WP-1 MT-013 (F1 hard-crash reconcile): capture the boot timestamp BEFORE
-    // any embedded-model ProcessOwnershipLedger START row is written this run, so
-    // the pid-less orphan reclaim sweep below can safely close only rows started
-    // by a PRIOR (crashed) process and never this boot's own live row.
-    let boot_started_at = chrono::Utc::now();
-
     logging::init_logging();
 
     // The desktop host owns the persisted product-local identity. Parse its
@@ -62,35 +58,23 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // headers or an unscoped node-global view.
     let product_local_scope = api::account_scope::ProductLocalResourceScope::from_env()?;
     std::env::remove_var(api::account_scope::PRODUCT_LOCAL_RESOURCE_SCOPE_ENV);
+    let exact_scope = product_local_scope.exact();
+    let reclaim_resource_scope = ReclaimResourceScope::try_from_stored(
+        &exact_scope.owner_account_id.to_string(),
+        &exact_scope.actor_principal_id.to_string(),
+        &exact_scope.authenticated_session_id.to_string(),
+        exact_scope.workspace_id.as_str(),
+        &exact_scope.access_space_id.to_string(),
+    )?;
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Managed PostgreSQL lifecycle (task #9): start (or adopt) Handshake's own
-    // hidden cluster BEFORE storage init, so no operator has to launch Postgres
-    // manually and no console window pops. Idempotent — an already-running
-    // cluster on the configured port is adopted, never double-started.
-    let managed_pg = handshake_core::managed_postgres::ManagedPostgres::ensure_running(
-        handshake_core::managed_postgres::ManagedPostgresConfig::from_env(),
-    )
-    .await?;
-    if managed_pg.is_enabled() && std::env::var(storage::DATABASE_URL_ENV).is_err() {
-        std::env::set_var(storage::DATABASE_URL_ENV, managed_pg.database_url());
-        tracing::info!(
-            target: "handshake_core::managed_postgres",
-            "DATABASE_URL resolved from the managed cluster"
-        );
-    }
-
-    let storage_config = storage::ControlPlaneStorageConfig::from_env()?;
-    tracing::info!(
-        target: "handshake_core",
-        storage_mode = %storage_config.mode,
-        "control-plane storage mode resolved"
-    );
-    let control_plane = storage::init_control_plane_storage_with_config(&storage_config).await?;
+    let surreal_storage = SurrealStorage::open(SurrealStorageConfig::from_env()?).await?;
+    bootstrap_production_schemas(&surreal_storage).await?;
+    let shared_database = Arc::new(SurrealDatabase::new(surreal_storage.clone()));
     // The restart-resume boot pass is bounded by a hard outer wall clock,
     // consistent with the sibling ModelLane boot recovery below and the
     // process-ledger boot reconcile (`time::timeout(startup_timeout)`). A single
@@ -99,9 +83,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // resumed), records a durable bounded-abort report, and boot continues so the
     // staleness reclaim task started later can finish reconciling; it never
     // panics or hangs.
-    let restart_outcome = PostgresRestartResumeRunner::new(control_plane.postgres_pool.clone())
-        .run_with_bound(restart_resume_boot_timeout())
-        .await?;
+    let restart_outcome =
+        SurrealRestartResumeRunner::open(surreal_storage.clone(), reclaim_resource_scope.clone())
+            .await?
+            .run_with_bound(restart_resume_boot_timeout())
+            .await?;
     let restart_report = match restart_outcome {
         BoundedRestartResumeOutcome::Completed(report) => {
             tracing::info!(
@@ -130,7 +116,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     let recovered_model_lane_runs = recover_model_lanes_at_core_boot_with_timeout(
-        control_plane.postgres_pool.clone(),
+        surreal_storage.clone(),
+        product_local_scope.resource_scope(),
         MODEL_LANE_BOOT_RECOVERY_TIMEOUT,
     )
     .await?;
@@ -141,303 +128,67 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     );
     let startup_recovery_only = startup_recovery_only_requested();
 
-    // WP-1 MT-013 hard-crash ownership: prior embedded STARTs are reconciled on
-    // every same-host boot, even after the operator switches to a cloud or
-    // unconfigured provider. Only an actually configured embedded local lane
-    // needs a new OS liveness lease. Provider/host/ledger failure keeps the
-    // backend available but with local inference disabled before artifact access.
-    let embedded_runtime_requested =
-        match handshake_core::llm::boot::embedded_runtime_boot_requested_from_env() {
-            Ok(requested) => requested,
-            Err(error) => {
-                tracing::warn!(
-                    target: "handshake_core::llm",
-                    error = %error,
-                    "embedded runtime lease preflight could not resolve provider; deferring to fail-closed LLM resolution"
-                );
-                false
-            }
-        };
-    let mut embedded_runtime_instance_lease = None;
-    let mut runtime_instance = None;
-    // Local-endpoint provenance is separate from shutdown ownership. A
-    // postmaster adopted after a Handshake crash is non-owning (`is_managed`
-    // remains false) but still carries an opaque proof token after SQL
-    // data_directory/system_identifier, pg_ctl, postmaster.pid, and port
-    // validation.
-    let proven_local_postgres_endpoint = match managed_pg.proven_local_endpoint() {
-        Some(proof) => {
-            match handshake_core::process_ledger::verify_proven_local_postgres_endpoint_pool(
-                &control_plane.postgres_pool,
-                proof,
-            )
-            .await
-            {
-                Ok(()) => Some(proof),
-                Err(error) => {
-                    tracing::error!(
-                        target: "handshake_core::process_ledger",
-                        error = %error,
-                        "control-plane PostgreSQL no longer matches the managed local-endpoint proof; automatic host scope is disabled"
-                    );
-                    None
-                }
-            }
-        }
-        None => None,
-    };
-    let explicit_host_scope =
-        std::env::var(handshake_core::process_ledger::HANDSHAKE_HOST_SCOPE_ID_ENV).ok();
+    // Process liveness is host-local even though lifecycle authority is stored
+    // in embedded SurrealDB. Require the explicit host identity; never derive it
+    // from a relational endpoint or fall back to an unscoped node identity.
     let runtime_host_scope_id =
-        match handshake_core::process_ledger::resolve_embedded_runtime_host_scope_with_managed_local(
-            &storage_config.database_url,
-            explicit_host_scope.as_deref(),
-            proven_local_postgres_endpoint,
-        ) {
-            Ok(host_scope_id) => Some(host_scope_id),
-            Err(error) => {
-                tracing::warn!(
-                    target: "handshake_core::process_ledger",
-                    error = %error,
-                    embedded_runtime_requested,
-                    "embedded runtime host scope unavailable; orphan sweep is deferred and any configured local inference will fail closed"
-                );
-                None
-            }
-        };
-    let mut ledger_authority_healthy = false;
-    if let Some(runtime_host_scope_id) = runtime_host_scope_id.as_deref() {
-        let pool_proof_still_matches = match proven_local_postgres_endpoint {
-            Some(proof) => {
-                match handshake_core::process_ledger::verify_proven_local_postgres_endpoint_pool(
-                    &control_plane.postgres_pool,
-                    proof,
-                )
-                .await
-                {
-                    Ok(()) => true,
-                    Err(error) => {
-                        tracing::error!(
-                            target: "handshake_core::process_ledger",
-                            error = %error,
-                            "control-plane PostgreSQL changed after host-scope derivation; orphan reclaim is withheld"
-                        );
-                        false
-                    }
-                }
-            }
-            None => true,
-        };
-        let reclaim_result = if pool_proof_still_matches {
-            Some(
-                handshake_core::process_ledger::reclaim_pidless_embedded_orphans(
-                    &control_plane.postgres_pool,
-                    boot_started_at,
-                    runtime_host_scope_id,
-                )
-                .await,
-            )
-        } else {
-            None
-        };
-        match reclaim_result {
-            None => {}
-            Some(Ok(reclaim_report)) if reclaim_report.is_complete() => {
-                ledger_authority_healthy = true;
-                tracing::info!(
-                    target: "handshake_core::process_ledger",
-                    orphans_closed = reclaim_report.closed_rows,
-                    runtime_host_scope_id,
-                    "instance-aware pid-less embedded-model orphan reclaim sweep complete"
-                );
-            }
-            Some(Ok(reclaim_report)) => {
-                ledger_authority_healthy = true;
-                tracing::warn!(
-                    target: "handshake_core::process_ledger",
-                    orphans_closed = reclaim_report.closed_rows,
-                    deferred_instances = reclaim_report.deferred_instances,
-                    candidate_scan_timed_out = reclaim_report.candidate_scan_timed_out,
-                    candidate_instance_limit_reached = reclaim_report.candidate_instance_limit_reached,
-                    legacy_host_scope_open_rows = ?reclaim_report.legacy_host_scope_open_rows,
-                    runtime_host_scope_id,
-                    "instance-aware pid-less embedded-model orphan reclaim sweep is incomplete; legacy rows require operator inspection and transient deferrals retry on a later boot"
-                );
-            }
-            Some(Err(error)) => {
-                tracing::error!(
-                    target: "handshake_core::process_ledger",
-                    error = %error,
-                    runtime_host_scope_id,
-                    "embedded-model ledger authority preflight failed; prior START rows remain open and configured local inference will fail closed"
-                );
-            }
-        }
-    }
-
+        handshake_core::process_ledger::resolve_embedded_runtime_host_scope()?;
     if startup_recovery_only {
-        // MT-019 F4: this branch returns BEFORE `ProcessReclaimRuntime::production_with_lease`,
-        // so it used to run only `reclaim_pidless_embedded_orphans` and never
-        // surfaced generic spawned-process (Official-CLI bridge) restart orphans.
-        // A recovery-only pass is exactly when an operator most needs them
-        // reconciled. This must complete BEFORE `managed_pg.stop()` below, because
-        // the reconcile is PostgreSQL-authoritative.
-        //
-        // Honest limitation: the P-4(b) dead-owner corroboration requires two
-        // observations at least one scan interval apart, and a recovery-only pass
-        // is a single short-lived process, so it normally records the FIRST
-        // observation and reclaims on a later run. That is the intended fail-safe
-        // direction: never kill a possibly-live process on one sample.
-        if let Some(runtime_host_scope_id) = runtime_host_scope_id.as_deref() {
-            match ProcessReclaimRuntime::production(
-                control_plane.postgres_pool.clone(),
-                Arc::new(PostgresProcessLedgerStore::new(
-                    control_plane.postgres_pool.clone(),
-                )),
-                None,
-                handshake_core::process_ledger::production_process_sandbox_registry_async().await?,
-                runtime_host_scope_id.to_string(),
-                Duration::from_secs(30),
+        // The production Surreal runtime performs one bounded restart-orphan
+        // reconcile before starting its periodic task. Recovery-only boot drains
+        // that task and its retained ledger writer before any storage teardown.
+        let recovery_runtime = ProcessReclaimRuntime::production(
+            surreal_storage.clone(),
+            reclaim_resource_scope.clone(),
+            None,
+            handshake_core::process_ledger::production_process_sandbox_registry_async().await?,
+            runtime_host_scope_id.clone(),
+            Duration::from_secs(30),
+        )
+        .await?;
+        let report = recovery_runtime.boot_reconcile_report();
+        tracing::info!(
+            target: "handshake_core::process_ledger",
+            sessions_reconciled = report.sessions_reconciled,
+            processes_reclaimed = report.processes_reclaimed,
+            processes_kill_failed = report.processes_kill_failed,
+            sweep_reclaim_errors = ?report.sweep_reclaim_errors,
+            runtime_host_scope_id,
+            "startup recovery-only restart-orphan reconcile complete"
+        );
+        let drain = recovery_runtime
+            .shutdown_and_drain(Duration::from_secs(10))
+            .await;
+        tracing::info!(
+            target: "handshake_core::process_ledger",
+            reclaim_task_quiesced = drain.reclaim_task_quiesced,
+            ledger = ?drain.ledger,
+            lease_released = drain.lease_released,
+            lease_retained_reason = ?drain.lease_retained_reason,
+            "startup recovery-only process runtime drained"
+        );
+        let ledger_flushed = matches!(
+            drain.ledger,
+            handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+                | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained
+        );
+        if !drain.reclaim_task_quiesced || !ledger_flushed || !drain.lease_released {
+            return Err(std::io::Error::other(
+                "startup recovery-only runtime did not prove a complete durable drain",
             )
-            .await
-            {
-                Ok(recovery_runtime) => {
-                    let report = recovery_runtime.boot_reconcile_report();
-                    tracing::info!(
-                        target: "handshake_core::process_ledger",
-                        sessions_reconciled = report.sessions_reconciled,
-                        processes_reclaimed = report.processes_reclaimed,
-                        processes_kill_failed = report.processes_kill_failed,
-                        sweep_reclaim_errors = ?report.sweep_reclaim_errors,
-                        runtime_host_scope_id,
-                        "startup recovery-only restart-orphan reconcile complete"
-                    );
-                    let drain = recovery_runtime
-                        .shutdown_and_drain(Duration::from_secs(10))
-                        .await;
-                    tracing::info!(
-                        target: "handshake_core::process_ledger",
-                        lease_released = drain.lease_released,
-                        lease_retained_reason = ?drain.lease_retained_reason,
-                        "startup recovery-only process runtime drained"
-                    );
-                }
-                Err(error) => tracing::error!(
-                    target: "handshake_core::process_ledger",
-                    error = %error,
-                    runtime_host_scope_id,
-                    "startup recovery-only restart-orphan reconcile failed; restart orphans remain open for a later pass"
-                ),
-            }
+            .into());
         }
         let report_result = write_startup_recovery_report(&restart_report);
-        if let Err(err) = managed_pg.stop().await {
-            tracing::warn!(
-                target: "handshake_core::managed_postgres",
-                error = %err,
-                "managed PostgreSQL stop failed after startup recovery-only pass"
-            );
-        }
         report_result?;
+        drop(recovery_runtime);
+        drop(shared_database);
+        surreal_storage.shutdown().await?;
         return Ok(());
     }
 
-    if ledger_authority_healthy {
-        if let Some(proof) = proven_local_postgres_endpoint {
-            if let Err(error) =
-                handshake_core::process_ledger::verify_proven_local_postgres_endpoint_pool(
-                    &control_plane.postgres_pool,
-                    proof,
-                )
-                .await
-            {
-                ledger_authority_healthy = false;
-                tracing::error!(
-                    target: "handshake_core::process_ledger",
-                    error = %error,
-                    "control-plane PostgreSQL changed after orphan reclaim; embedded runtime lease acquisition is withheld"
-                );
-            }
-        }
-    }
-
-    match (
-        embedded_runtime_requested,
-        ledger_authority_healthy,
-        runtime_host_scope_id.as_ref(),
-    ) {
-        (true, true, Some(runtime_host_scope_id)) => {
-            match handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
-                uuid::Uuid::now_v7(),
-                runtime_host_scope_id.clone(),
-            ) {
-                Ok(lease) => {
-                    runtime_instance = Some(lease.descriptor().clone());
-                    embedded_runtime_instance_lease = Some(lease);
-                }
-                Err(error) => {
-                    tracing::error!(
-                        target: "handshake_core::process_ledger",
-                        error = %error,
-                        "embedded runtime lease unavailable; local inference will fail closed without aborting the backend"
-                    );
-                }
-            }
-        }
-        (false, _, _) => {
-            tracing::info!(
-                target: "handshake_core::process_ledger",
-                "no new embedded runtime lease required by the resolved default provider"
-            );
-        }
-        (true, _, _) => {
-            tracing::error!(
-                target: "handshake_core::process_ledger",
-                "embedded runtime lease withheld because ledger authority preflight did not succeed; local inference will fail closed"
-            );
-        }
-    }
-
-    let storage = control_plane.database.clone();
     let recorder = init_flight_recorder().await?;
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
-
-    // Bootstrap the WP-KERNEL-005 atelier schema (idempotent, advisory-locked)
-    // on the shared pool so the atelier HTTP surface is queryable from startup.
-    {
-        let atelier = handshake_core::atelier::AtelierStore::with_observability(
-            control_plane.postgres_pool.clone(),
-            storage.clone(),
-            flight_recorder.clone(),
-        );
-        if let Err(err) = atelier.ensure_schema().await {
-            tracing::error!(target: "handshake_core::atelier", error = %err, "atelier ensure_schema failed at startup");
-            return Err(Box::new(err));
-        }
-        tracing::info!(target: "handshake_core::atelier", "atelier schema ensured");
-
-        // MT-206: project the FULL builtin CKC command corpus into the action
-        // catalog (cross-checked live against the ModelManual) so the Dev
-        // Command Center `/atelier/command-corpus` projection serves the full
-        // enumeration from boot. Idempotent; the catalog is a rebuildable
-        // projection, so a bootstrap failure is logged loudly but does not
-        // abort startup.
-        match atelier.bootstrap_builtin_command_corpus().await {
-            Ok(receipt) => tracing::info!(
-                target: "handshake_core::atelier",
-                total_commands = receipt.total_commands,
-                covered_count = receipt.covered_count,
-                blocked_count = receipt.blocked_count,
-                "builtin command corpus bootstrapped"
-            ),
-            Err(err) => tracing::error!(
-                target: "handshake_core::atelier",
-                error = %err,
-                "builtin command corpus bootstrap failed at startup"
-            ),
-        }
-    }
 
     // WP-KERNEL-009 MT-195/MT-196: seed (or hash-resync) the built-in
     // UserManual corpus so the no-context manual surface is queryable from
@@ -446,10 +197,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // freshness route reports `unseeded_version` and the gated
     // POST /usermanual/resync recovers.
     {
-        let manual_db = handshake_core::storage::postgres::PostgresDatabase::new(
-            control_plane.postgres_pool.clone(),
-        );
-        match handshake_core::user_manual::seed::ensure_seeded(&manual_db).await {
+        let manual_store =
+            handshake_core::user_manual::store::UserManualStore::new(surreal_storage.clone());
+        match manual_store.ensure_seeded().await {
             Ok(report) => tracing::info!(
                 target: "handshake_core::user_manual",
                 manual_version = %report.manual_version,
@@ -484,45 +234,24 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // One process-wide composition owns lifecycle writes, sandbox reclaim,
     // boot reconciliation, and the liveness lease for both embedded inference
     // and operator-chat/Official-CLI work.
-    if embedded_runtime_instance_lease.is_none() {
-        let host_scope_id = runtime_host_scope_id.clone().ok_or_else(|| {
-            handshake_core::process_ledger::ProcessLedgerError::InvalidConfig(
-                "process runtime requires a verified host scope".to_string(),
-            )
-        })?;
-        embedded_runtime_instance_lease = Some(
-            handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
-                uuid::Uuid::now_v7(),
-                host_scope_id,
-            )?,
-        );
-    }
-    let process_runtime_lease = embedded_runtime_instance_lease.take().ok_or_else(|| {
-        handshake_core::process_ledger::ProcessLedgerError::InvalidConfig(
-            "process runtime liveness lease was not acquired".to_string(),
-        )
-    })?;
-    let process_ledger_store = Arc::new(PostgresProcessLedgerStore::new(
-        control_plane.postgres_pool.clone(),
-    ));
-    let process_runtime = ProcessReclaimRuntime::production_with_lease(
-        control_plane.postgres_pool.clone(),
-        process_ledger_store,
+    let process_runtime = ProcessReclaimRuntime::production(
+        surreal_storage.clone(),
+        reclaim_resource_scope.clone(),
         None,
         handshake_core::process_ledger::production_process_sandbox_registry_async().await?,
-        process_runtime_lease,
+        runtime_host_scope_id,
         Duration::from_secs(30),
     )
     .await?;
-    runtime_instance = Some(process_runtime.runtime_instance().clone());
-    let model_registry_store = ModelRegistryStore::new_scoped(
-        control_plane.postgres_pool.clone(),
-        product_local_scope.resource_scope(),
+    let runtime_instance = Some(process_runtime.runtime_instance().clone());
+    let model_registry_authority = ScopedModelRegistryAuthority::new(
+        ModelRegistryStore::new(surreal_storage.clone()),
+        exact_scope.clone(),
     );
     let llm_client = init_llm_client(
         flight_recorder.clone(),
         Some(process_runtime.ledger().ledger()),
-        Some(model_registry_store),
+        Some(model_registry_authority),
         runtime_instance,
     )
     .await;
@@ -532,13 +261,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     ));
 
     let state = AppState {
-        storage: storage.clone(),
+        storage: shared_database.clone(),
+        surreal_storage: surreal_storage.clone(),
         flight_recorder: flight_recorder.clone(),
         diagnostics,
         llm_client,
         capability_registry,
         session_registry,
-        postgres_pool: control_plane.postgres_pool.clone(),
     };
 
     // [HSK-WF-003] Startup Recovery Loop
@@ -568,7 +297,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // Configuration via environment or defaults
     let janitor_config = init_janitor_config();
     let janitor = Arc::new(Janitor::new(
-        storage,
+        shared_database,
         flight_recorder.clone(),
         janitor_config,
     ));
@@ -598,7 +327,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // barrier below and exits the process after cleanup.
     let server_shutdown_rx = shutdown_rx.clone();
     let deadline_shutdown_rx = shutdown_rx;
-    let server = std::future::IntoFuture::into_future(
+    let mut server = Box::pin(std::future::IntoFuture::into_future(
         axum::serve(
             listener,
             app.into_make_service_with_connect_info::<SocketAddr>(),
@@ -606,17 +335,20 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .with_graceful_shutdown(async move {
             wait_for_shutdown_request(server_shutdown_rx).await;
         }),
-    );
-    tokio::pin!(server);
+    ));
     let connection_drain_deadline = async move {
         wait_for_shutdown_request(deadline_shutdown_rx).await;
         tokio::time::sleep(HTTP_CONNECTION_DRAIN_TIMEOUT).await;
     };
     tokio::pin!(connection_drain_deadline);
     let (serve_result, connection_drain_timed_out) = tokio::select! {
-        result = &mut server => (Some(result), false),
+        result = server.as_mut() => (Some(result), false),
         _ = &mut connection_drain_deadline => (None, true),
     };
+    // Release the Axum service graph before draining its AppState-owned runtime
+    // and storage clones. On the deadline branch, accepted connection tasks are
+    // still handled by the explicit fail-closed process-exit path below.
+    drop(server);
     signal_task.abort();
     let _ = signal_task.await;
 
@@ -624,7 +356,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // runtime owner. Cancel and join it after Axum returns or reaches its
     // bounded connection deadline. On the deadline path the still-live Axum
     // connection owners force the explicit no-STOP process-exit branch below.
-    // Stop the janitor before managed PostgreSQL teardown as well.
+    // Stop the janitor before draining durable runtime infrastructure.
     recovery_handle.abort();
     let _ = recovery_handle.await;
     janitor_handle.abort();
@@ -679,6 +411,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(
         target: "handshake_core::process_ledger",
         outcome = ?api_drain_report.operator_chat_process_ledger,
+        swarm_events_flushed = api_drain_report.swarm_events_flushed,
         "operator-chat process ledger drain-and-join at shutdown"
     );
 
@@ -691,6 +424,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     if connection_drain_timed_out
         || runtime_shutdown.is_err()
         || !api_drain_report.process_reclaim_quiesced
+        || !api_drain_report.swarm_events_flushed
         || !operator_chat_ledger_flushed
     {
         if let Err(err) = &runtime_shutdown {
@@ -704,37 +438,26 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             target: "handshake_core::process_ledger",
             connection_drain_timed_out,
             process_reclaim_quiesced = api_drain_report.process_reclaim_quiesced,
+            swarm_events_flushed = api_drain_report.swarm_events_flushed,
             operator_chat_ledger_flushed,
             "shutdown durability was not fully proven; exiting with failure after preserving truthful process-ledger state"
         );
         // Do not unwind `state_owner` or release the lease while a worker may
         // or an accepted connection task does still exist. Process termination
         // ends them and releases the OS socket atomically from another
-        // instance's point of view. The managed PostgreSQL child is a separate
-        // OS process, so stop only the cluster this handle started before the
-        // hard exit; adopted/external clusters remain untouched by stop().
-        if let Err(err) = managed_pg.stop().await {
-            tracing::warn!(
-                target: "handshake_core::managed_postgres",
-                error = %err,
-                "managed PostgreSQL stop failed before hard shutdown exit"
-            );
-        }
+        // instance's point of view.
         std::process::exit(1);
     }
 
     // Runtime quiescence and queue acceptance are not sufficient to release
     // the final runtime owner. The process-ledger writer has now proved that
-    // every accepted START/STOP row reached PostgreSQL, so dropping AppState can
-    // no longer race durable lifecycle evidence.
+    // every accepted START/STOP row reached embedded SurrealDB, so dropping
+    // AppState can no longer race durable lifecycle evidence.
     drop(state_owner.take());
 
-    // 3) Best-effort teardown: stop the cluster only if Handshake started it
-    //    (adopted/external clusters are left untouched).
-    if let Err(err) = managed_pg.stop().await {
-        tracing::warn!(target: "handshake_core::managed_postgres", error = %err, "managed PostgreSQL stop failed at shutdown");
-    }
+    drop(api_runtime);
     drop(janitor);
+    surreal_storage.shutdown().await?;
     if let Some(serve_result) = serve_result {
         serve_result?;
     }
@@ -755,7 +478,7 @@ async fn wait_for_shutdown_request(mut shutdown_rx: tokio::sync::watch::Receiver
 /// WP-1 MT-013 (F1 graceful shutdown): resolves on the first OS shutdown signal
 /// so `axum::serve(...).with_graceful_shutdown(...)` returns cleanly, letting the
 /// ordered teardown (embedded-model STOP emit + ledger drain + lease release +
-/// PostgreSQL stop) run instead of being OS-killed mid-flight. Awaits Ctrl-C on
+/// embedded-storage shutdown) run instead of being OS-killed mid-flight. Awaits Ctrl-C on
 /// all platforms and SIGTERM additionally on Unix.
 async fn shutdown_signal() {
     let ctrl_c = async {
@@ -811,24 +534,19 @@ fn restart_resume_boot_timeout() -> Duration {
         .unwrap_or(RESTART_RESUME_BOOT_TIMEOUT_DEFAULT)
 }
 
-/// The product-core boot owner for ModelLane recovery. This runs after managed
-/// PostgreSQL and migrations are ready and before any HTTP/native consumer is
-/// exposed. Keeping the bounded await here makes recovery independent of the
-/// legacy Tauri host while preserving the store's transaction/idempotency law.
+/// The product-core boot owner for ModelLane recovery. This runs after embedded
+/// SurrealDB is ready and before any HTTP/native consumer is exposed. Keeping
+/// the bounded await here makes recovery independent of the legacy Tauri host
+/// while preserving the store's transaction/idempotency law.
 async fn recover_model_lanes_at_core_boot_with_timeout(
-    pool: sqlx::PgPool,
+    surreal_storage: SurrealStorage,
+    resource_scope: handshake_core::swarm_orchestration::resource_scope::ResourceScope,
     timeout: Duration,
 ) -> Result<usize, std::io::Error> {
-    // Restart recovery is the one ModelLane read that is legitimately
-    // cross-owner: it runs before any account has authenticated and must not
-    // strand another account's abandoned run. The authority is therefore named
-    // explicitly rather than left as an unscoped store (HBR-PRIV-002).
-    let store =
-        handshake_core::swarm_orchestration::model_lane::ModelLaneStore::new_system_authority(
-            pool,
-            handshake_core::swarm_orchestration::resource_scope::SystemScopeAuthority::boot_recovery(
-            ),
-        );
+    let store = handshake_core::swarm_orchestration::model_lane::ModelLaneStore::new_scoped(
+        surreal_storage,
+        resource_scope,
+    );
     match tokio::time::timeout(timeout, store.recover_restartable_runs_at_boot()).await {
         Ok(Ok(recovered)) => Ok(recovered.len()),
         Ok(Err(error)) => Err(std::io::Error::other(format!(
@@ -939,13 +657,13 @@ async fn init_flight_recorder() -> Result<Arc<DuckDbFlightRecorder>, Box<dyn std
 async fn init_llm_client(
     flight_recorder: Arc<dyn FlightRecorder>,
     ledger: Option<LedgerBatcher>,
-    model_registry_store: Option<ModelRegistryStore>,
+    model_registry_authority: Option<ScopedModelRegistryAuthority>,
     runtime_instance: Option<handshake_core::process_ledger::EmbeddedRuntimeInstanceDescriptor>,
 ) -> Arc<dyn LlmClient> {
     resolve_default_llm_client(
         flight_recorder,
         ledger,
-        model_registry_store,
+        model_registry_authority,
         runtime_instance,
     )
     .await
@@ -1006,22 +724,41 @@ mod tests {
 
     #[tokio::test]
     async fn core_boot_model_lane_recovery_is_bounded_and_fails_closed() {
-        let pool = sqlx::postgres::PgPoolOptions::new()
-            .acquire_timeout(Duration::from_secs(5))
-            .connect_lazy("postgresql://127.0.0.1:1/handshake_core_boot_recovery_unavailable")
-            .expect("construct deterministic unavailable PostgreSQL pool");
+        use handshake_core::storage::surreal::{SurrealStorage, SurrealStorageConfig};
+        use handshake_core::swarm_orchestration::resource_scope::{
+            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
+            ResourceScope, WorkspaceScopeRef,
+        };
+
+        let temp = tempfile::tempdir().expect("create temporary Surreal root");
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::for_scoped_store(
+                temp.path().join("model-lane-boot"),
+                "handshake_test",
+                "model_lane_boot",
+            )
+            .expect("configure embedded Surreal store"),
+        )
+        .await
+        .expect("open embedded Surreal store");
+        let scope = ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
+            .with_session(AuthenticatedSessionRef::mint())
+            .with_access_space(AccessSpaceRef::mint())
+            .with_workspace(WorkspaceScopeRef::new("workspace-test").expect("workspace scope"));
         let started = std::time::Instant::now();
-        let error = recover_model_lanes_at_core_boot_with_timeout(pool, Duration::from_millis(25))
-            .await
-            .expect_err("core boot must not expose the runtime after recovery timeout");
+        let error =
+            recover_model_lanes_at_core_boot_with_timeout(storage.clone(), scope, Duration::ZERO)
+                .await
+                .expect_err("core boot must not expose the runtime after recovery timeout");
         assert!(
             matches!(
                 error.kind(),
                 std::io::ErrorKind::TimedOut | std::io::ErrorKind::Other
             ),
-            "connection refusal or the explicit timeout are both fail-closed: {error}"
+            "provider failure or the explicit timeout are both fail-closed: {error}"
         );
         assert!(started.elapsed() < Duration::from_secs(1));
+        storage.shutdown().await.expect("shutdown embedded store");
     }
 
     #[test]

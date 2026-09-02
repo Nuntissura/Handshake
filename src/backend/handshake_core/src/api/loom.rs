@@ -625,13 +625,12 @@ async fn get_loom_block_transclusion(
         }));
     };
 
-    // The rich-document authority lives on the KnowledgeStore (implemented on
-    // PostgresDatabase), reached through the shared pool — mirroring the
-    // knowledge_documents API's `db_for`. A LoomBlock's `document_id` is the
+    // The rich-document authority lives on KnowledgeStore over the same
+    // embedded SurrealDB handle as the Loom store. A LoomBlock's `document_id` is the
     // legacy `documents` anchor; the source rich document is the one anchored to
     // that same row (reuse loom_blocks.document_id + knowledge_rich_documents,
     // no new table/column).
-    let knowledge_db = crate::storage::postgres::PostgresDatabase::new(state.postgres_pool.clone());
+    let knowledge_db = crate::storage::surreal::SurrealDatabase::new(state.surreal_storage.clone());
     let document =
         crate::storage::knowledge::KnowledgeStore::get_knowledge_rich_document_by_document_id(
             &knowledge_db,

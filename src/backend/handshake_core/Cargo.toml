@@ -391,6 +391,11 @@ path = "tests/operator_chat_route_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
+name = "operator_chat_surreal_tests"
+path = "tests/operator_chat_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
 name = "kernel_crdt_persistence_tests"
 path = "tests/kernel_crdt_persistence_tests.rs"
 required-features = ["test-utils"]
@@ -531,9 +536,9 @@ path = "tests/restart_resume_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
-name = "restart_resume_postgres_tests"
-path = "tests/restart_resume_postgres_tests.rs"
-required-features = ["test-utils"]
+name = "restart_resume_surreal_tests"
+path = "tests/restart_resume_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
 
 [[test]]
 name = "idempotency_tests"
@@ -750,8 +755,8 @@ name = "knowledge_retrieval_replay_tests"
 path = "tests/knowledge_retrieval_replay_tests.rs"
 required-features = ["test-utils"]
 
-# WP-KERNEL-009 SecurityPortabilityValidation MT-239: real-PostgreSQL
-# UserManual freshness false-PASS fixture for same-count child-row tampering.
+# WP-KERNEL-009 SecurityPortabilityValidation MT-239: embedded SurrealDB
+# UserManual freshness false-PASS fixture for same-count child-record tampering.
 [[test]]
 name = "user_manual_freshness_fixture_tests"
 path = "tests/user_manual_freshness_fixture_tests.rs"
@@ -804,6 +809,11 @@ name = "model_lane_launch_tests"
 path = "tests/model_lane_launch_tests.rs"
 required-features = ["test-utils"]
 
+[[test]]
+name = "llm_client_local_routing_tests"
+path = "tests/llm_client_local_routing_tests.rs"
+required-features = ["test-utils"]
+
 # MT-003 (WP-1) Ollama-kill: engine-free proof for the default LlmClient boot
 # resolution (embedded ModelRuntime default, DisabledLlmClient fail-closed,
 # retained external_compat compat lane). Uses fakes; no PostgreSQL, no engine.
@@ -812,18 +822,22 @@ name = "llm_default_boot_resolution_tests"
 path = "tests/llm_default_boot_resolution_tests.rs"
 required-features = ["test-utils"]
 
-# WP-1 MT-013: NON-SKIPPABLE ProcessOwnershipLedger START/STOP, durable
-# PostgreSQL authority, and real OS-lease reconciliation proof. The target uses
-# explicit test-only construction seams plus Handshake-managed PostgreSQL and
-# therefore requires test-utils; individual tests still fail rather than skip.
+# WP-1 MT-013 V6: exact-scope embedded-Surreal lifecycle, canonical event,
+# restart, idempotency, concurrency, and fail-closed reclaim proof.
 [[test]]
-name = "embedded_model_ledger_tests"
-path = "tests/embedded_model_ledger_tests.rs"
-required-features = ["test-utils"]
+name = "embedded_model_surreal_ledger_tests"
+path = "tests/embedded_model_surreal_ledger_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
 
 [[test]]
 name = "process_ledger_writer_tests"
 path = "tests/process_ledger_writer_tests.rs"
+required-features = ["test-utils"]
+
+# MT-003 ProcessLedger persistence proof over one isolated embedded Surreal scope.
+[[test]]
+name = "process_ledger_surreal_tests"
+path = "tests/process_ledger_surreal_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
@@ -839,6 +853,11 @@ required-features = ["test-utils"]
 [[test]]
 name = "cloud_model_lane_policy_surreal_tests"
 path = "tests/cloud_model_lane_policy_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "routing_execution_surreal_tests"
+path = "tests/routing_execution_surreal_tests.rs"
 required-features = ["test-utils", "surreal-test-support"]
 
 # WP-1 MT-006 HBR-PRIV proof imports test-only account-scope construction
@@ -887,7 +906,7 @@ name = "user_manual_behavior_coverage_tests"
 path = "tests/user_manual_behavior_coverage_tests.rs"
 required-features = ["test-utils"]
 
-# WP-KERNEL-009 UserManualAndNoContextOps (MT-193..MT-208): real-PostgreSQL
+# WP-KERNEL-009 UserManualAndNoContextOps (MT-193..MT-208): embedded SurrealDB
 # proof for the canonical UserManual surface (storage, API, content accuracy).
 [[test]]
 name = "user_manual_storage_tests"
@@ -903,6 +922,11 @@ required-features = ["test-utils"]
 name = "user_manual_content_tests"
 path = "tests/user_manual_content_tests.rs"
 required-features = ["test-utils"]
+
+[[test]]
+name = "user_manual_knowledge_surreal_tests"
+path = "tests/user_manual_knowledge_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
 
 # WP-KERNEL-009 ProjectWikiCompileLayer (MT-241..MT-243): real-PostgreSQL
 # proof for the bootstrap compiler, drift/staleness, and fan-out surfaces.
@@ -948,18 +972,24 @@ name = "loom_block_collection_views_tests"
 path = "tests/loom_block_collection_views_tests.rs"
 required-features = ["test-utils"]
 
-# WP-1 MT-019: this suite imports `set_dead_owner_confirmation_gap_override_for_test`,
-# which is `#[cfg(feature = "test-utils")]`. Without an explicit `required-features`
-# declaration the target is auto-discovered and cargo tries to build it under the
-# DEFAULT feature set, where that import cannot resolve (E0432) -- which breaks
-# `cargo check --all-targets` even though every declared proof command passes,
-# because those all pass `--features test-utils`. Declaring the requirement makes
-# cargo skip the target when the feature is off, matching how every other
-# test-utils suite in this manifest is declared.
+# WP-1 MT-019: embedded-Surreal production reclaim, exact ResourceScope,
+# periodic restart, and Windows real-process identity-fence proofs.
 [[test]]
-name = "process_reclaim_real_lifecycle_pg_tests"
-path = "tests/process_reclaim_real_lifecycle_pg_tests.rs"
+name = "process_reclaim_real_lifecycle_surreal_tests"
+path = "tests/process_reclaim_real_lifecycle_surreal_tests.rs"
 required-features = ["test-utils"]
+
+# WP-1 MT-016: embedded-Surreal embedding registry, Loom index/search,
+# exact-scope derivatives, restart identity, and fail-closed receipt proofs.
+[[test]]
+name = "mt016_surreal_loom_search_tests"
+path = "tests/mt016_surreal_loom_search_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "mt016_real_embedding_e2e"
+path = "tests/mt016_real_embedding_e2e.rs"
+required-features = ["test-utils", "surreal-test-support", "candle-runtime-engine"]
 
 # WP-1 MT-020 AC-7: `tests/model_lane_crdt_support.rs` is a SHARED SUPPORT
 # MODULE (`mod model_lane_crdt_support;` in mixed_model_lane_integration_pg_tests
@@ -978,3 +1008,63 @@ required-features = ["test-utils"]
 name = "model_lane_crdt_support"
 path = "tests/model_lane_crdt_support.rs"
 required-features = ["test-utils"]
+
+[[test]]
+name = "knowledge_crdt_proposal_surreal_tests"
+path = "tests/knowledge_crdt_proposal_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "mixed_model_lane_integration_surreal_tests"
+path = "tests/mixed_model_lane_integration_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "model_lane_schema_surreal_tests"
+path = "tests/model_lane_schema_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "model_lane_promotion_surreal_tests"
+path = "tests/model_lane_promotion_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "model_lane_context_bundle_surreal_tests"
+path = "tests/model_lane_context_bundle_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "model_lane_recovery_surreal_tests"
+path = "tests/model_lane_recovery_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "model_lane_recovery_scope_api_surreal_tests"
+path = "tests/model_lane_recovery_scope_api_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "model_lane_navigation_surreal_tests"
+path = "tests/model_lane_navigation_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "model_lane_navigation_api_surreal_tests"
+path = "tests/model_lane_navigation_api_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "model_lane_resource_scope_surreal_tests"
+path = "tests/model_lane_resource_scope_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "model_lane_diagnostics_surreal_tests"
+path = "tests/model_lane_diagnostics_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "wp1_console_stream_scope_surreal_tests"
+path = "tests/wp1_console_stream_scope_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]

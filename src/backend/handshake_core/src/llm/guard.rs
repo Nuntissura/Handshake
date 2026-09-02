@@ -358,6 +358,12 @@ impl LlmClient for CloudEscalationGuard {
         self.inner.swap_model(req).await
     }
 
+    fn scoped_model_registry_authority(
+        &self,
+    ) -> Option<crate::model_runtime::ScopedModelRegistryAuthority> {
+        self.inner.scoped_model_registry_authority()
+    }
+
     fn profile(&self) -> &super::ModelProfile {
         self.inner.profile()
     }

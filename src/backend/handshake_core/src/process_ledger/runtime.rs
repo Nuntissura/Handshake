@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use sqlx::PgPool;
+use surrealdb::types::SurrealValue;
 use tokio::time;
 use uuid::Uuid;
 
@@ -11,16 +11,17 @@ use crate::sandbox::{
     AdapterId, HandshakeNativeSandboxAdapter, SandboxAdapterRegistry,
     HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID,
 };
+use crate::storage::surreal::SurrealStorage;
 
 use super::{
     acquire_embedded_runtime_instance_lease,
     reclaim::spawn_managed_staleness_reclaim_task_after_boot, reconcile_restart_orphans_at_boot,
     EmbeddedRuntimeInstanceDescriptor, EmbeddedRuntimeInstanceLease, LedgerBatcherConfig,
-    LedgerDrainJoinOutcome, ManagedStalenessReclaimTask, NoopOverflowSink,
-    PostgresModelLaneStaleSessionSource, PostgresProcessLedgerStore, ProcessLedgerError,
+    LedgerDrainJoinOutcome, ManagedStalenessReclaimTask, NoopOverflowSink, ProcessLedgerError,
     ProcessLedgerOverflowSink, ProcessLedgerStore, ProductionSandboxKill, Reclaim,
-    RestartOrphanBootReconcileReport, RetainedLedgerBatcher, StaleSessionSource,
-    StalenessReclaimConfig,
+    ReclaimResourceScope, RestartOrphanBootReconcileReport, RetainedLedgerBatcher,
+    StaleSessionSource, StalenessReclaimConfig, SurrealModelLaneStaleSessionSource,
+    SurrealProcessLedgerStore,
 };
 
 #[derive(Debug)]
@@ -44,7 +45,8 @@ pub struct ProcessReclaimRuntime {
 }
 
 struct ProcessReclaimRuntimeInner {
-    pool: PgPool,
+    storage: SurrealStorage,
+    resource_scope: ReclaimResourceScope,
     ledger: RetainedLedgerBatcher,
     reclaim: Arc<Reclaim>,
     registry: Arc<SandboxAdapterRegistry>,
@@ -54,10 +56,33 @@ struct ProcessReclaimRuntimeInner {
     boot_reconcile: RestartOrphanBootReconcileReport,
 }
 
+#[derive(Debug, SurrealValue)]
+struct OpenRowCountBindings {
+    runtime_instance_id: Uuid,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+const OPEN_ROW_COUNT_FOR_RUNTIME: &str = r#"
+RETURN array::len(
+    SELECT VALUE id FROM kernel_process_lifecycle
+    WHERE stopped_at = NONE
+        AND owner_runtime_instance_id = $runtime_instance_id
+        AND owner_account_id = $owner_account_id
+        AND actor_principal_id = $actor_principal_id
+        AND authenticated_session_id = $authenticated_session_id
+        AND access_space_id = $access_space_id
+        AND workspace_id = $workspace_id
+);
+"#;
+
 impl ProcessReclaimRuntime {
     pub async fn production(
-        pool: PgPool,
-        ledger_store: Arc<dyn ProcessLedgerStore>,
+        storage: SurrealStorage,
+        resource_scope: ReclaimResourceScope,
         overflow_sink: Option<Arc<dyn ProcessLedgerOverflowSink>>,
         registry: Arc<SandboxAdapterRegistry>,
         host_scope_id: impl Into<String>,
@@ -66,8 +91,8 @@ impl ProcessReclaimRuntime {
         let runtime_lease =
             acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope_id.into())?;
         Self::production_with_lease(
-            pool,
-            ledger_store,
+            storage,
+            resource_scope,
             overflow_sink,
             registry,
             runtime_lease,
@@ -77,34 +102,33 @@ impl ProcessReclaimRuntime {
     }
 
     pub async fn production_with_lease(
-        pool: PgPool,
-        ledger_store: Arc<dyn ProcessLedgerStore>,
+        storage: SurrealStorage,
+        resource_scope: ReclaimResourceScope,
         overflow_sink: Option<Arc<dyn ProcessLedgerOverflowSink>>,
         registry: Arc<SandboxAdapterRegistry>,
         runtime_lease: EmbeddedRuntimeInstanceLease,
         startup_timeout: Duration,
     ) -> Result<Self, ProcessLedgerError> {
         let runtime_instance = runtime_lease.descriptor().clone();
-        ledger_store.preflight().await?;
+        let process_store = Arc::new(SurrealProcessLedgerStore::open(storage.clone()).await?);
+        let ledger_store: Arc<dyn ProcessLedgerStore> = process_store.clone();
         let ledger = RetainedLedgerBatcher::spawn_with_runtime_owner(
             ledger_store,
             overflow_sink.unwrap_or_else(|| Arc::new(NoopOverflowSink)),
             LedgerBatcherConfig::default(),
             runtime_instance.process_runtime_owner(),
         );
-        let reclaim_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
-        reclaim_store.preflight().await?;
         let killer = Arc::new(ProductionSandboxKill::with_registry(
-            pool.clone(),
+            storage.clone(),
             Arc::clone(&registry),
         ));
         let reclaim = Arc::new(Reclaim::new(
-            reclaim_store,
+            process_store,
             killer,
             Arc::new(ledger.ledger()),
         ));
         let stale_source: Arc<dyn StaleSessionSource> = Arc::new(
-            PostgresModelLaneStaleSessionSource::new(pool.clone(), runtime_instance.clone()),
+            SurrealModelLaneStaleSessionSource::new(storage.clone(), runtime_instance.clone()),
         );
 
         // The composed boot restart-reconcile pass is a named, callable function
@@ -172,7 +196,8 @@ impl ProcessReclaimRuntime {
         );
         Ok(Self {
             inner: Arc::new(ProcessReclaimRuntimeInner {
-                pool,
+                storage,
+                resource_scope,
                 ledger,
                 reclaim,
                 registry,
@@ -214,21 +239,30 @@ impl ProcessReclaimRuntime {
     /// sweep. It is therefore only safe when this instance owns nothing that is
     /// still running.
     async fn open_row_count_for_this_instance(&self) -> Result<i64, ProcessLedgerError> {
-        let authority =
-            super::reclaim::resolve_process_ledger_authority_relation(&self.inner.pool).await?;
-        let sql = format!(
-            r#"
-            SELECT pg_catalog.count(*)
-            FROM ONLY {}
-            WHERE stopped_at IS NULL
-              AND owner_runtime_instance_id = $1::uuid
-            "#,
-            authority.qualified_table
-        );
-        Ok(sqlx::query_scalar(&sql)
-            .bind(self.inner.runtime_instance.instance_id)
-            .fetch_one(&self.inner.pool)
-            .await?)
+        let bindings = OpenRowCountBindings {
+            runtime_instance_id: self.inner.runtime_instance.instance_id,
+            owner_account_id: self.inner.resource_scope.account_uuid.to_string(),
+            actor_principal_id: self.inner.resource_scope.actor_uuid.to_string(),
+            authenticated_session_id: self.inner.resource_scope.session_uuid.to_string(),
+            access_space_id: self.inner.resource_scope.access_space_uuid.to_string(),
+            workspace_id: self.inner.resource_scope.workspace_id.clone(),
+        };
+        self.inner
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_first::<i64, _>(OPEN_ROW_COUNT_FOR_RUNTIME, bindings)
+                        .await
+                })
+            })
+            .await
+            .map_err(|error| ProcessLedgerError::Store(error.to_string()))?
+            .ok_or_else(|| {
+                ProcessLedgerError::Store(
+                    "Surreal open-row count returned no exact-scope result".to_owned(),
+                )
+            })
     }
 
     pub async fn shutdown_and_drain(&self, timeout: Duration) -> ProcessReclaimRuntimeDrainReport {
@@ -253,10 +287,11 @@ impl ProcessReclaimRuntime {
         // fence offers no protection because it proves process generation, not
         // liveness or ownership, so it matches perfectly and the kill proceeds.
         //
-        // The lease is now released only after PostgreSQL proves this instance
-        // owns zero open lifecycle rows. Otherwise it is retained (the OS frees
-        // the socket at real process exit), which is the only statement that is
-        // always true: this process is still alive.
+        // The lease is now released only after the injected Surreal database
+        // proves this instance owns zero open lifecycle rows in the exact
+        // ResourceScope. Otherwise it is retained (the OS frees the socket at
+        // real process exit), which is the only statement that is always true:
+        // this process is still alive.
         let (lease_released, lease_retained_reason) = if !drained {
             (
                 false,

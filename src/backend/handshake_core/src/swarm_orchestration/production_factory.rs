@@ -61,7 +61,7 @@ use crate::sandbox::{
 use super::error::{SwarmError, SwarmResult};
 use super::factory::{LiveSession, ModelSessionFactory, SessionTeardown};
 use super::ids::{ModelInstanceId, SpawnRequest};
-use super::resource_scope::ExactResourceScopeAttribution;
+use super::resource_scope::{ExactResourceScopeAttribution, ResourceAccessLifecycleRegistry};
 
 use super::coordinator::{SwarmConfig, SwarmCoordinator};
 use super::events::FlightRecorderSwarmSink;
@@ -181,9 +181,9 @@ pub fn default_swarm_concurrency() -> usize {
 ///   when `None`); the lifetime spawn ceiling is HBR-SWARM-002's
 ///   `HBR_SWARM_002_LOOP_CAP` (the `RunBudget::defaulted` default).
 /// - `trace_id` is the flight-recorder trace the sink stamps onto every event.
-/// - `model_lane_store` is Dexterity's PostgreSQL/EventLedger-backed launch
-///   recorder and routing executor pool; production construction owns both so
-///   callers cannot substitute filesystem or detached routing authority.
+/// - `model_lane_store` is Dexterity's embedded-SurrealDB-backed launch
+///   authority. Production construction reuses its exact database handle so
+///   adjacent durable stores cannot drift to another namespace/database.
 ///
 /// The reaper is NOT started here; the owner (app state) calls
 /// [`SwarmCoordinator::start_reaper`] after `.manage` so the TTL/lease reaper
@@ -268,7 +268,7 @@ where
 
 /// High-level production routing entrypoint. The executor is deliberately not
 /// supplied by the caller: it is owned by the coordinator built above and uses
-/// the same PostgreSQL/EventLedger pool as Dexterity ModelLane persistence.
+/// the same embedded authority namespace as Dexterity ModelLane persistence.
 pub async fn execute_production_routing_wave(
     coordinator: &SwarmCoordinator,
     execution_id: &str,
@@ -307,108 +307,108 @@ pub async fn execute_production_routing_lifecycle(
         .await
 }
 
-/// WP-1 MT-012 (F3/F4): build the live [`OperatorChatLaunchService`] the shipped
-/// `POST /operator-chat/launch` + `GET /operator-chat/transcript/:run_id` routes
-/// resolve through, from the app's shared PostgreSQL pool + Flight Recorder. This
-/// is what makes the launch route NON-`503` — wired to a real
-/// [`SwarmCoordinator`] + [`ModelLaneStore`] rather than left inert.
-///
-/// `cloud` carries the configured BYOK and official-CLI builders. Unconfigured
-/// providers remain absent and fail closed with `ProviderNotConfigured`; Local
-/// lanes still launch through the real candle/llama path.
-pub fn build_operator_chat_launch_service(
-    pool: sqlx::PgPool,
-    recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
-    catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
-    process_ledger_runtime: RetainedLedgerBatcher,
-    process_reclaimer: Arc<crate::process_ledger::Reclaim>,
-    cloud: CloudLaneFactoryConfig,
-    trace_id: uuid::Uuid,
-) -> Arc<super::operator_chat::OperatorChatLaunchService> {
-    build_operator_chat_launch_service_with_sandbox_registry(
-        pool,
-        recorder,
-        catalog,
-        process_ledger_runtime,
-        process_reclaimer,
-        cloud,
-        None,
-        trace_id,
-    )
-}
-
-/// Shipped operator-chat construction with the app's sandbox registry threaded
-/// into the same production factory used by coordinator launches.
-pub fn build_operator_chat_launch_service_with_sandbox_registry(
-    pool: sqlx::PgPool,
-    recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
-    catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
-    process_ledger_runtime: RetainedLedgerBatcher,
-    process_reclaimer: Arc<crate::process_ledger::Reclaim>,
-    cloud: CloudLaneFactoryConfig,
-    sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
-    trace_id: uuid::Uuid,
-) -> Arc<super::operator_chat::OperatorChatLaunchService> {
-    build_operator_chat_launch_service_with_optional_scope(
-        pool,
-        recorder,
-        catalog,
-        process_ledger_runtime,
-        process_reclaimer,
-        cloud,
-        sandbox_registry,
-        None,
-        trace_id,
-    )
-}
-
-/// Shipped product-local operator-chat construction. Unlike the retained legacy
-/// helper, every lane write and FR/console projection is stamped from the exact
-/// server-owned scope.
+/// Shipped product-local operator-chat construction. Every lane write and
+/// navigation/diagnostic read is stamped from the exact server-owned scope.
 pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry(
-    pool: sqlx::PgPool,
+    surreal_storage: crate::storage::surreal::SurrealStorage,
     recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
     catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
     process_ledger_runtime: RetainedLedgerBatcher,
     process_reclaimer: Arc<crate::process_ledger::Reclaim>,
     cloud: CloudLaneFactoryConfig,
     sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
-    resource_scope: super::resource_scope::ResourceScope,
+    exact_scope: super::resource_scope::ExactResourceScopeAttribution,
     trace_id: uuid::Uuid,
-) -> Arc<super::operator_chat::OperatorChatLaunchService> {
-    build_operator_chat_launch_service_with_optional_scope(
-        pool,
+) -> (
+    Arc<super::operator_chat::OperatorChatLaunchService>,
+    super::events::DurableSwarmFrDrain,
+) {
+    build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
+        surreal_storage,
         recorder,
         catalog,
         process_ledger_runtime,
         process_reclaimer,
         cloud,
         sandbox_registry,
-        Some(resource_scope),
+        None,
+        exact_scope,
         trace_id,
     )
 }
 
-fn build_operator_chat_launch_service_with_optional_scope(
-    pool: sqlx::PgPool,
+/// Lifecycle-aware production composition. The caller owns authentication and
+/// must register `exact_scope` active in the same shared registry before this
+/// service can enumerate, audit, launch, recover, cancel, or read diagnostics.
+/// The compatibility entrypoint above uses an explicit legacy context and the
+/// protected ModelLane boundary therefore fails closed until composition is
+/// migrated; it does not mint a private lifecycle authority.
+pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifecycle(
+    surreal_storage: crate::storage::surreal::SurrealStorage,
     recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
     catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
     process_ledger_runtime: RetainedLedgerBatcher,
     process_reclaimer: Arc<crate::process_ledger::Reclaim>,
     cloud: CloudLaneFactoryConfig,
     sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
-    resource_scope: Option<super::resource_scope::ResourceScope>,
+    lifecycle: ResourceAccessLifecycleRegistry,
+    exact_scope: ExactResourceScopeAttribution,
     trace_id: uuid::Uuid,
-) -> Arc<super::operator_chat::OperatorChatLaunchService> {
-    let model_lane_store = match resource_scope {
-        Some(scope) => ModelLaneStore::new_scoped(pool.clone(), scope),
-        None => ModelLaneStore::new(pool.clone()),
+) -> (
+    Arc<super::operator_chat::OperatorChatLaunchService>,
+    super::events::DurableSwarmFrDrain,
+) {
+    build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
+        surreal_storage,
+        recorder,
+        catalog,
+        process_ledger_runtime,
+        process_reclaimer,
+        cloud,
+        sandbox_registry,
+        Some(lifecycle),
+        exact_scope,
+        trace_id,
+    )
+}
+
+fn build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
+    surreal_storage: crate::storage::surreal::SurrealStorage,
+    recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
+    catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
+    process_ledger_runtime: RetainedLedgerBatcher,
+    process_reclaimer: Arc<crate::process_ledger::Reclaim>,
+    cloud: CloudLaneFactoryConfig,
+    sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    lifecycle: Option<ResourceAccessLifecycleRegistry>,
+    exact_scope: ExactResourceScopeAttribution,
+    trace_id: uuid::Uuid,
+) -> (
+    Arc<super::operator_chat::OperatorChatLaunchService>,
+    super::events::DurableSwarmFrDrain,
+) {
+    let resource_scope = super::resource_scope::ResourceScope::new(
+        exact_scope.owner_account_id,
+        exact_scope.actor_principal_id,
+    )
+    .with_session(exact_scope.authenticated_session_id)
+    .with_access_space(exact_scope.access_space_id)
+    .with_workspace(exact_scope.workspace_id.clone());
+    let outbox = crate::storage::surreal::SurrealSwarmOutboxStore::new_exact(
+        surreal_storage.clone(),
+        exact_scope,
+    );
+    let model_lane_store = match lifecycle {
+        Some(lifecycle) => {
+            ModelLaneStore::new_scoped_with_lifecycle(surreal_storage, resource_scope, lifecycle)
+        }
+        None => ModelLaneStore::new_scoped(surreal_storage, resource_scope),
     };
     let ledger = process_ledger_runtime.ledger();
-    let (terminal_bridge, _terminal_drain) =
-        super::events::DurableSwarmFrBridge::spawn_with_postgres_outbox(
+    let (terminal_bridge, terminal_drain) =
+        super::events::DurableSwarmFrBridge::spawn_with_surreal_outbox(
             recorder.clone(),
-            pool.clone(),
+            outbox,
             1024,
         );
     let coordinator = build_production_swarm_coordinator_with_sandbox_registry(
@@ -421,14 +421,15 @@ fn build_operator_chat_launch_service_with_optional_scope(
         move |event| terminal_bridge.emit(event),
     )
     .with_process_reclaimer(process_reclaimer);
-    Arc::new(
+    let service = Arc::new(
         super::operator_chat::OperatorChatLaunchService::new_with_process_ledger_runtime(
             Arc::new(coordinator),
             catalog,
             recorder,
             process_ledger_runtime,
         ),
-    )
+    );
+    (service, terminal_drain)
 }
 
 /// Optional cloud-lane configuration the production factory needs to dispatch
@@ -998,21 +999,22 @@ impl CloudRuntimeBuilder for VaultCloudRuntimeBuilder {
 /// Erased-vault [`ApiKeyProvider`] for the swarm cloud lane. Holds an
 /// `Arc<dyn SecretsVault>` + a lane id and re-fetches the secret on every call,
 /// so the key is never cached in the adapter struct (BYOK redaction contract).
-/// The secret string is returned by value to the adapter and dropped after the
-/// HTTP request is sent; it never enters Debug/Display here.
+/// Zeroizing ownership transfers directly from the vault to the adapter.
 struct DynVaultApiKeyProvider {
     vault: Arc<dyn crate::model_runtime::cloud::SecretsVault>,
     lane: String,
 }
 
 impl crate::model_runtime::cloud::ApiKeyProvider for DynVaultApiKeyProvider {
-    fn fetch_api_key(&self) -> Result<String, crate::model_runtime::cloud::OpenAiByokError> {
-        // The vault read is `Zeroizing` (wiped on drop); the owned `String`
-        // returned here is the one transient copy the transport needs and is
-        // dropped after the HTTP request is sent.
+    fn fetch_api_key(
+        &self,
+    ) -> Result<
+        crate::model_runtime::cloud::TransientApiKey,
+        crate::model_runtime::cloud::OpenAiByokError,
+    > {
         self.vault
             .get(&self.lane)
-            .map(|secret| secret.to_string())
+            .map(crate::model_runtime::cloud::TransientApiKey::from_zeroizing)
             .map_err(|err| {
                 use crate::model_runtime::cloud::{ApiKeyFetchCode, SecretsVaultError};
                 let code = match err {
@@ -1031,7 +1033,7 @@ impl crate::model_runtime::cloud::ApiKeyProvider for DynVaultApiKeyProvider {
 /// through `tracing` at INFO with the adapter label. This is a genuine,
 /// leak-free observability sink (the API key is never part of the row), not a
 /// mock — every BYOK lifecycle row (Started/Succeeded/Failed/Cancelled) is
-/// recorded to the structured log. A Postgres-backed sink can replace this
+/// recorded to the structured log. A durable sink can replace this
 /// without touching the adapters (the runtime is sink-agnostic).
 struct TracingCloudAuditSink {
     adapter: &'static str,
@@ -1103,7 +1105,7 @@ pub struct CloudLiveRuntime {
 
 #[derive(Clone)]
 struct DurableWorktreeVmStore {
-    pool: sqlx::PgPool,
+    storage: Option<crate::storage::surreal::SurrealStorage>,
     access: super::resource_scope::ResourceAccessContext,
 }
 
@@ -1129,13 +1131,13 @@ pub struct ProductionModelSessionFactory {
     /// silently downgraded to an in-process spawn). Threaded by the app at
     /// startup (Integrate phase); the handshake_core change compiles with `None`.
     sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
-    /// PostgreSQL + account authority shared with the coordinator's
+    /// Embedded SurrealDB + account authority shared with the coordinator's
     /// ModelLaneStore. When present, every worktree -> microVM binding survives
     /// factory/registry reconstruction and is filtered to the same account.
     durable_worktree_vm_store: Option<DurableWorktreeVmStore>,
     /// One lifecycle registry per selected adapter. Keeping this map inside the
     /// factory makes every warm session for the same worktree converge on the
-    /// same in-process serialization point while PostgreSQL remains canonical
+    /// same in-process serialization point while embedded SurrealDB remains canonical
     /// across component restarts.
     worktree_vm_registries:
         Mutex<HashMap<String, Arc<super::worktree_vm_registry::WorktreeVmRegistry>>>,
@@ -1189,10 +1191,29 @@ impl ProductionModelSessionFactory {
     /// the coordinator uses for its ModelLane records.
     pub fn with_durable_worktree_vm_store(mut self, store: &ModelLaneStore) -> Self {
         self.durable_worktree_vm_store = Some(DurableWorktreeVmStore {
-            pool: store.postgres_pool(),
+            storage: store.surreal_storage().cloned(),
             access: store.access().clone(),
         });
         self
+    }
+
+    /// Fail closed before any provider, process-ledger, or sandbox side effect
+    /// when this factory is coordinator-bound to a protected ModelLane scope.
+    /// Standalone factories intentionally have no ModelLane boundary and retain
+    /// their existing behavior.
+    fn require_active_model_lane_lifecycle(&self) -> SwarmResult<()> {
+        let Some(store) = &self.durable_worktree_vm_store else {
+            return Ok(());
+        };
+        store
+            .access
+            .require_lifecycle_active()
+            .map_err(|denied| {
+                SwarmError::FactoryFailed(format!(
+                    "{}: authenticated resource context is not active",
+                    denied.reason_code()
+                ))
+            })
     }
 
     fn require_cloud_resource_scope(&self) -> SwarmResult<ExactResourceScopeAttribution> {
@@ -1228,13 +1249,21 @@ impl ProductionModelSessionFactory {
             return Ok(Arc::clone(registry));
         }
         let registry = match &self.durable_worktree_vm_store {
-            Some(store) => Arc::new(
-                super::worktree_vm_registry::WorktreeVmRegistry::new_durable(
-                    adapter,
-                    store.pool.clone(),
-                    store.access.clone(),
-                ),
-            ),
+            Some(store) => {
+                let storage = store.storage.clone().ok_or_else(|| {
+                    SwarmError::FactoryFailed(
+                        "EMBEDDED_SURREALDB_AUTHORITY_REQUIRED: durable worktree VM binding cannot use a relational or in-memory compatibility store"
+                            .to_string(),
+                    )
+                })?;
+                Arc::new(
+                    super::worktree_vm_registry::WorktreeVmRegistry::new_durable(
+                        adapter,
+                        storage,
+                        store.access.clone(),
+                    ),
+                )
+            }
             None => Arc::new(super::worktree_vm_registry::WorktreeVmRegistry::new(
                 adapter,
             )),
@@ -2244,6 +2273,7 @@ impl ProductionModelSessionFactory {
 #[async_trait]
 impl ModelSessionFactory for ProductionModelSessionFactory {
     async fn create(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
+        self.require_active_model_lane_lifecycle()?;
         match request.provider {
             None | Some(ProviderKind::Local) if request.wants_warm_vm_execution() => {
                 self.create_warm_vm_local(request).await
@@ -2796,19 +2826,30 @@ mod tests {
         )
     }
 
-    fn lazy_model_lane_store() -> ModelLaneStore {
-        let pool = sqlx::postgres::PgPoolOptions::new()
-            .connect_lazy("postgres://handshake:handshake@127.0.0.1:5432/handshake_lazy")
-            .expect("lazy model lane pool");
-        ModelLaneStore::new(pool)
-    }
-
     /// Cloud dispatch is production-fenced by a complete server-owned resource
     /// scope. Tests that intend to exercise a cloud lane must provide that same
     /// authority instead of stopping at the fail-closed scope guard.
-    fn scoped_lazy_model_lane_store() -> ModelLaneStore {
+    async fn test_surreal_storage() -> crate::storage::surreal::SurrealStorage {
+        use crate::storage::surreal::{SurrealStorage, SurrealStorageConfig};
+        let store_path = std::env::temp_dir().join(format!(
+            "handshake-production-factory-{}",
+            uuid::Uuid::now_v7()
+        ));
+        let config = SurrealStorageConfig::for_scoped_store(
+            store_path,
+            "handshake_test",
+            "production_factory",
+        )
+        .expect("valid embedded test store configuration");
+        SurrealStorage::open(config)
+            .await
+            .expect("open embedded test store")
+    }
+
+    async fn scoped_test_model_lane_store() -> ModelLaneStore {
         use crate::swarm_orchestration::resource_scope::{
-            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
+            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef,
+            ExactResourceScopeAttribution, OwnerAccountId, ResourceAccessLifecycleRegistry,
             ResourceScope, WorkspaceScopeRef,
         };
 
@@ -2819,10 +2860,14 @@ mod tests {
                 WorkspaceScopeRef::new("workspace-production-factory-test")
                     .expect("non-empty workspace scope"),
             );
-        let pool = sqlx::postgres::PgPoolOptions::new()
-            .connect_lazy("postgres://handshake:handshake@127.0.0.1:5432/handshake_lazy")
-            .expect("lazy scoped model lane pool");
-        ModelLaneStore::new_scoped(pool, scope)
+        let lifecycle = ResourceAccessLifecycleRegistry::new();
+        lifecycle
+            .register_active(
+                ExactResourceScopeAttribution::try_from_resource_scope(&scope)
+                    .expect("exact production-factory test scope"),
+            )
+            .expect("register production-factory test context");
+        ModelLaneStore::new_scoped_with_lifecycle(test_surreal_storage().await, scope, lifecycle)
     }
 
     fn one_slot_failing_overflow_ledger_pair() -> (LedgerBatcher, ProcessLedgerDrain) {
@@ -2892,7 +2937,7 @@ mod tests {
     #[tokio::test]
     async fn cloud_spawn_without_configured_lane_returns_provider_not_configured() {
         let (ledger, _drain) = ledger_pair();
-        let model_lane_store = scoped_lazy_model_lane_store();
+        let model_lane_store = scoped_test_model_lane_store().await;
         let factory = ProductionModelSessionFactory::local_only(ledger)
             .with_durable_worktree_vm_store(&model_lane_store);
         let req = SpawnRequest::new(
@@ -2991,11 +3036,10 @@ mod tests {
     /// Why STAGE 2 does not simply attach a Dexterity contract to STAGE 1's
     /// request: on the factory-failure path a ModelLaneStore-backed coordinator
     /// durably records a FAILED launch row (`store.record_prepared_launch`, see
-    /// coordinator.rs). `lazy_model_lane_store()` points at a pool that has no
-    /// reachable database, so that write fails and re-wraps the real
-    /// `FactoryFailed` cause into another `LedgerFailed`. Proving the
-    /// missing-artifact contract through that path would require real
-    /// PostgreSQL, which this `--lib` unit module deliberately does not use.
+    /// coordinator.rs). The narrow factory unit does not initialize the full
+    /// embedded ModelLane authority graph, so that durable write would obscure
+    /// the original `FactoryFailed` cause with a setup failure. The broader
+    /// embedded-Surreal integration suite owns that persistence boundary.
     #[tokio::test]
     async fn production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan() {
         // ---- STAGE 1: production wiring helper + its pre-dispatch guard. ----
@@ -3004,7 +3048,7 @@ mod tests {
         let coordinator = build_production_swarm_coordinator(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),
-            lazy_model_lane_store(),
+            scoped_test_model_lane_store().await,
             Some(2),
             uuid::Uuid::now_v7(),
             |_ev| Ok(()),
@@ -3108,7 +3152,7 @@ mod tests {
             official_cli: None,
             official_cli_by_provider: HashMap::new(),
         };
-        let model_lane_store = scoped_lazy_model_lane_store();
+        let model_lane_store = scoped_test_model_lane_store().await;
         let factory = ProductionModelSessionFactory::new(ledger, cloud, None)
             .with_durable_worktree_vm_store(&model_lane_store);
         let req = SpawnRequest::new(
@@ -3263,7 +3307,7 @@ mod tests {
             official_cli_by_provider: HashMap::new(),
         };
         let sink = Arc::new(RecordingSwarmSink::new());
-        let model_lane_store = scoped_lazy_model_lane_store();
+        let model_lane_store = scoped_test_model_lane_store().await;
         let factory = Arc::new(
             ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
                 .with_durable_worktree_vm_store(&model_lane_store),
@@ -3353,7 +3397,7 @@ mod tests {
             official_cli: None,
             official_cli_by_provider: HashMap::new(),
         };
-        let model_lane_store = scoped_lazy_model_lane_store();
+        let model_lane_store = scoped_test_model_lane_store().await;
         let factory = ProductionModelSessionFactory::new(ledger, cloud, None)
             .with_durable_worktree_vm_store(&model_lane_store);
         let req = SpawnRequest::new(
@@ -3459,7 +3503,7 @@ mod tests {
             official_cli: None,
             official_cli_by_provider,
         };
-        let model_lane_store = scoped_lazy_model_lane_store();
+        let model_lane_store = scoped_test_model_lane_store().await;
         let factory = ProductionModelSessionFactory::new(ledger, cloud, None)
             .with_durable_worktree_vm_store(&model_lane_store);
         let mut req = SpawnRequest::new(
@@ -3635,7 +3679,7 @@ mod tests {
             })),
             official_cli_by_provider,
         };
-        let model_lane_store = scoped_lazy_model_lane_store();
+        let model_lane_store = scoped_test_model_lane_store().await;
         let factory = ProductionModelSessionFactory::new(ledger, cloud, None)
             .with_durable_worktree_vm_store(&model_lane_store);
         let req = SpawnRequest::new(
@@ -3888,7 +3932,7 @@ mod tests {
         let (ledger, ledger_writer) = spawned_ledger(store.clone());
         let ledger_close = ledger.clone();
         let sink = Arc::new(RecordingSwarmSink::new());
-        let model_lane_store = scoped_lazy_model_lane_store();
+        let model_lane_store = scoped_test_model_lane_store().await;
         let factory = Arc::new(
             ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
                 .with_durable_worktree_vm_store(&model_lane_store),
@@ -3977,7 +4021,7 @@ mod tests {
         let (ledger, ledger_writer) = spawned_ledger(store.clone());
         let ledger_close = ledger.clone();
         let sink = Arc::new(RecordingSwarmSink::new());
-        let model_lane_store = scoped_lazy_model_lane_store();
+        let model_lane_store = scoped_test_model_lane_store().await;
         let factory = Arc::new(
             ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
                 .with_durable_worktree_vm_store(&model_lane_store),
@@ -4251,7 +4295,7 @@ mod tests {
             official_cli_by_provider: HashMap::new(),
         };
         let sink = Arc::new(RecordingSwarmSink::new());
-        let model_lane_store = scoped_lazy_model_lane_store();
+        let model_lane_store = scoped_test_model_lane_store().await;
         let factory = Arc::new(
             ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
                 .with_durable_worktree_vm_store(&model_lane_store),
@@ -4322,7 +4366,7 @@ mod tests {
 
         // Not-configured variant: official_cli=None -> ProviderNotConfigured.
         let (ledger2, _drain2) = ledger_pair();
-        let model_lane_store2 = scoped_lazy_model_lane_store();
+        let model_lane_store2 = scoped_test_model_lane_store().await;
         let factory2 = ProductionModelSessionFactory::local_only(ledger2)
             .with_durable_worktree_vm_store(&model_lane_store2);
         let req2 = SpawnRequest::new(
@@ -5155,7 +5199,8 @@ mod tests {
     #[tokio::test]
     async fn sandboxed_start_and_stop_metadata_preserve_exact_resource_scope() {
         use crate::swarm_orchestration::resource_scope::{
-            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId,
+            AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef,
+            ExactResourceScopeAttribution, OwnerAccountId, ResourceAccessLifecycleRegistry,
             ResourceScope, WorkspaceScopeRef,
         };
 
@@ -5173,10 +5218,18 @@ mod tests {
             .with_session(authenticated_session)
             .with_access_space(access_space)
             .with_workspace(workspace.clone());
-        let pool = sqlx::postgres::PgPoolOptions::new()
-            .connect_lazy("postgres://handshake:handshake@127.0.0.1:5432/handshake_lazy")
-            .expect("lazy scoped model lane pool");
-        let model_lane_store = ModelLaneStore::new_scoped(pool, scope);
+        let lifecycle = ResourceAccessLifecycleRegistry::new();
+        lifecycle
+            .register_active(
+                ExactResourceScopeAttribution::try_from_resource_scope(&scope)
+                    .expect("exact MT-023 test scope"),
+            )
+            .expect("register MT-023 test context");
+        let model_lane_store = ModelLaneStore::new_scoped_with_lifecycle(
+            test_surreal_storage().await,
+            scope,
+            lifecycle,
+        );
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
         let factory = ProductionModelSessionFactory::new(

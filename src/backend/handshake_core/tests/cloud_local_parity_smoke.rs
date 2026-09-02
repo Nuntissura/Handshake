@@ -74,6 +74,7 @@ use handshake_core::model_runtime::cloud::{
     CloudInvocationAuditRow, CloudInvocationAuditSink, CloudLaneObservability, ConsentDecision,
     ConsentGate, ConsentGateError, ConsentProvider, OfficialCliBridgeError,
     OfficialCliBridgeRuntime, OpenAiByokError, OpenAiByokRuntime, ANTHROPIC_API_KEY_HEADER,
+    TransientApiKey,
     ANTHROPIC_API_VERSION, ANTHROPIC_MESSAGES_PATH, ANTHROPIC_VERSION_HEADER,
     OPENAI_CHAT_COMPLETIONS_PATH,
 };
@@ -129,8 +130,8 @@ struct StaticKey {
     key: String,
 }
 impl ApiKeyProvider for StaticKey {
-    fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
-        Ok(self.key.clone())
+    fn fetch_api_key(&self) -> Result<TransientApiKey, OpenAiByokError> {
+        Ok(TransientApiKey::from_secret(self.key.clone()))
     }
 }
 
