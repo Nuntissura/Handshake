@@ -65,16 +65,25 @@
       "reason": "claimed_by was null at READY_FOR_VALIDATION_V4 (RC-006). Attributed to the implementing session recorded in ready_for_validation_v4_by; no other session touched this MT."
     },
     "out_of_scope_waiver_status_2026_09_02": {
-      "status": "REQUESTED_FROM_OPERATOR",
-      "by": "KERNEL_BUILDER-20260902-175214",
-      "at_utc": "2026-09-02T17:56:26.687Z",
-      "note": "out_of_scope_waiver_granted_2026_08_16 records granted_by=KERNEL_BUILDER. Under KERNEL_BUILDER_PROTOCOL scope rule 5 and [GLOBAL-SCOPE-005] the implementer asks the Operator for the waiver; it cannot self-grant. The touch (manual_content_editors.rs, additive, one function body) and its reason stand as recorded; the grant is reclassified as an Operator decision pending."
+      "status": "GRANTED_BY_OPERATOR",
+      "granted_at_utc": "2026-09-02T18:50:50.442Z",
+      "granted_via": "Operator live command 2026-09-02: \"waive MT-135\"",
+      "recorded_by": "KERNEL_BUILDER-20260902-175214",
+      "scope": "src/frontend/handshake_native/src/manual_content_editors.rs additive manual entry (WHAT ARGUS.INSPECT CAN AND CANNOT SEE (MT-135)), as described in out_of_scope_waiver_granted_2026_08_16",
+      "previous_status": "REQUESTED_FROM_OPERATOR"
     },
     "state_correction_history": [
       {
         "at_utc": "2026-09-02T17:56:26.687Z",
         "by": "KERNEL_BUILDER-20260902-175214",
         "reason": "Attribution repair and waiver reclassification under Operator approval 2026-09-02.",
+        "previous_status": "READY_FOR_VALIDATION_V4",
+        "new_status": "READY_FOR_VALIDATION_V4"
+      },
+      {
+        "at_utc": "2026-09-02T18:50:50.442Z",
+        "by": "KERNEL_BUILDER-20260902-175214",
+        "reason": "Operator granted the MT-135 out-of-scope waiver (live command \"waive MT-135\").",
         "previous_status": "READY_FOR_VALIDATION_V4",
         "new_status": "READY_FOR_VALIDATION_V4"
       }

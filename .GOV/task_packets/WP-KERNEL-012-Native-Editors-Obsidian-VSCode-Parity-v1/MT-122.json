@@ -46,8 +46,7 @@
     "ready_for_validation_v4_by": "KERNEL_BUILDER-20260815-173127",
     "ready_for_validation_summary": "MT-122 implemented. TWO defects, both fixed. (a) STATIC CHROME: three action rows used a plain ui.horizontal with HARDCODED desired_width values (220.0 and 120.0). At a narrow pane those rows overflowed, and egui's Region::expand_to_include_rect widens a Ui's max_rect over the overflow, so the static row handed EVERY later row a layout width larger than the visible pane. Fixed with horizontal_wrapped plus a fit_width(ui, preferred) helper that clamps to ui.available_width(). (b) RESULT ROW: hit.title is unbounded backend content laid out FIRST left-to-right, so a long title consumed the row and pushed the [source_kind] badge past the pane's right edge, where the results ScrollArea clips it - the operator loses the only at-a-glance signal distinguishing a document hit from a file or loom_block hit. Fixed with MT-119's existing idiom rather than a second pattern: reserve the bounded badge first against the row's right edge via Layout::right_to_left, then let the title truncate into what remains, keeping the full title recoverable through egui's show_tooltip_when_elided. PT-122-2 RED (result-row fix reverted, verbatim): 'MT-122: the [source_kind] badge must render FULLY INSIDE the Find-in-Files pane. rect x=[1132.125, 1183.906] y=[198.000, 208.000] vs pane x=[0.000, 420.000] y=[0.000, 800.000]' - the badge rendered 712px outside a 420px pane. PT-122-2 GREEN (fix applied, verbatim): 'test find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane ... ok'. PT-122-3 REGRESSION: the full find_in_files suite is 48 passed / 0 failed, and critically mt119_saved_search_controls_stay_inside_the_find_pane is still green, proving the static-chrome change did not regress MT-119's guard. The RED capture reverted ONLY the result-row fix and restored it through a shell trap, so a failed run could not strand a reverted fix on disk. The guard carries five interlocks that refuse to pass vacuously: I0 fails loudly if the STATIC row regresses (so a future reader is not sent to the wrong file), I1 proves the pane is genuinely bounded using clip_rect rather than the Frame response rect which grows to include overflow, I2 proves the fixture title genuinely overflows at 1.5x the pane width, I4 proves truncation is actually in force, and I5 proves the row's content-derived click route is byte-identical so the layout fix did not change the interaction contract. Implementer evidence only, not validation.",
     "ready_for_validation_v4_open_items": [
-      "PT-122-1 asks for a mounted frame OPENED and described. The guard measures AccessKit bounds from a real two-pass mounted render rather than inspecting pixels, so a validator wanting a visual frame should capture one with HANDSHAKE_GPU_SCREENSHOT=1, which is now proven to work on this host.",
-      "MT-113 test_author_id_budget was not executed: it is cfg(feature=\"integration\") and needs a live handshake_core backend, which does not currently compile while the SurrealDB port is in progress."
+      "PT-122-1 mounted frame captured 2026-09-02 (commit 88e71285) and PT-122-3 MT-113 proof executed 12/12; no open items remain beyond the pending KB_READY_CHECKLIST receipt."
     ],
     "implemented_by_before_reopen": "KERNEL_BUILDER-20260815-173127",
     "claimed_at_utc": "2026-09-02T17:56:26.687Z",
@@ -134,6 +133,15 @@
       "remaining_open_items": [
         "KB_READY_CHECKLIST_RECEIPT blocked on dirty product tree (MT-141 WIP)."
       ]
+    },
+    "ready_for_validation_v4_open_items_superseded_2026_08_16": [
+      "PT-122-1 asks for a mounted frame OPENED and described. The guard measures AccessKit bounds from a real two-pass mounted render rather than inspecting pixels, so a validator wanting a visual frame should capture one with HANDSHAKE_GPU_SCREENSHOT=1, which is now proven to work on this host.",
+      "MT-113 test_author_id_budget was not executed: it is cfg(feature=\"integration\") and needs a live handshake_core backend, which does not currently compile while the SurrealDB port is in progress."
+    ],
+    "open_items_refreshed_2026_09_02": {
+      "by": "KERNEL_BUILDER-20260902-175214",
+      "at_utc": "2026-09-02T18:54:00.968Z",
+      "reason": "The 2026-08-16 open items stated the MT-113 proof was compiled/not executed and the backend did not compile mid-pivot; both are closed by lifecycle.deferred_proof_completion_2026_09_02. Kept the still-true items only."
     }
   },
   "scope": {
