@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-112"
@@ -88,8 +88,34 @@
         "reason": "Attribution repair under Operator approval 2026-09-02.",
         "previous_status": "READY_FOR_VALIDATION_V4",
         "new_status": "READY_FOR_VALIDATION_V4"
+      },
+      {
+        "at_utc": "2026-09-02T19:30:52.052Z",
+        "by": "KERNEL_BUILDER-20260902-175214",
+        "reason": "KB_READY_CHECKLIST_RECEIPT emitted BLOCKED at product 7f279596 (RC-001 stale PostgreSQL evidence, RC-004 no cross-platform check possible for handshake_core on this host and CI broken, RC-005 api::memory cfg(test) module does not compile). A BLOCKED receipt must be remediated before READY_FOR_VALIDATION, so the MT leaves READY_FOR_VALIDATION_V4.",
+        "previous_status": "READY_FOR_VALIDATION_V4",
+        "new_status": "BLOCKED_ON_DEPENDENCY"
       }
-    ]
+    ],
+    "blocker": "Proof surface does not compile on the current tree: src/api/memory.rs cfg(test) module (and api/jobs.rs, api/workspaces.rs, api/loom.rs, bundles/exporter.rs test modules) still target the removed PostgreSQL layer; cargo test -p handshake_core --lib fails with 24 errors at 7f279596. PT-118-1/2/3 cannot run until the backend unit-test modules are ported to the embedded SurrealDB store (MT-141 owns tests/; the in-crate cfg(test) modules need an owner: extend MT-141 or reopen MT-118 for its own module).",
+    "proof_evidence_status_2026_09_02": {
+      "by": "KERNEL_BUILDER-20260902-175214",
+      "at_utc": "2026-09-02T19:30:52.052Z",
+      "status": "HISTORICAL_PRE_PIVOT",
+      "note": "implementation_result_kernel_builder_2026_08_12 and ready_for_validation_summary record GREEN against real PostgreSQL at 127.0.0.1:5544 on 2026-08-12. PostgreSQL is a forbidden backend under the packet storage_contract; that evidence is retained as history only and does not prove the current tree. scope.proof_targets still name PostgreSQL and must be restated for the embedded store before re-readiness."
+    },
+    "ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-09-02T19:30:28.165Z",
+      "actor_session": "KERNEL_BUILDER-20260902-175214",
+      "overall_verdict": "BLOCKED",
+      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
+      "blocked_items": [
+        "RC-001",
+        "RC-004",
+        "RC-005"
+      ]
+    }
   },
   "scope": {
     "summary": "Let a pre-hardening FEMS memory proposal row that has no _canonical_artifact retry successfully, without weakening the canonical proposal contract for normal rows.",
@@ -138,6 +164,75 @@
     "PRIV": "The heal must not surface actor identity beyond what the durable row already persisted."
   },
   "handoff": {
-    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
+      "product_branch": "feat/WP-KERNEL-012",
+      "product_worktree": "../wtc-native-editors-v1",
+      "actor_session": "KERNEL_BUILDER-20260902-175214",
+      "prepared_at_utc": "2026-09-02T19:30:19.475Z",
+      "summary": "MT-118 readiness review at product 7f279596: BLOCKED. Its proof targets (PT-118-1 named test, PT-118-3 full api::memory suite) live in src/api/memory.rs cfg(test), which no longer compiles after the PostgreSQL removal; the 2026-08-12 GREEN evidence was against real PostgreSQL, a now-forbidden backend, and cannot be reused. Implementer evidence only.",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "no",
+          "explanation": "lifecycle.ready_for_validation_summary still states GREEN against real PostgreSQL and AC/PT satisfied; on the current SurrealDB-only tree that claim is stale evidence, and the proof targets themselves name PostgreSQL. Marked historical in lifecycle.proof_evidence_status_2026_09_02; the MT needs its proof targets restated for the embedded store before it can be ready.",
+          "evidence_refs": [
+            "MT-118.json#lifecycle.ready_for_validation_summary",
+            "MT-118.json#scope.proof_targets"
+          ],
+          "checked_at_utc": "2026-09-02T19:30:19.475Z"
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "n/a",
+          "explanation": "Cannot be assessed: the owned file src/api/memory.rs has a cfg(test) module that does not compile, so reference analysis of its pub items against the test consumers is not meaningful until the module is ported. cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support api::memory:: at 7f279596 fails to COMPILE (lib test): 24 errors in cfg(test) modules, 11 of them in src/api/memory.rs (RecordIdKey: From<&String> not satisfied at lines 2512/2733/2809/2843/3274/3908/4697/4929, ProposalAck lacks PartialEq at 2354, StatusCode/Json error conversion at 2407, R: Send at 1774), plus AppState.postgres_pool / optional_postgres_backend_with_pool_from_env in api/jobs.rs, api/workspaces.rs, bundles/exporter.rs and api/loom.rs RecordIdKey. The product binary builds; only the unit-test modules are unported. Log: Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/lib-test-errors.log.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/lib-test-errors.log"
+          ],
+          "checked_at_utc": "2026-09-02T19:30:19.475Z"
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "n/a",
+          "explanation": "Owned tests are cfg(test) unit tests inside src/api/memory.rs and src/storage/fems_memory.rs; they do not compile on the current tree, so gating intent cannot be verified by running them.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/lib-test-errors.log"
+          ],
+          "checked_at_utc": "2026-09-02T19:30:19.475Z"
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "no",
+          "explanation": "cargo check -p handshake_core --target aarch64-pc-windows-msvc --lib failed in C++ build scripts (DuckDB under clang-cl arm64: too many errors; MSVC install has no ARM64 compiler); x86_64-unknown-linux-musl infeasible (no musl sysroot). GitHub CI on feat/WP-KERNEL-012 (run 33666580708) fails every job except traceability at setup steps or on legacy sqlite/postgres storage matrices, so no CI result can be cited.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-core-aarch64-not-feasible.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-linux-musl-not-feasible.log"
+          ],
+          "checked_at_utc": "2026-09-02T19:30:19.475Z"
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "no",
+          "explanation": "PT-118-1 and PT-118-3 could not be executed at the current boundary: cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support api::memory:: at 7f279596 fails to COMPILE (lib test): 24 errors in cfg(test) modules, 11 of them in src/api/memory.rs (RecordIdKey: From<&String> not satisfied at lines 2512/2733/2809/2843/3274/3908/4697/4929, ProposalAck lacks PartialEq at 2354, StatusCode/Json error conversion at 2407, R: Send at 1774), plus AppState.postgres_pool / optional_postgres_backend_with_pool_from_env in api/jobs.rs, api/workspaces.rs, bundles/exporter.rs and api/loom.rs RecordIdKey. The product binary builds; only the unit-test modules are unported. Log: Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/lib-test-errors.log. PT-118-2 (negative non-UUID rejection) is in the same module. The recorded 2026-08-12 GREEN run used real PostgreSQL at 127.0.0.1:5544 and is not valid evidence for the SurrealDB-only tree.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/lib-test-errors.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/test-core-api-memory.log"
+          ],
+          "checked_at_utc": "2026-09-02T19:30:19.475Z"
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260812-113007 (attributed 2026-09-02); lifecycle.completed_by = null; validator_verdict null.",
+          "evidence_refs": [
+            "MT-118.json#lifecycle.claimed_by",
+            "MT-118.json#lifecycle.completed_by"
+          ],
+          "checked_at_utc": "2026-09-02T19:30:19.475Z"
+        }
+      ]
+    }
   }
 }
