@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-119"
@@ -85,6 +85,13 @@
         "new_status": "READY_FOR_VALIDATION_V4",
         "previous_active": true,
         "new_active": false
+      },
+      {
+        "at_utc": "2026-09-02T20:41:10.392Z",
+        "by": "KERNEL_BUILDER-20260902-175214",
+        "reason": "KB_READY_CHECKLIST_RECEIPT BLOCKED at product 7f279596 (RC-005). PT-122-3 not met at product 7f279596: MT-113 test_author_id_budget fails deterministically (see MT-121 blocker). MT-122 own proofs remain green (badge guard, 420px frame, MT-029 screenshot, full native lib 2093/0). Dependency: MT-113 proof surface / mounted click-completion regression, root cause not localized.",
+        "previous_status": "READY_FOR_VALIDATION_V4",
+        "new_status": "BLOCKED_ON_DEPENDENCY"
       }
     ],
     "deferred_proof_completion_2026_09_02": {
@@ -154,13 +161,16 @@
     },
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
-      "generated_at_utc": "2026-09-02T19:18:23.919Z",
+      "generated_at_utc": "2026-09-02T20:40:39.730Z",
       "actor_session": "KERNEL_BUILDER-20260902-175214",
-      "overall_verdict": "PASS",
-      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827"
+      "overall_verdict": "BLOCKED",
+      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
+      "supersedes_pass_receipt_at_utc": "2026-09-02T19:18:23.919Z",
+      "retracted_reason": "The PASS receipt cited MT-113 12/12 from the 88e71285 run; MT-113 fails on the final tree 7f279596, so that receipt no longer binds to the final unchanged tree and is retracted (RETRACTION receipt kb-0902-retract-121-122)."
     },
     "ready_for_validation_at_utc": "2026-09-02T19:18:23.919Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260902-175214"
+    "ready_for_validation_by": "KERNEL_BUILDER-20260902-175214",
+    "blocker": "PT-122-3 not met at product 7f279596: MT-113 test_author_id_budget fails deterministically (see MT-121 blocker). MT-122 own proofs remain green (badge guard, 420px frame, MT-029 screenshot, full native lib 2093/0). Dependency: MT-113 proof surface / mounted click-completion regression, root cause not localized."
   },
   "scope": {
     "summary": "Bound the Find-in-Files rows that can still overflow a narrow pane: the static action row, which drags later rows off-pane with it, and the result row, where a long hit title pushes the [source_kind] badge out of view.",
@@ -221,8 +231,8 @@
       "product_branch": "feat/WP-KERNEL-012",
       "product_worktree": "../wtc-native-editors-v1",
       "actor_session": "KERNEL_BUILDER-20260902-175214",
-      "prepared_at_utc": "2026-09-02T19:18:18.709Z",
-      "summary": "MT-122 deferred-proof completion at product 7f279596: PT-122-1 mounted 420x640 long-title frame captured and inspected (badge inside pane, title elided), PT-122-2 guard and MT-119 guard green, PT-122-3 MT-113 12/12 and MT-029 screenshot ok, full native lib 2093/0, aarch64 cross check finished. Implementer evidence only.",
+      "prepared_at_utc": "2026-09-02T20:40:30.244Z",
+      "summary": "SUPERSEDES the 2026-09-02T19:18Z PASS receipt: MT-122 RC-005 is now NO at product 7f279596 because its declared regression proof (MT-113 author-id budget) fails deterministically on the final tree. MT-122 own guards remain green (see prior receipt).",
       "rubric_items": [
         {
           "rubric_item_id": "RC-001-NO-STALE-REASONS",
@@ -232,7 +242,7 @@
             "MT-122.json#lifecycle.open_items_refreshed_2026_09_02",
             "MT-122.json#lifecycle.deferred_proof_completion_2026_09_02"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-02T20:40:30.244Z"
         },
         {
           "rubric_item_id": "RC-002-NO-DEAD-CODE",
@@ -242,7 +252,7 @@
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
             "cargo check dead_code lint list recorded in this explanation"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-02T20:40:30.244Z"
         },
         {
           "rubric_item_id": "RC-003-CFG-GATED-TESTS",
@@ -252,7 +262,7 @@
             "src/frontend/handshake_native/tests/test_find_in_files.rs (commit 88e71285)",
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-02T20:40:30.244Z"
         },
         {
           "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
@@ -262,18 +272,19 @@
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-native-aarch64-pc-windows-msvc.log",
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-linux-musl-not-feasible.log"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-02T20:40:30.244Z"
         },
         {
           "rubric_item_id": "RC-005-PROOF-COMMANDS",
-          "answer": "yes",
-          "explanation": "PT-122-1: find_in_files_screenshot_long_title_narrow_pane_mt122 ok, frame Handshake_Artifacts/handshake-test/wp-kernel-012-mt-122/MT-122-find-in-files-long-title-420px.png opened: long title elided with ellipsis, [loom_block] badge fully inside the 420px pane, action rows wrapped. PT-122-2: mt122_result_row_badge_stays_inside_the_find_pane ok (RED/GREEN capture recorded in the 2026-08-16 evidence). PT-122-3: MT-029 find_in_files_screenshot ok and MT-113 test_author_id_budget 12/12 against an owned embedded-SurrealDB backend. Full native lib 2093/0.",
+          "answer": "no",
+          "explanation": "PT-122-3 requires MT-113 test_author_id_budget green. MT-113 test_author_id_budget mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query FAILS deterministically at product 7f279596 (three runs: in the proof chain, isolated --exact, and an environment-control rerun without binding-root vars): the bookmark REMOVE click returns an indeterminate receipt (observer stays state=ready generation=2; canonical_argus_driver.rs:364). It passed 12/12 twice earlier today at 88e71285 with a backend built from byte-identical backend content (git diff --stat 1505edb6..7f279596 equals the pre-commit dirty stat plus the one test file). No stray processes, listeners, fixture locks, or disk pressure (3.5 TB free) were found. Root cause not localized; the earlier PASS receipt for this MT is retracted. Logs: Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-backend-117-113.log, proof-isolated-rerun.log, proof-env-control.log. MT-122 own proof targets remain green at 7f279596 (viewport 8/8 / badge guard, screenshots, full native lib 2093/0).",
           "evidence_refs": [
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-mt113.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-122/MT-122-find-in-files-long-title-420px.png"
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-backend-117-113.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-isolated-rerun.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-env-control.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-02T20:40:30.244Z"
         },
         {
           "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
@@ -283,7 +294,7 @@
             "MT-122.json#lifecycle.claimed_by",
             "MT-122.json#lifecycle.completed_by"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-02T20:40:30.244Z"
         }
       ]
     }
