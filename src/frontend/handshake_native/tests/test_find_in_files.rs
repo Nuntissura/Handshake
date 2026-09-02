@@ -4167,3 +4167,87 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     .expect("write external managed receipt");
     assert_no_local_artifact_dir();
 }
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// MT-122 PT-122-1 (HBR-VIS): a MOUNTED frame at a realistic long hit title inside a NARROW pane, saved
+// to the EXTERNAL artifact root so a validator can open it and see the [source_kind] badge inside the
+// pane. The containment itself is proven by the lib guard
+// `find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane`; this test only produces
+// the visual evidence PT-122-1 asks for. On a headless host it records the typed DEFERRED marker.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn find_in_files_screenshot_long_title_narrow_pane_mt122() {
+    let _g = wgpu_guard();
+    let mut seeded = seeded_state();
+    let long_title = "Session token refresh scheduler: retry backoff plus every call site that still \
+                      builds a bearer header by hand, collected from the authentication middleware \
+                      refactor across the workspace";
+    seeded.results.insert(
+        0,
+        hit(
+            "loom_block",
+            "blk-mt122-long",
+            long_title,
+            "FIND_TARGET inside a very long title row",
+            Some("KRD-MT122"),
+        ),
+    );
+    seeded.result_set_key = Some(seeded.current_search_key());
+    let state = Arc::new(Mutex::new(seeded));
+    let opened = Arc::new(Mutex::new(Vec::new()));
+    let r = rt();
+    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
+    let dc = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let workspace_id = Some("ws-1".to_owned());
+
+    // 420px is the narrow pane AC-122-0 names; the badge previously rendered 712px past its edge.
+    let mut harness = Harness::builder()
+        .proof_mt_id("MT-122")
+        .with_size(egui::vec2(420.0, 640.0))
+        .wgpu()
+        .build_ui(move |ui| {
+            let pal = HsTheme::Dark.palette();
+            let opened_cb = Arc::clone(&opened);
+            let mut on_open =
+                move |hit: &LoomGraphSearchHit| opened_cb.lock().unwrap().push(hit.ref_id.clone());
+            let mut cbs = FindInFilesCallbacks {
+                on_open_hit: &mut on_open,
+            };
+            show(
+                ui,
+                &mut state.lock().unwrap(),
+                &pal,
+                &sc,
+                &dc,
+                workspace_id.as_deref(),
+                &mut cbs,
+            );
+        });
+    harness.run();
+    harness.run();
+    assert_no_local_artifact_dir();
+
+    let Some(image) =
+        harness.render_proof_frame("MT-122 long-title narrow-pane Find-in-Files screenshot frame")
+    else {
+        assert!(
+            harness
+                .last_screenshot_outcome()
+                .is_some_and(|outcome| outcome.status == "DEFERRED"),
+            "headless screenshot path must retain a typed DEFERRED MT-122 marker"
+        );
+        return;
+    };
+    let (w, h) = (image.width(), image.height());
+    assert_eq!((w, h), (420, 640), "frame must be the declared narrow pane size");
+    let ext_dir = external_artifact_dir("wp-kernel-012-mt-122");
+    std::fs::create_dir_all(&ext_dir).expect("create MT-122 external screenshot directory");
+    let png = ext_dir.join("MT-122-find-in-files-long-title-420px.png");
+    image
+        .save(&png)
+        .unwrap_or_else(|error| panic!("save MT-122 screenshot {}: {error}", png.display()));
+    assert!(png.is_file(), "screenshot PNG was not created at {}", png.display());
+    println!("SCREENSHOT: {w}x{h}, saved=true ({})", png.display());
+    assert_no_local_artifact_dir();
+}
