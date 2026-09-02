@@ -31,13 +31,13 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
-    "claimed_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260831-145417",
+    "claimed_at_utc": "2026-08-31T18:02:30.393Z",
     "parallel_coder_agent": "019ffd4c-8a78-7821-afc4-d453853d4b34",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
@@ -61,7 +61,9 @@
         "PT-123-1 (schema count / pg_class relation count / cluster directory size)",
         "PT-123-3 (parallel-run schema reclamation)"
       ]
-    }
+    },
+    "ready_for_validation_at_utc": "2026-08-31T22:31:42.530Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260831-145417"
   },
   "scope": {
     "summary": "RESCOPED 2026-08-16 from PostgreSQL to the embedded SurrealDB store. The original microtask targeted isolated per-test POSTGRESQL SCHEMA teardown and a 1009-schema backlog; PostgreSQL has been physically deleted, so there are no schemas to leak and no pg_class rows to count. THE UNDERLYING RISK IS UNCHANGED AND STILL REAL, which is why this is rescoped rather than closed: test isolation now comes from a per-run HANDSHAKE_DATA_DIR directory containing a handshake-surreal RocksDB store, and a test process that is killed or panics mid-run strands that directory on disk. Each store is measured in hundreds of megabytes to gigabytes, so a stranded-store backlog degrades proof runs and consumes the artifacts volume exactly the way the schema backlog did. Prior work exists and must be built on, not duplicated: tests/surreal_test_store_crash_safety_tests.rs and tests/surreal_test_store_support/ were created by the 2026-08-13 session and are committed. RocksDB holds an exclusive LOCK file while a store is open, and SurrealStorage::shutdown on Windows already waits until that LOCK is re-acquirable, so LOCK acquirability is the available liveness signal for deciding whether a store directory is genuinely orphaned or still owned by a live run.",
@@ -123,7 +125,8 @@
     "requirement": "NOT_APPLICABLE - test-harness teardown, no product behaviour, tool, command, or operator navigation path changes."
   },
   "handoff": {
-    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": "KERNEL_BUILDER-20260831-145417"
   },
   "red_team": {
     "required": true,

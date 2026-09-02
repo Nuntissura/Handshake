@@ -31,12 +31,12 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "CLAIMED",
     "active": true,
     "depends_on": [],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260902-175214",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Discovered while designing the MT-119 PT-119-3 geometry guard. Every geometry value the MCP snapshot publishes to models is measured in an unsized 10000x10000 egui viewport, so no model can reason about layout, containment, clipping, or overlap from argus.inspect(). This is a live product defect on the model-vision surface, not a test artifact. It is outside MT-119 (layout-only) allowed_paths, so it is deferred here per the Operator standing rule rather than silently absorbed or lost.",
@@ -47,6 +47,36 @@
       "PT-121-2 incomplete: MT-113 test_author_id_budget compiled but not executed (needs live backend + real GPU host).",
       "Memory-backed context-menu invisibility to the capture pass is a separate defect requiring a new MT in this WP.",
       "MT-121 has no isolated commit: its files were swept into 4f92cc25 by the concurrent PostgreSQL-removal checkpoint."
+    ],
+    "implemented_by_before_reopen": "KERNEL_BUILDER-20260815-173127",
+    "claimed_at_utc": "2026-09-02T17:56:26.687Z",
+    "reopen_2026_09_02": {
+      "schema_id": "hsk.mt_reopen@1",
+      "by": "KERNEL_BUILDER-20260902-175214",
+      "at_utc": "2026-09-02T17:56:26.687Z",
+      "source": "operator_live_approval_2026_09_02",
+      "previous_status": "READY_FOR_VALIDATION_V4",
+      "reasons": [
+        "RC-006: lifecycle.claimed_by was null at the READY_FOR_VALIDATION boundary, so the ready-checklist invariant (claimed_by set, completed_by unset) could not hold.",
+        "No KB_READY_CHECKLIST_RECEIPT exists for this MT in KB_READY_CHECKLIST_RECEIPTS.jsonl.",
+        "PT-121-2: MT-113 test_author_id_budget compiled but never executed. The recorded blocker (handshake_core backend did not compile mid SurrealDB pivot) is no longer current: MT-127 governed sweep passed 189/189 on product source 1505edb6."
+      ],
+      "scope_of_reopen": "Complete the deferred proof on the current tree, refresh evidence, emit KB_READY_CHECKLIST_RECEIPT, and return to READY_FOR_VALIDATION_V4. No re-implementation is planned unless the deferred proof fails.",
+      "session_mt_batch": [
+        "MT-121",
+        "MT-122"
+      ]
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-09-02T17:56:26.687Z",
+        "by": "KERNEL_BUILDER-20260902-175214",
+        "reason": "Reopened for deferred-proof completion under Operator approval 2026-09-02; see lifecycle.reopen_2026_09_02.",
+        "previous_status": "READY_FOR_VALIDATION_V4",
+        "new_status": "CLAIMED",
+        "previous_active": true,
+        "new_active": true
+      }
     ]
   },
   "scope": {

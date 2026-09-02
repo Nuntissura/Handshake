@@ -38,7 +38,7 @@
     ],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
     "creation_reason": "Isolated by MT-112 with a real instrumented error after its own identity fix landed. It is a DURABLE CONTRACT decision outside MT-112 allowed_paths and defect_detail, so it is deferred here per the Operator standing rule rather than decided unilaterally or lost.",
@@ -75,7 +75,21 @@
     },
     "ready_for_validation_at_utc": "2026-08-12T13:15:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260812-113007",
-    "ready_for_validation_summary": "GREEN against real PostgreSQL. The prior session heal is retained unchanged and was correct; the remaining blocker was a SECOND UUID enforcement site in the Flight Recorder schema validator, found by capturing the real error behind an opaque 500. AC-118-1 through AC-118-5 and PT-118-1 through PT-118-3 all satisfied. Official validator verdict remains PENDING."
+    "ready_for_validation_summary": "GREEN against real PostgreSQL. The prior session heal is retained unchanged and was correct; the remaining blocker was a SECOND UUID enforcement site in the Flight Recorder schema validator, found by capturing the real error behind an opaque 500. AC-118-1 through AC-118-5 and PT-118-1 through PT-118-3 all satisfied. Official validator verdict remains PENDING.",
+    "claim_attribution_repair_2026_09_02": {
+      "by": "KERNEL_BUILDER-20260902-175214",
+      "at_utc": "2026-09-02T17:56:26.687Z",
+      "reason": "claimed_by was null at READY_FOR_VALIDATION_V4 (RC-006). Attributed to the implementing session recorded in ready_for_validation_by and implementation_result_kernel_builder_2026_08_12."
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-09-02T17:56:26.687Z",
+        "by": "KERNEL_BUILDER-20260902-175214",
+        "reason": "Attribution repair under Operator approval 2026-09-02.",
+        "previous_status": "READY_FOR_VALIDATION_V4",
+        "new_status": "READY_FOR_VALIDATION_V4"
+      }
+    ]
   },
   "scope": {
     "summary": "Let a pre-hardening FEMS memory proposal row that has no _canonical_artifact retry successfully, without weakening the canonical proposal contract for normal rows.",

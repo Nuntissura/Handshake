@@ -30,14 +30,19 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
-    "depends_on": ["MT-136", "MT-137", "MT-138"],
+    "status": "CLAIMED",
+    "depends_on": [
+      "MT-136",
+      "MT-137",
+      "MT-138"
+    ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
-    "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks."
+    "claimed_by": "KERNEL_BUILDER-20260901-MT141-ORCH",
+    "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks.",
+    "claimed_at_utc": "2026-09-01T16:46:22.087Z"
   },
   "scope": {
     "summary": "Port src/backend/handshake_core/tests/ off sqlx/PostgreSQL onto the embedded SurrealDB store. These tests compile against the handshake_core lib, so this MT is implementable only after MT-136/137/138 make the lib compile cleanly. Patterns to follow: unit-adjacent storage tests use SurrealStorage opened at a temporary HANDSHAKE_DATA_DIR (see tests/surreal_test_store_support/ and storage/surreal/test_inspector.rs behind the surreal-test-support feature); API-level tests exercise the product HTTP surface; migration-corpus assertions (apply_migration, DDL-constant asserts) are retired with the corpus per MT-139's recorded SEVER decision and replaced by the schema.surql coverage proof. Test-only isolation comes from per-run data directories, never from schemas or shared clusters. No assertion may be weakened or deleted to make a file compile; each file's proof intent is preserved at equivalent strength or the file's owning behavior is recorded as no-longer-existing with the superseding proof named.",
@@ -80,7 +85,9 @@
     "gui_creation_required": false,
     "argus_required": false,
     "surfaces": [],
-    "expected_evidence": ["trace_projection_or_runtime_evidence"],
+    "expected_evidence": [
+      "trace_projection_or_runtime_evidence"
+    ],
     "not_applicable_reason": "Backend test-harness port with no operator-visible surface."
   },
   "user_manual_obligation": {
@@ -110,6 +117,7 @@
     "STOP": "The suite may not be made green by narrowing, ignoring, or deleting assertions; closures are ports, equivalently-strong replacements, or typed retirements with named successors."
   },
   "handoff": {
-    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": "KERNEL_BUILDER-20260901-MT141-ORCH"
   }
 }

@@ -31,14 +31,14 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "CLAIMED",
     "active": true,
     "depends_on": [
       "MT-119"
     ],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260902-175214",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Recorded but never given an owner in MT-119.lifecycle.implementation_result.disclosed_gaps: 'AC-119-4 result-row instance left open ... Candidate for a follow-up MT.' Created here so the disclosure is not lost when MT-119 closes.",
@@ -48,6 +48,36 @@
     "ready_for_validation_v4_open_items": [
       "PT-122-1 asks for a mounted frame OPENED and described. The guard measures AccessKit bounds from a real two-pass mounted render rather than inspecting pixels, so a validator wanting a visual frame should capture one with HANDSHAKE_GPU_SCREENSHOT=1, which is now proven to work on this host.",
       "MT-113 test_author_id_budget was not executed: it is cfg(feature=\"integration\") and needs a live handshake_core backend, which does not currently compile while the SurrealDB port is in progress."
+    ],
+    "implemented_by_before_reopen": "KERNEL_BUILDER-20260815-173127",
+    "claimed_at_utc": "2026-09-02T17:56:26.687Z",
+    "reopen_2026_09_02": {
+      "schema_id": "hsk.mt_reopen@1",
+      "by": "KERNEL_BUILDER-20260902-175214",
+      "at_utc": "2026-09-02T17:56:26.687Z",
+      "source": "operator_live_approval_2026_09_02",
+      "previous_status": "READY_FOR_VALIDATION_V4",
+      "reasons": [
+        "RC-006: lifecycle.claimed_by was null at the READY_FOR_VALIDATION boundary, so the ready-checklist invariant (claimed_by set, completed_by unset) could not hold.",
+        "No KB_READY_CHECKLIST_RECEIPT exists for this MT in KB_READY_CHECKLIST_RECEIPTS.jsonl.",
+        "PT-122-3: MT-113 test_author_id_budget never executed; PT-122-1 mounted frame never captured. The recorded blocker (handshake_core backend did not compile mid SurrealDB pivot) is no longer current: MT-127 governed sweep passed 189/189 on product source 1505edb6."
+      ],
+      "scope_of_reopen": "Complete the deferred proof on the current tree, refresh evidence, emit KB_READY_CHECKLIST_RECEIPT, and return to READY_FOR_VALIDATION_V4. No re-implementation is planned unless the deferred proof fails.",
+      "session_mt_batch": [
+        "MT-121",
+        "MT-122"
+      ]
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-09-02T17:56:26.687Z",
+        "by": "KERNEL_BUILDER-20260902-175214",
+        "reason": "Reopened for deferred-proof completion under Operator approval 2026-09-02; see lifecycle.reopen_2026_09_02.",
+        "previous_status": "READY_FOR_VALIDATION_V4",
+        "new_status": "CLAIMED",
+        "previous_active": true,
+        "new_active": true
+      }
     ]
   },
   "scope": {
