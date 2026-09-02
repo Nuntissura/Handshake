@@ -284,6 +284,20 @@ pub enum KernelEventType {
     KnowledgeWorkspaceSearchBookmarkStateRecorded,
     KnowledgeLoomCanvasBoardRecorded,
     SourceControlOperationRecorded,
+    /// Flight Recorder mirror scheduled but not yet acknowledged durable.
+    FlightRecorderMirrorPending,
+    /// Editor RichDocument authority row deleted (embedded-Surreal knowledge store).
+    KnowledgeRichDocumentDeleted,
+    /// Loom folder-tree mutation receipt, appended atomically with the domain write.
+    KnowledgeLoomFolderMutated,
+    /// Loom tag-edge mutation receipt, appended atomically with the domain write.
+    KnowledgeLoomTagMutated,
+    /// Loom block pin/favorite mutation receipt, appended atomically with the domain write.
+    KnowledgeLoomBlockMutated,
+    /// Loom wiki projection overlay mutation receipt, appended atomically with the domain write.
+    KnowledgeLoomWikiMutated,
+    /// Parallel-swarm session checkpoint receipt (WP-1 state recovery).
+    SessionCheckpointed,
 }
 
 impl KernelEventType {
@@ -370,6 +384,13 @@ impl KernelEventType {
             }
             Self::KnowledgeLoomCanvasBoardRecorded => "KNOWLEDGE_LOOM_CANVAS_BOARD_RECORDED",
             Self::SourceControlOperationRecorded => "SOURCE_CONTROL_OPERATION_RECORDED",
+            Self::FlightRecorderMirrorPending => "FLIGHT_RECORDER_MIRROR_PENDING",
+            Self::KnowledgeRichDocumentDeleted => "KNOWLEDGE_RICH_DOCUMENT_DELETED",
+            Self::KnowledgeLoomFolderMutated => "KNOWLEDGE_LOOM_FOLDER_MUTATED",
+            Self::KnowledgeLoomTagMutated => "KNOWLEDGE_LOOM_TAG_MUTATED",
+            Self::KnowledgeLoomBlockMutated => "KNOWLEDGE_LOOM_BLOCK_MUTATED",
+            Self::KnowledgeLoomWikiMutated => "KNOWLEDGE_LOOM_WIKI_MUTATED",
+            Self::SessionCheckpointed => "SESSION_CHECKPOINTED",
         }
     }
 
@@ -444,7 +465,20 @@ impl KernelEventType {
             KernelEventType::KnowledgeWorkspaceSearchBookmarkStateRecorded,
             KernelEventType::KnowledgeLoomCanvasBoardRecorded,
             KernelEventType::SourceControlOperationRecorded,
+            KernelEventType::FlightRecorderMirrorPending,
+            KernelEventType::KnowledgeRichDocumentDeleted,
+            KernelEventType::KnowledgeLoomFolderMutated,
+            KernelEventType::KnowledgeLoomTagMutated,
+            KernelEventType::KnowledgeLoomBlockMutated,
+            KernelEventType::KnowledgeLoomWikiMutated,
+            KernelEventType::SessionCheckpointed,
         ]
+    }
+}
+
+impl std::fmt::Display for KernelEventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 

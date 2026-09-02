@@ -536,11 +536,19 @@ fn mt_status(posture: &SurrealAdmissibleCrdtPosture) -> NewModelLaneMtRuntimeSta
 
 fn exact_scope(label: &str) -> ResourceScope {
     ResourceScope {
-        owner_account_id: OwnerAccountId::new(format!("account-{label}")).expect("owner"),
-        actor_principal_id: ActorPrincipalId::new(format!("actor-{label}")).expect("actor"),
-        authenticated_session: AuthenticatedSessionRef::new(format!("session-{label}"))
-            .expect("session"),
-        access_space: AccessSpaceRef::new(format!("access-{label}")).expect("access"),
+        owner_account_id: OwnerAccountId::from_uuid(label_uuid(&(format!("account-{label}")))),
+        actor_principal_id: ActorPrincipalId::from_uuid(label_uuid(&(format!("actor-{label}")))),
+        authenticated_session: Some(AuthenticatedSessionRef::from_uuid(label_uuid(&(format!("session-{label}"))))),
+        access_space: Some(AccessSpaceRef::from_uuid(label_uuid(&(format!("access-{label}"))))),
         workspace: Some(WorkspaceScopeRef::new(format!("workspace-{label}")).expect("workspace")),
     }
+}
+
+/// Deterministic identifier for a test label so the same label resolves to the
+/// same exact scope across reopen phases of one proof.
+fn label_uuid(label: &str) -> uuid::Uuid {
+    let digest = <sha2::Sha256 as sha2::Digest>::digest(label.as_bytes());
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    uuid::Uuid::from_bytes(bytes)
 }

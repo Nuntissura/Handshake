@@ -72,9 +72,12 @@ pub(crate) use cloud_model_lane::{
     CloudModelLaneStore, CloudModelLaneStoredRow,
 };
 pub(crate) use model_lane::{
-    bootstrap_model_lane_schema, ModelLaneRecordKind, ModelLaneScope, SurrealModelLaneCrdtGuard,
-    SurrealModelLaneCrdtLease, SurrealModelLaneCrdtLeaseHistory, SurrealModelLaneCrdtProposal,
-    SurrealModelLaneCrdtSnapshot, SurrealModelLaneCrdtUpdate, SurrealModelLaneMessageGuard,
+    bootstrap_model_lane_schema, ModelLaneRecordKind, ModelLaneScope, SurrealCrdtLeaseClaimOutcome,
+    SurrealCrdtUpdateAppendOutcome, SurrealModelLaneCrdtEventWrite, SurrealModelLaneCrdtGuard,
+    SurrealModelLaneCrdtLease, SurrealModelLaneCrdtLeaseHistory, SurrealModelLaneCrdtLeaseWrite,
+    SurrealModelLaneCrdtProposal, SurrealModelLaneCrdtProposalRecord,
+    SurrealModelLaneCrdtProposalWrite, SurrealModelLaneCrdtSnapshot, SurrealModelLaneCrdtUpdate,
+    SurrealModelLaneMessageGuard,
     SurrealModelLaneRecord, SurrealModelLaneRoutingAttemptRow, SurrealModelLaneRoutingAttemptWrite,
     SurrealModelLaneRoutingClaim, SurrealModelLaneRoutingCommit, SurrealModelLaneRoutingEventWrite,
     SurrealModelLaneRoutingExecutionRow, SurrealModelLaneRoutingExecutionWrite,
@@ -111,6 +114,10 @@ pub use test_inspector::{
 pub use user_manual_knowledge::{
     bootstrap_user_manual_knowledge_schema, SurrealUserManualKnowledgeStore,
     UserManualKnowledgeEntityMutation,
+};
+#[cfg(feature = "surreal-test-support")]
+pub use workspace_settings::{
+    workspace_settings_test_event_count, workspace_settings_test_seed_legacy_unscoped_row,
 };
 pub use workspace_settings::{
     bootstrap_workspace_settings_schema, SurrealWorkspaceSettingsError,
@@ -311,6 +318,14 @@ pub struct SurrealStorage {
     inner: Arc<SurrealStorageInner>,
 }
 
+impl std::fmt::Debug for SurrealStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SurrealStorage")
+            .field("config", &self.inner.config)
+            .finish_non_exhaustive()
+    }
+}
+
 pub type SurrealOperation<'a, T> =
     Pin<Box<dyn Future<Output = Result<T, SurrealStorageError>> + Send + 'a>>;
 pub(crate) type SurrealStorageOperation<'a, T> =
@@ -389,91 +404,27 @@ impl SurrealDataContext<'_> {
         Ok(self.client.delete((table, id)).await?)
     }
 
-    /// Runs a parameterized SurrealQL statement and returns the rows of the
-    /// FIRST result set.
-    ///
-    /// Caller values travel as BINDINGS and are never concatenated into the
-    /// statement text, so this widens what the facade can express without
-    /// giving callers a way to build an injectable query or to reach the SDK
-    /// handle. The statement stays a `&'static str` for the same reason: a
-    /// runtime-assembled query string cannot be passed in.
-    ///
-    /// Multiple statements separated by `;` execute in one round trip, so a
-    /// caller that needs several statements to be atomic writes them as
-    /// `BEGIN TRANSACTION; ...; COMMIT TRANSACTION;` here rather than issuing
-    /// them separately.
-    pub(crate) async fn query_values<R, B>(
-        &self,
-        statement: &'static str,
-        bindings: B,
-    ) -> Result<Vec<R>, SurrealStorageError>
-    where
-        R: surrealdb::types::SurrealValue,
-        B: surrealdb::types::SurrealValue + Send,
-    {
-        self.query_values_at(statement, bindings, 0).await
-    }
 
-    /// Runs a bound static query and deserializes one explicit statement result.
-    /// SurrealDB indexes every `LET`/`BEGIN`/`COMMIT` statement, so callers using
-    /// a multi-statement atomic operation must name the result that carries the
-    /// record instead of accidentally reading the first empty `LET` result.
-    pub(crate) async fn query_values_at<R, B>(
+    /// Runs a bound statement and returns the raw checked result set. Callers
+    /// that need several typed statement results from one atomic round trip
+    /// take them by index from the returned response.
+    pub(crate) async fn query_bound<B>(
         &self,
-        statement: &'static str,
+        statement: impl Into<String> + Send,
         bindings: B,
-        result_index: usize,
-    ) -> Result<Vec<R>, SurrealStorageError>
+    ) -> Result<surrealdb::IndexedResults, SurrealStorageError>
     where
-        R: surrealdb::types::SurrealValue,
-        B: surrealdb::types::SurrealValue + Send,
-    {
-        let mut response = self
-            .client
-            .query(statement)
-            .bind(surrealdb::types::SurrealValue::into_value(bindings))
-            .await?
-            .check()?;
-        Ok(response.take(result_index)?)
-    }
-
-    /// [`Self::query_values`] returning only the first row.
-    pub(crate) async fn query_first<R, B>(
-        &self,
-        statement: &'static str,
-        bindings: B,
-    ) -> Result<Option<R>, SurrealStorageError>
-    where
-        R: surrealdb::types::SurrealValue,
         B: surrealdb::types::SurrealValue + Send,
     {
         Ok(self
-            .query_values::<R, B>(statement, bindings)
+            .client
+            .query(statement.into())
+            .bind(surrealdb::types::SurrealValue::into_value(bindings))
             .await?
-            .into_iter()
-            .next())
+            .check()?)
     }
 
-    /// Runs a parameterized statement for its effect and reports how many rows
-    /// the first result set returned.
-    ///
-    /// Statements whose affected-row count matters must end in `RETURN AFTER`
-    /// (or `RETURN BEFORE`), because SurrealDB reports affected rows by
-    /// returning them. A conditional update that matched nothing therefore
-    /// yields `0`, which is the signal callers use to detect a lost race.
-    pub(crate) async fn execute_returning<B>(
-        &self,
-        statement: &'static str,
-        bindings: B,
-    ) -> Result<usize, SurrealStorageError>
-    where
-        B: surrealdb::types::SurrealValue + Send,
-    {
-        let rows = self
-            .query_values::<surrealdb::types::Value, B>(statement, bindings)
-            .await?;
-        Ok(rows.len())
-    }
+
 
     /// Creates a record only when its id is free, returning `Ok(None)` when it
     /// is already taken.
@@ -553,6 +504,108 @@ impl SurrealAdminContext<'_> {
             .check()?)
     }
 }
+
+/// Bound SurrealQL query surface of [`SurrealDataContext`]. Statements stay
+/// `&'static str` and values travel as bindings. The surface is crate-private
+/// in production builds; the explicit `surreal-test-support` feature exposes it
+/// to integration proofs alongside [`SurrealTestInspector`] so tests can seed
+/// and tamper exact-scope rows without a second database client.
+macro_rules! surreal_data_context_query_api {
+    ($vis:vis) => {
+        impl<'a> SurrealDataContext<'a> {
+    /// Runs a parameterized SurrealQL statement and returns the rows of the
+    /// FIRST result set.
+    ///
+    /// Caller values travel as BINDINGS and are never concatenated into the
+    /// statement text, so this widens what the facade can express without
+    /// giving callers a way to build an injectable query or to reach the SDK
+    /// handle. The statement stays a `&'static str` for the same reason: a
+    /// runtime-assembled query string cannot be passed in.
+    ///
+    /// Multiple statements separated by `;` execute in one round trip, so a
+    /// caller that needs several statements to be atomic writes them as
+    /// `BEGIN TRANSACTION; ...; COMMIT TRANSACTION;` here rather than issuing
+    /// them separately.
+    $vis async fn query_values<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        self.query_values_at(statement, bindings, 0).await
+    }
+
+    /// Runs a bound static query and deserializes one explicit statement result.
+    /// SurrealDB indexes every `LET`/`BEGIN`/`COMMIT` statement, so callers using
+    /// a multi-statement atomic operation must name the result that carries the
+    /// record instead of accidentally reading the first empty `LET` result.
+    $vis async fn query_values_at<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+        result_index: usize,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        let mut response = self
+            .client
+            .query(statement)
+            .bind(surrealdb::types::SurrealValue::into_value(bindings))
+            .await?
+            .check()?;
+        Ok(response.take(result_index)?)
+    }
+
+    /// [`Self::query_values`] returning only the first row.
+    $vis async fn query_first<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Option<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        Ok(self
+            .query_values::<R, B>(statement, bindings)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    /// Runs a parameterized statement for its effect and reports how many rows
+    /// the first result set returned.
+    ///
+    /// Statements whose affected-row count matters must end in `RETURN AFTER`
+    /// (or `RETURN BEFORE`), because SurrealDB reports affected rows by
+    /// returning them. A conditional update that matched nothing therefore
+    /// yields `0`, which is the signal callers use to detect a lost race.
+    $vis async fn execute_returning<B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<usize, SurrealStorageError>
+    where
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        let rows = self
+            .query_values::<surrealdb::types::Value, B>(statement, bindings)
+            .await?;
+        Ok(rows.len())
+    }
+        }
+    };
+}
+
+#[cfg(feature = "surreal-test-support")]
+surreal_data_context_query_api!(pub);
+#[cfg(not(feature = "surreal-test-support"))]
+surreal_data_context_query_api!(pub(crate));
 
 type SharedShutdownResult = Result<(), Arc<str>>;
 
@@ -643,6 +696,16 @@ impl SurrealStorage {
 
     pub async fn open_default() -> Result<Self, SurrealStorageError> {
         Self::open(SurrealStorageConfig::from_env()?).await
+    }
+
+    /// Namespace this handle is bound to.
+    pub fn namespace(&self) -> &str {
+        self.inner.config.namespace()
+    }
+
+    /// Database this handle is bound to.
+    pub fn database(&self) -> &str {
+        self.inner.config.database()
     }
 
     pub fn config(&self) -> &SurrealStorageConfig {

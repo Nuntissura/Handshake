@@ -1184,7 +1184,7 @@ impl SurrealFixture {
                 })
             })
             .await
-            .expect("tamper exact-scope lifecycle fixture")
+            .expect("tamper exact-scope lifecycle fixture") as i64
     }
 
     async fn lifecycle_count(&self, process_uuid: Uuid, scope: &ReclaimResourceScope) -> i64 {

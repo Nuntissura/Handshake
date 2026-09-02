@@ -641,6 +641,10 @@ pub async fn workspace_settings_test_seed_legacy_unscoped_row(
         settings_state: Value,
     }
 
+    let bindings = LegacyBindings {
+        workspace_id: workspace_id.to_owned(),
+        settings_state,
+    };
     storage
         .with_data_operation(|database| {
             Box::pin(async move {
@@ -650,10 +654,7 @@ pub async fn workspace_settings_test_seed_legacy_unscoped_row(
                            workspace_id: $workspace_id, settings_state: $settings_state, \
                            generation: 1, updated_at: time::now(), storage_authority: 'embedded_surrealdb' \
                          };",
-                        LegacyBindings {
-                            workspace_id: workspace_id.to_owned(),
-                            settings_state,
-                        },
+                        bindings,
                     )
                     .await?;
                 Ok(())

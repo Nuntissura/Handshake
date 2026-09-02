@@ -388,6 +388,9 @@ struct CreateLoomBlockRequest {
 
 async fn create_loom_block(
     State(state): State<AppState>,
+    axum::Extension(product_scope): axum::Extension<
+        crate::api::account_scope::ProductLocalResourceScope,
+    >,
     Path(workspace_id): Path<String>,
     Json(payload): Json<CreateLoomBlockRequest>,
 ) -> ApiResult<Json<LoomBlock>> {
@@ -448,7 +451,7 @@ async fn create_loom_block(
     // WP-KERNEL-009 MT-264: refresh the semantic embedding projection so a
     // normally-created block is searchable by the semantic modality (not only
     // by tests that manually reindex). No-op decline when no model configured.
-    refresh_loom_block_embedding(&state, &ctx, &block).await;
+    refresh_loom_block_embedding(&state, product_scope.exact(), &block).await;
 
     Ok(Json(block))
 }
@@ -466,12 +469,18 @@ async fn create_loom_block(
 /// committed: it is recorded to the Flight Recorder so the block stays usable
 /// while the embedding can be backfilled, rather than failing an otherwise
 /// successful authority write.
-async fn refresh_loom_block_embedding(state: &AppState, ctx: &WriteContext, block: &LoomBlock) {
+async fn refresh_loom_block_embedding(
+    state: &AppState,
+    scope: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    block: &LoomBlock,
+) {
+    let store =
+        crate::storage::surreal::SurrealLoomSearchStore::new(state.surreal_storage.clone());
     match crate::loom_search::reindex_block(
-        state.storage.as_ref(),
+        &store,
         state.llm_client.as_ref(),
         state.flight_recorder.as_ref(),
-        ctx,
+        scope,
         block,
     )
     .await
@@ -507,6 +516,9 @@ fn parse_journal_date(raw: &str) -> ApiResult<String> {
 
 async fn open_daily_journal(
     State(state): State<AppState>,
+    axum::Extension(product_scope): axum::Extension<
+        crate::api::account_scope::ProductLocalResourceScope,
+    >,
     Path((workspace_id, journal_date)): Path<(String, String)>,
 ) -> ApiResult<Json<LoomBlock>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
@@ -529,7 +541,7 @@ async fn open_daily_journal(
 
     // WP-KERNEL-009 MT-264: refresh the semantic embedding projection for the
     // journal block (the keyword/trigram row is written in storage).
-    refresh_loom_block_embedding(&state, &ctx, &block).await;
+    refresh_loom_block_embedding(&state, product_scope.exact(), &block).await;
 
     Ok(Json(block))
 }
@@ -774,9 +786,9 @@ struct ServedWikiPage {
     staleness_verdict: crate::knowledge_wiki::WikiStalenessVerdict,
 }
 
-fn wiki_pg(state: &AppState) -> std::sync::Arc<crate::storage::postgres::PostgresDatabase> {
-    std::sync::Arc::new(crate::storage::postgres::PostgresDatabase::new(
-        state.postgres_pool.clone(),
+fn wiki_db(state: &AppState) -> std::sync::Arc<crate::storage::surreal::SurrealDatabase> {
+    std::sync::Arc::new(crate::storage::surreal::SurrealDatabase::new(
+        state.surreal_storage.clone(),
     ))
 }
 
@@ -834,7 +846,7 @@ async fn attach_wiki_verdict(
     state: &AppState,
     page: crate::storage::LoomWikiProjection,
 ) -> ApiResult<ServedWikiPage> {
-    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_pg(state));
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_db(state));
     let staleness_verdict = checker
         .evaluate_stamp_value(&page.workspace_id, page.compile_stamp.as_ref())
         .await
@@ -907,7 +919,7 @@ async fn loom_wiki_projection_stale(
         .get_loom_wiki_projection(&workspace_id, &projection_id)
         .await
         .map_err(map_storage_error)?;
-    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_pg(&state));
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_db(&state));
     let verdict = checker
         .evaluate_stamp_value(&workspace_id, projection.compile_stamp.as_ref())
         .await
@@ -974,7 +986,7 @@ async fn list_loom_wiki_pages(
     Query(params): Query<ListWikiPagesQuery>,
 ) -> ApiResult<Json<serde_json::Value>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let db = wiki_pg(&state);
+    let db = wiki_db(&state);
     let pages = db
         .list_knowledge_wiki_pages(
             &workspace_id,
@@ -1020,7 +1032,7 @@ async fn bootstrap_project_wiki(
     ensure_workspace_exists(&state, &workspace_id).await?;
     let request = payload.map(|Json(p)| p).unwrap_or_default();
     let ctx = wiki_compile_context(&headers);
-    let db = wiki_pg(&state);
+    let db = wiki_db(&state);
     let compiler = crate::knowledge_wiki::compiler::ProjectWikiCompiler::new(db.clone());
     let mut options = crate::knowledge_wiki::compiler::WikiBootstrapOptions::default();
     if let Some(budget) = request.page_token_budget {
@@ -1096,7 +1108,7 @@ async fn project_wiki_drift_check(
     ensure_workspace_exists(&state, &workspace_id).await?;
     let request = payload.map(|Json(p)| p).unwrap_or_default();
     let ctx = wiki_compile_context(&headers);
-    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_pg(&state));
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_db(&state));
     let report = checker
         .check_workspace(&ctx, &workspace_id, request.persist.unwrap_or(true))
         .await
@@ -1124,7 +1136,7 @@ async fn project_wiki_fanout(
 ) -> ApiResult<Json<crate::knowledge_wiki::fanout::WikiFanOutOutcome>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let ctx = wiki_compile_context(&headers);
-    let engine = crate::knowledge_wiki::fanout::WikiFanOutEngine::new(wiki_pg(&state));
+    let engine = crate::knowledge_wiki::fanout::WikiFanOutEngine::new(wiki_db(&state));
     let mut request = crate::knowledge_wiki::fanout::WikiFanOutRequest::new(
         payload.source_kind,
         payload.source_id,
@@ -1504,6 +1516,9 @@ struct LoomBlockPatchRequest {
 
 async fn patch_loom_block(
     State(state): State<AppState>,
+    axum::Extension(product_scope): axum::Extension<
+        crate::api::account_scope::ProductLocalResourceScope,
+    >,
     Path((workspace_id, block_id)): Path<(String, String)>,
     Json(payload): Json<LoomBlockPatchRequest>,
 ) -> ApiResult<Json<LoomBlock>> {
@@ -1634,7 +1649,7 @@ async fn patch_loom_block(
     // search text, so refresh the semantic embedding projection too (the
     // keyword/trigram row is refreshed in storage update_loom_block). No-op
     // decline when no embedding model is configured.
-    refresh_loom_block_embedding(&state, &ctx, &block).await;
+    refresh_loom_block_embedding(&state, product_scope.exact(), &block).await;
 
     Ok(Json(block))
 }
@@ -2637,7 +2652,7 @@ async fn run_loom_ai_job(
     };
     let result = run_loom_ai_job_flow(
         state.storage.as_ref(),
-        &state.postgres_pool,
+        &state.surreal_storage,
         state.llm_client.as_ref(),
         req,
     )
@@ -2683,10 +2698,17 @@ struct LoomSearchV2Body {
 /// facets, ts_headline highlights, and a `semantic_available` flag.
 async fn loom_search_v2(
     State(state): State<AppState>,
+    axum::Extension(product_scope): axum::Extension<
+        crate::api::account_scope::ProductLocalResourceScope,
+    >,
     Path(workspace_id): Path<String>,
     Json(payload): Json<LoomSearchV2Body>,
 ) -> ApiResult<Json<crate::storage::LoomSearchV2Response>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
+    let scope = product_scope.exact();
+    if scope.workspace_id.as_str() != workspace_id {
+        return Err(not_found("workspace"));
+    }
     let request = crate::storage::LoomSearchV2Request {
         query: payload.query,
         content_type: payload.content_type,
@@ -2697,11 +2719,13 @@ async fn loom_search_v2(
         limit: payload.limit,
         offset: payload.offset,
     };
+    let search_store =
+        crate::storage::surreal::SurrealLoomSearchStore::new(state.surreal_storage.clone());
     let resp = crate::loom_search::search(
-        state.storage.as_ref(),
+        &search_store,
         state.llm_client.as_ref(),
         state.flight_recorder.as_ref(),
-        &workspace_id,
+        scope,
         request,
     )
     .await
@@ -2724,7 +2748,7 @@ async fn list_loom_ai_suggestions(
 ) -> ApiResult<Json<Vec<LoomAiSuggestionRow>>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let rows = list_suggestion_rows(
-        &state.postgres_pool,
+        &state.surreal_storage,
         &workspace_id,
         query.job_id.as_deref(),
         query.state.as_deref(),
@@ -2754,7 +2778,7 @@ async fn accept_loom_ai_suggestion(
 
     let outcome = accept_suggestion_flow(
         state.storage.as_ref(),
-        &state.postgres_pool,
+        &state.surreal_storage,
         &suggestion_id,
         &reviewer,
         &loom_ai_session(&headers),
@@ -2799,7 +2823,7 @@ async fn reject_loom_ai_suggestion(
 
     let outcome = reject_suggestion_flow(
         state.storage.as_ref(),
-        &state.postgres_pool,
+        &state.surreal_storage,
         &suggestion_id,
         &reviewer,
         &loom_ai_session(&headers),
@@ -2865,7 +2889,7 @@ async fn accept_all_loom_ai_suggestions(
     // authority is enforced identically for the HTTP and direct callers.
     let outcome = accept_all_suggestions_flow(
         state.storage.as_ref(),
-        &state.postgres_pool,
+        &state.surreal_storage,
         &workspace_id,
         &job_id,
         kind_filter,

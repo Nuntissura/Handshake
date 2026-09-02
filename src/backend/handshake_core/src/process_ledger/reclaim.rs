@@ -346,6 +346,21 @@ impl ReclaimResourceScope {
             access_space_uuid: parse("access_space_id", access_space_id)?,
         })
     }
+
+    /// Builds the reclaim scope from an exact five-field ResourceScope
+    /// attribution. Reclaim never widens beyond the exact scope of the
+    /// authority that owns the process rows.
+    pub fn from_exact(
+        exact: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    ) -> Result<Self, ProcessLedgerError> {
+        Self::try_from_stored(
+            &exact.owner_account_id.to_string(),
+            &exact.actor_principal_id.to_string(),
+            &exact.authenticated_session_id.to_string(),
+            exact.workspace_id.as_str(),
+            &exact.access_space_id.to_string(),
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

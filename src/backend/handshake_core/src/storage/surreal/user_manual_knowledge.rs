@@ -601,6 +601,7 @@ impl SurrealUserManualKnowledgeStore {
             ));
         }
         let exact = exact_scope_bindings(scope);
+        let entity_key = entity_key.to_owned();
         let mut rows = self
             .storage
             .with_data_operation(|database| {
@@ -614,7 +615,7 @@ impl SurrealUserManualKnowledgeStore {
                                 authenticated_session_id: exact.authenticated_session_id,
                                 access_space_id: exact.access_space_id,
                                 workspace_id: exact.workspace_id,
-                                entity_key: entity_key.to_owned(),
+                                entity_key,
                             },
                             3,
                         )
@@ -642,13 +643,14 @@ impl SurrealUserManualKnowledgeStore {
             name: String,
             updated_at: DateTime<Utc>,
         }
+        let workspace_id = workspace_id.to_owned();
         self.storage
             .with_data_operation(|database| {
                 Box::pin(async move {
                     database
                         .upsert_one::<Value, _>(
                             "workspaces",
-                            workspace_id,
+                            &workspace_id,
                             WorkspaceFixture {
                                 name: "UserManual knowledge bridge fixture".to_owned(),
                                 updated_at: Utc::now(),
@@ -729,6 +731,15 @@ impl SurrealUserManualKnowledgeStore {
             ));
         }
         let exact = exact_scope_bindings(scope);
+        let bindings = MismatchReceiptBindings {
+            owner_account_id: exact.owner_account_id,
+            actor_principal_id: exact.actor_principal_id,
+            authenticated_session_id: exact.authenticated_session_id,
+            access_space_id: exact.access_space_id,
+            workspace_id: exact.workspace_id,
+            entity_key: entity_key.to_owned(),
+            mismatched_display_name: mismatched_display_name.to_owned(),
+        };
         let mut rows = self
             .storage
             .with_data_operation(|database| {
@@ -736,15 +747,7 @@ impl SurrealUserManualKnowledgeStore {
                     database
                         .query_values_at::<ReceiptOnlyResult, _>(
                             MISMATCH_CANONICAL_RECEIPT_FIXTURE_QUERY,
-                            MismatchReceiptBindings {
-                                owner_account_id: exact.owner_account_id,
-                                actor_principal_id: exact.actor_principal_id,
-                                authenticated_session_id: exact.authenticated_session_id,
-                                access_space_id: exact.access_space_id,
-                                workspace_id: exact.workspace_id,
-                                entity_key: entity_key.to_owned(),
-                                mismatched_display_name: mismatched_display_name.to_owned(),
-                            },
+                            bindings,
                             3,
                         )
                         .await

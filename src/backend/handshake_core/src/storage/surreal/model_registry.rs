@@ -1038,6 +1038,7 @@ impl SurrealModelRegistryStore {
                 event: receipt,
             });
         }
+        let scope_bindings = exact_scope_bindings(scope);
         let stored = self
             .storage
             .with_data_operation(|database| {
@@ -1047,7 +1048,7 @@ impl SurrealModelRegistryStore {
                             PERSIST_BOOT_SET_QUERY,
                             BootSetBindings {
                                 rows,
-                                scope: exact_scope_bindings(scope),
+                                scope: scope_bindings,
                                 artifact_sha256: hashes,
                             },
                             2,
@@ -1164,6 +1165,7 @@ impl SurrealModelRegistryStore {
                 event: receipt,
             });
         }
+        let scope_bindings = exact_scope_bindings(scope);
         let stored = self
             .storage
             .with_data_operation(|database| {
@@ -1173,7 +1175,7 @@ impl SurrealModelRegistryStore {
                             ENSURE_ACTIVE_DEFAULTS_QUERY,
                             ActiveDefaultsBindings {
                                 rows,
-                                scope: exact_scope_bindings(scope),
+                                scope: scope_bindings,
                                 purposes,
                             },
                             2,
@@ -1199,6 +1201,7 @@ impl SurrealModelRegistryStore {
         &self,
         scope: &ExactResourceScopeAttribution,
     ) -> Result<Vec<PersistedActiveModelSelection>, ModelRegistryPersistenceError> {
+        let scope_bindings = exact_scope_bindings(scope);
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -1207,7 +1210,7 @@ impl SurrealModelRegistryStore {
                         .query_values_at::<StoredActiveSelection, _>(
                             ACTIVE_SELECTION_READ_QUERY,
                             ActiveReadBindings {
-                                scope: exact_scope_bindings(scope),
+                                scope: scope_bindings,
                             },
                             4,
                         )
@@ -1273,6 +1276,11 @@ impl SurrealModelRegistryStore {
                 "active selection revision exceeds i64".to_owned(),
             )
         })?;
+        let scope_bindings = exact_scope_bindings(scope);
+        let purpose_token = purpose.as_str().to_owned();
+        let runtime_role_token = purpose.runtime_role().as_str().to_owned();
+        let target_artifact_sha256_hex = hex::encode(target_artifact_sha256);
+        let event_write = receipt_write(event, scope);
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -1281,13 +1289,13 @@ impl SurrealModelRegistryStore {
                         .query_values_at::<StoredActiveSelection, _>(
                             SELECT_ACTIVE_MODEL_QUERY,
                             ActiveSelectBindings {
-                                scope: exact_scope_bindings(scope),
-                                purpose: purpose.as_str().to_owned(),
-                                runtime_role: purpose.runtime_role().as_str().to_owned(),
-                                target_artifact_sha256: hex::encode(target_artifact_sha256),
+                                scope: scope_bindings,
+                                purpose: purpose_token,
+                                runtime_role: runtime_role_token,
+                                target_artifact_sha256: target_artifact_sha256_hex,
                                 expected_revision: expected_revision_i64,
                                 request_fingerprint,
-                                event: receipt_write(event, scope),
+                                event: event_write,
                             },
                             5,
                         )
@@ -1375,6 +1383,12 @@ impl SurrealModelRegistryStore {
             })?;
         let capabilities = serde_json::to_value(&target.declared_capabilities)?;
         let current_selection_fingerprint = selection_fingerprint(scope, target)?;
+        let scope_bindings = exact_scope_bindings(scope);
+        let target_artifact_sha256_hex = hex::encode(target.artifact_sha256);
+        let runtime_binding_value = runtime_binding_token(target.runtime_binding).to_owned();
+        let runtime_role_value = target.runtime_role.as_str().to_owned();
+        let provider_value = provider_token(target.provider).to_owned();
+        let event_write = receipt_write(event, scope);
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -1383,17 +1397,16 @@ impl SurrealModelRegistryStore {
                         .query_values_at::<StoredRegistration, _>(
                             REBIND_SELECTION_QUERY,
                             RebindBindings {
-                                scope: exact_scope_bindings(scope),
-                                artifact_sha256: hex::encode(target.artifact_sha256),
+                                scope: scope_bindings,
+                                artifact_sha256: target_artifact_sha256_hex,
                                 expected_revision,
-                                runtime_binding: runtime_binding_token(target.runtime_binding)
-                                    .to_owned(),
-                                runtime_role: target.runtime_role.as_str().to_owned(),
+                                runtime_binding: runtime_binding_value,
+                                runtime_role: runtime_role_value,
                                 capabilities,
-                                provider: provider_token(target.provider).to_owned(),
+                                provider: provider_value,
                                 current_selection_fingerprint,
                                 request_fingerprint,
-                                event: receipt_write(event, scope),
+                                event: event_write,
                             },
                             4,
                         )
@@ -1437,13 +1450,14 @@ impl SurrealModelRegistryStore {
             updated_at: DateTime<Utc>,
         }
 
+        let workspace_id = scope.workspace_id.as_str().to_owned();
         self.storage
             .with_data_operation(|database| {
                 Box::pin(async move {
                     database
                         .upsert_one::<surrealdb::types::Value, _>(
                             "workspaces",
-                            scope.workspace_id.as_str(),
+                            &workspace_id,
                             WorkspaceFixture {
                                 name: "model registry embedded test workspace".to_owned(),
                                 updated_at: Utc::now(),
@@ -1507,6 +1521,11 @@ impl SurrealModelRegistryStore {
         artifact_sha256: &[u8; 32],
         lifecycle_state: ModelRegistryLifecycleState,
     ) -> Result<(), ModelRegistryPersistenceError> {
+        let bindings = TestLifecycleBindings {
+            scope: exact_scope_bindings(scope),
+            artifact_sha256: hex::encode(artifact_sha256),
+            lifecycle_state: lifecycle_state.as_str().to_owned(),
+        };
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -1520,11 +1539,7 @@ impl SurrealModelRegistryStore {
                                AND access_space_id = $scope.access_space_id \
                                AND workspace_id = $scope.workspace_id \
                                AND artifact_sha256 = $artifact_sha256 RETURN AFTER;",
-                            TestLifecycleBindings {
-                                scope: exact_scope_bindings(scope),
-                                artifact_sha256: hex::encode(artifact_sha256),
-                                lifecycle_state: lifecycle_state.as_str().to_owned(),
-                            },
+                            bindings,
                         )
                         .await
                 })
@@ -1542,6 +1557,10 @@ impl SurrealModelRegistryStore {
         scope: &ExactResourceScopeAttribution,
         artifact_sha256: &[u8; 32],
     ) -> Result<(), ModelRegistryPersistenceError> {
+        let bindings = TestArtifactBindings {
+            scope: exact_scope_bindings(scope),
+            artifact_sha256: hex::encode(artifact_sha256),
+        };
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -1561,10 +1580,7 @@ impl SurrealModelRegistryStore {
                              UPDATE type::record('kernel_event_ledger', $rows[0].event_id) \
                                SET aggregate_id = 'tampered-model-registry-aggregate' RETURN AFTER; \
                              COMMIT TRANSACTION;",
-                            TestArtifactBindings {
-                                scope: exact_scope_bindings(scope),
-                                artifact_sha256: hex::encode(artifact_sha256),
-                            },
+                            bindings,
                             3,
                         )
                         .await
@@ -1583,6 +1599,10 @@ impl SurrealModelRegistryStore {
         scope: &ExactResourceScopeAttribution,
         artifact_sha256: &[u8; 32],
     ) -> Result<(), ModelRegistryPersistenceError> {
+        let bindings = TestArtifactBindings {
+            scope: exact_scope_bindings(scope),
+            artifact_sha256: hex::encode(artifact_sha256),
+        };
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -1596,10 +1616,7 @@ impl SurrealModelRegistryStore {
                                AND access_space_id = $scope.access_space_id \
                                AND workspace_id = $scope.workspace_id \
                                AND artifact_sha256 = $artifact_sha256 RETURN AFTER;",
-                            TestArtifactBindings {
-                                scope: exact_scope_bindings(scope),
-                                artifact_sha256: hex::encode(artifact_sha256),
-                            },
+                            bindings,
                         )
                         .await
                 })
@@ -1614,6 +1631,8 @@ impl SurrealModelRegistryStore {
         scope: &ExactResourceScopeAttribution,
         artifact_sha256: &[u8; 32],
     ) -> Result<Option<PersistedModelRegistration>, ModelRegistryPersistenceError> {
+        let scope_bindings = exact_scope_bindings(scope);
+        let artifact_sha256_hex = hex::encode(artifact_sha256);
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -1622,8 +1641,8 @@ impl SurrealModelRegistryStore {
                         .query_values_at::<StoredRegistration, _>(
                             READ_REGISTRATION_QUERY,
                             ReadRegistrationBindings {
-                                scope: exact_scope_bindings(scope),
-                                artifact_sha256: hex::encode(artifact_sha256),
+                                scope: scope_bindings,
+                                artifact_sha256: artifact_sha256_hex,
                             },
                             5,
                         )
@@ -1646,6 +1665,7 @@ impl SurrealModelRegistryStore {
         &self,
         scope: &ExactResourceScopeAttribution,
     ) -> Result<Vec<PersistedModelRegistration>, ModelRegistryPersistenceError> {
+        let scope_bindings = exact_scope_bindings(scope);
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -1653,7 +1673,7 @@ impl SurrealModelRegistryStore {
                     database
                         .query_values_at::<StoredRegistration, _>(
                             LIST_REGISTRATIONS_QUERY,
-                            exact_scope_bindings(scope),
+                            scope_bindings,
                             4,
                         )
                         .await
@@ -1679,6 +1699,7 @@ impl SurrealModelRegistryStore {
         if artifact_sha256.is_empty() {
             return Ok(Vec::new());
         }
+        let scope_bindings = exact_scope_bindings(scope);
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -1687,7 +1708,7 @@ impl SurrealModelRegistryStore {
                         .query_values_at::<StoredRegistration, _>(
                             READ_REGISTRATION_SET_QUERY,
                             ReadSetBindings {
-                                scope: exact_scope_bindings(scope),
+                                scope: scope_bindings,
                                 artifact_sha256,
                             },
                             4,

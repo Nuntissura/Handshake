@@ -389,6 +389,17 @@ impl ModelLaneStore {
         self.terminal_commit_test_control.clone()
     }
 
+    /// Binds a facade to the shared embedded store after provisioning the
+    /// cloud-lane authority schema on it, so cloud policy proofs run against
+    /// exactly the namespace/database the caller injected.
+    pub async fn new_surreal_cloud_authority_only(
+        access: ResourceAccessContext,
+        storage: SurrealStorage,
+    ) -> ModelLaneResult<Self> {
+        bootstrap_cloud_model_lane_schema(&storage).await?;
+        Ok(Self::new(storage, access))
+    }
+
     pub fn new_scoped(storage: SurrealStorage, scope: ResourceScope) -> Self {
         Self::new(storage, ResourceAccessContext::for_account(scope))
     }
@@ -1046,13 +1057,13 @@ impl ModelLaneStore {
             access_space_id: scope.access_space_id.clone(),
             workspace_id: scope.workspace_id.clone(),
             document_id: input.document_id,
-            crdt_document_id: input.crdt_document_id,
-            update_id: input.update_id,
+            crdt_document_id: input.crdt_document_id.clone(),
+            update_id: input.update_id.clone(),
             update_seq: input.update_seq,
             update_sha256: update_sha256.clone(),
             update_bytes_ref,
             update_bytes_b64: base64::engine::general_purpose::STANDARD.encode(&input.update_bytes),
-            actor_id: input.actor_id,
+            actor_id: input.actor_id.clone(),
             actor_kind: input.actor_kind,
             session_id: input.session_id,
             trace_id: input.trace_id,
@@ -1082,12 +1093,13 @@ impl ModelLaneStore {
             ledger_site_id: input.site_id,
         };
         let expected_head_update_seq = input.update_seq - 1;
+        let expected_head_state_vector = row.state_vector_before.clone();
         let outcome = self
             .provider()
             .await?
             .append_crdt_update_atomic(
                 expected_head_update_seq,
-                &row.state_vector_before,
+                &expected_head_state_vector,
                 row,
                 event,
                 &scope,
@@ -1125,7 +1137,7 @@ impl ModelLaneStore {
         )?;
         let row = SurrealModelLaneCrdtSnapshot {
             schema_id: input.schema_id,
-            snapshot_id: input.snapshot_id,
+            snapshot_id: input.snapshot_id.clone(),
             owner_account_id: scope.owner_account_id.clone(),
             actor_principal_id: scope.actor_principal_id.clone(),
             authenticated_session_id: scope.authenticated_session_id.clone(),
@@ -4051,6 +4063,7 @@ impl ModelLaneStore {
         provider
             .validate_event_link(SurrealRecordKind::Lane, &existing_row, &scope)
             .await?;
+        let existing_event_stream_version = existing_row.event_stream_version;
         let existing = surreal_lane_record(existing_row)?;
         if matches!(
             existing.status,
@@ -4112,7 +4125,7 @@ impl ModelLaneStore {
             .replace_if_version_with_event_id(
                 SurrealRecordKind::Lane,
                 lane_id,
-                existing.event_stream_version,
+                existing_event_stream_version,
                 serde_json::to_string(&lane)?,
                 lane_search_terms(&lane),
                 serde_json::to_string(&payload)?,
@@ -5925,7 +5938,7 @@ impl ModelLaneStore {
                 checkpoint.recovery_state == ModelLaneRecoveryState::Restartable
                     || checkpoint.recovery_state == ModelLaneRecoveryState::Reclaimable
             })
-            .map(|checkpoint| checkpoint.run_id)
+            .map(|checkpoint| checkpoint.run_id.clone())
             .collect();
         let mut recovered = Vec::with_capacity(run_ids.len());
         for run_id in run_ids {
@@ -6917,7 +6930,7 @@ impl ModelLaneStore {
             .into_iter()
             .map(|row| ModelLaneSchemaRegistryRow {
                 schema_id: row.schema_id,
-                schema_version: row.schema_version,
+                schema_version: i32::try_from(row.schema_version).unwrap_or(i32::MAX),
                 record_kind: row.record_kind,
                 table_name: row.table_name,
             })
@@ -10377,6 +10390,9 @@ pub struct ModelLaneCrdtUpdateRecord {
     pub update_bytes_ref: String,
     pub state_vector_before: String,
     pub state_vector_after: String,
+    pub replay_order_key: String,
+    pub dependency_update_ids: Vec<String>,
+    pub replay_schema_version: String,
     pub event_ledger_event_id: String,
 }
 
@@ -10659,6 +10675,9 @@ fn crdt_update_record(row: SurrealModelLaneCrdtUpdate) -> ModelLaneCrdtUpdateRec
         update_bytes_ref: row.update_bytes_ref,
         state_vector_before: row.state_vector_before,
         state_vector_after: row.state_vector_after,
+        replay_order_key: row.replay_order_key,
+        dependency_update_ids: row.dependency_update_ids,
+        replay_schema_version: row.replay_schema_version,
         event_ledger_event_id: row.event_ledger_event_id,
     }
 }

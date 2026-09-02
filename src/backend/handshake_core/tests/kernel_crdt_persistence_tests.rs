@@ -1,27 +1,26 @@
 use handshake_core::kernel::crdt::identity::{CrdtAuthorityLinksV1, CrdtWorkspaceIdentityV1};
 use handshake_core::kernel::crdt::persistence::{
-    build_crdt_replay_plan, kernel_crdt_postgres_update_log_contract, new_crdt_update_record,
+    build_crdt_replay_plan, kernel_crdt_surreal_update_log_contract, new_crdt_update_record,
     sha256_hex, validate_crdt_update_record, CrdtReplayMetadataV1, CrdtReplayPlanError,
     CrdtStorageAuthorityPosture, CrdtUpdateRecordInputV1,
 };
 use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
-use handshake_core::storage::{tests::postgres_backend_from_env, StorageError};
+use handshake_core::storage::{
+    tests::{embedded_test_backend, EmbeddedTestBackend},
+    StorageError,
+};
 use serde_json::json;
 use uuid::Uuid;
 
-async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core::storage::Database>
-{
-    match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!("ENVIRONMENT_BLOCKED: Kernel002 CRDT persistence tests require POSTGRES_TEST_URL; {msg}");
-        }
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
+async fn surreal_or_environment_blocked() -> EmbeddedTestBackend {
+    match embedded_test_backend().await {
+        Ok(backend) => backend,
+        Err(err) => panic!("failed to init embedded SurrealDB backend: {err:?}"),
     }
 }
 
 #[test]
-fn kernel_crdt_update_record_carries_postgres_order_hash_actor_session_and_replay_metadata() {
+fn kernel_crdt_update_record_carries_surreal_order_hash_actor_session_and_replay_metadata() {
     let record = sample_record(1, "crdt-update-1", b"first-update", "sv-0", "sv-1");
 
     assert_eq!(record.schema_id, "hsk.kernel.crdt_update_record@1");
@@ -34,7 +33,21 @@ fn kernel_crdt_update_record_carries_postgres_order_hash_actor_session_and_repla
     assert_eq!(record.replay_metadata.encoding, "yjs-update-v1");
     assert_eq!(
         record.storage_authority,
-        CrdtStorageAuthorityPosture::PostgresEventLedger
+        CrdtStorageAuthorityPosture::EmbeddedSurrealDb
+    );
+    let authority_wire = serde_json::to_string(&record.storage_authority)
+        .expect("CRDT authority posture must serialize");
+    assert_eq!(authority_wire, "\"surreal_event_ledger\"");
+    let canonical_read: CrdtStorageAuthorityPosture =
+        serde_json::from_str("\"surreal_event_ledger\"")
+            .expect("canonical authority wire remains readable");
+    assert_eq!(
+        canonical_read,
+        CrdtStorageAuthorityPosture::EmbeddedSurrealDb
+    );
+    assert_eq!(
+        serde_json::to_string(&canonical_read).expect("canonical authority reserialization"),
+        "\"surreal_event_ledger\""
     );
 
     validate_crdt_update_record(&record).expect("persisted update record must validate");
@@ -57,7 +70,7 @@ fn kernel_crdt_replay_plan_reconstructs_workspace_after_restart_from_persisted_u
     assert!(plan
         .ordered_updates
         .iter()
-        .all(|step| step.update_bytes_ref.starts_with("postgres://")));
+        .all(|step| step.update_bytes_ref.starts_with("surreal://")));
 }
 
 #[test]
@@ -87,13 +100,13 @@ fn kernel_crdt_persistence_rejects_filesystem_authority_and_broken_replay_order(
 }
 
 #[test]
-fn kernel_crdt_postgres_update_log_contract_declares_persistence_columns_and_constraints() {
-    let contract = kernel_crdt_postgres_update_log_contract();
+fn kernel_crdt_surreal_update_log_contract_declares_persistence_columns_and_constraints() {
+    let contract = kernel_crdt_surreal_update_log_contract();
 
     assert_eq!(contract.table_name, "kernel_crdt_updates");
     assert_eq!(
         contract.storage_authority,
-        CrdtStorageAuthorityPosture::PostgresEventLedger
+        CrdtStorageAuthorityPosture::EmbeddedSurrealDb
     );
     for column in [
         "workspace_id",
@@ -117,9 +130,9 @@ fn kernel_crdt_postgres_update_log_contract_declares_persistence_columns_and_con
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
-async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
-    let db = postgres_or_environment_blocked().await;
+async fn kernel_crdt_updates_persist_and_replay_after_surreal_reopen() {
+    let backend = surreal_or_environment_blocked().await;
+    let db = backend.database.clone();
     let suffix = Uuid::now_v7().simple().to_string();
     let mut first =
         sample_record_for_workspace(&suffix, 1, "crdt-update-1", b"first-update", "sv-0", "sv-1");
@@ -138,10 +151,10 @@ async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
 
     db.append_kernel_crdt_update(first.clone(), b"first-update".to_vec())
         .await
-        .expect("append first CRDT update to Postgres");
+        .expect("append first CRDT update to SurrealDB");
     db.append_kernel_crdt_update(second.clone(), b"second-update".to_vec())
         .await
-        .expect("append second CRDT update to Postgres");
+        .expect("append second CRDT update to SurrealDB");
 
     let replayed = db
         .list_kernel_crdt_updates(
@@ -151,7 +164,7 @@ async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
         )
         .await
         .expect("list persisted CRDT updates");
-    let plan = build_crdt_replay_plan(&replayed).expect("persisted Postgres updates replay");
+    let plan = build_crdt_replay_plan(&replayed).expect("persisted SurrealDB updates replay");
 
     assert_eq!(replayed.len(), 2);
     assert_eq!(replayed[0].update_id, first.update_id);
@@ -159,7 +172,7 @@ async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
     assert_eq!(plan.final_state_vector, "sv-2");
     assert!(replayed.iter().all(|record| record
         .update_bytes_ref
-        .starts_with("postgres://kernel_crdt_updates/")));
+        .starts_with("surreal://kernel_crdt_updates/")));
     assert_eq!(
         db.read_kernel_crdt_update_bytes(&first.update_bytes_ref)
             .await
@@ -175,9 +188,9 @@ async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_update_persistence_rejects_missing_eventledger_ref() {
-    let db = postgres_or_environment_blocked().await;
+    let backend = surreal_or_environment_blocked().await;
+    let db = backend.database.clone();
     let suffix = Uuid::now_v7().simple().to_string();
     let missing_event = sample_record_for_workspace(
         &suffix,
@@ -239,7 +252,7 @@ fn sample_record(
         update_id,
         update_seq,
         update_bytes,
-        update_bytes_ref: &format!("postgres://kernel_crdt_updates/{update_id}/update_bytes"),
+        update_bytes_ref: &format!("surreal://kernel_crdt_updates/{update_id}/update_bytes"),
         session_id: "session-kernel-builder",
         trace_id: &format!("trace-{update_id}"),
         state_vector_before,
@@ -273,7 +286,7 @@ fn sample_record_for_workspace(
         update_seq,
         update_bytes,
         update_bytes_ref: &format!(
-            "postgres://kernel_crdt_updates/{}/{update_id}/update_bytes",
+            "surreal://kernel_crdt_updates/{}/{update_id}/update_bytes",
             identity.crdt_document_id
         ),
         session_id: "session-kernel-builder",

@@ -623,13 +623,14 @@ impl SurrealLoomSearchStore {
                 "MT-016 fixture workspace id is invalid",
             ));
         }
+        let workspace_id = workspace_id.to_owned();
         self.storage
             .with_data_operation(|database| {
                 Box::pin(async move {
                     database
                         .upsert_one::<Value, _>(
                             "workspaces",
-                            workspace_id,
+                            &workspace_id,
                             WorkspaceFixture {
                                 name: "MT-016 embedded Loom search fixture".to_owned(),
                                 updated_at: Utc::now(),
@@ -652,31 +653,28 @@ impl SurrealLoomSearchStore {
         let exact = exact_scope_bindings(scope);
         let block_id = block.block_id.clone();
         let derived_json = serde_json::to_value(&block.derived)?;
+        let content = LoomBlockFixtureContent {
+            block_id: block_id.clone(),
+            workspace_id: exact.workspace_id,
+            content_type: block.content_type.as_str().to_owned(),
+            title: block.title.clone(),
+            content_hash: block.content_hash.clone(),
+            pinned: block.pinned,
+            favorite: block.favorite,
+            derived_json,
+            preview_status: block.derived.preview_status.as_str().to_owned(),
+            owner_account_id: exact.owner_account_id,
+            actor_principal_id: exact.actor_principal_id,
+            authenticated_session_id: exact.authenticated_session_id,
+            access_space_id: exact.access_space_id,
+            created_at: block.created_at,
+            updated_at: block.updated_at,
+        };
         self.storage
             .with_data_operation(|database| {
                 Box::pin(async move {
                     database
-                        .upsert_one::<Value, _>(
-                            "loom_blocks",
-                            &block_id,
-                            LoomBlockFixtureContent {
-                                block_id,
-                                workspace_id: exact.workspace_id,
-                                content_type: block.content_type.as_str().to_owned(),
-                                title: block.title.clone(),
-                                content_hash: block.content_hash.clone(),
-                                pinned: block.pinned,
-                                favorite: block.favorite,
-                                derived_json,
-                                preview_status: block.derived.preview_status.as_str().to_owned(),
-                                owner_account_id: exact.owner_account_id,
-                                actor_principal_id: exact.actor_principal_id,
-                                authenticated_session_id: exact.authenticated_session_id,
-                                access_space_id: exact.access_space_id,
-                                created_at: block.created_at,
-                                updated_at: block.updated_at,
-                            },
-                        )
+                        .upsert_one::<Value, _>("loom_blocks", &block_id, content)
                         .await
                 })
             })
@@ -716,11 +714,12 @@ impl SurrealLoomSearchStore {
 
     #[cfg(feature = "test-utils")]
     pub async fn delete_index_mutation_fixture(&self, block_id: &str) -> StorageResult<()> {
+        let block_id = block_id.to_owned();
         self.storage
             .with_data_operation(|database| {
                 Box::pin(async move {
                     database
-                        .delete_one::<Value>("loom_block_search_index", block_id)
+                        .delete_one::<Value>("loom_block_search_index", &block_id)
                         .await
                 })
             })
@@ -730,11 +729,12 @@ impl SurrealLoomSearchStore {
 
     #[cfg(feature = "test-utils")]
     pub async fn delete_search_result_set_fixture(&self, result_set_id: &str) -> StorageResult<()> {
+        let result_set_id = result_set_id.to_owned();
         self.storage
             .with_data_operation(|database| {
                 Box::pin(async move {
                     database
-                        .delete_one::<Value>("loom_search_result_sets", result_set_id)
+                        .delete_one::<Value>("loom_search_result_sets", &result_set_id)
                         .await
                 })
             })
@@ -806,6 +806,19 @@ impl SurrealLoomSearchStore {
             scope,
         );
         let exact = exact_scope_bindings(scope);
+        let artifact_locator = format!("artifact://sha256/{artifact_sha256}");
+        let last_observed_runtime_model_id = registration.registration.model_id.to_string();
+        let runtime_binding = registration
+            .registration
+            .runtime_binding
+            .adapter_id()
+            .to_owned();
+        let runtime_role = registration.runtime_role.as_str().to_owned();
+        let base_model_tag = registration
+            .registration
+            .base_model_tag
+            .as_str()
+            .to_owned();
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -827,27 +840,14 @@ impl SurrealLoomSearchStore {
                                     access_space_id: exact.access_space_id,
                                     workspace_id: exact.workspace_id,
                                     artifact_sha256,
-                                    artifact_locator: format!(
-                                        "artifact://sha256/{artifact_sha256}"
-                                    ),
-                                    last_observed_runtime_model_id: registration
-                                        .registration
-                                        .model_id
-                                        .to_string(),
-                                    runtime_binding: registration
-                                        .registration
-                                        .runtime_binding
-                                        .adapter_id()
-                                        .to_owned(),
-                                    runtime_role: registration.runtime_role.as_str().to_owned(),
+                                    artifact_locator,
+                                    last_observed_runtime_model_id,
+                                    runtime_binding,
+                                    runtime_role,
                                     capabilities_schema_id: MODEL_CAPABILITIES_SCHEMA_ID.to_owned(),
                                     capabilities,
                                     provider,
-                                    base_model_tag: registration
-                                        .registration
-                                        .base_model_tag
-                                        .as_str()
-                                        .to_owned(),
+                                    base_model_tag,
                                     embedding_space_id,
                                     embedding_dimension: embedding_dimension as i64,
                                     lifecycle_state: "active".to_owned(),
@@ -939,6 +939,7 @@ impl SurrealLoomSearchStore {
         );
         let exact = exact_scope_bindings(scope);
         let block_id = block.block_id.clone();
+        let content_type = block.content_type.as_str().to_owned();
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -959,7 +960,7 @@ impl SurrealLoomSearchStore {
                                     authenticated_session_id: exact.authenticated_session_id,
                                     access_space_id: exact.access_space_id,
                                     workspace_id: exact.workspace_id,
-                                    content_type: block.content_type.as_str().to_owned(),
+                                    content_type,
                                     search_text,
                                     source_content_hash,
                                     embedding,

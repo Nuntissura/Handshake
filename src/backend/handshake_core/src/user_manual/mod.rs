@@ -39,6 +39,7 @@
 //! markdown/HTML are projections only.
 
 pub mod behavior_coverage;
+#[cfg(feature = "legacy-postgres-superseded")]
 pub mod bundle_bridge;
 #[cfg(feature = "test-utils")]
 pub mod fixtures;

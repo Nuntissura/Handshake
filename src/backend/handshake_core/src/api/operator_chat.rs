@@ -319,19 +319,19 @@ async fn scoped_record_selection(
         )
     })?;
     let run = replay.run;
-    let work_packet_id = run.work_packet_id.ok_or_else(|| {
+    let work_packet_id = run.work_packet_id.clone().ok_or_else(|| {
         (
             StatusCode::CONFLICT,
             Json(json!({"error": "selection_locus_incomplete"})),
         )
     })?;
-    let micro_task_id = run.micro_task_id.ok_or_else(|| {
+    let micro_task_id = run.micro_task_id.clone().ok_or_else(|| {
         (
             StatusCode::CONFLICT,
             Json(json!({"error": "selection_locus_incomplete"})),
         )
     })?;
-    let task_board_id = run.task_board_id.ok_or_else(|| {
+    let task_board_id = run.task_board_id.clone().ok_or_else(|| {
         (
             StatusCode::CONFLICT,
             Json(json!({"error": "selection_locus_incomplete"})),
@@ -341,16 +341,16 @@ async fn scoped_record_selection(
     let audit = store
         .record_selection_audit_atomic(NewModelLaneSelectionAudit {
             audit_id: audit_id.clone(),
-            run_id: run.run_id,
+            run_id: run.run_id.clone(),
             selected_model_id: request.selected_model_id.clone(),
             actor_ref: format!("principal://{}", scope.exact().actor_principal_id),
             reason: request.reason,
             selection_context,
-            event_ledger_stream_id: run.event_ledger_stream_id,
+            event_ledger_stream_id: run.event_ledger_stream_id.clone(),
             work_packet_id,
             micro_task_id,
             task_board_id,
-            owner_session: run.owner_session,
+            owner_session: run.owner_session.clone(),
             idempotency_key: format!("operator-chat:{audit_id}"),
             created_at_utc: chrono::Utc::now().to_rfc3339(),
         })

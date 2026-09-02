@@ -819,6 +819,43 @@ impl SurrealProcessLedgerStore {
     }
 
     #[cfg(any(test, feature = "test-utils"))]
+    pub async fn test_delete_inspection_receipt(
+        &self,
+        resource_scope: &ReclaimResourceScope,
+        process_uuid: Uuid,
+        kind: LedgerEventKind,
+    ) -> Result<(), ProcessLedgerError> {
+        validate_inspection_scope(resource_scope)?;
+        let bindings = InspectionReceiptDeleteBindings::new(
+            resource_scope,
+            RecordId::new(
+                "kernel_event_ledger",
+                format!(
+                    "process-lifecycle-{process_uuid}-{}",
+                    kind.as_str().to_ascii_lowercase()
+                ),
+            ),
+        );
+        let affected = self
+            .storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .execute_returning(TEST_DELETE_INSPECTION_RECEIPT, bindings)
+                        .await
+                })
+            })
+            .await
+            .map_err(surreal_store_error)?;
+        if affected != 1 {
+            return Err(inspection_error(
+                "test receipt deletion escaped exact scope",
+            ));
+        }
+        Ok(())
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
     pub async fn test_move_inspection_receipt_to_scope(
         &self,
         resource_scope: &ReclaimResourceScope,
@@ -1075,7 +1112,9 @@ pub(crate) async fn bootstrap_process_ledger_schema(
     storage: &SurrealStorage,
 ) -> Result<(), SurrealStorageError> {
     storage
-        .with_admin_operation(|database| Box::pin(async move { database.query(SCHEMA).await }))
+        .with_admin_operation(|database| {
+            Box::pin(async move { database.query(SCHEMA).await.map(|_| ()) })
+        })
         .await
 }
 
@@ -1573,6 +1612,31 @@ impl InspectionReceiptScopeTamperBindings {
 
 #[cfg(any(test, feature = "test-utils"))]
 #[derive(Debug, SurrealValue)]
+struct InspectionReceiptDeleteBindings {
+    event_record: RecordId,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+impl InspectionReceiptDeleteBindings {
+    fn new(scope: &ReclaimResourceScope, event_record: RecordId) -> Self {
+        Self {
+            event_record,
+            owner_account_id: scope.account_uuid.to_string(),
+            actor_principal_id: scope.actor_uuid.to_string(),
+            authenticated_session_id: scope.session_uuid.to_string(),
+            access_space_id: scope.access_space_uuid.to_string(),
+            workspace_id: scope.workspace_id.clone(),
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+#[derive(Debug, SurrealValue)]
 struct InspectionDuplicateBindings {
     source_record: RecordId,
     duplicate_record: RecordId,
@@ -1963,6 +2027,17 @@ const TEST_DELETE_INSPECTION_LIFECYCLE: &str = r#"
 DELETE kernel_process_lifecycle
 WHERE process_uuid = $process_uuid
     AND owner_account_id = $owner_account_id
+    AND actor_principal_id = $actor_principal_id
+    AND authenticated_session_id = $authenticated_session_id
+    AND access_space_id = $access_space_id
+    AND workspace_id = $workspace_id
+RETURN BEFORE;
+"#;
+
+#[cfg(any(test, feature = "test-utils"))]
+const TEST_DELETE_INSPECTION_RECEIPT: &str = r#"
+DELETE $event_record
+WHERE owner_account_id = $owner_account_id
     AND actor_principal_id = $actor_principal_id
     AND authenticated_session_id = $authenticated_session_id
     AND access_space_id = $access_space_id

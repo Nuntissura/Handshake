@@ -4,24 +4,77 @@ use handshake_core::kernel::crdt::identity::{CrdtAuthorityLinksV1, CrdtWorkspace
 use handshake_core::kernel::crdt::promotion_bridge::{
     bridge_crdt_state_to_promotion, promote_crdt_state_through_event_ledger,
     required_crdt_promotion_failure_receipts, CrdtPromotionBridgeInputV1,
-    CrdtPromotionBridgeStatus,
+    CrdtPromotionBridgeStatus, CrdtPromotionFailureReceiptV1,
 };
 use handshake_core::kernel::crdt::validity_guard::{
     validate_crdt_state_for_promotion, CrdtMaterializedStateV1, CrdtPromotionValidationDecision,
     CrdtSchemaFieldRequirementV1, CrdtSchemaGuardContractV1,
 };
 use handshake_core::kernel::KernelEventType;
-use handshake_core::storage::{tests::postgres_backend_from_env, StorageError};
+use handshake_core::storage::surreal::{
+    bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
+};
+use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
+use handshake_core::storage::Database;
+use std::collections::HashSet;
+use std::sync::Arc;
 use uuid::Uuid;
 
-async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core::storage::Database>
-{
-    match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!("ENVIRONMENT_BLOCKED: Kernel002 CRDT promotion bridge tests require POSTGRES_TEST_URL; {msg}");
-        }
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
+async fn reopen_embedded_store(
+    backend: &EmbeddedTestBackend,
+) -> (SurrealStorage, Arc<dyn Database>) {
+    backend
+        .storage
+        .shutdown()
+        .await
+        .expect("close original embedded CRDT promotion store");
+    let reopened = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&backend.data_dir)
+            .expect("configure reopened embedded CRDT promotion store"),
+    )
+    .await
+    .expect("reopen embedded CRDT promotion store");
+    bootstrap_schema(&reopened)
+        .await
+        .expect("bootstrap reopened CRDT promotion schema");
+    let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(reopened.clone()));
+    (reopened, database)
+}
+
+fn assert_typed_failure_receipt_contract(receipts: &[CrdtPromotionFailureReceiptV1]) {
+    assert_eq!(receipts.len(), 6, "complete failure receipt taxonomy");
+    let mut failure_codes = HashSet::new();
+    let mut idempotency_keys = HashSet::new();
+    for receipt in receipts {
+        assert_eq!(receipt.receipt_kind, "PROMOTION_FAILURE");
+        assert_eq!(
+            receipt.receipt_schema_id,
+            "hsk.kernel.crdt_promotion_failure_receipt@1"
+        );
+        assert!(receipt.replayable);
+        assert!(!receipt.failure_code.trim().is_empty());
+        assert!(
+            failure_codes.insert(receipt.failure_code.as_str()),
+            "failure codes must be unique"
+        );
+        assert!(
+            receipt.idempotency_key.starts_with("promotion-failure:"),
+            "failure receipt must carry a typed promotion idempotency key"
+        );
+        assert!(
+            idempotency_keys.insert(receipt.idempotency_key.as_str()),
+            "failure receipt idempotency keys must be unique"
+        );
+        assert!(!receipt.recovery_instruction.trim().is_empty());
+    }
+    for required in [
+        "duplicate_promotion_request",
+        "stale_state_vector",
+        "simultaneous_operator_model_promotion",
+        "validation_failed_after_merge",
+        "projection_rebuild_failed",
+    ] {
+        assert!(failure_codes.contains(required), "missing {required}");
     }
 }
 
@@ -128,21 +181,7 @@ fn kernel_crdt_promotion_bridge_rejects_invalid_state_as_non_authoritative_evide
     );
     assert_eq!(evidence.state_hash.len(), 64);
     assert!(!evidence.validation_errors.is_empty());
-    let failure_codes: Vec<_> = evidence
-        .failure_receipts
-        .iter()
-        .map(|receipt| receipt.failure_code.as_str())
-        .collect();
-    for required in [
-        "duplicate_promotion_request",
-        "stale_state_vector",
-        "simultaneous_operator_model_promotion",
-        "validation_failed_after_merge",
-        "postgres_write_failed",
-        "projection_rebuild_failed",
-    ] {
-        assert!(failure_codes.contains(&required));
-    }
+    assert_typed_failure_receipt_contract(&evidence.failure_receipts);
 }
 
 #[test]
@@ -165,9 +204,11 @@ fn kernel_crdt_promotion_bridge_requires_validation_report_alignment() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
-async fn kernel_crdt_promotion_bridge_appends_request_and_decision_events_to_postgres_ledger() {
-    let db = postgres_or_environment_blocked().await;
+async fn kernel_crdt_promotion_bridge_appends_request_and_decision_events_to_surreal_ledger() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("failed to init embedded SurrealDB backend");
+    let db = backend.database.clone();
     let suffix = Uuid::now_v7().simple().to_string();
     let state = sample_state_for_suffix(&suffix);
     let validation_report = validate_crdt_state_for_promotion(&state, &sample_schema_guard());
@@ -179,6 +220,7 @@ async fn kernel_crdt_promotion_bridge_appends_request_and_decision_events_to_pos
         state,
         validation_report,
     };
+    let promotion_gate_id = input.promotion_gate_id.clone();
 
     let result = promote_crdt_state_through_event_ledger(db.as_ref(), input)
         .await
@@ -221,27 +263,43 @@ async fn kernel_crdt_promotion_bridge_appends_request_and_decision_events_to_pos
         mapping_keys, persisted_keys,
         "promotion bridge mappings must cite the exact persisted EventLedger idempotency keys"
     );
+
+    drop(db);
+    let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
+    let persisted = reopened_db
+        .list_kernel_events_for_aggregate("crdt_promotion", &promotion_gate_id)
+        .await
+        .expect("read CRDT promotion events after reopen");
+    assert_eq!(persisted.len(), 2);
+    assert_eq!(persisted[0].event_type, KernelEventType::PromotionRequested);
+    assert_eq!(persisted[1].event_type, KernelEventType::PromotionAccepted);
+    assert_eq!(
+        persisted[1].causation_id.as_deref(),
+        Some(persisted[0].event_id.as_str())
+    );
+    assert_eq!(
+        persisted
+            .iter()
+            .map(|event| event.idempotency_key.as_str())
+            .collect::<Vec<_>>(),
+        mapping_keys
+    );
+    drop(reopened_db);
+    reopened
+        .shutdown()
+        .await
+        .expect("close reopened CRDT promotion store");
+    drop(reopened);
+    backend
+        .close_and_remove()
+        .await
+        .expect("embedded SurrealDB storage cleanup");
 }
 
 #[test]
 fn kernel_crdt_promotion_failure_receipts_cover_required_replay_cases() {
     let receipts = required_crdt_promotion_failure_receipts("bridge-failure-proof");
-    let failure_codes: Vec<_> = receipts
-        .iter()
-        .map(|receipt| receipt.failure_code.as_str())
-        .collect();
-
-    for required in [
-        "duplicate_promotion_request",
-        "stale_state_vector",
-        "simultaneous_operator_model_promotion",
-        "validation_failed_after_merge",
-        "postgres_write_failed",
-        "projection_rebuild_failed",
-    ] {
-        assert!(failure_codes.contains(&required), "missing {required}");
-    }
-    assert!(receipts.iter().all(|receipt| receipt.replayable));
+    assert_typed_failure_receipt_contract(&receipts);
 }
 
 fn sample_state() -> CrdtMaterializedStateV1 {

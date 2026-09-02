@@ -132,15 +132,9 @@ async fn mt023_real_worktree_model_lane_runs_inside_microvm() {
         .with_session(authenticated_session)
         .with_access_space(access_space)
         .with_workspace(workspace.clone());
-    let model_lane_store = ModelLaneStore::new_surreal_scoped(storage.clone(), owner_scope.clone())
-        .await
-        .expect("construct embedded-SurrealDB ModelLane authority");
+    let model_lane_store = ModelLaneStore::new_scoped(storage.clone(), owner_scope.clone());
 
-    let process_store = Arc::new(
-        SurrealProcessLedgerStore::new(storage.clone())
-            .await
-            .expect("construct embedded-SurrealDB ProcessLedger authority"),
-    );
+    let process_store = Arc::new(SurrealProcessLedgerStore::new(storage.clone()));
     let (ledger, ledger_writer) = LedgerBatcher::spawn(
         process_store,
         Arc::new(NoopOverflowSink),

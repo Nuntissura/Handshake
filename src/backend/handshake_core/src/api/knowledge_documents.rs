@@ -1429,7 +1429,7 @@ async fn rename_document(
         return Err(bad_request("title must be non-empty"));
     }
     let updated = db
-        .rename_knowledge_rich_document(&document_id, &title)
+        .rename_knowledge_rich_document(&document_id, &title, None)
         .await
         .map_err(storage_error)?;
     let (receipt, receipt_error) = record_receipt_non_fatal(
@@ -1545,7 +1545,7 @@ async fn batch_documents(
                     if title.is_empty() {
                         Err(StorageError::Validation("title must be non-empty"))
                     } else {
-                        db.rename_knowledge_rich_document(&document_id, &title)
+                        db.rename_knowledge_rich_document(&document_id, &title, None)
                             .await
                     }
                 }

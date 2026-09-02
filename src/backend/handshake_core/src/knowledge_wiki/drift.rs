@@ -25,10 +25,8 @@ use std::sync::Arc;
 use serde_json::{json, Value};
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::knowledge::{
-    KnowledgeRebuildStatus, KnowledgeStore, KnowledgeWikiProjection,
-};
-use crate::storage::surreal::SurrealStorage;
+use crate::storage::knowledge::{KnowledgeRebuildStatus, KnowledgeStore, KnowledgeWikiProjection};
+use crate::storage::surreal::SurrealDatabase;
 use crate::storage::Database;
 
 use super::compiler::WikiCompileContext;
@@ -63,15 +61,15 @@ pub struct WikiDriftReport {
 
 /// The MT-242 drift checker.
 pub struct WikiDriftChecker {
-    db: Arc<SurrealStorage>,
+    db: Arc<SurrealDatabase>,
 }
 
 impl WikiDriftChecker {
-    pub fn new(db: Arc<SurrealStorage>) -> Self {
+    pub fn new(db: Arc<SurrealDatabase>) -> Self {
         Self { db }
     }
 
-    pub fn db(&self) -> &SurrealStorage {
+    pub fn db(&self) -> &SurrealDatabase {
         &self.db
     }
 
@@ -174,10 +172,7 @@ impl WikiDriftChecker {
                 (state.block_id, hash)
             })
             .collect();
-        let document_hashes = self
-            .db
-            .get_wiki_rich_document_hashes(&document_ids)
-            .await?;
+        let document_hashes = self.db.get_wiki_rich_document_hashes(&document_ids).await?;
 
         let current_hash_of = |cited: &CitedSource| -> Option<&String> {
             match cited.kind {

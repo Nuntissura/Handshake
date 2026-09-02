@@ -1105,7 +1105,7 @@ pub struct CloudLiveRuntime {
 
 #[derive(Clone)]
 struct DurableWorktreeVmStore {
-    storage: Option<crate::storage::surreal::SurrealStorage>,
+    storage: crate::storage::surreal::SurrealStorage,
     access: super::resource_scope::ResourceAccessContext,
 }
 
@@ -1191,7 +1191,7 @@ impl ProductionModelSessionFactory {
     /// the coordinator uses for its ModelLane records.
     pub fn with_durable_worktree_vm_store(mut self, store: &ModelLaneStore) -> Self {
         self.durable_worktree_vm_store = Some(DurableWorktreeVmStore {
-            storage: store.surreal_storage().cloned(),
+            storage: store.surreal_storage().clone(),
             access: store.access().clone(),
         });
         self
@@ -1250,12 +1250,7 @@ impl ProductionModelSessionFactory {
         }
         let registry = match &self.durable_worktree_vm_store {
             Some(store) => {
-                let storage = store.storage.clone().ok_or_else(|| {
-                    SwarmError::FactoryFailed(
-                        "EMBEDDED_SURREALDB_AUTHORITY_REQUIRED: durable worktree VM binding cannot use a relational or in-memory compatibility store"
-                            .to_string(),
-                    )
-                })?;
+                let storage = store.storage.clone();
                 Arc::new(
                     super::worktree_vm_registry::WorktreeVmRegistry::new_durable(
                         adapter,

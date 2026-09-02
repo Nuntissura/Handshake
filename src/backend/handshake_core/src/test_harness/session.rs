@@ -413,7 +413,19 @@ async fn run_empty_reclaim(
         Arc::new(NoopSandboxKill),
         Arc::new(NoopReclaimStopWriter),
     );
-    reclaim.run(session_id, trigger).await.map(|_| ())
+    // The harness store owns no process rows, so the scope only has to be a
+    // well-formed identity for the `EmptyReclaimStore` contract.
+    let resource_scope = crate::process_ledger::ReclaimResourceScope {
+        account_uuid: Uuid::now_v7(),
+        actor_uuid: Uuid::now_v7(),
+        session_uuid: Uuid::now_v7(),
+        workspace_id: "test-harness".to_owned(),
+        access_space_uuid: Uuid::now_v7(),
+    };
+    reclaim
+        .run(&resource_scope, session_id, trigger)
+        .await
+        .map(|_| ())
 }
 
 struct EmptyReclaimStore;
@@ -422,6 +434,7 @@ struct EmptyReclaimStore;
 impl ReclaimProcessStore for EmptyReclaimStore {
     async fn active_processes_for_session(
         &self,
+        _resource_scope: &crate::process_ledger::ReclaimResourceScope,
         _session_id: &str,
     ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
         Ok(Vec::new())
@@ -461,6 +474,7 @@ impl ReclaimProcessStore for EmptyReclaimStore {
 
     async fn resolve_reclaim_kill_operation(
         &self,
+        _resource_scope: &crate::process_ledger::ReclaimResourceScope,
         _process_uuid: Uuid,
         _kill_operation_uuid: Uuid,
         _status: crate::process_ledger::ReclaimKillOperationStatus,
@@ -470,7 +484,10 @@ impl ReclaimProcessStore for EmptyReclaimStore {
 
     async fn in_progress_kill_operations_for_session(
         &self,
+        _resource_scope: &crate::process_ledger::ReclaimResourceScope,
         _session_id: &str,
+        _excluded_owner_runtime_instance_id: Uuid,
+        _authorized_process_uuids: &[Uuid],
         _limit: usize,
     ) -> Result<Vec<crate::process_ledger::ReclaimKillOperationCandidate>, ProcessLedgerError> {
         Ok(Vec::new())
@@ -483,6 +500,7 @@ struct NoopSandboxKill;
 impl SandboxKill for NoopSandboxKill {
     async fn kill(
         &self,
+        _resource_scope: &crate::process_ledger::ReclaimResourceScope,
         _process_uuid: Uuid,
         _kill_operation_uuid: Uuid,
     ) -> Result<(), crate::process_ledger::KillError> {
@@ -491,6 +509,7 @@ impl SandboxKill for NoopSandboxKill {
 
     async fn kill_operation_status(
         &self,
+        _resource_scope: &crate::process_ledger::ReclaimResourceScope,
         _process_uuid: Uuid,
         _kill_operation_uuid: Uuid,
     ) -> Result<crate::process_ledger::ReclaimKillOperationStatus, crate::process_ledger::KillError>

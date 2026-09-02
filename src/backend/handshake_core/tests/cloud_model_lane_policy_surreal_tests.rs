@@ -330,7 +330,16 @@ async fn cloud_lane_rejects_missing_expired_mismatched_revoked_and_unscoped_cons
     assert!(revoked.to_string().contains("CX-MM-007"));
 
     let unscoped_scope = exact_scope("unscoped-before-provider");
-    let unscoped_store = ModelLaneStore::new_unscoped_cloud_authority_without_storage();
+    // A reader-only access context carries no exact write scope, so the cloud
+    // authority must deny the projection plan before any provider is reached.
+    let unscoped_store = ModelLaneStore::new(
+        harness.storage.clone(),
+        handshake_core::swarm_orchestration::resource_scope::ResourceAccessContext::for_reader(
+            handshake_core::swarm_orchestration::resource_scope::ResourceScopeQuery::for_owner(
+                unscoped_scope.owner_account_id,
+            ),
+        ),
+    );
     let unscoped = unscoped_store
         .record_cloud_projection_plan(projection("run-unscoped", "lane-unscoped", &unscoped_scope))
         .await

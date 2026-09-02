@@ -221,11 +221,18 @@ impl TryFrom<ReclaimReport> for ReclaimRecord {
 /// cancel from the ledger's perspective, hence [`ReclaimTrigger::OperatorCancel`].
 pub struct ReclaimForcedCancelAdapter {
     reclaim: Arc<Reclaim>,
+    resource_scope: crate::process_ledger::ReclaimResourceScope,
 }
 
 impl ReclaimForcedCancelAdapter {
-    pub fn new(reclaim: Arc<Reclaim>) -> Self {
-        Self { reclaim }
+    pub fn new(
+        reclaim: Arc<Reclaim>,
+        resource_scope: crate::process_ledger::ReclaimResourceScope,
+    ) -> Self {
+        Self {
+            reclaim,
+            resource_scope,
+        }
     }
 }
 
@@ -234,7 +241,7 @@ impl ForcedCancelReclaimer for ReclaimForcedCancelAdapter {
     async fn reclaim_session(&self, session_id: &str) -> Result<ReclaimRecord, ProcessLedgerError> {
         let report = self
             .reclaim
-            .run(session_id, ReclaimTrigger::OperatorCancel)
+            .run(&self.resource_scope, session_id, ReclaimTrigger::OperatorCancel)
             .await?;
         report.try_into()
     }

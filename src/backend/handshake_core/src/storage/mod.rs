@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::path::PathBuf;
 use std::str::FromStr;
 use thiserror::Error;
 use uuid::Uuid;
@@ -22,7 +23,9 @@ pub mod calendar;
 pub mod kb003_storage;
 pub mod knowledge;
 pub mod knowledge_crdt;
+#[cfg(feature = "legacy-postgres-superseded")]
 pub mod knowledge_memory;
+#[cfg(feature = "legacy-postgres-superseded")]
 pub mod knowledge_retrieval;
 pub mod loom;
 pub mod loom_ai;
@@ -30,6 +33,8 @@ pub mod retention;
 /// Handshake's embedded SurrealDB product-database seam. Product modules share
 /// this lifecycle-safe authority without a second database path.
 pub mod surreal;
+pub(crate) mod block_view_outbox;
+pub(crate) mod block_view_outbox_surreal;
 
 pub use calendar::*;
 pub use loom::*;
@@ -144,6 +149,96 @@ pub struct DebugBreakpoint {
 #[serde(rename_all = "snake_case")]
 pub enum StorageBackendKind {
     Surreal,
+}
+
+pub const HANDSHAKE_STORAGE_MODE_ENV: &str = "HANDSHAKE_STORAGE_MODE";
+
+/// The only control-plane storage mode Handshake accepts: the embedded
+/// SurrealDB/EventLedger authority. There is no relational or cache mode.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlPlaneStorageMode {
+    SurrealEmbedded,
+}
+
+impl ControlPlaneStorageMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::SurrealEmbedded => "surreal_embedded",
+        }
+    }
+
+    pub fn is_control_plane_authority(&self) -> bool {
+        matches!(self, Self::SurrealEmbedded)
+    }
+
+    pub fn authority_label(&self) -> &'static str {
+        match self {
+            Self::SurrealEmbedded => "primary_authority",
+        }
+    }
+
+    pub fn freshness_label(&self) -> &'static str {
+        match self {
+            Self::SurrealEmbedded => "current_source_of_truth",
+        }
+    }
+}
+
+impl std::fmt::Display for ControlPlaneStorageMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for ControlPlaneStorageMode {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "surreal_embedded" | "surreal" => Ok(Self::SurrealEmbedded),
+            _ => Err(StorageError::Validation("unsupported storage mode")),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ControlPlaneStorageConfig {
+    pub mode: ControlPlaneStorageMode,
+    pub data_dir: Option<PathBuf>,
+}
+
+impl ControlPlaneStorageConfig {
+    pub fn from_env() -> Result<Self, StorageError> {
+        let mode = std::env::var(HANDSHAKE_STORAGE_MODE_ENV).ok();
+        let data_dir = std::env::var(surreal::HANDSHAKE_DATA_DIR_ENV).ok();
+
+        Self::resolve(mode.as_deref(), data_dir.as_deref())
+    }
+
+    pub fn resolve(mode: Option<&str>, data_dir: Option<&str>) -> Result<Self, StorageError> {
+        let mode = match non_empty(mode) {
+            Some(value) => ControlPlaneStorageMode::from_str(value)?,
+            None => ControlPlaneStorageMode::SurrealEmbedded,
+        };
+
+        Ok(Self {
+            mode,
+            data_dir: non_empty(data_dir).map(PathBuf::from),
+        })
+    }
+
+    pub fn surreal_config(&self) -> Result<surreal::SurrealStorageConfig, StorageError> {
+        let config = match self.data_dir.as_ref() {
+            Some(dir) => surreal::SurrealStorageConfig::for_data_dir(dir),
+            None => surreal::SurrealStorageConfig::from_env(),
+        };
+        config.map_err(|_| StorageError::Validation("invalid embedded storage data directory"))
+    }
+}
+
+fn non_empty(value: Option<&str>) -> Option<&str> {
+    value.map(str::trim).filter(|value| !value.is_empty())
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -3178,7 +3273,7 @@ pub trait Database: Send + Sync {
         ))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "surreal-test-support"))]
     async fn test_overwrite_loom_block_metrics(
         &self,
         workspace_id: &str,
@@ -3197,7 +3292,7 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("test loom metrics backend"))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "surreal-test-support"))]
     async fn test_zero_workspace_loom_metrics(&self, workspace_id: &str) -> StorageResult<()> {
         let _ = workspace_id;
         Err(StorageError::NotImplemented("test loom metrics backend"))
@@ -3215,7 +3310,7 @@ pub trait Database: Send + Sync {
         ))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "surreal-test-support"))]
     async fn test_update_ai_job_metadata(
         &self,
         job_id: Uuid,
@@ -3227,7 +3322,7 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("test ai job metadata backend"))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "surreal-test-support"))]
     async fn test_fetch_mutation_traceability_row(
         &self,
         table: &str,

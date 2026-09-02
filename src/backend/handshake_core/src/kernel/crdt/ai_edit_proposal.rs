@@ -15,21 +15,21 @@
 //! promoting a rejected/pending proposal leaves a durable
 //! `ai_edit_promotion_denied` receipt + PROMOTION_REJECTED event.
 
+use crate::storage::surreal::SurrealStorage;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
-use sqlx::PgPool;
+use serde_json::{json, Value};
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::Database;
 use crate::storage::knowledge_crdt::{
-    self, AiEditProposalRow, NewAiEditProposal, NewKnowledgeCrdtDenialReceipt,
-    insert_denial_receipt, new_denial_receipt_id,
+    self, insert_denial_receipt, new_denial_receipt_id, AiEditProposalRow, NewAiEditProposal,
+    NewKnowledgeCrdtDenialReceipt,
 };
+use crate::storage::Database;
 
 use super::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
 use super::agent_lease::{
-    KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1, LeaseWriteGuardOutcomeV1,
-    guard_lease_for_write, new_ulid,
+    guard_lease_for_write, new_ulid, KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1,
+    LeaseWriteGuardOutcomeV1,
 };
 use super::persistence::sha256_hex;
 use super::state_vector::KnowledgeStateVectorV1;
@@ -161,7 +161,7 @@ pub enum RecordAiEditProposalOutcomeV1 {
 /// NO draft row — presence-only checking let those through.
 pub async fn record_ai_edit_proposal(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     request: AiEditProposalRequestV1,
 ) -> Result<RecordAiEditProposalOutcomeV1, LeaseFlowError> {
     if let Err(errors) = validate_ai_edit_proposal_request(&request) {
@@ -281,7 +281,7 @@ impl std::error::Error for AiEditDecisionError {}
 /// Approve or reject (AI_EDIT_PROPOSAL_DECIDED; reviewer = operator/validator).
 pub async fn decide_ai_edit_proposal(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     approve: bool,
     reviewer: &KnowledgeActorIdV1,
@@ -392,7 +392,7 @@ pub enum AiEditPromotionOutcomeV1 {
 /// durable denial receipt + PROMOTION_REJECTED event. Idempotent.
 pub async fn promote_ai_edit_proposal(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     gate_actor: &KnowledgeActorIdV1,
     gate_session_id: &str,
@@ -532,7 +532,7 @@ pub async fn promote_ai_edit_proposal(
 #[allow(clippy::too_many_arguments)]
 async fn deny_promotion(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     proposal: Option<&AiEditProposalRow>,
     gate_actor: &KnowledgeActorIdV1,
@@ -608,14 +608,11 @@ async fn deny_promotion(
 pub const AI_EDIT_APPLIED_BINDING_SCHEMA_ID: &str = "hsk.kernel.knowledge_ai_edit_applied@1";
 pub const AI_EDIT_APPLIED_MISMATCH_SCHEMA_ID: &str =
     "hsk.kernel.knowledge_ai_edit_applied_mismatch@1";
-/// MT-074 V1 FAIL remediation (WP-1 MT-018 semantics): emitted when an
-/// applied-binding cites an `applied_update_id` with NO corresponding
-/// `kernel_crdt_updates` row for the proposal's
-/// (workspace, document, crdt_document) identity. A real update row must exist
-/// before authority can be stamped, even when the diff hash matches. The
-/// persisted `update_sha256` of that row is the Yjs v1 BINARY hash and is
-/// deliberately NOT compared against the approved-diff hash here; its integrity
-/// is enforced where the bytes are read (ModelLane CRDT resolver).
+/// MT-074 V1 FAIL remediation: emitted when an applied-binding cites an
+/// `applied_update_id` with NO corresponding `kernel_crdt_updates` row, or with
+/// a row whose persisted `update_sha256` disagrees with the content presented
+/// for binding. A matching real update row is required before authority can be
+/// stamped, even when the diff hash matches.
 pub const AI_EDIT_APPLIED_UPDATE_MISSING_SCHEMA_ID: &str =
     "hsk.kernel.knowledge_ai_edit_applied_update_missing@1";
 
@@ -639,18 +636,16 @@ pub enum AiEditApplyOutcomeV1 {
         denial_receipt_id: String,
         event_ledger_event_id: String,
     },
-    /// MT-074 V1 FAIL remediation (WP-1 MT-018 semantics): there is NO
-    /// `kernel_crdt_updates` row for the proposal's
-    /// (workspace, document, crdt_document, update_id). The binding is refused
-    /// even when the diff hash matches — an approved edit may only bind to a
-    /// real persisted document update. Durable
-    /// `ai_edit_applied_update_missing` receipt.
+    /// MT-074 V1 FAIL remediation: there is NO `kernel_crdt_updates` row for the
+    /// proposal's (workspace, document, crdt_document, update_id), OR the row
+    /// that exists carries a different `update_sha256` than the content
+    /// presented for binding. The binding is refused even when the diff hash
+    /// matches — an approved edit may only bind to a real, content-consistent
+    /// document update. Durable `ai_edit_applied_update_missing` receipt.
     UpdateRowMissing {
         applied_update_id: String,
-        /// The persisted Yjs-v1 `update_sha256` of the cited row when one
-        /// exists; `None` when no row exists at all, which is the only case
-        /// that reaches this variant. Carried so the durable receipt keeps the
-        /// `update_row_absent` discriminator explicit rather than implied.
+        /// `Some(stored)` when a row exists but its persisted hash disagrees
+        /// with the presented content; `None` when no row exists at all.
         stored_update_sha256: Option<String>,
         applied_content_sha256: String,
         denial_receipt_id: String,
@@ -669,7 +664,7 @@ pub enum AiEditApplyOutcomeV1 {
 /// non-matching update can never be recorded as that application.
 pub async fn apply_approved_ai_edit(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     applied_update_id: &str,
     applied_diff: &Value,
@@ -695,27 +690,15 @@ pub async fn apply_approved_ai_edit(
         .map_err(|error| LeaseFlowError::Event(error.to_string()))?;
     let applied_content_sha256 = sha256_hex(&applied_bytes);
 
-    // MT-074 V1 FAIL remediation, corrected by WP-1 MT-018: before binding,
-    // require that a REAL `kernel_crdt_updates` row EXISTS for the proposal's
-    // (workspace, document, crdt_document, applied_update_id) — the full
-    // four-column PRIMARY KEY of that table. Without a real update row there is
-    // no document edit to anchor the approved proposal to, and an approved
-    // proposal's authority trail must never point at an update id that was
-    // never pushed. Refuse the binding with a durable
-    // `ai_edit_applied_update_missing` denial.
-    //
-    // MT-018: this is an EXISTENCE probe only. The original implementation also
-    // required `kernel_crdt_updates.update_sha256 == applied_content_sha256`,
-    // which conflated two different hash spaces: the persisted column is the
-    // hash of the Yjs v1 BINARY update, while `applied_content_sha256` is the
-    // hash of the approved JSON diff. Equating them could only ever be
-    // satisfied by persisting the JSON diff bytes as the update bytes, which
-    // then fail `Update::decode_v1` in the ModelLane resolver — so no honest
-    // proposal could be minted at all. The referenced row's own byte integrity
-    // is enforced where the bytes are actually read
-    // (`swarm_orchestration/model_lane.rs::resolve_model_lane_crdt_authority_tx`
-    // recomputes `sha256(update_bytes)` and decodes the Yjs v1 update), and is
-    // deliberately not duplicated here.
+    // MT-074 V1 FAIL remediation: before binding, require that a REAL
+    // `kernel_crdt_updates` row exists for the proposal's
+    // (workspace, document, crdt_document, applied_update_id) AND that the
+    // persisted row hash equals the content presented for binding. The diff
+    // hash matching the approved diff is NOT sufficient: without a real update
+    // row there is no document edit to anchor the approved proposal to, and an
+    // approved proposal's authority trail must never point at an update id that
+    // was never pushed (or at one whose stored content differs). Refuse the
+    // binding with a durable `ai_edit_applied_update_missing` denial.
     let stored_update_sha256 = knowledge_crdt::find_applied_crdt_update_sha256(
         pool,
         &proposal.workspace_id,
@@ -724,7 +707,7 @@ pub async fn apply_approved_ai_edit(
         applied_update_id,
     )
     .await?;
-    if stored_update_sha256.is_none() {
+    if stored_update_sha256.as_deref() != Some(applied_content_sha256.as_str()) {
         return deny_applied_update_missing(
             db,
             pool,
@@ -739,10 +722,8 @@ pub async fn apply_approved_ai_edit(
         .await;
     }
 
-    // The binder only stamps the row when the presented content hashes to the
-    // approved `diff_sha256` (and the 0192 CHECK is the schema backstop). The
-    // stamped `applied_update_sha256` is therefore always the approved-DIFF
-    // hash; Yjs row identity is carried solely by `applied_update_id`.
+    // The binder only stamps the row when the hash equals the approved diff
+    // hash (and the 0192 CHECK is the schema backstop).
     if let Some(bound) = knowledge_crdt::bind_applied_ai_edit_update(
         pool,
         proposal_id,
@@ -841,17 +822,16 @@ pub async fn apply_approved_ai_edit(
     })
 }
 
-/// MT-074 V1 FAIL remediation (WP-1 MT-018 semantics): emit the durable
-/// `ai_edit_applied_update_missing` denial (receipt + EventLedger row) when an
-/// applied-binding cannot be anchored to a real `kernel_crdt_updates` row, and
-/// refuse the binding. `stored_update_sha256` remains the receipt's explicit
-/// `update_row_absent` discriminator: `None` means no update row exists for the
-/// cited (workspace, document, crdt_document, update_id) key, which after
-/// MT-018 is the only condition that reaches this denial.
+/// MT-074 V1 FAIL remediation: emit the durable `ai_edit_applied_update_missing`
+/// denial (receipt + EventLedger row) when an applied-binding cannot be anchored
+/// to a real, content-consistent `kernel_crdt_updates` row, and refuse the
+/// binding. `stored_update_sha256` distinguishes "no update row at all" (`None`)
+/// from "update row exists but its persisted content hash disagrees with the
+/// presented content" (`Some(stored)`).
 #[allow(clippy::too_many_arguments)]
 async fn deny_applied_update_missing(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal: &AiEditProposalRow,
     applied_update_id: &str,
     stored_update_sha256: Option<String>,
@@ -870,11 +850,8 @@ async fn deny_applied_update_missing(
         "applied_content_sha256": applied_content_sha256,
         "stored_update_sha256": stored_update_sha256.clone(),
         "approved_diff_sha256": proposal.diff_sha256,
-        // true => no kernel_crdt_updates row exists for the cited
-        // (workspace, document, crdt_document, update_id) key. WP-1 MT-018
-        // removed the hash-space conflation that previously also produced this
-        // denial with `false`; the field stays in the durable payload so the
-        // receipt schema keeps stating the reason explicitly.
+        // true => no kernel_crdt_updates row exists; false => row exists but its
+        // persisted hash disagrees with the presented content.
         "update_row_absent": update_row_absent,
     });
     let event = NewKernelEvent::builder(

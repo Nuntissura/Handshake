@@ -404,6 +404,7 @@ pub(crate) async fn loom_search_v2(
             hits: Vec::new(),
             content_type_facets: BTreeMap::new(),
             semantic_available,
+            semantic_unavailable_reason: None,
             total: 0,
         });
     }
@@ -561,6 +562,7 @@ pub(crate) async fn loom_search_v2(
         hits,
         content_type_facets,
         semantic_available,
+        semantic_unavailable_reason: None,
         total,
     })
 }

@@ -133,7 +133,15 @@ fn process_ownership_ledger_exposes_optional_os_pid_for_focus_correlation() {
     assert_eq!(stop.os_pid, Some(3210));
 
     let now_ms = Utc::now().timestamp_millis();
+    let resource_scope = handshake_core::process_ledger::ReclaimResourceScope {
+        account_uuid: Uuid::now_v7(),
+        actor_uuid: Uuid::now_v7(),
+        session_uuid: Uuid::now_v7(),
+        workspace_id: "WS-FOCUS-AUDIT".to_owned(),
+        access_space_uuid: Uuid::now_v7(),
+    };
     let reclaim_claim = ReclaimClaim {
+        resource_scope: resource_scope.clone(),
         claimant_uuid: Uuid::now_v7(),
         kill_operation_uuid: Uuid::now_v7(),
         generation: 1,
@@ -141,6 +149,7 @@ fn process_ownership_ledger_exposes_optional_os_pid_for_focus_correlation() {
         lease_expires_at_unix_ms: now_ms + 30_000,
     };
     let reclaimable = ReclaimableProcess {
+        resource_scope,
         process_uuid: Uuid::now_v7(),
         os_pid: Some(6540),
         parent_session_id: Some("RUN-MT-015".to_string()),

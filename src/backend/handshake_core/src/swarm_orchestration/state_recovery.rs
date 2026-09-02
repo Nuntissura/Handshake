@@ -2191,7 +2191,7 @@ impl ParallelSwarmStateRecoveryStore {
                     } else {
                         ClaimStatus::Held
                     },
-                    claim_id: record.claim_id,
+                    claim_id: record.claim_id.clone(),
                     active_holder: if record.claim_id == claim_id {
                         None
                     } else {
@@ -3809,14 +3809,14 @@ impl ParallelSwarmStateRecoveryStore {
             .await?;
         let mut found = BTreeSet::new();
         let mut counts = BTreeMap::<String, i64>::new();
-        let mut max_created_at_utc = None;
+        let mut max_event_created_at_utc = None;
         let mut events = Vec::new();
         for row in rows {
             let created_at = row.created_at.into_inner();
             found.insert(row.event_id.clone());
             *counts.entry(row.aggregate_type.clone()).or_insert(0) += 1;
-            if max_created_at_utc.map_or(true, |current| created_at > current) {
-                max_created_at_utc = Some(created_at);
+            if max_event_created_at_utc.map_or(true, |current| created_at > current) {
+                max_event_created_at_utc = Some(created_at);
             }
             events.push(SwarmDashboardEventRefV1 {
                 event_id: row.event_id,
@@ -5253,5 +5253,30 @@ fn canonical_json(value: &Value) -> String {
                 .collect();
             format!("{{{}}}", fields.join(","))
         }
+    }
+}
+
+fn add_truncation_warning(
+    warnings: &mut Vec<SwarmDashboardWarningV1>,
+    section: &str,
+    returned: usize,
+    total: i64,
+) {
+    if total > returned as i64 {
+        warnings.push(SwarmDashboardWarningV1 {
+            code: "dashboard_section_truncated".to_string(),
+            detail: format!(
+                "{section} returned {returned} of {total} durable source row(s); increase limit or use narrower filters to inspect the full set"
+            ),
+        });
+    }
+}
+
+fn attribution_mode_as_str(mode: AttributionMode) -> &'static str {
+    match mode {
+        AttributionMode::Local => "local",
+        AttributionMode::Cloud => "cloud",
+        AttributionMode::Operator => "operator",
+        AttributionMode::System => "system",
     }
 }

@@ -13,7 +13,7 @@ use handshake_core::mcp::jsonrpc::{
     JsonRpcId, JsonRpcMessage, JsonRpcNotification, JsonRpcResponse,
 };
 use handshake_core::mcp::transport::duplex::DuplexTransport;
-use handshake_core::storage::tests::postgres_backend_from_env;
+use handshake_core::storage::tests::embedded_test_backend;
 use handshake_core::storage::{
     AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState, JobStatusUpdate,
     ModelSessionState, NewAiJob, NewModelSession, SafetyMode, StorageError,
@@ -244,18 +244,14 @@ async fn stub_server_e2e(
 }
 
 #[tokio::test]
-async fn mcp_e2e_tests_postgres_persists_progress_mapping_records_fr_events_and_hydrates_ref(
+async fn mcp_e2e_tests_embedded_store_persists_progress_mapping_records_fr_events_and_hydrates_ref(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let db = match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            eprintln!("Skipping postgres MCP e2e: {msg}");
-            return Ok(());
-        }
-        Err(err) => return Err(Box::new(err) as Box<dyn std::error::Error>),
-    };
+    let backend = embedded_test_backend().await?;
+    let db = backend.database.clone();
 
-    run_mcp_e2e(db).await
+    let result = run_mcp_e2e(db).await;
+    backend.close_and_remove().await?;
+    result
 }
 
 async fn run_mcp_e2e(db: Arc<dyn Database>) -> Result<(), Box<dyn std::error::Error>> {

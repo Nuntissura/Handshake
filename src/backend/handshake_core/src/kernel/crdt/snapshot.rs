@@ -320,7 +320,7 @@ pub fn build_snapshot_bounded_replay_plan(
         base_snapshot_id: snapshot.snapshot_id.clone(),
         base_snapshot_state_vector: snapshot.state_vector.clone(),
         replay_from_update_seq,
-        source_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        source_authority: CrdtStorageAuthorityPosture::EmbeddedSurrealDb,
         ordered_updates: ordered_updates.into_iter().map(replay_step).collect(),
         final_state_vector,
     })

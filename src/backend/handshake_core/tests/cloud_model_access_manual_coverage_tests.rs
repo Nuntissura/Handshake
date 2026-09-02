@@ -16,7 +16,7 @@ use handshake_core::user_manual::{
 };
 
 fn compiled_pages(corpus: &SeedCorpus) -> Vec<UserManualPage> {
-    let observed_at = "1970-01-01T00:00:00Z"
+    let observed_at: chrono::DateTime<chrono::Utc> = "1970-01-01T00:00:00Z"
         .parse()
         .expect("fixed compiled-corpus observation timestamp");
     corpus
@@ -36,8 +36,8 @@ fn compiled_pages(corpus: &SeedCorpus) -> Vec<UserManualPage> {
             status: "active".to_owned(),
             superseded_by_slug: None,
             ledger_event_id: None,
-            created_at: observed_at.to_owned(),
-            updated_at: observed_at.to_owned(),
+            created_at: observed_at,
+            updated_at: observed_at,
         })
         .collect()
 }

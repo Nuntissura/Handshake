@@ -95,22 +95,14 @@ impl ModelRuntime for NoopRuntime {
         }
     }
 
-    async fn generate(
-        &self,
-        _id: ModelId,
-        _request: GenerateRequest,
-    ) -> Result<TokenStream, ModelRuntimeError> {
-        Ok(Box::pin(futures::stream::empty()))
+    fn generate(&self, _request: GenerateRequest) -> TokenStream {
+        Box::pin(futures::stream::empty())
     }
 
-    async fn score(
-        &self,
-        _id: ModelId,
-        _prefix: &str,
-        _continuation: &str,
-    ) -> Result<Score, ModelRuntimeError> {
+    async fn score(&self, _id: ModelId, _sequence: Vec<u32>) -> Result<Score, ModelRuntimeError> {
         Ok(Score {
-            log_probability: 0.0,
+            token_logprobs: Vec::new(),
+            mean_logprob: 0.0,
         })
     }
 

@@ -1,41 +1,19 @@
 use crate::storage::surreal::SurrealStorage;
 
 pub mod foundation;
-pub mod media;
-pub mod operations;
-pub mod workflows;
 
 pub use foundation::FoundationAtelierPersistence;
-pub use media::MediaAtelierPersistence;
-pub use operations::OperationsAtelierPersistence;
-pub use workflows::WorkflowAtelierPersistence;
 
-/// Complete typed persistence boundary for the Atelier domain.
+/// Typed persistence boundary for the Atelier domain.
 ///
 /// Each subtrait owns a disjoint source group so implementations can land in
 /// parallel without a generic string/JSON dispatcher. There is deliberately no
-/// default, in-memory, compatibility, or fail-open implementation.
-pub trait AtelierPersistence:
-    FoundationAtelierPersistence
-    + MediaAtelierPersistence
-    + WorkflowAtelierPersistence
-    + OperationsAtelierPersistence
-    + Send
-    + Sync
-    + 'static
-{
-}
+/// default, in-memory, compatibility, or fail-open implementation. Only the
+/// foundation group is declared on this tree; further groups are added as
+/// their embedded-Surreal providers land.
+pub trait AtelierPersistence: FoundationAtelierPersistence + Send + Sync + 'static {}
 
-impl<T> AtelierPersistence for T where
-    T: FoundationAtelierPersistence
-        + MediaAtelierPersistence
-        + WorkflowAtelierPersistence
-        + OperationsAtelierPersistence
-        + Send
-        + Sync
-        + 'static
-{
-}
+impl<T> AtelierPersistence for T where T: FoundationAtelierPersistence + Send + Sync + 'static {}
 
 /// Embedded-Surreal Atelier provider over the application-owned handle.
 ///

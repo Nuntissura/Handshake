@@ -9,23 +9,22 @@ use handshake_core::kernel::crdt::snapshot::{
     CrdtCompactionPolicyV1, CrdtSnapshotRecordInputV1, CrdtSnapshotReplayError,
 };
 use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
-use handshake_core::storage::{tests::postgres_backend_from_env, StorageError};
+use handshake_core::storage::{
+    tests::{embedded_test_backend, EmbeddedTestBackend},
+    StorageError,
+};
 use serde_json::json;
 use uuid::Uuid;
 
-async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core::storage::Database>
-{
-    match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!("ENVIRONMENT_BLOCKED: Kernel002 CRDT snapshot tests require POSTGRES_TEST_URL; {msg}");
-        }
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
+async fn surreal_or_environment_blocked() -> EmbeddedTestBackend {
+    match embedded_test_backend().await {
+        Ok(backend) => backend,
+        Err(err) => panic!("failed to init embedded SurrealDB backend: {err:?}"),
     }
 }
 
 #[test]
-fn kernel_crdt_snapshot_record_carries_state_vector_hash_and_postgres_authority() {
+fn kernel_crdt_snapshot_record_carries_state_vector_hash_and_surreal_authority() {
     let snapshot = sample_snapshot(3, &["crdt-update-2"]);
 
     assert_eq!(snapshot.schema_id, "hsk.kernel.crdt_snapshot_record@1");
@@ -33,9 +32,9 @@ fn kernel_crdt_snapshot_record_carries_state_vector_hash_and_postgres_authority(
     assert_eq!(snapshot.state_vector, "sv-3");
     assert_eq!(
         snapshot.storage_authority,
-        CrdtStorageAuthorityPosture::PostgresEventLedger
+        CrdtStorageAuthorityPosture::EmbeddedSurrealDb
     );
-    assert!(snapshot.snapshot_bytes_ref.starts_with("postgres://"));
+    assert!(snapshot.snapshot_bytes_ref.starts_with("surreal://"));
     assert_eq!(
         snapshot.promotion_evidence_update_ids,
         vec!["crdt-update-2".to_string()]
@@ -144,9 +143,9 @@ fn kernel_crdt_compaction_policy_cannot_drop_promotion_evidence() {
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
-async fn kernel_crdt_snapshot_persists_in_postgres_and_bounds_replay_after_restart() {
-    let db = postgres_or_environment_blocked().await;
+async fn kernel_crdt_snapshot_persists_in_surreal_and_bounds_replay_after_restart() {
+    let backend = surreal_or_environment_blocked().await;
+    let db = backend.database.clone();
     let suffix = Uuid::now_v7().simple().to_string();
     let mut update =
         sample_update_for_workspace(&suffix, 4, "crdt-update-4", b"update-4", "sv-3", "sv-4");
@@ -158,7 +157,7 @@ async fn kernel_crdt_snapshot_persists_in_postgres_and_bounds_replay_after_resta
 
     db.append_kernel_crdt_snapshot(snapshot.clone(), b"snapshot-state-3".to_vec())
         .await
-        .expect("append CRDT snapshot to Postgres");
+        .expect("append CRDT snapshot to SurrealDB");
     db.append_kernel_crdt_update(update.clone(), b"update-4".to_vec())
         .await
         .expect("append CRDT update after snapshot");
@@ -201,9 +200,9 @@ async fn kernel_crdt_snapshot_persists_in_postgres_and_bounds_replay_after_resta
 }
 
 #[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_snapshot_persistence_rejects_missing_eventledger_ref() {
-    let db = postgres_or_environment_blocked().await;
+    let backend = surreal_or_environment_blocked().await;
+    let db = backend.database.clone();
     let suffix = Uuid::now_v7().simple().to_string();
     let missing_event = sample_snapshot_for_workspace(&suffix, 3, &["crdt-update-2"]);
 
@@ -258,7 +257,7 @@ fn sample_snapshot(
         covered_update_seq,
         snapshot_bytes: format!("snapshot-state-{covered_update_seq}").as_bytes(),
         snapshot_bytes_ref: &format!(
-            "postgres://kernel_crdt_snapshots/snapshot-{covered_update_seq}/snapshot_bytes"
+            "surreal://kernel_crdt_snapshots/snapshot-{covered_update_seq}/snapshot_bytes"
         ),
         state_vector: &format!("sv-{covered_update_seq}"),
         event_ledger_event_id: &format!("evt-snapshot-{covered_update_seq}"),
@@ -279,7 +278,7 @@ fn sample_update(
         update_id,
         update_seq,
         update_bytes,
-        update_bytes_ref: &format!("postgres://kernel_crdt_updates/{update_id}/update_bytes"),
+        update_bytes_ref: &format!("surreal://kernel_crdt_updates/{update_id}/update_bytes"),
         session_id: "session-kernel-builder",
         trace_id: &format!("trace-{update_id}"),
         state_vector_before,
@@ -310,7 +309,7 @@ fn sample_snapshot_for_workspace(
         covered_update_seq,
         snapshot_bytes: format!("snapshot-state-{covered_update_seq}").as_bytes(),
         snapshot_bytes_ref: &format!(
-            "postgres://kernel_crdt_snapshots/{}/snapshot-{covered_update_seq}/snapshot_bytes",
+            "surreal://kernel_crdt_snapshots/{}/snapshot-{covered_update_seq}/snapshot_bytes",
             identity.crdt_document_id
         ),
         state_vector: &format!("sv-{covered_update_seq}"),
@@ -338,7 +337,7 @@ fn sample_update_for_workspace(
         update_seq,
         update_bytes,
         update_bytes_ref: &format!(
-            "postgres://kernel_crdt_updates/{}/{update_id}/update_bytes",
+            "surreal://kernel_crdt_updates/{}/{update_id}/update_bytes",
             identity.crdt_document_id
         ),
         session_id: "session-kernel-builder",

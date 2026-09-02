@@ -231,6 +231,8 @@ pub struct PalmistryLaunchState {
     model_lane_store: ModelLaneStore,
     palmistry_store: SurrealPalmistryStore,
     reclaim: Arc<Reclaim>,
+    /// Exact five-field scope every reclaim issued by this launcher runs under.
+    reclaim_scope: crate::process_ledger::ReclaimResourceScope,
     active: Arc<Mutex<HashMap<Uuid, LaunchSlot>>>,
 }
 
@@ -338,6 +340,8 @@ impl PalmistryLaunchState {
         exact_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
         reclaim: Arc<Reclaim>,
     ) -> Self {
+        let reclaim_scope = crate::process_ledger::ReclaimResourceScope::from_exact(&exact_scope)
+            .expect("exact five-field ResourceScope converts to a reclaim scope");
         let resource_scope = crate::swarm_orchestration::resource_scope::ResourceScope::new(
             exact_scope.owner_account_id,
             exact_scope.actor_principal_id,
@@ -354,6 +358,7 @@ impl PalmistryLaunchState {
             ),
             palmistry_store: SurrealPalmistryStore::new_exact(surreal_storage, exact_scope),
             reclaim,
+            reclaim_scope,
             active: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -502,6 +507,12 @@ struct PalmistryLaunchError {
     status: StatusCode,
     code: &'static str,
     detail: String,
+}
+
+impl std::fmt::Display for PalmistryLaunchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} ({}): {}", self.code, self.status, self.detail)
+    }
 }
 
 impl PalmistryLaunchError {
@@ -1341,6 +1352,7 @@ async fn shutdown_recovered_source(
     if let Err(error) = state
         .reclaim
         .run_process(
+            &state.reclaim_scope,
             &request.summary.source_session_id.to_string(),
             process_uuid,
             ReclaimTrigger::Restart,

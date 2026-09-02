@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Asset {
@@ -320,6 +321,21 @@ pub struct LoomBlock {
     pub derived: LoomBlockDerived,
 }
 
+/// Exact EventLedger identity returned by the durable mutation that created it.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoomMutationEventReceipt {
+    pub event_id: String,
+    pub event_sequence: i64,
+    pub created_at: DateTime<Utc>,
+}
+
+/// A Loom block mutation and the exact EventLedger row committed with it.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomBlockMutationReceipt {
+    pub block: LoomBlock,
+    pub event: LoomMutationEventReceipt,
+}
+
 #[derive(Clone, Debug)]
 pub struct NewLoomBlock {
     pub block_id: Option<String>,
@@ -346,6 +362,10 @@ pub struct LoomBlockUpdate {
     /// pin; send `null` via the dedicated reorder endpoint to clear it.
     #[serde(default)]
     pub pin_order: Option<i32>,
+    /// Optimistic-concurrency fence: when set, the update is applied only if
+    /// the stored `updated_at` still equals this value.
+    #[serde(default)]
+    pub expected_updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -1668,6 +1688,9 @@ pub struct BlockViewDefinition {
 pub struct BlockViewRecord {
     pub block: LoomBlock,
     pub definition: BlockViewDefinition,
+    /// EventLedger receipt of the publication that produced this view row,
+    /// when the mutation was committed with a durable receipt.
+    pub publication_event_id: Option<Uuid>,
 }
 
 /// Result of executing a saved view's query against the real Loom backend.

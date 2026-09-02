@@ -13,6 +13,7 @@ fn assert_axum_route_states_are_clone_send_sync_static() {
 }
 
 pub mod account_scope;
+#[cfg(feature = "legacy-postgres-superseded")]
 pub mod atelier;
 pub mod bundles;
 pub mod canvases;
@@ -23,11 +24,16 @@ pub mod flight_recorder;
 pub mod governance_pack;
 pub mod jobs;
 pub mod kernel;
+#[cfg(feature = "legacy-postgres-superseded")]
 pub mod knowledge_code_nav;
+#[cfg(feature = "legacy-postgres-superseded")]
 pub mod knowledge_crdt;
 pub mod knowledge_documents;
+#[cfg(feature = "legacy-postgres-superseded")]
 pub mod knowledge_ingestion;
+#[cfg(feature = "legacy-postgres-superseded")]
 pub mod knowledge_memory;
+#[cfg(feature = "legacy-postgres-superseded")]
 pub mod knowledge_retrieval;
 pub mod logs;
 pub mod loom;
@@ -250,6 +256,8 @@ fn routes_with_operator_chat_runtime(
         operator_chat_process_ledger.ledger(),
         Arc::clone(&cli_sandbox_registry),
         Arc::clone(&reclaim),
+        crate::process_ledger::ReclaimResourceScope::from_exact(product_scope.exact())
+            .expect("product-local exact ResourceScope converts to a reclaim scope"),
     );
     // MT-015: Settings and the picker share the exact canonical, pinned CLI
     // targets accepted by the launch factory. Neither surface independently
@@ -295,13 +303,19 @@ fn routes_with_operator_chat_runtime(
     let governance_pack_routes = governance_pack::routes(state.clone());
     let role_mailbox_routes = role_mailbox::routes(state.clone());
     let kernel_routes = kernel::routes(state.clone());
+    #[cfg(feature = "legacy-postgres-superseded")]
     let knowledge_code_nav_routes = knowledge_code_nav::routes(state.clone());
+    #[cfg(feature = "legacy-postgres-superseded")]
     let knowledge_crdt_routes = knowledge_crdt::routes(state.clone());
     let knowledge_documents_routes = knowledge_documents::routes(state.clone());
+    #[cfg(feature = "legacy-postgres-superseded")]
     let knowledge_ingestion_routes = knowledge_ingestion::routes(state.clone());
+    #[cfg(feature = "legacy-postgres-superseded")]
     let knowledge_memory_routes = knowledge_memory::routes(state.clone());
+    #[cfg(feature = "legacy-postgres-superseded")]
     let knowledge_retrieval_routes = knowledge_retrieval::routes(state.clone());
     let user_manual_routes = user_manual::routes(state.clone());
+    #[cfg(feature = "legacy-postgres-superseded")]
     let atelier_routes = atelier::routes(state.clone());
     let source_control_routes = source_control::routes(state.clone());
     let debug_adapter_routes = debug_adapter::routes(state.clone());
@@ -331,17 +345,19 @@ fn routes_with_operator_chat_runtime(
         .merge(governance_pack_routes)
         .merge(role_mailbox_routes)
         .merge(kernel_routes)
-        .merge(knowledge_code_nav_routes)
-        .merge(knowledge_crdt_routes)
         .merge(knowledge_documents_routes)
-        .merge(knowledge_ingestion_routes)
-        .merge(knowledge_memory_routes)
-        .merge(knowledge_retrieval_routes)
         .merge(user_manual_routes)
-        .merge(atelier_routes)
         .merge(source_control_routes)
         .merge(debug_adapter_routes)
         .merge(console_stream_routes);
+    #[cfg(feature = "legacy-postgres-superseded")]
+    let router = router
+        .merge(atelier_routes)
+        .merge(knowledge_code_nav_routes)
+        .merge(knowledge_crdt_routes)
+        .merge(knowledge_ingestion_routes)
+        .merge(knowledge_memory_routes)
+        .merge(knowledge_retrieval_routes);
     (router.layer(Extension(product_scope)), swarm_event_drain)
 }
 
@@ -363,6 +379,7 @@ fn operator_chat_cloud_wiring(
     ledger: crate::process_ledger::LedgerBatcher,
     sandbox_registry: Arc<crate::sandbox::SandboxAdapterRegistry>,
     reclaim: Arc<crate::process_ledger::Reclaim>,
+    reclaim_resource_scope: crate::process_ledger::ReclaimResourceScope,
 ) -> OperatorChatCloudWiring {
     let Ok(access) = crate::model_runtime::cloud::CloudModelAccess::production() else {
         return OperatorChatCloudWiring {
@@ -394,7 +411,7 @@ fn operator_chat_cloud_wiring(
     // of staying OPEN until some later boot.
     let live_spawner = Arc::new(
         crate::model_runtime::cloud::LiveCliSpawner::new(Arc::new(ledger), sandbox_registry)
-            .with_reclaim(reclaim),
+            .with_reclaim(reclaim, reclaim_resource_scope),
     );
     let spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner> = live_spawner.clone();
     let observability = Some(Arc::new(

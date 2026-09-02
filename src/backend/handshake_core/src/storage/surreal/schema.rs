@@ -1620,6 +1620,16 @@ async fn fail_closed<T>(
     unreachable!("THROW must fail closed")
 }
 
+/// Provisions the production schema for the focused Loom mutation-receipt
+/// tests. The compiled `schema.surql` bootstrap is the only DDL source, so the
+/// tables those tests exercise are exactly the production definitions.
+#[cfg(test)]
+pub async fn bootstrap_loom_receipt_test_schema(
+    storage: &SurrealStorage,
+) -> Result<(), SurrealStorageError> {
+    bootstrap_schema(storage).await.map(|_| ())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

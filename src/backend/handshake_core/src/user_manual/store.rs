@@ -603,7 +603,7 @@ impl UserManualStore {
     ) -> StorageResult<Vec<R>>
     where
         R: SurrealValue + Send,
-        B: SurrealValue + Send,
+        B: SurrealValue + Send + 'static,
     {
         Ok(self
             .storage
@@ -621,7 +621,7 @@ impl UserManualStore {
     ) -> StorageResult<Vec<R>>
     where
         R: SurrealValue + Send,
-        B: SurrealValue + Send,
+        B: SurrealValue + Send + 'static,
     {
         Ok(self
             .storage
@@ -642,7 +642,7 @@ impl UserManualStore {
     ) -> StorageResult<Option<R>>
     where
         R: SurrealValue + Send,
-        B: SurrealValue + Send,
+        B: SurrealValue + Send + 'static,
     {
         Ok(self
             .storage

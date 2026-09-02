@@ -3,7 +3,7 @@
 //! 11-shared-dev-platform §10.12 Section 17 [LM-PWIKI-001..013]).
 //!
 //! Raw authority (code-index symbols/references/file lens, knowledge entities
-//! and edges, rich documents — all embedded SurrealDB/EventLedger) is the "source
+//! and edges, rich documents — all PostgreSQL/EventLedger) is the "source
 //! code"; the compiled wiki is the regenerable "binary". Three engines:
 //!
 //! * [`compiler`] — MT-241 `ProjectWikiBootstrapCompiler`: bootstrap-compiles

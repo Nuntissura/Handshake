@@ -12,7 +12,6 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sqlx::PgPool;
 
 use crate::kernel::crdt::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
 use crate::kernel::{KernelEventType, NewKernelEvent};
@@ -23,6 +22,7 @@ use crate::storage::loom_ai::{
     apply_loom_block_auto_derived, decide_loom_ai_suggestion, get_loom_ai_suggestion,
     mark_loom_ai_suggestion_promoted, LoomAiSuggestionRow,
 };
+use crate::storage::surreal::SurrealStorage;
 use crate::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomEdgeCreatedBy, LoomEdgeType,
     NewLoomBlock, NewLoomEdge, StorageError, WriteContext,
@@ -112,14 +112,14 @@ fn reviewer_allowed(actor: &KnowledgeActorIdV1) -> bool {
 /// AI_EDIT_PROPOSAL_DECIDED. Authority is untouched (no edge/derived field).
 pub async fn reject_loom_ai_suggestion(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    storage: &SurrealStorage,
     suggestion_id: &str,
     reviewer: &KnowledgeActorIdV1,
     reviewer_session_id: &str,
     correlation_id: &str,
     decision_reason: &str,
 ) -> Result<LoomAiRejectOutcome, LoomAiReviewError> {
-    let Some(existing) = get_loom_ai_suggestion(pool, suggestion_id).await? else {
+    let Some(existing) = get_loom_ai_suggestion(storage, suggestion_id).await? else {
         return Ok(LoomAiRejectOutcome::UnknownSuggestion {
             suggestion_id: suggestion_id.to_string(),
         });
@@ -127,7 +127,7 @@ pub async fn reject_loom_ai_suggestion(
     if !reviewer_allowed(reviewer) {
         let denial = deny(
             db,
-            pool,
+            storage,
             &existing,
             reviewer,
             reviewer_session_id,
@@ -156,7 +156,7 @@ pub async fn reject_loom_ai_suggestion(
     )
     .await?;
     let Some(row) = decide_loom_ai_suggestion(
-        pool,
+        storage,
         suggestion_id,
         "rejected",
         &reviewer.canonical(),
@@ -165,7 +165,7 @@ pub async fn reject_loom_ai_suggestion(
     )
     .await?
     else {
-        let current = get_loom_ai_suggestion(pool, suggestion_id)
+        let current = get_loom_ai_suggestion(storage, suggestion_id)
             .await?
             .map(|r| r.review_state)
             .unwrap_or_else(|| "missing".to_string());
@@ -182,14 +182,14 @@ pub async fn reject_loom_ai_suggestion(
 /// knowledge. Reviewer must be operator/validator.
 pub async fn accept_loom_ai_suggestion(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    storage: &SurrealStorage,
     suggestion_id: &str,
     reviewer: &KnowledgeActorIdV1,
     reviewer_session_id: &str,
     correlation_id: &str,
     decision_reason: &str,
 ) -> Result<LoomAiAcceptOutcome, LoomAiReviewError> {
-    let Some(existing) = get_loom_ai_suggestion(pool, suggestion_id).await? else {
+    let Some(existing) = get_loom_ai_suggestion(storage, suggestion_id).await? else {
         return Ok(LoomAiAcceptOutcome::UnknownSuggestion {
             suggestion_id: suggestion_id.to_string(),
         });
@@ -200,7 +200,7 @@ pub async fn accept_loom_ai_suggestion(
     if !reviewer_allowed(reviewer) {
         let denial = deny(
             db,
-            pool,
+            storage,
             &existing,
             reviewer,
             reviewer_session_id,
@@ -230,7 +230,7 @@ pub async fn accept_loom_ai_suggestion(
     )
     .await?;
     let Some(accepted) = decide_loom_ai_suggestion(
-        pool,
+        storage,
         suggestion_id,
         "accepted",
         &reviewer.canonical(),
@@ -239,7 +239,7 @@ pub async fn accept_loom_ai_suggestion(
     )
     .await?
     else {
-        let current = get_loom_ai_suggestion(pool, suggestion_id)
+        let current = get_loom_ai_suggestion(storage, suggestion_id)
             .await?
             .map(|r| r.review_state)
             .unwrap_or_else(|| "missing".to_string());
@@ -249,7 +249,7 @@ pub async fn accept_loom_ai_suggestion(
     };
 
     // 2) Build the real authority artifact for this kind.
-    let artifact_ref = promote_artifact(db, pool, &accepted, reviewer).await?;
+    let artifact_ref = promote_artifact(db, storage, &accepted, reviewer).await?;
 
     // 3) Atomic promotion event pair.
     let requested = NewKernelEvent::builder(
@@ -305,7 +305,7 @@ pub async fn accept_loom_ai_suggestion(
 
     // 4) Stamp the row promoted.
     let promoted = mark_loom_ai_suggestion_promoted(
-        pool,
+        storage,
         suggestion_id,
         &requested_id,
         &accepted_id,
@@ -343,7 +343,7 @@ pub struct LoomAiAcceptAllOutcome {
 /// Accept ALL pending suggestions for a job (optionally filtered to one kind).
 ///
 /// This is the canonical accept-all path: it lists the PENDING rows from
-/// PostgreSQL (the authority set, NOT a UI-rendered subset) and runs the SAME
+/// SurrealDB (the authority set, NOT a UI-rendered subset) and runs the SAME
 /// per-item `accept_loom_ai_suggestion` flow on each. Per-item authority is
 /// therefore preserved — a non-operator reviewer promotes NOTHING (every item
 /// lands in `denied` with a durable receipt), and an operator/validator
@@ -351,7 +351,7 @@ pub struct LoomAiAcceptAllOutcome {
 /// (`api::loom::accept_all_loom_ai_suggestions`) is a thin wrapper over this.
 pub async fn accept_all_loom_ai_suggestions(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    storage: &SurrealStorage,
     workspace_id: &str,
     job_id: &str,
     kind_filter: Option<crate::storage::loom_ai::LoomAiJobKind>,
@@ -361,7 +361,7 @@ pub async fn accept_all_loom_ai_suggestions(
     decision_reason: &str,
 ) -> Result<LoomAiAcceptAllOutcome, LoomAiReviewError> {
     let pending = crate::storage::loom_ai::list_loom_ai_suggestions(
-        pool,
+        storage,
         workspace_id,
         Some(job_id),
         Some("pending"),
@@ -378,7 +378,7 @@ pub async fn accept_all_loom_ai_suggestions(
         }
         let accept = accept_loom_ai_suggestion(
             db,
-            pool,
+            storage,
             &row.suggestion_id,
             reviewer,
             reviewer_session_id,
@@ -406,7 +406,7 @@ pub async fn accept_all_loom_ai_suggestions(
 /// ai_suggested type; captions carry generated_by provenance.
 async fn promote_artifact(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    storage: &SurrealStorage,
     suggestion: &LoomAiSuggestionRow,
     reviewer: &KnowledgeActorIdV1,
 ) -> Result<String, LoomAiReviewError> {
@@ -517,7 +517,7 @@ async fn promote_artifact(
                 "timestamp": chrono::Utc::now(),
             });
             apply_loom_block_auto_derived(
-                pool,
+                storage,
                 &suggestion.workspace_id,
                 &suggestion.block_id,
                 Some(&caption),
@@ -581,7 +581,7 @@ async fn decided_event(
 /// event for an unauthorized / wrong-state confirm attempt.
 async fn deny(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    storage: &SurrealStorage,
     suggestion: &LoomAiSuggestionRow,
     gate_actor: &KnowledgeActorIdV1,
     gate_session_id: &str,
@@ -613,7 +613,7 @@ async fn deny(
         .map_err(|err| LoomAiReviewError::Internal(err.to_string()))?;
 
     let receipt = insert_denial_receipt(
-        pool,
+        storage,
         NewKnowledgeCrdtDenialReceipt {
             receipt_id: receipt_id.clone(),
             receipt_kind: "loom_ai_promotion_denied".to_string(),

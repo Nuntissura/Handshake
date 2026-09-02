@@ -11,9 +11,7 @@
 //!  - parent_span_id correlation correct on activity spans.
 //!  - Sampling reduces span emissions but never drops failures.
 //!  - Performance throughput target (> 500 events/sec) via the
-//!    `InMemoryStubFrRecorder` path (PostgresFrRecorder throughput is
-//!    POSTGRES_TEST_URL-gated since spinning up Postgres in a unit
-//!    integration test would slow CI; the test below executes the
+//!    `InMemoryStubFrRecorder` path; the test below executes the
 //!    in-memory equivalent of the channel pattern and validates the
 //!    >500 events/sec floor in the lightweight path).
 
@@ -54,9 +52,10 @@ impl FrSpanRecorder for SyncBridgeRecorder {
         // Sync path: we run the async record inline because the
         // InMemoryStubFrRecorder.record future returns immediately.
         let recorder = Arc::clone(&self.inner);
-        let _ = futures::executor::block_on(async move {
-            recorder.record(event_id, payload, None).await
-        });
+        let _ =
+            futures::executor::block_on(
+                async move { recorder.record(event_id, payload, None).await },
+            );
     }
 }
 
@@ -136,10 +135,7 @@ fn mt199_activity_span_carries_parent_correlation_in_started_event() {
     // SpanEnded must also reference the parent so downstream queries
     // can join end events back to the parent tree.
     let ended = &cap[1];
-    let parent_in_end = ended
-        .payload
-        .get("parent_span_id")
-        .and_then(|v| v.as_str());
+    let parent_in_end = ended.payload.get("parent_span_id").and_then(|v| v.as_str());
     assert_eq!(parent_in_end, Some(parent.as_uuid().to_string()).as_deref());
 }
 
@@ -244,7 +240,8 @@ async fn mt199_sample_rate_zero_drops_started_and_ended() {
             force_emit_failures: true,
         },
     );
-    let span_ctx = SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
+    let span_ctx =
+        SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
 
     emitter
         .on_span_start(span_ctx.clone(), None, &json!({}))
@@ -266,7 +263,8 @@ async fn mt199_failures_always_emit_even_at_sample_rate_zero() {
             force_emit_failures: true,
         },
     );
-    let span_ctx = SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
+    let span_ctx =
+        SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
 
     emitter
         .on_span_failed(span_ctx.clone(), 100, "must-emit")
@@ -297,7 +295,8 @@ async fn mt199_failures_can_be_silenced_when_force_emit_failures_is_false() {
             force_emit_failures: false,
         },
     );
-    let span_ctx = SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
+    let span_ctx =
+        SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
     emitter
         .on_span_failed(span_ctx.clone(), 100, "dropped")
         .await
@@ -314,9 +313,9 @@ async fn mt199_failures_can_be_silenced_when_force_emit_failures_is_false() {
 // (e) Performance — > 500 events/sec on the in-memory recorder path.
 //
 // Notes:
-//  - The PostgresFrRecorder uses the same `try_send` shape so the
+//  - The production recorder uses the same `try_send` shape so the
 //    in-memory measurement is the controlled-environment lower bound.
-//  - Performance gate is intentionally well below the Postgres
+//  - Performance gate is intentionally well below the production
 //    target (the in-memory path comfortably exceeds 100k events/sec
 //    in practice).
 // ---------------------------------------------------------------------------
@@ -360,11 +359,8 @@ async fn mt199_task_local_scope_injects_emitter_into_nested_async_call_site() {
         // Nested function would do `current_span_emitter().unwrap().on_span_*(...)`
         // here; we simulate that pattern.
         let e = current_span_emitter().expect("scoped emitter required");
-        let span_ctx = SpanContextRef::for_session_span(
-            SpanId::new_v7(),
-            Uuid::now_v7(),
-            Uuid::now_v7(),
-        );
+        let span_ctx =
+            SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
         e.on_span_start(span_ctx, None, &json!({})).await.unwrap();
         recorder.snapshot().len()
     })
@@ -423,12 +419,8 @@ fn mt199_null_recorder_path_does_not_panic_on_drop() {
     }
     let recorder: Arc<dyn FrSpanRecorder> = Arc::new(NullSyncBridge);
     {
-        let (_g, _s) = SpanGuard::start_session(
-            Uuid::now_v7(),
-            Uuid::now_v7(),
-            BTreeMap::new(),
-            recorder,
-        );
+        let (_g, _s) =
+            SpanGuard::start_session(Uuid::now_v7(), Uuid::now_v7(), BTreeMap::new(), recorder);
     }
 }
 
@@ -441,7 +433,8 @@ fn mt199_null_recorder_path_does_not_panic_on_drop() {
 async fn mt199_session_span_emits_parent_span_id_as_null() {
     let recorder = Arc::new(InMemoryStubFrRecorder::new());
     let emitter = SpanFrEmitter::with_recorder(recorder.clone());
-    let span_ctx = SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
+    let span_ctx =
+        SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
 
     emitter
         .on_span_start(span_ctx.clone(), None, &json!({}))
@@ -473,11 +466,8 @@ async fn mt199_high_sampling_pressure_still_preserves_failures() {
     );
     // Emit 100 failures; every one must land.
     for _ in 0..100 {
-        let span_ctx = SpanContextRef::for_session_span(
-            SpanId::new_v7(),
-            Uuid::now_v7(),
-            Uuid::now_v7(),
-        );
+        let span_ctx =
+            SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
         emitter
             .on_span_failed(span_ctx, 1, "load-test")
             .await
@@ -494,7 +484,7 @@ async fn mt199_high_sampling_pressure_still_preserves_failures() {
 // (k) Adversarial: idempotency under repeated start/end with the
 // SAME span_id (boundary should still produce two events; the
 // recorder does not collapse duplicates — collapsing is the
-// PostgresFrRecorder's job via the kernel_event_ledger unique index).
+// production recorder's job via the kernel_event_ledger unique index).
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
@@ -528,10 +518,9 @@ async fn mt199_double_start_end_for_same_span_produces_two_pairs() {
 #[tokio::test]
 async fn mt199_null_recorder_async_path_always_returns_ok() {
     let emitter = SpanFrEmitter::with_recorder(Arc::new(NullFrRecorder));
-    let span_ctx = SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
-    let r = emitter
-        .on_span_failed(span_ctx, 1, "ignored")
-        .await;
+    let span_ctx =
+        SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
+    let r = emitter.on_span_failed(span_ctx, 1, "ignored").await;
     assert!(r.is_ok());
 }
 
@@ -544,7 +533,8 @@ async fn mt199_null_recorder_async_path_always_returns_ok() {
 async fn mt199_emitter_preserves_attribute_payload_keys() {
     let recorder = Arc::new(InMemoryStubFrRecorder::new());
     let emitter = SpanFrEmitter::with_recorder(recorder.clone());
-    let span_ctx = SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
+    let span_ctx =
+        SpanContextRef::for_session_span(SpanId::new_v7(), Uuid::now_v7(), Uuid::now_v7());
 
     let attributes = json!({
         "tenant": "t-001",
@@ -563,10 +553,7 @@ async fn mt199_emitter_preserves_attribute_payload_keys() {
         .get("attributes")
         .expect("attributes key must be present");
     assert_eq!(payload_attrs, &attributes);
-    let activity_kind = cap[0]
-        .payload
-        .get("activity_kind")
-        .and_then(|v| v.as_str());
+    let activity_kind = cap[0].payload.get("activity_kind").and_then(|v| v.as_str());
     assert_eq!(activity_kind, Some("validator_iteration"));
 }
 

@@ -21,25 +21,25 @@
 //! locally (Yjs merge is the client-side CRDT job), and resubmitting a
 //! rebased envelope whose `state_vector_before` equals the new head.
 
+use crate::storage::surreal::SurrealStorage;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::Database;
 use crate::storage::knowledge_crdt::{
-    KnowledgeCrdtDenialReceiptRow, NewKnowledgeCrdtDenialReceipt, insert_denial_receipt,
-    new_denial_receipt_id,
+    insert_denial_receipt, new_denial_receipt_id, KnowledgeCrdtDenialReceiptRow,
+    NewKnowledgeCrdtDenialReceipt,
 };
+use crate::storage::Database;
 
 use super::actor_site::KnowledgeActorIdV1;
 use super::agent_lease::{
-    KnowledgeLeaseScopeKind, LeaseWriteDenialV1, LeaseWriteGuardOutcomeV1, guard_lease_for_write,
+    guard_lease_for_write, KnowledgeLeaseScopeKind, LeaseWriteDenialV1, LeaseWriteGuardOutcomeV1,
 };
 use super::state_vector::{KnowledgeStateVectorOrdering, KnowledgeStateVectorV1};
 use super::yjs_bridge::{
-    KnowledgeCrdtFlowError, YjsPushDenialReasonV1, YjsPushOutcomeV1, YjsUpdateEnvelopeV1,
-    push_yjs_update, read_draft_head,
+    push_yjs_update, read_draft_head, KnowledgeCrdtFlowError, YjsPushDenialReasonV1,
+    YjsPushOutcomeV1, YjsUpdateEnvelopeV1,
 };
 
 pub const KNOWLEDGE_SAVE_DECISION_SCHEMA_ID: &str = "hsk.kernel.knowledge_save_decision@1";
@@ -145,7 +145,7 @@ pub enum KnowledgeDraftSaveOutcomeV1 {
 /// (document, update_id).
 pub async fn save_rich_document_draft(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     envelope: &YjsUpdateEnvelopeV1,
 ) -> Result<KnowledgeDraftSaveOutcomeV1, KnowledgeCrdtFlowError> {
     match push_yjs_update(db, envelope).await? {
@@ -227,7 +227,7 @@ pub async fn save_rich_document_draft(
 /// entrypoint.
 pub async fn save_rich_document_draft_under_lease(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     envelope: &YjsUpdateEnvelopeV1,
     lease_id: &str,
 ) -> Result<KnowledgeDraftSaveOutcomeV1, KnowledgeCrdtFlowError> {
@@ -256,7 +256,7 @@ pub async fn save_rich_document_draft_under_lease(
 
 async fn record_conflict_receipt(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     envelope: &YjsUpdateEnvelopeV1,
     decision: &KnowledgeSaveDecisionV1,
     receipt_kind: &'static str,

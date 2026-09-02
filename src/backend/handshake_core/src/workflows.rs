@@ -14792,6 +14792,9 @@ fn calendar_event_upsert_from_sync_event(
         end_local: event.end_local,
         tzid: event.tzid,
         all_day: event.all_day,
+        start_date: event.start_date,
+        end_date_exclusive: event.end_date_exclusive,
+        normalization_note: event.normalization_note,
         was_floating: event.was_floating,
         status: event.status,
         visibility: event.visibility,
@@ -28300,52 +28303,40 @@ mod tests {
     use crate::llm::InMemoryLlmClient;
     use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
-        tests::{
-            optional_postgres_backend_with_pool_from_env, postgres_backend_with_pool_from_env,
-        },
+        tests::{embedded_test_backend, EmbeddedTestBackend},
         AccessMode, Database, JobKind, JobMetrics, JobState, ModelSession, ModelSessionState,
         SafetyMode,
     };
     use serde_json::json;
     use std::sync::{Arc, Mutex};
 
-    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let Some(storage) = optional_postgres_backend_with_pool_from_env().await? else {
-            return Ok(None);
-        };
+    /// Opens a fresh embedded store for one test. The returned backend owns the
+    /// store's cleanup guard, so callers keep it alive for the whole test body.
+    async fn setup_state(
+    ) -> Result<Option<(AppState, EmbeddedTestBackend)>, Box<dyn std::error::Error>> {
+        let backend = embedded_test_backend().await?;
 
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
-        Ok(Some(AppState {
-            storage: storage.database,
-            postgres_pool: storage.postgres_pool,
-            flight_recorder: flight_recorder.clone(),
-            diagnostics: flight_recorder,
-            llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
-            capability_registry: Arc::new(CapabilityRegistry::new()),
-            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        }))
+        Ok(Some((
+            AppState {
+                storage: backend.database.clone(),
+                surreal_storage: backend.storage.clone(),
+                flight_recorder: flight_recorder.clone(),
+                diagnostics: flight_recorder,
+                llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
+                capability_registry: Arc::new(CapabilityRegistry::new()),
+                session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+            },
+            backend,
+        )))
     }
 
     static RUNTIME_ENV_LOCK: Mutex<()> = Mutex::new(());
 
-    async fn setup_postgres_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        if std::env::var("POSTGRES_TEST_URL").is_err() {
-            return Ok(None);
-        }
-
-        let storage = postgres_backend_with_pool_from_env().await?;
-        let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
-
-        Ok(Some(AppState {
-            storage: storage.database,
-            postgres_pool: storage.postgres_pool,
-            flight_recorder: flight_recorder.clone(),
-            diagnostics: flight_recorder,
-            llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
-            capability_registry: Arc::new(CapabilityRegistry::new()),
-            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        }))
+    async fn setup_embedded_state(
+    ) -> Result<Option<(AppState, EmbeddedTestBackend)>, Box<dyn std::error::Error>> {
+        setup_state().await
     }
 
     struct EnvVarGuard {
@@ -28478,7 +28469,7 @@ mod tests {
     #[tokio::test]
     async fn postgres_structured_collab_artifacts_materialize_parity_fields(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_postgres_state().await? else {
+        let Some((state, _backend)) = setup_embedded_state().await? else {
             return Ok(());
         };
 
@@ -28610,7 +28601,7 @@ mod tests {
     #[tokio::test]
     async fn task_board_projection_preserves_updated_at_then_wp_id_order(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 
@@ -28994,7 +28985,7 @@ mod tests {
     #[tokio::test]
     async fn job_fails_when_missing_required_capability() -> Result<(), Box<dyn std::error::Error>>
     {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let job = state
@@ -29028,7 +29019,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn terminal_job_enforces_capability() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let job = state
@@ -29062,7 +29053,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn terminal_job_runs_when_authorized() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 
@@ -29112,7 +29103,7 @@ mod tests {
     #[tokio::test]
     async fn workflow_persists_node_history_and_outputs() -> Result<(), Box<dyn std::error::Error>>
     {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let (program, args) = terminal_command();
@@ -29152,7 +29143,7 @@ mod tests {
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_run_scope_without_workflow_run_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let job = create_debug_bundle_job(&state, json!({ "kind": "workflow_run" })).await?;
@@ -29183,7 +29174,7 @@ mod tests {
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_workflow_run_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let job = create_debug_bundle_job(
@@ -29221,7 +29212,7 @@ mod tests {
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_node_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let job = create_debug_bundle_job(
@@ -29259,7 +29250,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_poisoning_trap() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let job = state
@@ -29305,7 +29296,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_mark_stalled_workflows() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 
@@ -29376,7 +29367,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_create_session_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let session = create_test_model_session(&state, ModelSessionState::Created, None).await?;
@@ -29412,7 +29403,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_recover_session_from_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let session = create_test_model_session(&state, ModelSessionState::Active, None).await?;
@@ -29453,7 +29444,7 @@ mod tests {
     #[tokio::test]
     async fn test_mark_stalled_workflows_recovers_orphaned_active_session(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let job = state
@@ -29499,7 +29490,7 @@ mod tests {
     #[tokio::test]
     async fn test_recover_session_from_checkpoint_idempotent(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let session = create_test_model_session(&state, ModelSessionState::Active, None).await?;
@@ -29532,7 +29523,7 @@ mod tests {
     async fn test_startup_recovery_blocks_job_acceptance() -> Result<(), Box<dyn std::error::Error>>
     {
         reset_startup_recovery_gate_for_test();
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         enable_startup_recovery_gate();
@@ -29571,7 +29562,7 @@ mod tests {
     async fn run_job_rejects_budget_exceeded() -> Result<(), Box<dyn std::error::Error>> {
         use crate::storage::{NewBlock, NewDocument, NewWorkspace, WriteContext};
 
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
         let ctx = WriteContext::human(None);
@@ -29808,7 +29799,7 @@ mod tests {
     #[tokio::test]
     async fn fems_extract_emits_proposal_without_commit_and_without_raw_fr_content(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 
@@ -29902,7 +29893,7 @@ mod tests {
     #[tokio::test]
     async fn dcc_ready_query_projection_is_backend_backed() -> Result<(), Box<dyn std::error::Error>>
     {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 
@@ -30121,7 +30112,7 @@ mod tests {
     #[tokio::test]
     async fn dcc_session_binding_projection_matches_runtime_state(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 
@@ -30319,7 +30310,7 @@ mod tests {
     #[tokio::test]
     async fn validator_gate_runtime_summary_links_check_evidence(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 
@@ -31222,7 +31213,7 @@ mod tests {
     #[tokio::test]
     async fn governance_workflow_mirror_gate_transition_emits_fr_event(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 
@@ -31486,7 +31477,7 @@ mod tests {
     #[tokio::test]
     async fn dcc_mailbox_projection_preserves_wait_reasons(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 
@@ -31788,7 +31779,7 @@ mod tests {
     #[tokio::test]
     async fn dcc_task_board_filters_by_state_family_and_queue_reason(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 
@@ -32029,7 +32020,7 @@ mod tests {
     #[tokio::test]
     async fn dcc_compact_summary_contract_preserves_stable_ids(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
+        let Some((state, _backend)) = setup_state().await? else {
             return Ok(());
         };
 

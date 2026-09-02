@@ -23,7 +23,9 @@ mod user_manual_support;
 use handshake_core::api;
 use handshake_core::kernel::model_manual::kernel002_no_context_model_manual;
 use handshake_core::knowledge_document::embed::{BrokenEmbedRepair, EmbedRefKind, EmbedTarget};
+#[cfg(feature = "legacy-postgres-superseded")]
 use handshake_core::knowledge_retrieval::budget::PriorityTier;
+#[cfg(feature = "legacy-postgres-superseded")]
 use handshake_core::user_manual::bundle_bridge::manual_bundle_candidate;
 use handshake_core::user_manual::fixtures::{delete_page, insert_orphan_page, unreachable_pages};
 use handshake_core::user_manual::freshness::{check_freshness, FreshnessVerdictKind};
@@ -246,6 +248,7 @@ async fn mt198_embed_law_and_repair_vocabulary_match_types() {
 
 /// MT-202: the UserManual bridge emits a candidate whose citation source,
 /// drift hash, and EventLedger linkage bind the selected page and section.
+#[cfg(feature = "legacy-postgres-superseded")]
 #[tokio::test]
 async fn mt202_bundle_cites_manual_page_with_version_and_anchor() {
     let scope = seeded_scope().await;

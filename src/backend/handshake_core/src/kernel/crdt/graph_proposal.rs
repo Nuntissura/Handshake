@@ -8,9 +8,9 @@
 //! 'support') that are reviewed (operator/validator), then rejected or
 //! promoted (MT-069 bridge). Drafts are never authority.
 
+use crate::storage::surreal::SurrealStorage;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
-use sqlx::PgPool;
+use serde_json::{json, Value};
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
 use crate::storage::knowledge_crdt::{self, GraphMutationProposalRow, NewGraphMutationProposal};
@@ -18,8 +18,8 @@ use crate::storage::{Database, StorageError};
 
 use super::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
 use super::agent_lease::{
-    KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1, LeaseWriteGuardOutcomeV1,
-    guard_lease_for_write,
+    guard_lease_for_write, KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1,
+    LeaseWriteGuardOutcomeV1,
 };
 
 pub const GRAPH_MUTATION_PROPOSAL_SCHEMA_ID: &str =
@@ -217,7 +217,7 @@ pub enum RecordGraphProposalOutcomeV1 {
 /// durable receipt and NO draft row.
 pub async fn record_graph_proposal(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     request: GraphMutationProposalRequestV1,
 ) -> Result<RecordGraphProposalOutcomeV1, LeaseFlowError> {
     if let Err(errors) = validate_graph_proposal_request(&request) {
@@ -329,7 +329,7 @@ impl std::error::Error for ProposalDecisionError {}
 /// Reviewers must be operator/validator actors; models cannot self-approve.
 pub async fn decide_graph_proposal(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     approve: bool,
     reviewer: &KnowledgeActorIdV1,

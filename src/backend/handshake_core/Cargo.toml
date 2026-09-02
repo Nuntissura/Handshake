@@ -184,6 +184,7 @@ tower-http = { version = "0.6", features = ["cors"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "chrono", "uuid", "json"] }
 uuid = { version = "1", features = ["v4", "v7", "fast-rng", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
+chrono-tz = "=0.10.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
 tracing-appender = "0.2"
@@ -326,6 +327,11 @@ duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
 test-utils = []  # Exposes test helper utilities for integration tests
 surreal-test-support = []
+# Fence for superseded relational (PostgreSQL) product surfaces retained as
+# migration provenance only. NEVER enable: these modules are removal debt under
+# the embedded-SurrealDB-only storage law (Codex CX-503R) and are excluded from
+# every default, test-utils, and proof graph until their Surreal providers land.
+legacy-postgres-superseded = []
 wsl2-integration = []
 docker-integration = []
 win-native-integration = []
@@ -345,7 +351,7 @@ required-features = ["test-utils"]
 [[test]]
 name = "model_lane_resource_scope_pg_tests"
 path = "tests/model_lane_resource_scope_pg_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "model_runtime_registry_api_tests"
@@ -383,7 +389,7 @@ required-features = ["test-utils"]
 [[test]]
 name = "operator_chat_capture_tests"
 path = "tests/operator_chat_capture_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "operator_chat_route_tests"
@@ -413,27 +419,27 @@ required-features = ["test-utils"]
 [[test]]
 name = "kernel_end_to_end_tests"
 path = "tests/kernel_end_to_end_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "kernel_postgres_event_ledger_tests"
 path = "tests/kernel_postgres_event_ledger_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "memory_persistence_postgres_tests"
 path = "tests/memory_persistence_postgres_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "memory_ipc_postgres_tests"
 path = "tests/memory_ipc_postgres_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "memory_capsule_e2e_postgres_tests"
 path = "tests/memory_capsule_e2e_postgres_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "mcp_e2e_tests"
@@ -448,37 +454,37 @@ required-features = ["duckdb-flight-recorder"]
 [[test]]
 name = "mex_tests"
 path = "tests/mex_tests.rs"
-required-features = ["duckdb-flight-recorder", "test-utils"]
+required-features = ["duckdb-flight-recorder", "test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "micro_task_executor_tests"
 path = "tests/micro_task_executor_tests.rs"
-required-features = ["duckdb-flight-recorder"]
+required-features = ["duckdb-flight-recorder", "legacy-postgres-superseded"]
 
 [[test]]
 name = "model_session_scheduler_tests"
 path = "tests/model_session_scheduler_tests.rs"
-required-features = ["duckdb-flight-recorder"]
+required-features = ["duckdb-flight-recorder", "legacy-postgres-superseded"]
 
 [[test]]
 name = "role_mailbox_tests"
 path = "tests/role_mailbox_tests.rs"
-required-features = ["duckdb-flight-recorder"]
+required-features = ["duckdb-flight-recorder", "legacy-postgres-superseded"]
 
 [[test]]
 name = "role_mailbox_v1_tests"
 path = "tests/role_mailbox_v1_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "role_mailbox_repo_tests"
 path = "tests/role_mailbox_repo_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "role_mailbox_lease_tests"
 path = "tests/role_mailbox_lease_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "role_mailbox_router_tests"
@@ -488,47 +494,47 @@ required-features = ["test-utils"]
 [[test]]
 name = "role_mailbox_exporter_tests"
 path = "tests/role_mailbox_exporter_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "role_mailbox_backpressure_tests"
 path = "tests/role_mailbox_backpressure_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "role_mailbox_handoff_tests"
 path = "tests/role_mailbox_handoff_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "mt_executor_tests"
 path = "tests/mt_executor_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "micro_task_job_tests"
 path = "tests/micro_task_job_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "mt_loop_control_tests"
 path = "tests/mt_loop_control_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "mt_scheduler_tests"
 path = "tests/mt_scheduler_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "mt_outcome_tests"
 path = "tests/mt_outcome_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "session_checkpoint_tests"
 path = "tests/session_checkpoint_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "restart_resume_tests"
@@ -543,27 +549,27 @@ required-features = ["test-utils", "surreal-test-support"]
 [[test]]
 name = "idempotency_tests"
 path = "tests/idempotency_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "bitemporal_indexing_tests"
 path = "tests/bitemporal_indexing_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "outcome_feedback_tests"
 path = "tests/outcome_feedback_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "pinned_core_tests"
 path = "tests/pinned_core_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "hygiene_manager_tests"
 path = "tests/hygiene_manager_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "calibration_tests"
@@ -593,12 +599,12 @@ required-features = ["test-utils"]
 [[test]]
 name = "crash_recovery_e2e"
 path = "tests/crash_recovery_e2e/mod.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "observability_aggregate_queries_tests"
 path = "tests/observability_aggregate_queries_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "flight_recorder_span_tests"
@@ -645,100 +651,100 @@ required-features = ["test-utils"]
 [[test]]
 name = "knowledge_schema_tests"
 path = "tests/knowledge_schema_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_graph_tests"
 path = "tests/knowledge_graph_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_code_index_tests"
 path = "tests/knowledge_code_index_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_code_nav_api_tests"
 path = "tests/knowledge_code_nav_api_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_claims_tests"
 path = "tests/knowledge_claims_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_documents_tests"
 path = "tests/knowledge_documents_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_tiptap_roundtrip_fixture_tests"
 path = "tests/knowledge_tiptap_roundtrip_fixture_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_idempotency_tests"
 path = "tests/knowledge_idempotency_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_migration_tests"
 path = "tests/knowledge_migration_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_fail_closed_tests"
 path = "tests/knowledge_fail_closed_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-KERNEL-009 LoomObsidianNavigation MT-186: graph search across Loom,
 # ProjectKnowledgeIndex entities, and UserManual authority rows.
 [[test]]
 name = "loom_graph_search_filters_tests"
 path = "tests/loom_graph_search_filters_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-KERNEL-009 LoomObsidianNavigation MT-189: graph-search retrieval-bias
 # visibility for Loom tag, backlink, and pin influence.
 [[test]]
 name = "loom_retrieval_bias_visibility_tests"
 path = "tests/loom_retrieval_bias_visibility_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-KERNEL-009 LoomObsidianNavigation MT-191: bounded Loom visual-debug
 # snapshot over graph/backlink/folder/search state from real PostgreSQL.
 [[test]]
 name = "loom_visual_debug_views_tests"
 path = "tests/loom_visual_debug_views_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-KERNEL-009 SourceIngestionAndEvidence (MT-081..MT-096): real-PostgreSQL
 # integration proof for allowlisted, hash-based, secret-aware ingestion.
 [[test]]
 name = "knowledge_ingestion_policy_tests"
 path = "tests/knowledge_ingestion_policy_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_ingestion_pipeline_tests"
 path = "tests/knowledge_ingestion_pipeline_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_ingestion_lifecycle_tests"
 path = "tests/knowledge_ingestion_lifecycle_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_ingestion_api_tests"
 path = "tests/knowledge_ingestion_api_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_ingestion_fixture_tests"
 path = "tests/knowledge_ingestion_fixture_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-KERNEL-009 SecurityPortabilityValidation MT-237: real-PostgreSQL
 # parallel write conflict fixture over CRDT denial receipts, conflict_state,
@@ -746,14 +752,14 @@ required-features = ["test-utils"]
 [[test]]
 name = "knowledge_parallel_write_conflict_fixture_tests"
 path = "tests/knowledge_parallel_write_conflict_fixture_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-KERNEL-009 Retrieval replay (MT-238): real-PostgreSQL context-bundle
 # reconstruction from RetrievalTrace, QueryPlan, evidence rows, and receipts.
 [[test]]
 name = "knowledge_retrieval_replay_tests"
 path = "tests/knowledge_retrieval_replay_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-KERNEL-009 SecurityPortabilityValidation MT-239: embedded SurrealDB
 # UserManual freshness false-PASS fixture for same-count child-record tampering.
@@ -772,42 +778,42 @@ required-features = ["test-utils"]
 [[test]]
 name = "knowledge_crdt_bridge_api_tests"
 path = "tests/knowledge_crdt_bridge_api_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_crdt_concurrency_tests"
 path = "tests/knowledge_crdt_concurrency_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_crdt_lease_recovery_tests"
 path = "tests/knowledge_crdt_lease_recovery_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_crdt_proof_tests"
 path = "tests/knowledge_crdt_proof_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_crdt_proposal_tests"
 path = "tests/knowledge_crdt_proposal_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "parallel_swarm_state_recovery_tests"
 path = "tests/parallel_swarm_state_recovery_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "model_lane_schema_pg_tests"
 path = "tests/model_lane_schema_pg_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "model_lane_launch_tests"
 path = "tests/model_lane_launch_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "llm_client_local_routing_tests"
@@ -843,12 +849,12 @@ required-features = ["test-utils"]
 [[test]]
 name = "model_lane_promotion_pg_tests"
 path = "tests/model_lane_promotion_pg_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "model_lane_context_bundle_pg_tests"
 path = "tests/model_lane_context_bundle_pg_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "cloud_model_lane_policy_surreal_tests"
@@ -873,12 +879,12 @@ required-features = ["test-utils", "surreal-test-support"]
 [[test]]
 name = "model_lane_recovery_pg_tests"
 path = "tests/model_lane_recovery_pg_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "swarm_lane_diagnostics_pg_tests"
 path = "tests/swarm_lane_diagnostics_pg_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-1 live orchestration debug console: headless SSE proof over the real
 # api::routes router (managed PostgreSQL) — model-lane launch/status/invocation
@@ -887,19 +893,19 @@ required-features = ["test-utils"]
 [[test]]
 name = "wp1_console_stream_sse_tests"
 path = "tests/wp1_console_stream_sse_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "mixed_model_lane_integration_pg_tests"
 path = "tests/mixed_model_lane_integration_pg_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-1 MT-010 Dexterity model-lane backend navigation surfaces: real-PostgreSQL
 # proof for the no-context navigation routes plus UserManual registry parity.
 [[test]]
 name = "model_lane_navigation_api_tests"
 path = "tests/model_lane_navigation_api_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "user_manual_behavior_coverage_tests"
@@ -933,17 +939,17 @@ required-features = ["test-utils", "surreal-test-support"]
 [[test]]
 name = "project_wiki_bootstrap_tests"
 path = "tests/project_wiki_bootstrap_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "project_wiki_drift_tests"
 path = "tests/project_wiki_drift_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "project_wiki_fanout_tests"
 path = "tests/project_wiki_fanout_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "debug_adapter_node_session"
@@ -953,7 +959,7 @@ required-features = ["test-utils"]
 [[test]]
 name = "debug_adapter_breakpoint_persistence"
 path = "tests/debug_adapter_breakpoint_persistence.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-KERNEL-009 MT-261 CanvasBoard: real-PostgreSQL + EventLedger proof that the
 # canvas IS a typed LoomBlock, placements are references (never copies), visual
@@ -961,7 +967,7 @@ required-features = ["test-utils"]
 [[test]]
 name = "loom_canvas_board_tests"
 path = "tests/loom_canvas_board_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # MT-262 BlockCollectionViews: saved table/Kanban/calendar views over the real
 # Loom query backend. Proves a view IS a typed LoomBlock (view_def +
@@ -970,7 +976,7 @@ required-features = ["test-utils"]
 [[test]]
 name = "loom_block_collection_views_tests"
 path = "tests/loom_block_collection_views_tests.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 # WP-1 MT-019: embedded-Surreal production reclaim, exact ResourceScope,
 # periodic restart, and Windows real-process identity-fence proofs.
@@ -1007,7 +1013,7 @@ required-features = ["test-utils", "surreal-test-support", "candle-runtime-engin
 [[test]]
 name = "model_lane_crdt_support"
 path = "tests/model_lane_crdt_support.rs"
-required-features = ["test-utils"]
+required-features = ["test-utils", "legacy-postgres-superseded"]
 
 [[test]]
 name = "knowledge_crdt_proposal_surreal_tests"
@@ -1068,3 +1074,564 @@ required-features = ["test-utils", "surreal-test-support"]
 name = "wp1_console_stream_scope_surreal_tests"
 path = "tests/wp1_console_stream_scope_surreal_tests.rs"
 required-features = ["test-utils", "surreal-test-support"]
+
+
+# ---------------------------------------------------------------------------
+# SUPERSEDED RELATIONAL (PostgreSQL) TEST TARGETS - migration provenance only.
+# Explicit entries override cargo test auto-discovery so these targets are
+# excluded from every default/test-utils/proof graph under the embedded-
+# SurrealDB-only storage law (Codex CX-503R). `legacy-postgres-superseded` is never enabled.
+# ---------------------------------------------------------------------------
+[[test]]
+name = "atelier_action_receipt_tests"
+path = "tests/atelier_action_receipt_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_bulk_operations_tests"
+path = "tests/atelier_bulk_operations_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_comfy_intake_routing_tests"
+path = "tests/atelier_comfy_intake_routing_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_comfy_job_registration_event_families_pg_tests"
+path = "tests/atelier_comfy_job_registration_event_families_pg_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_comfy_job_tests"
+path = "tests/atelier_comfy_job_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_comfy_tests"
+path = "tests/atelier_comfy_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_command_corpus_tests"
+path = "tests/atelier_command_corpus_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_command_log_session_tests"
+path = "tests/atelier_command_log_session_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_core_data_tests"
+path = "tests/atelier_core_data_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_dcc_flight_recorder_tests"
+path = "tests/atelier_dcc_flight_recorder_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_diagnostic_bundle_tests"
+path = "tests/atelier_diagnostic_bundle_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_diagnostics_projections_tests"
+path = "tests/atelier_diagnostics_projections_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_diagnostics_typed_surfaces_tests"
+path = "tests/atelier_diagnostics_typed_surfaces_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_diagnostics_validation_matrix_tests"
+path = "tests/atelier_diagnostics_validation_matrix_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_downloader_tests"
+path = "tests/atelier_downloader_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_editable_surface_authority_tests"
+path = "tests/atelier_editable_surface_authority_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_event_ledger_tests"
+path = "tests/atelier_event_ledger_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_fems_postgres_e2e_tests"
+path = "tests/atelier_fems_postgres_e2e_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_fixture_corpus_tests"
+path = "tests/atelier_fixture_corpus_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_foundation_tests"
+path = "tests/atelier_foundation_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_image_import_tests"
+path = "tests/atelier_image_import_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_intake_folder_scan_tests"
+path = "tests/atelier_intake_folder_scan_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_kernel_diagnostic_bundle_manifest_tests"
+path = "tests/atelier_kernel_diagnostic_bundle_manifest_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_kernel_diagnostics_anchor_tests"
+path = "tests/atelier_kernel_diagnostics_anchor_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_kernel_smoke_tests"
+path = "tests/atelier_kernel_smoke_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_manual_source_rows_pg_tests"
+path = "tests/atelier_manual_source_rows_pg_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_media_annotation_overlay_proof_tests"
+path = "tests/atelier_media_annotation_overlay_proof_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_media_artifact_tests"
+path = "tests/atelier_media_artifact_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_model_config_apply_tests"
+path = "tests/atelier_model_config_apply_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_model_lease_tests"
+path = "tests/atelier_model_lease_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_model_manual_merge_tests"
+path = "tests/atelier_model_manual_merge_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_pg_support"
+path = "tests/atelier_pg_support.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_pose_comfy_manual_rows_pg_tests"
+path = "tests/atelier_pose_comfy_manual_rows_pg_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_pose_deferred_feature_tests"
+path = "tests/atelier_pose_deferred_feature_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_pose_fixture_corpus_tests"
+path = "tests/atelier_pose_fixture_corpus_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_pose_pipeline_integration_tests"
+path = "tests/atelier_pose_pipeline_integration_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_pose_tests"
+path = "tests/atelier_pose_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_promotion_pause_postgres_tests"
+path = "tests/atelier_promotion_pause_postgres_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_replay_contract_tests"
+path = "tests/atelier_replay_contract_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_self_improve_promotion_gate_tests"
+path = "tests/atelier_self_improve_promotion_gate_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_sheet_parser_tests"
+path = "tests/atelier_sheet_parser_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_source_evidence_tests"
+path = "tests/atelier_source_evidence_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_state_probe_tests"
+path = "tests/atelier_state_probe_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_stealth_window_tests"
+path = "tests/atelier_stealth_window_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_swarm_ingestion_tests"
+path = "tests/atelier_swarm_ingestion_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_trace_export_postgres_tests"
+path = "tests/atelier_trace_export_postgres_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_validator_first_pass_pg_tests"
+path = "tests/atelier_validator_first_pass_pg_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_visual_diff_baseline_tests"
+path = "tests/atelier_visual_diff_baseline_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_visual_diff_result_tests"
+path = "tests/atelier_visual_diff_result_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_visual_retention_redaction_tests"
+path = "tests/atelier_visual_retention_redaction_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_visual_steer_feedback_tests"
+path = "tests/atelier_visual_steer_feedback_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_workflow_spec_tests"
+path = "tests/atelier_workflow_spec_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "candle_e2e_smoke"
+path = "tests/candle_e2e_smoke.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "diagnostics_source_evidence_matrix_pg_tests"
+path = "tests/diagnostics_source_evidence_matrix_pg_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "fr_event_families_pg_validation_tests"
+path = "tests/fr_event_families_pg_validation_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "hbr_build_rules_read_evidence_pg_tests"
+path = "tests/hbr_build_rules_read_evidence_pg_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "kernel_event_ledger_tests"
+path = "tests/kernel_event_ledger_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_document_model_tests"
+path = "tests/knowledge_document_model_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_documents_api_tests"
+path = "tests/knowledge_documents_api_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_ingestion_hardening_tests"
+path = "tests/knowledge_ingestion_hardening_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_ingestion_support"
+path = "tests/knowledge_ingestion_support.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_memory_api_tests"
+path = "tests/knowledge_memory_api_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_memory_bridge_tests"
+path = "tests/knowledge_memory_bridge_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_memory_conflict_tests"
+path = "tests/knowledge_memory_conflict_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_memory_facts_tests"
+path = "tests/knowledge_memory_facts_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_memory_fixtures"
+path = "tests/knowledge_memory_fixtures.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_memory_fixtures_tests"
+path = "tests/knowledge_memory_fixtures_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_memory_ontology_tests"
+path = "tests/knowledge_memory_ontology_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_memory_projection_tests"
+path = "tests/knowledge_memory_projection_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_pg_support"
+path = "tests/knowledge_pg_support.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_retrieval_debug_api_tests"
+path = "tests/knowledge_retrieval_debug_api_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_retrieval_pipeline_tests"
+path = "tests/knowledge_retrieval_pipeline_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_ai_suggestions_api_tests"
+path = "tests/loom_ai_suggestions_api_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_backlink_tests"
+path = "tests/loom_backlink_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_breadcrumb_tests"
+path = "tests/loom_breadcrumb_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_daily_journal_tests"
+path = "tests/loom_daily_journal_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_folder_tests"
+path = "tests/loom_folder_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_graph_tests"
+path = "tests/loom_graph_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_knowledge_bridge_tests"
+path = "tests/loom_knowledge_bridge_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_media_tiers_tests"
+path = "tests/loom_media_tiers_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_navigation_fixtures_tests"
+path = "tests/loom_navigation_fixtures_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_pins_views_tests"
+path = "tests/loom_pins_views_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_search_v2_tests"
+path = "tests/loom_search_v2_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_tag_hub_tests"
+path = "tests/loom_tag_hub_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_transclusion_tests"
+path = "tests/loom_transclusion_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "loom_wiki_boundary_tests"
+path = "tests/loom_wiki_boundary_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "managed_postgres_tests"
+path = "tests/managed_postgres_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "model_lane_recovery_scope_api_pg_tests"
+path = "tests/model_lane_recovery_scope_api_pg_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "model_registry_tests"
+path = "tests/model_registry_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "model_session_durable_record_tests"
+path = "tests/model_session_durable_record_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "mt_cancellation_tests"
+path = "tests/mt_cancellation_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "mt_executor_integration_tests"
+path = "tests/mt_executor_integration_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "observability_span_repo_tests"
+path = "tests/observability_span_repo_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "palmistry_real_e2e_tests"
+path = "tests/palmistry_real_e2e_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "quick_switcher_recents_tests"
+path = "tests/quick_switcher_recents_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "security_portability_validation_tests"
+path = "tests/security_portability_validation_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "source_control_receipt_pg_tests"
+path = "tests/source_control_receipt_pg_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "swarm_terminal_event_outbox_pg_tests"
+path = "tests/swarm_terminal_event_outbox_pg_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "workbench_layout_state_tests"
+path = "tests/workbench_layout_state_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "workspace_settings_state_tests"
+path = "tests/workspace_settings_state_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "wp009_integration_validator_evidence_pack_tests"
+path = "tests/wp009_integration_validator_evidence_pack_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+# ---------------------------------------------------------------------------
+# SUPERSEDED RELATIONAL (PostgreSQL) TEST TARGETS - migration provenance only.
+# Explicit entries override cargo test auto-discovery so these targets are
+# excluded from every default/test-utils/proof graph under the embedded-
+# SurrealDB-only storage law (Codex CX-503R). `legacy-postgres-superseded` is never enabled.
+# ---------------------------------------------------------------------------
+[[test]]
+name = "atelier_sourcing_tests"
+path = "tests/atelier_sourcing_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "atelier_transcript_tests"
+path = "tests/atelier_transcript_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+[[test]]
+name = "knowledge_retrieval_bridges_tests"
+path = "tests/knowledge_retrieval_bridges_tests.rs"
+required-features = ["legacy-postgres-superseded"]
+
+# Shared helper module (included via `mod user_manual_support;`), not a test target.
+[[test]]
+name = "user_manual_support"
+path = "tests/user_manual_support.rs"
+test = false
+
+# Embedded-SurrealDB proofs that use the feature-gated test-support query seam.
+[[test]]
+name = "hbr_e2e_smoke_test"
+path = "tests/hbr_e2e_smoke_test.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "process_runtime_owner_identity_surreal_tests"
+path = "tests/process_runtime_owner_identity_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "restart_resume_boot_bound_surreal_tests"
+path = "tests/restart_resume_boot_bound_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "worktree_vm_registry_surreal_tests"
+path = "tests/worktree_vm_registry_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+

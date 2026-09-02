@@ -1100,8 +1100,8 @@ impl ModelLaneRoutingExecutionStore {
             lane_id,
             None,
             stage.input_refs.clone(),
-            Some(output_ref),
-            output_message_id,
+            Some(output_ref.clone()),
+            output_message_id.clone(),
             Some(output_sha256),
             Some(pointer),
             detail,
@@ -1459,7 +1459,7 @@ fn events(
         NewKernelEvent::builder(
             x.run_id.clone(),
             x.execution_id.clone(),
-            k,
+            k.clone(),
             KernelActor::ModelAdapter("DexterityRoutingExecutor".into()),
         )
         .aggregate(t, id)

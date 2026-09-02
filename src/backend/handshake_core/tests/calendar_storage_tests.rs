@@ -1,18 +1,18 @@
-use handshake_core::storage::tests::{postgres_backend_from_env, run_calendar_storage_conformance};
-use handshake_core::storage::StorageError;
+use handshake_core::storage::tests::{embedded_test_backend, run_calendar_storage_conformance};
 
 #[tokio::test]
-async fn postgres_calendar_storage_conformance() {
-    let db = match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            eprintln!("Skipping postgres calendar storage conformance: {msg}");
-            return;
-        }
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
-    };
+async fn calendar_storage_conformance() {
+    let backend = embedded_test_backend()
+        .await
+        .expect("open isolated embedded calendar backend");
+    let db = std::sync::Arc::clone(&backend.database);
 
     run_calendar_storage_conformance(db)
         .await
-        .expect("postgres calendar storage conformance");
+        .expect("embedded calendar storage conformance");
+
+    backend
+        .close_and_remove()
+        .await
+        .expect("close embedded calendar backend");
 }

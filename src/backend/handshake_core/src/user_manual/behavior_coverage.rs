@@ -13,7 +13,7 @@ use crate::llm::embedded_ledger::EmbeddedModelProcess;
 use crate::llm::{DisabledLlmClient, LlmClient};
 use crate::model_runtime::cloud::{CliSubprocessSpawner, LiveCliSpawner};
 use crate::model_runtime::{ModelCatalog, ModelRegistryStore, MODEL_RUNTIME_REGISTRY_SCHEMA_ID};
-use crate::process_ledger::reclaim::reclaim_pidless_embedded_orphans;
+use crate::process_ledger::reclaim::reconcile_restart_orphans;
 use crate::sandbox::{HandshakeNativeSandboxAdapter, SandboxAdapter};
 use crate::storage::StorageError;
 use crate::swarm_orchestration::model_lane::{
@@ -455,7 +455,7 @@ impl CompiledSurfaceAnchor {
                 let _ = EmbeddedModelProcess::shutdown;
             }
             Self::ReclaimPidlessEmbeddedOrphans => {
-                let _ = reclaim_pidless_embedded_orphans;
+                let _ = reconcile_restart_orphans;
             }
             Self::DisabledLlmCompletion => {
                 let _ = <DisabledLlmClient as LlmClient>::completion;

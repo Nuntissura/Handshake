@@ -770,9 +770,9 @@ fn validate_embedded_identifier(value: &str, prefix: &str) -> io::Result<()> {
 async fn bounded_sdk<T, E, F>(timeout: Duration, label: &str, operation: F) -> io::Result<T>
 where
     E: std::fmt::Display,
-    F: Future<Output = Result<T, E>>,
+    F: std::future::IntoFuture<Output = Result<T, E>>,
 {
-    match tokio::time::timeout(timeout, operation).await {
+    match tokio::time::timeout(timeout, std::future::IntoFuture::into_future(operation)).await {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(error)) => Err(io::Error::new(
             io::ErrorKind::Other,

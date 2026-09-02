@@ -5,25 +5,59 @@
 //!   - mt_072_state_vector: MT-072 VectorClockOrEquivalentMetadata
 //!   - mt_066_snapshot_model: MT-066 RichDocumentCrdtSnapshotModel
 //!
-//! Every PostgreSQL test runs against the Handshake-managed/real PostgreSQL
-//! named by POSTGRES_TEST_URL through `postgres_backend_from_env` (isolated
-//! schema, full migration chain). No SQLite, no mocks, no fixtures-as-proof.
+//! Every durable test runs against the real isolated embedded SurrealDB store
+//! opened by the canonical embedded test backend. No alternate backend, no
+//! mocks, no fixtures-as-proof.
 
-use handshake_core::storage::{tests::postgres_backend_from_env, StorageError};
+use handshake_core::storage::surreal::{
+    bootstrap_schema, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
+};
+use handshake_core::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
+use handshake_core::storage::Database;
 
-async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core::storage::Database>
-{
-    match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!("ENVIRONMENT_BLOCKED: WP-009 CRDT model tests require POSTGRES_TEST_URL; {msg}");
-        }
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
+async fn embedded_backend_or_blocked() -> EmbeddedTestBackend {
+    match embedded_test_backend().await {
+        Ok(backend) => backend,
+        Err(err) => panic!("failed to init embedded backend: {err:?}"),
     }
 }
 
+async fn reopen_embedded_store(
+    backend: &EmbeddedTestBackend,
+) -> (SurrealStorage, std::sync::Arc<dyn Database>) {
+    backend
+        .storage
+        .shutdown()
+        .await
+        .expect("close original embedded CRDT model store");
+    let reopened = SurrealStorage::open(
+        SurrealStorageConfig::for_data_dir(&backend.data_dir)
+            .expect("configure reopened embedded CRDT model store"),
+    )
+    .await
+    .expect("reopen embedded CRDT model store");
+    bootstrap_schema(&reopened)
+        .await
+        .expect("bootstrap reopened CRDT model schema");
+    let database: std::sync::Arc<dyn Database> =
+        std::sync::Arc::new(SurrealDatabase::new(reopened.clone()));
+    (reopened, database)
+}
+
+async fn close_reopened_and_remove(reopened: SurrealStorage, backend: EmbeddedTestBackend) {
+    reopened
+        .shutdown()
+        .await
+        .expect("close reopened CRDT model store");
+    drop(reopened);
+    backend
+        .close_and_remove()
+        .await
+        .expect("remove embedded CRDT model store");
+}
+
 mod mt_066_snapshot_model {
-    use super::postgres_or_environment_blocked;
+    use super::{close_reopened_and_remove, embedded_backend_or_blocked, reopen_embedded_store};
     use handshake_core::kernel::crdt::actor_site::{
         knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
     };
@@ -170,12 +204,13 @@ mod mt_066_snapshot_model {
         .is_err());
     }
 
-    /// PostgreSQL proof: the rich-document snapshot persists through the
+    /// Embedded-store proof: the rich-document snapshot persists through the
     /// kernel CRDT snapshot store and restores to the identical document
     /// JSON after a fresh read of envelope + bytes.
     #[tokio::test]
-    async fn rich_document_snapshot_persists_and_restores_from_postgres() {
-        let db = postgres_or_environment_blocked().await;
+    async fn rich_document_snapshot_persists_and_restores_from_embedded_store() {
+        let backend = embedded_backend_or_blocked().await;
+        let db = backend.database.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let actor =
             KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op-mt066").expect("valid actor");
@@ -214,9 +249,11 @@ mod mt_066_snapshot_model {
 
         db.append_kernel_crdt_snapshot(record.clone(), bytes)
             .await
-            .expect("append snapshot to Postgres");
+            .expect("append snapshot to embedded store");
 
-        let snapshots = db
+        drop(db);
+        let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
+        let snapshots = reopened_db
             .list_kernel_crdt_snapshots(
                 &identity.workspace_id,
                 &identity.document_id,
@@ -226,10 +263,10 @@ mod mt_066_snapshot_model {
             .expect("list snapshots");
         assert_eq!(snapshots.len(), 1);
         let persisted = &snapshots[0];
-        let persisted_bytes = db
+        let persisted_bytes = reopened_db
             .read_kernel_crdt_snapshot_bytes(&persisted.snapshot_bytes_ref)
             .await
-            .expect("read snapshot bytes from Postgres");
+            .expect("read snapshot bytes from embedded store");
 
         let restored = restore_rich_document_snapshot(persisted, &persisted_bytes)
             .expect("restore from persisted snapshot");
@@ -241,11 +278,13 @@ mod mt_066_snapshot_model {
             restored.prosemirror_schema_version,
             "tiptap-starter-kit@3.13.0"
         );
+        drop(reopened_db);
+        close_reopened_and_remove(reopened, backend).await;
     }
 }
 
 mod mt_072_state_vector {
-    use super::postgres_or_environment_blocked;
+    use super::{close_reopened_and_remove, embedded_backend_or_blocked, reopen_embedded_store};
     use handshake_core::kernel::crdt::actor_site::{
         derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
     };
@@ -405,7 +444,7 @@ mod mt_072_state_vector {
                 update_seq: seq,
                 update_bytes: b"x",
                 update_bytes_ref: &format!(
-                    "postgres://kernel_crdt_updates/{}/u{seq}/update_bytes",
+                    "surreal://kernel_crdt_updates/{}/u{seq}/update_bytes",
                     identity.crdt_document_id
                 ),
                 session_id: "sr-mt072",
@@ -451,12 +490,13 @@ mod mt_072_state_vector {
         ));
     }
 
-    /// PostgreSQL proof: typed causal metadata persists on kernel_crdt_updates
+    /// Embedded-store proof: typed causal metadata persists on kernel_crdt_updates
     /// rows and the replay-ordering proof verifies over the listed records,
-    /// out-of-order input included (Postgres replay order is by update_seq).
+    /// out-of-order input included (replay order is by update_seq).
     #[tokio::test]
     async fn persisted_causal_metadata_yields_replay_ordering_proof() {
-        let db = postgres_or_environment_blocked().await;
+        let backend = embedded_backend_or_blocked().await;
+        let db = backend.database.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let human =
             KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op-mt072").expect("valid actor");
@@ -513,7 +553,7 @@ mod mt_072_state_vector {
                 update_seq: seq,
                 update_bytes: &bytes,
                 update_bytes_ref: &format!(
-                    "postgres://kernel_crdt_updates/{crdt_document_id}/mt072-u{seq}/update_bytes"
+                    "surreal://kernel_crdt_updates/{crdt_document_id}/mt072-u{seq}/update_bytes"
                 ),
                 session_id: &format!("SR-MT072-{suffix}"),
                 trace_id: &format!("trace-mt072-{suffix}"),
@@ -533,7 +573,9 @@ mod mt_072_state_vector {
             chain.push(record);
         }
 
-        let mut replayed = db
+        drop(db);
+        let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
+        let mut replayed = reopened_db
             .list_kernel_crdt_updates(&workspace_id, &document_id, &crdt_document_id)
             .await
             .expect("list persisted updates");
@@ -553,11 +595,13 @@ mod mt_072_state_vector {
             vec![model_site.site_id.clone()]
         );
         assert!(proof.steps[0].advanced_sites.contains(&human_site.site_id));
+        drop(reopened_db);
+        close_reopened_and_remove(reopened, backend).await;
     }
 }
 
 mod mt_065_actor_site {
-    use super::postgres_or_environment_blocked;
+    use super::{close_reopened_and_remove, embedded_backend_or_blocked, reopen_embedded_store};
     use handshake_core::kernel::crdt::actor_site::{
         derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdError,
         KnowledgeActorIdV1, KnowledgeActorKind, KNOWLEDGE_ACTOR_IDENT_MAX_LEN,
@@ -699,12 +743,13 @@ mod mt_065_actor_site {
         );
     }
 
-    /// PostgreSQL proof: a CRDT update attributed through the typed actor /
+    /// Embedded-store proof: a CRDT update attributed through the typed actor /
     /// site model persists to kernel_crdt_updates with its EventLedger
     /// receipt and survives replay listing (actor id and kind intact).
     #[tokio::test]
-    async fn typed_actor_update_persists_to_postgres_with_event_receipt() {
-        let db = postgres_or_environment_blocked().await;
+    async fn typed_actor_update_persists_to_embedded_store_with_event_receipt() {
+        let backend = embedded_backend_or_blocked().await;
+        let db = backend.database.clone();
         let suffix = Uuid::now_v7().simple().to_string();
         let actor = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "mt065-model")
             .expect("valid actor");
@@ -736,7 +781,7 @@ mod mt_065_actor_site {
         assert_eq!(
             stored_event.event_type,
             KernelEventType::KnowledgeCrdtUpdateRecorded,
-            "new event family must round-trip through Postgres storage"
+            "new event family must round-trip through embedded storage"
         );
 
         let update_bytes = b"mt065-update".to_vec();
@@ -746,7 +791,7 @@ mod mt_065_actor_site {
             update_seq: 1,
             update_bytes: &update_bytes,
             update_bytes_ref: &format!(
-                "postgres://kernel_crdt_updates/{}/mt065-update-1/update_bytes",
+                "surreal://kernel_crdt_updates/{}/mt065-update-1/update_bytes",
                 identity.crdt_document_id
             ),
             session_id: &format!("SR-MT065-{suffix}"),
@@ -771,7 +816,9 @@ mod mt_065_actor_site {
             .await
             .expect("append typed-actor CRDT update");
 
-        let replayed = db
+        drop(db);
+        let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
+        let replayed = reopened_db
             .list_kernel_crdt_updates(
                 &identity.workspace_id,
                 &identity.document_id,
@@ -785,5 +832,7 @@ mod mt_065_actor_site {
         let restored = KnowledgeActorIdV1::parse(&replayed[0].actor_id)
             .expect("persisted actor id parses back into the typed model");
         assert_eq!(restored, actor);
+        drop(reopened_db);
+        close_reopened_and_remove(reopened, backend).await;
     }
 }

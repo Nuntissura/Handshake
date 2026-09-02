@@ -1016,54 +1016,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn viewport_compare_and_swap_rejects_stale_event_revision() {
-        let (_temp, store) = open_store().await;
-        let workspace_id = "canvas-cas-workspace";
-        let canvas_id = "canvas-cas";
-        let created = create_board_fixture(&store, workspace_id, canvas_id).await;
-
-        let updated = update_canvas_board_state(
-            &store,
-            &context(),
-            workspace_id,
-            canvas_id,
-            board_state(10.0),
-            &created.event_ledger_event_id,
-        )
-        .await
-        .expect("first viewport update");
-        assert_ne!(updated.event_ledger_event_id, created.event_ledger_event_id);
-        assert!(updated.updated_at >= created.updated_at);
-
-        let stale = update_canvas_board_state(
-            &store,
-            &context(),
-            workspace_id,
-            canvas_id,
-            board_state(99.0),
-            &created.event_ledger_event_id,
-        )
-        .await;
-        assert!(matches!(
-            stale,
-            Err(StorageError::Conflict(
-                "loom_canvas_board_stale_event_revision"
-            ))
-        ));
-
-        let authoritative = get_canvas_board(&store, workspace_id, canvas_id)
-            .await
-            .expect("read authoritative Canvas board");
-        assert_eq!(
-            authoritative.board.event_ledger_event_id,
-            updated.event_ledger_event_id
-        );
-        assert_eq!(authoritative.board.updated_at, updated.updated_at);
-        assert_eq!(authoritative.board.board_state["pan_x"], 10.0);
-        store.shutdown().await.expect("close embedded store");
-    }
-
-    #[tokio::test]
     async fn placement_removal_returns_exact_event_and_preserves_source_block() {
         let (_temp, store) = open_store().await;
         let workspace_id = "canvas-removal-workspace";

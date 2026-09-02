@@ -7,13 +7,12 @@ use super::identity::CrdtWorkspaceIdentityV1;
 
 pub const CRDT_UPDATE_RECORD_SCHEMA_ID: &str = "hsk.kernel.crdt_update_record@1";
 pub const CRDT_REPLAY_PLAN_SCHEMA_ID: &str = "hsk.kernel.crdt_replay_plan@1";
-pub const CRDT_POSTGRES_UPDATE_LOG_CONTRACT_SCHEMA_ID: &str =
-    "hsk.kernel.crdt_postgres_update_log_contract@1";
+pub const CRDT_SURREAL_UPDATE_LOG_CONTRACT_SCHEMA_ID: &str =
+    "hsk.kernel.crdt_surreal_update_log_contract@1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CrdtStorageAuthorityPosture {
     EmbeddedSurrealDb,
-    PostgresEventLedger,
     FileSystemAuthority,
     MemoryOnly,
 }
@@ -89,7 +88,7 @@ pub struct CrdtReplayPlanV1 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CrdtPostgresUpdateLogContractV1 {
+pub struct CrdtSurrealUpdateLogContractV1 {
     pub schema_id: String,
     pub table_name: &'static str,
     pub storage_authority: CrdtStorageAuthorityPosture,
@@ -162,11 +161,11 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-pub fn kernel_crdt_postgres_update_log_contract() -> CrdtPostgresUpdateLogContractV1 {
-    CrdtPostgresUpdateLogContractV1 {
-        schema_id: CRDT_POSTGRES_UPDATE_LOG_CONTRACT_SCHEMA_ID.to_string(),
+pub fn kernel_crdt_surreal_update_log_contract() -> CrdtSurrealUpdateLogContractV1 {
+    CrdtSurrealUpdateLogContractV1 {
+        schema_id: CRDT_SURREAL_UPDATE_LOG_CONTRACT_SCHEMA_ID.to_string(),
         table_name: "kernel_crdt_updates",
-        storage_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        storage_authority: CrdtStorageAuthorityPosture::EmbeddedSurrealDb,
         required_columns: vec![
             "workspace_id",
             "document_id",
@@ -354,7 +353,7 @@ pub fn build_crdt_replay_plan(
         workspace_id: first.workspace_id.clone(),
         document_id: first.document_id.clone(),
         crdt_document_id: first.crdt_document_id.clone(),
-        source_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        source_authority: CrdtStorageAuthorityPosture::EmbeddedSurrealDb,
         ordered_updates: ordered.into_iter().map(replay_step).collect(),
         final_state_vector,
     })

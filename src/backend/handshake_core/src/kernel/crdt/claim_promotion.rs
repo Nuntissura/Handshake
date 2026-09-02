@@ -41,19 +41,19 @@
 //! transaction via `Database::promote_graph_fact_atomic`, closing the crash
 //! window where the ledger said "promoted" but no fact row existed.
 
+use crate::storage::surreal::SurrealStorage;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::PgPool;
 
 use crate::kernel::{KernelEventType, NewKernelEvent};
-use crate::storage::Database;
 use crate::storage::knowledge_crdt::{
-    self, NewKnowledgeCrdtDenialReceipt, NewPromotedFact, PromotedFactRow, PromotionSpanRejection,
-    PromotionSpanValidation, insert_denial_receipt, new_denial_receipt_id,
+    self, insert_denial_receipt, new_denial_receipt_id, NewKnowledgeCrdtDenialReceipt,
+    NewPromotedFact, PromotedFactRow, PromotionSpanRejection, PromotionSpanValidation,
 };
+use crate::storage::Database;
 
 use super::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
-use super::agent_lease::{LeaseFlowError, new_ulid};
+use super::agent_lease::{new_ulid, LeaseFlowError};
 
 pub const GRAPH_PROMOTION_DENIAL_SCHEMA_ID: &str = "hsk.kernel.knowledge_graph_promotion_denial@1";
 
@@ -107,7 +107,7 @@ fn promotion_idempotency(proposal_id: &str, leg: &str) -> String {
 /// knowledge fact. Gate actors are operators, validators, or system lanes.
 pub async fn promote_graph_proposal(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     gate_actor: &KnowledgeActorIdV1,
     gate_session_id: &str,
@@ -343,7 +343,7 @@ fn promotion_event(
 #[allow(clippy::too_many_arguments)]
 async fn deny(
     db: &(dyn Database + '_),
-    pool: &PgPool,
+    pool: &SurrealStorage,
     proposal_id: &str,
     workspace_id: Option<&str>,
     gate_actor: &KnowledgeActorIdV1,

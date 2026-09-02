@@ -6724,9 +6724,27 @@ impl SwarmCoordinator {
                     ModelSessionState::Failed => ReclaimTrigger::Failure,
                     _ => ReclaimTrigger::Close,
                 };
+                let reclaim_scope = self
+                    .inner
+                    .model_lane_store
+                    .as_ref()
+                    .and_then(|store| store.access().exact_read_scope())
+                    .map(crate::process_ledger::ReclaimResourceScope::from_exact)
+                    .transpose()
+                    .map_err(|scope_error| {
+                        SwarmError::LedgerFailed(format!(
+                            "session {instance_id} teardown failed ({teardown_error}); exact-process reclaim scope is invalid: {scope_error}{pending_receipt_context}"
+                        ))
+                    })?
+                    .ok_or_else(|| {
+                        SwarmError::LedgerFailed(format!(
+                            "session {instance_id} teardown failed ({teardown_error}); exact-process reclaim requires an exact ModelLane resource scope{pending_receipt_context}"
+                        ))
+                    })?;
                 let report = tokio::time::timeout(
                     self.inner.config.teardown_timeout,
                     reclaimer.run_process(
+                        &reclaim_scope,
                         &parent_session_id,
                         process_record_id.as_uuid(),
                         trigger,

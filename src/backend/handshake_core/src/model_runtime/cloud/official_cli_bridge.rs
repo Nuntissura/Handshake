@@ -685,7 +685,10 @@ pub struct LiveCliSpawner {
     /// not be proven. Optional because several composition roots build a spawner
     /// without a reclaim runtime; when absent the open row is simply left for the
     /// boot/periodic restart pass, exactly as before.
-    reclaim: Option<Arc<crate::process_ledger::Reclaim>>,
+    reclaim: Option<(
+        Arc<crate::process_ledger::Reclaim>,
+        crate::process_ledger::ReclaimResourceScope,
+    )>,
     pinned_identities: Arc<RwLock<HashMap<PathBuf, CliLaunchIdentity>>>,
     /// Backend-owned data root used only by non-authenticating version probes.
     /// Normal model invocations always use the operator's persisted CLI home.
@@ -2265,8 +2268,12 @@ struct GuardedCliChild {
     _identity_locks: Vec<File>,
     lifecycle: Option<Arc<ActiveProcessLifecycle>>,
     stop_recorded: bool,
-    /// MT-019 F1: running-app reaper for the exact process this guard owns.
-    reclaim: Option<Arc<crate::process_ledger::Reclaim>>,
+    /// MT-019 F1: running-app reaper for the exact process this guard owns,
+    /// paired with the exact five-field scope the reap runs under.
+    reclaim: Option<(
+        Arc<crate::process_ledger::Reclaim>,
+        crate::process_ledger::ReclaimResourceScope,
+    )>,
 }
 
 /// MT-019 P-5: the running-app reap must finish far inside `RECLAIM_KILL_TIMEOUT`
@@ -2283,7 +2290,10 @@ impl GuardedCliChild {
         launch_identity: CliLaunchIdentity,
         resolved_execution_policy: crate::sandbox::ResolvedExecutionPolicy,
         identity_locks: Vec<File>,
-        reclaim: Option<Arc<crate::process_ledger::Reclaim>>,
+        reclaim: Option<(
+            Arc<crate::process_ledger::Reclaim>,
+            crate::process_ledger::ReclaimResourceScope,
+        )>,
     ) -> Self {
         Self {
             pid: child.pid(),
@@ -2400,7 +2410,8 @@ impl GuardedCliChild {
     }
 
     fn reclaim_open_lifecycle(&self, reason: &str) {
-        let (Some(reclaim), Some(lifecycle)) = (self.reclaim.as_ref(), self.lifecycle.as_ref())
+        let (Some((reclaim, resource_scope)), Some(lifecycle)) =
+            (self.reclaim.as_ref(), self.lifecycle.as_ref())
         else {
             return;
         };
@@ -2427,6 +2438,7 @@ impl GuardedCliChild {
             return;
         };
         let reclaim = Arc::clone(reclaim);
+        let resource_scope = resource_scope.clone();
         // Same shape as `wait_stop_durability_blocking`: a dedicated thread with
         // its own current-thread runtime. `Reclaim` needs a real runtime (it
         // spawns claim-renewal tasks and uses `spawn_blocking`), and this call
@@ -2440,6 +2452,7 @@ impl GuardedCliChild {
                 match tokio::time::timeout(
                     CLI_RECLAIM_HOOK_TIMEOUT,
                     reclaim.run_owned_process(
+                        &resource_scope,
                         process_uuid,
                         owner_runtime_instance_id,
                         crate::process_ledger::ReclaimTrigger::Failure,
@@ -2593,8 +2606,12 @@ impl LiveCliSpawner {
     /// because `restart_sessions` requires a non-NULL session id. With it, the
     /// bridge reaps that exact process through the owner-scoped claim path as
     /// soon as the failure is observed.
-    pub fn with_reclaim(mut self, reclaim: Arc<crate::process_ledger::Reclaim>) -> Self {
-        self.reclaim = Some(reclaim);
+    pub fn with_reclaim(
+        mut self,
+        reclaim: Arc<crate::process_ledger::Reclaim>,
+        resource_scope: crate::process_ledger::ReclaimResourceScope,
+    ) -> Self {
+        self.reclaim = Some((reclaim, resource_scope));
         self
     }
 
@@ -5768,6 +5785,7 @@ mod tests {
     impl crate::process_ledger::ReclaimProcessStore for RecordingOwnedProcessClaimStore {
         async fn active_processes_for_session(
             &self,
+            _resource_scope: &crate::process_ledger::ReclaimResourceScope,
             _session_id: &str,
         ) -> Result<
             Vec<crate::process_ledger::ReclaimableProcess>,
@@ -5778,6 +5796,7 @@ mod tests {
 
         async fn active_owned_process(
             &self,
+            _resource_scope: &crate::process_ledger::ReclaimResourceScope,
             process_uuid: uuid::Uuid,
             owner_runtime_instance_id: uuid::Uuid,
         ) -> Result<
@@ -5826,6 +5845,7 @@ mod tests {
 
         async fn resolve_reclaim_kill_operation(
             &self,
+            _resource_scope: &crate::process_ledger::ReclaimResourceScope,
             _process_uuid: uuid::Uuid,
             _kill_operation_uuid: uuid::Uuid,
             _status: crate::process_ledger::ReclaimKillOperationStatus,
@@ -5835,7 +5855,10 @@ mod tests {
 
         async fn in_progress_kill_operations_for_session(
             &self,
+            _resource_scope: &crate::process_ledger::ReclaimResourceScope,
             _session_id: &str,
+            _excluded_owner_runtime_instance_id: uuid::Uuid,
+            _authorized_process_uuids: &[uuid::Uuid],
             _limit: usize,
         ) -> Result<
             Vec<crate::process_ledger::ReclaimKillOperationCandidate>,
@@ -5851,6 +5874,7 @@ mod tests {
     impl crate::process_ledger::SandboxKill for NeverCalledKill {
         async fn kill(
             &self,
+            _resource_scope: &crate::process_ledger::ReclaimResourceScope,
             _process_uuid: uuid::Uuid,
             _kill_operation_uuid: uuid::Uuid,
         ) -> Result<(), crate::process_ledger::KillError> {
@@ -5859,6 +5883,7 @@ mod tests {
 
         async fn kill_operation_status(
             &self,
+            _resource_scope: &crate::process_ledger::ReclaimResourceScope,
             _process_uuid: uuid::Uuid,
             _kill_operation_uuid: uuid::Uuid,
         ) -> Result<
@@ -5883,12 +5908,23 @@ mod tests {
         }
     }
 
+    fn hook_test_reclaim_scope() -> crate::process_ledger::ReclaimResourceScope {
+        crate::process_ledger::ReclaimResourceScope {
+            account_uuid: uuid::Uuid::now_v7(),
+            actor_uuid: uuid::Uuid::now_v7(),
+            session_uuid: uuid::Uuid::now_v7(),
+            workspace_id: "mt019-hook-test".to_owned(),
+            access_space_uuid: uuid::Uuid::now_v7(),
+        }
+    }
+
     fn hook_test_guard(
         ledger: &LedgerBatcher,
         pid: u32,
         instance_id: uuid::Uuid,
         reclaim: Option<Arc<crate::process_ledger::Reclaim>>,
     ) -> (GuardedCliChild, uuid::Uuid) {
+        let reclaim = reclaim.map(|reclaim| (reclaim, hook_test_reclaim_scope()));
         let reservation = ledger
             .try_reserve_lifecycles(1)
             .expect("reserve lifecycle")
@@ -6008,7 +6044,7 @@ mod tests {
             },
             test_resolved_execution_policy(),
             Vec::new(),
-            Some(reclaim),
+            Some((reclaim, hook_test_reclaim_scope())),
         );
         child.attach_lifecycle(lifecycle);
 

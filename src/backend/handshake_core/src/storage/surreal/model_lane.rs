@@ -878,7 +878,6 @@ pub(crate) struct SurrealModelLaneCrdtProposalRecord {
     pub promotion_accepted_event_id: Option<String>,
     pub applied_update_id: Option<String>,
     pub applied_update_sha256: Option<String>,
-    #[serde(default)]
     pub applied_event_id: Option<String>,
     pub last_transition_event_id: String,
     pub created_at_utc: DateTime<Utc>,
@@ -1837,6 +1836,7 @@ impl SurrealModelLaneStore {
                     database
                         .query_bound(ROUTING_TEST_CORRUPTION_QUERY, bindings)
                         .await
+                        .map(|_| ())
                 })
             })
             .await
@@ -1886,6 +1886,7 @@ impl SurrealModelLaneStore {
                     database
                         .query_bound(AUTHORITY_TEST_CORRUPTION_QUERY, bindings)
                         .await
+                        .map(|_| ())
                 })
             })
             .await
@@ -1962,6 +1963,7 @@ impl SurrealModelLaneStore {
                     database
                         .query_bound(CRDT_PROPOSAL_TEST_CORRUPTION_QUERY, bindings)
                         .await
+                        .map(|_| ())
                 })
             })
             .await
@@ -4550,7 +4552,7 @@ fn proposal_receipt_ids(
                 && proposal.last_transition_event_id == proposal.recorded_event_id
         }
         "approved" => {
-            match (
+            (match (
                 proposal.decided_event_id.as_ref(),
                 proposal.applied_update_id.as_ref(),
                 proposal.applied_update_sha256.as_ref(),
@@ -4563,8 +4565,7 @@ fn proposal_receipt_ids(
                     hash == &proposal.diff_sha256 && proposal.last_transition_event_id == *event_id
                 }
                 _ => false,
-            }
-            && proposal.promotion_requested_event_id.is_none()
+            }) && proposal.promotion_requested_event_id.is_none()
                 && proposal.promotion_accepted_event_id.is_none()
         }
         "rejected" => {
