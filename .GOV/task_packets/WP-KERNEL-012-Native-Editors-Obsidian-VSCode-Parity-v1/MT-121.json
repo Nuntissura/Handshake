@@ -31,8 +31,8 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
     "depends_on": [],
     "blocks": [],
     "validator_verdict": null,
@@ -40,8 +40,8 @@
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Discovered while designing the MT-119 PT-119-3 geometry guard. Every geometry value the MCP snapshot publishes to models is measured in an unsized 10000x10000 egui viewport, so no model can reason about layout, containment, clipping, or overlap from argus.inspect(). This is a live product defect on the model-vision surface, not a test artifact. It is outside MT-119 (layout-only) allowed_paths, so it is deferred here per the Operator standing rule rather than silently absorbed or lost.",
-    "ready_for_validation_v4_at_utc": "2026-08-16T04:35:00Z",
-    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260815-173127",
+    "ready_for_validation_v4_at_utc": "2026-09-02T19:18:20.099Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260902-175214",
     "ready_for_validation_summary": "MT-121 implemented. ROOT CAUSE: refresh_mcp_snapshot ran the model-vision capture with egui::RawInput::default(), whose screen_rect is None, so egui substituted its synthetic 10000x10000 viewport_rect; those widget rects flowed straight into AccessKit bounds and were published as UiNodeBounds. FIX: capture now runs with screen_rect: Some(viewport_rect) and publishes a declared SnapshotViewport carrying a ViewportSource of LiveWindow or DeclaredFallback, so a headless fallback can never be laundered into a live-window claim; ui() no longer adopts the capture context as frame_ctx. PT-121-1 RED/GREEN captured verbatim: pre-fix 91 of 385 published nodes fell outside the declared 1400x900 viewport (shell.chrome.theme-toggle at x=9952.594); post-fix 5/5 tests pass. PT-121-3 before/after for shell.chrome.theme-toggle: published x moved 9952.594 -> 1352.594 against a rendered x of 1352.594, error 8600.0pt -> 0.000. PT-121-2 partial: MT-029 mounted visual proof green (1 passed, 1 pre-existing headless-GPU ignore) and the full native lib suite is 2069 passed / 0 failed, but MT-113 test_author_id_budget was COMPILED ONLY, not run - it is cfg(feature=integration) and needs a live backend plus a real GPU host. PT-121-2 is therefore NOT closed and an independent validator must execute MT-113 on a backend+GPU host. Disclosed scope additions: a UserManual coordinate-contract paragraph in manual_content_editors.rs (AC-121-5 requires a manual entry and no manual surface exists inside allowed_paths), and the frame_ctx adoption guard. Separately proven and NOT fixed here: egui::Memory-backed context menus remain invisible to the capture pass (fresh-context defect, needs its own MT). Implementer evidence only - no self-certification.",
     "ready_for_validation_v4_open_items": [
       "Memory-backed context-menu invisibility to the capture pass was split out as MT-135 and is implemented there (mt135_* guards green 2026-09-02).",
@@ -75,6 +75,15 @@
         "new_status": "CLAIMED",
         "previous_active": true,
         "new_active": true
+      },
+      {
+        "at_utc": "2026-09-02T19:18:20.099Z",
+        "by": "KERNEL_BUILDER-20260902-175214",
+        "reason": "Deferred-proof batch complete at product 7f279596 with KB_READY_CHECKLIST_RECEIPT PASS; returned to READY_FOR_VALIDATION_V4. Validator verdict remains null pending official V5 review.",
+        "previous_status": "CLAIMED",
+        "new_status": "READY_FOR_VALIDATION_V4",
+        "previous_active": true,
+        "new_active": false
       }
     ],
     "deferred_proof_completion_2026_09_02": {
@@ -134,7 +143,16 @@
       "by": "KERNEL_BUILDER-20260902-175214",
       "at_utc": "2026-09-02T18:54:00.968Z",
       "reason": "The 2026-08-16 open items stated the MT-113 proof was compiled/not executed and the backend did not compile mid-pivot; both are closed by lifecycle.deferred_proof_completion_2026_09_02. Kept the still-true items only."
-    }
+    },
+    "ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-09-02T19:18:20.099Z",
+      "actor_session": "KERNEL_BUILDER-20260902-175214",
+      "overall_verdict": "PASS",
+      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827"
+    },
+    "ready_for_validation_at_utc": "2026-09-02T19:18:20.099Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260902-175214"
   },
   "scope": {
     "summary": "Give the MCP navigation snapshot a real screen rect so the bounds it publishes to models describe the actual window instead of egui's unsized 10000x10000 default viewport.",
@@ -182,6 +200,79 @@
     "INT": "HBR-INT-009 three-tier consideration: Flight Recorder NOT_APPLICABLE (no business event); internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
   },
   "handoff": {
-    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
+      "product_branch": "feat/WP-KERNEL-012",
+      "product_worktree": "../wtc-native-editors-v1",
+      "actor_session": "KERNEL_BUILDER-20260902-175214",
+      "prepared_at_utc": "2026-09-02T19:18:18.709Z",
+      "summary": "MT-121 deferred-proof completion at product 7f279596: PT-121-2 executed (MT-113 12/12 with owned embedded-SurrealDB backend at 1505edb6-equivalent frontend tree; MT-029 mounted screenshot ok), viewport guards 8/8, full native lib suite 2093/0, aarch64-pc-windows-msvc cargo check of handshake-native lib+tests finished. Implementer evidence only; no self-certification.",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "yes",
+          "explanation": "lifecycle.ready_for_validation_v4_open_items was refreshed on 2026-09-02 so it no longer claims the MT-113 proof was compiled-only; the superseded list is retained under ready_for_validation_v4_open_items_superseded_2026_08_16. reopen_2026_09_02 and deferred_proof_completion_2026_09_02 name the current session and current commit. No lifecycle.*_reason field references a prior remediator or superseded approval.",
+          "evidence_refs": [
+            "MT-121.json#lifecycle.open_items_refreshed_2026_09_02",
+            "MT-121.json#lifecycle.deferred_proof_completion_2026_09_02"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "yes",
+          "explanation": "Contract declares allowed_paths rather than owned_files, so the helper dead-code grep was skipped; evidence instead: cargo check -p handshake-native --features integration --lib --tests at 7f279596 emits exactly 5 dead_code lints, all unused private test helpers outside this MT's surfaces (tests/test_undo_scope.rs:1221 mt035_bus_counts; tests/native_gui_support/hit_reachability.rs:40,53; tests/test_event_emitter.rs:118 live_author_bounds; tests/test_other_pillar_interop_proofs.rs:1122 authorized_flight_recorder_rows). MT-121 surfaces (accessibility::SnapshotViewport/ViewportSource, refresh_mcp_snapshot in app.rs, tests/test_mcp_snapshot_viewport.rs) carry no lint and are consumed by the MCP snapshot path and asserted by the 8 viewport tests.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
+            "cargo check dead_code lint list recorded in this explanation"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "yes",
+          "explanation": "Auto scan skipped (allowed_paths, not owned_files). tests/test_mcp_snapshot_viewport.rs carries no cfg gates and ran 8/8 on the default (Windows, GPU) host and is included in the aarch64 cross check. The MT-113 regression proof it depends on is cfg(feature = \"integration\") by design (needs an owned backend) and was executed with that feature on.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-mt113.log"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "yes",
+          "explanation": "cargo check -p handshake-native --target aarch64-pc-windows-msvc --lib --tests --features integration: Finished dev profile in 3m 32s (clang-cl driving the C build scripts because the MSVC install has no ARM64 compiler). x86_64-unknown-linux-musl is not feasible on this host (no musl C sysroot: ring cannot find assert.h). GitHub CI on feat/WP-KERNEL-012 is not usable as evidence: every job except traceability fails at setup or on legacy sqlite/postgres storage matrices (run 33666580708).",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-native-aarch64-pc-windows-msvc.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-linux-musl-not-feasible.log"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "yes",
+          "explanation": "PT-121-1/PT-121-3: test_mcp_snapshot_viewport 8 passed / 0 failed at 7f279596 (viewport containment, rendered-frame match, headless fallback declaration, no laundering). PT-121-2: MT-113 test_author_id_budget 12 passed / 0 failed against an owned handshake_core built from this worktree (embedded SurrealDB, real localhost Argus transport, GPU before/after frames inspected) and MT-029 find_in_files_screenshot ok (900x760 frame inspected). Full native lib suite 2093 passed / 0 failed. The real resource touched is the owned product backend process plus the mounted HandshakeApp AccessKit tree.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-mt113.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-113/MT-113-long-query-bookmark-before-remove.png",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-113/MT-113-long-query-bookmark-after-remove.png"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260902-175214 (reopen claim; original implementer KERNEL_BUILDER-20260815-173127 retained in implemented_by_before_reopen); lifecycle.completed_by = null. Validator verdict remains null pending official V5 review.",
+          "evidence_refs": [
+            "MT-121.json#lifecycle.claimed_by",
+            "MT-121.json#lifecycle.completed_by"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        }
+      ]
+    }
   }
 }

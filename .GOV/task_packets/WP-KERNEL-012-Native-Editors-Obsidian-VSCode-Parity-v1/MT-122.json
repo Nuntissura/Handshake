@@ -31,8 +31,8 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
     "depends_on": [
       "MT-119"
     ],
@@ -42,8 +42,8 @@
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Recorded but never given an owner in MT-119.lifecycle.implementation_result.disclosed_gaps: 'AC-119-4 result-row instance left open ... Candidate for a follow-up MT.' Created here so the disclosure is not lost when MT-119 closes.",
-    "ready_for_validation_v4_at_utc": "2026-08-16T05:55:00Z",
-    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260815-173127",
+    "ready_for_validation_v4_at_utc": "2026-09-02T19:18:23.919Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260902-175214",
     "ready_for_validation_summary": "MT-122 implemented. TWO defects, both fixed. (a) STATIC CHROME: three action rows used a plain ui.horizontal with HARDCODED desired_width values (220.0 and 120.0). At a narrow pane those rows overflowed, and egui's Region::expand_to_include_rect widens a Ui's max_rect over the overflow, so the static row handed EVERY later row a layout width larger than the visible pane. Fixed with horizontal_wrapped plus a fit_width(ui, preferred) helper that clamps to ui.available_width(). (b) RESULT ROW: hit.title is unbounded backend content laid out FIRST left-to-right, so a long title consumed the row and pushed the [source_kind] badge past the pane's right edge, where the results ScrollArea clips it - the operator loses the only at-a-glance signal distinguishing a document hit from a file or loom_block hit. Fixed with MT-119's existing idiom rather than a second pattern: reserve the bounded badge first against the row's right edge via Layout::right_to_left, then let the title truncate into what remains, keeping the full title recoverable through egui's show_tooltip_when_elided. PT-122-2 RED (result-row fix reverted, verbatim): 'MT-122: the [source_kind] badge must render FULLY INSIDE the Find-in-Files pane. rect x=[1132.125, 1183.906] y=[198.000, 208.000] vs pane x=[0.000, 420.000] y=[0.000, 800.000]' - the badge rendered 712px outside a 420px pane. PT-122-2 GREEN (fix applied, verbatim): 'test find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane ... ok'. PT-122-3 REGRESSION: the full find_in_files suite is 48 passed / 0 failed, and critically mt119_saved_search_controls_stay_inside_the_find_pane is still green, proving the static-chrome change did not regress MT-119's guard. The RED capture reverted ONLY the result-row fix and restored it through a shell trap, so a failed run could not strand a reverted fix on disk. The guard carries five interlocks that refuse to pass vacuously: I0 fails loudly if the STATIC row regresses (so a future reader is not sent to the wrong file), I1 proves the pane is genuinely bounded using clip_rect rather than the Frame response rect which grows to include overflow, I2 proves the fixture title genuinely overflows at 1.5x the pane width, I4 proves truncation is actually in force, and I5 proves the row's content-derived click route is byte-identical so the layout fix did not change the interaction contract. Implementer evidence only, not validation.",
     "ready_for_validation_v4_open_items": [
       "PT-122-1 mounted frame captured 2026-09-02 (commit 88e71285) and PT-122-3 MT-113 proof executed 12/12; no open items remain beyond the pending KB_READY_CHECKLIST receipt."
@@ -76,6 +76,15 @@
         "new_status": "CLAIMED",
         "previous_active": true,
         "new_active": true
+      },
+      {
+        "at_utc": "2026-09-02T19:18:23.919Z",
+        "by": "KERNEL_BUILDER-20260902-175214",
+        "reason": "Deferred-proof batch complete at product 7f279596 with KB_READY_CHECKLIST_RECEIPT PASS; returned to READY_FOR_VALIDATION_V4. Validator verdict remains null pending official V5 review.",
+        "previous_status": "CLAIMED",
+        "new_status": "READY_FOR_VALIDATION_V4",
+        "previous_active": true,
+        "new_active": false
       }
     ],
     "deferred_proof_completion_2026_09_02": {
@@ -142,7 +151,16 @@
       "by": "KERNEL_BUILDER-20260902-175214",
       "at_utc": "2026-09-02T18:54:00.968Z",
       "reason": "The 2026-08-16 open items stated the MT-113 proof was compiled/not executed and the backend did not compile mid-pivot; both are closed by lifecycle.deferred_proof_completion_2026_09_02. Kept the still-true items only."
-    }
+    },
+    "ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-09-02T19:18:23.919Z",
+      "actor_session": "KERNEL_BUILDER-20260902-175214",
+      "overall_verdict": "PASS",
+      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827"
+    },
+    "ready_for_validation_at_utc": "2026-09-02T19:18:23.919Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260902-175214"
   },
   "scope": {
     "summary": "Bound the Find-in-Files rows that can still overflow a narrow pane: the static action row, which drags later rows off-pane with it, and the result row, where a long hit title pushes the [source_kind] badge out of view.",
@@ -196,6 +214,78 @@
     "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (no business event); internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
   },
   "handoff": {
-    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
+      "product_branch": "feat/WP-KERNEL-012",
+      "product_worktree": "../wtc-native-editors-v1",
+      "actor_session": "KERNEL_BUILDER-20260902-175214",
+      "prepared_at_utc": "2026-09-02T19:18:18.709Z",
+      "summary": "MT-122 deferred-proof completion at product 7f279596: PT-122-1 mounted 420x640 long-title frame captured and inspected (badge inside pane, title elided), PT-122-2 guard and MT-119 guard green, PT-122-3 MT-113 12/12 and MT-029 screenshot ok, full native lib 2093/0, aarch64 cross check finished. Implementer evidence only.",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "yes",
+          "explanation": "lifecycle.ready_for_validation_v4_open_items refreshed 2026-09-02; the stale 'backend does not currently compile' item is retained only under the superseded key. reopen_2026_09_02 names the current session and reasons.",
+          "evidence_refs": [
+            "MT-122.json#lifecycle.open_items_refreshed_2026_09_02",
+            "MT-122.json#lifecycle.deferred_proof_completion_2026_09_02"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "yes",
+          "explanation": "Contract declares allowed_paths rather than owned_files, so the helper dead-code grep was skipped; evidence instead: cargo check -p handshake-native --features integration --lib --tests at 7f279596 emits exactly 5 dead_code lints, all unused private test helpers outside this MT's surfaces (tests/test_undo_scope.rs:1221 mt035_bus_counts; tests/native_gui_support/hit_reachability.rs:40,53; tests/test_event_emitter.rs:118 live_author_bounds; tests/test_other_pillar_interop_proofs.rs:1122 authorized_flight_recorder_rows). MT-122 surfaces (find_in_files.rs fit_width helper and right-to-left badge layout; the two screenshot tests) carry no lint; the production show() path and mt122_result_row_badge_stays_inside_the_find_pane consume them.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
+            "cargo check dead_code lint list recorded in this explanation"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "yes",
+          "explanation": "Auto scan skipped (allowed_paths, not owned_files). Both find_in_files screenshot tests are ungated and record a typed DEFERRED outcome on headless hosts instead of failing; they produced real frames on this GPU host. The lib guards are ungated and ran in the full lib suite.",
+          "evidence_refs": [
+            "src/frontend/handshake_native/tests/test_find_in_files.rs (commit 88e71285)",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "yes",
+          "explanation": "cargo check -p handshake-native --target aarch64-pc-windows-msvc --lib --tests --features integration finished (3m 32s, clang-cl for C build scripts). linux-musl not feasible on this host (no musl sysroot). GitHub CI on this branch fails at setup/legacy storage matrices and is not usable as evidence (run 33666580708).",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-native-aarch64-pc-windows-msvc.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-linux-musl-not-feasible.log"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "yes",
+          "explanation": "PT-122-1: find_in_files_screenshot_long_title_narrow_pane_mt122 ok, frame Handshake_Artifacts/handshake-test/wp-kernel-012-mt-122/MT-122-find-in-files-long-title-420px.png opened: long title elided with ellipsis, [loom_block] badge fully inside the 420px pane, action rows wrapped. PT-122-2: mt122_result_row_badge_stays_inside_the_find_pane ok (RED/GREEN capture recorded in the 2026-08-16 evidence). PT-122-3: MT-029 find_in_files_screenshot ok and MT-113 test_author_id_budget 12/12 against an owned embedded-SurrealDB backend. Full native lib 2093/0.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-mt113.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-122/MT-122-find-in-files-long-title-420px.png"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260902-175214; lifecycle.completed_by = null; validator_verdict null pending official V5 review.",
+          "evidence_refs": [
+            "MT-122.json#lifecycle.claimed_by",
+            "MT-122.json#lifecycle.completed_by"
+          ],
+          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+        }
+      ]
+    }
   }
 }
