@@ -91,7 +91,8 @@
       "cargo_targets": {
         "native": "../Handshake_Artifacts/handshake-cargo-target/wp-kernel-012-kb-0902-housekeeping-native",
         "backend": "../Handshake_Artifacts/handshake-cargo-target/k12-kb0902",
-        "note": "first backend attempt in wp-kernel-012-kb-0902-housekeeping failed: DuckDB header path hit 260 chars (MSVC cl.exe MAX_PATH); memory-capture #10599; dir removed"
+        "note": "first backend attempt in wp-kernel-012-kb-0902-housekeeping failed: DuckDB header path hit 260 chars (MSVC cl.exe MAX_PATH); memory-capture #10599; dir removed",
+        "cleanup": "Both scoped target dirs were removed after the batch proofs completed (continuous cleanup); build/proof logs preserved under Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/."
       },
       "mt113_author_id_budget": {
         "command": "HANDSHAKE_GPU_SCREENSHOT=1 HSK_TEST_BACKEND_BIN=<k12-kb0902>/debug/handshake_core.exe cargo test -p handshake-native --features integration --test test_author_id_budget -- --nocapture",
@@ -101,7 +102,7 @@
           "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-113/MT-113-long-query-bookmark-after-remove.png"
         ],
         "frames_inspected": "Opened both 2560x1200 frames: BEFORE shows the saved search \"authentication middleware refactor across the workspace mt113-43948-178...\" with Restore/Remove and status \"Saved search bookmark ... receipt: KE-01a06364-ed83-...\". AFTER shows the saved-search row gone and status \"Removed search bookmark; receipt: KE-01a06364-f99d-...\". Byte-inequality asserted by the test.",
-        "log": "<native target>/proof-mt113.log",
+        "log": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-mt113.log",
         "cleanup": "no handshake_core.exe or clangd process remained after the run"
       },
       "mt029_mounted_visual": {
@@ -118,7 +119,7 @@
       "pt_121_1_and_121_3_regression": {
         "command": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test -p handshake-native --features integration --test test_mcp_snapshot_viewport -- --nocapture",
         "result": "8 passed; 0 failed: mt121_published_bounds_lie_within_the_declared_live_viewport, mt121_published_bounds_match_the_rendered_frame_for_a_real_surface, mt121_headless_capture_declares_the_documented_fallback_viewport, mt121_repeat_headless_capture_does_not_launder_the_fallback_into_a_live_claim, mt121_memory_backed_context_menu_remains_invisible_to_the_sized_capture_pass, plus the three mt135_* tests.",
-        "log": "<native target>/proof-viewport.log"
+        "log": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-viewport.log"
       },
       "remaining_open_items": [
         "MT-121 still has no isolated commit (files were swept into 4f92cc25); unchanged by this batch.",
