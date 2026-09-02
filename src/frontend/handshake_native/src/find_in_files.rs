@@ -2494,10 +2494,7 @@ impl FindInFilesPanelState {
                 // Terminal ACTION causality is published BEFORE the delivery is folded into visible
                 // state, from the authoritative delivery itself (exact per-document before/after
                 // hashes + EventLedger save receipt ids for the destructive Apply).
-                self.publish_replace_action_completion(
-                    delivery.stamp.operation,
-                    &delivery.outcome,
-                );
+                self.publish_replace_action_completion(delivery.stamp.operation, &delivery.outcome);
                 if delivery.stamp.operation == FindInFilesOperation::Apply {
                     self.active_apply_cancel = None;
                     let terminal_workspace_id = delivery.stamp.workspace_id.clone();
@@ -2610,7 +2607,8 @@ impl FindInFilesPanelState {
                             }
                             Err(error) => {
                                 let error = format!("Persisted bookmark state rejected: {error}");
-                                self.bookmark_action.fail(BOOKMARK_COMPLETION_EFFECT, &error);
+                                self.bookmark_action
+                                    .fail(BOOKMARK_COMPLETION_EFFECT, &error);
                                 (error, receipt)
                             }
                         },
@@ -2704,13 +2702,9 @@ impl FindInFilesPanelState {
                 ));
             }
             (FindInFilesOperation::Preview, ReplaceDelivery::PreviewError(message)) => {
-                self.preview_action
-                    .fail(PREVIEW_COMPLETION_EFFECT, message);
+                self.preview_action.fail(PREVIEW_COMPLETION_EFFECT, message);
             }
-            (
-                FindInFilesOperation::Apply,
-                ReplaceDelivery::Applied { audit_receipts, .. },
-            ) => {
+            (FindInFilesOperation::Apply, ReplaceDelivery::Applied { audit_receipts, .. }) => {
                 self.apply_action
                     .complete(apply_terminal_detail("applied", audit_receipts));
             }
@@ -3386,7 +3380,8 @@ fn show_with_author_scope(
         format!("{PREVIEW_COMPLETION_EFFECT}:{preview_completion_author_id}");
     let apply_author_id = scoped(APPLY_AUTHOR_ID);
     let apply_completion_author_id = scoped(APPLY_COMPLETION_AUTHOR_ID);
-    let apply_completion_context = format!("{APPLY_COMPLETION_EFFECT}:{apply_completion_author_id}");
+    let apply_completion_context =
+        format!("{APPLY_COMPLETION_EFFECT}:{apply_completion_author_id}");
     let cancel_author_id = scoped(CANCEL_AUTHOR_ID);
     let cancel_completion_author_id = scoped(CANCEL_COMPLETION_AUTHOR_ID);
     let cancel_completion_context =
@@ -3477,7 +3472,14 @@ fn show_with_author_scope(
             ui,
             &toggle_case_state_author_id,
             "Find case-sensitive toggle state",
-            Some(if state.case_sensitive { "true" } else { "false" }.to_owned()),
+            Some(
+                if state.case_sensitive {
+                    "true"
+                } else {
+                    "false"
+                }
+                .to_owned(),
+            ),
         );
         if case_btn.clicked() {
             state.case_sensitive = !state.case_sensitive;
@@ -3909,46 +3911,66 @@ fn show_with_author_scope(
             // The author_ids are UNCHANGED — they are derived above from the bookmark id and pane scope
             // (MT-113's bounded composer), never from layout position — so this is layout-only and the
             // MT-113 identity contract is untouched.
-            ui.horizontal(|ui| {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let remove = ui.small_button("Remove");
-                    accessibility::emit_interactive_node(
-                        ui.ctx(),
-                        remove.id,
-                        &remove_scoped_author_id,
-                    );
-                    ui.ctx().accesskit_node_builder(remove.id, |node| {
-                        if let Some(value) = remove_declaration {
-                            node.set_value(value);
-                        }
+            //
+            // WP-KERNEL-012 MT-113 identity stability (measured 2026-09-03). egui derives a widget's
+            // Id from its parent Ui plus a per-Ui sibling counter, so the Remove/Restore node ids here
+            // shifted whenever a CONDITIONAL widget above this list (the `bookmark_status` label that
+            // appears while a persist is in flight) changed the sibling count. On the frame right after
+            // a Remove click the row is still mounted (PUT in flight) but its node id had already moved,
+            // and the canonical Argus flexible-target check rejected the click as "persistent observer
+            // target identity or action capability drifted" even though the removal then completed. The
+            // same class was fixed for `stage-capture-embed-back` in MT-117. `push_id` is NOT enough: egui
+            // still mixes the parent's sibling counter into salted child ids (measured: the id still moved),
+            // so the row Ui gets an explicit `UiBuilder::id` keyed on the bookmark id, independent of the
+            // parent chain, and its controls keep one node id across their own action.
+            ui.scope_builder(
+                egui::UiBuilder::new().id(egui::Id::new((
+                    "find-in-files.saved-search-row",
+                    bm.id.as_str(),
+                ))),
+                |ui| {
+                    ui.horizontal(|ui| {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let remove = ui.small_button("Remove");
+                            accessibility::emit_interactive_node(
+                                ui.ctx(),
+                                remove.id,
+                                &remove_scoped_author_id,
+                            );
+                            ui.ctx().accesskit_node_builder(remove.id, |node| {
+                                if let Some(value) = remove_declaration {
+                                    node.set_value(value);
+                                }
+                            });
+                            if remove.clicked() {
+                                remove_bookmark_id = Some(bm.id.clone());
+                            }
+                            let restore = ui.small_button("Restore");
+                            accessibility::emit_interactive_node(
+                                ui.ctx(),
+                                restore.id,
+                                &restore_scoped_author_id,
+                            );
+                            ui.ctx().accesskit_node_builder(restore.id, |node| {
+                                if let Some(value) = restore_completion {
+                                    node.set_value(value);
+                                }
+                            });
+                            if restore.clicked() {
+                                restore_bookmark = Some(bm.clone());
+                            }
+                            // Truncates into the remaining width instead of expanding the row. egui's
+                            // `show_tooltip_when_elided` defaults to TRUE and fires only when the galley was
+                            // actually elided, so the untruncated query stays recoverable on hover EXACTLY when
+                            // it is hidden (MT-119 AC-119-2) and a short, fully visible label pops no redundant
+                            // tooltip. An explicit `.on_hover_text` here would stack a SECOND tooltip on top of
+                            // that built-in one — egui documents combining them as the way to show *different*
+                            // text, which is not what this row wants.
+                            ui.add(egui::Label::new(&bm.label).truncate());
+                        });
                     });
-                    if remove.clicked() {
-                        remove_bookmark_id = Some(bm.id.clone());
-                    }
-                    let restore = ui.small_button("Restore");
-                    accessibility::emit_interactive_node(
-                        ui.ctx(),
-                        restore.id,
-                        &restore_scoped_author_id,
-                    );
-                    ui.ctx().accesskit_node_builder(restore.id, |node| {
-                        if let Some(value) = restore_completion {
-                            node.set_value(value);
-                        }
-                    });
-                    if restore.clicked() {
-                        restore_bookmark = Some(bm.clone());
-                    }
-                    // Truncates into the remaining width instead of expanding the row. egui's
-                    // `show_tooltip_when_elided` defaults to TRUE and fires only when the galley was
-                    // actually elided, so the untruncated query stays recoverable on hover EXACTLY when
-                    // it is hidden (MT-119 AC-119-2) and a short, fully visible label pops no redundant
-                    // tooltip. An explicit `.on_hover_text` here would stack a SECOND tooltip on top of
-                    // that built-in one — egui documents combining them as the way to show *different*
-                    // text, which is not what this row wants.
-                    ui.add(egui::Label::new(&bm.label).truncate());
-                });
-            });
+                },
+            );
         }
     }
 
@@ -4300,7 +4322,9 @@ fn show_with_author_scope(
     }
     if fire_save_bookmark {
         let semantic = state.bookmark_save_semantic_value();
-        state.bookmark_action.begin(save_bookmark_author_id, semantic);
+        state
+            .bookmark_action
+            .begin(save_bookmark_author_id, semantic);
         state.save_bookmark(search_client, workspace_id);
         if !state.bookmark_in_flight() {
             let message = state
@@ -6750,7 +6774,8 @@ mod tests {
 
         // A realistic long Loom-block title. The defect only appears with backend content long enough
         // to consume the row before the badge is placed.
-        let title = "Session token refresh scheduler: retry backoff plus every call site that still \
+        let title =
+            "Session token refresh scheduler: retry backoff plus every call site that still \
                      builds a bearer header by hand, collected from the authentication middleware \
                      refactor review notes for the workspace";
         assert!(
@@ -6892,21 +6917,23 @@ mod tests {
         // ── INTERLOCK I3: fail closed on missing bounds ───────────────────────────────────────────
         // Both nodes are addressed by role + exact text and asserted UNIQUE. A duplicate would make
         // the measurement depend on tree order, which is the quiet ambiguity this guard refuses.
-        let unique_label_bounds = |what: &str, matches_value: &dyn Fn(&str) -> bool| -> UiNodeBounds {
-            let mut found = snapshot.iter_nodes().filter(|node| {
-                node.role == "Label" && node.value.as_deref().is_some_and(|v| matches_value(v))
-            });
-            let node = found
-                .next()
-                .unwrap_or_else(|| panic!("the result row must publish a Label node for the {what}"));
-            assert!(
+        let unique_label_bounds =
+            |what: &str, matches_value: &dyn Fn(&str) -> bool| -> UiNodeBounds {
+                let mut found = snapshot.iter_nodes().filter(|node| {
+                    node.role == "Label" && node.value.as_deref().is_some_and(|v| matches_value(v))
+                });
+                let node = found.next().unwrap_or_else(|| {
+                    panic!("the result row must publish a Label node for the {what}")
+                });
+                assert!(
                 found.next().is_none(),
                 "the result row must publish EXACTLY ONE Label node for the {what}; a duplicate \
                  makes this measurement tree-order dependent"
             );
-            node.bounds
-                .unwrap_or_else(|| panic!("the {what} Label node must carry rendered AccessKit bounds"))
-        };
+                node.bounds.unwrap_or_else(|| {
+                    panic!("the {what} Label node must carry rendered AccessKit bounds")
+                })
+            };
         let badge_bounds = unique_label_bounds("[source_kind] badge", &|value| value == badge_text);
         let title_prefix: String = title.chars().take(40).collect();
         let title_bounds =
