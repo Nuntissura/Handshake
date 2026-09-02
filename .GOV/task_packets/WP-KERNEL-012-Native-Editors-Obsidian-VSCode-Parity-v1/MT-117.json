@@ -180,7 +180,7 @@
         "new_status": "BLOCKED_ON_DEPENDENCY"
       }
     ],
-    "blocker": "PT-117-2 not met at product 7f279596: test_calendar_interop 30/31, mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue fails deterministically (tests/test_calendar_interop.rs:2684, next-day navigation never applies). PT-117-1 (13/13 applied, 26/26) and PT-117-3 (5/5) are MET. Dependency: MT-067 Calendar surface; root cause of the mounted-click regression not localized (same shape as the MT-113 remove failure).",
+    "blocker": "PT-117-2 not met: test_calendar_interop 30/31, mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue fails deterministically (next-day navigation never dispatches while the first-date GET is mid-retry; see lifecycle.pt_117_2_calendar_failure_diagnosis_2026_09_03). PT-117-1 (13/13 applied, 26/26 at 7f279596) and PT-117-3 (5/5) are MET. Dependency: MT-067 Calendar/daily-journal host navigation path; needs a focused debugging lane.",
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
       "generated_at_utc": "2026-09-02T20:40:31.163Z",
@@ -189,6 +189,26 @@
       "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
       "supersedes_pass_receipt_at_utc": null,
       "retracted_reason": null
+    },
+    "pt_117_2_calendar_failure_diagnosis_2026_09_03": {
+      "by": "KERNEL_BUILDER-20260902-224325",
+      "at_utc": "2026-09-02T23:59:08.817Z",
+      "test": "test_calendar_interop::mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue",
+      "reproduction": "Fails deterministically at 7f279596 and b4ba94a8 on a quiet host (7 runs incl. isolated --exact, post-midnight, and a control without binding-root env vars). 30/31 in the full suite.",
+      "observed": "Assertion at tests/test_calendar_interop.rs:2684: nav.current stays first_date (local today) after the next-day click; DailyJournalState projection NoEvent. Mock request log after the click shows only the first-date traffic: GET /knowledge/documents, POST /loom/search-v2, PUT /loom/journals/<first_date>, GET /api/flight_recorder, GET /calendar/events?from_date=<first_date> twice. No PUT /loom/journals/<second_date> and no GET for the second date ever reaches the mock server, so the navigation never dispatches (or is dropped) rather than failing on the wire.",
+      "ruled_out": [
+        "egui node-id drift of the date-nav row (the MT-113 root cause): wrapping DateNavWidget::show in ui.scope_builder(UiBuilder::new().id(..)) did not change the outcome; change reverted (date_nav.rs back to zero diff).",
+        "host load, disk pressure, stray processes, fixture locks, binding-root env vars, live app-data, clock/date rollover."
+      ],
+      "open_hypotheses": [
+        "The daily-journal panel drops or defers DateNavOutcome::Navigated while the calendar projection is mid-retry (TransientThenEmpty first GET), i.e. the cancel-and-supersede path in the journal host, not the widget.",
+        "The test is date-dependent: first_date = chrono::Local::now().date_naive() and the mock is seeded with it; passes were recorded on 2026-08-13 and 2026-08-31 only."
+      ],
+      "evidence": [
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/calendar-cancel-raw.log",
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/calendar-fix-verify.log"
+      ],
+      "related_fix": "MT-113 saved-search Remove drift was root-caused and fixed in product commit b4ba94a8 (find_in_files.rs UiBuilder::id row scope); that unblocks MT-121/MT-122 but not this Calendar test."
     }
   },
   "scope": {
