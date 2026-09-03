@@ -41,8 +41,8 @@
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260815-173127",
     "origin": "Discovered and proven during MT-121 implementation on 2026-08-16; deferred to a new MT in the same WP per Operator directive so the finding is not lost.",
-    "ready_for_validation_v4_at_utc": "2026-08-16T08:05:00Z",
-    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260815-173127",
+    "ready_for_validation_v4_at_utc": "2026-09-03T00:03:28.778Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260902-224325",
     "ready_for_validation_summary": "MT-135 implemented. MECHANISM (AC-135-2, generalises without an allowlist): egui 0.33.3 keeps AT MOST ONE open popup per viewport - a single OpenPopup{id,pos} slot in egui::Memory. Top menu-bar dropdowns, pane/tab/tree/editor context menus and any future Popup::menu / Popup::context_menu / Popup::open_memory caller all funnel through that one slot, so copying it projects EVERY memory-backed popup surface, present and future, with no registration step for a new menu. egui exposes no public 'which popup is open' getter (Memory::popups is private), so the new module accessibility/popup_projection.rs composes two public halves: Memory::areas().visible_layer_ids() (an open popup always has a visible layer, because Popup::show renders through Area::new(popup_id)) probed by Popup::is_id_open for exact match. Only one can match, so the unordered HashSet cannot make it nondeterministic. The stored POSITION is load-bearing, not polish: Popup::context_menu uses PopupAnchor::PointerFixed, so re-opening without the position yields anchor.rect == None and egui SILENTLY RENDERS NOTHING - a position-less projection would have looked like a fix while publishing nothing. WHY THE MT-121 COORDINATE CONTRACT SURVIVES (AC-135-3): only egui::Id + Option<Pos2> crosses the context boundary. No focus, no Memory::data (where scroll offsets and widget state live), no area geometry, no interaction state. The blanket Memory clone that the contract's red-team flagged is explicitly rejected in the module docs. Proven rather than asserted: published and rendered bounds for the menu leaf matched with ZERO delta - published=(x=381.000, y=286.000, w=586.000, h=18.000) rendered=(x=381.000, y=286.000, w=586.000, h=18.000) - and the whole-tree viewport guard was re-run WITH a menu projected. The MT-121 theme-toggle proof is unchanged and still exact. PT-135-1 RED (verbatim): 3 tests failed, including the inverted witness - \"AC-135-1: 'ctx-menu.pane.pop_out' is open in the live rendered frame, so it MUST appear in the published MCP snapshot\". PT-135-1 GREEN (verbatim): 'test result: ok. 8 passed; 0 failed'. PT-135-3 CLOSED-MENU PROOF (AC-135-5) checks two closed states that fail differently: never-opened (a projection that force-opened menus would publish it) and opened-then-dismissed-with-Escape (a latching or stale projection would keep publishing a menu the operator dismissed). Runtime line: never_opened=false while_open=true after_escape=false. Stale entries cannot leak because Memory::end_pass drops any popup not kept open during the pass and the projection is read fresh per capture, never cached. PT-135-4 REGRESSION: native lib suite 2074 passed / 0 failed (the MT-121 baseline was 2069; +4 are this MT's unit tests and +1 predates it, which the implementer recorded as NOT_INSPECTED rather than guessing). Ten targeted integration binaries green including test_context_menu, test_context_menu_surfaces and test_menu_wireup. Implementer evidence only, not validation.",
     "ready_for_validation_v4_open_items": [
       "SUBMENUS NOT_INSPECTED: one-level submenus (ui.menu_button) keep MenuState in Memory::data, which is deliberately not projected, so an open SUBMENU may not render in the capture pass. The parent menu and its items do. No acceptance criterion covers this and it was not proven either way.",
@@ -86,15 +86,30 @@
         "reason": "Operator granted the MT-135 out-of-scope waiver (live command \"waive MT-135\").",
         "previous_status": "READY_FOR_VALIDATION_V4",
         "new_status": "READY_FOR_VALIDATION_V4"
+      },
+      {
+        "at_utc": "2026-09-03T00:03:28.861Z",
+        "by": "KERNEL_BUILDER-20260902-224325",
+        "reason": "KB_READY_CHECKLIST_RECEIPT PASS at product b4ba94a8 after the MT-113 drift fix; returned to READY_FOR_VALIDATION_V4.",
+        "previous_status": "READY_FOR_VALIDATION_V4",
+        "new_status": "READY_FOR_VALIDATION_V4"
       }
     ],
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
-      "generated_at_utc": "2026-09-02T19:18:27.062Z",
+      "generated_at_utc": "2026-09-03T00:03:28.778Z",
       "actor_session": "KERNEL_BUILDER-20260902-175214",
       "overall_verdict": "PASS",
-      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827"
-    }
+      "product_commit": "b4ba94a8a775e7b46d2eec6be269978af1258815",
+      "supersedes_blocked_receipt_at_utc": null
+    },
+    "blocker_resolved_2026_09_03": {
+      "by": "KERNEL_BUILDER-20260902-224325",
+      "at_utc": "2026-09-03T00:03:28.861Z",
+      "resolution": "MT-113 regression root-caused (egui node-id drift of the saved-search Remove row) and fixed in product commit b4ba94a8; MT-113 12/12; native reproof green at b4ba94a8."
+    },
+    "ready_for_validation_at_utc": "2026-09-03T00:03:28.778Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260902-224325"
   },
   "scope": {
     "summary": "HandshakeApp::refresh_mcp_snapshot builds a BRAND-NEW egui::Context for the model-vision capture pass. That fresh context has an EMPTY egui::Memory, so any surface whose open/closed state lives in egui::Memory is absent from the published MCP snapshot even when it is visibly open in the live window. app.rs already works around this for two surfaces by hand-copying the Reading-mode store and the open top-menu into the capture context, but pointer-opened PANE CONTEXT MENUS have no such projection. Consequence: a model driving Argus cannot see, target, or steer any context menu - it is invisible in argus.inspect while a human sees it on screen. This was proven live during MT-121 by tests/test_mcp_snapshot_viewport.rs::mt121_memory_backed_context_menu_remains_invisible_to_the_sized_capture_pass, which shows author_id 'ctx-menu.pane.pop_out' present in the rendered kittest frame and absent from the published snapshot. MT-121 fixed viewport SIZING only and deliberately did not fix this; the failing condition is asserted as current behaviour there, so that assertion MUST be inverted by this MT.",
@@ -187,12 +202,12 @@
     "review_response_receipt_id": null,
     "kb_ready_checklist_evidence": {
       "schema_id": "hsk.kb_ready_checklist_evidence@1",
-      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
+      "product_commit": "b4ba94a8a775e7b46d2eec6be269978af1258815",
       "product_branch": "feat/WP-KERNEL-012",
       "product_worktree": "../wtc-native-editors-v1",
       "actor_session": "KERNEL_BUILDER-20260902-175214",
-      "prepared_at_utc": "2026-09-02T19:18:18.709Z",
-      "summary": "MT-135 readiness at product 7f279596: popup projection guards (mt135_* 3 tests) and MT-121 guards green in test_mcp_snapshot_viewport 8/8, full native lib suite 2093/0 (PT-135-4), aarch64 cross check finished; out-of-scope manual touch waived by the Operator on 2026-09-02. Implementer evidence only.",
+      "prepared_at_utc": "2026-09-03T00:02:18.890Z",
+      "summary": "MT-135 readiness at product b4ba94a8: popup projection guards (mt135_* 3 tests) and MT-121 guards green in test_mcp_snapshot_viewport 8/8, full native lib suite 2093/0 (PT-135-4), aarch64 cross check finished; out-of-scope manual touch waived by the Operator on 2026-09-02. Implementer evidence only. SUPERSEDES the 2026-09-02 BLOCKED receipt: MT-113 regression root-caused and fixed in product commit b4ba94a8 (find_in_files.rs: saved-search row Ui takes an explicit UiBuilder::id so the Remove node id no longer drifts when the in-flight bookmark_status label shifts egui sibling counters). test_author_id_budget: 12 passed / 0 failed on the fixed content (log Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-fix2-verify.log; diagnostic Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-diag-raw.log shows the pre-fix node-id change 13597926638501431374 -> 9313940950886479347 on the post-click frame).",
       "rubric_items": [
         {
           "rubric_item_id": "RC-001-NO-STALE-REASONS",
@@ -202,17 +217,17 @@
             "MT-135.json#lifecycle.out_of_scope_waiver_status_2026_09_02",
             "MT-135.json#lifecycle.claim_attribution_repair_2026_09_02"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-002-NO-DEAD-CODE",
           "answer": "yes",
-          "explanation": "Contract declares allowed_paths rather than owned_files, so the helper dead-code grep was skipped; evidence instead: cargo check -p handshake-native --features integration --lib --tests at 7f279596 emits exactly 5 dead_code lints, all unused private test helpers outside this MT's surfaces (tests/test_undo_scope.rs:1221 mt035_bus_counts; tests/native_gui_support/hit_reachability.rs:40,53; tests/test_event_emitter.rs:118 live_author_bounds; tests/test_other_pillar_interop_proofs.rs:1122 authorized_flight_recorder_rows). MT-135 surface accessibility/popup_projection.rs carries no lint and is consumed by refresh_mcp_snapshot and asserted by the mt135_* tests.",
+          "explanation": "Contract declares allowed_paths rather than owned_files, so the helper dead-code grep was skipped; evidence instead: cargo check -p handshake-native --features integration --lib --tests at b4ba94a8 emits exactly 5 dead_code lints, all unused private test helpers outside this MT's surfaces (tests/test_undo_scope.rs:1221 mt035_bus_counts; tests/native_gui_support/hit_reachability.rs:40,53; tests/test_event_emitter.rs:118 live_author_bounds; tests/test_other_pillar_interop_proofs.rs:1122 authorized_flight_recorder_rows). MT-135 surface accessibility/popup_projection.rs carries no lint and is consumed by refresh_mcp_snapshot and asserted by the mt135_* tests.",
           "evidence_refs": [
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
             "cargo check dead_code lint list recorded in this explanation"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-003-CFG-GATED-TESTS",
@@ -221,7 +236,7 @@
           "evidence_refs": [
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
@@ -231,17 +246,19 @@
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-native-aarch64-pc-windows-msvc.log",
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-linux-musl-not-feasible.log"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-005-PROOF-COMMANDS",
           "answer": "yes",
-          "explanation": "PT-135-1 (inverted MT-121 assertion), PT-135-2 (projected context-menu bounds match rendered frame), PT-135-3 (closed menu absent) all pass in test_mcp_snapshot_viewport 8/8 at 7f279596; the RED captures are recorded in the 2026-08-16 evidence. PT-135-4: full native lib suite 2093 passed / 0 failed (baseline 2074; the additional tests are later MTs, none failing). The real resource is the live AccessKit tree of a mounted HandshakeApp, matched with zero delta to the published snapshot.",
+          "explanation": "PT-135-1 (inverted MT-121 assertion), PT-135-2 (projected context-menu bounds match rendered frame), PT-135-3 (closed menu absent) all pass in test_mcp_snapshot_viewport 8/8 at b4ba94a8; the RED captures are recorded in the 2026-08-16 evidence. PT-135-4: full native lib suite 2093 passed / 0 failed (baseline 2074; the additional tests are later MTs, none failing). The real resource is the live AccessKit tree of a mounted HandshakeApp, matched with zero delta to the published snapshot. MT-113 regression root-caused and fixed in product commit b4ba94a8 (find_in_files.rs: saved-search row Ui takes an explicit UiBuilder::id so the Remove node id no longer drifts when the in-flight bookmark_status label shifts egui sibling counters). test_author_id_budget: 12 passed / 0 failed on the fixed content (log Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-fix2-verify.log; diagnostic Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-diag-raw.log shows the pre-fix node-id change 13597926638501431374 -> 9313940950886479347 on the post-click frame). Reproof at b4ba94a8 (Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend-b4ba94a8.log): test_mcp_snapshot_viewport 8/8, find_in_files screenshots 2/2 (MT-029 900x760 223 colours; MT-122 420x640), find_in_files::tests 48/48, full native lib 2093 passed / 0 failed.",
           "evidence_refs": [
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend-b4ba94a8.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-fix2-verify.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-diag-raw.log",
             "MT-135.json#lifecycle.ready_for_validation_summary"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
@@ -251,7 +268,7 @@
             "MT-135.json#lifecycle.claimed_by",
             "MT-135.json#lifecycle.completed_by"
           ],
-          "checked_at_utc": "2026-09-02T19:18:18.709Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         }
       ]
     }

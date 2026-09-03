@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-119"
@@ -42,8 +42,8 @@
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Recorded but never given an owner in MT-119.lifecycle.implementation_result.disclosed_gaps: 'AC-119-4 result-row instance left open ... Candidate for a follow-up MT.' Created here so the disclosure is not lost when MT-119 closes.",
-    "ready_for_validation_v4_at_utc": "2026-09-02T19:18:23.919Z",
-    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260902-175214",
+    "ready_for_validation_v4_at_utc": "2026-09-03T00:03:04.136Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260902-224325",
     "ready_for_validation_summary": "MT-122 implemented. TWO defects, both fixed. (a) STATIC CHROME: three action rows used a plain ui.horizontal with HARDCODED desired_width values (220.0 and 120.0). At a narrow pane those rows overflowed, and egui's Region::expand_to_include_rect widens a Ui's max_rect over the overflow, so the static row handed EVERY later row a layout width larger than the visible pane. Fixed with horizontal_wrapped plus a fit_width(ui, preferred) helper that clamps to ui.available_width(). (b) RESULT ROW: hit.title is unbounded backend content laid out FIRST left-to-right, so a long title consumed the row and pushed the [source_kind] badge past the pane's right edge, where the results ScrollArea clips it - the operator loses the only at-a-glance signal distinguishing a document hit from a file or loom_block hit. Fixed with MT-119's existing idiom rather than a second pattern: reserve the bounded badge first against the row's right edge via Layout::right_to_left, then let the title truncate into what remains, keeping the full title recoverable through egui's show_tooltip_when_elided. PT-122-2 RED (result-row fix reverted, verbatim): 'MT-122: the [source_kind] badge must render FULLY INSIDE the Find-in-Files pane. rect x=[1132.125, 1183.906] y=[198.000, 208.000] vs pane x=[0.000, 420.000] y=[0.000, 800.000]' - the badge rendered 712px outside a 420px pane. PT-122-2 GREEN (fix applied, verbatim): 'test find_in_files::tests::mt122_result_row_badge_stays_inside_the_find_pane ... ok'. PT-122-3 REGRESSION: the full find_in_files suite is 48 passed / 0 failed, and critically mt119_saved_search_controls_stay_inside_the_find_pane is still green, proving the static-chrome change did not regress MT-119's guard. The RED capture reverted ONLY the result-row fix and restored it through a shell trap, so a failed run could not strand a reverted fix on disk. The guard carries five interlocks that refuse to pass vacuously: I0 fails loudly if the STATIC row regresses (so a future reader is not sent to the wrong file), I1 proves the pane is genuinely bounded using clip_rect rather than the Frame response rect which grows to include overflow, I2 proves the fixture title genuinely overflows at 1.5x the pane width, I4 proves truncation is actually in force, and I5 proves the row's content-derived click route is byte-identical so the layout fix did not change the interaction contract. Implementer evidence only, not validation.",
     "ready_for_validation_v4_open_items": [
       "PT-122-1 mounted frame captured 2026-09-02 (commit 88e71285) and PT-122-3 MT-113 proof executed 12/12; no open items remain beyond the pending KB_READY_CHECKLIST receipt."
@@ -92,6 +92,13 @@
         "reason": "KB_READY_CHECKLIST_RECEIPT BLOCKED at product 7f279596 (RC-005). PT-122-3 not met at product 7f279596: MT-113 test_author_id_budget fails deterministically (see MT-121 blocker). MT-122 own proofs remain green (badge guard, 420px frame, MT-029 screenshot, full native lib 2093/0). Dependency: MT-113 proof surface / mounted click-completion regression, root cause not localized.",
         "previous_status": "READY_FOR_VALIDATION_V4",
         "new_status": "BLOCKED_ON_DEPENDENCY"
+      },
+      {
+        "at_utc": "2026-09-03T00:03:28.861Z",
+        "by": "KERNEL_BUILDER-20260902-224325",
+        "reason": "KB_READY_CHECKLIST_RECEIPT PASS at product b4ba94a8 after the MT-113 drift fix; returned to READY_FOR_VALIDATION_V4.",
+        "previous_status": "BLOCKED_ON_DEPENDENCY",
+        "new_status": "READY_FOR_VALIDATION_V4"
       }
     ],
     "deferred_proof_completion_2026_09_02": {
@@ -161,16 +168,19 @@
     },
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
-      "generated_at_utc": "2026-09-02T20:40:39.730Z",
+      "generated_at_utc": "2026-09-03T00:03:04.136Z",
       "actor_session": "KERNEL_BUILDER-20260902-175214",
-      "overall_verdict": "BLOCKED",
-      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
-      "supersedes_pass_receipt_at_utc": "2026-09-02T19:18:23.919Z",
-      "retracted_reason": "The PASS receipt cited MT-113 12/12 from the 88e71285 run; MT-113 fails on the final tree 7f279596, so that receipt no longer binds to the final unchanged tree and is retracted (RETRACTION receipt kb-0902-retract-121-122)."
+      "overall_verdict": "PASS",
+      "product_commit": "b4ba94a8a775e7b46d2eec6be269978af1258815",
+      "supersedes_blocked_receipt_at_utc": "2026-09-02T20:40:39.730Z"
     },
-    "ready_for_validation_at_utc": "2026-09-02T19:18:23.919Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260902-175214",
-    "blocker": "PT-122-3 not met at product 7f279596: MT-113 test_author_id_budget fails deterministically (see MT-121 blocker). MT-122 own proofs remain green (badge guard, 420px frame, MT-029 screenshot, full native lib 2093/0). Dependency: MT-113 proof surface / mounted click-completion regression, root cause not localized."
+    "ready_for_validation_at_utc": "2026-09-03T00:03:04.136Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260902-224325",
+    "blocker_resolved_2026_09_03": {
+      "by": "KERNEL_BUILDER-20260902-224325",
+      "at_utc": "2026-09-03T00:03:28.861Z",
+      "resolution": "MT-113 regression root-caused (egui node-id drift of the saved-search Remove row) and fixed in product commit b4ba94a8; MT-113 12/12; native reproof green at b4ba94a8."
+    }
   },
   "scope": {
     "summary": "Bound the Find-in-Files rows that can still overflow a narrow pane: the static action row, which drags later rows off-pane with it, and the result row, where a long hit title pushes the [source_kind] badge out of view.",
@@ -227,12 +237,12 @@
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "kb_ready_checklist_evidence": {
       "schema_id": "hsk.kb_ready_checklist_evidence@1",
-      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
+      "product_commit": "b4ba94a8a775e7b46d2eec6be269978af1258815",
       "product_branch": "feat/WP-KERNEL-012",
       "product_worktree": "../wtc-native-editors-v1",
       "actor_session": "KERNEL_BUILDER-20260902-175214",
-      "prepared_at_utc": "2026-09-02T20:40:30.244Z",
-      "summary": "SUPERSEDES the 2026-09-02T19:18Z PASS receipt: MT-122 RC-005 is now NO at product 7f279596 because its declared regression proof (MT-113 author-id budget) fails deterministically on the final tree. MT-122 own guards remain green (see prior receipt).",
+      "prepared_at_utc": "2026-09-03T00:02:18.890Z",
+      "summary": "MT-122 deferred-proof completion at product b4ba94a8: PT-122-1 mounted 420x640 long-title frame captured and inspected (badge inside pane, title elided), PT-122-2 guard and MT-119 guard green, PT-122-3 MT-113 12/12 and MT-029 screenshot ok, full native lib 2093/0, aarch64 cross check finished. Implementer evidence only. SUPERSEDES the 2026-09-02 BLOCKED receipt: MT-113 regression root-caused and fixed in product commit b4ba94a8 (find_in_files.rs: saved-search row Ui takes an explicit UiBuilder::id so the Remove node id no longer drifts when the in-flight bookmark_status label shifts egui sibling counters). test_author_id_budget: 12 passed / 0 failed on the fixed content (log Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-fix2-verify.log; diagnostic Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-diag-raw.log shows the pre-fix node-id change 13597926638501431374 -> 9313940950886479347 on the post-click frame).",
       "rubric_items": [
         {
           "rubric_item_id": "RC-001-NO-STALE-REASONS",
@@ -242,17 +252,17 @@
             "MT-122.json#lifecycle.open_items_refreshed_2026_09_02",
             "MT-122.json#lifecycle.deferred_proof_completion_2026_09_02"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-002-NO-DEAD-CODE",
           "answer": "yes",
-          "explanation": "Contract declares allowed_paths rather than owned_files, so the helper dead-code grep was skipped; evidence instead: cargo check -p handshake-native --features integration --lib --tests at 7f279596 emits exactly 5 dead_code lints, all unused private test helpers outside this MT's surfaces (tests/test_undo_scope.rs:1221 mt035_bus_counts; tests/native_gui_support/hit_reachability.rs:40,53; tests/test_event_emitter.rs:118 live_author_bounds; tests/test_other_pillar_interop_proofs.rs:1122 authorized_flight_recorder_rows). MT-122 surfaces (find_in_files.rs fit_width helper and right-to-left badge layout; the two screenshot tests) carry no lint; the production show() path and mt122_result_row_badge_stays_inside_the_find_pane consume them.",
+          "explanation": "Contract declares allowed_paths rather than owned_files, so the helper dead-code grep was skipped; evidence instead: cargo check -p handshake-native --features integration --lib --tests at b4ba94a8 emits exactly 5 dead_code lints, all unused private test helpers outside this MT's surfaces (tests/test_undo_scope.rs:1221 mt035_bus_counts; tests/native_gui_support/hit_reachability.rs:40,53; tests/test_event_emitter.rs:118 live_author_bounds; tests/test_other_pillar_interop_proofs.rs:1122 authorized_flight_recorder_rows). MT-122 surfaces (find_in_files.rs fit_width helper and right-to-left badge layout; the two screenshot tests) carry no lint; the production show() path and mt122_result_row_badge_stays_inside_the_find_pane consume them.",
           "evidence_refs": [
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
             "cargo check dead_code lint list recorded in this explanation"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-003-CFG-GATED-TESTS",
@@ -262,7 +272,7 @@
             "src/frontend/handshake_native/tests/test_find_in_files.rs (commit 88e71285)",
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
@@ -272,29 +282,29 @@
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-native-aarch64-pc-windows-msvc.log",
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-linux-musl-not-feasible.log"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-005-PROOF-COMMANDS",
-          "answer": "no",
-          "explanation": "PT-122-3 requires MT-113 test_author_id_budget green. MT-113 test_author_id_budget mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query FAILS deterministically at product 7f279596 (three runs: in the proof chain, isolated --exact, and an environment-control rerun without binding-root vars): the bookmark REMOVE click returns an indeterminate receipt (observer stays state=ready generation=2; canonical_argus_driver.rs:364). It passed 12/12 twice earlier today at 88e71285 with a backend built from byte-identical backend content (git diff --stat 1505edb6..7f279596 equals the pre-commit dirty stat plus the one test file). No stray processes, listeners, fixture locks, or disk pressure (3.5 TB free) were found. Root cause not localized; the earlier PASS receipt for this MT is retracted. Logs: Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-backend-117-113.log, proof-isolated-rerun.log, proof-env-control.log. MT-122 own proof targets remain green at 7f279596 (viewport 8/8 / badge guard, screenshots, full native lib 2093/0).",
+          "answer": "yes",
+          "explanation": "PT-122-1: find_in_files_screenshot_long_title_narrow_pane_mt122 ok, frame Handshake_Artifacts/handshake-test/wp-kernel-012-mt-122/MT-122-find-in-files-long-title-420px.png opened: long title elided with ellipsis, [loom_block] badge fully inside the 420px pane, action rows wrapped. PT-122-2: mt122_result_row_badge_stays_inside_the_find_pane ok (RED/GREEN capture recorded in the 2026-08-16 evidence). PT-122-3: MT-029 find_in_files_screenshot ok and MT-113 test_author_id_budget 12/12 against an owned embedded-SurrealDB backend. Full native lib 2093/0. MT-113 regression root-caused and fixed in product commit b4ba94a8 (find_in_files.rs: saved-search row Ui takes an explicit UiBuilder::id so the Remove node id no longer drifts when the in-flight bookmark_status label shifts egui sibling counters). test_author_id_budget: 12 passed / 0 failed on the fixed content (log Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-fix2-verify.log; diagnostic Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-diag-raw.log shows the pre-fix node-id change 13597926638501431374 -> 9313940950886479347 on the post-click frame). Reproof at b4ba94a8 (Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend-b4ba94a8.log): test_mcp_snapshot_viewport 8/8, find_in_files screenshots 2/2 (MT-029 900x760 223 colours; MT-122 420x640), find_in_files::tests 48/48, full native lib 2093 passed / 0 failed.",
           "evidence_refs": [
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-backend-117-113.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-isolated-rerun.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-env-control.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log"
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend-b4ba94a8.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-fix2-verify.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-diag-raw.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-122/MT-122-find-in-files-long-title-420px.png"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
           "answer": "yes",
-          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260902-175214; lifecycle.completed_by = null; validator_verdict null pending official V5 review.",
+          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260902-175214 (reopen claim); lifecycle.completed_by = null; validator_verdict null pending official V5 review. Product fix commit b4ba94a8 authored by KERNEL_BUILDER-20260902-224325 (same role, follow-on session).",
           "evidence_refs": [
             "MT-122.json#lifecycle.claimed_by",
             "MT-122.json#lifecycle.completed_by"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         }
       ]
     }

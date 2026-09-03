@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [],
     "blocks": [],
@@ -40,8 +40,8 @@
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Discovered while designing the MT-119 PT-119-3 geometry guard. Every geometry value the MCP snapshot publishes to models is measured in an unsized 10000x10000 egui viewport, so no model can reason about layout, containment, clipping, or overlap from argus.inspect(). This is a live product defect on the model-vision surface, not a test artifact. It is outside MT-119 (layout-only) allowed_paths, so it is deferred here per the Operator standing rule rather than silently absorbed or lost.",
-    "ready_for_validation_v4_at_utc": "2026-09-02T19:18:20.099Z",
-    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260902-175214",
+    "ready_for_validation_v4_at_utc": "2026-09-03T00:02:38.535Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260902-224325",
     "ready_for_validation_summary": "MT-121 implemented. ROOT CAUSE: refresh_mcp_snapshot ran the model-vision capture with egui::RawInput::default(), whose screen_rect is None, so egui substituted its synthetic 10000x10000 viewport_rect; those widget rects flowed straight into AccessKit bounds and were published as UiNodeBounds. FIX: capture now runs with screen_rect: Some(viewport_rect) and publishes a declared SnapshotViewport carrying a ViewportSource of LiveWindow or DeclaredFallback, so a headless fallback can never be laundered into a live-window claim; ui() no longer adopts the capture context as frame_ctx. PT-121-1 RED/GREEN captured verbatim: pre-fix 91 of 385 published nodes fell outside the declared 1400x900 viewport (shell.chrome.theme-toggle at x=9952.594); post-fix 5/5 tests pass. PT-121-3 before/after for shell.chrome.theme-toggle: published x moved 9952.594 -> 1352.594 against a rendered x of 1352.594, error 8600.0pt -> 0.000. PT-121-2 partial: MT-029 mounted visual proof green (1 passed, 1 pre-existing headless-GPU ignore) and the full native lib suite is 2069 passed / 0 failed, but MT-113 test_author_id_budget was COMPILED ONLY, not run - it is cfg(feature=integration) and needs a live backend plus a real GPU host. PT-121-2 is therefore NOT closed and an independent validator must execute MT-113 on a backend+GPU host. Disclosed scope additions: a UserManual coordinate-contract paragraph in manual_content_editors.rs (AC-121-5 requires a manual entry and no manual surface exists inside allowed_paths), and the frame_ctx adoption guard. Separately proven and NOT fixed here: egui::Memory-backed context menus remain invisible to the capture pass (fresh-context defect, needs its own MT). Implementer evidence only - no self-certification.",
     "ready_for_validation_v4_open_items": [
       "Memory-backed context-menu invisibility to the capture pass was split out as MT-135 and is implemented there (mt135_* guards green 2026-09-02).",
@@ -91,6 +91,13 @@
         "reason": "KB_READY_CHECKLIST_RECEIPT BLOCKED at product 7f279596 (RC-005). PT-121-2 not met at product 7f279596: MT-113 test_author_id_budget fails deterministically (bookmark remove receipt indeterminate) although it passed 12/12 at 88e71285 on identical backend content. MT-121 own guards remain green (viewport 8/8, full native lib 2093/0). Dependency: MT-113 proof surface / mounted click-completion regression, root cause not localized.",
         "previous_status": "READY_FOR_VALIDATION_V4",
         "new_status": "BLOCKED_ON_DEPENDENCY"
+      },
+      {
+        "at_utc": "2026-09-03T00:03:28.861Z",
+        "by": "KERNEL_BUILDER-20260902-224325",
+        "reason": "KB_READY_CHECKLIST_RECEIPT PASS at product b4ba94a8 after the MT-113 drift fix; returned to READY_FOR_VALIDATION_V4.",
+        "previous_status": "BLOCKED_ON_DEPENDENCY",
+        "new_status": "READY_FOR_VALIDATION_V4"
       }
     ],
     "deferred_proof_completion_2026_09_02": {
@@ -153,16 +160,19 @@
     },
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
-      "generated_at_utc": "2026-09-02T20:40:36.684Z",
+      "generated_at_utc": "2026-09-03T00:02:38.535Z",
       "actor_session": "KERNEL_BUILDER-20260902-175214",
-      "overall_verdict": "BLOCKED",
-      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
-      "supersedes_pass_receipt_at_utc": "2026-09-02T19:18:20.099Z",
-      "retracted_reason": "The PASS receipt cited MT-113 12/12 from the 88e71285 run; MT-113 fails on the final tree 7f279596, so that receipt no longer binds to the final unchanged tree and is retracted (RETRACTION receipt kb-0902-retract-121-122)."
+      "overall_verdict": "PASS",
+      "product_commit": "b4ba94a8a775e7b46d2eec6be269978af1258815",
+      "supersedes_blocked_receipt_at_utc": "2026-09-02T20:40:36.684Z"
     },
-    "ready_for_validation_at_utc": "2026-09-02T19:18:20.099Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260902-175214",
-    "blocker": "PT-121-2 not met at product 7f279596: MT-113 test_author_id_budget fails deterministically (bookmark remove receipt indeterminate) although it passed 12/12 at 88e71285 on identical backend content. MT-121 own guards remain green (viewport 8/8, full native lib 2093/0). Dependency: MT-113 proof surface / mounted click-completion regression, root cause not localized."
+    "ready_for_validation_at_utc": "2026-09-03T00:02:38.535Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260902-224325",
+    "blocker_resolved_2026_09_03": {
+      "by": "KERNEL_BUILDER-20260902-224325",
+      "at_utc": "2026-09-03T00:03:28.861Z",
+      "resolution": "MT-113 regression root-caused (egui node-id drift of the saved-search Remove row) and fixed in product commit b4ba94a8; MT-113 12/12; native reproof green at b4ba94a8."
+    }
   },
   "scope": {
     "summary": "Give the MCP navigation snapshot a real screen rect so the bounds it publishes to models describe the actual window instead of egui's unsized 10000x10000 default viewport.",
@@ -213,12 +223,12 @@
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "kb_ready_checklist_evidence": {
       "schema_id": "hsk.kb_ready_checklist_evidence@1",
-      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
+      "product_commit": "b4ba94a8a775e7b46d2eec6be269978af1258815",
       "product_branch": "feat/WP-KERNEL-012",
       "product_worktree": "../wtc-native-editors-v1",
       "actor_session": "KERNEL_BUILDER-20260902-175214",
-      "prepared_at_utc": "2026-09-02T20:40:30.244Z",
-      "summary": "SUPERSEDES the 2026-09-02T19:18Z PASS receipt: MT-121 RC-005 is now NO at product 7f279596 because its declared regression proof (MT-113 author-id budget) fails deterministically on the final tree. MT-121 own guards remain green (see prior receipt).",
+      "prepared_at_utc": "2026-09-03T00:02:18.890Z",
+      "summary": "MT-121 deferred-proof completion at product b4ba94a8: PT-121-2 executed (MT-113 12/12 with owned embedded-SurrealDB backend at 1505edb6-equivalent frontend tree; MT-029 mounted screenshot ok), viewport guards 8/8, full native lib suite 2093/0, aarch64-pc-windows-msvc cargo check of handshake-native lib+tests finished. Implementer evidence only; no self-certification. SUPERSEDES the 2026-09-02 BLOCKED receipt: MT-113 regression root-caused and fixed in product commit b4ba94a8 (find_in_files.rs: saved-search row Ui takes an explicit UiBuilder::id so the Remove node id no longer drifts when the in-flight bookmark_status label shifts egui sibling counters). test_author_id_budget: 12 passed / 0 failed on the fixed content (log Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-fix2-verify.log; diagnostic Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-diag-raw.log shows the pre-fix node-id change 13597926638501431374 -> 9313940950886479347 on the post-click frame).",
       "rubric_items": [
         {
           "rubric_item_id": "RC-001-NO-STALE-REASONS",
@@ -228,17 +238,17 @@
             "MT-121.json#lifecycle.open_items_refreshed_2026_09_02",
             "MT-121.json#lifecycle.deferred_proof_completion_2026_09_02"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-002-NO-DEAD-CODE",
           "answer": "yes",
-          "explanation": "Contract declares allowed_paths rather than owned_files, so the helper dead-code grep was skipped; evidence instead: cargo check -p handshake-native --features integration --lib --tests at 7f279596 emits exactly 5 dead_code lints, all unused private test helpers outside this MT's surfaces (tests/test_undo_scope.rs:1221 mt035_bus_counts; tests/native_gui_support/hit_reachability.rs:40,53; tests/test_event_emitter.rs:118 live_author_bounds; tests/test_other_pillar_interop_proofs.rs:1122 authorized_flight_recorder_rows). MT-121 surfaces (accessibility::SnapshotViewport/ViewportSource, refresh_mcp_snapshot in app.rs, tests/test_mcp_snapshot_viewport.rs) carry no lint and are consumed by the MCP snapshot path and asserted by the 8 viewport tests.",
+          "explanation": "Contract declares allowed_paths rather than owned_files, so the helper dead-code grep was skipped; evidence instead: cargo check -p handshake-native --features integration --lib --tests at b4ba94a8 emits exactly 5 dead_code lints, all unused private test helpers outside this MT's surfaces (tests/test_undo_scope.rs:1221 mt035_bus_counts; tests/native_gui_support/hit_reachability.rs:40,53; tests/test_event_emitter.rs:118 live_author_bounds; tests/test_other_pillar_interop_proofs.rs:1122 authorized_flight_recorder_rows). MT-121 surfaces (accessibility::SnapshotViewport/ViewportSource, refresh_mcp_snapshot in app.rs, tests/test_mcp_snapshot_viewport.rs) carry no lint and are consumed by the MCP snapshot path and asserted by the 8 viewport tests.",
           "evidence_refs": [
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
             "cargo check dead_code lint list recorded in this explanation"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-003-CFG-GATED-TESTS",
@@ -248,7 +258,7 @@
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-mt113.log"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
@@ -258,29 +268,30 @@
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-native-aarch64-pc-windows-msvc.log",
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-linux-musl-not-feasible.log"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-005-PROOF-COMMANDS",
-          "answer": "no",
-          "explanation": "PT-121-2 requires MT-113 test_author_id_budget green. MT-113 test_author_id_budget mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query FAILS deterministically at product 7f279596 (three runs: in the proof chain, isolated --exact, and an environment-control rerun without binding-root vars): the bookmark REMOVE click returns an indeterminate receipt (observer stays state=ready generation=2; canonical_argus_driver.rs:364). It passed 12/12 twice earlier today at 88e71285 with a backend built from byte-identical backend content (git diff --stat 1505edb6..7f279596 equals the pre-commit dirty stat plus the one test file). No stray processes, listeners, fixture locks, or disk pressure (3.5 TB free) were found. Root cause not localized; the earlier PASS receipt for this MT is retracted. Logs: Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-backend-117-113.log, proof-isolated-rerun.log, proof-env-control.log. MT-121 own proof targets remain green at 7f279596 (viewport 8/8 / badge guard, screenshots, full native lib 2093/0).",
+          "answer": "yes",
+          "explanation": "PT-121-1/PT-121-3: test_mcp_snapshot_viewport 8 passed / 0 failed at b4ba94a8 (viewport containment, rendered-frame match, headless fallback declaration, no laundering). PT-121-2: MT-113 test_author_id_budget 12 passed / 0 failed against an owned handshake_core built from this worktree (embedded SurrealDB, real localhost Argus transport, GPU before/after frames inspected) and MT-029 find_in_files_screenshot ok (900x760 frame inspected). Full native lib suite 2093 passed / 0 failed. The real resource touched is the owned product backend process plus the mounted HandshakeApp AccessKit tree. MT-113 regression root-caused and fixed in product commit b4ba94a8 (find_in_files.rs: saved-search row Ui takes an explicit UiBuilder::id so the Remove node id no longer drifts when the in-flight bookmark_status label shifts egui sibling counters). test_author_id_budget: 12 passed / 0 failed on the fixed content (log Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-fix2-verify.log; diagnostic Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-diag-raw.log shows the pre-fix node-id change 13597926638501431374 -> 9313940950886479347 on the post-click frame). Reproof at b4ba94a8 (Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend-b4ba94a8.log): test_mcp_snapshot_viewport 8/8, find_in_files screenshots 2/2 (MT-029 900x760 223 colours; MT-122 420x640), find_in_files::tests 48/48, full native lib 2093 passed / 0 failed.",
           "evidence_refs": [
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-backend-117-113.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-isolated-rerun.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-env-control.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log"
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend-b4ba94a8.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-fix2-verify.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt113-diag-raw.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-113/MT-113-long-query-bookmark-before-remove.png",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-113/MT-113-long-query-bookmark-after-remove.png"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         },
         {
           "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
           "answer": "yes",
-          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260902-175214 (reopen claim; original implementer KERNEL_BUILDER-20260815-173127 retained in implemented_by_before_reopen); lifecycle.completed_by = null. Validator verdict remains null pending official V5 review.",
+          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260902-175214 (reopen claim); lifecycle.completed_by = null; validator_verdict null pending official V5 review. Product fix commit b4ba94a8 authored by KERNEL_BUILDER-20260902-224325 (same role, follow-on session).",
           "evidence_refs": [
             "MT-121.json#lifecycle.claimed_by",
             "MT-121.json#lifecycle.completed_by"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T00:02:18.890Z"
         }
       ]
     }

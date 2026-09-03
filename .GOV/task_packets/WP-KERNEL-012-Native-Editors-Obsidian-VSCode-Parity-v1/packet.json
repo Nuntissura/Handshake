@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-02T20:41:55.520Z",
+  "updated_at_utc": "2026-09-03T00:03:50.640Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -618,8 +618,8 @@
       "MT-118": "BLOCKED_ON_DEPENDENCY",
       "MT-119": "READY_FOR_VALIDATION_V4",
       "MT-120": "READY_FOR_VALIDATION_V4",
-      "MT-121": "BLOCKED_ON_DEPENDENCY",
-      "MT-122": "BLOCKED_ON_DEPENDENCY",
+      "MT-121": "READY_FOR_VALIDATION_V4",
+      "MT-122": "READY_FOR_VALIDATION_V4",
       "MT-123": "READY_FOR_VALIDATION",
       "MT-124": "READY_FOR_VALIDATION_V4",
       "MT-125": "READY_FOR_VALIDATION_V4",
@@ -1208,8 +1208,8 @@
       "MT-118": "BLOCKED_ON_DEPENDENCY",
       "MT-119": "READY_FOR_VALIDATION_V4",
       "MT-120": "READY_FOR_VALIDATION_V4",
-      "MT-121": "BLOCKED_ON_DEPENDENCY",
-      "MT-122": "BLOCKED_ON_DEPENDENCY",
+      "MT-121": "READY_FOR_VALIDATION_V4",
+      "MT-122": "READY_FOR_VALIDATION_V4",
       "MT-123": "READY_FOR_VALIDATION",
       "MT-124": "READY_FOR_VALIDATION_V4",
       "MT-125": "READY_FOR_VALIDATION_V4",
@@ -1260,7 +1260,8 @@
     "status_sync_note_2026_07_27_mt088_v3_repair": "MT-088 moved FAIL_V2 -> READY_FOR_VALIDATION_V3 at product head b17225db after implementation, independent review, and hardening. Exact current-source proof used isolated real PostgreSQL, OS suspension of the fixture-owned backend with the listener still present, exact same-listener restart, mounted Settings -> Diagnostics canonical Argus degraded/recovered observations, typed one-per-edge internal_diagnostics events, advancing heartbeat, same-session out-of-process Palmistry survival/CleanShutdown/reaping, 19-of-19 source-blob provenance, and direct inspection of three current-source screenshots. The default MT binary passed 22/22, Settings AccessKit 2/2, UserManual 1/1, native lib+bins build passed, and canonical Cargo-target normalization prevents alternate/nested per-run targets. Project-wide clippy remains red on 64 baseline lints, all MT-touched-file findings blamed to ancestors of the MT-088 base; the packet diagnostic gate records zero new MT-088 regression without changing other MT code. Two independent reviewers found no product blocker; KB_READY_CHECKLIST PASS emitted at 2026-07-27T20:17:29.921Z. validator_verdict remains FAIL_V2 and completed_by remains null pending official V3 validation. Both packet MT-088 projections are READY_FOR_VALIDATION, active_id is cleared, and next_id remains MT-108.",
     "status_sync_note_2026_07_27_mt108_v3_claim": "MT-108 claimed for FAIL_V2 remediation by KERNEL_BUILDER-20260726-052638 only after MT-088 completed implementation, independent review, hardening, KB readiness, runtime receipt, exact contract/packet status synchronization, and WP-scoped build/test cleanup. Packet active_id and MT-108 plan status show CLAIMED; next_id is null because MT-109 is already READY_FOR_VALIDATION_V3 and no further MT is authorized. validator_verdict remains FAIL_V2 pending independent V3 validation.",
     "status_sync_note_2026_09_02_projection_repair": "Operator-approved projection repair by KERNEL_BUILDER-20260902-175214 at 2026-09-02T17:59:31.988Z: tracker.mt_status and mt_plan.mt_status regenerated verbatim from lifecycle.status of every MT-NNN.json contract (142 entries; previously 17 and 109 stale entries, including MT-101 and MT-032 shown READY_FOR_VALIDATION while their contracts are PASS_V1/PASS_V4 and 82 mt_plan entries frozen at the 2026-07-03 reopen reset). mt_plan.declared_ids extended from 109 to 142; microtasks.authored_count corrected 142 -> 142. active_id/next_id left null because two independent claims are live (see mt_plan.active_claims_2026_09_02). Tally: {\"PASS_V1\":77,\"READY_FOR_VALIDATION_V4\":56,\"PASS_V4\":2,\"CLAIMED\":3,\"READY_FOR_VALIDATION\":3,\"READY_FOR_DEV\":1}. No MT contract status, evidence, or verdict was changed by this repair.",
-    "status_sync_note_2026_09_02_batch_close": "KERNEL_BUILDER-20260902-175214 batch closed at 2026-09-02T20:41:55.520Z (product 7f279596): MT-135 READY_FOR_VALIDATION_V4 with KB_READY_CHECKLIST PASS; MT-117/MT-121/MT-122 BLOCKED_ON_DEPENDENCY (mounted click-completion regression: MT-113 bookmark remove indeterminate, Calendar mounted_navigation cancel test fails; root cause not localized); MT-118 BLOCKED_ON_DEPENDENCY (handshake_core cfg(test) modules do not compile, 24 errors). Tally: {\"PASS_V1\":77,\"READY_FOR_VALIDATION_V4\":54,\"PASS_V4\":2,\"BLOCKED_ON_DEPENDENCY\":4,\"READY_FOR_VALIDATION\":3,\"CLAIMED\":1,\"READY_FOR_DEV\":1}."
+    "status_sync_note_2026_09_02_batch_close": "KERNEL_BUILDER-20260902-175214 batch closed at 2026-09-02T20:41:55.520Z (product 7f279596): MT-135 READY_FOR_VALIDATION_V4 with KB_READY_CHECKLIST PASS; MT-117/MT-121/MT-122 BLOCKED_ON_DEPENDENCY (mounted click-completion regression: MT-113 bookmark remove indeterminate, Calendar mounted_navigation cancel test fails; root cause not localized); MT-118 BLOCKED_ON_DEPENDENCY (handshake_core cfg(test) modules do not compile, 24 errors). Tally: {\"PASS_V1\":77,\"READY_FOR_VALIDATION_V4\":54,\"PASS_V4\":2,\"BLOCKED_ON_DEPENDENCY\":4,\"READY_FOR_VALIDATION\":3,\"CLAIMED\":1,\"READY_FOR_DEV\":1}.",
+    "status_sync_note_2026_09_03_mt113_fix": "KERNEL_BUILDER-20260902-224325 at 2026-09-03T00:03:50.640Z: MT-113 canonical-Argus regression root-caused (egui node-id drift of the saved-search Remove row when the in-flight bookmark_status label shifts sibling counters) and fixed in product commit b4ba94a8; MT-113 12/12, native reproof green. MT-121/MT-122 back to READY_FOR_VALIDATION_V4 with PASS receipts at b4ba94a8; MT-135 receipt re-issued at b4ba94a8. MT-117 stays BLOCKED_ON_DEPENDENCY (Calendar next-day navigation never dispatches mid-retry; diagnosis in MT-117.json). MT-118 stays BLOCKED_ON_DEPENDENCY. Tally: {\"PASS_V1\":77,\"READY_FOR_VALIDATION_V4\":56,\"PASS_V4\":2,\"BLOCKED_ON_DEPENDENCY\":2,\"READY_FOR_VALIDATION\":3,\"CLAIMED\":1,\"READY_FOR_DEV\":1}."
   },
   "status_sync_note_2026_07_05_mt101_repair": "MT-101 moved OPEN -> READY_FOR_VALIDATION by KERNEL_BUILDER-20260705-025228 after focused hardcode/local-load repair: ordinary operator model-session /jobs requests omit wp_id, mt_id, prompt, and simulate_duration_ms; promptless bootstrap/manual wording is updated; local GGUF load is now surfaced as LocalModelLoadEndpointMissing kernel_model_runtime_load while direct spawn remains kernel_swarm_spawn_session IPC-only. Proofs passed: model_session_launch 14/14 with external screenshots, manual_content 19/19, cargo fmt --check, scoped git diff --check, cargo check --lib, CONTROL-4 no_hardcoded_color32 1/1, and git ls-files src/**/*.png empty. Official validator has not run; validator_verdict remains PENDING. Full suite/clippy/live local+cloud managed backend execution remain unproven/NEEDS_MANAGED_RESOURCE_PROOF. Contract under-scoped manual_content_editors.rs and tests/test_manual_content.rs for HBR-MAN same-change proof; operator waiver required.",
   "operator_requirement_verification_2026_08_05": {
