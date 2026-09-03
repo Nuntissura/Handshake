@@ -380,24 +380,32 @@ mod tests {
     use crate::jobs::create_job;
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{
-        tests::optional_postgres_backend_with_pool_from_env, AiJob, JobKind, JobState,
-        ModelSessionState, SessionMessageRole,
+        tests::embedded_test_backend, AiJob, JobKind, JobState, ModelSessionState,
+        SessionMessageRole,
     };
     use axum::extract::State;
     use serde_json::json;
     use std::sync::Arc;
     use tokio::time::{sleep, timeout, Duration};
 
-    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let Some(backend) = optional_postgres_backend_with_pool_from_env().await? else {
-            return Ok(None);
-        };
+    /// WP-KERNEL-012 MT-144. Was `Option<AppState>` gated on
+    /// `optional_postgres_backend_with_pool_from_env`, which returned `None` when no PostgreSQL was
+    /// reachable so every test below silently returned Ok(()). PostgreSQL is gone, and
+    /// `embedded_test_backend` creates its own isolated store, so there is nothing left to resolve
+    /// and nothing left to skip: these tests now either prove behaviour against a real engine or
+    /// fail. That is a STRENGTHENING, not a port-for-port translation.
+    /// The `EmbeddedTestBackend` is RETURNED so the caller owns the store for the test's lifetime;
+    /// dropping it here closes the database (WP-KERNEL-012 MT-144).
+    async fn setup_state(
+    ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
+    {
+        let backend = embedded_test_backend().await?;
 
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
-        Ok(Some(AppState {
-            storage: backend.database,
-            postgres_pool: backend.postgres_pool,
+        let state = AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
@@ -405,25 +413,22 @@ mod tests {
             session_registry: Arc::new(crate::workflows::SessionRegistry::new(
                 crate::workflows::SessionSchedulerConfig::default(),
             )),
-        }))
+        };
+        Ok((state, backend))
     }
 
     async fn require_mt101_runtime_state(
         proof_name: &str,
-    ) -> Result<AppState, Box<dyn std::error::Error>> {
-        let setup = timeout(Duration::from_secs(300), setup_state())
+    ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
+    {
+        let state = timeout(Duration::from_secs(300), setup_state())
             .await
             .map_err(|_| format!("ENVIRONMENT_BLOCKED: {proof_name} setup_state timed out"))?
             .map_err(|err| {
                 format!("ENVIRONMENT_BLOCKED: {proof_name} setup_state failed: {err}")
             })?;
         eprintln!("MT-101 proof {proof_name}: setup_state ready");
-        setup.ok_or_else(|| {
-            format!(
-                "ENVIRONMENT_BLOCKED: {proof_name} requires real PostgreSQL; tests auto-resolve POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"
-            )
-            .into()
-        })
+        Ok(state)
     }
 
     fn terminal_command() -> (String, Vec<String>) {
@@ -473,12 +478,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_job_rejects_unknown_job_kind() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            eprintln!(
-                "ENVIRONMENT_BLOCKED: real PostgreSQL unavailable; skipped unknown-job route proof"
-            );
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let request = CreateJobRequest {
             job_kind: "unknown_job".to_string(),
             protocol_id: "protocol-default".to_string(),
@@ -494,12 +494,7 @@ mod tests {
     #[tokio::test]
     async fn create_job_allows_terminal_when_authorized() -> Result<(), Box<dyn std::error::Error>>
     {
-        let Some(state) = setup_state().await? else {
-            eprintln!(
-                "ENVIRONMENT_BLOCKED: real PostgreSQL unavailable; skipped terminal route proof"
-            );
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let (program, args) = terminal_command();
 
         let request = CreateJobRequest {
@@ -537,12 +532,7 @@ mod tests {
     #[tokio::test]
     async fn create_model_run_job_binds_workflow_before_workflow_start(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            eprintln!(
-                "ENVIRONMENT_BLOCKED: real PostgreSQL unavailable; skipped MT-101 model_run pre-start workflow binding proof"
-            );
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let session_id = format!("native-mt101-prestart-{}", uuid::Uuid::now_v7());
         let workspace_folder = "D:/Projects/Handshake/repo";
 
@@ -604,10 +594,9 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
     async fn create_model_run_job_launches_runtime_session_and_preserves_native_binding(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = require_mt101_runtime_state(
+        let (state, _store) = require_mt101_runtime_state(
             "create_model_run_job_launches_runtime_session_and_preserves_native_binding",
         )
         .await?;
@@ -705,10 +694,9 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL"]
     async fn create_cloud_model_run_without_consent_blocks_runtime_session(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = require_mt101_runtime_state(
+        let (state, _store) = require_mt101_runtime_state(
             "create_cloud_model_run_without_consent_blocks_runtime_session",
         )
         .await?;
@@ -786,9 +774,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_job_accepts_fems_job_kind_alias() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let request = CreateJobRequest {
             job_kind: "memory_extract_v0.1".to_string(),
             protocol_id: "memory_extract_v0.1".to_string(),
@@ -812,9 +798,7 @@ mod tests {
     #[tokio::test]
     async fn create_job_rejects_mismatched_fems_alias_protocol(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let request = CreateJobRequest {
             job_kind: "memory_extract_v0.1".to_string(),
             protocol_id: "memory_forget_v0.1".to_string(),

@@ -2425,8 +2425,8 @@ mod tests {
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{
-        tests::optional_postgres_backend_with_pool_from_env, AccessMode, Database, EntityRef, JobMetrics,
-        JobStatusUpdate, NewAiJob, NewNodeExecution, SafetyMode, WorkflowRun,
+        tests::embedded_test_backend, AccessMode, Database, EntityRef, JobMetrics, JobStatusUpdate,
+        NewAiJob, NewNodeExecution, SafetyMode, WorkflowRun,
     };
     use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
     use once_cell::sync::Lazy;
@@ -2475,22 +2475,25 @@ mod tests {
         sibling_node: WorkflowNodeExecution,
     }
 
-    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let Some(backend) = optional_postgres_backend_with_pool_from_env().await? else {
-            return Ok(None);
-        };
+    /// WP-KERNEL-012 MT-144: see the note on the equivalent helper in `api::jobs`. The PostgreSQL
+    /// resolution chain that made this `Option` is gone, so the skip branch is gone with it.
+    async fn setup_state(
+    ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
+    {
+        let backend = embedded_test_backend().await?;
 
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
-        Ok(Some(AppState {
-            storage: backend.database,
-            postgres_pool: backend.postgres_pool,
+        let state = AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        }))
+        };
+        Ok((state, backend))
     }
 
     async fn create_job(
@@ -2688,9 +2691,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_run_scope_exports_only_bound_jobs_and_nodes(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let seeded = seed_workflow(&state, "ws-run", "node-target", "node-sibling").await?;
         let unrelated = seed_workflow(&state, "ws-other", "other-target", "other-sibling").await?;
         let out_of_window = seeded
@@ -2780,9 +2781,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_node_execution_scope_exports_single_node_lineage(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let seeded = seed_workflow(&state, "ws-node", "node-target", "node-sibling").await?;
         let unrelated = seed_workflow(&state, "ws-other", "other-target", "other-sibling").await?;
         let out_of_window = seeded
@@ -2877,9 +2876,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn list_exportable_includes_workflow_correlation_anchors(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let seeded = seed_workflow(&state, "ws-anchor", "node-target", "node-sibling").await?;
         let unrelated = seed_workflow(&state, "ws-other", "other-target", "other-sibling").await?;
         let exporter = DefaultDebugBundleExporter::new(state.clone());
@@ -2928,9 +2925,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_run_scope_rejects_invalid_uuid() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let exporter = DefaultDebugBundleExporter::new(state.clone());
         let workspace = tempdir()?;
         let output_dir = workspace.path().join("bundle");
@@ -2964,9 +2959,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_node_execution_scope_rejects_invalid_node_uuid(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let exporter = DefaultDebugBundleExporter::new(state.clone());
         let workspace = tempdir()?;
         let output_dir = workspace.path().join("bundle");

@@ -673,7 +673,7 @@ async fn delete_workspace(
         .delete_workspace_events(&workspace_id)
         .await
     {
-        // PostgreSQL deletion is already committed. Keep DELETE idempotent/successful and leave an
+        // The durable delete is already committed. Keep DELETE idempotent/successful and leave an
         // attributable recovery log instead of returning a false 500 after the workspace is gone.
         tracing::error!(target: "handshake_core", %workspace_id, %error, "workspace deleted but Flight Recorder workspace purge failed");
     }
@@ -1459,24 +1459,25 @@ mod tests {
     };
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{
-        fems_memory, tests::optional_postgres_backend_with_pool_from_env, AccessMode, Database,
-        EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate, NewAiJob, PlannedOperation,
-        SafetyMode,
+        fems_memory, tests::embedded_test_backend, AccessMode, Database, EntityRef, JobKind,
+        JobMetrics, JobState, JobStatusUpdate, NewAiJob, PlannedOperation, SafetyMode,
     };
     use axum::extract::{Path, State};
     use serde_json::json;
     use std::sync::Arc;
 
-    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let Some(backend) = optional_postgres_backend_with_pool_from_env().await? else {
-            return Ok(None);
-        };
+    /// WP-KERNEL-012 MT-144: see the note on the equivalent helper in `api::jobs`. The PostgreSQL
+    /// resolution chain that made this `Option` is gone, so the skip branch is gone with it.
+    async fn setup_state(
+    ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
+    {
+        let backend = embedded_test_backend().await?;
 
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
-        Ok(Some(AppState {
-            storage: backend.database,
-            postgres_pool: backend.postgres_pool,
+        let state = AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
@@ -1484,7 +1485,8 @@ mod tests {
             session_registry: Arc::new(crate::workflows::SessionRegistry::new(
                 crate::workflows::SessionSchedulerConfig::default(),
             )),
-        }))
+        };
+        Ok((state, backend))
     }
 
     fn selection_v1(doc_text: &str, start: usize, end: usize) -> SelectionRangeV1 {
@@ -1504,9 +1506,7 @@ mod tests {
     #[tokio::test]
     async fn delete_workspace_route_atomically_cascades_fems_and_retries_not_found(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let workspace = state
             .storage
             .create_workspace(
@@ -1517,7 +1517,7 @@ mod tests {
             )
             .await?;
         fems_memory::upsert_memory_item(
-            &state.postgres_pool,
+            &state.surreal,
             &workspace.id,
             &format!("MEM-DELETE-ROUTE-{}", Uuid::now_v7()),
             &json!({"content": "cascade me"}),
@@ -1533,7 +1533,7 @@ mod tests {
         .map_err(|(status, Json(body))| format!("delete route failed: {status} {}", body.error))?;
         assert_eq!(status, StatusCode::NO_CONTENT);
         assert_eq!(
-            fems_memory::count_memory_items(&state.postgres_pool, &workspace.id).await?,
+            fems_memory::count_memory_items(&state.surreal, &workspace.id).await?,
             0
         );
 
@@ -1546,7 +1546,7 @@ mod tests {
         .expect_err("deleting an absent workspace must fail closed");
         assert_eq!(retry.0, StatusCode::NOT_FOUND);
         assert_eq!(
-            fems_memory::count_memory_items(&state.postgres_pool, &workspace.id).await?,
+            fems_memory::count_memory_items(&state.surreal, &workspace.id).await?,
             0
         );
         Ok(())
@@ -1555,9 +1555,7 @@ mod tests {
     #[tokio::test]
     async fn verify_atelier_apply_provenance_accepts_matching_job_output(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let doc_id = "doc-1".to_string();
         let doc_text = "Hello world\nSecond line";
@@ -1675,9 +1673,7 @@ mod tests {
     #[tokio::test]
     async fn verify_atelier_apply_provenance_rejects_selection_mismatch_as_stale(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let doc_text = "Hello world\nSecond line";
         let selection = selection_v1(doc_text, 6, 11);
@@ -1782,9 +1778,7 @@ mod tests {
     #[tokio::test]
     async fn verify_atelier_apply_provenance_rejects_patchset_mismatch_as_provenance_mismatch(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let doc_text = "Hello world\nSecond line";
         let selection = selection_v1(doc_text, 6, 11);
@@ -1894,9 +1888,7 @@ mod tests {
     #[tokio::test]
     async fn replace_blocks_rejects_ai_when_context_missing(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let seed_ctx = WriteContext::human(Some("tester".into()));
         let workspace = state
@@ -1982,9 +1974,7 @@ mod tests {
     #[tokio::test]
     async fn replace_blocks_accepts_ai_and_persists_traceability(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let seed_ctx = WriteContext::human(Some("tester".into()));
         let workspace = state
@@ -2087,14 +2077,11 @@ mod tests {
     /// EventLedger receipt per save. This proves saved searches are canonical
     /// state and the UI is a projection.
     #[tokio::test]
-    async fn mt258_search_bookmarks_persist_to_postgres_and_event_ledger(
+    async fn mt258_search_bookmarks_persist_to_surreal_and_event_ledger(
     ) -> Result<(), Box<dyn std::error::Error>> {
         use crate::kernel::KernelEventType;
 
-        let Some(state) = setup_state().await? else {
-            eprintln!("SKIP MT-258 search-bookmark route proof: PostgreSQL backend unavailable");
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let workspace = state
             .storage
             .create_workspace(
@@ -2148,7 +2135,7 @@ mod tests {
             .expect("save returns an EventLedger receipt id");
         assert!(!first_event_id.trim().is_empty());
 
-        // Re-read straight from Postgres (new GET) confirms durability.
+        // Re-read straight from the embedded store (new GET) confirms durability.
         let reread =
             get_workspace_search_bookmarks(State(state.clone()), Path(workspace_id.clone()))
                 .await
@@ -2157,7 +2144,7 @@ mod tests {
         assert_eq!(
             reread.bookmark_state.as_ref(),
             Some(&bookmark),
-            "saved searches must round-trip through PostgreSQL"
+            "saved searches must round-trip through the embedded store"
         );
 
         // Second save replaces the blob (the route is the canonical authority).

@@ -846,7 +846,11 @@ struct ProposalRequest {
 }
 
 /// The server acknowledgement of a stored proposal (matches the native `ProposalAck`).
-#[derive(Debug, Clone, Deserialize, Serialize)]
+///
+/// `PartialEq` is derived so an idempotent retry can be compared field-for-field against the first
+/// acknowledgement (WP-KERNEL-012 MT-144); comparing the serialized forms instead would let a field
+/// reordering pass as convergence.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 struct ProposalAck {
     proposal_id: String,
     status: String,
@@ -1764,7 +1768,9 @@ mod tests {
         value: String,
     }
 
-    async fn memory_test_query_first<R: SurrealValue + 'static>(
+    // `Send` is required by `with_data_operation`, which drives the query on the storage runtime
+    // (WP-KERNEL-012 MT-144).
+    async fn memory_test_query_first<R: SurrealValue + Send + 'static>(
         state: &AppState,
         statement: &'static str,
         bindings: MemoryTestBindings,
@@ -1958,18 +1964,26 @@ mod tests {
         }
     }
 
-    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
+    /// WP-KERNEL-012 MT-144: the `EmbeddedTestBackend` is RETURNED, not dropped here. It owns the
+    /// store's cleanup guard, so letting it fall out of scope at the end of this function shut the
+    /// store down and every caller then failed with `embedded database is closed`. Callers bind it
+    /// (`let (state, _store) = setup_state().await?;`) so the store lives exactly as long as the
+    /// test and is cleaned up when the test ends.
+    async fn setup_state(
+    ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
+    {
         let backend = embedded_test_backend().await?;
         let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
-        Ok(AppState {
-            storage: backend.database,
-            surreal: backend.storage,
+        let state = AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
             flight_recorder: recorder.clone(),
             diagnostics: recorder,
             llm_client: Arc::new(TestLlmClient::new()),
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        })
+        };
+        Ok((state, backend))
     }
 
     async fn serve_test_router(
@@ -2004,7 +2018,7 @@ mod tests {
         };
         std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
 
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "memory-route-auth").await?;
         let source = create_test_rich_source(
             &state,
@@ -2093,7 +2107,7 @@ mod tests {
     #[tokio::test]
     async fn concurrent_workspace_commits_publish_a_pack_containing_both_items(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "memory-concurrent-commit").await?;
         let (proposal_a, _) = create_and_approve_test_proposal(
             &state,
@@ -2316,7 +2330,7 @@ mod tests {
 
     #[tokio::test]
     async fn surreal_identity_and_exact_retry_converge() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "surreal-identity-retry").await?;
         let content = "unicode identity\u{2003}";
         let source =
@@ -2404,7 +2418,8 @@ mod tests {
             ..without_actor
         };
         assert_eq!(
-            stable_proposal_request_id(&workspace_id, &explicit)?,
+            stable_proposal_request_id(&workspace_id, &explicit)
+                .expect("an explicit request_id derives a stable identity"),
             "explicit-retry-id"
         );
         Ok(())
@@ -2414,7 +2429,7 @@ mod tests {
     /// the native client alignment has a pinned contract.
     #[tokio::test]
     async fn get_memory_pack_returns_real_ace_shape() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "pack").await?;
         let pack = seeded_pack(&workspace_id);
         fems_memory::upsert_memory_pack(&state.surreal, &workspace_id, "", &pack).await?;
@@ -2463,7 +2478,7 @@ mod tests {
     #[tokio::test]
     async fn get_memory_pack_empty_is_deterministic_and_unknown_workspace_is_not_found(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "empty-pack").await?;
         let query = PackQuery {
             context: Some("mounted-editor-context".to_owned()),
@@ -2509,7 +2524,7 @@ mod tests {
                 "SELECT count() AS count FROM fems_memory_packs \
                  WHERE workspace_id = $workspace GROUP ALL;",
                 MemoryTestBindings {
-                    workspace: Some(RecordId::new("workspaces", &workspace_id)),
+                    workspace: Some(RecordId::new("workspaces", workspace_id.as_str())),
                     ..MemoryTestBindings::default()
                 },
             )
@@ -2560,7 +2575,7 @@ mod tests {
     #[tokio::test]
     async fn memory_pack_and_item_ids_cannot_be_reassigned_across_workspaces(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let owner = create_test_workspace(&state, "memory-id-owner").await?;
         let intruder = create_test_workspace(&state, "memory-id-intruder").await?;
 
@@ -2603,7 +2618,7 @@ mod tests {
     #[tokio::test]
     async fn create_proposal_stores_pending_review_and_receipt(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "proposal").await?;
         let content = "durable fact";
         let content_hash = canonical_content_hash(content).expect("canonical content hash");
@@ -2730,7 +2745,7 @@ mod tests {
             "SELECT published_at != NONE AS value FROM fems_memory_lifecycle_fr_outbox \
              WHERE proposal_id = $proposal AND event_code = 'FR-EVT-MEM-001' LIMIT 1;",
             MemoryTestBindings {
-                proposal: Some(RecordId::new("fems_memory_proposals", &ack.proposal_id)),
+                proposal: Some(RecordId::new("fems_memory_proposals", ack.proposal_id.as_str())),
                 ..MemoryTestBindings::default()
             },
         )
@@ -2747,7 +2762,7 @@ mod tests {
     #[tokio::test]
     async fn list_proposals_is_bounded_deterministic_and_workspace_scoped(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let target = create_test_workspace(&state, "proposal-list-target").await?;
         let control = create_test_workspace(&state, "proposal-list-control").await?;
 
@@ -2806,7 +2821,10 @@ mod tests {
                     "UPDATE fems_memory_proposals SET created_at = $at \
                      WHERE id = $proposal RETURN AFTER;",
                     MemoryTestBindings {
-                        proposal: Some(RecordId::new("fems_memory_proposals", proposal_id)),
+                        proposal: Some(RecordId::new(
+                            "fems_memory_proposals",
+                            proposal_id.as_str(),
+                        )),
                         at: Some(Datetime::from(created_at)),
                         ..MemoryTestBindings::default()
                     },
@@ -2840,7 +2858,7 @@ mod tests {
                 "UPDATE fems_memory_proposals SET status = 'approved' \
                  WHERE id = $proposal RETURN AFTER;",
                 MemoryTestBindings {
-                    proposal: Some(RecordId::new("fems_memory_proposals", &first.proposal_id)),
+                    proposal: Some(RecordId::new("fems_memory_proposals", first.proposal_id.as_str())),
                     ..MemoryTestBindings::default()
                 },
             )
@@ -2890,7 +2908,7 @@ mod tests {
     #[tokio::test]
     async fn proposal_retry_is_idempotent_and_payload_drift_conflicts(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "retry").await?;
         let request_id = format!("native-retry-{}", Uuid::now_v7());
         let content = "same logical proposal";
@@ -2973,7 +2991,7 @@ mod tests {
     #[tokio::test]
     async fn rich_proposal_replay_rejects_code_only_snapshot_drift(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "rich-snapshot-boundary").await?;
         let content = "rich replay selection";
         let document_text = format!("xxx{content}");
@@ -3062,7 +3080,7 @@ mod tests {
     #[tokio::test]
     async fn proposal_retry_rejects_corrupt_receipt_but_allows_new_retry_headers(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "receipt-authenticity").await?;
         let content = "receipt authenticity proposal";
         let source = create_test_rich_source(
@@ -3149,7 +3167,7 @@ mod tests {
     #[tokio::test]
     async fn simultaneous_proposal_retries_converge_to_one_row_and_receipt(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "simultaneous-retry").await?;
         let content = "simultaneous logical proposal";
         let source =
@@ -3207,7 +3225,7 @@ mod tests {
     #[tokio::test]
     async fn legacy_retry_heals_missing_receipt_once_and_converges(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "legacy-retry").await?;
         let content = "legacy proposal retry";
         let source =
@@ -3271,7 +3289,7 @@ mod tests {
         let legacy_content = LegacyProposalContent {
             proposal_id: legacy.proposal_id.clone(),
             request_id: legacy.request_id.clone(),
-            workspace_id: RecordId::new("workspaces", &legacy.workspace_id),
+            workspace_id: RecordId::new("workspaces", legacy.workspace_id.as_str()),
             document_id: legacy.document_id.clone(),
             selection_start: legacy.selection_start,
             selection_end: legacy.selection_end,
@@ -3379,7 +3397,7 @@ mod tests {
     #[tokio::test]
     async fn non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "heal-tripwire").await?;
         let content = "tripwire proposal retry";
         let source =
@@ -3606,7 +3624,7 @@ mod tests {
     #[tokio::test]
     async fn proposal_insert_rolls_back_when_receipt_phase_fails(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "rollback").await?;
         let request_id = format!("forced-failure-{}", Uuid::now_v7());
         let proposal_id = stable_proposal_id(&workspace_id, &request_id);
@@ -3666,7 +3684,7 @@ mod tests {
     /// grow after the proposal is submitted.
     #[tokio::test]
     async fn proposal_cannot_mutate_committed_memory() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "negative").await?;
         let memory_id = "MEM-COMMITTED-1";
         let committed = json!({
@@ -3750,7 +3768,7 @@ mod tests {
     #[tokio::test]
     async fn workspace_memory_cleanup_is_scoped_and_preserves_receipts(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let target = create_test_workspace(&state, "cleanup-target").await?;
         let control = create_test_workspace(&state, "cleanup-control").await?;
 
@@ -3870,7 +3888,7 @@ mod tests {
     #[tokio::test]
     async fn proposal_delete_race_never_leaves_workspace_orphans(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "delete-race").await?;
         let content = "proposal racing workspace deletion";
         let source =
@@ -3905,7 +3923,7 @@ mod tests {
             "SELECT count() AS count FROM fems_memory_proposals \
              WHERE workspace_id = $workspace GROUP ALL;",
             MemoryTestBindings {
-                workspace: Some(RecordId::new("workspaces", &workspace_id)),
+                workspace: Some(RecordId::new("workspaces", workspace_id.as_str())),
                 ..MemoryTestBindings::default()
             },
         )
@@ -3928,7 +3946,7 @@ mod tests {
     /// is stored.
     #[tokio::test]
     async fn proposal_missing_provenance_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "fail-closed").await?;
 
         // Empty content_hash.
@@ -4143,7 +4161,7 @@ mod tests {
     #[tokio::test]
     async fn loom_block_reference_proposal_accepts_only_an_existing_exact_canonical_address(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "loom-reference").await?;
         let block = state
             .storage
@@ -4259,7 +4277,7 @@ mod tests {
     #[tokio::test]
     async fn proposal_route_rejects_unknown_field_and_class_without_durable_residue(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "strict-route").await?;
         let content = "strict proposal";
         let source =
@@ -4371,7 +4389,7 @@ mod tests {
     #[tokio::test]
     async fn proposal_review_transitions_are_audited_idempotent_and_conflict_safe(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "proposal-review").await?;
         let content = "review this durable fact";
         let source =
@@ -4591,7 +4609,7 @@ mod tests {
     #[tokio::test]
     async fn commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "commit-recovery").await?;
         let (proposal_a, review_a) = create_and_approve_test_proposal(
             &state,
@@ -4694,7 +4712,7 @@ mod tests {
                 MemoryTestBindings {
                     proposal: Some(RecordId::new(
                         "fems_memory_proposals",
-                        &proposal_a.proposal_id,
+                        proposal_a.proposal_id.as_str(),
                     )),
                     ..MemoryTestBindings::default()
                 },
@@ -4792,7 +4810,7 @@ mod tests {
     #[tokio::test]
     async fn proposal_outbox_retries_post_commit_recorder_failure_without_duplicate_event(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "proposal-recovery").await?;
         let content = "proposal survives recorder crash";
         let source =
@@ -4887,7 +4905,7 @@ mod tests {
     #[tokio::test]
     async fn quarantined_proposal_outbox_never_returns_a_false_success_ack(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "proposal-quarantine").await?;
         let content = "proposal whose recorder projection is quarantined";
         let source =
@@ -4926,7 +4944,7 @@ mod tests {
              last_error_at = $at, quarantined_at = $at \
              WHERE proposal_id = $proposal AND event_code = 'FR-EVT-MEM-001' RETURN AFTER;",
             MemoryTestBindings {
-                proposal: Some(RecordId::new("fems_memory_proposals", &proposal_id)),
+                proposal: Some(RecordId::new("fems_memory_proposals", proposal_id.as_str())),
                 at: Some(now),
                 ..MemoryTestBindings::default()
             },

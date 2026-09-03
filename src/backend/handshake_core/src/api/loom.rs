@@ -4567,7 +4567,9 @@ mod tests {
         count: i64,
     }
 
-    async fn loom_test_count<B: SurrealValue + Send>(
+    // `'static` is required by `with_data_operation`, whose closure is moved into a boxed future
+    // (WP-KERNEL-012 MT-144).
+    async fn loom_test_count<B: SurrealValue + Send + 'static>(
         state: &AppState,
         statement: &'static str,
         bindings: B,
@@ -4619,13 +4621,15 @@ mod tests {
         }
     }
 
-    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
+    async fn setup_state(
+    ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
+    {
         let backend = embedded_test_backend().await?;
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
-        Ok(AppState {
-            storage: backend.database,
-            surreal: backend.storage,
+        let state = AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
@@ -4633,7 +4637,8 @@ mod tests {
             session_registry: Arc::new(crate::workflows::SessionRegistry::new(
                 crate::workflows::SessionSchedulerConfig::default(),
             )),
-        })
+        };
+        Ok((state, backend))
     }
 
     async fn create_workspace(state: &AppState) -> Result<String, Box<dyn std::error::Error>> {
@@ -4654,12 +4659,14 @@ mod tests {
     /// produces and persists block embeddings exactly like a configured Ollama
     /// embedding model. Used to prove blocker #2 (embedding refreshed on
     /// create/update through the real handler, not only in manual-reindex tests).
-    async fn setup_state_with_embedding() -> Result<AppState, Box<dyn std::error::Error>> {
+    async fn setup_state_with_embedding(
+    ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
+    {
         let backend = embedded_test_backend().await?;
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
-        Ok(AppState {
-            storage: backend.database,
-            surreal: backend.storage,
+        let state = AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(
@@ -4670,7 +4677,8 @@ mod tests {
             session_registry: Arc::new(crate::workflows::SessionRegistry::new(
                 crate::workflows::SessionSchedulerConfig::default(),
             )),
-        })
+        };
+        Ok((state, backend))
     }
 
     /// The number of `loom_block_search_index` rows for a block that carry a
@@ -4698,7 +4706,7 @@ mod tests {
     #[tokio::test]
     async fn mt264_api_create_and_update_refresh_embedding(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state_with_embedding().await?;
+        let (state, _store) = setup_state_with_embedding().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let created = create_loom_block(
@@ -4781,7 +4789,7 @@ mod tests {
     /// against the real durable store.
     #[tokio::test]
     async fn mt264_journal_block_indexed_on_create() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let journal = open_daily_journal(
@@ -4801,7 +4809,7 @@ mod tests {
             "SELECT count() AS count FROM loom_block_search_index \
              WHERE block_id = $block GROUP ALL;",
             LoomTestBlockBinding {
-                block: RecordId::new("loom_blocks", &block_id),
+                block: RecordId::new("loom_blocks", block_id.as_str()),
             },
         )
         .await?;
@@ -4883,7 +4891,7 @@ mod tests {
     #[tokio::test]
     async fn graph_search_inline_operators_filter_real_rows(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
         let ctx = WriteContext::human(None);
 
@@ -5048,7 +5056,7 @@ mod tests {
             temp.path().to_string_lossy().as_ref(),
         );
 
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let bytes = b"hello loom".to_vec();
@@ -5092,7 +5100,7 @@ mod tests {
 
     #[tokio::test]
     async fn view_and_search_emit_events() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let _ = create_loom_block(
@@ -5170,7 +5178,7 @@ mod tests {
     #[tokio::test]
     async fn mt258_bookmark_routes_persist_add_remove_and_emit_receipts(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let created = create_loom_block(
@@ -5388,7 +5396,7 @@ mod tests {
     #[tokio::test]
     async fn mt258_properties_tag_edit_persists_edges_and_metrics(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let make_block = |content_type: LoomBlockContentType, title: &str| {
@@ -5595,7 +5603,7 @@ mod tests {
 
     #[tokio::test]
     async fn loom_search_backend_tier() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let _ = create_loom_block(
@@ -5669,7 +5677,7 @@ mod tests {
 
     #[tokio::test]
     async fn graph_traversal_and_metrics_routes_work() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let (state, _store) = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
 
         let start_block = create_loom_block(
@@ -5907,7 +5915,7 @@ mod tests {
     #[tokio::test]
     async fn mt027_block_view_publication_survives_outage_restart_races_and_retention(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut state = setup_state().await?;
+        let (mut state, _store) = setup_state().await?;
         let workspace_id = create_workspace(&state).await?;
         let recorder_dir = TempDir::new()?;
         let recorder_path = recorder_dir.path().join("mt027-flight-recorder.duckdb");
@@ -6088,7 +6096,7 @@ mod tests {
         let corrupt = mt027_create_pending_view(&state, &workspace_id, &corrupt_id).await?;
         let corrupt_event_id = corrupt.publication_event_id.expect("corrupt event id");
         let corrupt_binding = LoomTestEventBinding {
-            workspace: RecordId::new("workspaces", &workspace_id),
+            workspace: RecordId::new("workspaces", workspace_id.as_str()),
             event_id: corrupt_event_id.to_string(),
         };
         let corrupted = state
