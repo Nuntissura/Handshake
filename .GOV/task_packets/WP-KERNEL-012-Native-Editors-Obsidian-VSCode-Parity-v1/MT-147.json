@@ -81,12 +81,11 @@
           "backend-storage (sqlite)",
           "backend-storage (postgres)",
           "vuln_scan",
-          "license_scan",
-          "sbom_generate",
-          "secret_scan"
+          "license_scan"
         ],
         "cause": "The Ubuntu runner image does not ship the dbus-1 development package, and libdbus-sys is a transitive dependency of the backend, so every job that compiles handshake_core failed at exit 101 in a build script.",
-        "fix": "Install libdbus-1-dev and pkg-config in each job that compiles the backend, folding it into the existing ripgrep install where one is already present."
+        "fix": "Install libdbus-1-dev and pkg-config in each job that compiles the backend, folding it into the existing ripgrep install where one is already present.",
+        "attribution_correction": "An earlier draft of this contract also listed secret_scan and sbom_generate under this defect. The baseline per-job table shows both of those failed at their go install step, before any cargo invocation, so they were never dbus failures. They are carried separately as D-147-6."
       },
       {
         "id": "D-147-3",
@@ -114,6 +113,17 @@
         ],
         "cause": "Not a failure of its own, but a structural weakness: any frontend failure hides the cross-platform build result, and RC-004 then has nothing to cite even when the backend compiles cleanly.",
         "fix": "Add a small cross-platform-build job that runs cargo check with all targets and all features on Linux and depends on nothing else."
+      },
+      {
+        "id": "D-147-6",
+        "observed": "secret_scan fails at the step Install gitleaks (pinned) and sbom_generate fails at the step Install syft (pinned), both in the baseline run 33666580708 and again in the post-repair run 33818193204.",
+        "jobs": [
+          "secret_scan",
+          "sbom_generate"
+        ],
+        "cause": "Not yet determined. Both steps go install a pinned tool version under Go 1.22.4 and fail before any cargo invocation, so this is independent of every other defect in this contract. Recorded as unknown rather than guessed.",
+        "status": "CARRIED_NOT_FIXED",
+        "fix": "Diagnose from the completed run log and either fix in this microtask or hand to a named owner under AC-147-6. Must not be left unattributed."
       }
     ],
     "acceptance_criteria": [
@@ -192,5 +202,6 @@
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "baseline_failing_run": "33666580708"
-  }
+  },
+  "updated_at_utc": "2026-09-03T23:38:16.901Z"
 }

@@ -42,7 +42,22 @@
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260901-MT141-ORCH",
     "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks.",
-    "claimed_at_utc": "2026-09-01T16:46:22.087Z"
+    "claimed_at_utc": "2026-09-01T16:46:22.087Z",
+    "field_evidence_disclosure_2026_09_04": {
+      "schema_id": "hsk.mt_field_evidence_note@1",
+      "recorded_by": "KERNEL_BUILDER-20260903-213930",
+      "recorded_at_utc": "2026-09-03T23:53:37.848Z",
+      "status_unchanged": "CLAIMED",
+      "requirements_unchanged": true,
+      "note": "Disclosure only. No MT-141 requirement, acceptance criterion, proof target, or status is changed by this entry. Found while repairing branch CI under MT-147, which is forbidden to touch this tree.",
+      "finding": "src/backend/handshake_core/tests/** does not compile at all. Cargo.toml declares tempfile = \"3\", which resolves to 3.27.0, and TempDir::from_path no longer exists in that version. tests/atelier_surreal_support/mod.rs:124 still calls tempfile::TempDir::from_path(data_dir), and lines 41 and 159 still call the deprecated into_path().",
+      "observed_verbatim": "error[E0599]: no associated function or constant named `from_path` found for struct `TempDir` in the current scope --> tests/atelier_surreal_support/mod.rs:124:49 | 124 | Self::open_directory(tempfile::TempDir::from_path(data_dir)).await | ^^^^^^^^^ associated function or constant not found in `TempDir`. Followed by: error: could not compile `handshake_core` (test \"atelier_command_corpus_tests\") due to 1 previous error.",
+      "evidence": "GitHub Actions run 33818193204, job cross-platform-build (job id 100854799834), which ran cargo check --all-targets --all-features on ubuntu-latest at product 8e0daf25.",
+      "platform_independence": "This is a dependency API change, not a platform difference, so the same break applies on Windows. It is why cargo check --all-targets has not been passing anywhere.",
+      "effect_on_mt_147": "The MT-147 cross-platform job was rescoped to --lib --bins plus a --lib --no-run test compile, so it proves the crate surface MT-118 and MT-144 depend on without reporting this defect as its own. The rescope is recorded in commit 817fca6f.",
+      "owner_question": "MT-141 owns tests/**. This needs either a tempfile pin or a migration to TempDir::new_in plus keep(), and it should be decided inside MT-141 rather than patched from an adjacent microtask.",
+      "suggested_migration": "tempfile 3.27 removed TempDir::from_path and deprecated TempDir::into_path in favour of keep(). The helper needs either a pin to a tempfile version that still has from_path, or a rewrite of open_existing that does not try to wrap an already-existing directory in a TempDir at all. The second is likely correct: open_existing takes ownership of a caller-supplied path for a close-and-reopen durability proof, which is not what TempDir is for."
+    }
   },
   "scope": {
     "summary": "Port src/backend/handshake_core/tests/ off sqlx/PostgreSQL onto the embedded SurrealDB store. These tests compile against the handshake_core lib, so this MT is implementable only after MT-136/137/138 make the lib compile cleanly. Patterns to follow: unit-adjacent storage tests use SurrealStorage opened at a temporary HANDSHAKE_DATA_DIR (see tests/surreal_test_store_support/ and storage/surreal/test_inspector.rs behind the surreal-test-support feature); API-level tests exercise the product HTTP surface; migration-corpus assertions (apply_migration, DDL-constant asserts) are retired with the corpus per MT-139's recorded SEVER decision and replaced by the schema.surql coverage proof. Test-only isolation comes from per-run data directories, never from schemas or shared clusters. No assertion may be weakened or deleted to make a file compile; each file's proof intent is preserved at equivalent strength or the file's owning behavior is recorded as no-longer-existing with the superseding proof named.",
@@ -119,5 +134,6 @@
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "coder_session": "KERNEL_BUILDER-20260901-MT141-ORCH"
-  }
+  },
+  "updated_at_utc": "2026-09-03T23:53:37.848Z"
 }
