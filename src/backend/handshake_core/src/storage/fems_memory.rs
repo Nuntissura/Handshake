@@ -337,11 +337,39 @@ async fn insert_memory_proposal_with_receipt_inner(
             ));
         }
         let expected = receipt_for_stored_proposal(receipt, &stored)?;
-        let persisted = event_ledger::get_by_idempotency(storage, &expected.idempotency_key)
+        let persisted = match event_ledger::get_by_idempotency(storage, &expected.idempotency_key)
             .await?
-            .ok_or(StorageError::Conflict(
-                "memory proposal exists without its EventLedger receipt",
-            ))?;
+        {
+            Some(existing) => existing,
+            None => {
+                // AC-118-2 ORDERING. Validate the canonical artifact BEFORE writing anything.
+                // `build_memory_proposal_flight_recorder_event` is where the contract check lives,
+                // and it rejects an artifact whose persisted `proposal_id` is not a UUID. Healing
+                // first and validating afterwards would leave a receipt behind for a retry that is
+                // then rejected, which is exactly what the tripwire test forbids. `prepare_event`
+                // derives the candidate receipt without persisting it, so this probe is free.
+                let (probe, _) = event_ledger::prepare_event(expected.clone())?;
+                build_memory_proposal_flight_recorder_event(
+                    &stored,
+                    &probe,
+                    LegacyArtifactHeal::Allow,
+                )?;
+                // WP-KERNEL-012 MT-118 LEGACY HEAL. A proposal row persisted before receipt
+                // hardening can exist with no EventLedger receipt: the pre-upgrade crash window
+                // wrote the proposal and then died. Refusing the retry left that row permanently
+                // unusable, because every retry took this same branch.
+                //
+                // The heal is safe precisely because `receipt_for_stored_proposal` derives the
+                // receipt from DURABLE fields only: `_receipt_identity` when the row carries it,
+                // and otherwise the stored proposal's own persisted values. It never adopts the
+                // headers of whichever retry happens to arrive first, so two concurrent retries
+                // with different task/session headers derive the SAME receipt (AC-118-3, AC-118-4).
+                //
+                // `append` is keyed on `idempotency_key` and returns the existing row when one is
+                // already present, so a race here converges on one receipt rather than writing two.
+                event_ledger::append(storage, expected).await?
+            }
+        };
         validate_existing_proposal_receipt(&persisted, &stored)?;
         ensure_lifecycle_outbox(
             storage,
@@ -2520,9 +2548,56 @@ async fn ensure_lifecycle_outbox(
         })
         .await
         .map_err(StorageError::from)?;
-    let row = row.ok_or(StorageError::Conflict(
-        "memory proposal exists without its lifecycle outbox event",
-    ))?;
+    let row = match row {
+        Some(row) => row,
+        None => {
+            // WP-KERNEL-012 MT-118 LEGACY HEAL, second half. A proposal persisted before the
+            // lifecycle outbox existed has no outbox row, and refusing here left the healed
+            // receipt stranded one step short of convergence. The outbox entry is rebuilt from
+            // the SAME `event` the caller derived from durable proposal fields, and its record id
+            // is the event id, so a concurrent retry that derived the identical event writes the
+            // identical record rather than a duplicate. The verification below still runs on the
+            // row we just wrote, so a heal that produced mismatched evidence is still rejected.
+            let write = lifecycle_outbox_write(
+                &proposal.workspace_id,
+                &proposal.proposal_id,
+                event_code,
+                event,
+            )?;
+            let healed: Option<LifecycleOutboxRow> = storage
+                .with_data_operation(move |database| {
+                    Box::pin(async move {
+                        database
+                            .query_first(
+                                "IF (SELECT VALUE id FROM fems_memory_lifecycle_fr_outbox \
+                                     WHERE proposal_id = $proposal_id \
+                                     AND event_code = $event_code LIMIT 1)[0] != NONE { \
+                                     RETURN SELECT event_id, workspace_id, proposal_id, event_code, \
+                                         event, event_hash, created_at, published_at, attempt_count, \
+                                         last_error, last_error_at, quarantined_at \
+                                         FROM fems_memory_lifecycle_fr_outbox \
+                                         WHERE proposal_id = $proposal_id \
+                                         AND event_code = $event_code LIMIT 1; \
+                                 } ELSE { \
+                                     RETURN CREATE $record CONTENT { \
+                                        event_id: $event_id, workspace_id: $workspace_id, \
+                                        proposal_id: $proposal_id, event_code: $event_code, \
+                                        event: $event, event_hash: $event_hash, \
+                                        created_at: $created_at \
+                                     }; \
+                                 }",
+                                write,
+                            )
+                            .await
+                    })
+                })
+                .await
+                .map_err(StorageError::from)?;
+            healed.ok_or(StorageError::Conflict(
+                "memory proposal lifecycle outbox heal did not persist",
+            ))?
+        }
+    };
     let stored: FlightRecorderEvent = serde_json::from_value(row.event)?;
     if row.event_id != event.event_id.to_string()
         || record_key(row.workspace_id, "lifecycle outbox workspace")? != proposal.workspace_id
