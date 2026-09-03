@@ -31,16 +31,90 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [],
-    "blocks": ["MT-118"],
+    "blocks": [
+      "MT-118"
+    ],
     "active": false,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260903-170735",
     "origin": "Created 2026-09-03 by KERNEL_BUILDER-20260903-170735 under the Operator instruction to open a lane that unblocks MT-118. MT-118 was moved to BLOCKED_ON_DEPENDENCY on 2026-09-02 because its proof targets (PT-118-1, PT-118-2, PT-118-3) all live in the handshake_core LIB test target, which no longer compiles after the PostgreSQL removal.",
     "why_not_mt_141": "MT-141 (B14, port the backend test SUITE off sqlx) cannot absorb this work: its contract allows only `src/backend/handshake_core/tests/` and explicitly lists `src/backend/handshake_core/src/**` under forbidden_paths. The failures blocking MT-118 are in cfg(test) modules INSIDE `src/`, which the LIB test target compiles and the `tests/` tree does not. The two microtasks are therefore disjoint by design and can run in parallel: MT-141 owns the integration-test tree, MT-144 owns the in-crate unit-test modules.",
-    "why_not_mt_118": "MT-118's own allowed_paths cover `src/api/memory.rs` (where 11 of the 24 errors are) but not `src/api/jobs.rs`, `src/api/workspaces.rs`, `src/api/loom.rs`, or `src/bundles/exporter.rs`. The lib test target is all-or-nothing: it does not build until every cfg(test) module in the crate builds, so MT-118 cannot unblock itself."
+    "why_not_mt_118": "MT-118's own allowed_paths cover `src/api/memory.rs` (where 11 of the 24 errors are) but not `src/api/jobs.rs`, `src/api/workspaces.rs`, `src/api/loom.rs`, or `src/bundles/exporter.rs`. The lib test target is all-or-nothing: it does not build until every cfg(test) module in the crate builds, so MT-118 cannot unblock itself.",
+    "claimed_at_utc": "2026-09-03T17:49:16.947Z",
+    "implementation_result_2026_09_03": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260903-170735",
+      "recorded_at_utc": "2026-09-03T19:21:01.377Z",
+      "product_commit": "e2365695",
+      "product_branch": "feat/WP-KERNEL-012",
+      "ac_144_1": {
+        "status": "MET",
+        "detail": "cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support --no-run: 0 errors (was 24). Log Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt144-compile3.log; pre-change inventory in Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt144-compile.log."
+      },
+      "ac_144_2": {
+        "status": "MET",
+        "disposition": "ALL affected tests PORTED; NONE retired, ignored, or weakened. Class A (api/jobs.rs, api/workspaces.rs, bundles/exporter.rs): setup_state moved from optional_postgres_backend_with_pool_from_env to storage::tests::embedded_test_backend. Because the embedded store is always created, the Option/skip is gone and 17 call sites that previously returned Ok(()) when no database was reachable now run unconditionally; 2 tests carrying #[ignore = \"requires real PostgreSQL\"] are un-ignored. Class B (api/loom.rs, api/memory.rs): 10 RecordId::new(&String) -> .as_str(); loom_test_count gained 'static and memory_test_query_first gained Send, both required by SurrealStorage::with_data_operation; ProposalAck derives PartialEq so a retry is compared field-for-field rather than by serialized form; one ? on an ApiError became an explicit expect. fems_memory::upsert_memory_item / count_memory_items now receive &state.surreal instead of a removed pool. No assertion text was changed."
+      },
+      "ac_144_3": {
+        "status": "MET_WITH_DISCLOSURE",
+        "detail": "No SQLite/PostgreSQL identifier, DSN, env var, or helper survives as a live path in the five touched files. Four HISTORICAL doc-comment mentions remain, all authored by this microtask to explain why the skip branch was removed; the same convention already exists in storage/tests.rs. Stale operative language was corrected: test mt258_search_bookmarks_persist_to_postgres_and_event_ledger renamed to ..._persist_to_surreal_..., and two comments/assert messages claiming a PostgreSQL round-trip now name the embedded store."
+      },
+      "ac_144_4": {
+        "status": "MET",
+        "detail": "embedded_test_backend creates a per-run directory under the artifacts test-store root (store-<uuidv7>) and owns a cleanup guard; no shared store, cluster, or fixed path is introduced."
+      },
+      "ac_144_5": {
+        "status": "MET",
+        "detail": "cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support api::memory:: RUNS and reports: 23 passed / 6 failed in 1796s (log Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt144-run3.log). MT-118 now has an executable suite."
+      },
+      "ac_144_6": {
+        "status": "MET",
+        "detail": "cargo build -p handshake_core --bin handshake_core --features app-runtime: Finished (log Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt144-final.log). No test-only change leaked into runtime code."
+      },
+      "store_lifetime_defect_found_and_fixed": {
+        "symptom": "After the compile was restored, all 25 api::memory tests failed instantly with Database(\"embedded database is closed\").",
+        "cause": "setup_state returned only AppState, so the EmbeddedTestBackend, which owns the store cleanup guard (Arc<TestStoreCleanupGuard> with a Drop that shuts the store down and removes its directory), was dropped at the end of setup_state, before the test body ran.",
+        "fix": "setup_state (and loom setup_state_with_embedding, jobs require_mt101_runtime_state) now return (AppState, EmbeddedTestBackend); 54 call sites bind it as _store so the store lives exactly as long as the test and is cleaned up at test end. This was NOT in the original 24-error inventory: it was invisible while the target did not compile.",
+        "also_present_but_not_touched": "src/api/flight_recorder.rs has the identical pattern and therefore the same latent defect. It is OUTSIDE this microtask allowed_paths and is reported here rather than silently fixed."
+      },
+      "remaining_failures_with_attribution": {
+        "mt_118_own_targets": [
+          "legacy_retry_heals_missing_receipt_once_and_converges (PT-118-1; fails 409 \"memory proposal exists without its EventLedger receipt\")",
+          "non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path (AC-118-2 tripwire)"
+        ],
+        "newly_visible_not_mt_118": [
+          "proposal_delete_race_never_leaves_workspace_orphans",
+          "commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits",
+          "list_proposals_is_bounded_deterministic_and_workspace_scoped",
+          "concurrent_workspace_commits_publish_a_pack_containing_both_items (fails 500 internal_error on concurrent commit A)"
+        ],
+        "note": "These four are pre-existing assertion failures that restoring compilation made visible for the first time. They are NOT MT-118 proof targets and NOT introduced by this microtask, which changed no assertion. They need an owner; MT-144 discloses rather than silences them."
+      },
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only; completed_by remains null."
+    },
+    "blocker": "RC-004 only. All six MT-144 acceptance criteria are met and the code work is complete at product e2365695 (lib test target 24 errors -> 0; api::memory:: runs 23/6; product binary builds). The ready receipt is BLOCKED because no cross-platform verification of handshake_core is obtainable: cargo check --target aarch64-pc-windows-msvc dies in DuckDB C++ under clang-cl for arm64 (the MSVC install has no ARM64 compiler), x86_64-unknown-linux-musl has no musl C sysroot on this host so ring cannot compile, and branch CI is unusable because every job except traceability fails at setup or on legacy sqlite/postgres storage matrices (run 33666580708). This is an environment/CI dependency, not a defect in the change. It is the THIRD microtask blocked by the same gap (MT-118, and now MT-144 which exists to unblock MT-118). Resolution needs either an ARM64 MSVC/musl toolchain on this host or a repaired CI workflow, and the workflow files are main-only authoring surfaces requiring explicit Operator authorization for direct-main work.",
+    "ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-09-03T19:22:03.797Z",
+      "actor_session": "KERNEL_BUILDER-20260902-175214",
+      "overall_verdict": "BLOCKED",
+      "product_commit": "e2365695d89bae570694a8329b0203316f448399",
+      "blocked_items": [
+        "RC-004"
+      ]
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-09-03T19:22:31.630Z",
+        "by": "KERNEL_BUILDER-20260903-170735",
+        "reason": "Implementation complete and proven at e2365695; KB_READY_CHECKLIST_RECEIPT BLOCKED on RC-004 (no cross-platform check obtainable for handshake_core on this host, CI broken). Held out of READY_FOR_VALIDATION per the receipt rule.",
+        "previous_status": "CLAIMED",
+        "new_status": "BLOCKED_ON_DEPENDENCY"
+      }
+    ]
   },
   "scope": {
     "summary": "Restore `cargo test -p handshake_core --lib` to a compiling state on the embedded-SurrealDB-only tree, without weakening what the affected unit tests prove. MEASURED at product 7f279596 with `cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support --no-run`: 24 errors across five files, in two distinct classes. CLASS A, removed-PostgreSQL leftovers: `crate::storage::tests::optional_postgres_backend_with_pool_from_env` is imported by cfg(test) modules in `src/api/jobs.rs:383`, `src/api/workspaces.rs:1462` and `src/bundles/exporter.rs:2428` but no longer exists anywhere in the crate, and those same modules construct `AppState` with a `postgres_pool` field that no longer exists (`src/api/jobs.rs:400`, `src/api/workspaces.rs:1479` and `:1520`, `:1536`, `:1549`, `src/bundles/exporter.rs:2487`). AppState now carries `storage: Arc<dyn Database>` and `surreal: SurrealStorage` instead. CLASS B, SurrealDB API mismatches in test code that was never rebuilt after the port: `RecordIdKey: From<&String>` is not satisfied at `src/api/loom.rs:4804` and `:6091` and at `src/api/memory.rs:2512`, `:2733`, `:2809`, `:2843`, `:3274`, `:3908`, `:4697`, `:4929`; a lifetime bound on a generic `B` at `src/api/loom.rs:4578` (E0310/E0311); `R cannot be sent between threads safely` at `src/api/memory.rs:1774` against the bound on `SurrealStorage::with_data_operation`; `ProposalAck` lacks `PartialEq` at `src/api/memory.rs:2354`; and a `?` error conversion from `(StatusCode, Json<Value>)` at `src/api/memory.rs:2407`. The product BINARY already builds cleanly with `--features app-runtime`, so this is confined to test-only code. The work is to port these modules onto the embedded store the way the surviving backend tests do, retiring only what the pivot genuinely removed and naming the superseding proof when a test is retired.",
@@ -84,7 +158,9 @@
     "gui_creation_required": false,
     "argus_required": false,
     "surfaces": [],
-    "expected_evidence": ["compile and test output"],
+    "expected_evidence": [
+      "compile and test output"
+    ],
     "not_applicable_reason": "Backend test-only code restoration with no operator-visible or model-navigable surface."
   },
   "user_manual_obligation": {
@@ -127,9 +203,81 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260903-170735",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": null,
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "e2365695d89bae570694a8329b0203316f448399",
+      "product_branch": "feat/WP-KERNEL-012",
+      "product_worktree": "../wtc-native-editors-v1",
+      "actor_session": "KERNEL_BUILDER-20260902-175214",
+      "prepared_at_utc": "2026-09-03T19:21:59.996Z",
+      "summary": "MT-144 implemented at product e2365695: the handshake_core lib test target compiles again (24 errors to 0) and api::memory:: runs and reports 23 passed / 6 failed, so MT-118 has an executable suite. All affected tests were ported, none retired or weakened, and 17 previously-skipping call sites plus 2 ignored tests now run unconditionally. Implementer evidence only.",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "yes",
+          "explanation": "The contract was authored in this session and its lifecycle names this session and the current commit. Stale reason strings were an explicit target of the work and were corrected: two `#[ignore = \"requires real PostgreSQL; auto-resolves POSTGRES_TEST_URL > DATABASE_URL > managed PostgreSQL\"]` attributes were removed because that condition can no longer occur, a test named ..._persist_to_postgres_and_event_ledger was renamed to ..._persist_to_surreal_..., and two comments and one assertion message claiming a PostgreSQL round-trip now name the embedded store. Four historical doc-comment mentions of PostgreSQL remain by intent, explaining why the skip branch was removed; the same convention already exists in storage/tests.rs.",
+          "evidence_refs": [
+            "MT-144.json#lifecycle.implementation_result_2026_09_03.ac_144_3",
+            "git show e2365695"
+          ],
+          "checked_at_utc": "2026-09-03T19:21:59.996Z"
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "yes",
+          "explanation": "Contract declares allowed_paths, so the helper's dead-code grep was skipped. The change introduces no new public item: it alters five existing cfg(test) helper signatures, their call sites, and test-only expressions. The removed import `optional_postgres_backend_with_pool_from_env` referred to a helper that no longer exists, which is precisely why the target failed to build; nothing else was deleted. The lib test target now compiles with 0 errors, which is itself the check that no reference dangles.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt144-compile3.log"
+          ],
+          "checked_at_utc": "2026-09-03T19:21:59.996Z"
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "yes",
+          "explanation": "Gating was corrected in the strengthening direction. The affected modules are `#[cfg(all(test, feature = \"duckdb-flight-recorder\"))]`, which is intentional and unchanged. Within them, the two `#[ignore]` attributes gated on PostgreSQL availability were removed because the embedded store is always created, and 17 `let Some(state) = setup_state().await? else { ... }` skip branches became unconditional bindings. No test was newly gated, ignored, or filtered out.",
+          "evidence_refs": [
+            "MT-144.json#lifecycle.implementation_result_2026_09_03.ac_144_2",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt144-run3.log"
+          ],
+          "checked_at_utc": "2026-09-03T19:21:59.996Z"
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "no",
+          "explanation": "No cross-platform check was obtained for handshake_core. `cargo check -p handshake_core --target aarch64-pc-windows-msvc` fails in C++ build scripts before reaching this crate's code: the MSVC install carries no ARM64 compiler and DuckDB under clang-cl for arm64 aborts with 'too many errors'. x86_64-unknown-linux-musl is infeasible on this host because there is no musl C sysroot, so ring cannot find assert.h. GitHub CI on feat/WP-KERNEL-012 cannot be cited either: every job except traceability fails at setup steps or on legacy sqlite/postgres storage matrices (run 33666580708). Reported as unmet rather than claimed on the native-crate check, which does not cover this crate.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-core-aarch64-not-feasible.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-linux-musl-not-feasible.log"
+          ],
+          "checked_at_utc": "2026-09-03T19:21:59.996Z"
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "yes",
+          "explanation": "PT-144-1: the pre-change inventory (24 errors across five files) and the post-change clean compile are both captured. PT-144-2: `cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support api::memory::` executed against real embedded SurrealDB stores and reported 23 passed / 6 failed in 1796s; the six are attributed in the contract, two to MT-118's own proof targets and four to pre-existing assertion failures this change made visible, none silenced. The whole-lib run is NOT claimed: each test opens its own RocksDB store and this 29-test subset alone took 30 minutes, so a 2100-test sweep was not run and is recorded as not run rather than implied. PT-144-3: the product binary builds. PT-144-4: the per-file disposition is recorded in ac_144_2. The real resource is a per-test embedded SurrealDB store, not a mock.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt144-compile.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt144-compile3.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt144-run3.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt144-final.log"
+          ],
+          "checked_at_utc": "2026-09-03T19:21:59.996Z"
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260903-170735; lifecycle.completed_by = null; lifecycle.validator_verdict = null. No PASS verdict is issued; the transition sought is CLAIMED to READY_FOR_VALIDATION_V4.",
+          "evidence_refs": [
+            "MT-144.json#lifecycle.claimed_by",
+            "MT-144.json#lifecycle.completed_by"
+          ],
+          "checked_at_utc": "2026-09-03T19:21:59.996Z"
+        }
+      ]
+    }
   }
 }
