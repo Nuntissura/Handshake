@@ -1,0 +1,196 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-147",
+  "title": "B14-MT-147-Repair-The-Branch-CI-Pipeline-So-A-Linux-Build-Of-handshake_core-Can-Be-Cited",
+  "group": "B14",
+  "created_at_utc": "2026-09-03T23:37:02.315Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-147.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "CLAIMED",
+    "depends_on": [],
+    "blocks": [
+      "MT-118",
+      "MT-144",
+      "MT-145",
+      "MT-146"
+    ],
+    "active": true,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260903-213930",
+    "claimed_at_utc": "2026-09-03T23:37:02.315Z",
+    "created_by": "KERNEL_BUILDER-20260903-213930",
+    "created_at_utc": "2026-09-03T23:37:02.315Z",
+    "creation_reason": "RC-004 of the KERNEL_BUILDER ready checklist asks for a cross-platform build check, and it is the sole remaining blocker on MT-118 and MT-144, both of which are otherwise complete and proven. It cannot be satisfied locally: cargo check for aarch64-pc-windows-msvc dies in the DuckDB C++ build under clang-cl because the MSVC install carries no ARM64 compiler, and x86_64-unknown-linux-musl has no musl C sysroot on this host so ring cannot compile. Branch CI is the only remaining path, and ten of its eleven jobs were failing for infrastructure reasons that had nothing to do with the product code, so there was no run to cite. This contract repairs the pipeline.",
+    "origin": "Created 2026-09-04 by KERNEL_BUILDER-20260903-213930 under a direct Operator instruction to stop producing governance artifacts and drive a microtask to READY_FOR_VALIDATION. Every cause below was read from the failing log of run 33666580708, not inferred.",
+    "corrects_earlier_claim": "An earlier blocker note on MT-118 and MT-144 said this work required Operator authorization because the workflow files are main-only. That was wrong and was retracted in commit 85c8dd2a. ci.yml declares on.push.branches [\"**\"], so it already runs on feat/WP-KERNEL-012 and a fix committed to the branch takes effect on the next push."
+  },
+  "scope": {
+    "summary": "Repair .github/workflows/ci.yml on feat/WP-KERNEL-012 so the pipeline runs the jobs it claims to run, and add a job that answers the cross-platform build question directly. The pipeline is product CI: nine of its eleven jobs test product code, and only the governance and traceability jobs are repo governance.",
+    "allowed_paths": [
+      ".github/workflows/ci.yml"
+    ],
+    "forbidden_paths": [
+      "src/**",
+      "app/**",
+      ".GOV/**",
+      ".github/workflows/sandbox-cross-platform-gating-check.yml"
+    ],
+    "embedded_mode_boundary": "SurrealDB and EventLedger only. The repair must remove the remaining sqlite and postgres CI wiring rather than preserve it.",
+    "defects": [
+      {
+        "id": "D-147-1",
+        "observed": "##[error]Unable to locate executable file: pnpm. Please verify either the file path exists or the file can be found within a directory specified by the PATH environment variable.",
+        "jobs": [
+          "validate",
+          "dependency_audit"
+        ],
+        "cause": "actions/setup-node was configured with cache: \"pnpm\", which makes the action shell out to pnpm for its store path during setup. corepack enable ran as the next step, so pnpm was not yet on PATH. The job died about ten seconds in, long before any product step.",
+        "fix": "Move the corepack enable step ahead of Setup Node.js in both jobs."
+      },
+      {
+        "id": "D-147-2",
+        "observed": "error: failed to run custom build command for `libdbus-sys v0.2.7`. The system library `dbus-1` required by crate `libdbus-sys` was not found.",
+        "jobs": [
+          "governance (ubuntu-latest)",
+          "backend-storage (sqlite)",
+          "backend-storage (postgres)",
+          "vuln_scan",
+          "license_scan",
+          "sbom_generate",
+          "secret_scan"
+        ],
+        "cause": "The Ubuntu runner image does not ship the dbus-1 development package, and libdbus-sys is a transitive dependency of the backend, so every job that compiles handshake_core failed at exit 101 in a build script.",
+        "fix": "Install libdbus-1-dev and pkg-config in each job that compiles the backend, folding it into the existing ripgrep install where one is already present."
+      },
+      {
+        "id": "D-147-3",
+        "observed": "backend-storage runs a [sqlite, postgres] matrix with a postgres:16-alpine service container, setting DATABASE_URL=sqlite::memory: on one leg and POSTGRES_TEST_URL plus DATABASE_URL on the other.",
+        "jobs": [
+          "backend-storage"
+        ],
+        "cause": "Stale configuration left behind by the storage pivot. Both backends were removed from the product, so even with the dbus fix these legs would test wiring that no longer exists and would keep the pipeline permanently red.",
+        "fix": "Collapse the matrix to a single embedded run, drop the service container and both env-configuration steps, and keep the storage conformance and MCP e2e invocations unchanged."
+      },
+      {
+        "id": "D-147-4",
+        "observed": "Database(\"HANDSHAKE_ARTIFACTS_ROOT must name the absolute _Artifacts root for embedded tests\"), reproduced locally at src/storage/tests.rs:48.",
+        "jobs": [
+          "every job that runs an embedded-store test"
+        ],
+        "cause": "The embedded test backend resolves its store root only from an explicit absolute HANDSHAKE_ARTIFACTS_ROOT, with relative and current-directory fallbacks deliberately forbidden. CI never set it, so any embedded test would fail on startup rather than on its assertion.",
+        "fix": "Declare HANDSHAKE_ARTIFACTS_ROOT once at workflow level beside CARGO_TARGET_DIR."
+      },
+      {
+        "id": "D-147-5",
+        "observed": "The only Linux compile of handshake_core sat behind the frontend lint, dependency-cruiser and test steps inside the validate job.",
+        "jobs": [
+          "validate"
+        ],
+        "cause": "Not a failure of its own, but a structural weakness: any frontend failure hides the cross-platform build result, and RC-004 then has nothing to cite even when the backend compiles cleanly.",
+        "fix": "Add a small cross-platform-build job that runs cargo check with all targets and all features on Linux and depends on nothing else."
+      }
+    ],
+    "acceptance_criteria": [
+      "AC-147-1: the cross-platform-build job completes successfully on ubuntu-latest, giving RC-004 a citable Linux build of handshake_core with all targets and all features.",
+      "AC-147-2: validate and dependency_audit get past setup-node and actually install frontend dependencies, proving D-147-1 is closed.",
+      "AC-147-3: no job fails on the missing dbus-1 system library.",
+      "AC-147-4: backend-storage runs once against the embedded store, with no matrix, no service container, and no sqlite or postgres environment variable anywhere in the workflow.",
+      "AC-147-5: no product source, no app source and no governance file is modified. The only changed path is .github/workflows/ci.yml.",
+      "AC-147-6: any job still failing after the repair fails for a stated product reason, named and attributed, not for an infrastructure reason. Infrastructure causes must be either fixed or explicitly carried with an owner."
+    ],
+    "proof_targets": [
+      "PT-147-1: the failing baseline, run 33666580708, with the four distinct error signatures quoted.",
+      "PT-147-2: a post-repair run on feat/WP-KERNEL-012 with its per-job conclusions recorded verbatim.",
+      "PT-147-3: the cross-platform-build job green in that run, cited by run id and job name, which is the artefact RC-004 needs.",
+      "PT-147-4: a per-job before-and-after comparison so any job that is still red is attributed rather than glossed."
+    ],
+    "execution_constraints": [
+      "The workflow triggers on push to branches \"**\", so every push to the branch consumes a full pipeline. Batch changes rather than pushing one-line experiments.",
+      "A full run takes roughly 25 minutes; budget for that rather than assuming a hang.",
+      "Do not touch sandbox-cross-platform-gating-check.yml, which is a separate gating surface.",
+      "The shared .git/info/exclude lists /.github, so staging ci.yml prints an ignore hint. The file is tracked and stages correctly; the hint is not an error."
+    ],
+    "risk_if_missed": "RC-004 stays unsatisfiable for every backend microtask in this packet, so MT-118 and MT-144 sit at BLOCKED_ON_DEPENDENCY with complete, proven code, and MT-145 and MT-146 would land in the same state on completion. The pipeline also stays uniformly red, which destroys its signal value: a real regression would be indistinguishable from the standing infrastructure noise."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "CI run conclusions"
+    ],
+    "not_applicable_reason": "Continuous integration configuration with no operator-visible or model-navigable product surface."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No product behaviour, command, config key, IPC channel, or navigation path changes. Nothing shipped to a user changes."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "CI_REPAIR_WITHOUT_SIGNAL_LOSS",
+    "risks": [
+      "Reaching green by deleting or disabling jobs rather than fixing them, which trades a red pipeline for a pipeline that proves nothing.",
+      "Removing the backend-storage matrix in a way that also drops the storage conformance or MCP e2e invocations, silently reducing coverage while the job turns green.",
+      "Declaring RC-004 satisfied from a queued or in-progress run instead of a completed one.",
+      "Citing the cross-platform-build job as evidence for a product commit other than the one it actually ran against.",
+      "Treating the pipeline as repo governance and routing it through the light path, when nine of eleven jobs test product code."
+    ],
+    "minimum_controls": [
+      "AC-147-4 requires the conformance and e2e invocations to survive the matrix collapse.",
+      "AC-147-6 forbids leaving an infrastructure failure unattributed.",
+      "PT-147-4 requires a per-job before-and-after comparison, so a job that vanished cannot be mistaken for a job that passed.",
+      "PT-147-3 must cite a completed run id and the head sha it ran against."
+    ],
+    "adversarial_validation_lenses": [
+      "anti-scaffold / runtime-proof",
+      "correctness",
+      "coverage preservation"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "No product runtime behaviour changes; the HBR-INT-009 three-tier consideration is NOT_APPLICABLE. Only CI configuration is touched.",
+    "VIS": "NOT_APPLICABLE: no GUI, operator, diagnostic, or frontend surface is touched.",
+    "MAN": "NOT_APPLICABLE per user_manual_obligation: nothing user-facing changes.",
+    "QUIET": "All work is remote CI and local git; nothing foregrounds or steals focus.",
+    "STOP": "No capacity, token, or session-count stop reasons. A job that cannot be repaired is carried with a named owner under AC-147-6, not deleted."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": "KERNEL_BUILDER-20260903-213930",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "baseline_failing_run": "33666580708"
+  }
+}
