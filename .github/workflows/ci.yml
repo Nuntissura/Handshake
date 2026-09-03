@@ -366,8 +366,17 @@ jobs:
       - name: Install Linux build deps
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
 
+      # Deliberately scoped to the library and binaries plus the in-crate test
+      # layer. --all-targets would also compile src/backend/handshake_core/tests/**,
+      # which MT-141 owns and which does not currently compile at all: tempfile
+      # resolves to 3.27.0, where TempDir::from_path no longer exists
+      # (tests/atelier_surreal_support/mod.rs:124). Including it here would make
+      # this job report another microtask defect instead of the build result.
       - name: Cross-platform build check (Linux)
-        run: cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features
+        run: cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib --bins --all-features
+
+      - name: Cross-platform in-crate test-layer compile (Linux)
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --all-features --no-run
 
   traceability:
     runs-on: ubuntu-latest
