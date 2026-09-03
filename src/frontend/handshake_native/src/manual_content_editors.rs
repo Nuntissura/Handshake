@@ -1983,7 +1983,17 @@ proof starts with the navigated date absent, drives the mounted next-day control
 one durable journal identity that reopens idempotently. For a multi-day event, each selected date owns its \
 session's exact journal binding; navigating to day two never retains the start day's document id. The outer Calendar nav uses daily-journal-prev-day, \
 daily-journal-next-day, daily-journal-today, daily-journal-calendar-toggle, and daily-journal-date-display; the \
-embedded editor keeps the distinct journal-* ids, so agents never select a control by tree order. If Start writing \
+embedded editor keeps the distinct journal-* ids, so agents never select a control by tree order. Either date-nav \
+row is a valid input to the SAME selected date: when the embedded editor's journal-* nav moves independently, the \
+app mirrors that date into the mounted Calendar state and supersedes the in-flight calendar read, so an agent may \
+drive whichever row it can address and both surfaces converge on one date. Both rows reserve their buttons against \
+the pane's right edge and let the date display truncate into the remaining width (the full date stays on hover when \
+it is elided). That layout is load-bearing, not cosmetic: before MT-143 the unbounded date display consumed the row \
+and pushed journal-next-day, journal-calendar-toggle, and journal-today past the pane's right edge, where the \
+neighbouring pane painted over them. Their AccessKit nodes still reported enabled, visible, correctly-bounded \
+Buttons, so a click at a node centre was delivered to the neighbouring pane and the navigation silently never \
+happened. If a date-nav click appears to do nothing, verify the control's bounds lie inside its own pane before \
+assuming the navigation path is broken.If Start writing \
 creates a rich document but the backend cannot durably attach it to the Loom block, the editor keeps the session \
 document visible and surfaces journal-document-link-gap instead of pretending the block has a persisted \
  document_id. Timed events preserve UTC instants, IANA tzid, original local wall times, floating-time \

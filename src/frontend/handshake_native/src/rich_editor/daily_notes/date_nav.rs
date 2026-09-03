@@ -283,53 +283,79 @@ impl<'a> DateNavWidget<'a> {
     pub fn show(mut self, ui: &mut egui::Ui) -> DateNavOutcome {
         let mut outcome = DateNavOutcome::None;
         ui.horizontal(|ui| {
-            // ← Previous day.
+            // ← Previous day stays leftmost.
             let prev = ui.button("◀");
             accessibility::emit_interactive_node(ui.ctx(), prev.id, self.author_ids.prev_day);
             if prev.clicked() {
                 outcome = DateNavOutcome::Navigated(self.nav.prev_day());
             }
 
-            // The current-date display (an interactive label → addressable, and clicking it toggles the
-            // calendar, mirroring the calendar-icon affordance for convenience).
-            let display = self.nav.current_display();
-            let date_resp = ui.add(
-                egui::Label::new(
-                    egui::RichText::new(&display)
-                        .color(self.palette.text)
-                        .strong(),
-                )
-                .sense(egui::Sense::click()),
-            );
-            accessibility::emit_interactive_node(
-                ui.ctx(),
-                date_resp.id,
-                self.author_ids.date_display,
-            );
-            if date_resp.clicked() {
-                self.nav.calendar_open = !self.nav.calendar_open;
-            }
+            // WP-KERNEL-012 MT-143. The date DISPLAY is unbounded content ("Thursday, September 3,
+            // 2026"), so laying it out left-to-right BEFORE the trailing controls let it consume the
+            // row and pushed the buttons past the pane's right edge and UNDER the neighbouring pane.
+            // MEASURED 2026-09-03 in the mounted 1100x760 harness: pane-a spanned x 228.0..444.0 while
+            // journal-next-day rendered at 433.7..455.1 (half outside), journal-calendar-toggle at
+            // 463.1..484.5 and journal-today at 492.5..535.6 (both ENTIRELY outside, inside pane-b's
+            // 444.0..660.0). A click at the next-day node CENTRE (444.4, 285.5) therefore landed on
+            // pane-b's rich-text editor, the navigation silently never happened, and the AccessKit
+            // nodes still reported enabled, visible, correctly-bounded Buttons - so an agent could
+            // address and "click" three controls that neither it nor an operator could actually reach.
+            //
+            // Same class as the MT-119 saved-search row and the MT-122 result-row badge, and the same
+            // remedy: reserve the CONTROLS against the row's right edge first, then let the label
+            // truncate into whatever remains. `right_to_left` places the first-added widget rightmost,
+            // so the buttons are added in reverse visual order to preserve the operator-visible order
+            // [◀] [date] [▶] [📅] [Today].
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                // Today.
+                let today = ui.button("Today");
+                accessibility::emit_interactive_node(ui.ctx(), today.id, self.author_ids.today);
+                if today.clicked() {
+                    outcome = DateNavOutcome::Navigated(self.nav.jump_today());
+                }
 
-            // Next day →.
-            let next = ui.button("▶");
-            accessibility::emit_interactive_node(ui.ctx(), next.id, self.author_ids.next_day);
-            if next.clicked() {
-                outcome = DateNavOutcome::Navigated(self.nav.next_day());
-            }
+                // 📅 calendar toggle.
+                let cal = ui.button("📅");
+                accessibility::emit_interactive_node(
+                    ui.ctx(),
+                    cal.id,
+                    self.author_ids.calendar_toggle,
+                );
+                if cal.clicked() {
+                    self.nav.calendar_open = !self.nav.calendar_open;
+                }
 
-            // 📅 calendar toggle.
-            let cal = ui.button("📅");
-            accessibility::emit_interactive_node(ui.ctx(), cal.id, self.author_ids.calendar_toggle);
-            if cal.clicked() {
-                self.nav.calendar_open = !self.nav.calendar_open;
-            }
+                // Next day →.
+                let next = ui.button("▶");
+                accessibility::emit_interactive_node(ui.ctx(), next.id, self.author_ids.next_day);
+                if next.clicked() {
+                    outcome = DateNavOutcome::Navigated(self.nav.next_day());
+                }
 
-            // Today.
-            let today = ui.button("Today");
-            accessibility::emit_interactive_node(ui.ctx(), today.id, self.author_ids.today);
-            if today.clicked() {
-                outcome = DateNavOutcome::Navigated(self.nav.jump_today());
-            }
+                // The current-date display (an interactive label → addressable, and clicking it
+                // toggles the calendar, mirroring the calendar-icon affordance for convenience). It
+                // truncates into the width the controls left behind; egui's `show_tooltip_when_elided`
+                // defaults to true and fires only when the galley was actually elided, so the full
+                // date stays recoverable on hover EXACTLY when it is hidden.
+                let display = self.nav.current_display();
+                let date_resp = ui.add(
+                    egui::Label::new(
+                        egui::RichText::new(&display)
+                            .color(self.palette.text)
+                            .strong(),
+                    )
+                    .truncate()
+                    .sense(egui::Sense::click()),
+                );
+                accessibility::emit_interactive_node(
+                    ui.ctx(),
+                    date_resp.id,
+                    self.author_ids.date_display,
+                );
+                if date_resp.clicked() {
+                    self.nav.calendar_open = !self.nav.calendar_open;
+                }
+            });
         });
 
         // The calendar popup (a fixed 6×7 month grid) when open.
@@ -432,6 +458,153 @@ mod tests {
 
     fn d(y: i32, m: u32, day: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, day).unwrap()
+    }
+
+    /// WP-KERNEL-012 MT-143. EVERY date-nav control must render inside its pane.
+    ///
+    /// The defect this pins: the date display is unbounded content, and laying it out before the
+    /// trailing controls pushed them past the pane's right edge and UNDER the neighbouring pane.
+    /// MEASURED in the mounted 1100x760 harness on 2026-09-03 with pane-a at x 228.0..444.0:
+    /// `journal-next-day` rendered at 433.7..455.1 (half outside), `journal-calendar-toggle` at
+    /// 463.1..484.5 and `journal-today` at 492.5..535.6 (both entirely outside). Their AccessKit
+    /// nodes still reported enabled, visible, correctly-bounded Buttons, so a canonical click at the
+    /// next-day node CENTRE landed on the neighbouring pane's editor and the navigation silently did
+    /// not happen. Automated addressability and human reachability had diverged, which is the same
+    /// failure MT-119 and MT-122 fixed on the Find-in-Files rows.
+    #[test]
+    fn mt143_date_nav_controls_stay_inside_the_journal_pane() {
+        use crate::accessibility::{collect_ui_tree_snapshot, UiNodeBounds};
+
+        // 216px is not a tuning convenience: it is the EXACT width of the pane the defect was
+        // measured in (pane-a spanned 228.0..444.0). Guarding at a comfortable width would not have
+        // reproduced it.
+        const PANE_WIDTH: f32 = 216.0;
+        // A long weekday+month display ("Wednesday, September 30, 2026") is what consumes the row.
+        let date = d(2026, 9, 30);
+        let nav_cell = std::cell::RefCell::new(DateNav::new(date, date));
+
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        // Pin DPI: AccessKit bounds are logical pixels, so pinning ppp keeps them directly comparable
+        // to the egui points the pane rect is measured in.
+        ctx.set_pixels_per_point(1.0);
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(1280.0, 800.0),
+            )),
+            ..Default::default()
+        };
+
+        let pane_rect_cell = std::cell::Cell::new(egui::Rect::NOTHING);
+        let run_pass = || {
+            ctx.run(input.clone(), |ctx| {
+                egui::SidePanel::left("mt143-journal-pane")
+                    .resizable(false)
+                    .exact_width(PANE_WIDTH)
+                    .show(ctx, |ui| {
+                        // The panel's CLIP rect is its visible boundary; the Frame response rect
+                        // grows to include overflow and would make this guard vacuous (the mistake
+                        // MT-119 documented).
+                        pane_rect_cell.set(ui.clip_rect());
+                        let palette = crate::theme::HsTheme::Dark.palette();
+                        let _ = DateNavWidget::new(&mut nav_cell.borrow_mut(), &palette).show(ui);
+                    });
+            })
+        };
+        // Two passes: the right-to-left reservation settles on the second, the same two-frame settle
+        // the mounted interaction proofs use.
+        let _first = run_pass();
+        let second = run_pass();
+
+        let update = second
+            .platform_output
+            .accesskit_update
+            .expect("AccessKit update produced (accesskit enabled + frame run)");
+        let snapshot = collect_ui_tree_snapshot(&update);
+        let pane_rect = pane_rect_cell.get();
+
+        // ── INTERLOCK I1: the pane really is bounded ──────────────────────────────────────────────
+        assert!(
+            pane_rect.width() > 0.0 && pane_rect.width() <= PANE_WIDTH + 2.0,
+            "INTERLOCK I1: the journal pane must be genuinely bounded to ~{PANE_WIDTH}px before \
+             containment means anything; measured {:.3}px",
+            pane_rect.width()
+        );
+
+        // ── INTERLOCK I3: fail closed on a missing node or missing bounds ─────────────────────────
+        let bounds_of = |author_id: &str| -> UiNodeBounds {
+            snapshot
+                .find_unique_by_author_id(author_id)
+                .unwrap_or_else(|| panic!("the date-nav row must publish exactly one {author_id}"))
+                .bounds
+                .expect("the addressed date-nav control must carry rendered AccessKit bounds")
+        };
+        let ids = JOURNAL_DATE_NAV_AUTHOR_IDS;
+
+        // ── INTERLOCK I2: the fixture genuinely stresses the row ──────────────────────────────────
+        // Measure the UNTRUNCATED date galley in this same context rather than hardcoding font
+        // metrics, so a future font change cannot quietly shrink the fixture below the overflow
+        // point. Together with the four buttons the natural row cannot fit, so truncation is doing
+        // real work and containment is not free.
+        let body_font = egui::TextStyle::Body.resolve(&ctx.style());
+        let measure_palette = crate::theme::HsTheme::Dark.palette();
+        let untruncated_date_width = ctx.fonts_mut(|fonts| {
+            fonts
+                .layout_no_wrap(
+                    nav_cell.borrow().current_display(),
+                    body_font,
+                    measure_palette.text,
+                )
+                .size()
+                .x
+        });
+        let buttons_width: f32 = [ids.prev_day, ids.next_day, ids.calendar_toggle, ids.today]
+            .iter()
+            .map(|id| bounds_of(id).w)
+            .sum();
+        assert!(
+            untruncated_date_width + buttons_width > pane_rect.width() * 1.2,
+            "INTERLOCK I2: the fixture must genuinely overflow the row — the untruncated date lays \
+             out at {untruncated_date_width:.3}px and the four controls at {buttons_width:.3}px \
+             against a {:.3}px pane, which is under the 1.2x floor",
+            pane_rect.width()
+        );
+
+        // ── The containment claim itself ──────────────────────────────────────────────────────────
+        // EVERY addressable control, not just the one the Calendar suite happened to click. A control
+        // that renders outside the pane is unreachable for an operator and mis-targeted for an agent,
+        // even while its AccessKit node looks perfectly clickable.
+        for author_id in [
+            ids.prev_day,
+            ids.date_display,
+            ids.next_day,
+            ids.calendar_toggle,
+            ids.today,
+        ] {
+            let b = bounds_of(author_id);
+            assert!(
+                b.x >= pane_rect.left() - 1.0 && b.x + b.w <= pane_rect.right() + 1.0,
+                "MT-143: `{author_id}` must render fully inside the journal pane. It rendered \
+                 x=[{:.3}, {:.3}] against a pane of x=[{:.3}, {:.3}]. Outside that boundary the \
+                 control is painted under the neighbouring pane, so a click at its centre is \
+                 delivered to the neighbour and the action silently never happens.",
+                b.x,
+                b.x + b.w,
+                pane_rect.left(),
+                pane_rect.right()
+            );
+        }
+
+        // ── The date must stay legible, not be elided into nothing ────────────────────────────────
+        // Truncation that leaves no readable date would trade one operator defect for another.
+        let date_bounds = bounds_of(ids.date_display);
+        assert!(
+            date_bounds.w >= 40.0,
+            "MT-143: the date display must keep a readable width after truncation; it collapsed to \
+             {:.3}px",
+            date_bounds.w
+        );
     }
 
     #[test]
