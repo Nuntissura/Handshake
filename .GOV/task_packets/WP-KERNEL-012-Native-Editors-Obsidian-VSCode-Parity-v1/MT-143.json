@@ -1,0 +1,312 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-143",
+  "title": "E10-MT-143-Make-Mounted-Journal-Date-Navigation-Land-While-A-Calendar-Read-Is-In-Flight",
+  "group": "E10",
+  "created_at_utc": "2026-09-03T17:10:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-143.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION_V4",
+    "depends_on": [],
+    "blocks": [
+      "MT-117"
+    ],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260903-170735",
+    "origin": "Created 2026-09-03 by KERNEL_BUILDER-20260903-170735 under the Operator instruction to open a lane for the Calendar navigation defect found while closing the MT-117/121/122/135 readiness batch. MT-117 PT-117-2 requires the MT-067 Calendar suite green; test_calendar_interop::mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue fails deterministically (30/31) and is NOT an MT-117 defect: MT-117 owns completion observers, this is the navigation dispatch path. Recorded per the standing rule that a gap outside the current MT becomes a new MT in the same work packet rather than being lost or silently absorbed.",
+    "diagnosis_carried_from_mt117": "See MT-117.json lifecycle.pt_117_2_calendar_failure_diagnosis_2026_09_03 for the seven-run reproduction record and the ruled-out causes (host load, disk, stray processes, fixture locks, binding-root env vars, clock rollover, and the DateNavWidget row's own egui scope).",
+    "claimed_at_utc": "2026-09-03T17:11:21.244Z",
+    "implementation_result_2026_09_03": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260903-170735",
+      "recorded_at_utc": "2026-09-03T17:42:52.267Z",
+      "product_commit": "4a44f2a2",
+      "product_branch": "feat/WP-KERNEL-012",
+      "product_worktree": "../wtc-native-editors-v1",
+      "ac_143_1_measurement": {
+        "status": "MET",
+        "method": "Temporary per-frame instrumentation inside the failing test (removed after measurement; the test file is byte-identical to HEAD again) dumping, across the click, the journal-next-day node id, its AccessKit bounds, disabled/hidden/role, the mounted DailyJournalState, the request count, EVERY node whose bounding box contains the click point, and every date-nav control's x-extent against its pane's.",
+        "hypotheses_refuted": [
+          "IDENTITY drift: the node id was byte-identical across all four frames (#11751707163392076598), so the MT-113/MT-117 id-drift class was NOT the cause here.",
+          "POSITION drift: the bounding box was byte-identical across all four frames (433.71875..455.09375 x 276.5..294.5).",
+          "Disabled or hidden control: disabled=false, hidden=false, role=Button on every frame."
+        ],
+        "actual_mechanism": "OCCLUSION BY AN ADJACENT PANE. The stack dump at the click point (444.4, 285.5) returned journal-next-day (433.72..455.09) AND pane-b (444.0..660.0) AND editor.rich.text (444.0..660.0). pane-a, which owns the journal editor, spans x 228.0..444.0. The date-nav row overflowed it: journal-next-day 433.7..455.1 (half outside), journal-calendar-toggle 463.1..484.5 and journal-today 492.5..535.6 (both ENTIRELY outside). egui_kittest and canonical Argus dispatch a click at the node rect CENTRE, so the click landed on pane-b's rich-text editor. The navigation therefore never ran, which is why no PUT /loom/journals/<second_date> and no second-date calendar GET ever reached the mock server.",
+        "root_cause": "The date display is unbounded content laid out BEFORE the trailing controls, so it consumed the row width and pushed the buttons past the pane's right edge. Identical class to the MT-119 saved-search row and the MT-122 result-row badge.",
+        "evidence": [
+          "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-diag-raw.log"
+        ]
+      },
+      "ac_143_2_fix": {
+        "status": "MET",
+        "change": "src/rich_editor/daily_notes/date_nav.rs: the trailing controls are reserved against the row's right edge via ui.with_layout(egui::Layout::right_to_left(egui::Align::Center)) and added in reverse visual order, then the date display truncates into the remaining width. Operator-visible order is unchanged: [prev] [date] [next] [calendar] [today].",
+        "post_fix_measurement": "All five controls inside pane-a (228.0..444.0): prev 228.0..249.4, date-display 262.1..334.1, next-day 342.1..363.5, calendar-toggle 371.5..392.8, today 400.8..444.0.",
+        "product_evidence": "The navigation now actually dispatches: the previously failing test reaches the second date and the mock server receives the second-date traffic it was waiting for."
+      },
+      "ac_143_3_cross_surface_answer": {
+        "status": "MET",
+        "answer": "YES, by design. The mounted daily-journal panel DOES follow the embedded editor's date navigation. app.rs mirrors the editor's date into the Calendar state and supersedes the in-flight calendar read: 'Treat either control as an input to the SAME selected-date state: when the already-bound editor moved independently, mirror that date into the Calendar state and supersede the previous request before deriving the request key.' The test's assertion was therefore correct all along, and the only defect was that the click never landed. No assertion was weakened and the test was not retargeted.",
+        "manual_update": "src/manual_content_editors.rs: records which nav row owns which state, that either row is an input to the same selected date, that both rows reserve buttons against the pane edge with a truncating date label, and that a date-nav click doing nothing should first be checked for out-of-pane bounds."
+      },
+      "ac_143_4_calendar_suite": {
+        "status": "MET",
+        "command": "cargo test -p handshake-native --features integration --test test_calendar_interop -- --test-threads=1",
+        "result": "31 passed / 0 failed (previously 30 passed / 1 failed). The in-flight precondition is untouched: the mock still holds the first response for 2s and the click is still issued while that read is in flight. No deadline was widened and no assertion was deleted.",
+        "evidence": [
+          "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-regression.log"
+        ]
+      },
+      "ac_143_5_regressions": {
+        "status": "MET",
+        "results": {
+          "full_native_lib": "2094 passed / 0 failed (2093 before, +1 is this MT's new guard)",
+          "test_manual_content": "41 passed / 0 failed",
+          "test_author_id_budget": "12 passed / 0 failed",
+          "test_stage_interop": "31 passed / 0 failed (an initial 30/31 was the suite's own MT-066 cleanliness gate tripping on a line-ending-only dirty file left by the diagnostic teardown, not a product regression; the file was normalised and the suite re-run clean at 4a44f2a2)",
+          "test_other_pillar_interop_proofs": "26 passed / 0 failed"
+        },
+        "evidence": [
+          "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-regression.log",
+          "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-regression2.log"
+        ]
+      },
+      "ac_143_6_class_answer": {
+        "status": "MET_AS_DISCLOSURE",
+        "guard_added": "mt143_date_nav_controls_stay_inside_the_journal_pane, at the 216px pane width where the defect was measured. It asserts EVERY addressable date-nav control lies inside the pane clip rect, and carries interlocks: I1 the pane is genuinely bounded, I2 the fixture genuinely overflows (untruncated date + control widths exceed 1.2x the pane), I3 fail-closed on a missing node or missing bounds, plus a floor on the truncated date width so containment is not bought by eliding the date away.",
+        "non_vacuity_proof": "RED with the fix reverted and the guard present: journal-date-display rendered x=[37.375, 227.719] against a 216px pane. GREEN with the fix applied.",
+        "surviving_candidates_not_fixed_here": "A heuristic scan for the same shape (a dynamically-built label rendered in a horizontal row alongside buttons, with no .truncate()) names three UNMEASURED candidates: app.rs, graph/sidebar_panel.rs, graph/tags_panel.rs. find_in_files.rs is already covered by the MT-119 and MT-122 fixes. These are candidates from a grep, NOT measured defects: none has been rendered in a bounded pane and checked. Disclosed here rather than fixed, because fixing unmeasured surfaces would be scope creep and measuring them needs its own harness work. The MT-143 guard is directly reusable as the measurement idiom."
+      },
+      "hbr_posture": {
+        "INT": "Tier 1 Flight Recorder unchanged and still asserted zero native FR posts on the cancellation path by the now-passing test. Tier 2 internal_diagnostics and Tier 3 Palmistry DEFERRED-with-reason: this change is a layout reservation in one widget and touches neither surface.",
+        "VIS": "Mounted AccessKit bounds evidence before and after, plus the RED/GREEN containment guard.",
+        "MAN": "UserManual updated in the same change; test_manual_content 41/41.",
+        "QUIET": "All proof runs headless; no foregrounding and no focus steal.",
+        "STOP": "No capacity-based stop. The one genuine unknown, the three unmeasured candidate surfaces, is disclosed rather than silently dropped."
+      },
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only; completed_by remains null pending official validation."
+    },
+    "ready_for_validation_v4_at_utc": "2026-09-03T17:43:37.480Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260903-170735",
+    "ready_for_validation_at_utc": "2026-09-03T17:43:37.480Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260903-170735",
+    "ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-09-03T17:43:37.480Z",
+      "actor_session": "KERNEL_BUILDER-20260902-175214",
+      "overall_verdict": "PASS",
+      "product_commit": "4a44f2a2cfc6a032c52f94a136d30169ff6e025a"
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-09-03T17:43:50.272Z",
+        "by": "KERNEL_BUILDER-20260903-170735",
+        "reason": "Implemented and proven at product 4a44f2a2 with KB_READY_CHECKLIST_RECEIPT PASS; all six acceptance criteria met, RED/GREEN guard captured. Validator verdict remains null.",
+        "previous_status": "CLAIMED",
+        "new_status": "READY_FOR_VALIDATION_V4"
+      }
+    ],
+    "handoff_note": "Unblocks MT-117 PT-117-2: test_calendar_interop is 31/31 at 4a44f2a2."
+  },
+  "scope": {
+    "summary": "A mounted next-day click on the daily-journal surface must actually navigate while a calendar read for the previous date is still in flight. Today it does not. test_calendar_interop::mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue clicks the journal-EDITOR next-day control (author_id `journal-next-day`, JOURNAL_DATE_NAV_AUTHOR_IDS, rendered by rich_editor/daily_notes/journal_panel.rs line 439) and then waits for the MOUNTED graph::daily_journal_panel::DailyJournalState to reach the second date with projection NoEvent. It never does. The mock request log captured at the failure shows only first-date traffic after the click: GET /knowledge/documents, POST /loom/search-v2, PUT /loom/journals/<first_date>, GET /api/flight_recorder, and the /calendar/events GET for <first_date> twice. There is no PUT /loom/journals/<second_date> and no /calendar/events GET for <second_date>. Because the editor's own handler (journal_panel.rs, DateNavOutcome::Navigated -> state.store.open(date)) would itself have issued that PUT, the editor's nav did not advance either. The click is therefore NOT landing on the control at all, rather than landing and being dropped downstream. Two mechanisms remain open and must be distinguished by measurement before any fix: (a) POSITION drift, since egui_kittest dispatches a click at the observed node's rect and the conditional projection labels in graph/daily_journal_panel.rs ('Loading calendar event and activity...', 'Waiting for daily note...', 'Calendar binding paused...') appear and disappear as the transient read settles, moving every widget below them between the inspected frame and the frame that processes the click; (b) IDENTITY drift of an ANCESTOR of the nav row, the same class MT-113 and MT-117 hit. Stabilizing the DateNavWidget row itself was already attempted and did NOT change the outcome, and that attempt was reverted, so the row's own scope is not the cause. This microtask must also decide and record whether the mounted daily-journal panel is expected to follow the EDITOR's date navigation at all: the editor nav writes only the editor's own DateNav and store, while the mounted panel's nav advances only through DailyJournalEvent::DateNavigated emitted by the panel's own widget (author_ids DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS, graph/daily_journal_panel.rs line 563). If no such cross-surface sync is intended, then the product contract is what needs stating and the test must be corrected to the surface that owns the state it asserts on, with the reasoning recorded rather than the assertion weakened.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_editor/daily_notes/journal_panel.rs",
+      "src/frontend/handshake_native/src/rich_editor/daily_notes/date_nav.rs",
+      "src/frontend/handshake_native/src/graph/daily_journal_panel.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      "app/**"
+    ],
+    "embedded_mode_boundary": "Frontend-only. This microtask must not add, restore, or depend on SQLite or PostgreSQL, and must not change backend storage. The Calendar reads under test are served by the test's transient mock server, not by a real backend.",
+    "acceptance_criteria": [
+      "AC-143-1: the mechanism is MEASURED before it is fixed. Record, per frame across the click, the `journal-next-day` node id AND its rect, plus the mounted DailyJournalState projection, and state which of position drift, ancestor identity drift, or a third cause is responsible. A fix landed without that measurement does not satisfy this microtask; this is the exact discipline that closed MT-113.",
+      "AC-143-2: after the change, a mounted next-day click issued while a calendar read for the previous date is still in flight results in the navigation actually taking effect on the surface that owns the clicked control, proven by the product issuing the second date's request rather than by a UI assertion alone.",
+      "AC-143-3: the cross-surface question is answered explicitly, both in this contract and in the in-product UserManual where it is operator- or model-visible: either the mounted daily-journal panel follows the editor's date navigation (and that wiring exists and is tested), or it does not (and the test asserts against the surface that owns the state). No silent reinterpretation of the assertion.",
+      "AC-143-4: test_calendar_interop passes 31/31 with --test-threads=1 against an owned current-source backend, and the previously failing test is green for the right reason, not by widening a deadline, deleting an assertion, or removing the in-flight precondition the test exists to exercise.",
+      "AC-143-5: no regression in the surfaces that share these files. test_stage_interop, test_other_pillar_interop_proofs, test_author_id_budget, and the full native lib suite stay green at the final tree.",
+      "AC-143-6: if the root cause is layout or position drift of a click target, state whether the same hazard exists for other mounted controls sitting below conditional status labels, and either fix the class or record the surviving instances as a named follow-up rather than leaving the finding undisclosed."
+    ],
+    "proof_targets": [
+      "PT-143-1: the per-frame measurement from AC-143-1, captured verbatim to the external artifacts root, showing the failing behaviour BEFORE the change and the corrected behaviour after.",
+      "PT-143-2: `cargo test -p handshake-native --features integration --test test_calendar_interop -- --test-threads=1` => 31 passed / 0 failed against an owned backend built from this worktree into an owner-scoped target dir.",
+      "PT-143-3: regression set green at the final tree: test_stage_interop, test_other_pillar_interop_proofs, test_author_id_budget, and the full native lib suite.",
+      "PT-143-4: the RED capture, that is the previously failing assertion reproduced on the pre-fix tree, retained alongside the GREEN result so a validator can see that the change is what moved it."
+    ],
+    "execution_constraints": [
+      "CARGO_TARGET_DIR must be an owner-scoped child of ../Handshake_Artifacts/handshake-cargo-target/ with a SHORT slug: a 260-character path in a scoped dir made MSVC fail to open bundled DuckDB headers on 2026-09-02 (procedural memory #10599).",
+      "The owned backend binary must be built from THIS worktree and passed through HSK_TEST_BACKEND_BIN; the fixture rejects a binary older than its current source inputs.",
+      "Do not weaken the canonical Argus contract, the driver's strict terminal gate, or any assertion in test_calendar_interop in order to make the suite green."
+    ],
+    "risk_if_missed": "MT-117 PT-117-2 stays unprovable, so a microtask whose other two proof targets are already met cannot reach validation. More seriously, if the cause is position or ancestor identity drift then EVERY mounted click a model drives through Argus is unreliable whenever a conditional status label sits above the target, which silently converts model-driven GUI proof across this work packet into timing luck. MT-113 was exactly that, and it passed for weeks before it failed."
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "surfaces": [
+      "Daily journal editor date navigation (journal-prev-day, journal-next-day, journal-today, journal-calendar-toggle, journal-date-display)",
+      "Mounted daily-journal calendar panel (daily-journal-* date nav, chip, and projection labels)"
+    ],
+    "expected_evidence": [
+      "per-frame node id and rect measurement across the click",
+      "mounted frame or AccessKit tree evidence for the corrected navigation",
+      "before and after observation recorded for the changed surface"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "The daily-journal and Calendar agent navigation entry: state which date-nav control owns which state, and whether the mounted calendar panel follows the editor's navigation, so a no-context model drives the surface that actually owns the date it intends to change."
+    ],
+    "expected_evidence": [
+      "manual diff in the same change",
+      "test_manual_content green"
+    ],
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "MOUNTED_GUI_CLICK_RELIABILITY",
+    "risks": [
+      "Fixing the symptom by settling the projection before the click, which deletes the in-flight precondition the test exists to prove.",
+      "Declaring the test wrong in order to avoid a real product defect in the navigation path.",
+      "Fixing only this one control while the same position or identity hazard remains on every other target below a conditional label.",
+      "A fix that passes on a quiet host and fails under load, trading one timing accident for another."
+    ],
+    "minimum_controls": [
+      "The in-flight precondition must still hold at the moment of the click, and the proof must show that it did.",
+      "The RED capture is retained next to the GREEN one.",
+      "The class question in AC-143-6 is answered rather than skipped."
+    ],
+    "adversarial_validation_lenses": [
+      "correctness",
+      "spec-conformance",
+      "anti-scaffold / runtime-proof",
+      "concurrency and timing",
+      "interconnectivity with other mounted surfaces",
+      "HBR-VIS visual and Argus evidence"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "Observable runtime behaviour changes, so record the HBR-INT-009 three-tier posture: Tier 1 Flight Recorder unchanged (the test asserts zero native FR posts on the cancellation path and that must stay true); Tier 2 internal_diagnostics and Tier 3 Palmistry DEFERRED-with-reason unless the change touches their surfaces.",
+    "VIS": "Mounted GUI behaviour: Argus or mounted-frame evidence required per AC-143-1 and the gui_obligation above.",
+    "MAN": "UserManual updated in the same change per user_manual_obligation.",
+    "QUIET": "Proof runs stay headless and must not foreground the app or steal focus.",
+    "STOP": "No capacity, token, or session-count stop reasons. If the cause is a genuine architectural gap in the navigation path, report the exact blocker rather than narrowing the test."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": "KERNEL_BUILDER-20260903-170735",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "4a44f2a2cfc6a032c52f94a136d30169ff6e025a",
+      "product_branch": "feat/WP-KERNEL-012",
+      "product_worktree": "../wtc-native-editors-v1",
+      "actor_session": "KERNEL_BUILDER-20260902-175214",
+      "prepared_at_utc": "2026-09-03T17:43:31.014Z",
+      "summary": "MT-143 implemented at product 4a44f2a2: the date-nav row's controls rendered OUTSIDE their pane and the neighbouring pane intercepted the click, which is why the Calendar cancellation test's navigation silently never happened. Measured, fixed with the MT-119/MT-122 right-to-left reservation idiom, guarded by a non-vacuous containment test with a RED/GREEN capture. Implementer evidence only.",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "yes",
+          "explanation": "The contract was authored in this session and every lifecycle field names this session and the current commit. lifecycle.implementation_result_2026_09_03 supersedes nothing and contradicts nothing: the two hypotheses carried in scope.summary (identity drift, position drift) are recorded as REFUTED with the measurement that refuted them, rather than left standing. No error message, reason string, or lifecycle.*_reason references a prior MT, a prior remediator session, or a superseded approval.",
+          "evidence_refs": [
+            "MT-143.json#lifecycle.implementation_result_2026_09_03.ac_143_1_measurement",
+            "MT-143.json#lifecycle.origin"
+          ],
+          "checked_at_utc": "2026-09-03T17:43:31.014Z"
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "yes",
+          "explanation": "Contract declares allowed_paths rather than owned_files, so the helper's dead-code grep was skipped. Evidence instead: the change adds no new public item. It rewraps existing widget calls inside DateNavWidget::show, extends one UserManual string, and adds one #[test]. cargo check -p handshake-native --features integration --lib --tests reports the same five pre-existing dead_code lints as before the change, all unused private test helpers in other files (tests/test_undo_scope.rs:1221, tests/native_gui_support/hit_reachability.rs:40 and :53, tests/test_event_emitter.rs:118, tests/test_other_pillar_interop_proofs.rs:1122), none of them in MT-143's touched files.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-regression.log",
+            "git show 4a44f2a2 --stat"
+          ],
+          "checked_at_utc": "2026-09-03T17:43:31.014Z"
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "yes",
+          "explanation": "The one test added, mt143_date_nav_controls_stay_inside_the_journal_pane, is an ungated #[test] in the date_nav tests module and ran in the default full native lib suite (2094 passed, one more than the 2093 baseline, which is exactly this test). It needs no backend and no GPU: it drives an egui::Context directly and asserts AccessKit bounds, so it is correct to leave it ungated and it will run on every host.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-regression.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-red-green.log"
+          ],
+          "checked_at_utc": "2026-09-03T17:43:31.014Z"
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "yes",
+          "explanation": "cargo check -p handshake-native --target aarch64-pc-windows-msvc --lib --tests --features integration finished clean on 2026-09-02 for this crate, with clang-cl driving the C build scripts because the MSVC install carries no ARM64 compiler. That check covers the crate this change touches. x86_64-unknown-linux-musl remains infeasible on this host: no musl C sysroot, so ring cannot find assert.h. GitHub CI on feat/WP-KERNEL-012 cannot be cited: every job except traceability fails at setup steps or on legacy sqlite/postgres storage matrices (run 33666580708), which is itself recorded as a governance finding.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-native-aarch64-pc-windows-msvc.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-linux-musl-not-feasible.log"
+          ],
+          "checked_at_utc": "2026-09-03T17:43:31.014Z"
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "yes",
+          "explanation": "All four proof targets executed at product 4a44f2a2 on a clean worktree. PT-143-1: the per-frame measurement is captured verbatim, refuting identity drift (node id byte-identical across four frames) and position drift (bounds byte-identical), and establishing occlusion instead: the click point (444.4, 285.5) resolved to journal-next-day AND pane-b AND editor.rich.text, with pane-a at 228.0..444.0 while next-day rendered 433.7..455.1, calendar-toggle 463.1..484.5 and today 492.5..535.6. Post-fix all five controls sit inside the pane. PT-143-2: test_calendar_interop 31 passed / 0 failed with --test-threads=1 against an owned backend built from this worktree. PT-143-3: full native lib 2094/2094, test_manual_content 41/41, test_author_id_budget 12/12, test_stage_interop 31/31, test_other_pillar_interop_proofs 26/26. PT-143-4: the RED capture is retained beside the GREEN one, with the fix reverted and the guard present the guard fails on journal-date-display rendering x=[37.375, 227.719] against a 216px pane. The real resource exercised is the mounted HandshakeApp AccessKit tree plus an owned embedded-SurrealDB backend process, not a mock.",
+          "evidence_refs": [
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-diag-raw.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-red-green.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-regression.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-regression2.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-stage-rerun.log"
+          ],
+          "checked_at_utc": "2026-09-03T17:43:31.014Z"
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260903-170735; lifecycle.completed_by = null; lifecycle.validator_verdict = null. KERNEL_BUILDER issues no PASS verdict here; the transition sought is CLAIMED to READY_FOR_VALIDATION_V4 only.",
+          "evidence_refs": [
+            "MT-143.json#lifecycle.claimed_by",
+            "MT-143.json#lifecycle.completed_by"
+          ],
+          "checked_at_utc": "2026-09-03T17:43:31.014Z"
+        }
+      ]
+    }
+  }
+}
