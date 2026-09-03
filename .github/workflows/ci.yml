@@ -59,8 +59,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable corepack
-        run: corepack enable
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -176,7 +178,9 @@ jobs:
       - name: Install gitleaks (pinned)
         run: |
           set -euo pipefail
-          go install github.com/gitleaks/gitleaks/v8@v${GITLEAKS_VERSION}
+          # At v8.18.4 the module still declares its path as zricethezav/gitleaks;
+          # requiring it as gitleaks/gitleaks is a version-constraint conflict.
+          go install github.com/zricethezav/gitleaks/v8@v${GITLEAKS_VERSION}
           GOPATH_BIN="$(go env GOPATH)/bin"
           echo "$GOPATH_BIN" >> "$GITHUB_PATH"
           export PATH="$GOPATH_BIN:$PATH"
@@ -254,10 +258,14 @@ jobs:
       - name: Install syft (pinned)
         run: |
           set -euo pipefail
-          go install github.com/anchore/syft/cmd/syft@v${SYFT_VERSION}
-          GOPATH_BIN="$(go env GOPATH)/bin"
-          echo "$GOPATH_BIN" >> "$GITHUB_PATH"
-          export PATH="$GOPATH_BIN:$PATH"
+          # syft cannot be go install-ed: its go.mod carries replace directives,
+          # which go install rejects. Use the pinned release binary instead.
+          SYFT_BIN="$RUNNER_TEMP/syft-bin"
+          mkdir -p "$SYFT_BIN"
+          curl -fsSL "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz" -o "$RUNNER_TEMP/syft.tar.gz"
+          tar -xzf "$RUNNER_TEMP/syft.tar.gz" -C "$SYFT_BIN" syft
+          echo "$SYFT_BIN" >> "$GITHUB_PATH"
+          export PATH="$SYFT_BIN:$PATH"
           syft version
 
       - name: Run supply-chain MEX (sbom_generate)
@@ -316,8 +324,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable corepack
-        run: corepack enable
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
