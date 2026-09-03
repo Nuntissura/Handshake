@@ -1,0 +1,141 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-145",
+  "title": "B14-MT-145-Restore-The-flight_recorder-And-workflows-In-Crate-Tests-To-Actually-Run-Against-A-Live-Embedded-Store",
+  "group": "B14",
+  "created_at_utc": "2026-09-03T22:59:00.571Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-145.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [
+      "MT-144"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "created_by": "KERNEL_BUILDER-20260903-213930",
+    "created_at_utc": "2026-09-03T22:59:00.571Z",
+    "creation_reason": "MT-144 restored the handshake_core lib test target to a compiling state and fixed the store-lifetime defect in five modules (api/jobs.rs, api/workspaces.rs, api/loom.rs, api/memory.rs, bundles/exporter.rs). Two modules were left untouched because they fall outside the MT-144 allowed_paths, and they carry the identical defect: api/flight_recorder.rs and workflows.rs. Both were disclosed rather than silently left, and this contract gives them an owner.",
+    "origin": "Created 2026-09-04 by KERNEL_BUILDER-20260903-213930 from a code-verified finding while completing MT-118. Not speculative: the defect is visible in the source and is the same one that produced the embedded-database-is-closed error on all 25 api::memory tests before MT-144 fixed it there.",
+    "why_not_mt_144": "MT-144 declares allowed_paths covering only api/jobs.rs, api/workspaces.rs and api/loom.rs, plus the api/memory.rs and bundles/exporter.rs work its acceptance criteria name. Widening that contract after its ready receipt was emitted would invalidate the receipt, so the remaining two modules get their own contract instead.",
+    "why_not_mt_141": "MT-141 owns src/backend/handshake_core/tests/**, the out-of-crate integration suite. Everything here is in-crate cfg(test) code under src/, which MT-141 forbids."
+  },
+  "scope": {
+    "summary": "Make the in-crate cfg(test) modules in api/flight_recorder.rs and workflows.rs run against a live embedded SurrealDB store instead of a store that has already been shut down, and delete the vestigial skip branches that can no longer be taken. Today both modules build, but their setup_state helpers destroy the store before the first assertion runs.",
+    "defect": "Both helpers are declared to return Result<Option<AppState>, Box<dyn std::error::Error>>. Each calls embedded_test_backend, moves the database and storage fields into the AppState, and then lets the partially-moved EmbeddedTestBackend fall out of scope at the end of the function. EmbeddedTestBackend carries a private cleanup field holding an Arc<TestStoreCleanupGuard> whose Drop shuts the store down and removes its data directory, and the Arc strong count is 1 at that point, so the shutdown always runs. Every test that then touches storage gets the embedded-database-is-closed error. This is the exact failure MT-144 diagnosed and fixed in the other five modules by returning the backend alongside the state and binding it so it outlives the test body.",
+    "secondary_defect": "Both helpers still return an Option and always return Some, a shape left over from the PostgreSQL era when the backend could legitimately be absent. 28 call sites in api/flight_recorder.rs and 26 in workflows.rs still open with a let-else that returns Ok early when the state is None, so each of those 54 tests carries a silent-skip branch that can never be taken. The branch is dead today, but it is the same construct that let 17 tests pass while proving nothing before MT-144 removed it.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/flight_recorder.rs",
+      "src/backend/handshake_core/src/workflows.rs"
+    ],
+    "forbidden_paths": [
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/src/api/memory.rs",
+      "src/frontend/**",
+      "app/**"
+    ],
+    "embedded_mode_boundary": "SurrealDB and EventLedger only. No SQLite and no PostgreSQL may be added, restored, imported, or referenced as a live backend. Historical mentions in doc comments that explain why a skip branch was removed are permitted, matching the convention already used in storage/tests.rs and accepted for MT-144.",
+    "acceptance_criteria": [
+      "AC-145-1: setup_state in both modules returns the EmbeddedTestBackend alongside the AppState so the store outlives every assertion, using the same tuple shape MT-144 established.",
+      "AC-145-2: all 54 let-else skip call sites become unconditional bindings that also hold the backend for the life of the test. No test keeps a branch that can return Ok without asserting anything.",
+      "AC-145-3: no assertion is weakened, ignored, or deleted to make a test pass. Every test that fails once the store is live must be either fixed or recorded with a named owner and a stated reason; none may be quietly marked ignore.",
+      "AC-145-4: the full api::flight_recorder and workflows in-crate suites are run and their pass and fail counts recorded verbatim, including a per-test attribution for every failure.",
+      "AC-145-5: no SQLite or PostgreSQL identifier, DSN, env var, or helper survives as live code in either module.",
+      "AC-145-6: the product binary still builds, proving the change stayed inside cfg(test)."
+    ],
+    "proof_targets": [
+      "PT-145-1: a RED capture taken BEFORE the fix showing at least one test in each module failing with the embedded-database-is-closed error, so the defect is demonstrated rather than asserted.",
+      "PT-145-2: the api::flight_recorder in-crate suite run to completion with counts recorded.",
+      "PT-145-3: the workflows in-crate suite run to completion with counts recorded.",
+      "PT-145-4: the product binary build still succeeds."
+    ],
+    "execution_constraints": [
+      "CARGO_TARGET_DIR must be an owner-scoped child of ../Handshake_Artifacts/handshake-cargo-target/ with a SHORT slug. Bundled DuckDB C++ headers hit the MSVC 260-character path limit and fail with C1083 if the target path is long; enabling long paths in the registry does not help cl.exe.",
+      "HANDSHAKE_ARTIFACTS_ROOT must be set to the absolute artifacts root or embedded_test_backend refuses to start.",
+      "Each test opens its own RocksDB store, so a 28-test module takes roughly 30 minutes. Budget for that rather than assuming a hang.",
+      "Do not touch src/backend/handshake_core/tests/**: MT-141 owns that tree.",
+      "Do not touch api/memory.rs: its three remaining assertion failures are owned by MT-146."
+    ],
+    "risk_if_missed": "54 in-crate tests currently compile and are counted as present but cannot exercise storage at all. Any of them expected to guard flight-recorder ingestion or workflow execution against regression is providing no protection, and the vestigial skip branch means a future refactor could turn them from loud failures into silent passes. This is the same class of hidden proof loss that MT-144 exists to undo."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "compile and test output"
+    ],
+    "not_applicable_reason": "Backend test-only harness repair with no operator-visible or model-navigable surface."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No product behaviour, tool, command, config key, IPC channel, or navigation path changes; the work is confined to cfg(test) code."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "TEST_RESTORATION_WITHOUT_PROOF_LOSS",
+    "risks": [
+      "Reaching green by re-adding a skip branch or an ignore attribute, which converts a visible failure back into a silent pass and recreates the exact condition this contract exists to remove.",
+      "Binding the returned backend to a bare underscore, which drops it immediately and reintroduces the defect while looking like the fix.",
+      "Tests that have never actually run against storage may fail for real once the store is live; treating those as breakage caused by this change and weakening the assertion to compensate.",
+      "Replacing a real storage assertion with a mock so the test compiles and passes but proves nothing."
+    ],
+    "minimum_controls": [
+      "PT-145-1 requires the RED to be captured before the fix, so the pre-existing state is on the record.",
+      "AC-145-3 requires every post-fix failure to carry a named owner and a stated reason rather than an ignore attribute.",
+      "AC-145-4 requires per-test attribution, not a summary count.",
+      "AC-145-6 proves the runtime binary is untouched."
+    ],
+    "adversarial_validation_lenses": [
+      "correctness",
+      "anti-scaffold / runtime-proof",
+      "data-loss and recovery"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "No observable runtime behaviour changes, so the HBR-INT-009 three-tier consideration is NOT_APPLICABLE. The change is confined to cfg(test) code.",
+    "VIS": "NOT_APPLICABLE: no GUI, operator, diagnostic, or frontend surface is touched.",
+    "MAN": "NOT_APPLICABLE per user_manual_obligation: no product behaviour, command, channel, config key, or navigation path changes.",
+    "QUIET": "Compiles and test runs stay headless and must not foreground anything or steal focus.",
+    "STOP": "No capacity, token, or session-count stop reasons. A test that genuinely cannot be made to pass is recorded with its owner and reason under AC-145-3, not silenced."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  }
+}

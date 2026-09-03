@@ -22,7 +22,7 @@
   "title": "B8-MT-123-Make-Isolated-Test-Store-Teardown-Crash-Safe-And-Reclaim-Stranded-Embedded-Store-Directories",
   "group": "B-Backend",
   "created_at_utc": "2026-08-12T11:50:00Z",
-  "updated_at_utc": "2026-08-16T08:20:00Z",
+  "updated_at_utc": "2026-09-03T23:03:15.081Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-123.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -63,7 +63,21 @@
       ]
     },
     "ready_for_validation_at_utc": "2026-08-31T22:31:42.530Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260831-145417"
+    "ready_for_validation_by": "KERNEL_BUILDER-20260831-145417",
+    "field_evidence_disclosure_2026_09_04": {
+      "schema_id": "hsk.mt_field_evidence_note@1",
+      "recorded_by": "KERNEL_BUILDER-20260903-213930",
+      "recorded_at_utc": "2026-09-03T23:03:15.081Z",
+      "product_commit": "a153d2cee6f7851ee4a831978c636df37171c899",
+      "status_unchanged": "READY_FOR_VALIDATION",
+      "requirements_unchanged": true,
+      "note": "Disclosure only. No MT-123 requirement, acceptance criterion, proof target, or status is changed by this entry. While capturing unrelated RED evidence for api::memory on 2026-09-04, every one of three runs against a fresh embedded store ended with the same GRACEFUL teardown failure, so the validator should see it before ruling on MT-123.",
+      "observed_verbatim": "HANDSHAKE_TEST_STORE_CLEANUP_FAILURE database error: shutdown failed: embedded database shutdown is still draining operations after 30000 ms; closure continues in the background; cleanup failed for <store dir>: The process cannot access the file because it is being used by another process. (os error 32); embedded test store still exists after teardown: <store dir>",
+      "reproduction": "Any single api::memory test run from the handshake_core lib target on this Windows host at a153d2ce. Observed on store-01a0697b2b3d7d638bd24f5641d9dfe5 and store-01a0697e926c78008b2ee2ad8af546c3 under Handshake_Artifacts/handshake-test/storage-conformance/.",
+      "why_it_may_not_contradict_mt_123": "MT-123 acceptance criteria target reclamation of a store whose owning process DIED without reaching teardown (AC-123-1), plus liveness-based safety, concurrency safety, bounded reporting, path confinement, and harness inheritance. The failure observed here is on the graceful path: the process is alive, teardown runs, the 30 second shutdown drain expires, and the directory cannot be removed because RocksDB still holds a handle. A later reclamation pass would likely clear the leftover directory once no lock is held, which is exactly what MT-123 builds.",
+      "why_the_validator_should_still_look": "AC-123-6 requires that existing tests keep passing unchanged once the harness owns teardown. Here the harness teardown is emitting a failure string on every run and leaving the directory behind, so the validator should confirm whether AC-123-6 is satisfied in practice on Windows, or whether the graceful-drain timeout needs its own owner. This is a question for the validator, not a verdict from the implementer.",
+      "evidence_ref": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/orphan3-red.log"
+    }
   },
   "scope": {
     "summary": "RESCOPED 2026-08-16 from PostgreSQL to the embedded SurrealDB store. The original microtask targeted isolated per-test POSTGRESQL SCHEMA teardown and a 1009-schema backlog; PostgreSQL has been physically deleted, so there are no schemas to leak and no pg_class rows to count. THE UNDERLYING RISK IS UNCHANGED AND STILL REAL, which is why this is rescoped rather than closed: test isolation now comes from a per-run HANDSHAKE_DATA_DIR directory containing a handshake-surreal RocksDB store, and a test process that is killed or panics mid-run strands that directory on disk. Each store is measured in hundreds of megabytes to gigabytes, so a stranded-store backlog degrades proof runs and consumes the artifacts volume exactly the way the schema backlog did. Prior work exists and must be built on, not duplicated: tests/surreal_test_store_crash_safety_tests.rs and tests/surreal_test_store_support/ were created by the 2026-08-13 session and are committed. RocksDB holds an exclusive LOCK file while a store is open, and SurrealStorage::shutdown on Windows already waits until that LOCK is re-acquirable, so LOCK acquirability is the available liveness signal for deciding whether a store directory is genuinely orphaned or still owned by a live run.",
