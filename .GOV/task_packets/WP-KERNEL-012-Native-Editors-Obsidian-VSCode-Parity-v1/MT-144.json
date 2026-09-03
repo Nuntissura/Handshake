@@ -1,0 +1,135 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-144",
+  "title": "B14-MT-144-Restore-The-handshake_core-In-Crate-Test-Modules-To-Compile-On-Embedded-SurrealDB",
+  "group": "B14",
+  "created_at_utc": "2026-09-03T18:40:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [],
+    "blocks": ["MT-118"],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "origin": "Created 2026-09-03 by KERNEL_BUILDER-20260903-170735 under the Operator instruction to open a lane that unblocks MT-118. MT-118 was moved to BLOCKED_ON_DEPENDENCY on 2026-09-02 because its proof targets (PT-118-1, PT-118-2, PT-118-3) all live in the handshake_core LIB test target, which no longer compiles after the PostgreSQL removal.",
+    "why_not_mt_141": "MT-141 (B14, port the backend test SUITE off sqlx) cannot absorb this work: its contract allows only `src/backend/handshake_core/tests/` and explicitly lists `src/backend/handshake_core/src/**` under forbidden_paths. The failures blocking MT-118 are in cfg(test) modules INSIDE `src/`, which the LIB test target compiles and the `tests/` tree does not. The two microtasks are therefore disjoint by design and can run in parallel: MT-141 owns the integration-test tree, MT-144 owns the in-crate unit-test modules.",
+    "why_not_mt_118": "MT-118's own allowed_paths cover `src/api/memory.rs` (where 11 of the 24 errors are) but not `src/api/jobs.rs`, `src/api/workspaces.rs`, `src/api/loom.rs`, or `src/bundles/exporter.rs`. The lib test target is all-or-nothing: it does not build until every cfg(test) module in the crate builds, so MT-118 cannot unblock itself."
+  },
+  "scope": {
+    "summary": "Restore `cargo test -p handshake_core --lib` to a compiling state on the embedded-SurrealDB-only tree, without weakening what the affected unit tests prove. MEASURED at product 7f279596 with `cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support --no-run`: 24 errors across five files, in two distinct classes. CLASS A, removed-PostgreSQL leftovers: `crate::storage::tests::optional_postgres_backend_with_pool_from_env` is imported by cfg(test) modules in `src/api/jobs.rs:383`, `src/api/workspaces.rs:1462` and `src/bundles/exporter.rs:2428` but no longer exists anywhere in the crate, and those same modules construct `AppState` with a `postgres_pool` field that no longer exists (`src/api/jobs.rs:400`, `src/api/workspaces.rs:1479` and `:1520`, `:1536`, `:1549`, `src/bundles/exporter.rs:2487`). AppState now carries `storage: Arc<dyn Database>` and `surreal: SurrealStorage` instead. CLASS B, SurrealDB API mismatches in test code that was never rebuilt after the port: `RecordIdKey: From<&String>` is not satisfied at `src/api/loom.rs:4804` and `:6091` and at `src/api/memory.rs:2512`, `:2733`, `:2809`, `:2843`, `:3274`, `:3908`, `:4697`, `:4929`; a lifetime bound on a generic `B` at `src/api/loom.rs:4578` (E0310/E0311); `R cannot be sent between threads safely` at `src/api/memory.rs:1774` against the bound on `SurrealStorage::with_data_operation`; `ProposalAck` lacks `PartialEq` at `src/api/memory.rs:2354`; and a `?` error conversion from `(StatusCode, Json<Value>)` at `src/api/memory.rs:2407`. The product BINARY already builds cleanly with `--features app-runtime`, so this is confined to test-only code. The work is to port these modules onto the embedded store the way the surviving backend tests do, retiring only what the pivot genuinely removed and naming the superseding proof when a test is retired.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/jobs.rs",
+      "src/backend/handshake_core/src/api/workspaces.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/src/api/memory.rs",
+      "src/backend/handshake_core/src/bundles/exporter.rs",
+      "src/backend/handshake_core/src/storage/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/handshake_core/tests/**",
+      "src/frontend/**",
+      "app/**"
+    ],
+    "embedded_mode_boundary": "SurrealDB/EventLedger only. No SQLite and no PostgreSQL may be added, restored, imported, shimmed, or referenced as a supported path. A replacement for the removed `optional_postgres_backend_with_pool_from_env` must open a Handshake-managed embedded SurrealDB store at a per-run temporary HANDSHAKE_DATA_DIR, never a server, cluster, or shared database.",
+    "acceptance_criteria": [
+      "AC-144-1: `cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support --no-run` compiles with zero errors. This is the gate MT-118 is waiting on and it is all-or-nothing.",
+      "AC-144-2: no assertion is weakened, ignored, or deleted to reach a compile. Each affected test is either PORTED to the embedded store at equivalent proof strength, or RETIRED with the removed behaviour named and its superseding proof cited. A test that now passes vacuously is a failure of this microtask.",
+      "AC-144-3: no SQLite or PostgreSQL identifier, DSN, env var, helper, or language survives in the touched modules except a deliberate forbidden-technology tripwire whose stated purpose is detection.",
+      "AC-144-4: any replacement test-backend helper opens an embedded SurrealDB store under a per-run temporary data directory, so binaries and runs cannot contend on shared state.",
+      "AC-144-5: `cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support api::memory::` RUNS and reports its result, so MT-118's PT-118-1 through PT-118-3 become executable. This microtask does not have to make MT-118's own assertions pass, but it must hand MT-118 a suite that can actually run.",
+      "AC-144-6: the product binary still builds (`cargo build -p handshake_core --bin handshake_core --features app-runtime`), proving no test-only change leaked into runtime code."
+    ],
+    "proof_targets": [
+      "PT-144-1: the pre-change error inventory and the post-change clean compile, both captured verbatim, so a validator can see the 24 errors close.",
+      "PT-144-2: `cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support` executed, with the pass/fail tally recorded. Failures that belong to MT-118's own assertions are reported as MT-118 work, not silenced here.",
+      "PT-144-3: `cargo build -p handshake_core --bin handshake_core --features app-runtime` still succeeds.",
+      "PT-144-4: a per-file disposition table naming, for every affected test, whether it was ported or retired and against what."
+    ],
+    "execution_constraints": [
+      "CARGO_TARGET_DIR must be an owner-scoped child of ../Handshake_Artifacts/handshake-cargo-target/ with a SHORT slug: a 260-character path made MSVC fail to open bundled DuckDB headers on 2026-09-02 (procedural memory #10599).",
+      "Backend compiles on this host run roughly 20 to 35 minutes; budget for that rather than assuming a fast edit-compile loop.",
+      "Do not touch `src/backend/handshake_core/tests/**`: MT-141 owns that tree and is separately claimed."
+    ],
+    "risk_if_missed": "MT-118 stays BLOCKED_ON_DEPENDENCY and cannot be validated. More broadly, while the lib test target does not compile, EVERY in-crate unit test in handshake_core is silently unrunnable: the crate's whole unit-test layer is dark, and a regression in it cannot be detected by any suite. That gap is invisible in CI because branch CI is already failing for unrelated setup reasons."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": ["compile and test output"],
+    "not_applicable_reason": "Backend test-only code restoration with no operator-visible or model-navigable surface."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No product behaviour, tool, command, config key, IPC channel, or navigation path changes; this restores test-only code to a compiling state. If a port turns out to require a runtime change, that change carries its own UserManual obligation."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "TEST_RESTORATION_WITHOUT_PROOF_LOSS",
+    "risks": [
+      "Reaching a compile by deleting or #[ignore]-ing the awkward tests, which converts a visible blocker into an invisible coverage hole.",
+      "Replacing a real storage assertion with a mock so the test compiles but proves nothing.",
+      "Retiring a test as PostgreSQL-only when the behaviour it covered still exists on the embedded store.",
+      "Quietly reintroducing a shared store or fixed data directory, so binaries contend and results become order-dependent.",
+      "Letting a test-only edit leak into runtime code paths."
+    ],
+    "minimum_controls": [
+      "AC-144-2's port-or-retire disposition is recorded per test, not summarised.",
+      "AC-144-6 proves the runtime binary is untouched.",
+      "Per-run temporary data directories are asserted, not assumed."
+    ],
+    "adversarial_validation_lenses": [
+      "correctness",
+      "anti-scaffold / runtime-proof",
+      "data-loss and recovery",
+      "concurrency and swarm-safety",
+      "forbidden-technology containment"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "No observable runtime behaviour changes, so the HBR-INT-009 three-tier consideration is NOT_APPLICABLE for Tier 1 Flight Recorder, Tier 2 internal_diagnostics and Tier 3 Palmistry, with the reason that this microtask restores test-only compilation and touches no runtime path. If a port forces a runtime change, that change re-opens this obligation.",
+    "VIS": "NOT_APPLICABLE: no GUI, operator, diagnostic, or frontend surface is touched.",
+    "MAN": "NOT_APPLICABLE per user_manual_obligation: no product behaviour, command, channel, config key, or navigation path changes.",
+    "QUIET": "Compiles and test runs stay headless and must not foreground anything or steal focus.",
+    "STOP": "No capacity, token, or session-count stop reasons. A test that genuinely cannot be ported is retired with its superseding proof named, or reported as an exact blocker; it is never silenced."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  }
+}

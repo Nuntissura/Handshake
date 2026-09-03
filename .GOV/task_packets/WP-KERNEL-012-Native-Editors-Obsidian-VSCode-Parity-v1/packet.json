@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-03T00:03:50.640Z",
+  "updated_at_utc": "2026-09-03T17:48:05.376Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -493,7 +493,9 @@
       "MT-139",
       "MT-140",
       "MT-141",
-      "MT-142"
+      "MT-142",
+      "MT-143",
+      "MT-144"
     ],
     "active_id": null,
     "next_id": null,
@@ -614,7 +616,7 @@
       "MT-114": "READY_FOR_VALIDATION_V4",
       "MT-115": "READY_FOR_VALIDATION_V4",
       "MT-116": "READY_FOR_VALIDATION_V4",
-      "MT-117": "BLOCKED_ON_DEPENDENCY",
+      "MT-117": "READY_FOR_VALIDATION_V4",
       "MT-118": "BLOCKED_ON_DEPENDENCY",
       "MT-119": "READY_FOR_VALIDATION_V4",
       "MT-120": "READY_FOR_VALIDATION_V4",
@@ -639,7 +641,9 @@
       "MT-139": "READY_FOR_VALIDATION_V4",
       "MT-140": "READY_FOR_VALIDATION_V4",
       "MT-141": "CLAIMED",
-      "MT-142": "READY_FOR_DEV"
+      "MT-142": "READY_FOR_DEV",
+      "MT-143": "READY_FOR_VALIDATION_V4",
+      "MT-144": "READY_FOR_DEV"
     },
     "kernel_builder_sequence_note": "KERNEL_BUILDER re-sequence 2026-06-24: the E8 proof capstones MT-044 (parity suite, depends_on 001-043+047-062), MT-045 (perf proof), MT-046 (interconnection proof) are DEFERRED to the END of the WP - they prove the whole editor set + most of their proofs require live WP-scoped embedded SurrealDB/EventLedger (NEEDS_MANAGED_RESOURCE_PROOF). Build the remaining FEATURE MTs first in numeric order: E1-deepening 047-054, E2-deepening 055-059, E3-deepening 060-062, E9 063-065, E10 066-068+074, E11 host-mount 069-071 (the convergence point that mounts the editors live + clears the carry-forwards), E12 072-073, E13 i18n 075-078. THEN run the 044-046 capstones last for a truthful comprehensive parity manifest.",
     "wp_status": "IN_PROGRESS_OPEN_REPAIR",
@@ -697,7 +701,7 @@
     "contract_glob": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json",
     "authoring_status": "AUTHORED",
     "authored_at_utc": "2026-06-21T00:00:00Z",
-    "authored_count": 142,
+    "authored_count": 144,
     "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21); +4 i18n MT-075..MT-078 (E13) authored directly by KERNEL_BUILDER 2026-06-22 (operator-ordered scope expansion, based on the existing MT template). All reviewed by KERNEL_BUILDER. ; +47 MT-079..MT-127 authored across the V2/V3/V4 remediation waves; +1 MT-128 authored 2026-08-13 by KERNEL_BUILDER-20260812-113007 (MT-043 live-child wall-clock budget, isolated while re-proving AC-120-3). Count corrected from 81 to 128 by direct file census of the contract glob, which is the authority - the stale number was never load-bearing because discovery is glob-based, but a wrong count invites a wrong completeness claim. ; +5 MT-129..MT-133 authored 2026-08-13 from root-caused MT-108 sweep failures and the MT-117 contract conflict. ; +2 MT-140..MT-141 authored 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator SurrealDB-only directive: MT-140 owns the frontend test-suite PostgreSQL-language purge and the broken run_fixture_sql call sites the fixture conversion left behind; MT-141 owns the backend test-suite port off sqlx (~190 files), which MT-137's notes had flagged as needing its own microtask. Count 141 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 by an Operator-requested governance subagent for SurrealDB-only parallel swarm concurrency/load hardening, bounded retry with jitter, coarse-lock replacement, lifecycle stress, structured metrics and two-lens adversarial validation. Count 142 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 (Operator-requested SurrealDB swarm concurrency/load MT). Count 142 by direct file census of the contract glob on 2026-09-02; MT-136-candidate-boundary.json is a non-contract sidecar and is excluded."
   },
   "packet_acceptance_matrix": {
@@ -1204,7 +1208,7 @@
       "MT-114": "READY_FOR_VALIDATION_V4",
       "MT-115": "READY_FOR_VALIDATION_V4",
       "MT-116": "READY_FOR_VALIDATION_V4",
-      "MT-117": "BLOCKED_ON_DEPENDENCY",
+      "MT-117": "READY_FOR_VALIDATION_V4",
       "MT-118": "BLOCKED_ON_DEPENDENCY",
       "MT-119": "READY_FOR_VALIDATION_V4",
       "MT-120": "READY_FOR_VALIDATION_V4",
@@ -1229,7 +1233,9 @@
       "MT-139": "READY_FOR_VALIDATION_V4",
       "MT-140": "READY_FOR_VALIDATION_V4",
       "MT-141": "CLAIMED",
-      "MT-142": "READY_FOR_DEV"
+      "MT-142": "READY_FOR_DEV",
+      "MT-143": "READY_FOR_VALIDATION_V4",
+      "MT-144": "READY_FOR_DEV"
     },
     "status_sync_note_2026_08_31_mt108_v4_repair": "MT-108 moved CLAIMED/FAIL_V4 -> READY_FOR_VALIDATION_V4/PENDING_V4 by KERNEL_BUILDER-20260830-124008 at product source 1505edb6ebab0c22d85fd38f9f840505f55927e4. Exact-source GPU proof passed with 34 supervised processes, 38 CAPTURED frames, and zero invalid pairs, duplicate identities, nonzero exits, cleanup failures, or missing frames. Exact-source headless proof passed with 34 supervised processes, 38 DEFERRED markers, and zero frames. Current-head focused checks and scoped static guards passed; the authoritative unchanged-input full-suite proof remains MT-127's governed 189/189 sweep. MT-025's ready contract/test and all other ready/passing MT contracts were untouched. completed_by remains null pending official V4 validation.",
     "status_sync_note_2026_07_04_mt021_repair": "MT-021 READY_FOR_VALIDATION evidence refreshed at 2026-07-04T21:50:52.481Z by KERNEL_BUILDER-20260704-195953 after current repair proof: manual MT-021 tests 2/2, wave5 manual guard 1/1, graph_view lib 8/8, graph_view kittest filter 7/7 including pan, zoom, AccessKit, click-open, empty/error, and screenshot; app-host graph delivery 1/1; mounted secondary pane screenshot 1/1; loom_graph_ backend-client tests 5/5; AddEdge request-shape proof 1/1; cargo check --lib PASS; scoped rustfmt/diff PASS; post-review Lorentz PASS_WITH_TYPED_EXTERNAL_BLOCKER, Cicero PASS, Hypatia READY_AFTER_RECEIPT; KB_READY_CHECKLIST PASS emitted at 2026-07-04T21:48:29.828Z. Official validator has not run; validator_verdict remains PENDING. Live PostgreSQL AC1/AC2 and live PROOF2/PROOF3 remain NEEDS_MANAGED_RESOURCE_PROOF due absent seeded managed backend env.",
@@ -1261,7 +1267,8 @@
     "status_sync_note_2026_07_27_mt108_v3_claim": "MT-108 claimed for FAIL_V2 remediation by KERNEL_BUILDER-20260726-052638 only after MT-088 completed implementation, independent review, hardening, KB readiness, runtime receipt, exact contract/packet status synchronization, and WP-scoped build/test cleanup. Packet active_id and MT-108 plan status show CLAIMED; next_id is null because MT-109 is already READY_FOR_VALIDATION_V3 and no further MT is authorized. validator_verdict remains FAIL_V2 pending independent V3 validation.",
     "status_sync_note_2026_09_02_projection_repair": "Operator-approved projection repair by KERNEL_BUILDER-20260902-175214 at 2026-09-02T17:59:31.988Z: tracker.mt_status and mt_plan.mt_status regenerated verbatim from lifecycle.status of every MT-NNN.json contract (142 entries; previously 17 and 109 stale entries, including MT-101 and MT-032 shown READY_FOR_VALIDATION while their contracts are PASS_V1/PASS_V4 and 82 mt_plan entries frozen at the 2026-07-03 reopen reset). mt_plan.declared_ids extended from 109 to 142; microtasks.authored_count corrected 142 -> 142. active_id/next_id left null because two independent claims are live (see mt_plan.active_claims_2026_09_02). Tally: {\"PASS_V1\":77,\"READY_FOR_VALIDATION_V4\":56,\"PASS_V4\":2,\"CLAIMED\":3,\"READY_FOR_VALIDATION\":3,\"READY_FOR_DEV\":1}. No MT contract status, evidence, or verdict was changed by this repair.",
     "status_sync_note_2026_09_02_batch_close": "KERNEL_BUILDER-20260902-175214 batch closed at 2026-09-02T20:41:55.520Z (product 7f279596): MT-135 READY_FOR_VALIDATION_V4 with KB_READY_CHECKLIST PASS; MT-117/MT-121/MT-122 BLOCKED_ON_DEPENDENCY (mounted click-completion regression: MT-113 bookmark remove indeterminate, Calendar mounted_navigation cancel test fails; root cause not localized); MT-118 BLOCKED_ON_DEPENDENCY (handshake_core cfg(test) modules do not compile, 24 errors). Tally: {\"PASS_V1\":77,\"READY_FOR_VALIDATION_V4\":54,\"PASS_V4\":2,\"BLOCKED_ON_DEPENDENCY\":4,\"READY_FOR_VALIDATION\":3,\"CLAIMED\":1,\"READY_FOR_DEV\":1}.",
-    "status_sync_note_2026_09_03_mt113_fix": "KERNEL_BUILDER-20260902-224325 at 2026-09-03T00:03:50.640Z: MT-113 canonical-Argus regression root-caused (egui node-id drift of the saved-search Remove row when the in-flight bookmark_status label shifts sibling counters) and fixed in product commit b4ba94a8; MT-113 12/12, native reproof green. MT-121/MT-122 back to READY_FOR_VALIDATION_V4 with PASS receipts at b4ba94a8; MT-135 receipt re-issued at b4ba94a8. MT-117 stays BLOCKED_ON_DEPENDENCY (Calendar next-day navigation never dispatches mid-retry; diagnosis in MT-117.json). MT-118 stays BLOCKED_ON_DEPENDENCY. Tally: {\"PASS_V1\":77,\"READY_FOR_VALIDATION_V4\":56,\"PASS_V4\":2,\"BLOCKED_ON_DEPENDENCY\":2,\"READY_FOR_VALIDATION\":3,\"CLAIMED\":1,\"READY_FOR_DEV\":1}."
+    "status_sync_note_2026_09_03_mt113_fix": "KERNEL_BUILDER-20260902-224325 at 2026-09-03T00:03:50.640Z: MT-113 canonical-Argus regression root-caused (egui node-id drift of the saved-search Remove row when the in-flight bookmark_status label shifts sibling counters) and fixed in product commit b4ba94a8; MT-113 12/12, native reproof green. MT-121/MT-122 back to READY_FOR_VALIDATION_V4 with PASS receipts at b4ba94a8; MT-135 receipt re-issued at b4ba94a8. MT-117 stays BLOCKED_ON_DEPENDENCY (Calendar next-day navigation never dispatches mid-retry; diagnosis in MT-117.json). MT-118 stays BLOCKED_ON_DEPENDENCY. Tally: {\"PASS_V1\":77,\"READY_FOR_VALIDATION_V4\":56,\"PASS_V4\":2,\"BLOCKED_ON_DEPENDENCY\":2,\"READY_FOR_VALIDATION\":3,\"CLAIMED\":1,\"READY_FOR_DEV\":1}.",
+    "status_sync_note_2026_09_03_mt143": "KERNEL_BUILDER-20260903-170735 at 2026-09-03T17:48:05.376Z (product 4a44f2a2): MT-143 authored, implemented and READY_FOR_VALIDATION_V4 - the daily-journal date-nav controls rendered outside their pane and the neighbouring pane intercepted the click, which is why test_calendar_interop was 30/31. Fixed with the MT-119/MT-122 right-to-left reservation idiom plus a non-vacuous containment guard. MT-117 unblocked and READY_FOR_VALIDATION_V4 with PT-117-1 re-proven at 4a44f2a2 (zero indeterminate). MT-144 authored READY_FOR_DEV for the handshake_core in-crate cfg(test) modules that block MT-118; MT-141 cannot absorb that work because its contract forbids src/backend/handshake_core/src/**. Tally: {\"PASS_V1\":77,\"READY_FOR_VALIDATION_V4\":58,\"PASS_V4\":2,\"BLOCKED_ON_DEPENDENCY\":1,\"READY_FOR_VALIDATION\":3,\"CLAIMED\":1,\"READY_FOR_DEV\":2}."
   },
   "status_sync_note_2026_07_05_mt101_repair": "MT-101 moved OPEN -> READY_FOR_VALIDATION by KERNEL_BUILDER-20260705-025228 after focused hardcode/local-load repair: ordinary operator model-session /jobs requests omit wp_id, mt_id, prompt, and simulate_duration_ms; promptless bootstrap/manual wording is updated; local GGUF load is now surfaced as LocalModelLoadEndpointMissing kernel_model_runtime_load while direct spawn remains kernel_swarm_spawn_session IPC-only. Proofs passed: model_session_launch 14/14 with external screenshots, manual_content 19/19, cargo fmt --check, scoped git diff --check, cargo check --lib, CONTROL-4 no_hardcoded_color32 1/1, and git ls-files src/**/*.png empty. Official validator has not run; validator_verdict remains PENDING. Full suite/clippy/live local+cloud managed backend execution remain unproven/NEEDS_MANAGED_RESOURCE_PROOF. Contract under-scoped manual_content_editors.rs and tests/test_manual_content.rs for HBR-MAN same-change proof; operator waiver required.",
   "operator_requirement_verification_2026_08_05": {

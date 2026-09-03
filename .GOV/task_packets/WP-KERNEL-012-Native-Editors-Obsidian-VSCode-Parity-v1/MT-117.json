@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-066",
@@ -178,17 +178,22 @@
         "reason": "KB_READY_CHECKLIST_RECEIPT BLOCKED at product 7f279596 (RC-005). PT-117-2 not met at product 7f279596: test_calendar_interop 30/31, mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue fails deterministically (tests/test_calendar_interop.rs:2684, next-day navigation never applies). PT-117-1 (13/13 applied, 26/26) and PT-117-3 (5/5) are MET. Dependency: MT-067 Calendar surface; root cause of the mounted-click regression not localized (same shape as the MT-113 remove failure).",
         "previous_status": "READY_FOR_VALIDATION_V4",
         "new_status": "BLOCKED_ON_DEPENDENCY"
+      },
+      {
+        "at_utc": "2026-09-03T17:47:54.234Z",
+        "by": "KERNEL_BUILDER-20260903-170735",
+        "reason": "PT-117-2 unblocked by the MT-143 pane-containment fix (product 4a44f2a2); PT-117-1 re-proven on that tree with zero indeterminate; PT-117-3 green. KB_READY_CHECKLIST_RECEIPT PASS.",
+        "previous_status": "BLOCKED_ON_DEPENDENCY",
+        "new_status": "READY_FOR_VALIDATION_V4"
       }
     ],
-    "blocker": "PT-117-2 not met: test_calendar_interop 30/31, mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue fails deterministically (next-day navigation never dispatches while the first-date GET is mid-retry; see lifecycle.pt_117_2_calendar_failure_diagnosis_2026_09_03). PT-117-1 (13/13 applied, 26/26 at 7f279596) and PT-117-3 (5/5) are MET. Dependency: MT-067 Calendar/daily-journal host navigation path; needs a focused debugging lane.",
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
-      "generated_at_utc": "2026-09-02T20:40:31.163Z",
+      "generated_at_utc": "2026-09-03T17:47:54.146Z",
       "actor_session": "KERNEL_BUILDER-20260902-175214",
-      "overall_verdict": "BLOCKED",
-      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
-      "supersedes_pass_receipt_at_utc": null,
-      "retracted_reason": null
+      "overall_verdict": "PASS",
+      "product_commit": "4a44f2a2cfc6a032c52f94a136d30169ff6e025a",
+      "supersedes_blocked_receipt_at_utc": "2026-09-02T20:40:31.163Z"
     },
     "pt_117_2_calendar_failure_diagnosis_2026_09_03": {
       "by": "KERNEL_BUILDER-20260902-224325",
@@ -209,7 +214,25 @@
         "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/calendar-fix-verify.log"
       ],
       "related_fix": "MT-113 saved-search Remove drift was root-caused and fixed in product commit b4ba94a8 (find_in_files.rs UiBuilder::id row scope); that unblocks MT-121/MT-122 but not this Calendar test."
-    }
+    },
+    "unblocked_2026_09_03": {
+      "by": "KERNEL_BUILDER-20260903-170735",
+      "at_utc": "2026-09-03T17:46:59.080Z",
+      "product_commit": "4a44f2a2cfc6a032c52f94a136d30169ff6e025a",
+      "resolution": "PT-117-2 is now MET. The blocking Calendar failure was not an MT-117 defect: the daily-journal date-nav controls rendered OUTSIDE their pane and the neighbouring pane intercepted the click, so the navigation never dispatched. Root-caused and fixed under MT-143 (product commit 4a44f2a2); see MT-143.json lifecycle.implementation_result_2026_09_03.",
+      "pt_117_1": "RE-PROVEN at the final tree, not carried over from 7f279596. Canonical Argus matrix run MT117-PT1-20260903-01 at source 4a44f2a2: 13 observation lines, every action receipt applied, ZERO indeterminate, across the 8 canonical targets (menu-editors, menu.editors.route-to-stage, stage-capture-embed-back, editor.rich.save, daily-journal-calendar-event-chip, calendar-event-tab-activity, and two locus-ref-chips). test_other_pillar_interop_proofs 26 passed / 0 failed.",
+      "pt_117_2": "MET at 4a44f2a2: test_stage_interop 31/31 and test_calendar_interop 31/31, both with --test-threads=1 against an owned current-source backend. The Calendar suite was 30/31 for the whole prior investigation.",
+      "pt_117_3": "MET at 4a44f2a2: the five app::mt117_bounded_completion_tests ran inside the full native lib suite, 2094 passed / 0 failed.",
+      "evidence": [
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt117-matrix-4a44f2a2.log",
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-regression.log",
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-stage-rerun.log",
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-117-matrix/MT117-PT1-20260903-01/canonical-argus-matrix.jsonl"
+      ],
+      "note": "The 2026-09-02 BLOCKED receipt is superseded rather than deleted; the diagnosis that produced MT-143 is retained in lifecycle.pt_117_2_calendar_failure_diagnosis_2026_09_03."
+    },
+    "ready_for_validation_v4_at_utc": "2026-09-03T17:47:54.146Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260903-170735"
   },
   "scope": {
     "summary": "Add durable product-side completion observers for the Stage embed-back, rich-document save, and Calendar event/activity actions so their canonical Argus receipts terminalize applied instead of indeterminate.",
@@ -296,74 +319,74 @@
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "kb_ready_checklist_evidence": {
       "schema_id": "hsk.kb_ready_checklist_evidence@1",
-      "product_commit": "7f27959673f01fc540e4337098a409c1fa8c8827",
+      "product_commit": "4a44f2a2cfc6a032c52f94a136d30169ff6e025a",
       "product_branch": "feat/WP-KERNEL-012",
       "product_worktree": "../wtc-native-editors-v1",
       "actor_session": "KERNEL_BUILDER-20260902-175214",
-      "prepared_at_utc": "2026-09-02T20:40:30.244Z",
-      "summary": "MT-117 readiness review at product 7f279596: BLOCKED on PT-117-2. PT-117-1 MET (canonical Argus matrix MT117-PT1-20260902-01: 13 observations, 13 applied, 0 indeterminate; test_other_pillar_interop_proofs 26/26), PT-117-3 MET (lib mt117 5/5), Stage suite 31/31, but the Calendar suite is 30/31: mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue fails deterministically. Implementer evidence only.",
+      "prepared_at_utc": "2026-09-03T17:47:45.440Z",
+      "summary": "MT-117 at product 4a44f2a2: all three proof targets MET. PT-117-1 re-proven on the final tree (canonical Argus matrix, zero indeterminate), PT-117-2 unblocked by the MT-143 pane-containment fix (Calendar 31/31, Stage 31/31), PT-117-3 green in the full lib suite. Supersedes the 2026-09-02 BLOCKED receipt. Implementer evidence only.",
       "rubric_items": [
         {
           "rubric_item_id": "RC-001-NO-STALE-REASONS",
           "answer": "yes",
-          "explanation": "status_rationale was rewritten 2026-09-02 to the READY_FOR_VALIDATION_V4 truth (superseded text retained); progress_2026_08_13 and pt_117_1_MET name their own sessions and commits; no stale remediator or approval references remain.",
+          "explanation": "The CLAIMED-era status_rationale was superseded on 2026-09-02 and the superseded text retained. lifecycle.blocker, which named the Calendar failure, is now resolved and replaced by lifecycle.unblocked_2026_09_03 naming the current commit and the MT-143 fix that resolved it. The failure diagnosis that produced MT-143 is retained as history rather than left standing as a live blocker. No lifecycle.*_reason references a prior remediator session or a superseded approval.",
           "evidence_refs": [
-            "MT-117.json#lifecycle.status_rationale",
-            "MT-117.json#lifecycle.state_correction_history"
+            "MT-117.json#lifecycle.unblocked_2026_09_03",
+            "MT-117.json#lifecycle.pt_117_2_calendar_failure_diagnosis_2026_09_03"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T17:47:45.440Z"
         },
         {
           "rubric_item_id": "RC-002-NO-DEAD-CODE",
           "answer": "yes",
-          "explanation": "Contract declares allowed_paths, so the helper grep was skipped. cargo check -p handshake-native --features integration --lib --tests at 7f279596 emits 5 dead_code lints, all unused private test helpers. One is inside MT-117 allowed_paths: tests/test_other_pillar_interop_proofs.rs:1122 authorized_flight_recorder_rows, but git blame dates it to 2026-08-06 (03880ff70, MT-074 era) before MT-117 existed, and MT-117 commits (8a77e315, ac4c2fd7, 79146c48) did not touch that file. MT-117 own additions (Mt117Expectation observers, mt117_merge_node_value, mt117_* tests in app.rs) are consumed by the observer projection path.",
+          "explanation": "Contract declares allowed_paths, so the helper's dead-code grep was skipped. cargo check -p handshake-native --features integration --lib --tests emits five dead_code lints, all unused private test helpers. One, tests/test_other_pillar_interop_proofs.rs:1122 authorized_flight_recorder_rows, falls inside MT-117's broad allowed_paths, but git blame dates it to 2026-08-06 (commit 03880ff70, MT-074 era) before MT-117 existed, and none of MT-117's commits (8a77e315, ac4c2fd7, 79146c48) touched that file. MT-117's own additions, the Mt117Expectation observers, mt117_merge_node_value and the mt117_* tests in app.rs, are all consumed by the observer projection path and exercised by the passing suites.",
           "evidence_refs": [
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend-b4ba94a8.log",
             "git blame -L1122 tests/test_other_pillar_interop_proofs.rs"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T17:47:45.440Z"
         },
         {
           "rubric_item_id": "RC-003-CFG-GATED-TESTS",
           "answer": "yes",
-          "explanation": "Auto scan skipped (allowed_paths). The mt117_* unit tests in app.rs are ungated and ran 5/5 in the full lib suite; the integration suites they depend on are cfg(feature = integration) by design and were executed with that feature on.",
+          "explanation": "The five app::mt117_bounded_completion_tests are ungated and ran inside the default full native lib suite at 4a44f2a2 (2094 passed / 0 failed). The integration suites they depend on are cfg(feature = \"integration\") by design because they need an owned backend and a real GPU, and all three were executed with that feature on: test_other_pillar_interop_proofs 26/26, test_calendar_interop 31/31, test_stage_interop 31/31.",
           "evidence_refs": [
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-nobackend.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-backend-117-113.log"
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-regression.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt117-matrix-4a44f2a2.log"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T17:47:45.440Z"
         },
         {
           "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
           "answer": "yes",
-          "explanation": "cargo check -p handshake-native --target aarch64-pc-windows-msvc --lib --tests --features integration finished (3m 32s, clang-cl for C build scripts). linux-musl infeasible on this host (no musl sysroot); branch CI unusable (setup failures, legacy sqlite/postgres matrices, run 33666580708).",
+          "explanation": "cargo check -p handshake-native --target aarch64-pc-windows-msvc --lib --tests --features integration finished clean for this crate, with clang-cl driving the C build scripts because the MSVC install has no ARM64 compiler. x86_64-unknown-linux-musl is infeasible on this host: no musl C sysroot, so ring cannot find assert.h. GitHub CI on feat/WP-KERNEL-012 is not citable: every job except traceability fails at setup or on legacy sqlite/postgres storage matrices (run 33666580708), which is recorded separately as a governance finding.",
           "evidence_refs": [
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-native-aarch64-pc-windows-msvc.log",
             "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/check-linux-musl-not-feasible.log"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T17:47:45.440Z"
         },
         {
           "rubric_item_id": "RC-005-PROOF-COMMANDS",
-          "answer": "no",
-          "explanation": "PT-117-1 MET at 7f279596: test_other_pillar_interop_proofs 26 passed / 0 failed with HANDSHAKE_ARGUS_MATRIX_RUN_ID=MT117-PT1-20260902-01; canonical-argus-matrix.jsonl census 13 observations all applied (menu-editors 2, route-to-stage 2, stage-capture-embed-back 2, editor.rich.save 1, daily-journal-calendar-event-chip 2, calendar-event-tab-activity 2, locus-ref-chip 2), zero indeterminate. PT-117-3 MET: lib mt117 5/5. PT-117-2 NOT MET: test_stage_interop 31/31 ok, but test_calendar_interop 30 passed / 1 failed: mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue panics at tests/test_calendar_interop.rs:2684 (new date did not settle after cancellation; nav.current stays 2026-09-02, no journals/2026-09-03 request ever reaches the owned backend). Reproduced three times (suite under load, isolated --exact, environment-control rerun). Same shape as the MT-113 remove failure (a mounted click whose effect never applies); source content is identical to the state where MT-113 passed earlier today; root cause not localized.",
+          "answer": "yes",
+          "explanation": "All three proof targets executed at product 4a44f2a2 on a clean worktree. PT-117-1 was RE-RUN on the final tree rather than carried forward: canonical Argus matrix run MT117-PT1-20260903-01 bound to source 4a44f2a2 recorded 13 observation lines with every action receipt applied and ZERO indeterminate across the eight canonical targets, alongside test_other_pillar_interop_proofs 26 passed / 0 failed. PT-117-2 is now met: test_stage_interop 31 passed / 0 failed and test_calendar_interop 31 passed / 0 failed, the latter having been 30/31 throughout the prior investigation until the MT-143 pane-containment fix landed. PT-117-3 is met: the five mt117 bounded-completion tests ran inside the full native lib suite, 2094 passed / 0 failed. The real resource exercised is a mounted HandshakeApp driven over the real localhost Argus transport against an owned embedded-SurrealDB backend built from this worktree.",
           "evidence_refs": [
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-backend-117-113.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-isolated-rerun.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/proof-env-control.log",
-            "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-117-matrix/MT117-PT1-20260902-01/canonical-argus-matrix.jsonl"
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt117-matrix-4a44f2a2.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-117-matrix/MT117-PT1-20260903-01/canonical-argus-matrix.jsonl",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-regression.log",
+            "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt143-stage-rerun.log"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T17:47:45.440Z"
         },
         {
           "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
           "answer": "yes",
-          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260812-113007; lifecycle.completed_by = null; validator_verdict null.",
+          "explanation": "lifecycle.claimed_by = KERNEL_BUILDER-20260812-113007 (the implementing session); lifecycle.completed_by = null; lifecycle.validator_verdict = null. The transition sought is to READY_FOR_VALIDATION_V4 only; no PASS verdict is issued here.",
           "evidence_refs": [
             "MT-117.json#lifecycle.claimed_by",
             "MT-117.json#lifecycle.completed_by"
           ],
-          "checked_at_utc": "2026-09-02T20:40:30.244Z"
+          "checked_at_utc": "2026-09-03T17:47:45.440Z"
         }
       ]
     }
