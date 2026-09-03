@@ -95,7 +95,7 @@
       },
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only; completed_by remains null."
     },
-    "blocker": "RC-004 only. All six MT-144 acceptance criteria are met and the code work is complete at product e2365695 (lib test target 24 errors -> 0; api::memory:: runs 23/6; product binary builds). The ready receipt is BLOCKED because no cross-platform verification of handshake_core is obtainable: cargo check --target aarch64-pc-windows-msvc dies in DuckDB C++ under clang-cl for arm64 (the MSVC install has no ARM64 compiler), x86_64-unknown-linux-musl has no musl C sysroot on this host so ring cannot compile, and branch CI is unusable because every job except traceability fails at setup or on legacy sqlite/postgres storage matrices (run 33666580708). This is an environment/CI dependency, not a defect in the change. It is the THIRD microtask blocked by the same gap (MT-118, and now MT-144 which exists to unblock MT-118). Resolution needs either an ARM64 MSVC/musl toolchain on this host or a repaired CI workflow, and the workflow files are main-only authoring surfaces requiring explicit Operator authorization for direct-main work.",
+    "blocker": "RC-004 only. All six MT-144 acceptance criteria are met and the code work is complete at product e2365695 (lib test target 24 errors -> 0; api::memory:: runs 23/6; product binary builds). The ready receipt is BLOCKED because no cross-platform verification of handshake_core is obtainable: cargo check --target aarch64-pc-windows-msvc dies in DuckDB C++ under clang-cl for arm64 (the MSVC install has no ARM64 compiler), x86_64-unknown-linux-musl has no musl C sysroot on this host so ring cannot compile, and branch CI is unusable because every job except traceability fails at setup or on legacy sqlite/postgres storage matrices (run 33666580708). This is an environment/CI dependency, not a defect in the change. It is the THIRD microtask blocked by the same gap (MT-118, and now MT-144 which exists to unblock MT-118). Resolution needs either an ARM64 MSVC or musl toolchain on this host, or a repaired CI workflow. CORRECTION 2026-09-04 by KERNEL_BUILDER-20260903-213930: an earlier version of this blocker said the CI workflow files are main-only authoring surfaces needing Operator authorization for direct-main work. That was wrong and is retracted. .github/workflows/ci.yml triggers on push to branches \"**\", so it runs on feat/WP-KERNEL-012 already and can be repaired on the branch under an ordinary microtask. The only main-only rule in KERNEL_BUILDER_PROTOCOL.md line 229 concerns editing the ../handshake_main checkout directly, not workflow files. The real blocker is that the CI repair has no owner yet, not that it needs authorization.",
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
       "generated_at_utc": "2026-09-03T19:22:03.797Z",
@@ -114,7 +114,15 @@
         "previous_status": "CLAIMED",
         "new_status": "BLOCKED_ON_DEPENDENCY"
       }
-    ]
+    ],
+    "blocker_correction_2026_09_04": {
+      "at_utc": "2026-09-03T23:23:19.707Z",
+      "by": "KERNEL_BUILDER-20260903-213930",
+      "retracted_claim": "The CI workflow files are main-only authoring surfaces requiring explicit Operator authorization for direct-main work.",
+      "why_wrong": ".github/workflows/ci.yml declares on.push.branches [\"**\"] and on.pull_request, so it already runs on feat/WP-KERNEL-012 and a fix committed to that branch takes effect on the next push. No rule in the KERNEL_BUILDER protocol or the governance topology restricts workflow-file edits to main; the only main-only rule concerns editing the ../handshake_main checkout directly.",
+      "verified_by": "Read .github/workflows/ci.yml lines 1-25 at product a153d2ce and grepped the role protocol and governance topology for any workflow-edit restriction.",
+      "effect": "RC-004 stays unmet for this MT, but the path to meeting it is an ordinary branch-side microtask, not an Operator authorization."
+    }
   },
   "scope": {
     "summary": "Restore `cargo test -p handshake_core --lib` to a compiling state on the embedded-SurrealDB-only tree, without weakening what the affected unit tests prove. MEASURED at product 7f279596 with `cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support --no-run`: 24 errors across five files, in two distinct classes. CLASS A, removed-PostgreSQL leftovers: `crate::storage::tests::optional_postgres_backend_with_pool_from_env` is imported by cfg(test) modules in `src/api/jobs.rs:383`, `src/api/workspaces.rs:1462` and `src/bundles/exporter.rs:2428` but no longer exists anywhere in the crate, and those same modules construct `AppState` with a `postgres_pool` field that no longer exists (`src/api/jobs.rs:400`, `src/api/workspaces.rs:1479` and `:1520`, `:1536`, `:1549`, `src/bundles/exporter.rs:2487`). AppState now carries `storage: Arc<dyn Database>` and `surreal: SurrealStorage` instead. CLASS B, SurrealDB API mismatches in test code that was never rebuilt after the port: `RecordIdKey: From<&String>` is not satisfied at `src/api/loom.rs:4804` and `:6091` and at `src/api/memory.rs:2512`, `:2733`, `:2809`, `:2843`, `:3274`, `:3908`, `:4697`, `:4929`; a lifetime bound on a generic `B` at `src/api/loom.rs:4578` (E0310/E0311); `R cannot be sent between threads safely` at `src/api/memory.rs:1774` against the bound on `SurrealStorage::with_data_operation`; `ProposalAck` lacks `PartialEq` at `src/api/memory.rs:2354`; and a `?` error conversion from `(StatusCode, Json<Value>)` at `src/api/memory.rs:2407`. The product BINARY already builds cleanly with `--features app-runtime`, so this is confined to test-only code. The work is to port these modules onto the embedded store the way the surviving backend tests do, retiring only what the pivot genuinely removed and naming the superseding proof when a test is retired.",
@@ -279,5 +287,6 @@
         }
       ]
     }
-  }
+  },
+  "updated_at_utc": "2026-09-03T23:23:19.707Z"
 }

@@ -22,7 +22,7 @@
   "title": "B6-MT-118-Heal-Legacy-Canonical-Proposal-Artifact-So-Pre-Hardening-Rows-Can-Retry",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T19:10:56.234Z",
-  "updated_at_utc": "2026-09-03T22:53:08.071Z",
+  "updated_at_utc": "2026-09-03T23:23:19.707Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -184,7 +184,15 @@
       "remaining_failures_note": "These three are pre-existing assertion failures made visible by MT-144 restoring the lib test target. They are not MT-118 proof targets and are not caused by this change. Owner needed; disclosed rather than silenced.",
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only; completed_by remains null."
     },
-    "blocker": "RC-004 only. Every MT-118 acceptance criterion is met at product a153d2ce except AC-118-5, which is partial for a recorded reason: its second named test, migration_0345_old_schema_identity_and_down_up_retry_converge, no longer exists because the PostgreSQL migration corpus was retired under MT-139 SEVER decision; the surviving differential test canonical_request_identity_matches_embedded_contract_across_actor_and_hash_edges passes. The ready receipt is BLOCKED because no cross-platform verification of handshake_core is obtainable on this host: cargo check --target aarch64-pc-windows-msvc dies in DuckDB C++ under clang-cl for arm64 (no ARM64 MSVC compiler installed), x86_64-unknown-linux-musl has no musl C sysroot so ring cannot compile, and branch CI is unusable because every job except traceability fails at setup or on legacy sqlite/postgres storage matrices (run 33666580708). This is the same environment gap that holds MT-144, and it is an environment/CI dependency rather than a defect in the change. Resolution needs either an ARM64 MSVC or musl toolchain on this host, or a repaired CI workflow; the workflow files are main-only authoring surfaces requiring explicit Operator authorization for direct-main work."
+    "blocker": "RC-004 only. Every MT-118 acceptance criterion is met at product a153d2ce except AC-118-5, which is partial for a recorded reason: its second named test, migration_0345_old_schema_identity_and_down_up_retry_converge, no longer exists because the PostgreSQL migration corpus was retired under MT-139 SEVER decision; the surviving differential test canonical_request_identity_matches_embedded_contract_across_actor_and_hash_edges passes. The ready receipt is BLOCKED because no cross-platform verification of handshake_core is obtainable on this host: cargo check --target aarch64-pc-windows-msvc dies in DuckDB C++ under clang-cl for arm64 (no ARM64 MSVC compiler installed), x86_64-unknown-linux-musl has no musl C sysroot so ring cannot compile, and branch CI is unusable because every job except traceability fails at setup or on legacy sqlite/postgres storage matrices (run 33666580708). This is the same environment gap that holds MT-144, and it is an environment/CI dependency rather than a defect in the change. Resolution needs either an ARM64 MSVC or musl toolchain on this host, or a repaired CI workflow. CORRECTION 2026-09-04 by KERNEL_BUILDER-20260903-213930: an earlier version of this blocker said the CI workflow files are main-only authoring surfaces needing Operator authorization for direct-main work. That was wrong and is retracted. .github/workflows/ci.yml triggers on push to branches \"**\", so it runs on feat/WP-KERNEL-012 already and can be repaired on the branch under an ordinary microtask. The only main-only rule in KERNEL_BUILDER_PROTOCOL.md line 229 concerns editing the ../handshake_main checkout directly, not workflow files. The real blocker is that the CI repair has no owner yet, not that it needs authorization.",
+    "blocker_correction_2026_09_04": {
+      "at_utc": "2026-09-03T23:23:19.707Z",
+      "by": "KERNEL_BUILDER-20260903-213930",
+      "retracted_claim": "The CI workflow files are main-only authoring surfaces requiring explicit Operator authorization for direct-main work.",
+      "why_wrong": ".github/workflows/ci.yml declares on.push.branches [\"**\"] and on.pull_request, so it already runs on feat/WP-KERNEL-012 and a fix committed to that branch takes effect on the next push. No rule in the KERNEL_BUILDER protocol or the governance topology restricts workflow-file edits to main; the only main-only rule concerns editing the ../handshake_main checkout directly.",
+      "verified_by": "Read .github/workflows/ci.yml lines 1-25 at product a153d2ce and grepped the role protocol and governance topology for any workflow-edit restriction.",
+      "effect": "RC-004 stays unmet for this MT, but the path to meeting it is an ordinary branch-side microtask, not an Operator authorization."
+    }
   },
   "scope": {
     "summary": "Let a pre-hardening FEMS memory proposal row that has no _canonical_artifact retry successfully, without weakening the canonical proposal contract for normal rows.",
