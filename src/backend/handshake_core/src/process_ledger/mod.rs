@@ -46,7 +46,7 @@ pub use reclaim::{
     RestartOrphanBootReconcileReport, RestartOrphanReconcileErrorPolicy, SandboxKill,
     StaleSessionProcessSet, StaleSessionSource, StalenessReclaimConfig,
     EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID, EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
-    HANDSHAKE_HOST_SCOPE_ID_ENV,
+    HANDSHAKE_HOST_SCOPE_ID_ENV, RECLAIM_IN_PROGRESS_RECOVERY_LIMIT,
 };
 pub use restart_resume::{
     BoundedRestartResumeOutcome, OperatorDecisionRequest, OrphanReclaimInfo,

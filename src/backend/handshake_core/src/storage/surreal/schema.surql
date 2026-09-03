@@ -4474,7 +4474,7 @@ DEFINE INDEX OVERWRITE idx_knowledge_rich_document_drafts_workspace ON TABLE kno
 -- 0330_workspace_search_bookmark_state.sql
 DEFINE TABLE OVERWRITE knowledge_workspace_search_bookmark_states SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_workspace_search_bookmark_states TYPE record<workspaces> ASSERT (record::exists($value)) AND ($value = record::id($this.id)) REFERENCE ON DELETE CASCADE;
-DEFINE FIELD OVERWRITE bookmark_state ON TABLE knowledge_workspace_search_bookmark_states TYPE object FLEXIBLE ASSERT $value.schema_id = 'hsk.workspace_search_bookmark_state@1' AND type::is::array($value.bookmarks);
+DEFINE FIELD OVERWRITE bookmark_state ON TABLE knowledge_workspace_search_bookmark_states TYPE object FLEXIBLE ASSERT $value.schema_id = 'hsk.workspace_search_bookmark_state@1' AND type::is_array($value.bookmarks);
 DEFINE FIELD OVERWRITE bookmark_state.* ON TABLE knowledge_workspace_search_bookmark_states TYPE any;
 DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_workspace_search_bookmark_states TYPE datetime DEFAULT time::now();
 DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE knowledge_workspace_search_bookmark_states TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;

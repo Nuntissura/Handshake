@@ -478,9 +478,21 @@ impl SurrealDataContext<'_> {
 
 struct SurrealAdminContext<'a> {
     client: &'a SurrealClient,
+    /// Namespace/database the owning storage handle is bound to; schema
+    /// bootstrap verifies the live session against these, never a default.
+    namespace: String,
+    database: String,
 }
 
 impl SurrealAdminContext<'_> {
+    pub(super) fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    pub(super) fn database(&self) -> &str {
+        &self.database
+    }
+
     async fn query(
         &self,
         statement: impl Into<String> + Send,
@@ -750,7 +762,15 @@ impl SurrealStorage {
         T: Send,
         F: for<'a> FnOnce(SurrealAdminContext<'a>) -> SurrealOperation<'a, T>,
     {
-        self.with_lease(|client| operation(SurrealAdminContext { client }))
+        let namespace = self.namespace().to_owned();
+        let database = self.database().to_owned();
+        self.with_lease(move |client| {
+            operation(SurrealAdminContext {
+                client,
+                namespace,
+                database,
+            })
+        })
             .await
     }
 

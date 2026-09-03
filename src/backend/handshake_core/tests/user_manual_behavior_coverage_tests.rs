@@ -4,7 +4,9 @@
 
 mod surreal_test_store_support;
 
-use handshake_core::process_ledger::PIDLESS_RECLAIM_INSTANCE_CAP;
+use handshake_core::process_ledger::{
+    StalenessReclaimConfig, RECLAIM_IN_PROGRESS_RECOVERY_LIMIT,
+};
 use handshake_core::storage::surreal::bootstrap_schema;
 use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneLocusBinding,
@@ -212,11 +214,35 @@ async fn behavior_coverage_matrix_generated_from_model_lane_registries() {
         .map(|page| page.body.to_string())
         .collect::<Vec<_>>()
         .join("\n");
+    // MT-019 / HBR-MAN-003: the reclaim entry must describe the CURRENT
+    // restart-orphan reconcile and its compiled bounds. The former pid-less
+    // cyclic-cursor sweep (`PIDLESS_RECLAIM_INSTANCE_CAP`) no longer exists and
+    // the manual must not claim it.
+    let periodic = StalenessReclaimConfig::default().normalized();
     assert!(
         manual_text.contains(&format!(
-            "Each boot examines at most {PIDLESS_RECLAIM_INSTANCE_CAP} eligible runtime-instance groups"
+            "examines at most {RECLAIM_IN_PROGRESS_RECOVERY_LIMIT} crash-left `reclaim_kill_in_progress` rows per session per pass"
         )),
-        "UserManual reclaim cap must match the runtime constant"
+        "UserManual in-progress recovery bound must match RECLAIM_IN_PROGRESS_RECOVERY_LIMIT"
+    );
+    assert!(
+        manual_text.contains(&format!(
+            "the periodic restart tick every {}s",
+            periodic.scan_interval.as_secs()
+        )),
+        "UserManual periodic restart tick must match StalenessReclaimConfig::default().scan_interval"
+    );
+    assert!(
+        manual_text.contains("`reconcile_restart_orphans_at_boot`")
+            && manual_text.contains("`restart_session_process_sets`")
+            && manual_text.contains("`RECLAIM_IN_PROGRESS_RECOVERY_LIMIT`"),
+        "UserManual must name the current restart-orphan reconcile surfaces"
+    );
+    assert!(
+        !manual_text.contains("reclaim_pidless_embedded_orphans")
+            && !manual_text.contains("cyclic keyset cursor")
+            && !manual_text.contains("orphan_reclaim_pidless_embedded_boot"),
+        "UserManual must not describe the retired pid-less cyclic-cursor sweep as current behavior"
     );
     assert!(
         manual_text.contains("kill_succeeded_pending_stop")

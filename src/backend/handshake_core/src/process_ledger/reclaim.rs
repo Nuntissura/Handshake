@@ -242,7 +242,12 @@ const RECLAIM_CLAIM_TTL: Duration = Duration::from_secs(30);
 const RECLAIM_CLAIM_RENEW_INTERVAL: Duration = Duration::from_secs(10);
 const RECLAIM_KILL_TIMEOUT: Duration = Duration::from_secs(30);
 const RECLAIM_STOP_ACK_TIMEOUT: Duration = Duration::from_secs(5);
-const RECLAIM_IN_PROGRESS_RECOVERY_LIMIT: usize = 64;
+/// Upper bound on crash-left `reclaim_kill_in_progress` rows one restart or
+/// stale-owner recovery sweep examines per session per pass. The Surreal
+/// provider rejects any limit outside `1..=64`, so this is also the ceiling.
+/// Exported so the UserManual currency proof asserts the documented bound
+/// against the compiled value instead of a prose literal (HBR-MAN-003).
+pub const RECLAIM_IN_PROGRESS_RECOVERY_LIMIT: usize = 64;
 
 #[derive(Default)]
 struct ProcessKillFence {

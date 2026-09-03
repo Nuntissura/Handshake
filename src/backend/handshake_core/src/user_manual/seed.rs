@@ -2014,15 +2014,20 @@ fn page_model_lane_schema() -> NewUserManualPage {
             section(
                 "run_commands",
                 "Proof commands",
-                "Exact ModelLane schema proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_serializes_competing_terminal_updates -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact`. \
-                 These exercise real embedded SurrealDB, EventLedger, schema registry rows, \
-                 SwarmCoordinator runtime launch wiring, ContextBundle, ToolGate, ArtifactStore, \
-                 Locus validation, capability validation, idempotency, and replay. There is no \
-                 embedded SurrealDB, mock, or structs-only fallback for Dexterity proof.",
+                "Exact ModelLane schema proof commands (run with a per-owner \
+                 `CARGO_TARGET_DIR` under `../Handshake_Artifacts/handshake-cargo-target/`): \
+                 `cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact`; \
+                 `cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact`; \
+                 `cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_serializes_competing_terminal_updates -- --exact`; \
+                 `cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact`; \
+                 `cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_denies_incomplete_attribution_rows_without_grandfathering -- --exact`. \
+                 Each test allocates one exact WP-scoped embedded SurrealDB namespace/database \
+                 (`HANDSHAKE_SURREAL_TEST_STORE_ROOT`) and exercises real embedded SurrealDB, \
+                 EventLedger receipts, schema registry rows, SwarmCoordinator runtime launch \
+                 wiring, ContextBundle, ToolGate, ArtifactStore, Locus validation, capability \
+                 validation, idempotency, five-field ResourceScope isolation, and replay. \
+                 There is no PostgreSQL, SQLite, mock, in-memory, or structs-only fallback for \
+                 Dexterity proof.",
             ),
         ],
         anchors: vec![
@@ -2243,36 +2248,48 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                 "recovery",
                 "Hard-crash orphan reconcile",
                 "A kill -9 / power-loss still leaves the START row open (`stopped_at IS NULL`). \
-                 That orphan is session-less (`parent_session_id IS NULL`) and pid-less \
-                 (`os_pid IS NULL`), so neither the session-scoped restart-resume reclaim nor the \
-                 swarm reclaim (both filter on `parent_session_id = $session`) can EVER match it. \
                  Each backend that resolves an actually configured embedded local lane holds an \
                  exclusive OS-owned loopback UDP lease and stamps the exact versioned descriptor \
-                 into every embedded START: instance UUID, host-scope id, \
-                 protocol, loopback address, and port. embedded SurrealDB connection loss or restart does \
-                 not release that lease. On the next boot, \
-                 `reclaim_pidless_embedded_orphans` strictly decodes each prior descriptor. It \
-                 ignores foreign-host rows, while incomplete, malformed, conflicting, ambiguous, \
-                 or internally terminal rows stay open and make the typed report deferred/incomplete. For \
-                 a same-host candidate it tries to bind the exact endpoint: address-in-use protects \
-                 a live owner (or safe port reuse), while a successful exclusive claim is held \
-                 through a fenced embedded SurrealDB compare-and-set and the exact descriptor \
-                 update. A bounded storage-operation deadline leaves contended rows open and \
-                 reports them as deferred instead of hanging boot. \
-                 Each boot examines at most 16 eligible runtime-instance groups through a durable \
-                 per-host cyclic keyset cursor. The cursor advances across live/protected and \
-                 malformed-ID groups so a fixed leading page cannot starve later stale instances; \
-                 a separate bounded unsafe-row probe prevents prefilter-excluded corrupt rows from \
-                 being reported as complete. A whole-table \
-                 conflict check prevents a conflicting descriptor outside that bounded batch from \
-                 being reclaimed, and a typed report marks when another boot sweep is required. \
-                 The cutoff bounds the candidate scan but is never treated as liveness \
-                 proof. Confirmed stale rows are closed by exact descriptor, setting `stopped_at`, a \
-                 sentinel `exit_code`, and `stop_reason = 'orphan_reclaim_pidless_embedded_boot'`. \
-                 Unverifiable metadata remains open rather than risking closure of a live owner. \
-                 An open row that already carries `exit_code` or `stop_reason` is also treated as \
-                 internally inconsistent and left open for operator inspection; reconciliation \
-                 never preserves or overwrites that malformed terminal metadata while claiming a \
+                 into every START it owns: instance UUID, host-scope id, lease schema, protocol, \
+                 loopback address, and port. Embedded SurrealDB connection loss or restart does \
+                 not release that lease; only real OS process death does. \
+                 CURRENT BEHAVIOUR (embedded-SurrealDB ProcessLedger provider): there is ONE \
+                 restart-orphan reconcile, `reconcile_restart_orphans_at_boot`, run inline by the \
+                 process runtime under the 30s startup timeout, and the periodic restart tick \
+                 every 30s re-runs the same shared pass. Its surfacing step, \
+                 `restart_session_process_sets`, reads every open row that carries both \
+                 `parent_session_id` and `sandbox_adapter_id`, requires the complete five-field \
+                 ResourceScope on each of them, groups them by exact scope and session, and \
+                 surfaces a session only when every one of its open sandbox-owned rows belongs to \
+                 a runtime instance on THIS host scope that is not this instance and whose \
+                 loopback lease was observed free on two samples at least one scan interval (30s) \
+                 apart. A session that spans two scopes, contains an incomplete-scope row, or whose \
+                 descriptor conflicts with another open row for the same instance UUID is vetoed \
+                 and stays open. For each surfaced session the pass first runs the crash-left \
+                 kill-operation recovery sweep, which examines at most 64 crash-left \
+                 `reclaim_kill_in_progress` rows per session per pass \
+                 (`RECLAIM_IN_PROGRESS_RECOVERY_LIMIT`), then atomically claims exactly the \
+                 surfaced process-UUID set with an explicit `owner_runtime_instance_id` <> self \
+                 predicate, kills through the composed sandbox adapter under the 30s kill budget \
+                 while renewing the UUIDv7-plus-generation fenced claim (30s lease, renewed every \
+                 10s), and writes STOP with `stop_reason` `reclaim` and sentinel `exit_code` -1 \
+                 only after a reserved lossless STOP permit and embedded SurrealDB acknowledgement \
+                 (5s ack budget). There is no instance-group cap and no cursor; the bounds that \
+                 actually apply to one boot pass are the 30s startup timeout (fail-closed on \
+                 expiry), the 64-row recovery limit per session, and the per-process kill and \
+                 STOP-ack budgets. \
+                 PID-LESS EMBEDDED ROWS ARE NOT AUTO-CLOSED: an in-process embedded-model START is \
+                 session-less (`parent_session_id IS NULL`) and pid-less (`os_pid IS NULL`), so \
+                 it matches no session-keyed claim and the restart pass never reclaims it. The \
+                 earlier boot-time pid-less descriptor sweep with its bounded per-host cursor was \
+                 retired with the relational provider and is NOT current behaviour. Such a row \
+                 stays open as durable evidence; its typed runtime-owner descriptor still feeds \
+                 the restart pass's descriptor-conflict veto, and it is readable through the \
+                 exact-scope ownership inspection API. Close it manually only after confirming \
+                 the owning backend process is gone; never rewrite terminal columns from age alone. \
+                 An open row whose `stop_reason` is outside the reclaim claim vocabulary matches \
+                 no claim statement, so it is never killed and stays open for operator inspection; \
+                 reconciliation never overwrites such terminal metadata while claiming a \
                  successful automatic STOP. \
                  Session-scoped process reclaim reserves a lossless STOP queue permit before kill, \
                  renews a UUIDv7-plus-generation fenced claim during slow termination, and reports \
@@ -2315,8 +2332,10 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  bounded deferred rows open and warns that a later sweep is required; an actual \
                  reconciliation error is logged as an error and disables configured local inference \
                  before artifact access for that boot. \
-                 Generic spawned-process (Official-CLI bridge) orphans are a SEPARATE class from the \
-                 pid-less embedded orphans above, and they are reconciled by three distinct passes. \
+                 Generic spawned-process (Official-CLI bridge) orphans are the session-keyed, \
+                 sandbox-owned row class the reconcile above targets; the not-auto-closed pid-less \
+                 embedded rows are a SEPARATE class. Spawned-process orphans are reconciled by \
+                 three distinct passes. \
                  (1) BOOT: `ProcessReclaimRuntime::production_with_lease` runs \
                  `reconcile_restart_orphans_at_boot` inline under a 30s startup timeout. \
                  `restart_sessions` is the embedded SurrealDB-authoritative surfacing step: it only surfaces \
@@ -2359,9 +2378,10 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  pid-reuse identity fence) from a genuine reap failure. Store errors, surfacing \
                  errors, and a boot-reconcile TIMEOUT remain fail-closed and abort startup. \
                  RECOVERY-ONLY EXCLUSION: `HANDSHAKE_STARTUP_RECOVERY_ONLY=1` returns before the \
-                 normal process-runtime composition, so it used to run only the pid-less embedded \
-                 sweep. It now also runs one restart-orphan reconcile pass, before embedded-store startup \
-                 is stopped. Because that process is short-lived it usually records only the FIRST \
+                 normal process-runtime composition; it composes the same process runtime from the \
+                 one injected embedded store, runs one bounded restart-orphan reconcile pass, \
+                 surfaces its report, drains reclaim and writer, and only then stops the embedded \
+                 store. Because that process is short-lived it usually records only the FIRST \
                  dead-owner observation, so run it twice, or start the backend normally, to complete \
                  the corroboration. \
                  The embedded-runtime loopback lease is NEVER released while this process is alive: \
@@ -5911,12 +5931,13 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "id": "model_lane_launch_tests",
             "name": "Dexterity ModelLane embedded SurrealDB proof",
             "status": "wired",
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests",
+            "cli_flag": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests",
             "exact_commands": [
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_serializes_competing_terminal_updates -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact"
+                "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact",
+                "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
+                "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_serializes_competing_terminal_updates -- --exact",
+                "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact",
+                "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_denies_incomplete_attribution_rows_without_grandfathering -- --exact"
             ],
             "manual_version": USER_MANUAL_VERSION,
         }))
@@ -5930,7 +5951,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests".into(),
+            "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests".into(),
         ),
         http_route: None,
         http_method: String::new(),
@@ -7037,7 +7058,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "LlmClient::shutdown_gracefully".into(),
             "LlmClient::leave_open_for_reconciliation".into(),
             "drain_and_join_ledger_writer".into(),
-            "reclaim_pidless_embedded_orphans".into(),
+            "reconcile_restart_orphans_at_boot".into(),
             "acquire_embedded_runtime_instance_lease".into(),
             "kernel_process_lifecycle".into(),
         ],
@@ -7048,15 +7069,15 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "orphan_not_reconciled".into(),
             "reserved_stop_retained_batch_loss".into(),
             "runtime_quiescence_timeout".into(),
-            "orphan_reclaim_lock_timeout_deferred".into(),
-            "orphan_reclaim_instance_cap_deferred".into(),
-            "orphan_reclaim_unsafe_metadata_deferred".into(),
+            "boot_reconcile_timeout_fail_closed".into(),
+            "processes_kill_failed_fail_open_retry".into(),
+            "pidless_embedded_start_left_open".into(),
             "token_stream_terminal_missing_under_backpressure".into(),
         ],
         recovery_steps: vec![
             "If the STOP row is missing after Ctrl-C/SIGTERM, confirm Axum completed its connection drain, the exact runtime worker barriers reached idle, and the process-ledger drain completed before embedded-store shutdown and final OS-lease release. Connection-drain or quiescence timeout intentionally leaves START open for next-boot reconciliation rather than reporting a graceful STOP.".into(),
             "If an orphan persists, inspect runtime_instance_schema_id, runtime_instance_id, runtime_host_scope_id, runtime_lease_protocol, runtime_lease_address, and runtime_lease_port. Reconciliation intentionally skips missing, malformed, foreign-host, conflicting, or address-in-use evidence; never force-close it from age alone.".into(),
-            "If boot reports deferred orphan reconciliation, inspect the typed lock-timeout and instance-cap fields. Leave the START open, remove the contending database transaction if appropriate, and allow a later bounded boot sweep to retry; never rewrite terminal columns by hand.".into(),
+            "If the retained boot reconcile report shows processes_kill_failed, sweep_reclaim_errors, or session_errors, the affected START rows are truthfully open with their claim released and no STOP written; the periodic restart tick retries them every 30s. A boot-reconcile timeout fails closed and aborts startup. A pid-less embedded START (no parent_session_id, no os_pid) is not auto-closed by any pass; inspect it through the exact-scope ownership inspection API and close it manually only after confirming the owning backend process is gone. Never rewrite terminal columns by hand.".into(),
         ],
         origin: "wp1_mt013_embedded_model".into(),
         content_hash: embedded_model_ledger_tool_hash,

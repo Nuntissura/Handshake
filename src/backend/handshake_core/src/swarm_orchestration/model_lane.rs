@@ -223,6 +223,14 @@ pub enum ModelLaneAuthorityTestCorruption {
     ProjectionScope,
     ReceiptPayloadHash,
     ReceiptScope,
+    /// Seeds one deliberately incomplete-attribution authority row in the
+    /// exact namespace/database: the row keeps owner, Principal, and
+    /// workspace attribution but loses its authenticated session and
+    /// AccessSpace attribution, like a row that predates five-field scope.
+    IncompleteAttribution,
+    /// Attempts to blank a scope field; the SCHEMAFULL authority table must
+    /// refuse it, so the seam is expected to fail without mutating the row.
+    BlankAttribution,
 }
 
 #[cfg(feature = "surreal-test-support")]
@@ -233,6 +241,8 @@ impl ModelLaneAuthorityTestCorruption {
             Self::ProjectionScope => "projection_scope",
             Self::ReceiptPayloadHash => "receipt_payload_hash",
             Self::ReceiptScope => "receipt_scope",
+            Self::IncompleteAttribution => "incomplete_attribution",
+            Self::BlankAttribution => "blank_attribution",
         }
     }
 }

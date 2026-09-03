@@ -335,7 +335,7 @@ enum CompiledSurfaceAnchor {
     ModelLaneRoutingExecutionStore,
     EmbeddedModelProcess,
     EmbeddedModelShutdown,
-    ReclaimPidlessEmbeddedOrphans,
+    ReconcileRestartOrphans,
     DisabledLlmCompletion,
     LlmEmbedding,
     OperatorChatLaunch,
@@ -376,7 +376,7 @@ impl CompiledSurfaceAnchor {
             Self::ModelLaneRoutingExecutionStore => "ModelLaneRoutingExecutionStore",
             Self::EmbeddedModelProcess => "EmbeddedModelProcess",
             Self::EmbeddedModelShutdown => "EmbeddedModelProcess::shutdown",
-            Self::ReclaimPidlessEmbeddedOrphans => "reclaim_pidless_embedded_orphans",
+            Self::ReconcileRestartOrphans => "reconcile_restart_orphans",
             Self::DisabledLlmCompletion => "DisabledLlmClient::completion",
             Self::LlmEmbedding => "LlmClient::embedding",
             Self::OperatorChatLaunch => "OperatorChatLaunchService::launch",
@@ -454,7 +454,7 @@ impl CompiledSurfaceAnchor {
             Self::EmbeddedModelShutdown => {
                 let _ = EmbeddedModelProcess::shutdown;
             }
-            Self::ReclaimPidlessEmbeddedOrphans => {
+            Self::ReconcileRestartOrphans => {
                 let _ = reconcile_restart_orphans;
             }
             Self::DisabledLlmCompletion => {
@@ -607,7 +607,7 @@ const INTERNAL_RUNTIME_SURFACE_ANCHORS: &[RuntimeSurfaceAnchor] = &[
     },
     RuntimeSurfaceAnchor {
         behavior_id: "wp1.embedded_model.os_lease_reclaim",
-        anchor: CompiledSurfaceAnchor::ReclaimPidlessEmbeddedOrphans,
+        anchor: CompiledSurfaceAnchor::ReconcileRestartOrphans,
     },
     RuntimeSurfaceAnchor {
         behavior_id: "wp1.llm.fail_closed_fr",
@@ -3760,11 +3760,10 @@ fn canonical_non_schema_behavior_registry() -> Vec<CanonicalBehaviorDescriptor> 
             behavior_id: "wp1.embedded_model.os_lease_reclaim",
             schema_id: None,
             event_family: "kernel_process_lifecycle_stop",
-            runtime_surface_id: "reclaim_pidless_embedded_orphans",
+            runtime_surface_id: "reconcile_restart_orphans",
             user_manual_slug: "embedded-model-lifecycle-ledger",
             tool_id: "embedded_model_ledger_tests",
-            eventledger_flight_recorder_path:
-                "kernel_process_lifecycle:orphan_reclaim_pidless_embedded_boot",
+            eventledger_flight_recorder_path: "kernel_process_lifecycle:reclaim",
             internal_diagnostics_posture: DiagnosticTierPosture::Wired,
             palmistry_posture: DiagnosticTierPosture::Wired,
             deferred_reason: Some(WIRED_REASON),

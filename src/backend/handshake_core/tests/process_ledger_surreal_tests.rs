@@ -14,10 +14,12 @@ use handshake_core::{
     process_ledger::{
         is_degraded, LedgerEvent, LedgerEventKind, LedgerOverflowEvent, ProcessEngineKind,
         ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore, ProcessLedgerWriter,
-        ProcessRuntimeOwner, ProcessStart, ProcessStop, ReclaimResourceScope,
+        ProcessRuntimeOwner, ProcessStart, ProcessStop, ReclaimKillOperationCandidate,
+        ReclaimKillOperationStatus, ReclaimProcessStore, ReclaimResourceScope,
         SurrealProcessLedgerStore, WriterConfig, EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID,
         EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL, PROCESS_LEDGER_DEFAULT_CHANNEL_CAPACITY,
         PROCESS_LEDGER_RING_CAPACITY, PROCESS_LEDGER_TABLE_NAME,
+        RECLAIM_IN_PROGRESS_RECOVERY_LIMIT,
     },
     storage::surreal::{bootstrap_schema, SurrealStorage},
 };
@@ -933,6 +935,413 @@ async fn ownership_inspection_survives_same_namespace_shutdown_and_reopen() {
     assert!(diagnostics.error.is_none());
 }
 
+/// MT-019 restart continuity: a crash-left reclaim claim (`kill_in_progress`)
+/// must survive a real embedded-store shutdown and reopen of the SAME
+/// namespace/database with its fence intact, remain recoverable through the
+/// bounded in-progress sweep, and stay exact-scope gated after the restart.
+#[tokio::test]
+async fn reclaim_claim_state_and_fences_survive_same_namespace_shutdown_and_reopen() {
+    let mut allocator = EmbeddedSurrealTestScope::create()
+        .await
+        .expect("allocate durable embedded Surreal scope");
+    let namespace = allocator.namespace().to_owned();
+    let database = allocator.database().to_owned();
+    let storage = allocator
+        .activate_storage()
+        .await
+        .expect("activate initial injected SurrealStorage");
+    bootstrap_schema(&storage)
+        .await
+        .expect("bootstrap shared Surreal schema");
+    let store = SurrealProcessLedgerStore::open(storage.clone())
+        .await
+        .expect("open ProcessLedger before restart");
+    let scope = exact_scope();
+    let dead_owner = test_runtime_owner();
+    let session_id = "SR-PROCESS-LEDGER-TEST";
+
+    let mut target = start_event(&scope, "kernel_builder", "WP-KERNEL-004")
+        .with_sandbox_adapter_id("sandbox-adapter-reopen")
+        .with_runtime_owner(dead_owner.clone());
+    let target_internal = target.process_uuid.to_string();
+    target = target.with_sandbox_internal_id(target_internal);
+    let mut sibling = start_event(&scope, "kernel_builder", "WP-KERNEL-004")
+        .with_sandbox_adapter_id("sandbox-adapter-reopen")
+        .with_runtime_owner(dead_owner.clone());
+    let sibling_internal = sibling.process_uuid.to_string();
+    sibling = sibling.with_sandbox_internal_id(sibling_internal);
+    assert_eq!(target.parent_session_id.as_deref(), Some(session_id));
+    store
+        .write_batch(vec![
+            LedgerEvent::Start(target.clone()),
+            LedgerEvent::Start(sibling.clone()),
+        ])
+        .await
+        .expect("persist claimable session rows");
+
+    // Claim exactly the target through the production single-row claim path and
+    // advance it to the crash-left `kill_in_progress` phase.
+    let claimed = store
+        .active_process_for_session(&scope, session_id, target.process_uuid)
+        .await
+        .expect("single-row claim")
+        .expect("target row is claimable");
+    assert_eq!(claimed.process_uuid, target.process_uuid);
+    let claim = claimed.reclaim_claim.clone();
+    assert_eq!(claim.generation, 1);
+    assert_eq!(claim.resource_scope, scope);
+    store
+        .mark_reclaim_kill_started(target.process_uuid, &claim)
+        .await
+        .expect("mark kill started");
+    let before = reclaim_probe(&storage, &scope, target.process_uuid)
+        .await
+        .expect("claimed row exists before restart");
+    assert_eq!(
+        before.stop_reason.as_deref(),
+        Some("reclaim_kill_in_progress")
+    );
+    assert_eq!(before.reclaim_state.as_deref(), Some("kill_in_progress"));
+    assert_eq!(before.reclaim_claimant_uuid, Some(claim.claimant_uuid));
+    assert_eq!(
+        before.reclaim_kill_operation_uuid,
+        Some(claim.kill_operation_uuid)
+    );
+    assert_eq!(before.reclaim_generation, Some(1));
+    assert!(before.stopped_at.is_none());
+    let sibling_before = reclaim_probe(&storage, &scope, sibling.process_uuid)
+        .await
+        .expect("sibling row exists before restart");
+    assert!(sibling_before.stop_reason.is_none());
+    assert!(sibling_before.reclaim_claimant_uuid.is_none());
+
+    // Real storage shutdown, then reopen the SAME namespace/database.
+    drop(store);
+    drop(storage);
+    allocator
+        .close_for_reopen()
+        .await
+        .expect("close exact embedded namespace for reopen");
+    allocator
+        .reopen()
+        .await
+        .expect("reopen exact embedded namespace");
+    assert_eq!(allocator.namespace(), namespace);
+    assert_eq!(allocator.database(), database);
+    let reopened_storage = allocator
+        .activate_storage()
+        .await
+        .expect("reactivate cloned SurrealStorage on same namespace");
+    let reopened_store = SurrealProcessLedgerStore::open(reopened_storage.clone())
+        .await
+        .expect("open ProcessLedger after restart");
+
+    // Ledger rows and reclaim state are byte-identical after the restart.
+    let after = reclaim_probe(&reopened_storage, &scope, target.process_uuid)
+        .await
+        .expect("claimed row survives restart");
+    assert_eq!(after, before, "reclaim claim state must survive shutdown/reopen unchanged");
+    let sibling_after = reclaim_probe(&reopened_storage, &scope, sibling.process_uuid)
+        .await
+        .expect("sibling row survives restart");
+    assert_eq!(sibling_after, sibling_before);
+
+    // Ownership fences survive: a stale claimant, a stale generation, and a
+    // one-field-foreign scope can neither release nor renew the durable claim.
+    let mut stale_claimant = claim.clone();
+    stale_claimant.claimant_uuid = Uuid::now_v7();
+    let error = reopened_store
+        .release_reclaim_claim(target.process_uuid, &stale_claimant)
+        .await
+        .expect_err("stale claimant cannot release after reopen");
+    assert!(error
+        .to_string()
+        .contains("failed to release open reclaim claim"));
+    let mut stale_generation = claim.clone();
+    stale_generation.generation = 2;
+    let error = reopened_store
+        .renew_reclaim_claim(target.process_uuid, &stale_generation)
+        .await
+        .expect_err("stale generation cannot renew after reopen");
+    assert!(error
+        .to_string()
+        .contains("reclaim claim ownership lost while renewing"));
+    for mismatched in five_mismatched_scopes(&scope) {
+        let mut foreign = claim.clone();
+        foreign.resource_scope = mismatched;
+        reopened_store
+            .release_reclaim_claim(target.process_uuid, &foreign)
+            .await
+            .expect_err("one-field scope mismatch cannot release after reopen");
+    }
+    assert_eq!(
+        reopened_store
+            .in_progress_kill_operations_for_session(
+                &scope,
+                session_id,
+                Uuid::now_v7(),
+                &[target.process_uuid],
+                RECLAIM_IN_PROGRESS_RECOVERY_LIMIT,
+            )
+            .await
+            .expect("drifted authorized set recovers nothing")
+            .len(),
+        0,
+        "a process set that omits the open sibling must not recover the claim"
+    );
+    assert_eq!(
+        reclaim_probe(&reopened_storage, &scope, target.process_uuid)
+            .await
+            .expect("row still present"),
+        before,
+        "fenced-out callers must not mutate the durable claim"
+    );
+
+    // The original claimant still owns the claim and can renew it after the
+    // restart; while that lease is live, `kill_in_progress` is never lease-taken
+    // over by a competing claimant.
+    let renewed = reopened_store
+        .renew_reclaim_claim(target.process_uuid, &claim)
+        .await
+        .expect("original claimant renews after reopen");
+    assert_eq!(renewed.claimant_uuid, claim.claimant_uuid);
+    assert_eq!(renewed.kill_operation_uuid, claim.kill_operation_uuid);
+    assert_eq!(renewed.generation, 1);
+    assert!(
+        renewed.lease_expires_at_unix_ms >= before.reclaim_lease_expires_at_unix_ms.unwrap_or(0)
+    );
+    assert!(reopened_store
+        .active_process_for_session(&scope, session_id, target.process_uuid)
+        .await
+        .expect("competing claim query")
+        .is_none());
+
+    // The crash-left kill operation is recoverable through the bounded sweep on
+    // the reopened store, exact-scope gated, and only for the full open set.
+    let self_instance = Uuid::now_v7();
+    let mut authorized = vec![target.process_uuid, sibling.process_uuid];
+    authorized.sort_unstable();
+    let recoverable = reopened_store
+        .in_progress_kill_operations_for_session(
+            &scope,
+            session_id,
+            self_instance,
+            &authorized,
+            RECLAIM_IN_PROGRESS_RECOVERY_LIMIT,
+        )
+        .await
+        .expect("recovery sweep after reopen");
+    assert_eq!(recoverable.len(), 1, "exactly one crash-left operation: {recoverable:?}");
+    match &recoverable[0] {
+        ReclaimKillOperationCandidate::Operation { operation } => {
+            assert_eq!(operation.process_uuid, target.process_uuid);
+            assert_eq!(operation.kill_operation_uuid, claim.kill_operation_uuid);
+            assert_eq!(operation.resource_scope, scope);
+        }
+        other => panic!("recovered candidate must be well formed: {other:?}"),
+    }
+    for mismatched in five_mismatched_scopes(&scope) {
+        assert!(reopened_store
+            .in_progress_kill_operations_for_session(
+                &mismatched,
+                session_id,
+                self_instance,
+                &authorized,
+                RECLAIM_IN_PROGRESS_RECOVERY_LIMIT,
+            )
+            .await
+            .expect("mismatched-scope recovery query")
+            .is_empty());
+    }
+
+    // Read-only ownership inspection still verifies the OPEN claimed row against
+    // its canonical START receipt after the restart.
+    let inspection = reopened_store
+        .inspect_ownership_by_process_uuid(&scope, target.process_uuid)
+        .await
+        .expect("inspect claimed row after restart")
+        .expect("claimed row is inspectable");
+    assert!(inspection.stopped_at.is_none());
+    assert_eq!(inspection.lifecycle_state, LedgerEventKind::Start);
+    assert_eq!(inspection.runtime_owner.as_ref(), Some(&dead_owner));
+    assert_eq!(inspection.resource_scope, scope);
+
+    // Resolving the crash-left operation as `not_started` releases the claim
+    // without a STOP; the next claim advances the durable generation to 2.
+    reopened_store
+        .resolve_reclaim_kill_operation(
+            &scope,
+            target.process_uuid,
+            claim.kill_operation_uuid,
+            ReclaimKillOperationStatus::NotStarted,
+        )
+        .await
+        .expect("resolve crash-left operation after reopen");
+    let released = reclaim_probe(&reopened_storage, &scope, target.process_uuid)
+        .await
+        .expect("released row exists");
+    assert!(released.stop_reason.is_none());
+    assert!(released.reclaim_state.is_none());
+    assert!(released.reclaim_claimant_uuid.is_none());
+    assert!(released.stopped_at.is_none(), "release never fabricates a STOP");
+    let reclaimed_again = reopened_store
+        .active_process_for_session(&scope, session_id, target.process_uuid)
+        .await
+        .expect("claim after release")
+        .expect("released row is claimable again");
+    assert_eq!(reclaimed_again.reclaim_claim.generation, 2);
+    assert_ne!(reclaimed_again.reclaim_claim.claimant_uuid, claim.claimant_uuid);
+    reopened_store
+        .release_reclaim_claim(target.process_uuid, &reclaimed_again.reclaim_claim)
+        .await
+        .expect("release generation-2 claim");
+
+    drop(reopened_store);
+    drop(reopened_storage);
+    allocator
+        .shutdown_storage_for_reopen()
+        .await
+        .expect("shutdown reopened injected SurrealStorage");
+    let diagnostics = allocator
+        .cleanup()
+        .await
+        .expect("clean durable embedded Surreal scope");
+    assert!(diagnostics.database_absent);
+    assert!(diagnostics.namespace_absent_after_reopen);
+    assert!(diagnostics.error.is_none());
+}
+
+/// MT-019 orphan-receipt counterfactual: a canonical kernel EventLedger receipt
+/// that exists WITHOUT its lifecycle projection must make the identical START
+/// retry, the matching STOP, and any batch containing the retry fail closed
+/// atomically, while the writer records the denial observably.
+#[tokio::test]
+async fn orphan_receipt_without_lifecycle_rejects_identical_retries_atomically_and_records_denial(
+) {
+    let fixture = SurrealFixture::open().await;
+    let overflow = InMemoryOverflowSink::default();
+
+    let orphan = start_event(&fixture.scope, "kernel_builder", "WP-KERNEL-004")
+        .with_model_artifact_sha256("a".repeat(64));
+    fixture
+        .store
+        .write_batch(vec![LedgerEvent::Start(orphan.clone())])
+        .await
+        .expect("persist orphan-receipt fixture");
+    fixture
+        .store
+        .test_delete_inspection_lifecycle_projection(&fixture.scope, orphan.process_uuid)
+        .await
+        .expect("delete lifecycle while preserving the canonical receipt");
+    assert!(fixture
+        .lifecycle(orphan.process_uuid, &fixture.scope)
+        .await
+        .is_none());
+    let receipt_before = fixture
+        .event(orphan.process_uuid, LedgerEventKind::Start, &fixture.scope)
+        .await
+        .expect("canonical START receipt survives without its lifecycle");
+    let events_before = fixture.process_event_count(&fixture.scope).await;
+    assert_eq!(events_before, 1);
+
+    // Identical START retry: denied before commit, typed marker names the row.
+    let error = fixture
+        .store
+        .write_batch(vec![LedgerEvent::Start(orphan.clone())])
+        .await
+        .expect_err("receipt without lifecycle rejects identical START retry");
+    assert!(matches!(error, ProcessLedgerError::Store(_)));
+    assert!(error.to_string().contains(&format!(
+        "PROCESS_LEDGER_VERIFICATION_MISMATCH:0:{}:START",
+        orphan.process_uuid
+    )));
+    assert!(fixture
+        .lifecycle(orphan.process_uuid, &fixture.scope)
+        .await
+        .is_none());
+    let receipt_after = fixture
+        .event(orphan.process_uuid, LedgerEventKind::Start, &fixture.scope)
+        .await
+        .expect("receipt is neither duplicated nor removed");
+    assert_eq!(receipt_after.created_at, receipt_before.created_at);
+    assert_eq!(fixture.process_event_count(&fixture.scope).await, events_before);
+
+    // STOP against the orphan receipt: identity conflict, no STOP receipt.
+    let stop = ProcessStop::from_start(&orphan, Some(0));
+    let error = fixture
+        .store
+        .write_batch(vec![LedgerEvent::Stop(stop)])
+        .await
+        .expect_err("STOP without a lifecycle fails closed");
+    assert!(matches!(
+        error,
+        ProcessLedgerError::StopIdentityConflict { process_uuid, .. }
+            if process_uuid == orphan.process_uuid
+    ));
+    assert!(fixture
+        .event(orphan.process_uuid, LedgerEventKind::Stop, &fixture.scope)
+        .await
+        .is_none());
+    assert_eq!(fixture.process_event_count(&fixture.scope).await, events_before);
+
+    // The denial is atomic across a batch: a healthy sibling in the same batch
+    // is rolled back together with the rejected retry.
+    let sibling = start_event(&fixture.scope, "kernel_builder", "WP-KERNEL-004")
+        .with_model_artifact_sha256("b".repeat(64));
+    let error = fixture
+        .store
+        .write_batch(vec![
+            LedgerEvent::Start(sibling.clone()),
+            LedgerEvent::Start(orphan.clone()),
+        ])
+        .await
+        .expect_err("batch containing the orphan retry fails closed as a whole");
+    assert!(error.to_string().contains(&format!(
+        "PROCESS_LEDGER_VERIFICATION_MISMATCH:1:{}:START",
+        orphan.process_uuid
+    )));
+    assert!(fixture
+        .lifecycle(sibling.process_uuid, &fixture.scope)
+        .await
+        .is_none());
+    assert!(fixture
+        .event(sibling.process_uuid, LedgerEventKind::Start, &fixture.scope)
+        .await
+        .is_none());
+    assert_eq!(fixture.process_event_count(&fixture.scope).await, events_before);
+
+    // The production writer records the denial observably instead of dropping
+    // it: the flush error propagates, failed rows are counted, the writer is
+    // marked degraded, and nothing is misreported as an overflow drop.
+    let (writer, drain) = ProcessLedgerWriter::new_manual(8, Arc::new(overflow.clone()))
+        .expect("manual writer over the injected Surreal store");
+    writer
+        .append_start(orphan.clone())
+        .expect("queue orphan retry");
+    let error = drain
+        .drain_available_to(fixture.store.clone())
+        .await
+        .expect_err("manual drain propagates the denial");
+    assert!(error
+        .to_string()
+        .contains("PROCESS_LEDGER_VERIFICATION_MISMATCH:0:"));
+    assert_eq!(drain.flush_failed_rows(), 1);
+    assert!(writer.is_degraded());
+    assert!(overflow.events().is_empty(), "a denial is not an overflow drop");
+    assert_eq!(fixture.process_event_count(&fixture.scope).await, events_before);
+
+    // Read-only inspection returns no partial data for the orphan receipt.
+    assert!(fixture
+        .store
+        .inspect_ownership_by_process_uuid(&fixture.scope, orphan.process_uuid)
+        .await
+        .expect("inspection of an orphan receipt does not error")
+        .is_none());
+
+    drop(writer);
+    fixture.close().await;
+}
+
 #[tokio::test]
 async fn saturation_emits_overflow_receipts_and_clears_degraded_after_drain() {
     let store = InMemoryProcessLedgerStore::default();
@@ -1202,6 +1611,22 @@ impl SurrealFixture {
             .expect("count query returns one value")
     }
 
+    /// Number of canonical `process_ledger` EventLedger receipts in one exact scope.
+    async fn process_event_count(&self, scope: &ReclaimResourceScope) -> i64 {
+        let bindings = ScopeOnlyBindings::new(scope);
+        self.storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_first::<i64, _>(COUNT_EXACT_PROCESS_EVENTS, bindings)
+                        .await
+                })
+            })
+            .await
+            .expect("count exact-scope process receipts")
+            .expect("receipt count query returns one value")
+    }
+
     async fn close(mut self) {
         drop(self.store);
         drop(self.storage);
@@ -1298,6 +1723,89 @@ impl EventProbe {
         ]
     }
 }
+
+#[derive(Debug, SurrealValue)]
+struct ScopeOnlyBindings {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+impl ScopeOnlyBindings {
+    fn new(scope: &ReclaimResourceScope) -> Self {
+        Self {
+            owner_account_id: scope.account_uuid.to_string(),
+            actor_principal_id: scope.actor_uuid.to_string(),
+            authenticated_session_id: scope.session_uuid.to_string(),
+            access_space_id: scope.access_space_uuid.to_string(),
+            workspace_id: scope.workspace_id.clone(),
+        }
+    }
+}
+
+/// Durable reclaim-fence projection of one exact-scope lifecycle row.
+#[derive(Debug, Clone, PartialEq, SurrealValue)]
+struct ReclaimProbe {
+    stopped_at: Option<DateTime<Utc>>,
+    stop_reason: Option<String>,
+    reclaim_state: Option<String>,
+    reclaim_claimant_uuid: Option<Uuid>,
+    reclaim_kill_operation_uuid: Option<Uuid>,
+    reclaim_generation: Option<i64>,
+    reclaim_claimed_at_unix_ms: Option<i64>,
+    reclaim_lease_expires_at_unix_ms: Option<i64>,
+    metadata: Value,
+}
+
+async fn reclaim_probe(
+    storage: &SurrealStorage,
+    scope: &ReclaimResourceScope,
+    process_uuid: Uuid,
+) -> Option<ReclaimProbe> {
+    let bindings = ExactRecordBindings::new(
+        scope,
+        RecordId::new(PROCESS_LEDGER_TABLE_NAME, process_uuid.to_string()),
+    );
+    storage
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database
+                    .query_first::<ReclaimProbe, _>(READ_EXACT_RECLAIM_STATE, bindings)
+                    .await
+            })
+        })
+        .await
+        .expect("read exact-scope reclaim state")
+}
+
+const READ_EXACT_RECLAIM_STATE: &str = r#"
+SELECT stopped_at, stop_reason, reclaim_state, reclaim_claimant_uuid,
+    reclaim_kill_operation_uuid, reclaim_generation, reclaim_claimed_at_unix_ms,
+    reclaim_lease_expires_at_unix_ms, metadata
+FROM ONLY $record
+WHERE owner_account_id = $owner_account_id
+    AND actor_principal_id = $actor_principal_id
+    AND authenticated_session_id = $authenticated_session_id
+    AND access_space_id = $access_space_id
+    AND workspace_id = $workspace_id;
+"#;
+
+const COUNT_EXACT_PROCESS_EVENTS: &str = r#"
+RETURN array::len(SELECT VALUE id FROM kernel_event_ledger
+WHERE source_component = 'process_ledger'
+    AND owner_account_id = $owner_account_id
+    AND actor_principal_id = $actor_principal_id
+    AND authenticated_session_id = $authenticated_session_id
+    AND access_space_id = $access_space_id
+    AND workspace_id = $workspace_id
+    AND payload.metadata_jsonb.owner_account_id = $owner_account_id
+    AND payload.metadata_jsonb.actor_principal_id = $actor_principal_id
+    AND payload.metadata_jsonb.authenticated_session_id = $authenticated_session_id
+    AND payload.metadata_jsonb.access_space_id = $access_space_id
+    AND payload.metadata_jsonb.workspace_id = $workspace_id);
+"#;
 
 const READ_EXACT_LIFECYCLE: &str = r#"
 SELECT process_uuid, engine_kind, stopped_at, exit_code, event_ledger_event_id, metadata

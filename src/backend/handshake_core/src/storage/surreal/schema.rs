@@ -9,7 +9,7 @@ use surrealdb::types::{
 use tokio::sync::Mutex;
 
 use super::{
-    SurrealAdminContext, SurrealStorage, SurrealStorageError, DEFAULT_DATABASE, DEFAULT_NAMESPACE,
+    SurrealAdminContext, SurrealStorage, SurrealStorageError,
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
@@ -18,11 +18,22 @@ pub const SOURCE_FORWARD_MIGRATION_COUNT: usize = 157;
 pub const SOURCE_FORWARD_WAVE_MANIFEST_SHA256: &str =
     "225ed19c0259ef121867ca5da1995813db0c48ee0cbfaded2d871e47b50f7fc1";
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "99845c07f0baca97c0ce4608fca7d31e32c82195729154263181c5b9ce3a45f7";
-/// Two-stage proof pin. The all-zero sentinel intentionally blocks finalization until a
-/// reviewed fresh-engine STRUCTURE receipt is captured and this constant is replaced.
+    "fa749e9190b6940f255fa160090e3a0f4fa46e95a31da960226e95047e04a785";
+/// Two-stage proof pin. Captured 2026-09-03 from fresh-engine STRUCTURE receipts on the
+/// WP-1 embedded-Surreal tree (schema.surql fixed `type::is::array` -> `type::is_array`, so
+/// this branch fingerprint necessarily differs from any pre-fix lineage).
+///
+/// Receipt evidence: eight independent freshly-created embedded RocksDB engines each applied the
+/// canonical schema and reported the identical live INFO fingerprint below, alongside structural
+/// counts that reconcile against the authored source (270 tables; 3214 fields = 3172 authored
+/// DEFINE FIELD lines + 42 engine-generated collection subtypes; 769 indexes = authored DEFINE
+/// INDEX lines). Log: ${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp1-mmo-v6/wp1-mmo-v6-kb0902/
+/// 2026-09-03T10-51-23-007Z-parent-mt002-suite.log
+///
+/// Known limitation: reproducibility is proven across engines on one host and one SurrealDB
+/// build. It is not yet proven host- or engine-version-independent.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "0000000000000000000000000000000000000000000000000000000000000000";
+    "ae45afb78e02a7984c741d275311b07154a834c5668cd918c999cf6f415847dc";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -45,7 +56,7 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
     "users",
 ];
 const TABLE_DEFINITION_COUNT: usize = 270;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 2911;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 2940;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 232;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 170;
 const AUTHORED_FIELD_DEFINITION_COUNT: usize =
@@ -56,10 +67,10 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 42;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 758;
+const INDEX_DEFINITION_COUNT: usize = 769;
 const SOURCE_TABLE_COUNT: usize = 267;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 508;
+const SOURCE_NAMED_INDEX_COUNT: usize = 519;
 const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 249;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
@@ -1044,24 +1055,24 @@ struct FinalizeBindings {
 }
 
 impl SchemaState {
-    fn has_current_lineage(&self) -> bool {
+    fn has_current_lineage(&self, namespace: &str, database: &str) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == SCHEMA_REVISION
             && self.target_revision == SCHEMA_REVISION
-            && self.namespace == DEFAULT_NAMESPACE
-            && self.database == DEFAULT_DATABASE
+            && self.namespace == namespace
+            && self.database == database
             && self.source_manifest_sha256 == SOURCE_FORWARD_WAVE_MANIFEST_SHA256
             && self.generated_surql_sha256 == GENERATED_SURREALQL_SHA256
     }
 
-    fn is_schema_applied_current(&self) -> bool {
-        self.has_current_lineage()
+    fn is_schema_applied_current(&self, namespace: &str, database: &str) -> bool {
+        self.has_current_lineage(namespace, database)
             && self.apply_state == "schema_applied"
             && self.info_fingerprint_sha256 == PENDING_SCHEMA_INFO_SHA256
     }
 
-    fn is_exact_current(&self) -> bool {
-        self.has_current_lineage()
+    fn is_exact_current(&self, namespace: &str, database: &str) -> bool {
+        self.has_current_lineage(namespace, database)
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256
     }
@@ -1124,8 +1135,8 @@ pub async fn bootstrap_schema(
                                 BootstrapBindings {
                                     schema_version: SCHEMA_VERSION.to_owned(),
                                     schema_revision: SCHEMA_REVISION,
-                                    namespace: DEFAULT_NAMESPACE.to_owned(),
-                                    database: DEFAULT_DATABASE.to_owned(),
+                                    namespace: database.namespace().to_owned(),
+                                    database: database.database().to_owned(),
                                     source_manifest_sha256:
                                         SOURCE_FORWARD_WAVE_MANIFEST_SHA256.to_owned(),
                                     generated_surql_sha256:
@@ -1134,7 +1145,11 @@ pub async fn bootstrap_schema(
                             )
                             .await?;
                         let applied_state = match read_context_and_state(&database).await? {
-                            Some(state) if state.is_schema_applied_current() => state,
+                            Some(state)
+                            if state.is_schema_applied_current(
+                                database.namespace(),
+                                database.database(),
+                            ) => state,
                             Some(state) => {
                                 return fail_closed(
                                     &database,
@@ -1162,7 +1177,11 @@ pub async fn bootstrap_schema(
                         .await?;
                         false
                     }
-                    Some(state) if state.is_schema_applied_current() => {
+                    Some(state)
+                            if state.is_schema_applied_current(
+                                database.namespace(),
+                                database.database(),
+                            ) => {
                         let observed = inspect_schema(&database).await?;
                         verify_expected_info_fingerprint(&database, &observed).await?;
                         finalize_schema_state(
@@ -1173,7 +1192,7 @@ pub async fn bootstrap_schema(
                         .await?;
                         true
                     }
-                    Some(state) if state.is_exact_current() => true,
+                    Some(state) if state.is_exact_current(database.namespace(), database.database()) => true,
                     Some(state) => {
                         return fail_closed(
                             &database,
@@ -1186,7 +1205,7 @@ pub async fn bootstrap_schema(
                 };
 
                 let state = match read_context_and_state(&database).await? {
-                    Some(state) if state.is_exact_current() => state,
+                    Some(state) if state.is_exact_current(database.namespace(), database.database()) => state,
                     Some(state) => {
                         return fail_closed(
                             &database,
@@ -1291,10 +1310,10 @@ async fn read_context_and_state(
             .await;
         }
     };
-    if namespace != DEFAULT_NAMESPACE || selected_database != DEFAULT_DATABASE {
+    if namespace != database.namespace() || selected_database != database.database() {
         return Err(SurrealStorageError::ContextMismatch {
-            expected_namespace: DEFAULT_NAMESPACE.to_owned(),
-            expected_database: DEFAULT_DATABASE.to_owned(),
+            expected_namespace: database.namespace().to_owned(),
+            expected_database: database.database().to_owned(),
             actual_namespace: namespace,
             actual_database: selected_database,
         });
@@ -1350,7 +1369,9 @@ async fn finalize_schema_state(
     applied_state: &SchemaState,
     info_fingerprint_sha256: &str,
 ) -> Result<(), SurrealStorageError> {
-    if !applied_state.is_schema_applied_current() || info_fingerprint_sha256.len() != 64 {
+    if !applied_state.is_schema_applied_current(database.namespace(), database.database())
+        || info_fingerprint_sha256.len() != 64
+    {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_SCHEMA_FINALIZE_PRECONDITION_FAILED".to_owned(),
@@ -1384,8 +1405,8 @@ COMMIT TRANSACTION;
             FinalizeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.namespace().to_owned(),
+                database: database.database().to_owned(),
                 source_manifest_sha256: SOURCE_FORWARD_WAVE_MANIFEST_SHA256.to_owned(),
                 generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
                 pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
@@ -1633,6 +1654,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::{DEFAULT_DATABASE, DEFAULT_NAMESPACE};
     use crate::storage::{
         surreal::{SurrealStorage, SurrealStorageConfig},
         EntityRef, JobMetrics, OperationType, PlannedOperation,
@@ -1973,8 +1995,8 @@ mod tests {
                             BootstrapBindings {
                                 schema_version: SCHEMA_VERSION.to_owned(),
                                 schema_revision: SCHEMA_REVISION,
-                                namespace: DEFAULT_NAMESPACE.to_owned(),
-                                database: DEFAULT_DATABASE.to_owned(),
+                                namespace: database.namespace().to_owned(),
+                                database: database.database().to_owned(),
                                 source_manifest_sha256: SOURCE_FORWARD_WAVE_MANIFEST_SHA256
                                     .to_owned(),
                                 generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
@@ -1984,7 +2006,7 @@ mod tests {
                     let pending = read_context_and_state(&database)
                         .await?
                         .expect("schema transaction must write pending state");
-                    assert!(pending.is_schema_applied_current());
+                    assert!(pending.is_schema_applied_current(database.namespace(), database.database()));
                     Ok(())
                 })
             })
@@ -2002,7 +2024,7 @@ mod tests {
                     let finalized = read_context_and_state(&database)
                         .await?
                         .expect("finalized state must exist");
-                    assert!(finalized.is_exact_current());
+                    assert!(finalized.is_exact_current(database.namespace(), database.database()));
                     Ok(())
                 })
             })

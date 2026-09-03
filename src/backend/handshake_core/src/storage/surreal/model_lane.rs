@@ -47,14 +47,13 @@ IF array::len($first_existing) = 1 AND array::len($second_existing) = 1 {\
 COMMIT TRANSACTION;";
 const GUARDED_MESSAGE_QUERY: &str = "\
 BEGIN TRANSACTION;\
-LET $result = (\
   LET $existing_message = (SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM type::record('model_lane_authority', $message_record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);\
-  IF array::len($existing_message) = 1 {\
+IF array::len($existing_message) = 1 {\
     IF $has_payload_binding {\
       LET $existing_binding = (SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM type::record('model_lane_authority', $binding_record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);\
       IF array::len($existing_binding) != 1 { THROW 'model-lane message payload binding is partially present'; };\
-      array::concat($existing_message, $existing_binding)\
-    } ELSE { $existing_message };\
+      RETURN array::concat($existing_message, $existing_binding);\
+    } ELSE { RETURN $existing_message; };\
   } ELSE {\
     LET $source = (SELECT VALUE id FROM type::record('model_lane_authority', $source_lane_record_id) WHERE record_kind = 'lane' AND record_json = $source_lane_record_json AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);\
     LET $session_owners = (SELECT VALUE id FROM model_lane_authority WHERE record_kind = 'lane' AND ($source_session_term IN search_terms OR $source_model_session_term IN search_terms) AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);\
@@ -71,11 +70,9 @@ LET $result = (\
       LET $binding_ledger = CREATE type::record('kernel_event_ledger', $binding_event_id) CONTENT { event_id: $binding_event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $binding_run_id, session_run_id: $binding_run_id, aggregate_type: $binding_record_kind, aggregate_id: $binding_aggregate_id, idempotency_key: $binding_event_id, event_type: 'MODEL_LANE_PAYLOAD_BOUND', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $message_event_id, correlation_id: NONE, payload_hash: $binding_event_payload_hash, source_component: 'model_lane', payload: { record_kind: $binding_record_kind, run_id: $binding_run_id, event_stream_version: 1, event_payload_json: $binding_event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
       LET $binding_seq = $binding_ledger[0].event_sequence;\
       LET $binding = CREATE type::record('model_lane_authority', $binding_record_id) CONTENT { record_kind: $binding_record_kind, aggregate_id: $binding_aggregate_id, run_id: $binding_run_id, idempotency_key: $binding_idempotency_key, record_json: $binding_record_json, search_terms: $binding_search_terms, event_id: $binding_event_id, event_ledger_event_id: type::record('kernel_event_ledger', $binding_event_id), event_seq: $binding_seq, event_stream_version: 1, transaction_seq: $binding_seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
-      array::concat($message, $binding)\
-    } ELSE { $message };\
+      RETURN array::concat($message, $binding);\
+    } ELSE { RETURN $message; };\
   };\
-);\
-RETURN $result;\
 COMMIT TRANSACTION;";
 const ROUTING_COMMIT_QUERY: &str = r#"
 BEGIN TRANSACTION;
@@ -225,6 +222,10 @@ IF $corruption = 'projection_event_sequence' {
     UPDATE $event[0] SET payload_hash = $tampered_sha256;
 } ELSE IF $corruption = 'receipt_scope' {
     UPDATE $event[0] SET actor_principal_id = 'counterfactual-receipt-principal';
+} ELSE IF $corruption = 'incomplete_attribution' {
+    UPDATE $row[0] SET authenticated_session_id = 'legacy-unattributed', access_space_id = 'legacy-unattributed';
+} ELSE IF $corruption = 'blank_attribution' {
+    UPDATE $row[0] SET owner_account_id = '';
 } ELSE {
     THROW 'unsupported ModelLane authority test corruption';
 };
@@ -232,10 +233,9 @@ COMMIT TRANSACTION;
 "#;
 const RECORD_RECOVERY_CHECKPOINT_QUERY: &str = r#"
 BEGIN TRANSACTION;
-LET $result = (
     LET $existing = (SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM type::record('model_lane_authority', $record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);
-    IF array::len($existing) = 1 {
-        $existing
+IF array::len($existing) = 1 {
+        RETURN $existing;
     } ELSE {
         IF array::len($existing) != 0 { THROW 'model-lane recovery checkpoint identity is ambiguous'; };
         LET $run = (SELECT VALUE id FROM type::record('model_lane_authority', $run_record_id) WHERE record_kind = 'run' AND aggregate_id = $run_id AND run_id = $run_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2);
@@ -244,18 +244,15 @@ LET $result = (
         IF array::len($run) != 1 OR array::len($lane) != 1 OR array::len($head) != 1 OR $head[0].event_seq != $expected_last_event_seq { THROW 'model-lane recovery checkpoint authority or high watermark changed'; };
         LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id, session_run_id: $run_id, aggregate_type: 'recovery_checkpoint', aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_RECOVERY_CHECKPOINT_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $event_payload_hash, source_component: 'model_lane', payload: { record_kind: 'recovery_checkpoint', run_id: $run_id, event_stream_version: 1, event_payload_json: $event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
         LET $seq = $ledger[0].event_sequence;
-        CREATE type::record('model_lane_authority', $record_id) CONTENT { record_kind: 'recovery_checkpoint', aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key, record_json: $record_json, search_terms: $search_terms, event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $seq, event_stream_version: 1, transaction_seq: $seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }
+        RETURN CREATE type::record('model_lane_authority', $record_id) CONTENT { record_kind: 'recovery_checkpoint', aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key, record_json: $record_json, search_terms: $search_terms, event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $seq, event_stream_version: 1, transaction_seq: $seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }
     };
-);
-RETURN $result;
 COMMIT TRANSACTION;
 "#;
 const RECORD_RECOVERY_EVENT_QUERY: &str = r#"
 BEGIN TRANSACTION;
-LET $result = (
     LET $existing = (SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM type::record('model_lane_authority', $record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);
-    IF array::len($existing) = 1 {
-        $existing
+IF array::len($existing) = 1 {
+        RETURN $existing;
     } ELSE {
         IF array::len($existing) != 0 { THROW 'model-lane recovery event identity is ambiguous'; };
         LET $run = (SELECT VALUE id FROM type::record('model_lane_authority', $run_record_id) WHERE record_kind = 'run' AND aggregate_id = $run_id AND run_id = $run_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2);
@@ -265,16 +262,14 @@ LET $result = (
         LET $current_order = IF array::len($order) = 0 { 0 } ELSE { $order[0].next_value };
         IF array::len($run) != 1 OR array::len($lane) != 1 OR array::len($source) != 1 { THROW 'model-lane recovery event authority changed'; };
         IF $expected_replay_order_seq != $current_order + 1 {
-            []
+            RETURN [];
         } ELSE {
             LET $order_counter = UPSERT type::record('model_lane_recovery_order', $order_record_id) CONTENT { run_id: $run_id, next_value: $expected_replay_order_seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
             LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id, session_run_id: $run_id, aggregate_type: 'recovery_event', aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_RECOVERY_EVENT_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $event_payload_hash, source_component: 'model_lane', payload: { record_kind: 'recovery_event', run_id: $run_id, event_stream_version: 1, source_event_seq: IF $has_source_event { $source_event_seq } ELSE { NONE }, replay_order_seq: $expected_replay_order_seq, event_payload_json: $event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
             LET $seq = $ledger[0].event_sequence;
-            CREATE type::record('model_lane_authority', $record_id) CONTENT { record_kind: 'recovery_event', aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key, record_json: $record_json, search_terms: $search_terms, event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $seq, event_stream_version: 1, transaction_seq: $seq, ordering_seq: $expected_replay_order_seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }
+            RETURN CREATE type::record('model_lane_authority', $record_id) CONTENT { record_kind: 'recovery_event', aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key, record_json: $record_json, search_terms: $search_terms, event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $seq, event_stream_version: 1, transaction_seq: $seq, ordering_seq: $expected_replay_order_seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }
         }
     };
-);
-RETURN $result;
 COMMIT TRANSACTION;
 "#;
 const APPEND_CRDT_UPDATE_QUERY: &str = r#"
@@ -1858,6 +1853,8 @@ impl SurrealModelLaneStore {
                 | "projection_scope"
                 | "receipt_payload_hash"
                 | "receipt_scope"
+                | "incomplete_attribution"
+                | "blank_attribution"
         ) {
             return Err(SurrealStorageError::InvalidModelLaneRecord {
                 reason: "ModelLane authority test corruption selector is invalid",
