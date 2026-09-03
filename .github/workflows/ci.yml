@@ -79,11 +79,11 @@ jobs:
 
       - name: Docs check
         run: |
-          test -s .GOV/roles_shared/START_HERE.md
-          test -s .GOV/roles_shared/SPEC_CURRENT.md
-          test -s .GOV/roles_shared/ARCHITECTURE.md
-          test -s .GOV/roles_shared/RUNBOOK_DEBUG.md
-          test -s .GOV/roles_shared/PAST_WORK_INDEX.md
+          test -s .GOV/roles_shared/docs/START_HERE.md
+          test -s .GOV/spec/SPEC_CURRENT.md
+          test -s .GOV/roles_shared/docs/ARCHITECTURE.md
+          test -s .GOV/roles_shared/docs/RUNBOOK_DEBUG.md
+          test -s .GOV/reference/PAST_WORK_INDEX.md
 
       - name: Codex checks
         run: |
@@ -189,7 +189,7 @@ jobs:
       - name: Run supply-chain MEX (secret_scan)
         env:
           HSK_RELEASE_MODE: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mex_tests ci_secret_scan_runs_via_terminal_service -- --ignored
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder,test-utils --test mex_tests ci_secret_scan_runs_via_terminal_service -- --ignored
 
       - name: Upload supply-chain artifacts + Flight Recorder
         if: always()
@@ -228,7 +228,7 @@ jobs:
       - name: Run supply-chain MEX (vuln_scan)
         env:
           HSK_RELEASE_MODE: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mex_tests ci_vuln_scan_runs_via_terminal_service -- --ignored
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder,test-utils --test mex_tests ci_vuln_scan_runs_via_terminal_service -- --ignored
 
       - name: Upload supply-chain artifacts + Flight Recorder
         if: always()
@@ -271,7 +271,7 @@ jobs:
       - name: Run supply-chain MEX (sbom_generate)
         env:
           HSK_RELEASE_MODE: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mex_tests ci_sbom_generate_runs_via_terminal_service -- --ignored
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder,test-utils --test mex_tests ci_sbom_generate_runs_via_terminal_service -- --ignored
 
       - name: Upload supply-chain artifacts + Flight Recorder
         if: always()
@@ -308,7 +308,7 @@ jobs:
       - name: Run supply-chain MEX (license_scan)
         env:
           HSK_RELEASE_MODE: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mex_tests ci_license_scan_runs_via_terminal_service -- --ignored
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder,test-utils --test mex_tests ci_license_scan_runs_via_terminal_service -- --ignored
 
       - name: Upload supply-chain artifacts + Flight Recorder
         if: always()
