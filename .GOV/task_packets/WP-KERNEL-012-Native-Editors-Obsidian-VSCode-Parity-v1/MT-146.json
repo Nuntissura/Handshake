@@ -1,0 +1,177 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-146",
+  "title": "B6-MT-146-Fix-The-Three-Memory-Proposal-Defects-That-Restoring-The-In-Crate-Test-Layer-Exposed",
+  "group": "B6",
+  "created_at_utc": "2026-09-03T23:08:27.318Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-146.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [
+      "MT-144"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "created_by": "KERNEL_BUILDER-20260903-213930",
+    "created_at_utc": "2026-09-03T23:08:27.318Z",
+    "creation_reason": "MT-144 restored the handshake_core lib test target, which had been unrunnable since the PostgreSQL removal. Running it revealed six failures in api::memory. Two were MT-118 proof targets and are now green, one recovered on its own once MT-118 landed, and three are genuine defects with no owner. This contract owns those three. They were disclosed at the time rather than silenced, and each one is reproduced here from a measured RED capture, not inferred.",
+    "origin": "Created 2026-09-04 by KERNEL_BUILDER-20260903-213930 after completing MT-118. Each failure below was re-run individually at product a153d2ce and its panic quoted verbatim.",
+    "why_not_mt_118": "MT-118 owns the legacy canonical proposal artifact heal and nothing else. Its ready receipt was already emitted at a153d2ce, and none of these three failures is an MT-118 proof target or a consequence of the MT-118 change: all three were already failing before it, on the same tree, and MT-118 reduced the failure count from six to three rather than causing any of them.",
+    "why_not_mt_144": "MT-144 is a test-harness restoration contract. Its acceptance criteria explicitly forbid weakening or deleting an assertion to reach green, so these three had to surface as failures and be handed to a behaviour contract rather than absorbed."
+  },
+  "scope": {
+    "summary": "Fix three defects in the memory proposal surface that the restored in-crate test layer exposed: workspace deletion leaves an orphan proposal under a concurrent insert, the proposal list does not put approved proposals first, and the commit outbox restart-recovery path does not reach its expected state. All three are pre-existing behaviour, not regressions from the test restoration.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/memory.rs",
+      "src/backend/handshake_core/src/storage/fems_memory.rs",
+      "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql"
+    ],
+    "forbidden_paths": [
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/src/api/flight_recorder.rs",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/frontend/**",
+      "app/**"
+    ],
+    "embedded_mode_boundary": "SurrealDB and EventLedger only. No SQLite and no PostgreSQL may be added, restored, imported, or referenced as a live backend.",
+    "defects": [
+      {
+        "id": "D-146-1",
+        "test": "api::memory::tests::proposal_delete_race_never_leaves_workspace_orphans",
+        "observed": "panicked at src/api/memory.rs:3931: assertion left == right failed: workspace deletion must cascade proposals. left: 1, right: 0.",
+        "what_it_means": "The test issues delete_workspace and create_memory_proposal concurrently through tokio::join, then counts fems_memory_proposals rows still pointing at the deleted workspace. One row survives. A memory proposal is left referencing a workspace that no longer exists.",
+        "code_context": "schema.surql line 4886 already declares the workspace_id field on fems_memory_proposals as record<workspaces> with ASSERT record::exists($value) REFERENCE ON DELETE CASCADE, and delete_workspace_record in storage/surreal/workspaces.rs runs an explicit transaction that clears the Loom dependants and then deletes the workspace, relying on that cascade for the remaining workspace-owned rows. So the cascade is declared, yet an orphan survives under concurrency.",
+        "candidate_mechanisms_not_yet_confirmed": [
+          "The proposal insert evaluates record::exists in a transaction that began before the delete committed, so the assert passes against a snapshot while the cascade has already run, and the insert lands afterwards with nothing left to cascade it.",
+          "The SurrealDB reference cascade only reaches rows whose reference was recorded before the delete transaction took its view, so a row created during the delete is invisible to it."
+        ],
+        "instruction": "Confirm which mechanism is real by measurement before changing anything. Do not implement against the guess."
+      },
+      {
+        "id": "D-146-2",
+        "test": "api::memory::tests::list_proposals_is_bounded_deterministic_and_workspace_scoped",
+        "observed": "panicked at src/api/memory.rs:2875: assertion left == right failed: approved proposals must lead the actionable projection for crash-safe commit recovery. Observed order was the newer proposal then the approved one; expected the approved one first.",
+        "what_it_means": "After one proposal is set to approved, the list route must return it ahead of a newer pending proposal, because the actionable projection is what crash-safe commit recovery walks. It does not.",
+        "code_context": "list_memory_proposals in storage/fems_memory.rs around line 2114 orders strictly by created_at DESC then proposal_id ASC. There is no status priority term, so an approved proposal can never lead a newer pending one. The defect is in the ordering clause, and the diagnosis is code-verified rather than inferred.",
+        "instruction": "Add a deterministic status-priority ordering term ahead of the recency term, keeping the tie-break stable so the bounded limit case stays deterministic. Do not reorder in Rust after the fact if that would break the LIMIT semantics the test also asserts."
+      },
+      {
+        "id": "D-146-3",
+        "test": "api::memory::tests::commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits",
+        "observed": "thread 'api::memory::tests::commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits' (48040) panicked at src\\api\\memory.rs:4672:9: assertion `left == right` failed: crash leaves the commit (FR-EVT-MEM-003) and pack-built (FR-EVT-MEM-004) events durably un-published and non-quarantined left: 1 right: 2",
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2112 filtered out; finished in 247.38s",
+        "what_it_means": "After the simulated crash the test counts the pending commit-outbox events for proposal A and expects exactly 2: the commit event FR-EVT-MEM-003 and the pack-built event FR-EVT-MEM-004, both left durably un-published and non-quarantined. Only 1 is present. One of the two events is either never written on the commit path, or is already published or quarantined at the point the crash is simulated, so the crash window does not preserve the evidence the recovery path is supposed to replay.",
+        "code_context": "The assertion is at src/api/memory.rs:4672 and filters list_pending_memory_commit_events on the proposal id. The commit path writes into fems_memory_commit_fr_outbox and fems_memory_lifecycle_fr_outbox, both keyed on the proposal with ON DELETE CASCADE in schema.surql. The count is short by one before the recovery poll is ever reached, so the defect is on the write side of the crash window, not in the startup projector.",
+        "instruction": "Determine by measurement which of FR-EVT-MEM-003 and FR-EVT-MEM-004 is missing from the pending set and why. Do not assume it is the pack-built event. The later assertions about projector recovery and evidence preservation across a second commit are unreached today, so they must also be proven once the count is right."
+      }
+    ],
+    "acceptance_criteria": [
+      "AC-146-1: proposal_delete_race_never_leaves_workspace_orphans passes against a real embedded store, and the fix is justified by a measured cause rather than by the candidate mechanisms guessed in this contract.",
+      "AC-146-2: list_proposals_is_bounded_deterministic_and_workspace_scoped passes, including its bounded-limit and workspace-scoping assertions, not only the ordering one.",
+      "AC-146-3: the third failure passes for a cause the implementer can state and show.",
+      "AC-146-4: no assertion in any of the three tests is weakened, reordered, relaxed, or deleted to reach green. If a test is judged to assert the wrong thing, that must be raised as a finding with evidence and left for the Operator, not fixed by editing the assertion.",
+      "AC-146-5: the full api::memory in-crate suite is run afterwards and reports 29 passed and 0 failed, with the count quoted verbatim. Any test that regresses is named.",
+      "AC-146-6: the product binary still builds, and no change is made outside the declared allowed_paths."
+    ],
+    "proof_targets": [
+      "PT-146-1: the RED for all three, already captured at product a153d2ce before any fix, so the pre-existing state is on the record.",
+      "PT-146-2: each of the three tests re-run individually and green, each quoted.",
+      "PT-146-3: the full api::memory in-crate suite green at 29 of 29.",
+      "PT-146-4: the product binary build still succeeds."
+    ],
+    "execution_constraints": [
+      "CARGO_TARGET_DIR must be an owner-scoped child of ../Handshake_Artifacts/handshake-cargo-target/ with a SHORT slug. Bundled DuckDB C++ headers hit the MSVC 260-character path limit and fail with C1083 if the target path is long; enabling long paths in the registry does not help cl.exe.",
+      "HANDSHAKE_ARTIFACTS_ROOT must be set to the absolute artifacts root or embedded_test_backend refuses to start.",
+      "Each test opens its own RocksDB store and takes roughly four minutes end to end, including a 30 second shutdown drain. The full 29-test suite took 2175 seconds on this host. Budget for that rather than assuming a hang.",
+      "Every run on this Windows host also emits a teardown cleanup failure and leaves the store directory behind. That is separate, is disclosed on MT-123, and must not be mistaken for a defect in this work.",
+      "Do not touch api/flight_recorder.rs or workflows.rs: MT-145 owns those."
+    ],
+    "risk_if_missed": "D-146-1 is a data-integrity defect: a memory proposal outliving its workspace is an orphan row that no workspace-scoped query will ever clean up, and it was written by a path that believed the workspace existed. D-146-2 breaks the ordering that crash-safe commit recovery depends on, so a recovery pass can walk the wrong proposal first. Both were invisible for as long as the in-crate test layer could not run, which is precisely why they went unnoticed."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "test output"
+    ],
+    "not_applicable_reason": "Backend storage and API behaviour with no operator-visible or model-navigable surface change."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No command, config key, IPC channel, or navigation path changes. The corrected behaviour restores what the API already documents."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "BEHAVIOUR_DEFECT_WITHOUT_ASSERTION_EROSION",
+    "risks": [
+      "Editing the assertion instead of the behaviour, which converts a real defect into a passing test and is the single most likely failure mode here because all three tests are old and the assertions look arguable.",
+      "Fixing D-146-1 by widening the delete transaction in a way that serialises all workspace writes, trading a correctness bug for a throughput cliff.",
+      "Fixing D-146-2 by sorting in Rust after the query, which silently breaks the LIMIT assertion the same test makes.",
+      "Implementing against the candidate mechanisms this contract lists for D-146-1 without confirming them, since they are explicitly labelled unconfirmed.",
+      "Declaring green from a single test run when the failure is a race, so it can pass by luck. D-146-1 in particular is a concurrency test."
+    ],
+    "minimum_controls": [
+      "AC-146-4 forbids assertion edits and routes any disagreement to the Operator as a finding.",
+      "AC-146-1 requires a measured cause, not the guess written into this contract.",
+      "AC-146-5 requires the whole suite, so a fix that breaks a sibling test cannot hide.",
+      "The concurrency test must be run repeatedly enough that a pass is not a coincidence, and the number of runs stated."
+    ],
+    "adversarial_validation_lenses": [
+      "correctness",
+      "concurrency and races",
+      "data-loss and recovery",
+      "anti-scaffold / runtime-proof"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "Observable behaviour changes on the memory proposal surface: deletion cascade under concurrency and list ordering. The HBR-INT-009 three-tier consideration applies and must be recorded by the implementer.",
+    "VIS": "NOT_APPLICABLE: no GUI, operator, diagnostic, or frontend surface is touched.",
+    "MAN": "NOT_APPLICABLE per user_manual_obligation: no command, channel, config key, or navigation path changes.",
+    "QUIET": "Test runs stay headless and must not foreground anything or steal focus.",
+    "STOP": "No capacity, token, or session-count stop reasons. A defect that cannot be fixed is reported with evidence under AC-146-4, not silenced."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "red_evidence_ref": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/orphan3-red.log",
+    "red_evidence_product_commit": "a153d2cee6f7851ee4a831978c636df37171c899"
+  }
+}
