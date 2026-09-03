@@ -15,6 +15,9 @@ env:
   SCANCODE_TOOLKIT_VERSION: "32.2.1"
   # Keep all Rust build/test artifacts out of the repo working tree.
   CARGO_TARGET_DIR: "${{ github.workspace }}/../Handshake Artifacts/handshake-cargo-target"
+  # The embedded SurrealDB test backend refuses to start without an absolute
+  # artifacts root and confines every test store beneath it.
+  HANDSHAKE_ARTIFACTS_ROOT: "${{ github.workspace }}/../Handshake_Artifacts"
 
 jobs:
   governance:
@@ -35,9 +38,9 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@just
 
-      - name: Install ripgrep (Ubuntu)
+      - name: Install ripgrep and Linux build deps (Ubuntu)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep libdbus-1-dev pkg-config
 
       - name: Install ripgrep (Windows)
         if: runner.os == 'Windows'
@@ -56,6 +59,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Enable corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -63,14 +69,11 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: app/pnpm-lock.yaml
 
-      - name: Enable corepack
-        run: corepack enable
-
       - name: Install frontend deps
         run: pnpm -C app install --frozen-lockfile
 
-      - name: Install ripgrep
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Install ripgrep and Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y ripgrep libdbus-1-dev pkg-config
 
       - name: Docs check
         run: |
@@ -132,24 +135,6 @@ jobs:
 
   backend-storage:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        backend: [sqlite, postgres]
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: handshake_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d handshake_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -159,15 +144,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Configure SQLite env
-        if: matrix.backend == 'sqlite'
-        run: echo "DATABASE_URL=sqlite::memory:" >> $GITHUB_ENV
+      - name: Install Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
 
-      - name: Configure Postgres env
-        if: matrix.backend == 'postgres'
-        run: |
-          echo "POSTGRES_TEST_URL=postgres://postgres:postgres@localhost:5432/handshake_test" >> $GITHUB_ENV
-          echo "DATABASE_URL=postgres://postgres:postgres@localhost:5432/handshake_test" >> $GITHUB_ENV
+      - name: Prepare embedded artifacts root
+        run: mkdir -p "${{ github.workspace }}/../Handshake_Artifacts"
 
       - name: Storage conformance tests
         run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance
@@ -188,6 +169,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.22.4"
+
+      - name: Install Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
 
       - name: Install gitleaks (pinned)
         run: |
@@ -225,6 +209,9 @@ jobs:
         with:
           go-version: "1.22.4"
 
+      - name: Install Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
       - name: Install osv-scanner (pinned)
         run: |
           set -euo pipefail
@@ -260,6 +247,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.22.4"
+
+      - name: Install Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
 
       - name: Install syft (pinned)
         run: |
@@ -297,6 +287,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
       - name: Install scancode-toolkit (pinned)
         run: |
           set -euo pipefail
@@ -323,15 +316,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Enable corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "pnpm"
           cache-dependency-path: app/pnpm-lock.yaml
-
-      - name: Enable corepack
-        run: corepack enable
 
       - name: Install frontend deps
         run: pnpm -C app install --frozen-lockfile
@@ -342,11 +335,29 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
       - name: Install cargo-deny
         run: cargo install cargo-deny
 
       - name: Rust dependency policy
         run: cargo deny --manifest-path src/backend/handshake_core/Cargo.toml check advisories licenses bans sources
+
+  cross-platform-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
+      - name: Cross-platform build check (Linux)
+        run: cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features
 
   traceability:
     runs-on: ubuntu-latest
