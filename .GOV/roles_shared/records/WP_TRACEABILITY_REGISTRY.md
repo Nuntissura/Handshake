@@ -239,6 +239,8 @@ Format:
 | WP-KERNEL-005 | .GOV/task_packets/WP-KERNEL-005/packet.md | Done: WP-KERNEL-005 [VALIDATED] | Integration Validation v3 PASS_V3 (205/207 MTs PASS_V3, 2 OUT_OF_SCOPE_BY_OPERATOR) at head 17b2abd4; merged to main 41b610df 2026-06-11; verdict record gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-005/MT_VERDICTS_INTEGRATION_VALIDATOR_V3.json |
 | WP-CKC-posekit-overhaul | .GOV/task_packets/WP-CKC-posekit-overhaul/packet.md | In Progress: WP-CKC-posekit-overhaul | hotfix ad hoc MT lane; product worktree ../wtc-ckc-posekit-overhaul; source branch feat/WP-KERNEL-012 at 6bb8cfb4f81a06c4718403826f3b30433f74a426 |
 | WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity | .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json | TBD |  |
+| WP-KERNEL-011-Native-WorkSurface-Shell | .GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json | TBD |  |
+| WP-KERNEL-STUDIO | .GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json | TBD |  |
 
 ## Superseded Activation History
 

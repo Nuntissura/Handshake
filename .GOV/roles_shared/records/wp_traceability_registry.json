@@ -4,7 +4,7 @@
   "authority_surface": "MACHINE_CONTRACT",
   "rendered_md_projection_path": ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
   "rendered_md_projection_policy": "GENERATED_FROM_JSON_DO_NOT_HAND_EDIT",
-  "updated_at_utc": "2026-07-16T18:23:59.193Z",
+  "updated_at_utc": "2026-09-04T21:00:53.596Z",
   "entries": [
     {
       "base_wp_id": "WP-1-ACE-Auditability",
@@ -981,6 +981,18 @@
     {
       "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
       "active_packet_path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-KERNEL-011-Native-WorkSurface-Shell",
+      "active_packet_path": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/packet.json",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-KERNEL-STUDIO",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.contract.json",
       "task_board_projection": "TBD",
       "notes": ""
     }

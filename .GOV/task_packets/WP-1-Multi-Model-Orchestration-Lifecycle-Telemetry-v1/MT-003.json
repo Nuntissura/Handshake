@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-30T12:50:01.2440772Z",
+  "updated_at_utc": "2026-09-04T20:45:00.378Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -77,14 +77,14 @@
     ],
     "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": "KERNEL_BUILDER-20260831-180220",
-    "claimed_at_utc": "2026-08-31T18:04:05.855Z",
+    "claimed_by": "KERNEL_BUILDER-20260902-180244",
+    "claimed_at_utc": "2026-09-04T20:45:00.378Z",
     "ready_for_validation_by": null,
     "ready_for_validation_at_utc": null,
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "OPERATOR_STORAGE_CORRECTION_2026_09_01_NOT_READY: PostgreSQL/SQLite production or proof evidence is invalid for MT-003. Embedded SurrealDB is the sole database authority. Deterministic isolated-vault/no-egress launch proof, durable restart replay, and separately owned Surreal ProcessLedger integration remain required; no readiness claim is made.",
+    "proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet.",
     "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-003:2026-07-20T01:13:21.386Z",
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
@@ -227,7 +227,7 @@
     "MAN"
   ],
   "handoff": {
-    "coder_session": "KERNEL_BUILDER-20260831-180220",
+    "coder_session": "KERNEL_BUILDER-20260902-180244",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
@@ -635,5 +635,25 @@
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
+  },
+  "v6_remediation_2026_09_02": {
+    "authority": "OPERATOR_DIRECTIVE_2026_09_02_WP1_V6_REMEDIATION_KERNEL_BUILDER_SUBAGENT_LANES",
+    "parent_session": "KERNEL_BUILDER-20260902-180244",
+    "storage_authority": "Embedded SurrealDB/EventLedger only [CX-503R]; PostgreSQL/SQLite forbidden in production, tests, fixtures, fallbacks, and proof.",
+    "artifact_root_correction": "All cargo/test/runtime proof runs through the parent cargo slot with CARGO_TARGET_DIR=${HANDSHAKE_ARTIFACTS_ROOT}/handshake-cargo-target/wp1-mmo-v6-kb0902 and logs under ${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp1-mmo-v6/wp1-mmo-v6-kb0902/. Any older contract text naming Handshake/_Artifacts or Handshake\\_Artifacts is superseded and must not be used.",
+    "session_mt_batch": "MT-002..MT-024",
+    "substrate_checkpoint": "feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1: substrate compile checkpoint after ef2d165c (see RECEIPTS.jsonl correlation WP1-V6-REMEDIATION-20260902)",
+    "history": [
+      {
+        "at_utc": "2026-09-04T20:45:00.378Z",
+        "kind": "CLAIM",
+        "note": "Deps satisfied: MT-002 READY_FOR_VALIDATION. Taking over stale claim from dead session KERNEL_BUILDER-20260831-180220. Widest unblocker in the packet.",
+        "prior_status": "CLAIMED",
+        "prior_claimed_by": "KERNEL_BUILDER-20260831-180220",
+        "prior_blocker": null,
+        "prior_missing_resource": null,
+        "prior_proof_status": "OPERATOR_STORAGE_CORRECTION_2026_09_01_NOT_READY: PostgreSQL/SQLite production or proof evidence is invalid for MT-003. Embedded SurrealDB is the sole database authority. Deterministic isolated-vault/no-egress launch proof, durable restart replay, and separately owned Surreal ProcessLedger integration remain required; no readiness claim is made."
+      }
+    ]
   }
 }
