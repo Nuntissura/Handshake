@@ -51,6 +51,11 @@
       "at_utc": "2026-09-04T05:09:57.648Z",
       "by": "KERNEL_BUILDER-20260903-213930",
       "reason": "Corrected AC-145-2's call-site count from 54 to 55 and narrowed AC-145-5 to the cfg(test) surface, after the implementing agent found the original wording unsatisfiable without violating AC-145-6. Both changes were verified against the source before amending. No obligation was relaxed: the cfg(test) surface must still come out clean, and the newly found 56th defect instance was added to scope rather than dropped."
+    },
+    "premise_correction_note": {
+      "at_utc": "2026-09-04T13:44:40.721Z",
+      "by": "KERNEL_BUILDER-20260903-213930",
+      "note": "The contract's central claim was overstated and its author's follow-up hypothesis was wrong. Both are corrected above from measurement supplied by the implementer, who refused to accept the original framing, refused to shop for a passing RED, and identified its own target-selection error unprompted. No acceptance criterion is weakened by this correction: all 55 call sites are still in scope and the cfg(test) surface must still come out clean."
     }
   },
   "scope": {
@@ -89,7 +94,7 @@
       "Do not touch src/backend/handshake_core/tests/**: MT-141 owns that tree.",
       "Do not touch api/memory.rs: its three remaining assertion failures are owned by MT-146."
     ],
-    "risk_if_missed": "54 in-crate tests currently compile and are counted as present but cannot exercise storage at all. Any of them expected to guard flight-recorder ingestion or workflow execution against regression is providing no protection, and the vestigial skip branch means a future refactor could turn them from loud failures into silent passes. This is the same class of hidden proof loss that MT-144 exists to undo.",
+    "risk_if_missed": "43 of the 55 in-crate tests in these two modules touch the store after setup_state and therefore fail deterministically with Database(\"embedded database is closed\") the moment they are actually run; they currently compile and are counted as present while proving nothing. The remaining 12 never touch the store and would pass either way, but they still carry a skip branch that can never be taken — the same construct that let 17 tests pass while proving nothing before MT-144 removed it. Left unfixed, any of the 43 that is expected to guard flight-recorder ingestion or workflow execution against regression is providing no protection at all.",
     "defects_found_during_implementation": {
       "recorded_by": "KERNEL_BUILDER-20260903-213930",
       "recorded_at_utc": "2026-09-04T05:09:57.648Z",
@@ -112,6 +117,21 @@
           "author_note": "The criterion was copied from MT-144, where every affected module was a test-only surface. workflows.rs is not, and the criterion should not have been carried across unchanged."
         }
       ]
+    },
+    "premise_correction_2026_09_04": {
+      "recorded_by": "KERNEL_BUILDER-20260903-213930 (orchestrator, contract author)",
+      "recorded_at_utc": "2026-09-04T13:44:40.721Z",
+      "retracted_claim": "The original risk_if_missed said 54 in-crate tests 'cannot exercise storage at all'. That is wrong in two separate ways and is retracted here rather than quietly worked around in the implementation.",
+      "error_1_overcounted": "12 of the 55 tests never touch the store after setup_state returns, so the store's lifetime is irrelevant to them and they would pass either way. api::flight_recorder has 11 such tests (its 29 setup_state tests break down as 18 that touch the store — 8 directly and 10 through a helper — and 11 that do not); workflows has 1 (25 of its 26 touch the store directly). The honest number of tests losing real proof is 43, not 54. The fix is still correct for all 55 because it deletes the dead skip branch from every one of them, but those 12 must not be counted as tests whose proof was destroyed.",
+      "error_2_mischaracterised_mechanism": "I then hypothesised, from a green RED, that the defect was racy — that the store was mid-teardown and tests passed or failed on timing. The implementer refuted that with measurement and was right. The behaviour is deterministic: the store handle is closed before the test body runs, so the first storage call returns Database(\"embedded database is closed\") every time. What the discriminator actually is: whether the test touches the store after setup_state, not when it does so.",
+      "why_the_first_red_was_green": "The implementer's initial RED target, list_events_preserves_model_session_id_filter_and_payload, is one of the 11 flight_recorder tests that never touch the store — it uses only the in-memory DuckDB recorder. It was chosen because it was the first call site in the file. That is a measurement error in target selection, not evidence that the defect is absent, and the implementer identified it as its own error before I did.",
+      "the_30_second_timeout_is_a_different_defect": "The 'shutdown failed: still draining operations after 30000 ms' line appears in BOTH the passing and the failing run, so it is a constant and not what separates them. Two distinct things are happening: the handle close takes effect immediately, which is what fails the storage-touching tests; the directory REMOVAL separately times out after 30 seconds and leaves the store on disk with os error 32. The latter is the MT-123 teardown defect, already disclosed there, and is unrelated to this microtask. Do not conflate them.",
+      "incidental_cost_finding": "TestStoreCleanupGuard::drop spawns a cleanup thread and joins it, so setup_state blocks up to 30 seconds on a shutdown that then times out anyway. Every one of these 55 tests pays that stall, which is roughly half an hour of pure teardown wait across the two modules and partly explains why a single test can run for 417 seconds. Recorded as an observation for whoever owns MT-123; not in scope here.",
+      "evidence": [
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/red2-workflows.log - model_run_timeout_ms_fails_before_simulated_runtime_finishes FAILED with Error: Database(\"embedded database is closed\"), 0 passed 1 failed",
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/red2-flight_recorder.log - list_events_preserves_model_session_id_filter_and_payload ok, 1 passed 0 failed, non-store-touching target"
+      ],
+      "method_note": "The corrected flight_recorder RED target was selected by a rule fixed in advance — first store-touching test in file order — specifically so the evidence could not be shopped for. The implementer committed to reporting a green result as falsifying the deterministic reading rather than trying another target."
     }
   },
   "gui_obligation": {
@@ -167,5 +187,5 @@
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
   },
-  "updated_at_utc": "2026-09-04T05:09:57.648Z"
+  "updated_at_utc": "2026-09-04T13:44:40.721Z"
 }
