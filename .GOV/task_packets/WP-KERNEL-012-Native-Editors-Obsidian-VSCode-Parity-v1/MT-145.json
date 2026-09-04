@@ -56,6 +56,11 @@
       "at_utc": "2026-09-04T13:44:40.721Z",
       "by": "KERNEL_BUILDER-20260903-213930",
       "note": "The contract's central claim was overstated and its author's follow-up hypothesis was wrong. Both are corrected above from measurement supplied by the implementer, who refused to accept the original framing, refused to shop for a passing RED, and identified its own target-selection error unprompted. No acceptance criterion is weakened by this correction: all 55 call sites are still in scope and the cfg(test) surface must still come out clean."
+    },
+    "timing_constraint_correction_2026_09_04": {
+      "at_utc": "2026-09-04T15:10:56.430Z",
+      "by": "KERNEL_BUILDER-20260903-213930 (orchestrator, contract author)",
+      "note": "Corrected a stale per-module runtime estimate that I had written from guesswork. Reported by the implementer from live measurement while its suites were running. No acceptance criterion changes; this only stops a future reader from misdiagnosing a healthy multi-hour run as a hang and killing it."
     }
   },
   "scope": {
@@ -90,9 +95,10 @@
     "execution_constraints": [
       "CARGO_TARGET_DIR must be an owner-scoped child of ../Handshake_Artifacts/handshake-cargo-target/ with a SHORT slug. Bundled DuckDB C++ headers hit the MSVC 260-character path limit and fail with C1083 if the target path is long; enabling long paths in the registry does not help cl.exe.",
       "HANDSHAKE_ARTIFACTS_ROOT must be set to the absolute artifacts root or embedded_test_backend refuses to start.",
-      "Each test opens its own RocksDB store, so a 28-test module takes roughly 30 minutes. Budget for that rather than assuming a hang.",
+      "Each test opens its own RocksDB store, so these suites run for HOURS, not minutes. Measured on this host at --test-threads=4: 7 of 29 api::flight_recorder tests completed in the first 60 minutes, with 10 more already past the 60-second notice. Budget a multi-hour run per module and do not read a long silence as a hang. An earlier version of this constraint said roughly 30 minutes per module; that was the contract author guessing rather than measuring, and it is corrected here so nobody mistakes a healthy run for a stalled one.",
       "Do not touch src/backend/handshake_core/tests/**: MT-141 owns that tree.",
-      "Do not touch api/memory.rs: its three remaining assertion failures are owned by MT-146."
+      "Do not touch api/memory.rs: its three remaining assertion failures are owned by MT-146.",
+      "Cap libtest concurrency rather than taking the default. The implementer chose --test-threads=4 and the orchestrator endorsed it: each test opens its own RocksDB store, and this host has already produced one STATUS_DLL_INIT_FAILED under memory pressure. A resource failure at process start masquerades as a test failure and would corrupt the per-test attribution AC-145-4 requires, so trading wall time for trustworthy attribution is the correct call here."
     ],
     "risk_if_missed": "43 of the 55 in-crate tests in these two modules touch the store after setup_state and therefore fail deterministically with Database(\"embedded database is closed\") the moment they are actually run; they currently compile and are counted as present while proving nothing. The remaining 12 never touch the store and would pass either way, but they still carry a skip branch that can never be taken — the same construct that let 17 tests pass while proving nothing before MT-144 removed it. Left unfixed, any of the 43 that is expected to guard flight-recorder ingestion or workflow execution against regression is providing no protection at all.",
     "defects_found_during_implementation": {
@@ -187,5 +193,5 @@
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
   },
-  "updated_at_utc": "2026-09-04T13:44:40.721Z"
+  "updated_at_utc": "2026-09-04T15:10:56.430Z"
 }
