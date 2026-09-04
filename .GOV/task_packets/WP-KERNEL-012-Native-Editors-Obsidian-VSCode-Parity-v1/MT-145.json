@@ -217,7 +217,21 @@
       ]
     },
     "next_actor": "INTEGRATION_VALIDATOR",
-    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-09-04T16:28:42.002Z",
+      "actor_session": "KERNEL_BUILDER-20260904-050242",
+      "overall_verdict": "PASS",
+      "product_commit": "9d017677",
+      "product_branch": "feat/WP-KERNEL-012-mt145",
+      "blocked_items": []
+    },
+    "orchestrator_closeout_repair_2026_09_04": {
+      "at_utc": "2026-09-04T16:36:24.635Z",
+      "by": "KERNEL_BUILDER-20260903-213930 (orchestrator)",
+      "note": "The implementer emitted a PASS receipt to the ledger but did not record the pointer on this contract, and left the packet projections at READY_FOR_DEV. Both repaired here. This is the same projection drift that has bitten this packet repeatedly: the contract, the receipt ledger and the tracker each held a different truth. The receipt itself is unchanged and its verdict is the implementer’s, not mine."
+    }
   },
   "scope": {
     "summary": "Make the in-crate cfg(test) modules in api/flight_recorder.rs and workflows.rs run against a live embedded SurrealDB store instead of a store that has already been shut down, and delete the vestigial skip branches that can no longer be taken. Today both modules build, but their setup_state helpers destroy the store before the first assertion runs.",
@@ -353,5 +367,5 @@
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
   },
-  "updated_at_utc": "2026-09-04T16:25:14.991Z"
+  "updated_at_utc": "2026-09-04T16:36:24.635Z"
 }

@@ -647,8 +647,8 @@
       "MT-142": "READY_FOR_DEV",
       "MT-143": "READY_FOR_VALIDATION_V4",
       "MT-144": "READY_FOR_VALIDATION_V4",
-      "MT-145": "READY_FOR_DEV",
-      "MT-146": "READY_FOR_DEV",
+      "MT-145": "READY_FOR_VALIDATION_V4",
+      "MT-146": "CLAIMED",
       "MT-147": "READY_FOR_VALIDATION_V4"
     },
     "kernel_builder_sequence_note": "KERNEL_BUILDER re-sequence 2026-06-24: the E8 proof capstones MT-044 (parity suite, depends_on 001-043+047-062), MT-045 (perf proof), MT-046 (interconnection proof) are DEFERRED to the END of the WP - they prove the whole editor set + most of their proofs require live WP-scoped embedded SurrealDB/EventLedger (NEEDS_MANAGED_RESOURCE_PROOF). Build the remaining FEATURE MTs first in numeric order: E1-deepening 047-054, E2-deepening 055-059, E3-deepening 060-062, E9 063-065, E10 066-068+074, E11 host-mount 069-071 (the convergence point that mounts the editors live + clears the carry-forwards), E12 072-073, E13 i18n 075-078. THEN run the 044-046 capstones last for a truthful comprehensive parity manifest.",
@@ -1242,8 +1242,8 @@
       "MT-142": "READY_FOR_DEV",
       "MT-143": "READY_FOR_VALIDATION_V4",
       "MT-144": "READY_FOR_VALIDATION_V4",
-      "MT-145": "READY_FOR_DEV",
-      "MT-146": "READY_FOR_DEV",
+      "MT-145": "READY_FOR_VALIDATION_V4",
+      "MT-146": "CLAIMED",
       "MT-147": "READY_FOR_VALIDATION_V4"
     },
     "status_sync_note_2026_08_31_mt108_v4_repair": "MT-108 moved CLAIMED/FAIL_V4 -> READY_FOR_VALIDATION_V4/PENDING_V4 by KERNEL_BUILDER-20260830-124008 at product source 1505edb6ebab0c22d85fd38f9f840505f55927e4. Exact-source GPU proof passed with 34 supervised processes, 38 CAPTURED frames, and zero invalid pairs, duplicate identities, nonzero exits, cleanup failures, or missing frames. Exact-source headless proof passed with 34 supervised processes, 38 DEFERRED markers, and zero frames. Current-head focused checks and scoped static guards passed; the authoritative unchanged-input full-suite proof remains MT-127's governed 189/189 sweep. MT-025's ready contract/test and all other ready/passing MT contracts were untouched. completed_by remains null pending official V4 validation.",
@@ -1327,7 +1327,8 @@
       "suggested_scope": "A microtask that determines by measurement whether the product fails to detect the conflict or the test asserts something never implemented, then fixes whichever is actually wrong. Same discipline as MT-146 D-146-3: do not edit the assertion to make it pass.",
       "evidence": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/green-flight_recorder-suite.log - test result: FAILED. 38 passed; 1 failed; 0 ignored; 0 measured; 2074 filtered out."
     },
-    "status_sync_note_2026_09_04_envelope": "Finding recorded 2026-09-04: native_editor_same_id_mutated_envelope_conflicts is the one MT-145 suite failure not explained by the NoopTestRecorder defect. Undiagnosed - either conflict detection does not fire against a live store, or the assertion encodes an unimplemented expectation. Needs its own microtask; AC-145-3 satisfied by this named owner."
+    "status_sync_note_2026_09_04_envelope": "Finding recorded 2026-09-04: native_editor_same_id_mutated_envelope_conflicts is the one MT-145 suite failure not explained by the NoopTestRecorder defect. Undiagnosed - either conflict detection does not fire against a live store, or the assertion encodes an unimplemented expectation. Needs its own microtask; AC-145-3 satisfied by this named owner.",
+    "status_sync_note_2026_09_04_mt145_ready": "MT-145 READY_FOR_VALIDATION_V4 at 2026-09-04T16:36:24.635Z on a PASS receipt with no blockers, product 9d017677 on feat/WP-KERNEL-012-mt145 (deliberately not merged into feat/WP-KERNEL-012; integration is the orchestrator step). Contract receipt pointer and both projections were stale on delivery and repaired by the orchestrator."
   },
   "status_sync_note_2026_07_05_mt101_repair": "MT-101 moved OPEN -> READY_FOR_VALIDATION by KERNEL_BUILDER-20260705-025228 after focused hardcode/local-load repair: ordinary operator model-session /jobs requests omit wp_id, mt_id, prompt, and simulate_duration_ms; promptless bootstrap/manual wording is updated; local GGUF load is now surfaced as LocalModelLoadEndpointMissing kernel_model_runtime_load while direct spawn remains kernel_swarm_spawn_session IPC-only. Proofs passed: model_session_launch 14/14 with external screenshots, manual_content 19/19, cargo fmt --check, scoped git diff --check, cargo check --lib, CONTROL-4 no_hardcoded_color32 1/1, and git ls-files src/**/*.png empty. Official validator has not run; validator_verdict remains PENDING. Full suite/clippy/live local+cloud managed backend execution remain unproven/NEEDS_MANAGED_RESOURCE_PROOF. Contract under-scoped manual_content_editors.rs and tests/test_manual_content.rs for HBR-MAN same-change proof; operator waiver required.",
   "operator_requirement_verification_2026_08_05": {
