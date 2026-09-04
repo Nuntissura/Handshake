@@ -46,7 +46,79 @@
     "creation_reason": "MT-144 restored the handshake_core lib test target, which had been unrunnable since the PostgreSQL removal. Running it revealed six failures in api::memory. Two were MT-118 proof targets and are now green, one recovered on its own once MT-118 landed, and three are genuine defects with no owner. This contract owns those three. They were disclosed at the time rather than silenced, and each one is reproduced here from a measured RED capture, not inferred.",
     "origin": "Created 2026-09-04 by KERNEL_BUILDER-20260903-213930 after completing MT-118. Each failure below was re-run individually at product a153d2ce and its panic quoted verbatim.",
     "why_not_mt_118": "MT-118 owns the legacy canonical proposal artifact heal and nothing else. Its ready receipt was already emitted at a153d2ce, and none of these three failures is an MT-118 proof target or a consequence of the MT-118 change: all three were already failing before it, on the same tree, and MT-118 reduced the failure count from six to three rather than causing any of them.",
-    "why_not_mt_144": "MT-144 is a test-harness restoration contract. Its acceptance criteria explicitly forbid weakening or deleting an assertion to reach green, so these three had to surface as failures and be handed to a behaviour contract rather than absorbed."
+    "why_not_mt_144": "MT-144 is a test-harness restoration contract. Its acceptance criteria explicitly forbid weakening or deleting an assertion to reach green, so these three had to surface as failures and be handed to a behaviour contract rather than absorbed.",
+    "implementation_result_status": "IMPLEMENTED_WITH_ONE_AC_BLOCKED_ON_OPERATOR_DECISION",
+    "implementation_result_at_utc": "2026-09-04T16:20:00Z",
+    "implementation_result_by": "KERNEL_BUILDER-20260904-050159",
+    "implementation_result_summary": "D-146-1 and D-146-2 fixed and proven green. D-146-3 is not a product defect in the form the contract assumed: the assertion is unsatisfiable without editing either a forbidden path or the test itself, so it is raised as a finding under AC-146-4 and left for the Operator.",
+    "implementation_result_acs": {
+      "AC-146-1": {
+        "status": "MET",
+        "evidence": "proposal_delete_race_never_leaves_workspace_orphans green. Measured cause, not the contract guesses: surrealdb 3.2.0 on RocksDB uses OptimisticTransactionDB with set_snapshot(true) and WRITE-WRITE conflict detection only; get_for_update is never called anywhere in surrealdb-core, so there is no read-set tracking and no SSI. Insert and delete write disjoint keys so neither aborts: the insert ASSERT record::exists reads a snapshot that still holds the workspace, and REFERENCE ON DELETE CASCADE is a snapshot-bound scan that cannot see a reference key written by a transaction uncommitted at snapshot time. Both contract candidate mechanisms are facets of that one cause. Fix orders the two snapshots via the existing FEMS mutation lock plus an in-transaction existence guard mapped to 404."
+      },
+      "AC-146-2": {
+        "status": "MET",
+        "evidence": "list_proposals_is_bounded_deterministic_and_workspace_scoped green, including its bounded-limit and workspace-scoping assertions. Cause code-verified: ORDER BY had no status-priority term. Fixed with a SurrealQL-computed status_rank ordered ahead of created_at DESC, proposal_id ASC, so ORDER BY still precedes LIMIT and no Rust-side sort is used."
+      },
+      "AC-146-3": {
+        "status": "BLOCKED_ON_OPERATOR_DECISION",
+        "evidence": "Two compounding causes. (1) list_commit_rows withheld the un-published FR-EVT-MEM-004 until its FR-EVT-MEM-003 sibling was published; fixed by moving that causal rule to dispatch time via commit_event_dispatch_ready. (2) DECISIVE: the test filters pending events on event.payload proposal_id, but validate_memory_pack_built_payload at src/backend/handshake_core/src/flight_recorder/mod.rs:4307 calls require_allowed_keys with a closed 10-key allowlist and an empty optional list, and proposal_id is absent from it; the builder calls validate(), so adding the key would fail every commit. FR-EVT-MEM-004 instead carries its proposal linkage in activity_span_id, as fems-memory-proposal followed by the proposal id. pending_outbox == 2 is therefore unsatisfiable without editing flight_recorder/mod.rs (outside allowed_paths) or the test filter (forbidden by AC-146-4). Raised as a finding; the Orchestrator independently verified it and is routing the decision to the Operator, recommending the filter use activity_span_id while leaving the assertion count and message untouched."
+      },
+      "AC-146-4": {
+        "status": "MET",
+        "evidence": "No assertion in any of the three tests was weakened, reordered, relaxed or deleted. Every api/memory.rs hunk lies between lines 299 and 1290; the tests module begins at line 1752 and the three tests at 2763 and beyond. The file still contains exactly 29 test attributes, so none was added or removed. The one assertion that could not be satisfied was escalated rather than edited."
+      },
+      "AC-146-5": {
+        "status": "NOT_MET_UNREACHABLE_PENDING_AC-146-3",
+        "evidence": "Full api::memory:: suite run once on the final tree: test result: FAILED. 28 passed; 1 failed; 0 ignored; 0 measured; 2084 filtered out; finished in 2255.65s. The single failure is the known D-146-3 test; the suite failure list contains only commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits, so nothing regressed. 29/0 is unreachable while AC-146-3 stands, and 28/1 is NOT presented as a pass."
+      },
+      "AC-146-6": {
+        "status": "MET",
+        "evidence": "cargo build --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime finished the dev profile in 40m 55s with BUILD_EXIT=0. Changes are confined to three of the four declared allowed_paths: api/memory.rs, storage/fems_memory.rs, storage/surreal/workspaces.rs. schema.surql was deliberately not modified: its cascade declaration is correct and the defect was in isolation semantics above it."
+      }
+    },
+    "implementation_result_proof_targets": {
+      "PT-146-1": "RED pre-existing at a153d2ce per handoff.red_evidence_ref; only .github/workflows/ci.yml differs between a153d2ce and the 70c289cb tree, so that RED applies to this source.",
+      "PT-146-2": "D-146-1 and D-146-2 green and quoted. D-146-3 still red at the same assertion (memory.rs:4701 equals original 4672 plus the 29 lines this MT added above it), left 1 right 2.",
+      "PT-146-3": "28 passed; 1 failed. Not 29/29. See AC-146-5.",
+      "PT-146-4": "BUILD_EXIT=0."
+    },
+    "implementation_result_concurrency_proof": "proposal_delete_race_never_leaves_workspace_orphans passed 7 consecutive runs with 0 failures: the initial three-test run, 5 dedicated repeats, plus one orphaned duplicate of repeat 5 that survived a harness kill and also passed. Durations ranged 491-989s. Red-team minimum control satisfied: a single pass could be coincidence, 7 is not.",
+    "implementation_result_evidence_logs": [
+      "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt146-green-run3.log",
+      "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt146-race-repeats-and-suite.log",
+      "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt146-repeat5-suite-build.log",
+      "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt146-suite-build-detached.log",
+      "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt146-product-build.log"
+    ],
+    "blocker": "AC-146-3 / AC-146-5: pending_outbox == 2 in commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits is unsatisfiable within allowed_paths. Requires an Operator decision: either authorise the test filter to use activity_span_id (leaving the assertion count and message untouched), or authorise changing the FR-EVT-MEM-004 payload allowlist in flight_recorder/mod.rs, which is outside this MT allowed_paths.",
+    "implementation_findings": [
+      {
+        "id": "F-146-A",
+        "severity": "BLOCKER",
+        "summary": "FR-EVT-MEM-004 payload cannot carry proposal_id; the test filter is incompatible with the event schema contract.",
+        "detail": "flight_recorder/mod.rs:4307 require_allowed_keys enforces a closed allowlist. Recommend the test filter on activity_span_id. Operator decision required per AC-146-4."
+      },
+      {
+        "id": "F-146-B",
+        "severity": "OBSERVATION",
+        "summary": "A quarantined FR-EVT-MEM-003 could permanently strand its FR-EVT-MEM-004 sibling, invisible to every listing.",
+        "detail": "The old list_commit_rows gate hid a pack-built row until its commit row was published, and unlike the lifecycle outbox there is no requeue path for a quarantined commit-outbox row (only requeue_quarantined_memory_lifecycle_event exists). The gate removal in this MT closes that hole while preserving the ordering guarantee at dispatch time. The change is currently proven only by the suite staying otherwise green; the corrected D-146-3 test would prove it directly. The Orchestrator reviewed this and directed that it be kept rather than reverted."
+      },
+      {
+        "id": "F-146-C",
+        "severity": "OBSERVATION",
+        "summary": "Changing an outbox event payload is durable-evidence-affecting.",
+        "detail": "ensure_commit_outbox compares row.event_hash against a re-derived event_json_hash, so altering the FR-EVT-MEM-004 payload shape would make pre-existing rows conflict on retry with the message about commit outbox identity being bound to different evidence. Any Operator decision to add proposal_id to that payload must account for existing rows; cold-genesis stores are unaffected."
+      }
+    ],
+    "implementation_result_product_commit": "7d4982c6",
+    "implementation_result_product_branch": "feat/WP-KERNEL-012",
+    "implementation_result_files_touched": [
+      "src/backend/handshake_core/src/api/memory.rs",
+      "src/backend/handshake_core/src/storage/fems_memory.rs",
+      "src/backend/handshake_core/src/storage/surreal/workspaces.rs"
+    ]
   },
   "scope": {
     "summary": "Fix three defects in the memory proposal surface that the restored in-crate test layer exposed: workspace deletion leaves an orphan proposal under a concurrent insert, the proposal list does not put approved proposals first, and the commit outbox restart-recovery path does not reach its expected state. All three are pre-existing behaviour, not regressions from the test restoration.",
