@@ -4692,11 +4692,32 @@ mod tests {
                 .expect("committed proposal")
                 .status;
         assert_eq!(committed_status, "committed");
+        // WP-KERNEL-012 MT-146 D-146-3. SELECTOR CORRECTION ONLY, authorised by the Operator on
+        // 2026-09-04 and recorded at lifecycle.operator_authorisation_2026_09_04. The expected
+        // count and the assertion message below are deliberately unchanged.
+        //
+        // The previous selector filtered on payload["proposal_id"], which FR-EVT-MEM-004 cannot
+        // carry: validate_memory_pack_built_payload enforces a closed key allowlist that omits
+        // proposal_id and the builder validates, so the pack-built event could never match and
+        // the assertion was unsatisfiable by construction rather than merely failing.
+        //
+        // The authorisation named activity_span_id, but required verifying first that BOTH
+        // events carry it. They do not: only the pack builder sets activity_span_id, and
+        // FlightRecorderEvent::new defaults it to None, so selecting on it alone would drop
+        // FR-EVT-MEM-003 and be wrong in the opposite direction. trace_id is the linkage both
+        // events genuinely share -- the commit event is built with
+        // stable_uuid("fems-memory-proposal:{proposal_id}") as its trace_id and the pack event
+        // copies that same value -- and it is scoped to this proposal, so it selects both
+        // events of this commit and nothing else.
+        let proposal_a_trace_id = deterministic_uuid_from_seed(&format!(
+            "fems-memory-proposal:{}",
+            proposal_a.proposal_id
+        ));
         let pending_outbox =
             fems_memory::list_pending_memory_commit_events(&state.surreal, &workspace_id, 200)
                 .await?
                 .into_iter()
-                .filter(|event| event.payload["proposal_id"] == proposal_a.proposal_id)
+                .filter(|event| event.trace_id == proposal_a_trace_id)
                 .count();
         assert_eq!(
             pending_outbox, 2,
