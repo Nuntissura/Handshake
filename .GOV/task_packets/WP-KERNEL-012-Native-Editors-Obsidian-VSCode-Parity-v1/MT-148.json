@@ -1,0 +1,158 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-148",
+  "title": "B14-MT-148-Make-A-Fresh-Worktree-Able-To-Build-And-Run-Tests-At-All",
+  "group": "B14",
+  "created_at_utc": "2026-09-04T23:31:02.888Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [],
+    "blocks": [
+      "MT-141",
+      "MT-142"
+    ],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "created_by": "KERNEL_BUILDER-20260903-213930",
+    "created_at_utc": "2026-09-04T23:31:02.888Z",
+    "creation_reason": "Two independent defects each make a freshly created worktree unable to do its job, and both were found the hard way during the MT-145 and MT-147 lanes rather than by anyone reading the code. Neither belongs to an existing microtask: MT-145's allowed paths are two cfg(test) modules, MT-147's is a workflow file, and MT-146's is the memory surface. They are grouped here because they share one acceptance surface -- can a new worktree build and test at all -- and because fixing one without the other still leaves a new worktree broken.",
+    "relationship_to_mt_141": "Defect B lives in src/backend/handshake_core/tests/**, which MT-141 owns. This contract deliberately takes only the dependency-API repair that makes that tree COMPILE, and touches nothing else in it. MT-141's own scope is porting the suite off sqlx onto the embedded store; it is currently CLAIMED and blocked by exactly this compile failure, so repairing it here unblocks MT-141 rather than competing with it. If the Operator would rather MT-141 absorb this, close MT-148 and hand it over -- but it should not sit unowned, because it blocks every integration target in the crate."
+  },
+  "scope": {
+    "summary": "Repair the two defects that stop a fresh worktree from building and testing: .surql files that arrive with CRLF and break the compiled-manifest hash, and an integration-test helper calling a tempfile API that no longer exists.",
+    "allowed_paths": [
+      ".gitattributes",
+      "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs"
+    ],
+    "forbidden_paths": [
+      "src/backend/handshake_core/src/**",
+      "src/frontend/**",
+      "app/**",
+      ".github/workflows/**"
+    ],
+    "embedded_mode_boundary": "SurrealDB and EventLedger only. No SQLite and no PostgreSQL may be added, restored, imported, or referenced as a live backend.",
+    "defects": [
+      {
+        "id": "D-148-1",
+        "title": "Fresh Windows checkouts get CRLF .surql files and cannot bootstrap any embedded test",
+        "observed": "Every embedded test in a newly created worktree fails at verify_compiled_manifest before any assertion runs. The symptom presents as schema drift, which invites misdiagnosis as a schema or migration bug.",
+        "cause": ".gitattributes pins .md, .mjs, .json and a long list of governance paths to eol=lf but never *.surql. git check-attr text eol on src/backend/handshake_core/src/storage/surreal/schema.surql returns unspecified, so a fresh Windows checkout materialises those files with CRLF. The product include_str!s them in four places and hashes the bytes, so the manifest check fails.",
+        "why_it_hides": "Long-lived worktrees are unaffected because their files were already LF on disk. The defect is invisible until someone creates a new worktree, which is exactly when it costs the most.",
+        "fix": "Add *.surql text eol=lf to .gitattributes and renormalise the affected files so the committed bytes match.",
+        "care_required": "This renormalises every .surql in the tree. Verify afterwards that the compiled-manifest hashes still match and that an embedded test actually bootstraps -- do not assume the attribute alone is sufficient."
+      },
+      {
+        "id": "D-148-2",
+        "title": "The integration test tree does not compile on any host",
+        "observed": "error[E0599]: no associated function or constant named `from_path` found for struct `TempDir` in the current scope --> tests/atelier_surreal_support/mod.rs:124:49, followed by: error: could not compile handshake_core (test \"atelier_command_corpus_tests\").",
+        "cause": "Cargo.toml declares tempfile = \"3\", which resolves to 3.27.0. TempDir::from_path no longer exists in that version and into_path is deprecated in favour of keep(). tests/atelier_surreal_support/mod.rs still calls from_path at line 124 and into_path at lines 41 and 159.",
+        "why_it_hides": "This is a dependency API change, not a platform difference, so it breaks everywhere. It is why cargo check --all-targets has not passed on any host, and why the MT-147 cross-platform CI job had to be scoped to --lib --bins to avoid reporting another microtask's defect as its own.",
+        "fix": "Either pin tempfile to a version that still has from_path, or rewrite open_existing so it does not wrap an already-existing directory in a TempDir. The second is likely correct: open_existing takes ownership of a caller-supplied path for a close-and-reopen durability proof, which is not what TempDir is for. Decide by reading the call site, not by taking this note as instruction."
+      }
+    ],
+    "acceptance_criteria": [
+      "AC-148-1: git check-attr text eol on a .surql file reports eol=lf, and the committed bytes of the .surql files are LF.",
+      "AC-148-2: a brand-new worktree created from the branch can bootstrap an embedded store -- proved by running one storage-touching test in a FRESH worktree, not the one the work was done in. This is the only acceptance surface that actually proves D-148-1, because the working worktree is unaffected by construction.",
+      "AC-148-3: cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features completes with no E0599 and no could-not-compile error from the tests tree.",
+      "AC-148-4: no file outside the two allowed paths is modified. In particular nothing under src/backend/handshake_core/src/** and no other file under tests/**, which MT-141 owns.",
+      "AC-148-5: the compiled-manifest hashes still match after renormalisation, and no test that passed before now fails for a schema reason.",
+      "AC-148-6: if the tempfile repair changes what open_existing does rather than only how it says it, that behaviour change is stated explicitly rather than folded in silently."
+    ],
+    "proof_targets": [
+      "PT-148-1: git check-attr output before and after, plus evidence the committed bytes changed from CRLF to LF.",
+      "PT-148-2: one storage-touching test run green in a FRESH worktree created after the fix. A pass in the working worktree proves nothing here and must not be offered as evidence.",
+      "PT-148-3: cargo check --all-targets --all-features output, quoted, showing the tests tree compiling.",
+      "PT-148-4: the diff, showing only .gitattributes and the one helper file changed."
+    ],
+    "execution_constraints": [
+      "CARGO_TARGET_DIR must be an owner-scoped child of Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target/ with a SHORT slug. Sibling artifact roots are forbidden, including Handshake/Handshake_Artifacts and Handshake Worktrees/handshake-cargo-target. Bundled DuckDB C++ headers hit the MSVC 260-character path limit and fail with C1083 if the target path is long.",
+      "HANDSHAKE_ARTIFACTS_ROOT must be the absolute artifacts root or embedded_test_backend refuses to start.",
+      "A warm target dir exists at handshake-cargo-target/k12-kb0902 and should be reused rather than rebuilt cold. Copying a warm target dir works: cargo accepts a relocated one, which turns a 40-minute cold build into a file copy.",
+      "cargo check --all-targets builds every one of 393 integration test binaries. Expect it to be slow and memory-hungry, and serialise linking with -j 1 if it fails with LNK1102 out of memory.",
+      "Renormalisation touches many files at once. Commit the .gitattributes change and the renormalisation together so the tree is never half-converted."
+    ],
+    "risk_if_missed": "Every new worktree silently cannot run embedded tests, and every integration target in the crate stays uncompilable. Both defects cost real time this session before they were understood: the CRLF one blocked a lane for hours and presented as a schema bug, and the tempfile one forced the cross-platform CI job to be narrowed so it would not report someone else's defect as its own."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "check-attr, compile and test output"
+    ],
+    "not_applicable_reason": "Repository configuration and a test helper; no operator-visible or model-navigable surface."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No product behaviour, command, config key, IPC channel, or navigation path changes."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "ENVIRONMENT_REPAIR_WITHOUT_FALSE_PROOF",
+    "risks": [
+      "Proving D-148-1 in the worktree where the work was done. That worktree is unaffected by construction, so a green test there is not evidence and would be a false proof.",
+      "Adding the .gitattributes line without renormalising, leaving the committed bytes still CRLF and the defect intact while the attribute suggests otherwise.",
+      "Renormalising more broadly than intended and sweeping unrelated files into the commit.",
+      "Reaching for a tempfile version pin to avoid understanding the call site, when the helper may simply be using the wrong abstraction.",
+      "Touching anything else under tests/**, which MT-141 owns and is separately claimed."
+    ],
+    "minimum_controls": [
+      "AC-148-2 and PT-148-2 require a FRESH worktree for the D-148-1 proof and explicitly reject a pass in the working one.",
+      "AC-148-5 requires the manifest hashes to be re-verified after renormalisation.",
+      "AC-148-4 and PT-148-4 bound the diff to exactly two files.",
+      "AC-148-6 forces any behaviour change in open_existing to be stated rather than folded in."
+    ],
+    "adversarial_validation_lenses": [
+      "anti-scaffold / runtime-proof",
+      "correctness",
+      "blast radius"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "No product runtime behaviour changes. The tempfile repair is confined to a test helper; if it alters what open_existing does, AC-148-6 requires that to be stated.",
+    "VIS": "NOT_APPLICABLE: no GUI, operator, diagnostic, or frontend surface is touched.",
+    "MAN": "NOT_APPLICABLE per user_manual_obligation.",
+    "QUIET": "Compiles and test runs stay headless and must not foreground anything or steal focus.",
+    "STOP": "No capacity, token, or session-count stop reasons. If the tempfile repair turns out to need a real behaviour decision, raise it as a finding rather than guessing."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  }
+}
