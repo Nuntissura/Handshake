@@ -28612,20 +28612,23 @@ mod tests {
         Arc::new(NoopTestRecorder)
     }
 
-    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let storage = embedded_test_backend().await?;
+    async fn setup_state(
+    ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
+    {
+        let backend = embedded_test_backend().await?;
 
         let flight_recorder = test_recorder();
 
-        Ok(Some(AppState {
-            storage: storage.database,
-            surreal: storage.storage,
+        let state = AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        }))
+        };
+        Ok((state, backend))
     }
 
     static RUNTIME_ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -28633,9 +28636,7 @@ mod tests {
     #[tokio::test]
     async fn model_run_timeout_ms_fails_before_simulated_runtime_finishes(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let session_id = format!("sess-{}", Uuid::now_v7());
         let job = state
             .storage
@@ -29046,9 +29047,7 @@ mod tests {
     #[tokio::test]
     async fn postgres_structured_collab_artifacts_materialize_parity_fields(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -29179,9 +29178,7 @@ mod tests {
     #[tokio::test]
     async fn task_board_projection_preserves_updated_at_then_wp_id_order(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -29563,9 +29560,7 @@ mod tests {
     #[tokio::test]
     async fn job_fails_when_missing_required_capability() -> Result<(), Box<dyn std::error::Error>>
     {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
@@ -29597,9 +29592,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn terminal_job_enforces_capability() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
@@ -29631,9 +29624,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn terminal_job_runs_when_authorized() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let (program, args) = if cfg!(target_os = "windows") {
             ("cmd", vec!["/C", "echo", "hello"])
@@ -29681,9 +29672,7 @@ mod tests {
     #[tokio::test]
     async fn workflow_persists_node_history_and_outputs() -> Result<(), Box<dyn std::error::Error>>
     {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let (program, args) = terminal_command();
 
         let job = state
@@ -29721,9 +29710,7 @@ mod tests {
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_run_scope_without_workflow_run_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let job = create_debug_bundle_job(&state, json!({ "kind": "workflow_run" })).await?;
         let job_id = job.job_id;
 
@@ -29752,9 +29739,7 @@ mod tests {
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_workflow_run_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let job = create_debug_bundle_job(
             &state,
             json!({
@@ -29790,9 +29775,7 @@ mod tests {
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_node_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let job = create_debug_bundle_job(
             &state,
             json!({
@@ -29828,9 +29811,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_poisoning_trap() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
@@ -29874,9 +29855,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_mark_stalled_workflows() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         // 1. Create a job and a "Running" workflow run with an old heartbeat
         let job = state
@@ -29945,9 +29924,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_create_session_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let session = create_test_model_session(&state, ModelSessionState::Created, None).await?;
 
         let checkpointed =
@@ -29981,9 +29958,7 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_recover_session_from_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let session = create_test_model_session(&state, ModelSessionState::Active, None).await?;
 
         let checkpoint = state
@@ -30022,9 +29997,7 @@ mod tests {
     #[tokio::test]
     async fn test_mark_stalled_workflows_recovers_orphaned_active_session(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
@@ -30068,9 +30041,7 @@ mod tests {
     #[tokio::test]
     async fn test_recover_session_from_checkpoint_idempotent(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let session = create_test_model_session(&state, ModelSessionState::Active, None).await?;
         create_session_checkpoint(&state, &session.session_id, "integration").await?;
 
@@ -30101,9 +30072,7 @@ mod tests {
     async fn test_startup_recovery_blocks_job_acceptance() -> Result<(), Box<dyn std::error::Error>>
     {
         reset_startup_recovery_gate_for_test();
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         enable_startup_recovery_gate();
 
         let create_future = crate::jobs::create_job(
@@ -30140,9 +30109,7 @@ mod tests {
     async fn run_job_rejects_budget_exceeded() -> Result<(), Box<dyn std::error::Error>> {
         use crate::storage::{NewBlock, NewDocument, NewWorkspace, WriteContext};
 
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let ctx = WriteContext::human(None);
 
         // Create workspace
@@ -30377,9 +30344,7 @@ mod tests {
     #[tokio::test]
     async fn fems_extract_emits_proposal_without_commit_and_without_raw_fr_content(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let job = state
             .storage
@@ -30472,8 +30437,8 @@ mod tests {
         let recorder_path = external.path().join("fems-forget-flight-recorder.duckdb");
         let recorder = Arc::new(DuckDbFlightRecorder::new_on_path(&recorder_path, 7)?);
         let state = AppState {
-            storage: storage.database,
-            surreal: storage.storage,
+            storage: storage.database.clone(),
+            surreal: storage.storage.clone(),
             flight_recorder: recorder.clone(),
             diagnostics: recorder.clone(),
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
@@ -30622,9 +30587,7 @@ mod tests {
     #[tokio::test]
     async fn dcc_ready_query_projection_is_backend_backed() -> Result<(), Box<dyn std::error::Error>>
     {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -30841,9 +30804,7 @@ mod tests {
     #[tokio::test]
     async fn dcc_session_binding_projection_matches_runtime_state(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -31039,9 +31000,7 @@ mod tests {
     #[tokio::test]
     async fn validator_gate_runtime_summary_links_check_evidence(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -31942,9 +31901,7 @@ mod tests {
     #[tokio::test]
     async fn governance_workflow_mirror_gate_transition_emits_fr_event(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -32206,9 +32163,7 @@ mod tests {
     #[tokio::test]
     async fn dcc_mailbox_projection_preserves_wait_reasons(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -32508,9 +32463,7 @@ mod tests {
     #[tokio::test]
     async fn dcc_task_board_filters_by_state_family_and_queue_reason(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -32749,9 +32702,7 @@ mod tests {
     #[tokio::test]
     async fn dcc_compact_summary_contract_preserves_stable_ids(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;

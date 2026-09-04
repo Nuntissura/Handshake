@@ -2009,14 +2009,16 @@ mod tests {
         }
     }
 
-    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+    async fn setup_state(
+    ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
+    {
         let backend = embedded_test_backend().await?;
 
         let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
         let state = AppState {
-            storage: backend.database,
-            surreal: backend.storage,
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
             flight_recorder: recorder.clone(),
             diagnostics: recorder,
             llm_client: Arc::new(TestLlmClient::new()),
@@ -2031,7 +2033,7 @@ mod tests {
         ensure_test_workspace(&state, OTHER_TEST_WORKSPACE_ID)
             .await
             .map_err(|error| error.to_string())?;
-        Ok(Some(state))
+        Ok((state, backend))
     }
 
     async fn serve_test_router(
@@ -2064,9 +2066,7 @@ mod tests {
     #[tokio::test]
     async fn list_events_preserves_model_session_id_filter_and_payload(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let trace_id = Uuid::now_v7();
 
         state
@@ -2248,9 +2248,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_event_round_trips_and_mirrors_to_ledger(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let event_id = Uuid::now_v7().to_string();
         let uuid = Uuid::parse_str(&event_id)?;
         // The durable, workspace-partitioned identity the recorder actually stores.
@@ -2372,9 +2370,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_same_id_mutated_envelope_conflicts(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         for mutation in ["pane", "surface", "timestamp"] {
             let event_id = Uuid::now_v7().to_string();
             let mut original = native_editor_envelope(&event_id);
@@ -2403,9 +2399,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_concurrent_same_id_converges_once_in_both_stores(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let event_id = Uuid::now_v7().to_string();
         let event = native_editor_envelope(&event_id);
 
@@ -2444,9 +2438,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_canonical_uuid_and_timestamp_spellings_converge(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let uuid = Uuid::now_v7();
         let mut first = native_editor_envelope(&format!("  {}  ", uuid.to_string().to_uppercase()));
         first.ts_utc = "2026-07-02T06:08:05.123456789+02:00".to_owned();
@@ -2503,9 +2495,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_decomposed_unicode_retry_matches_normalized_store(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let event_id = Uuid::now_v7().to_string();
         let mut event = native_editor_envelope(&event_id);
         event.kind = NativeEditorFrEventKind::CodeEdit;
@@ -2593,9 +2583,7 @@ mod tests {
     #[tokio::test]
     async fn list_events_surface_filter_returns_only_native_system_events_for_that_surface(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let native_id = Uuid::now_v7();
         let mut envelope = native_editor_envelope(&native_id.to_string());
         envelope.surface = Some("pane-rich".to_owned());
@@ -2742,9 +2730,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_reconciler_repairs_durable_pending_after_restart_window(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let event_id = Uuid::now_v7().to_string();
         let event = native_editor_envelope(&event_id);
         let pending = native_editor_pending_event(&event);
@@ -2792,9 +2778,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_routes_autonomously_starts_reconciliation(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let event_id = Uuid::now_v7().to_string();
         let event = native_editor_envelope(&event_id);
         state
@@ -2827,9 +2811,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_spurious_completion_does_not_suppress_recovery(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let event_id = Uuid::now_v7().to_string();
         let event = native_editor_envelope(&event_id);
         let pending = state
@@ -2882,9 +2864,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_completion_with_corrupt_hash_cannot_suppress_recovery(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let event = native_editor_envelope(&Uuid::now_v7().to_string());
         let pending = state
             .storage
@@ -2930,9 +2910,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_legacy_pending_without_expected_hash_remains_recoverable(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let event = native_editor_envelope(&Uuid::now_v7().to_string());
         let mut legacy_pending = native_editor_pending_event(&event);
         legacy_pending
@@ -2979,9 +2957,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_persistent_restart_repairs_both_partial_write_windows(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(base_state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (base_state, _store) = setup_state().await?;
         let temp = tempfile::tempdir()?;
         let path = temp.path().join("native-editor-restart.duckdb");
         let recorder_before = Arc::new(DuckDbFlightRecorder::new_on_path(&path, 32)?);
@@ -3038,9 +3014,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_reconciler_traverses_more_than_one_poison_batch(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let prefix = format!("poison-{}", Uuid::now_v7());
         let valid = native_editor_envelope(&Uuid::now_v7().to_string());
         let mut events = Vec::with_capacity(102);
@@ -3127,9 +3101,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_route_rejects_unknown_kind_and_field_without_durable_residue(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let before_fr = native_editor_fr_row_count(&state).await?;
@@ -3259,9 +3231,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_handler_accepts_all_documented_kinds_and_persists_each(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         for (kind, payload) in documented_payloads() {
             let event = if kind == NativeEditorFrEventKind::DocumentSaved {
@@ -3420,9 +3390,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_handler_rejects_every_documented_payload_boundary_corruption(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         for (kind, payload) in documented_payloads() {
             let keys = payload
@@ -3483,9 +3451,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let correlated = [
             (
                 NativeEditorFrEventKind::RouteToStage,
@@ -3553,9 +3519,7 @@ mod tests {
     /// or a non-object payload (no top-level free-text smuggling).
     #[tokio::test]
     async fn native_editor_event_handler_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
 
         let mut wrong_schema = native_editor_envelope(&Uuid::now_v7().to_string());
         wrong_schema.schema_version = "wrong@0.0".to_string();
@@ -3629,9 +3593,7 @@ mod tests {
     #[tokio::test]
     async fn document_saved_requires_exact_canonical_save_receipt(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let authentic = authentic_document_saved_envelope(&state).await?;
 
         let mut missing = authentic.clone();
@@ -3675,9 +3637,7 @@ mod tests {
     #[tokio::test]
     async fn document_saved_receipt_minted_by_another_principal_is_unclaimable(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         // Principal A is some OTHER live native process; the ingesting principal is TEST_ACTOR_ID.
         let other_principal = "handshake-native:999999:0f0f0f0f";
         assert_ne!(other_principal, TEST_ACTOR_ID);
@@ -3719,9 +3679,7 @@ mod tests {
     #[tokio::test]
     async fn document_saved_receipt_without_minted_by_principal_is_unclaimable(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         for mutate in [None, Some(""), Some("   ")] {
             let envelope = authentic_document_saved_envelope(&state).await?;
             let receipt_id = envelope.payload["save_receipt_event_id"]
@@ -3782,9 +3740,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_replay_repairs_fr_only_partial_write(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let event_id = Uuid::now_v7();
         let event = native_editor_envelope(&event_id.to_string());
         let aggregate_id = durable_id(&event).to_string();
@@ -3854,9 +3810,7 @@ mod tests {
     #[tokio::test]
     async fn flight_recorder_routes_reject_unauthenticated_callers_with_zero_residue(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let before_fr = native_editor_fr_row_count(&state).await?;
@@ -3964,9 +3918,7 @@ mod tests {
     #[tokio::test]
     async fn recorder_read_without_scope_is_denied_for_lack_of_global_capability(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let actor_id = authenticated_actor_id(&token);
@@ -4027,9 +3979,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_ingest_rejects_spoofed_identity_and_derives_attribution(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let actor_id = authenticated_actor_id(&token);
@@ -4168,9 +4118,7 @@ mod tests {
     #[tokio::test]
     async fn cross_workspace_event_id_preemption_cannot_conflict_or_leak(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let (base, http, server) = serve_test_router(routes(state.clone())).await;
@@ -4271,9 +4219,7 @@ mod tests {
     #[tokio::test]
     async fn recorder_read_scope_cannot_be_widened_by_query_filters(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let actor_id = authenticated_actor_id(&token);
@@ -4330,9 +4276,7 @@ mod tests {
     #[tokio::test]
     async fn runtime_chat_ingest_is_capability_gated_and_workspace_bound(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(state) = setup_state().await? else {
-            return Ok(());
-        };
+        let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let (base, http, server) = serve_test_router(routes(state.clone())).await;
