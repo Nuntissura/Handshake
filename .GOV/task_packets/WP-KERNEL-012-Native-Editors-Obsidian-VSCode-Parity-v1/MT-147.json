@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": [
       "MT-118",
@@ -39,7 +39,7 @@
       "MT-145",
       "MT-146"
     ],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260903-213930",
@@ -155,7 +155,27 @@
       },
       "scope_honesty": "The pipeline is not green and this microtask does not claim it is. What changed is that failures now mean something: before, ten jobs failed before running anything, so a real regression was indistinguishable from the standing noise. Every remaining red job now fails on its own content.",
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only; completed_by remains null."
-    }
+    },
+    "ready_for_validation_at_utc": "2026-09-04T01:10:16.295Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260903-213930",
+    "ready_for_validation_summary": "Branch CI repaired at product 70c289cb. Ten defects fixed, all inside .github/workflows/ci.yml. Baseline run 33666580708 had one of eleven jobs green; final run 33821501747 has five. The cross-platform-build job builds handshake_core on Linux with all features and compiles the in-crate test layer, which is the RC-004 artefact the packet has never had. All six acceptance criteria are met and the ready receipt is PASS with no blockers. The pipeline is not green and the record does not claim it is: the five remaining red jobs each fail on their own content with a named owner, where before ten of them died before running anything.",
+    "ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-09-04T01:09:55.044Z",
+      "actor_session": "KERNEL_BUILDER-20260903-213930",
+      "overall_verdict": "PASS",
+      "product_commit": "70c289cba57a057ee641493ccefd71022cb532f1",
+      "blocked_items": []
+    },
+    "state_correction_history": [
+      {
+        "at_utc": "2026-09-04T01:10:16.295Z",
+        "by": "KERNEL_BUILDER-20260903-213930",
+        "reason": "Implementation complete and proven at 70c289cb. KB_READY_CHECKLIST_RECEIPT PASS with no blockers.",
+        "previous_status": "CLAIMED",
+        "new_status": "READY_FOR_VALIDATION_V4"
+      }
+    ]
   },
   "scope": {
     "summary": "Repair .github/workflows/ci.yml on feat/WP-KERNEL-012 so the pipeline runs the jobs it claims to run, and add a job that answers the cross-platform build question directly. The pipeline is product CI: nine of its eleven jobs test product code, and only the governance and traceability jobs are repo governance.",
@@ -389,5 +409,5 @@
     "review_response_receipt_id": null,
     "baseline_failing_run": "33666580708"
   },
-  "updated_at_utc": "2026-09-04T01:05:13.565Z"
+  "updated_at_utc": "2026-09-04T01:10:16.295Z"
 }
