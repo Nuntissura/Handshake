@@ -153,10 +153,10 @@ jobs:
         run: mkdir -p "${{ github.workspace }}/../Handshake_Artifacts"
 
       - name: Storage conformance tests
-        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test storage_conformance
 
       - name: MCP e2e tests (durable progress mapping)
-        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mcp_e2e_tests
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder,test-utils --test mcp_e2e_tests
 
   secret_scan:
     runs-on: ubuntu-latest
