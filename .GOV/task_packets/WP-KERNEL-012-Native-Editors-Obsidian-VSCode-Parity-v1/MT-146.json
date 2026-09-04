@@ -129,7 +129,19 @@
       "what_is_not_authorised": "Changing the expected count, changing or softening the assertion message, adding proposal_id to the FR-EVT-MEM-004 payload allowlist, or touching flight_recorder/mod.rs. Nothing else in any of the three tests may be edited.",
       "why_the_payload_route_was_rejected": "The implementer found (F-146-C) that ensure_commit_outbox compares event_hash, so adding proposal_id to the pack event's payload would change that hash and make pre-existing durable rows conflict on retry. The two routes are not equivalent: correcting the selector touches no durable data, while changing the payload is durable-evidence-affecting on a live store. That finding is what settled the choice.",
       "verification_required": "Before choosing the selector, confirm from the source that BOTH FR-EVT-MEM-003 and FR-EVT-MEM-004 carry activity_span_id in the expected form. If the commit event does not, the filter must match both events correctly rather than silently dropping one - a filter that matches only the pack event would make the count wrong in the other direction and would be just as broken as the current one.",
-      "effect_on_acceptance": "AC-146-3 becomes obtainable and AC-146-5 returns to its original target of 29 passed / 0 failed. If the corrected test still fails, that is a genuine product defect and must be reported as such, not filtered around a second time."
+      "effect_on_acceptance": "AC-146-3 becomes obtainable and AC-146-5 returns to its original target of 29 passed / 0 failed. If the corrected test still fails, that is a genuine product defect and must be reported as such, not filtered around a second time.",
+      "selector_substitution": {
+        "at_utc": "2026-09-04T20:44:20.591Z",
+        "by": "KERNEL_BUILDER-20260903-213930 (orchestrator)",
+        "authorised_field": "activity_span_id",
+        "shipped_field": "trace_id",
+        "why": "The verification clause in this authorisation required confirming that BOTH FR-EVT-MEM-003 and FR-EVT-MEM-004 carry activity_span_id before the selector was chosen. They do not. build_memory_commit_flight_recorder_event never sets activity_span_id and FlightRecorderEvent::new defaults it to None, so only the pack builder sets it. Filtering on activity_span_id would have matched FR-EVT-MEM-004 alone, dropped FR-EVT-MEM-003, and produced left: 1 again - wrong in the opposite direction. The recommended field was wrong and the mandated check is what caught it.",
+        "substituted_selector_is_correct": "trace_id is shared by both events by construction: the commit event is built with stable_uuid(\"fems-memory-proposal:{proposal_id}\") as its trace_id, and the pack event copies commit_event.trace_id. It is scoped to the proposal, and because the listing returns only commit-outbox rows it selects both events of this commit and nothing else. The test derives the same value with its own deterministic_uuid_from_seed.",
+        "independently_verified_by_orchestrator": "Checked against the source rather than accepted: zero activity_span_id references in the commit builder at fems_memory.rs:1013-1049; trace_id set from stable_uuid(\"fems-memory-proposal:{proposal_id}\") in that builder; commit_event.trace_id copied at fems_memory.rs:1065; and stable_uuid (fems_memory.rs:1138) and deterministic_uuid_from_seed (api/memory.rs:1659) are byte-identical implementations - SHA256, first 16 bytes, same UUID v4 bit-fixing.",
+        "within_authorisation": "Yes. The authorisation text names activity_span_id but its verification clause explicitly contemplates this case: \"the filter must match both events correctly rather than silently dropping one\". Substituting a field that satisfies that requirement is what the clause directs. Recorded here rather than left silent, because the Operator approved a named field and what shipped is a different one.",
+        "third_route_correctly_refused": "The implementer did not add activity_span_id to the commit builder, which would have looked like the obvious fix. That is a product change to a hashed event, and ensure_commit_outbox compares event_hash, so it would have reintroduced the exact durable-evidence hazard (F-146-C) that got the payload route rejected.",
+        "unchanged": "Expected count still 2. Assertion message byte-identical. flight_recorder/mod.rs untouched. One line of behaviour changed."
+      }
     }
   },
   "scope": {
@@ -259,5 +271,5 @@
     "red_evidence_ref": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/orphan3-red.log",
     "red_evidence_product_commit": "a153d2cee6f7851ee4a831978c636df37171c899"
   },
-  "updated_at_utc": "2026-09-04T20:40:14.688Z"
+  "updated_at_utc": "2026-09-04T20:44:20.591Z"
 }
