@@ -118,7 +118,19 @@
       "src/backend/handshake_core/src/api/memory.rs",
       "src/backend/handshake_core/src/storage/fems_memory.rs",
       "src/backend/handshake_core/src/storage/surreal/workspaces.rs"
-    ]
+    ],
+    "operator_authorisation_2026_09_04": {
+      "schema_id": "hsk.operator_ruling@1",
+      "recorded_by": "KERNEL_BUILDER-20260903-213930 (orchestrator, relaying the Operator)",
+      "recorded_at_utc": "2026-09-04T20:40:14.688Z",
+      "ruling": "APPROVED",
+      "what_was_asked": "AC-146-4 forbids the implementer from editing any assertion in the three target tests and routes 'the test asserts the wrong thing' to the Operator. The implementer established by measurement that commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits filters pending events on event.payload[\"proposal_id\"], while validate_memory_pack_built_payload (flight_recorder/mod.rs:4307) enforces a closed ten-key allowlist with an empty optional list that does not include proposal_id. FR-EVT-MEM-004 therefore cannot carry that key and the filter can never match it, making the assertion pending_outbox == 2 unsatisfiable by construction.",
+      "what_is_authorised": "A narrow correction to the SELECTOR ONLY: the test may filter on the field that actually carries the proposal linkage, activity_span_id, in the form fems-memory-proposal:{proposal_id}. The assertion itself is NOT authorised to change - the expected count of 2 and the assertion message stay exactly as written. This is a repair to a filter that cannot match, not a weakening of what the test proves; the assertion's intent, that both the commit and pack-built events survive the crash window un-published and non-quarantined, becomes testable for the first time rather than being quietly impossible.",
+      "what_is_not_authorised": "Changing the expected count, changing or softening the assertion message, adding proposal_id to the FR-EVT-MEM-004 payload allowlist, or touching flight_recorder/mod.rs. Nothing else in any of the three tests may be edited.",
+      "why_the_payload_route_was_rejected": "The implementer found (F-146-C) that ensure_commit_outbox compares event_hash, so adding proposal_id to the pack event's payload would change that hash and make pre-existing durable rows conflict on retry. The two routes are not equivalent: correcting the selector touches no durable data, while changing the payload is durable-evidence-affecting on a live store. That finding is what settled the choice.",
+      "verification_required": "Before choosing the selector, confirm from the source that BOTH FR-EVT-MEM-003 and FR-EVT-MEM-004 carry activity_span_id in the expected form. If the commit event does not, the filter must match both events correctly rather than silently dropping one - a filter that matches only the pack event would make the count wrong in the other direction and would be just as broken as the current one.",
+      "effect_on_acceptance": "AC-146-3 becomes obtainable and AC-146-5 returns to its original target of 29 passed / 0 failed. If the corrected test still fails, that is a genuine product defect and must be reported as such, not filtered around a second time."
+    }
   },
   "scope": {
     "summary": "Fix three defects in the memory proposal surface that the restored in-crate test layer exposed: workspace deletion leaves an orphan proposal under a concurrent insert, the proposal list does not put approved proposals first, and the commit outbox restart-recovery path does not reach its expected state. All three are pre-existing behaviour, not regressions from the test restoration.",
@@ -171,7 +183,7 @@
       "AC-146-1: proposal_delete_race_never_leaves_workspace_orphans passes against a real embedded store, and the fix is justified by a measured cause rather than by the candidate mechanisms guessed in this contract.",
       "AC-146-2: list_proposals_is_bounded_deterministic_and_workspace_scoped passes, including its bounded-limit and workspace-scoping assertions, not only the ordering one.",
       "AC-146-3: the third failure passes for a cause the implementer can state and show.",
-      "AC-146-4: no assertion in any of the three tests is weakened, reordered, relaxed, or deleted to reach green. If a test is judged to assert the wrong thing, that must be raised as a finding with evidence and left for the Operator, not fixed by editing the assertion.",
+      "AC-146-4: no assertion in any of the three tests is weakened, reordered, relaxed, or deleted to reach green. ONE NARROW EXCEPTION, authorised by the Operator on 2026-09-04 and recorded in lifecycle.operator_authorisation_2026_09_04: the commit-outbox test's pending-event SELECTOR may be corrected to match on activity_span_id, because the field it currently selects on cannot exist on FR-EVT-MEM-004 by construction. The expected count and the assertion message stay unchanged. Everything else still holds: if a test is judged to assert the wrong thing, that must be raised as a finding with evidence and left for the Operator, not fixed by editing the assertion.",
       "AC-146-5: the full api::memory in-crate suite is run afterwards and reports 29 passed and 0 failed, with the count quoted verbatim. Any test that regresses is named.",
       "AC-146-6: the product binary still builds, and no change is made outside the declared allowed_paths."
     ],
@@ -246,5 +258,6 @@
     "review_response_receipt_id": null,
     "red_evidence_ref": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/orphan3-red.log",
     "red_evidence_product_commit": "a153d2cee6f7851ee4a831978c636df37171c899"
-  }
+  },
+  "updated_at_utc": "2026-09-04T20:40:14.688Z"
 }
