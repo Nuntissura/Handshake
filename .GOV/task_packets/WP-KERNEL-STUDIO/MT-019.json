@@ -12,7 +12,7 @@
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-019",
  "created_at_utc": "2026-07-09T00:00:00Z",
- "updated_at_utc": "2026-09-04T13:36:25+00:00",
+ "updated_at_utc": "2026-09-04T20:08:27+00:00",
  "authority_files": {
   "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-019.json",
   "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-019.md",
@@ -146,7 +146,7 @@
   "family_scope_citations": [
    {
     "wildcard": "STU-COL-*",
-    "member_count": 181,
+    "member_count": 220,
     "members": [
      "STU-COL-001",
      "STU-COL-002",
@@ -328,7 +328,46 @@
      "STU-COL-272",
      "STU-COL-273",
      "STU-COL-274",
-     "STU-COL-275"
+     "STU-COL-275",
+     "STU-COL-300",
+     "STU-COL-301",
+     "STU-COL-302",
+     "STU-COL-303",
+     "STU-COL-304",
+     "STU-COL-305",
+     "STU-COL-306",
+     "STU-COL-307",
+     "STU-COL-308",
+     "STU-COL-310",
+     "STU-COL-311",
+     "STU-COL-312",
+     "STU-COL-313",
+     "STU-COL-314",
+     "STU-COL-315",
+     "STU-COL-316",
+     "STU-COL-317",
+     "STU-COL-320",
+     "STU-COL-321",
+     "STU-COL-322",
+     "STU-COL-323",
+     "STU-COL-324",
+     "STU-COL-325",
+     "STU-COL-326",
+     "STU-COL-330",
+     "STU-COL-331",
+     "STU-COL-332",
+     "STU-COL-333",
+     "STU-COL-334",
+     "STU-COL-335",
+     "STU-COL-336",
+     "STU-COL-337",
+     "STU-COL-340",
+     "STU-COL-350",
+     "STU-COL-351",
+     "STU-COL-352",
+     "STU-COL-353",
+     "STU-COL-354",
+     "STU-COL-355"
     ],
     "note": "Family-scope citation. The contract spans this whole clause family; it does not cite one clause."
    }
@@ -351,7 +390,7 @@
  },
  "patch_provenance": {
   "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
-  "patched_at": "2026-09-04T13:36:25+00:00",
+  "patched_at": "2026-09-04T20:08:27+00:00",
   "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
   "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
  }

@@ -1,6 +1,6 @@
 {
  "schema_id": "handshake.reference.studio_mt_legacy_patch@1",
- "generated_at": "2026-09-04T13:36:27+00:00",
+ "generated_at": "2026-09-04T20:08:28+00:00",
  "packet": "..\\..\\task_packets\\WP-KERNEL-STUDIO",
  "written_to": "_greenroom_20260903\\fold_back\\patched_legacy_mts",
  "in_place": false,

@@ -1,0 +1,88 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35482",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-COL-320#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.8.22 Colour Accuracy Metric and Reference Patch Sets",
+  "spec_line": 11819,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "The colour-accuracy metric (CLOSING A NAMED GAP)",
+ "spec_anchor": [
+  "STU-COL-320"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "colour",
+ "scope": {
+  "summary": "The colour-accuracy metric (CLOSING A NAMED GAP).** This module requires colour to be CORRECT in more than thirty places and, until this clause, stated no number anywhere: no colour difference formula, no perceptual colour space in which to compute one, and no tolerance. An obligation with no number cannot be gated by a validator, cannot fail a regression, and cannot be argued about with evidence, which means \"the colour is wrong\" was an opinion. Studio therefore fixes ONE metric. The colour difference between two colours is CIEDE2000, computed on CIELAB values, and reported as `delta_e_2000`. CIELAB is the colour space of ISO/CIE 11664-4; CIEDE2000 is the formula of ISO/CIE 11664-6, which originates in CIE technical report 142-2001. The simple Euclidean CIELAB difference of 1976 MUST NOT be used as the acceptance metric, because it over-weights chroma differences and a pipeline tuned to pass it is tuned to the wrong thing; Studio MAY report it alongside as `delta_e_76` for comparison with legacy figures, clearly labelled, and MUST NOT gate on it. Every reported difference carries its reference white and observer, which are never implicit: a measurement on an ICC path uses the D50 profile-connection-space white with the 2-degree observer, whose tristimulus values are X 0.9642, Y 1.0000, Z 0.8249, and a measurement on a display or video path uses D65 with the 2-degree observer. [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The simple Euclidean CIELAB difference of 1976 MUST NOT be used as the acceptance metric, because it over-weights chroma differences and a pipeline tuned to pass it is tuned to the wrong thing;",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-320"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Studio MAY report it alongside as `delta_e_76` for comparison with legacy figures, clearly labelled, and MUST NOT gate on it.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-320"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

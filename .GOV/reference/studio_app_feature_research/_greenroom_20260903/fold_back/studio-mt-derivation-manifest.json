@@ -1,20 +1,20 @@
 {
  "schema_id": "handshake.reference.studio_mt_derivation@1",
- "generated_at": "2026-09-04T13:36:25+00:00",
+ "generated_at": "2026-09-04T20:08:02+00:00",
  "input": "_greenroom_20260903\\spec_update\\proposed-bundle\\section14",
  "unit_counts": {
-  "clause": 2079,
-  "catalogue_row": 2063,
-  "parameter_table": 409,
-  "enumeration": 102,
+  "clause": 2122,
+  "catalogue_row": 2109,
+  "parameter_table": 418,
+  "enumeration": 107,
   "validator": 115,
-  "no_microtask": 106,
+  "no_microtask": 108,
   "command_table": 59,
   "anchor_row": 45
  },
- "microtasks_written": 4872,
+ "microtasks_written": 4975,
  "per_module_yields": {
-  "14-studio-creative-suite.md": 4872
+  "14-studio-creative-suite.md": 4975
  },
  "markers_matching_no_class": [],
  "markers_matching_no_class_count": 0,
@@ -328,6 +328,12 @@
    "reason": "declared non-yielding by the module's own normative list, which overrides inference"
   },
   {
+   "anchor": "STU-COL-340",
+   "module": "14-studio-creative-suite.md",
+   "title": "Open items of record (NON-YIELDING)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
    "anchor": "STU-FX-100",
    "module": "14-studio-creative-suite.md",
    "title": "REPLACEMENT SCOPE",
@@ -418,6 +424,12 @@
    "reason": "declared non-yielding by the module's own normative list, which overrides inference"
   },
   {
+   "anchor": "STU-VID-105",
+   "module": "14-studio-creative-suite.md",
+   "title": "Scopes and legal-range checking are owned by 14.8 (CROSS-REFERENCE)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
    "anchor": "STU-VID-040",
    "module": "14-studio-creative-suite.md",
    "title": "Every operation in this sub-section is one reversible `StudioHistoryEntry`",
@@ -444,7 +456,7 @@
   {
    "anchor": "STU-VID-100a",
    "module": "14-studio-creative-suite.md",
-   "title": "The no-yield set: 14 clauses",
+   "title": "The no-yield set: 15 clauses",
    "reason": "declared non-yielding by the module's own normative list, which overrides inference"
   },
   {
@@ -658,6 +670,6 @@
    "reason": "declared non-yielding by the module's own normative list, which overrides inference"
   }
  ],
- "no_microtask_count": 106,
+ "no_microtask_count": 108,
  "determinism": "mt_id is bound to derivation_key in the id-map, which is append-only. Adding a spec clause allocates a new id and renumbers nothing."
 }

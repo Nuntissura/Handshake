@@ -12,7 +12,7 @@
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-428",
  "created_at_utc": "2026-07-09T00:00:00Z",
- "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "updated_at_utc": "2026-09-04T20:08:28+00:00",
  "authority_files": {
   "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-428.json",
   "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-428.md",
@@ -175,10 +175,6 @@
    {
     "anchor": "STU-RAW-014b",
     "spec_clause_text": "**[STU-RAW-014b]** Masks MUST compose and manage: combine by add, subtract and intersect between any mask sources; invert, including duplicate-and-invert; duplicate, rename, hide and delete; a customizable mask overlay display; and a mask-local develop slider stack saveable as a local-adjustment preset re-applied with an amount control. Intersect and subtract semantics are the canonical `StudioMask` semantics of 14.23; the develop pipeline does not fork them."
-   },
-   {
-    "anchor": "STU-RAW-130",
-    "spec_clause_text": "See the assembled Master Spec; this anchor replaces a never-assigned citation."
    }
   ],
   "spec_clause_count": 2,
@@ -202,7 +198,7 @@
  },
  "patch_provenance": {
   "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
-  "patched_at": "2026-09-04T13:36:26+00:00",
+  "patched_at": "2026-09-04T20:08:28+00:00",
   "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
   "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
  },

@@ -1,19 +1,19 @@
 {
  "schema_id": "hsk.mt_index@2",
  "wp_id": "WP-KERNEL-STUDIO",
- "generated_at_utc": "2026-09-04T13:36:38+00:00",
+ "generated_at_utc": "2026-09-04T20:08:34+00:00",
  "generated_by": "handshake.greenroom.mt_fold.v1",
  "spec_basis": "Master Spec v02.206 section 14, proposed bundle awaiting operator promotion",
  "derivation_property": "Every contract whose unit_kind is not legacy_patched was derived mechanically from the Master Spec by spec-derive-microtasks.py. Re-running that tool against an unchanged spec reproduces the same set with the same ids, which is the operator's stated acceptance test for this work.",
  "totals": {
-  "microtasks": 5381,
+  "microtasks": 5484,
   "by_unit_kind": {
-   "clause": 2079,
-   "catalogue_row": 2063,
+   "clause": 2122,
+   "catalogue_row": 2109,
    "legacy_patched": 509,
-   "parameter_table": 409,
+   "parameter_table": 418,
    "validator": 115,
-   "enumeration": 102,
+   "enumeration": 107,
    "command_table": 59,
    "anchor_row": 45
   },
@@ -21,12 +21,12 @@
    "effects": 1310,
    "operator_shell": 689,
    "unassigned": 509,
+   "colour": 374,
    "raster": 362,
-   "colour": 279,
    "vector": 276,
    "typography": 265,
    "motion": 226,
-   "layout": 209,
+   "layout": 217,
    "web_authoring": 180,
    "design_systems": 166,
    "prototyping": 165,
@@ -48,8 +48,8 @@
    "pw": 4,
    "his": 4
   },
-  "distinct_spec_anchors_cited": 2245,
-  "acceptance_rows": 20792
+  "distinct_spec_anchors_cited": 2288,
+  "acceptance_rows": 21145
  },
  "entries": [
   {
@@ -17758,13 +17758,13 @@
    ],
    "domain": "colour",
    "unit_kind": "clause",
-   "acceptance_criteria_count": 3,
+   "acceptance_criteria_count": 5,
    "status": "PENDING"
   },
   {
    "mt_id": "MT-31204",
    "file": "MT-31204.json",
-   "clause": "Transform determinism",
+   "clause": "Materialisation determinism (SCOPED to the materialisation path)",
    "spec_anchor": [
     "STU-COL-143"
    ],
@@ -62766,6 +62766,906 @@
    "status": "PENDING"
   },
   {
+   "mt_id": "MT-35425",
+   "file": "MT-35425.json",
+   "clause": "Total ink coverage contract",
+   "spec_anchor": [
+    "STU-LAY-250"
+   ],
+   "domain": "layout",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35426",
+   "file": "MT-35426.json",
+   "clause": "Total ink coverage contract - parameter bounds",
+   "spec_anchor": [
+    "STU-LAY-250"
+   ],
+   "domain": "layout",
+   "unit_kind": "parameter_table",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35427",
+   "file": "MT-35427.json",
+   "clause": "Ink-limit declaration sites and precedence",
+   "spec_anchor": [
+    "STU-LAY-251"
+   ],
+   "domain": "layout",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35428",
+   "file": "MT-35428.json",
+   "clause": "Ink-limit declaration sites and precedence - enumeration",
+   "spec_anchor": [
+    "STU-LAY-251"
+   ],
+   "domain": "layout",
+   "unit_kind": "enumeration",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35429",
+   "file": "MT-35429.json",
+   "clause": "Coverage evaluation contract",
+   "spec_anchor": [
+    "STU-LAY-252"
+   ],
+   "domain": "layout",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35430",
+   "file": "MT-35430.json",
+   "clause": "Coverage evaluation contract - enumeration",
+   "spec_anchor": [
+    "STU-LAY-252"
+   ],
+   "domain": "layout",
+   "unit_kind": "enumeration",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35431",
+   "file": "MT-35431.json",
+   "clause": "Ink-limit violation finding",
+   "spec_anchor": [
+    "STU-LAY-253"
+   ],
+   "domain": "layout",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35432",
+   "file": "MT-35432.json",
+   "clause": "Published ink limits are reference, not a Studio default (SPEC GAP)",
+   "spec_anchor": [
+    "STU-LAY-254"
+   ],
+   "domain": "layout",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35433",
+   "file": "MT-35433.json",
+   "clause": "col.display_profile_sourced",
+   "spec_anchor": [
+    "STU-COL-260"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35434",
+   "file": "MT-35434.json",
+   "clause": "col.config_provenance_recorded",
+   "spec_anchor": [
+    "STU-COL-260"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35435",
+   "file": "MT-35435.json",
+   "clause": "col.accuracy_within_tolerance",
+   "spec_anchor": [
+    "STU-COL-260"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35436",
+   "file": "MT-35436.json",
+   "clause": "col.scope_measurement_point_declared",
+   "spec_anchor": [
+    "STU-COL-260"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35437",
+   "file": "MT-35437.json",
+   "clause": "col.materialisation_is_scalar",
+   "spec_anchor": [
+    "STU-COL-260"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35438",
+   "file": "MT-35438.json",
+   "clause": "col.interpolation_is_keyed",
+   "spec_anchor": [
+    "STU-COL-260"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35439",
+   "file": "MT-35439.json",
+   "clause": "acc.delta_e_reference_pairs",
+   "spec_anchor": [
+    "STU-COL-262"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35440",
+   "file": "MT-35440.json",
+   "clause": "acc.display_profile_change_detected",
+   "spec_anchor": [
+    "STU-COL-262"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35441",
+   "file": "MT-35441.json",
+   "clause": "acc.unmanaged_display_is_visible",
+   "spec_anchor": [
+    "STU-COL-262"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35442",
+   "file": "MT-35442.json",
+   "clause": "acc.window_span_reported",
+   "spec_anchor": [
+    "STU-COL-262"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35443",
+   "file": "MT-35443.json",
+   "clause": "acc.config_closure_mismatch_reported",
+   "spec_anchor": [
+    "STU-COL-262"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35444",
+   "file": "MT-35444.json",
+   "clause": "acc.legal_range_area_threshold",
+   "spec_anchor": [
+    "STU-COL-262"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35445",
+   "file": "MT-35445.json",
+   "clause": "acc.materialisation_dispatch_invariant",
+   "spec_anchor": [
+    "STU-COL-262"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35446",
+   "file": "MT-35446.json",
+   "clause": "acc.interpolation_rules_differ_and_are_keyed",
+   "spec_anchor": [
+    "STU-COL-262"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35447",
+   "file": "MT-35447.json",
+   "clause": "Studio consumes display characterisation; it does not measure it (SCOPE POSTURE,",
+   "spec_anchor": [
+    "STU-COL-300"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35448",
+   "file": "MT-35448.json",
+   "clause": "Per-monitor profile acquisition from the host",
+   "spec_anchor": [
+    "STU-COL-301"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35449",
+   "file": "MT-35449.json",
+   "clause": "display_profile.windows_wcs",
+   "spec_anchor": [
+    "STU-COL-301"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35450",
+   "file": "MT-35450.json",
+   "clause": "display_profile.macos_colorsync",
+   "spec_anchor": [
+    "STU-COL-301"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35451",
+   "file": "MT-35451.json",
+   "clause": "display_profile.x11_atom_and_colord",
+   "spec_anchor": [
+    "STU-COL-301"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35452",
+   "file": "MT-35452.json",
+   "clause": "display_profile.wayland_protocol",
+   "spec_anchor": [
+    "STU-COL-301"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35453",
+   "file": "MT-35453.json",
+   "clause": "`StudioDisplayDevice` and stable monitor identity",
+   "spec_anchor": [
+    "STU-COL-302"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35454",
+   "file": "MT-35454.json",
+   "clause": "Reacting to display change, and the notification that does not exist",
+   "spec_anchor": [
+    "STU-COL-303"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35455",
+   "file": "MT-35455.json",
+   "clause": "Reacting to display change, and the notification that does not exist - enumeration",
+   "spec_anchor": [
+    "STU-COL-303"
+   ],
+   "domain": "colour",
+   "unit_kind": "enumeration",
+   "acceptance_criteria_count": 6,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35456",
+   "file": "MT-35456.json",
+   "clause": "Operator-supplied display profile",
+   "spec_anchor": [
+    "STU-COL-304"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35457",
+   "file": "MT-35457.json",
+   "clause": "Multiple monitors and a window that spans two",
+   "spec_anchor": [
+    "STU-COL-305"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35458",
+   "file": "MT-35458.json",
+   "clause": "Multiple monitors and a window that spans two - parameter bounds",
+   "spec_anchor": [
+    "STU-COL-305"
+   ],
+   "domain": "colour",
+   "unit_kind": "parameter_table",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35459",
+   "file": "MT-35459.json",
+   "clause": "The unmanaged display state is explicit and visible",
+   "spec_anchor": [
+    "STU-COL-306"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35460",
+   "file": "MT-35460.json",
+   "clause": "Display characterisation in the inspection state",
+   "spec_anchor": [
+    "STU-COL-307"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35461",
+   "file": "MT-35461.json",
+   "clause": "Hardware calibration is an optional out-of-process adapter lane",
+   "spec_anchor": [
+    "STU-COL-308"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35462",
+   "file": "MT-35462.json",
+   "clause": "ACES is the named scene-linear default (CLOSING A NAMED GAP), and it is a",
+   "spec_anchor": [
+    "STU-COL-310"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35463",
+   "file": "MT-35463.json",
+   "clause": "The ACES encodings Studio MUST carry",
+   "spec_anchor": [
+    "STU-COL-311"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35464",
+   "file": "MT-35464.json",
+   "clause": "ACES2065-1",
+   "spec_anchor": [
+    "STU-COL-311"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35465",
+   "file": "MT-35465.json",
+   "clause": "ACEScg",
+   "spec_anchor": [
+    "STU-COL-311"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35466",
+   "file": "MT-35466.json",
+   "clause": "ACEScc",
+   "spec_anchor": [
+    "STU-COL-311"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35467",
+   "file": "MT-35467.json",
+   "clause": "ACEScct",
+   "spec_anchor": [
+    "STU-COL-311"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35468",
+   "file": "MT-35468.json",
+   "clause": "Role bindings under the default",
+   "spec_anchor": [
+    "STU-COL-312"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35469",
+   "file": "MT-35469.json",
+   "clause": "Display targets and their view transforms",
+   "spec_anchor": [
+    "STU-COL-313"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35470",
+   "file": "MT-35470.json",
+   "clause": "Display targets and their view transforms - parameter bounds",
+   "spec_anchor": [
+    "STU-COL-313"
+   ],
+   "domain": "colour",
+   "unit_kind": "parameter_table",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35471",
+   "file": "MT-35471.json",
+   "clause": "srgb_display",
+   "spec_anchor": [
+    "STU-COL-313"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35472",
+   "file": "MT-35472.json",
+   "clause": "rec1886_rec709_display",
+   "spec_anchor": [
+    "STU-COL-313"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35473",
+   "file": "MT-35473.json",
+   "clause": "gamma22_rec709_display",
+   "spec_anchor": [
+    "STU-COL-313"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35474",
+   "file": "MT-35474.json",
+   "clause": "p3_d65_display",
+   "spec_anchor": [
+    "STU-COL-313"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35475",
+   "file": "MT-35475.json",
+   "clause": "display_p3_display",
+   "spec_anchor": [
+    "STU-COL-313"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35476",
+   "file": "MT-35476.json",
+   "clause": "rec2100_pq_display",
+   "spec_anchor": [
+    "STU-COL-313"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35477",
+   "file": "MT-35477.json",
+   "clause": "rec2100_hlg_display",
+   "spec_anchor": [
+    "STU-COL-313"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35478",
+   "file": "MT-35478.json",
+   "clause": "Configuration provenance on the document",
+   "spec_anchor": [
+    "STU-COL-314"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35479",
+   "file": "MT-35479.json",
+   "clause": "Configuration absence, mismatch and re-resolution",
+   "spec_anchor": [
+    "STU-COL-315"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35480",
+   "file": "MT-35480.json",
+   "clause": "Interchange anchors",
+   "spec_anchor": [
+    "STU-COL-316"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35481",
+   "file": "MT-35481.json",
+   "clause": "What this module does NOT fix about the ACES release",
+   "spec_anchor": [
+    "STU-COL-317"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35482",
+   "file": "MT-35482.json",
+   "clause": "The colour-accuracy metric (CLOSING A NAMED GAP)",
+   "spec_anchor": [
+    "STU-COL-320"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35483",
+   "file": "MT-35483.json",
+   "clause": "Metric parametric factors",
+   "spec_anchor": [
+    "STU-COL-321"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35484",
+   "file": "MT-35484.json",
+   "clause": "Metric parametric factors - parameter bounds",
+   "spec_anchor": [
+    "STU-COL-321"
+   ],
+   "domain": "colour",
+   "unit_kind": "parameter_table",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35485",
+   "file": "MT-35485.json",
+   "clause": "Metric implementation conformance",
+   "spec_anchor": [
+    "STU-COL-322"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35486",
+   "file": "MT-35486.json",
+   "clause": "Per-path accuracy tolerances",
+   "spec_anchor": [
+    "STU-COL-323"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35487",
+   "file": "MT-35487.json",
+   "clause": "Per-path accuracy tolerances - parameter bounds",
+   "spec_anchor": [
+    "STU-COL-323"
+   ],
+   "domain": "colour",
+   "unit_kind": "parameter_table",
+   "acceptance_criteria_count": 8,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35488",
+   "file": "MT-35488.json",
+   "clause": "The reference patch corpus",
+   "spec_anchor": [
+    "STU-COL-324"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35489",
+   "file": "MT-35489.json",
+   "clause": "patches.metric_conformance",
+   "spec_anchor": [
+    "STU-COL-324"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35490",
+   "file": "MT-35490.json",
+   "clause": "patches.synthetic_ramp",
+   "spec_anchor": [
+    "STU-COL-324"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35491",
+   "file": "MT-35491.json",
+   "clause": "patches.synthetic_gamut_edge",
+   "spec_anchor": [
+    "STU-COL-324"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35492",
+   "file": "MT-35492.json",
+   "clause": "patches.reflective_chart_24",
+   "spec_anchor": [
+    "STU-COL-324"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35493",
+   "file": "MT-35493.json",
+   "clause": "patches.print_characterisation",
+   "spec_anchor": [
+    "STU-COL-324"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35494",
+   "file": "MT-35494.json",
+   "clause": "patches.scene_referred_reference_images",
+   "spec_anchor": [
+    "STU-COL-324"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35495",
+   "file": "MT-35495.json",
+   "clause": "Expected values are computed independently of the engine under test",
+   "spec_anchor": [
+    "STU-COL-325"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35496",
+   "file": "MT-35496.json",
+   "clause": "Accuracy is queryable state, not a test log",
+   "spec_anchor": [
+    "STU-COL-326"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35497",
+   "file": "MT-35497.json",
+   "clause": "Scopes are a colour-analysis contract owned here (CLOSING A NAMED GAP)",
+   "spec_anchor": [
+    "STU-COL-330"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35498",
+   "file": "MT-35498.json",
+   "clause": "The scope catalogue",
+   "spec_anchor": [
+    "STU-COL-331"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35499",
+   "file": "MT-35499.json",
+   "clause": "scope.waveform_luma",
+   "spec_anchor": [
+    "STU-COL-331"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
    "mt_id": "MT-355",
    "file": "MT-355.json",
    "clause": "Color/paint + effect style kinds [STU-DS-030,STU-DS-032]",
@@ -62776,6 +63676,342 @@
    "domain": null,
    "unit_kind": "legacy_patched",
    "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35500",
+   "file": "MT-35500.json",
+   "clause": "scope.rgb_parade",
+   "spec_anchor": [
+    "STU-COL-331"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35501",
+   "file": "MT-35501.json",
+   "clause": "scope.ycbcr_parade",
+   "spec_anchor": [
+    "STU-COL-331"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35502",
+   "file": "MT-35502.json",
+   "clause": "scope.vectorscope",
+   "spec_anchor": [
+    "STU-COL-331"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35503",
+   "file": "MT-35503.json",
+   "clause": "scope.histogram",
+   "spec_anchor": [
+    "STU-COL-331"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35504",
+   "file": "MT-35504.json",
+   "clause": "scope.chromaticity",
+   "spec_anchor": [
+    "STU-COL-331"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35505",
+   "file": "MT-35505.json",
+   "clause": "The measurement point is declared, never assumed",
+   "spec_anchor": [
+    "STU-COL-332"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35506",
+   "file": "MT-35506.json",
+   "clause": "The measurement point is declared, never assumed - enumeration",
+   "spec_anchor": [
+    "STU-COL-332"
+   ],
+   "domain": "colour",
+   "unit_kind": "enumeration",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35507",
+   "file": "MT-35507.json",
+   "clause": "Scales, units and reference levels",
+   "spec_anchor": [
+    "STU-COL-333"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35508",
+   "file": "MT-35508.json",
+   "clause": "Scales, units and reference levels - enumeration",
+   "spec_anchor": [
+    "STU-COL-333"
+   ],
+   "domain": "colour",
+   "unit_kind": "enumeration",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35509",
+   "file": "MT-35509.json",
+   "clause": "Legal, full and valid are three different things",
+   "spec_anchor": [
+    "STU-COL-334"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 1,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35510",
+   "file": "MT-35510.json",
+   "clause": "Range and gamut error reporting against the target standard",
+   "spec_anchor": [
+    "STU-COL-335"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35511",
+   "file": "MT-35511.json",
+   "clause": "Range and gamut error reporting against the target standard - parameter bounds",
+   "spec_anchor": [
+    "STU-COL-335"
+   ],
+   "domain": "colour",
+   "unit_kind": "parameter_table",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35512",
+   "file": "MT-35512.json",
+   "clause": "High-dynamic-range readings",
+   "spec_anchor": [
+    "STU-COL-336"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35513",
+   "file": "MT-35513.json",
+   "clause": "High-dynamic-range readings - parameter bounds",
+   "spec_anchor": [
+    "STU-COL-336"
+   ],
+   "domain": "colour",
+   "unit_kind": "parameter_table",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35514",
+   "file": "MT-35514.json",
+   "clause": "A scope reading is structured state",
+   "spec_anchor": [
+    "STU-COL-337"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35515",
+   "file": "MT-35515.json",
+   "clause": "Materialisation and application are two paths with two different determinism",
+   "spec_anchor": [
+    "STU-COL-350"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 0,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35516",
+   "file": "MT-35516.json",
+   "clause": "The materialisation path is scalar and reproducible",
+   "spec_anchor": [
+    "STU-COL-351"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 3,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35517",
+   "file": "MT-35517.json",
+   "clause": "The application path is held to a numeric tolerance",
+   "spec_anchor": [
+    "STU-COL-352"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35518",
+   "file": "MT-35518.json",
+   "clause": "The application path is held to a numeric tolerance - parameter bounds",
+   "spec_anchor": [
+    "STU-COL-352"
+   ],
+   "domain": "colour",
+   "unit_kind": "parameter_table",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35519",
+   "file": "MT-35519.json",
+   "clause": "The interpolation rule is part of the transform's identity",
+   "spec_anchor": [
+    "STU-COL-353"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 5,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35520",
+   "file": "MT-35520.json",
+   "clause": "Where a baked lookup table stops being an acceptable materialisation",
+   "spec_anchor": [
+    "STU-COL-354"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35521",
+   "file": "MT-35521.json",
+   "clause": "bake.four_or_more_input_channels",
+   "spec_anchor": [
+    "STU-COL-354"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35522",
+   "file": "MT-35522.json",
+   "clause": "bake.gamut_clip_reporting",
+   "spec_anchor": [
+    "STU-COL-354"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35523",
+   "file": "MT-35523.json",
+   "clause": "bake.named_and_spot_values",
+   "spec_anchor": [
+    "STU-COL-354"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35524",
+   "file": "MT-35524.json",
+   "clause": "bake.out_of_domain_float",
+   "spec_anchor": [
+    "STU-COL-354"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35525",
+   "file": "MT-35525.json",
+   "clause": "bake.hard_compression_near_black_or_white",
+   "spec_anchor": [
+    "STU-COL-354"
+   ],
+   "domain": "colour",
+   "unit_kind": "catalogue_row",
+   "acceptance_criteria_count": 4,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35526",
+   "file": "MT-35526.json",
+   "clause": "Grid size, shaper and storage precision for a baked materialisation",
+   "spec_anchor": [
+    "STU-COL-355"
+   ],
+   "domain": "colour",
+   "unit_kind": "clause",
+   "acceptance_criteria_count": 2,
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-35527",
+   "file": "MT-35527.json",
+   "clause": "Grid size, shaper and storage precision for a baked materialisation - parameter bounds",
+   "spec_anchor": [
+    "STU-COL-355"
+   ],
+   "domain": "colour",
+   "unit_kind": "parameter_table",
+   "acceptance_criteria_count": 2,
    "status": "PENDING"
   },
   {

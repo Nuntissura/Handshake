@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35519",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-COL-353#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.8.25 Transform Materialisation and Application",
+  "spec_line": 12211,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "The interpolation rule is part of the transform's identity",
+ "spec_anchor": [
+  "STU-COL-353"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "colour",
+ "scope": {
+  "summary": "The interpolation rule is part of the transform's identity.** This clause closes a second defect in [STU-COL-142]. The two interpolation rules in general use for a 3D colour lookup, enumerated by [STU-COL-158] as `trilinear` and `tetrahedral`, are NOT equivalent: tetrahedral is more accurate at the same grid size, and the two give different results on the same grid and the same data. The gap this clause closes is that [STU-COL-142] originally declared grid size and domain but said nothing about the rule, so two materialisations differing only in it could collide in one cache entry and a viewport could disagree with a proof render while both correctly claimed to be applying \"the same transform\". The concrete mechanism is well documented in the field: hardware three-dimensional texture sampling provides trilinear only, so a tetrahedral rule on the GPU has to be written explicitly rather than sampled, and at least one widely used colour-management implementation records its own GPU path falling back to the linear rule where its CPU path uses the tetrahedral one, and records that the two are not always equivalent. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Obligation | Requirement | |---|---| | Declared field | `interpolation` is a REQUIRED field of every materialised transform carrying a lookup ta [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The concrete mechanism is well documented in the field: hardware three-dimensional texture sampling provides trilinear only, so a tetrahedral rule on the GPU has to be written explicitly rather than sampled, and at least one widely used colour-management implementation records its own GPU path falling back to the linear rule where its CPU path uses the tetrahedral one, and records that the two are not always equivalent. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Obligation | Requirement | |---|---| | Declared [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-353"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "It has no default and MUST NOT be inferred from the sampler. | | Cache key | `interpolation` is part of the cache key of [STU-COL-142].",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-353"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Two artefacts differing only in it are different artefacts. | | Path binding | Every application path of [STU-COL-352] MUST apply the rule the artefact declares.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-353"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "A path that cannot MUST NOT silently apply a different one. | | Declared discrepancy | Where a path genuinely cannot apply the declared rule, the artefact is marked with the rule that path actually applied, that fact is reported as inspection state under [STU-COL-250], and the resulting difference is measured against [STU-COL-352] rather than assumed small.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-353"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Hiding the substitution is the defect; substituting and declaring it is a stated, bounded condition. | | Proof and viewport | A proof render under [STU-COL-240] and the viewport MUST resolve to the same declared rule, or the proof MUST report that it did not.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-353"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

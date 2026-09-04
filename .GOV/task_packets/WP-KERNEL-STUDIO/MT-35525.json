@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35525",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-COL-354#catalogue_row#0_bake_hard_compression_near_black_or_white",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.8.25 Transform Materialisation and Application",
+  "spec_line": 12234,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "bake.hard_compression_near_black_or_white",
+ "spec_anchor": [
+  "STU-COL-354"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "colour",
+ "scope": {
+  "summary": "Where a baked lookup table stops being an acceptable materialisation.** A baked table is an approximation and there are five cases where the approximation is not merely coarse but WRONG, and no grid size fixes any of them. Each is a separate engine behaviour with its own resolution. *Derivation: catalogue table, splits per row; yields 5 microtasks, one per non-bakeable case.* | Non-bakeable case | Why a baked three-dimensional table cannot serve it | Required resolution | |---|---|---| | `bake.four_or_more_input_channels` | A CMYK or N-channel SOURCE needs a four-dimensional or higher lookup; a hardware three-dimensional texture is three-dimensional | Evaluate the source-side transform on the CPU, or split the chain and put only the connection-space-to-display half on the GPU. A CMYK soft-proof viewport is the concrete case and MUST NOT be served from a three-dimensional table. | | `bake.gamut_clip_reporting` | [STU-COL-138] requires clipping to be reportable per pixel or per object, and the clipping happens inside the bake, so the signal is gone before a pixel is sampled | Bake a companion channel or companion table carrying the clip flag, or evaluate the report on the CPU. Not solvable by raising the grid size. | | `bake.named_and_spot_values` | A spot resolved through a named-colour profile ([STU-COL-185]) is an exact table lookup, not a point in a continuous space, and inte [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`bake.hard_compression_near_black_or_white` satisfies the spec's stated non-bakeable case: `bake.hard_compression_near_black_or_white`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-354 catalogue row `bake.hard_compression_near_black_or_white`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`bake.hard_compression_near_black_or_white` satisfies the spec's stated why a baked three-dimensional table cannot serve it: Absolute-colorimetric paper-white simulation and strong black point compensation both compress a narrow input region hard, which is exactly where a uniform grid has least resolution",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-354 catalogue row `bake.hard_compression_near_black_or_white`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`bake.hard_compression_near_black_or_white` satisfies the spec's stated required resolution: A shaper table is mandatory here, and the grid takes the upper size of [STU-COL-355] rather than the default.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-354 catalogue row `bake.hard_compression_near_black_or_white`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`bake.hard_compression_near_black_or_white` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-COL-354"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

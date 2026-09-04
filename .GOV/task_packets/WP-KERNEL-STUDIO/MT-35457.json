@@ -1,0 +1,94 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35457",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-COL-305#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.8.20 Display Device Characterisation",
+  "spec_line": 11584,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Multiple monitors and a window that spans two",
+ "spec_anchor": [
+  "STU-COL-305"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "colour",
+ "scope": {
+  "summary": "Multiple monitors and a window that spans two.** Studio MUST support a different profile per monitor simultaneously. A window is bound to exactly ONE display device at a time for colour purposes, and that binding is the monitor holding the largest area of the window. When a window spans two monitors with different profiles the parts on the second monitor are colour-managed for the FIRST, which is a real and unavoidable error under a single-transform presentation path; Studio MUST therefore report the spanning condition in the inspection state of [STU-COL-307] rather than let the operator judge colour on a surface that is silently wrong. The binding changes when the majority-area monitor changes, which re-derives the display transform under [STU-COL-303]. *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `display_binding.majority_area_fraction` | 0.5 | 1.0 | 0.5 | 1.0 | 0.5 | unit_interval | 3 | | `display_binding.rebind_hysteresis` | 0.0 | 0.5 | 0.0 | 0.2 | 0.05 | unit_interval | 3 | Neither bound is a measurement. `majority_area_fraction` is fixed at 0.5 by the definition of a majority and cannot be lower; its upper bound is the whole window. `rebind_hysteresis` is a Studio normati [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Multiple monitors and a window that spans two.** Studio MUST support a different profile per monitor simultaneously.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-305"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Studio MUST therefore report the spanning condition in the inspection state of [STU-COL-307] rather than let the operator judge colour on a surface that is silently wrong.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-305"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Studio MUST bind per window, and MUST re-bind on move.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-305"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

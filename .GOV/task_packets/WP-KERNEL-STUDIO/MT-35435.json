@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35435",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-COL-260#catalogue_row#0_col_accuracy_within_tolerance",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.8.17 Validation and Acceptance",
+  "spec_line": 11081,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "col.accuracy_within_tolerance",
+ "spec_anchor": [
+  "STU-COL-260"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "colour",
+ "scope": {
+  "summary": "Colour validation descriptors.** The `StudioValidationDescriptor` catalog (14.24) MUST include the eighteen descriptors below. This table SPAWNS EIGHTEEN microtasks, one per row. *Derivation: catalogue table, splits per row; yields 18 microtasks, one per validation descriptor. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Validation descriptor | What it checks | Governing clause | |---|---|---| | `col.parameter_record_complete` | Every numeric parameter carries all seven fields as separate stored fields | [STU-COL-106] | | `col.no_invented_bound` | No `UNKNOWN` bound replaced by a number; no `soft_*` mirrored from a `hard_*` | [STU-COL-107] | | `col.no_clamp_to_observed` | No observed preset range used as a hard bound | [STU-COL-108] | | `col.tagged_value_law` | No untagged device triple anywhere, including on the wire and in model commands | [STU-COL-110] | | `col.enumeration_encoding` | Every enumeration carries its full member list and Studio's own encoding | [STU-COL-135] | | `col.assign_vs_convert` | Assign preserves components; convert preserves appearance; neither is the other | [STU-COL-130] | | `col.transform_deterministic` | A transform materialised from one cache key is bit-identical across hosts | [STU-COL-143] | | `col.pipel [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`col.accuracy_within_tolerance` satisfies the spec's stated validation descriptor: `col.accuracy_within_tolerance`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-260 catalogue row `col.accuracy_within_tolerance`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`col.accuracy_within_tolerance` satisfies the spec's stated what it checks: Every path measured against the reference corpus is within its declared mean and maximum CIEDE2000 tolerance, computed with the declared white point",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-260 catalogue row `col.accuracy_within_tolerance`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`col.accuracy_within_tolerance` satisfies the spec's stated governing clause: [STU-COL-323]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-260 catalogue row `col.accuracy_within_tolerance`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`col.accuracy_within_tolerance` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-COL-260"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

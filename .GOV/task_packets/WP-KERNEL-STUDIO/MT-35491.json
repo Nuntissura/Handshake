@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35491",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-COL-324#catalogue_row#0_patches_synthetic_gamut_edge",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.8.22 Colour Accuracy Metric and Reference Patch Sets",
+  "spec_line": 11912,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "patches.synthetic_gamut_edge",
+ "spec_anchor": [
+  "STU-COL-324"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "colour",
+ "scope": {
+  "summary": "The reference patch corpus.** A tolerance needs something to measure. Studio ships a reference corpus of known patches with expected values, and the corpus is layered: synthetic sets prove the arithmetic with no measurement uncertainty at all, and measured sets prove the device paths. A corpus row is a separately buildable thing, so each is its own unit of work. *Derivation: catalogue table, splits per row; yields 6 microtasks, one per reference patch set.* | Reference patch set | What it contains | Where the expected values come from | The caveat that makes naive use wrong | |---|---|---|---| | `patches.metric_conformance` | 34 CIELAB colour pairs with their reference CIEDE2000 differences | Published supplementary test data for the formula ([STU-COL-322]) | It proves the METRIC, not the pipeline. Passing it says nothing about any transform. | | `patches.synthetic_ramp` | Neutral ramps and per-channel ramps at the document precision, plus the primaries and secondaries of each supported working space | Computed analytically from the space definitions, with no measurement | Expected values MUST be computed independently of the engine under test ([STU-COL-325]), or the corpus is the engine's own output and proves nothing. | | `patches.synthetic_gamut_edge` | Values deliberately outside the destination gamut, at and just past the boundary, for each rendering intent | Computed from [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`patches.synthetic_gamut_edge` satisfies the spec's stated reference patch set: `patches.synthetic_gamut_edge`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-324 catalogue row `patches.synthetic_gamut_edge`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`patches.synthetic_gamut_edge` satisfies the spec's stated what it contains: Values deliberately outside the destination gamut, at and just past the boundary, for each rendering intent",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-324 catalogue row `patches.synthetic_gamut_edge`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`patches.synthetic_gamut_edge` satisfies the spec's stated where the expected values come from: Computed from the destination profile's own gamut tag or its inverse transform",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-324 catalogue row `patches.synthetic_gamut_edge`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`patches.synthetic_gamut_edge` satisfies the spec's stated the caveat that makes naive use wrong: Two intents legitimately give two different answers here, so a single expected value per patch is wrong; the expected value is per intent ([STU-COL-135]).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-324 catalogue row `patches.synthetic_gamut_edge`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`patches.synthetic_gamut_edge` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-COL-324"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -1,6 +1,6 @@
 {
  "schema_id": "handshake.reference.studio_ledger_reconcile@1",
- "generated_at": "2026-09-04T13:35:19+00:00",
+ "generated_at": "2026-09-04T20:07:21+00:00",
  "why": "The Master Spec must yield the microtask set. A module whose declared yield and derived yield disagree breaks that property in one direction or the other.",
  "modules_total": 19,
  "modules_in_agreement": 19,
@@ -25,9 +25,9 @@
   },
   {
    "module": "14-06-layout.md",
-   "declared_by_module": 209,
+   "declared_by_module": 217,
    "declared_source": "yields-index total row, last numeric column",
-   "derived_by_tool": 209,
+   "derived_by_tool": 217,
    "delta_derived_minus_declared": 0,
    "reading": "agree"
   },
@@ -41,9 +41,9 @@
   },
   {
    "module": "14-08-color.md",
-   "declared_by_module": 225,
+   "declared_by_module": 320,
    "declared_source": "yields-index total row, last numeric column",
-   "derived_by_tool": 225,
+   "derived_by_tool": 320,
    "delta_derived_minus_declared": 0,
    "reading": "agree"
   },

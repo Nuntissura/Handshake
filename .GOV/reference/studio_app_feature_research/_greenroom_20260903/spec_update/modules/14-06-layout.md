@@ -7,6 +7,9 @@ section_id: "14.6"
 title: "14.6 Studio -- Page Layout & Publishing"
 supersedes: "master-spec-v02.205 spec-modules/14-studio-creative-suite.md lines 896-1239 (sub-section 14.6)"
 derivation_basis: "green-room installed-application captures, 2026-09-03/04"
+declared_yields_total: 217
+yields_ledger_clause: "STU-LAY-199"
+anchor_prefix: "STU-LAY"
 metadata_rule: "frontmatter is machine metadata; body follows after this block. body_sha256 and source_body_original_sha256 are assigned at bundle assembly per [CX-105D]."
 ---
 
@@ -1979,6 +1982,164 @@ policy (`overprint_black_on_save` in [STU-LAY-105]).
 Separations preview -- per-plate on/off preview, an ink-limit view with a configurable total-ink
 threshold, and per-ink coverage readouts. These MUST be readable as typed values, not only rendered.
 
+**[STU-LAY-250] Total ink coverage contract.** Total ink coverage -- also called total area
+coverage, and configured as a total ink limit -- is the arithmetic sum, at one device location, of
+the tone values of every ink that prints at that location, expressed in percent. For a separation
+carrying `n` inks the structural range is 0 to `n` x 100 percent, so a four-ink process page reaches
+400 percent at solid registration black and a page carrying spot inks exceeds that; the `hard_max`
+below is stated for the four-ink process case and scales with the ink count of the actual
+separation. A location above the limit of the print condition does not dry, sets off onto the
+following sheet, picks, and turns neutral shadows muddy, and on non-heatset presses it is the
+dominant press defect. This sub-section already specifies separation, overprint and an ink-limit
+PREVIEW in the ink contract of [STU-LAY-160], but declared no limit a document could be CHECKED
+against, so a document could pass preflight, be packaged and be exported in a state the press cannot
+print. Studio MUST carry the total ink limit as a first-class stored contract, MUST evaluate a
+document against it, and MUST report a violation as structured data rather than only as a rendered
+preview.
+
+*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*
+
+| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |
+|---|---|---|---|---|---|---|---|
+| `total_ink_limit` | 0 | 400 | unknown | unknown | unknown | `percent` | unknown |
+| `single_ink_limit` | 0 | 100 | unknown | unknown | unknown | `percent` | unknown |
+| `black_ink_limit` | 0 | 100 | unknown | unknown | unknown | `percent` | unknown |
+| `coverage_warning_margin` | 0 | unknown | unknown | unknown | unknown | `percent` | unknown |
+| `coverage_sample_resolution` | unknown | unknown | unknown | unknown | unknown | `dpi` | 0 |
+
+The three limits are INDEPENDENT and MUST be stored as three fields. `black_ink_limit` is not
+derivable from `single_ink_limit`, and `total_ink_limit` is not derivable from either: a condition
+that accepts 100 percent black in a single plate may still refuse 340 percent across four. The
+`hard_max` of 400 is arithmetic for a four-ink process separation, not a captured bound; for a
+separation carrying more inks the structural maximum is 100 x ink count and the engine MUST scale
+the bound rather than clamping to 400. Every `unknown` in the table is an undeclared bound under
+[STU-LAY-100] and MUST NOT be filled from its opposite range. `coverage_warning_margin` is the
+distance below the effective limit at which a finding is raised at a lower severity, so a document
+sitting at the edge of a condition is visible before it crosses; it is a separate field and is never
+inferred from the limit.
+
+**[STU-LAY-251] Ink-limit declaration sites and precedence.** A total ink limit reaches a document
+from more than one place, and in practice those places disagree, so the resolution order MUST be
+declared rather than decided by whichever surface is read last. For a given output operation Studio
+resolves the effective limit by taking the first DECLARED value in the member order of
+`ink_limit_source` below, and MUST record which site supplied it alongside the value, so a
+downstream reader can distinguish an operator-typed limit from one inherited from an output intent.
+The terminal member `ink_limit_source.undeclared` is normative and is not a synonym for zero or for
+400: when no site declares a limit the evaluation of [STU-LAY-252] MUST report `not_checked`, and
+Studio MUST NOT report a pass. A silent pass on an undeclared limit is the exact failure this
+contract exists to prevent.
+
+*Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.*
+
+| Field | Kind | Members |
+|---|---|---|
+| `ink_limit_source` | enumeration, ordered by precedence | `ink_limit_source.preflight_rule_instance`, `ink_limit_source.export_recipe`, `ink_limit_source.document_policy`, `ink_limit_source.output_intent_profile`, `ink_limit_source.press_condition_preset`, `ink_limit_source.undeclared` |
+| `ink_limit_severity` | enumeration | `severity.disabled`, `severity.error`, `severity.warning`, `severity.informational` |
+| `ink_limit_scope` | enumeration | `ink_limit_scope.document`, `ink_limit_scope.spread`, `ink_limit_scope.page`, `ink_limit_scope.object`, `ink_limit_scope.plate` |
+| `ink_limit_check_state` | enumeration | `check_state.not_checked`, `check_state.within_limit`, `check_state.within_warning_margin`, `check_state.over_limit`, `check_state.indeterminate` |
+
+`ink_limit_severity` reuses the preflight severity vocabulary of [STU-LAY-154] deliberately: an ink
+limit is a preflight rule instance like any other and MUST NOT acquire a second severity scale.
+`check_state.indeterminate` covers the case where a placed asset cannot be separated for
+measurement -- a missing link, an unresolvable profile, or a passthrough object -- and MUST NOT be
+collapsed into either `not_checked` or `within_limit`.
+
+**[STU-LAY-252] Coverage evaluation contract.** A limit is meaningless unless what is measured is
+the value that will actually reach a plate. Studio MUST evaluate coverage on the COMPOSED and
+SEPARATED device values of the output operation, at a declared sample resolution, after every
+transformation that can change them, and MUST NOT evaluate it on authored swatch values or on an
+unflattened composite. An implementer may reason that a correctly built destination profile cannot
+emit a separation above its own limit and that the check is therefore redundant. It is not: the
+stages below all add ink AFTER the profile has done its work, and each is a normal layout
+construction rather than an error.
+
+*Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.*
+
+| Field | Kind | Members |
+|---|---|---|
+| `coverage_input_stage` | enumeration | `stage.spot_to_process_conversion`, `stage.ink_alias_resolution`, `stage.overprint_composition`, `stage.transparency_flattening`, `stage.placed_image_separation`, `stage.authored_rich_black`, `stage.opaque_ink_handling` |
+| `coverage_metric` | enumeration | `metric.maximum`, `metric.mean`, `metric.area_above_limit` |
+
+Each stage names a real mechanism. Spot-to-process conversion and ink aliasing of [STU-LAY-160]
+replace one plate with several. Overprint composition sums two objects that would otherwise knock
+out. Transparency flattening of [STU-LAY-161] produces new atomic regions whose colour is neither
+operand. A placed image separated elsewhere to a different limit carries its own coverage in. An
+authored rich black or registration swatch is typed by hand and no profile ever sees it. Opaque and
+opaque-ignore inks under the `ink_type` enumeration of [STU-LAY-160] obscure what lies beneath them,
+so their contribution to a total is not a simple sum and MUST be computed from the declared ink
+type rather than assumed. The three metrics are all required: a maximum alone cannot distinguish a
+single antialiased edge pixel from a flooded panel, which is why the mean and the fraction of the
+evaluated region above the limit are carried with it. `coverage_sample_resolution` is part of the
+result, not a hidden setting, because a violation found at one resolution can vanish at another.
+
+**[STU-LAY-253] Ink-limit violation finding.** A violation MUST be reported as a typed structured
+finding in the vocabulary of [STU-LAY-166] and MUST reach the model-steerable command surface on the
+same terms as every other preflight finding under [STU-LAY-057], not only as a highlight drawn over
+the page. A finding that says only that ink coverage is too high is non-conformant: neither an
+operator nor a model can repair the document from it, because the repair depends on which ink
+contributes the excess and on which stage of [STU-LAY-252] introduced it.
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Field | Meaning |
+|---|---|
+| `rule_id` | Stable identifier of the ink-limit rule instance that fired. |
+| `severity` | The `ink_limit_severity` member in force for that rule instance. |
+| `check_state` | The `ink_limit_check_state` member the evaluation reached. |
+| `effective_limit` | The percentage actually applied. |
+| `limit_source` | The `ink_limit_source` member that supplied `effective_limit`. |
+| `measured_maximum` | Highest total coverage found in the evaluated region, in percent. |
+| `measured_mean` | Mean total coverage over the evaluated region, in percent. |
+| `area_above_limit` | Fraction of the evaluated region above the limit, in percent of that region. |
+| `per_ink_contribution` | Per-plate tone value at the worst location, so the offending ink is named rather than inferred. |
+| `page_reference` | Page or spread identity, plus the offending region in document coordinates. |
+| `object_references` | The page items composing at the worst location, placed assets carried by link reference. |
+| `introduced_by` | The `coverage_input_stage` member that raised the value above the limit. |
+| `sample_resolution` | The resolution the evaluation ran at. |
+
+**[STU-LAY-254] Published ink limits are reference, not a Studio default (SPEC GAP).** No captured
+object declares a total-ink-limit DEFAULT, and none is invented here. The correct value is a
+property of the print condition -- press process, ink set, substrate, drying and finishing -- and is
+supplied by the printer, so a shipped default would be a guess that reads as authority. This is a
+declared SPEC GAP: Studio MUST ship with `total_ink_limit` undeclared and MUST report
+`check_state.not_checked` until a site of [STU-LAY-251] declares one. The values below are published
+figures for common conditions, recorded so an implementer can size the control and build a preset
+list, and they are REFERENCE ONLY: not a default, not a validated recommendation, and not a Studio
+name for any of them. Published figures for the SAME characterisation data differ between
+publishers, because the limit is a property of the separation built into a profile rather than of
+the characterisation data set; where field guidance gives a range rather than a constant, the range
+is reproduced as a range and MUST NOT be reduced to its midpoint.
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Print condition | Published total ink limit | Provenance of the figure |
+|---|---|---|
+| Sheetfed offset, gloss and matte coated, paper types 1 and 2 | 330 percent, with a 300 percent variant published beside it | ECI profiles built on the FOGRA39 characterisation for ISO 12647-2 |
+| Sheetfed offset, premium coated, later ISO 12647-2 revision | 300 percent | PSO Coated v3, built on the FOGRA51 characterisation |
+| Sheetfed offset, US number 1 coated | 310 percent | GRACoL 2006 |
+| Web offset, US number 3 coated publication stock | 300 percent | SWOP 2006 |
+| Sheetfed offset, wood-free uncoated | 260 to 300 percent | ECI uncoated profiles on the FOGRA47 and FOGRA52 characterisations; field prepress guidance gives the wider figure |
+| Heatset web offset, coated | 300 to 320 percent | field prepress guidance |
+| Non-heatset web offset, newsprint | 240 to 260 percent | field prepress guidance |
+| Sheetfed offset, Japanese coated | 300 percent | Japan Color 2011 |
+| Electrophotographic and inkjet devices | 300 to 350 percent | field prepress guidance; strongly device and substrate dependent |
+
+The figure depends on the press process, the ink set and its tack and drying behaviour, the
+substrate and its absorbency, whether drying is heatset or oxidative, the screening, the press speed
+and the finishing, which is why it varies within a single named condition and why the printer is the
+authority for it.
+
+Relationship to separation and black generation. The limit is honoured in two different places and
+they are not interchangeable. A destination profile honours it at SEPARATION time through its own
+black generation -- how much of the neutral cyan, magenta and yellow component is replaced by black,
+and how much black is added back -- so a profile built to a 300 percent limit cannot emit a
+separation above 300 percent, and changing the limit changes the black generation and therefore the
+appearance of every neutral in the document. Every stage enumerated in [STU-LAY-252] happens AFTER
+that point, which is why the document check of this contract is not redundant with a correctly built
+profile. Studio MUST NOT silently re-separate a document to bring it under a limit: because
+re-separation restates every neutral, it is an operator decision recorded as a document mutation
+through the propose-work lifecycle of [STU-LAY-067], never a repair applied inside an export.
+
 **[STU-LAY-152] Trap preset contract.** Referenced by the vector domain's trap operation
 ([STU-VEC-132]). The captured trap-preset object declares:
 
@@ -2218,7 +2379,7 @@ SurrealDB-only authority guard ([STU-SDB-002]); live collaborative editing is CR
 obligation is stated once and is not restated per clause.
 
 **[STU-LAY-199] Microtask derivation index.** Applying [STU-LAY-104] to this sub-section yields
-exactly 209 microtasks. The correspondence is NORMATIVE and CLOSED: a microtask corresponds to a
+exactly 217 microtasks. The correspondence is NORMATIVE and CLOSED: a microtask corresponds to a
 yielding clause or to a table unit as marked, and to nothing else.
 
 Rule 0 -- derivation markers are authoritative. Every table in this sub-section carries an italic
@@ -2229,7 +2390,7 @@ are: parameter table taken whole (1); enumeration table taken whole (1); preset 
 taken whole (1); catalogue table splitting per row (N); contract table carried into the clause's own
 microtask (0). A sixth form, reading aid inside a non-yielding clause, also yields 0.
 
-Rule 0a -- anchors inside table cells are never definitions here. Every one of the 137 clauses in
+Rule 0a -- anchors inside table cells are never definitions here. Every one of the 142 clauses in
 14.6 is defined as a PARAGRAPH opening with its bold anchor; not one is defined inside a table cell.
 All 27 anchors that appear in cells of this sub-section are cross-references to clauses defined that
 way elsewhere in it, and every table carrying one says so in its own marker. A tool that treats an
@@ -2270,11 +2431,11 @@ block is backticked, so a reader and a parser select the same nine clauses.
 
 | Ledger line | Basis | Yields |
 |---|---|---|
-| Clauses in 14.6 | anchors 001-067, 100-169 and 199 | 137 |
+| Clauses in 14.6 | anchors 001-067, 100-169, 199 and 250-254 | 142 |
 | less the no-yield set | reading rules 100-104, plus 067, plus 199, plus the two pointer clauses 023 and 041 | -9 |
-| **Rule A subtotal** | one microtask per yielding clause | **128** |
-| Parameter tables | 15 tables, each taken whole; rows are bound-set acceptance criteria | 15 |
-| Enumeration tables | 23 tables, each taken whole; members are acceptance criteria | 23 |
+| **Rule A subtotal** | one microtask per yielding clause | **133** |
+| Parameter tables | 16 tables, each taken whole; rows are bound-set acceptance criteria | 16 |
+| Enumeration tables | 25 tables, each taken whole; members are acceptance criteria | 25 |
 | Preset and command tables | 3 tables, each taken whole and explicitly NOT split per row | 3 |
 | Catalogue: placed formats of 028 | one per placed format class | 6 |
 | Catalogue: preflight categories of 057 | one per rule category | 7 |
@@ -2283,10 +2444,10 @@ block is backticked, so a reader and a parser select the same nine clauses.
 | Catalogue: print groups of 156 | one per print option group | 8 |
 | Catalogue: PDF panels of 158 | one per PDF export panel | 6 |
 | Catalogue: validation families of 166 | one per validation family | 2 |
-| Contract tables | 9 tables carried into the owning clause's microtask | 0 |
+| Contract tables | 11 tables carried into the owning clause's microtask | 0 |
 | Reading aids in non-yielding clauses | 2 tables | 0 |
-| **Rule B subtotal** | table units | **81** |
-| **Total microtasks yielded by 14.6** | rule A plus rule B | **209** |
+| **Rule B subtotal** | table units | **84** |
+| **Total microtasks yielded by 14.6** | rule A plus rule B | **217** |
 
 Four counts are traps for a tool that reads tables structurally rather than reading the markers.
 Clause 156 spawns from its eight-row print GROUP table, not from the five-row numeric parameter
@@ -2297,9 +2458,10 @@ posture table of 066 is taken WHOLE and yields 1, not 6: five of its six rows ar
 adapter-backed lanes rather than units of build work.
 
 Clauses carrying a declared SPEC GAP -- 010 (adjust-layout font-size limits), 108 (per-section
-include-on-export flag), 150 (sidenote options) and 161 (raster-vector balance) -- still yield their
-rule-A microtask, and that microtask's FIRST acceptance row MUST read "the named gap is raised to the
-operator as a capture request and is NOT closed by an invented value".
+include-on-export flag), 150 (sidenote options), 161 (raster-vector balance) and 254 (no captured
+total-ink-limit default, which is a property of the print condition and is supplied by the printer)
+-- still yield their rule-A microtask, and that microtask's FIRST acceptance row MUST read "the named
+gap is raised to the operator as a capture request and is NOT closed by an invented value".
 
 A microtask derived from a clause with a parameter table MUST carry that table verbatim, including
 every `unknown`; a microtask derived from an enumeration MUST carry every member and its captured

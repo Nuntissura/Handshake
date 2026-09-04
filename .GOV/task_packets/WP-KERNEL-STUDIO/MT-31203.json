@@ -4,7 +4,7 @@
  "contract_authority": "PRIMARY_MACHINE_READABLE",
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-31203",
- "created_at_utc": "2026-09-04T13:36:05+00:00",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
  "generated_by": "handshake.greenroom.spec_derive.v1",
  "derivation": {
   "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
@@ -12,7 +12,7 @@
   "unit_kind": "clause",
   "spec_module": "14-studio-creative-suite.md",
   "spec_heading": "14.8.5 The Colour Engine",
-  "spec_line": 9939,
+  "spec_line": 10098,
   "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
  },
  "lifecycle": {
@@ -29,7 +29,7 @@
  "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
  "domain": "colour",
  "scope": {
-  "summary": "Transform materialisation.** `ColorEngine` MUST materialise every transform into a form `RenderEngine` can consume without knowing about colour: either an explicit matrix-plus-curve chain, or a baked 3D LUT with a declared grid size and domain, plus a shaper 1D LUT where the transform is non-linear. Pixels MUST NOT reach `RenderEngine` with an unresolved profile reference. The materialised transform is CACHEABLE and MUST be keyed by (source profile hash, destination profile hash, intent, BPC, precision, grid size).",
+  "summary": "Transform materialisation.** `ColorEngine` MUST materialise every transform into a form `RenderEngine` can consume without knowing about colour: either an explicit matrix-plus-curve chain, or a baked 3D LUT with a declared grid size and domain, plus a shaper 1D LUT where the transform is non-linear. The matrix-plus-curve form is EXACT and carries no interpolation error at all, so it MUST be preferred wherever both profiles reduce to curves and a 3x3; baking a LUT for a transform that has a matrix form introduces error for nothing. Pixels MUST NOT reach `RenderEngine` with an unresolved profile reference. The materialised transform is CACHEABLE and MUST be keyed by (source profile hash, destination profile hash, intent, BPC, precision, grid size, domain, INTERPOLATION RULE, shaper presence and shaper identity). The interpolation rule is part of the key and part of the artefact's declared fields for the reason [STU-COL-353] gives: two transforms built from the same profiles, the same grid and the same domain but evaluated under different interpolation rules are DIFFERENT transforms and MUST NOT share a cache entry.",
   "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
  },
  "acceptance_criteria": [
@@ -41,18 +41,30 @@
   },
   {
    "id": "AC-002",
-   "criterion": "Pixels MUST NOT reach `RenderEngine` with an unresolved profile reference.",
+   "criterion": "The matrix-plus-curve form is EXACT and carries no interpolation error at all, so it MUST be preferred wherever both profiles reduce to curves and a 3x3; baking a LUT for a transform that has a matrix form introduces error for nothing.",
    "evidence_kind": "runtime_assertion",
    "source": "14-studio-creative-suite.md STU-COL-142"
   },
   {
    "id": "AC-003",
-   "criterion": "The materialised transform is CACHEABLE and MUST be keyed by (source profile hash, destination profile hash, intent, BPC, precision, grid size).",
+   "criterion": "Pixels MUST NOT reach `RenderEngine` with an unresolved profile reference.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-142"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The materialised transform is CACHEABLE and MUST be keyed by (source profile hash, destination profile hash, intent, BPC, precision, grid size, domain, INTERPOLATION RULE, shaper presence and shaper identity).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-142"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The interpolation rule is part of the key and part of the artefact's declared fields for the reason [STU-COL-353] gives: two transforms built from the same profiles, the same grid and the same domain but evaluated under different interpolation rules are DIFFERENT transforms and MUST NOT share a cache entry.",
    "evidence_kind": "runtime_assertion",
    "source": "14-studio-creative-suite.md STU-COL-142"
   }
  ],
- "acceptance_criteria_count": 3,
+ "acceptance_criteria_count": 5,
  "implementation_notes": {
   "extracted_behaviour": [],
   "behaviour_record_count": 0,

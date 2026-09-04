@@ -2,11 +2,11 @@
  "schema_id": "hsk.activation_readiness@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "generated_at_utc": "2026-07-09T00:00:00Z",
- "state_source": "RECOMPUTED_FROM_GREENROOM_SPEC_DERIVATION_AND_PROMOTION",
- "verdict": "SPEC_PROMOTED_PACKET_READY_FOR_STUB_PROMOTION",
+ "state_source": "RECOMPUTED_FROM_GREENROOM_SPEC_DERIVATION",
+ "verdict": "READY_FOR_OPERATOR_REVIEW_OF_SPEC_PROPOSAL",
  "ready_for_downstream_launch": "NO",
- "ready_for_downstream_launch_reason": "Master Spec v02.206 is PROMOTED: SPEC_CURRENT points at it and spec-bundle-check passes with all four sub-checks green. The microtask set is spec-derived and the round-trip check passes both directions against the promoted bundle. What remains is packet lifecycle, not spec work: this is still a STUB, so promote it to an official packet, register it in BUILD_ORDER and the traceability registry, then create the worktree and branch. No microtask may activate until the packet is registered.",
- "user_signature": "ilja040920261532",
+ "ready_for_downstream_launch_reason": "Master Spec v02.206 is promoted and spec-bundle-check passes. The microtask set is spec-derived and the round-trip check passes both directions against the promoted bundle. Colour accuracy is now specified end to end for photo, video and print. What remains is packet lifecycle, not spec work: this is still a STUB, so promote it to an official packet, register it in BUILD_ORDER and the traceability registry, then create the worktree and branch. The colour-management engine gate recorded above must be tested before the colour microtasks activate.",
+ "user_signature": "ilja090720260901",
  "prepared_artifacts": {
   "spec_merge": {
    "status": "COMPLETE",
@@ -79,56 +79,59 @@
   "Prerequisite gate [STU-ARC-006]: kernel baseline (sandbox, PromotionGate, CRDT, native egui/wgpu/AccessKit shell from WP-KERNEL-011/012) must be stable before Studio product implementation begins."
  ],
  "next_orchestrator_action": "Review prepared bundle; NEXT SESSION: resolve [STU-CON-006] open points, promote stub -> official packet, create wtc-studio worktree + feat/WP-KERNEL-STUDIO branch, then launch KERNEL_BUILDER/Coder implementation.",
- "updated_at_utc": "2026-09-04T13:44:41+00:00",
+ "updated_at_utc": "2026-09-04T20:09:36+00:00",
  "greenroom_fold": {
-  "at": "2026-09-04T13:36:38+00:00",
-  "microtasks_total": 5381,
+  "at": "2026-09-04T20:08:34+00:00",
+  "microtasks_total": 5484,
   "legacy_patched": 509,
-  "spec_derived_added": 4872,
-  "backup_of_previous_packet": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\greenroom_backups\\WP-KERNEL-STUDIO-before-greenroom-fold-20260904-153627",
+  "spec_derived_added": 4975,
+  "backup_of_previous_packet": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\greenroom_backups\\WP-KERNEL-STUDIO-before-greenroom-fold-20260904-220828",
   "reports": [
    "_greenroom_20260903\\spec_update\\proposed-bundle\\spec-roundtrip-report.json",
-   "_greenroom_20260903\\spec_update\\spec-ledger-reconciliation.json"
+   "_greenroom_20260903\\spec_update\\spec-ledger-reconciliation.json",
+   "_greenroom_20260903\\spec_update\\research\\cmm-implementation-research.json"
   ]
  },
- "spec_promotion": {
-  "at": "2026-09-04T13:44:41+00:00",
-  "version": "v02.206",
-  "previous_version": "v02.205",
+ "colour_accuracy_resolution": {
+  "at": "2026-09-04T20:09:36+00:00",
   "approved_by": "ilja040920261532",
-  "bundle_path": ".GOV/spec/master-spec-v02.206",
-  "checks": "spec-bundle-check ok (eof-appendices, growth-discipline, governance-reference, debt-registry)",
-  "roundtrip": "PASS - 0 normative clauses without a microtask, 0 microtask anchors missing from the spec, 0 collisions, 0 duplicate definitions, 0 clauses dropped from v02.205, 0 vendor product names in obligations",
-  "ledger_reconciliation": "19 of 19 modules agree exactly, absolute gap 0"
- },
- "open_items_resolved": [
-  {
-   "anchor": "STU-COL-OBLIG-001",
-   "decision": "never assigned; the Argus obligation it was cited for is carried by STU-COL-250",
-   "contracts": [
-    "MT-249"
-   ]
+  "gaps_closed": [
+   {
+    "gap": "display device characterisation",
+    "anchors": "STU-COL-300..308",
+    "posture": "Studio consumes display profiles and does not measure them. Per-monitor OS profile read and reacted to on change, user-supplied ICC display profiles, correct behaviour when monitors differ, an explicit unmanaged state, and the active profile exposed in Argus. Hardware calibration is an optional out-of-process adapter lane, not a required capability."
+   },
+   {
+    "gap": "ACES scene-linear default",
+    "anchors": "STU-COL-310..317",
+    "posture": "Delivered through the OCIO v2 requirement already in the module. The document records which config and version it was authored against so a grade is reproducible."
+   },
+   {
+    "gap": "testable colour accuracy",
+    "anchors": "STU-COL-320..326",
+    "posture": "CIEDE2000 with per-path tolerances and a golden patch corpus. Before this the spec required correct colour but stated no number, so no validator could gate it."
+   },
+   {
+    "gap": "video scopes and legal range",
+    "anchors": "STU-COL-330..337",
+    "posture": "Waveform, parade, vectorscope and histogram specified as a colour-analysis contract measured relative to the timeline working space, with legal-range checking. 14.25 points at it via the non-yielding cross-reference STU-VID-105."
+   },
+   {
+    "gap": "total ink coverage",
+    "anchors": "STU-LAY-250..254",
+    "posture": "Limit declaration sites and precedence, evaluation on composed separated device values, a typed violation finding, and published limits recorded as reference rather than as a Studio default."
+   },
+   {
+    "gap": "transform determinism",
+    "anchors": "STU-COL-350..355",
+    "posture": "Materialisation is scalar, SIMD-disabled and bit-identical; application may use SIMD and the GPU under a stated tolerance. The interpolation rule is now part of the transform cache key, so a CPU proof render and a GPU viewport can no longer disagree while claiming the same transform."
+   }
+  ],
+  "open_gate": {
+   "item": "ICC Output-class (prtr) B2A evaluation in the candidate colour-management module",
+   "why": "The recommended pure-Rust engine documents Display-class coverage; Output class is what CMYK separation and soft-proofing need. The API exposes ProfileClass and a full LUT family so the machinery appears present, but this was not established from documentation.",
+   "status": "HARD PREDECESSOR - must be tested against a real Output-class profile before the colour work is authored. Failure changes the engine recommendation."
   },
-  {
-   "anchor": "STU-TYP-OBLIG-001",
-   "decision": "never assigned; the letter-suffix precedent it was cited for is carried by real anchors such as STU-RAW-008a",
-   "contracts": []
-  },
-  {
-   "anchor": "STU-RAW-014c",
-   "decision": "never assigned; behaviour carried by STU-RAW-014b and STU-RAW-130",
-   "contracts": [
-    "MT-428"
-   ]
-  },
-  {
-   "anchor": "STU-SOT",
-   "decision": "not a clause anchor in any bundle; removed as a stray authority note",
-   "contracts": [
-    "MT-431",
-    "MT-477",
-    "MT-478"
-   ]
-  }
- ]
+  "research_record": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/research/cmm-implementation-research.json (28 sources)"
+ }
 }

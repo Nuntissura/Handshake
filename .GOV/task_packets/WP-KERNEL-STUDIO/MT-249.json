@@ -12,7 +12,7 @@
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-249",
  "created_at_utc": "2026-07-09T00:00:00Z",
- "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "updated_at_utc": "2026-09-04T20:08:28+00:00",
  "authority_files": {
   "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-249.json",
   "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-249.md",
@@ -168,10 +168,6 @@
    {
     "anchor": "STU-COL-022",
     "spec_clause_text": "[STU-COL-022] Soft-proof: Studio MUST simulate a chosen output condition on screen using a device `StudioColorProfile` and a rendering intent WITHOUT converting document values, toggleable on/off, and MUST include color-blindness simulation profiles as proof conditions. The proof state is inspectable via Argus per [STU-COL-OBLIG-001] (provenance: Photoshop/Illustrator/InDesign proof setup + proof colors, deduped)."
-   },
-   {
-    "anchor": "STU-COL-250",
-    "spec_clause_text": "See the assembled Master Spec; this anchor replaces a never-assigned citation."
    }
   ],
   "spec_clause_count": 2,
@@ -195,7 +191,7 @@
  },
  "patch_provenance": {
   "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
-  "patched_at": "2026-09-04T13:36:26+00:00",
+  "patched_at": "2026-09-04T20:08:28+00:00",
   "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
   "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
  },

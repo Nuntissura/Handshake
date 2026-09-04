@@ -1,0 +1,75 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35515",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-COL-350#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.8.25 Transform Materialisation and Application",
+  "spec_line": 12151,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Materialisation and application are two paths with two different determinism",
+ "spec_anchor": [
+  "STU-COL-350"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "colour",
+ "scope": {
+  "summary": "Materialisation and application are two paths with two different determinism obligations (CLOSING A DEFECT IN [STU-COL-143]).** [STU-COL-143] as originally written required \"the materialised transform\" to be bit-identical on every host, and a reader could take that to govern the whole engine including per-pixel evaluation. Under that reading the clause is unsatisfiable: every colour-evaluation implementation in the field dispatches at runtime on the vector instruction sets it finds - the several x86 generations, and the equivalents on other architectures - and none of them states a bit-exactness guarantee across those paths. A requirement no implementation can meet is not a strict requirement, it is a dead one, because it gets quietly waived the first time it fails. Studio therefore splits the engine on the line [STU-COL-142] already draws, and each half carries the obligation it can actually satisfy. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Path | What it does | Its determinism obligation | Who owns it | |---|---|---|---| | Materialisation | Turns profile bytes plus the key of [STU-COL-142] into the matrix-and-curve chain or the baked LUT, once per cache key | BIT-IDENTICAL across hosts, architectures and instruction-set availability ([STU-COL-351]). This is the artefact that gets cached, co [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [],
+ "acceptance_criteria_count": 0,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

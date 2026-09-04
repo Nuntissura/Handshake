@@ -12,7 +12,7 @@
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-230",
  "created_at_utc": "2026-07-09T00:00:00Z",
- "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "updated_at_utc": "2026-09-04T20:08:28+00:00",
  "authority_files": {
   "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-230.json",
   "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-230.md",
@@ -155,7 +155,7 @@
   "spec_clauses": [
    {
     "anchor": "STU-TYP-033",
-    "spec_clause_text": "[STU-TYP-033] Warping or enveloping a `StudioTextStory` (arc, arch, bulge, wave, flag, fish, rise, and free-form envelope distortions, with orientation, bend, and horizontal/vertical distortion) is a `StudioEffectStack` operation owned by 14.5 (envelope/warp mesh) and 14.9 (live effects), applied non-destructively over a still-editable story (provenance: Photoshop Warp Text; Illustrator envelope distort). 14.7's contract is only that the story remains a live, editable, re-shapeable `StudioTextStory` under the warp and that the shaping engine re-runs on edit; 14.7 does NOT define warp styles or the distortion mesh. --- --- ## 14.8 Color Management & Pipeline <a id=\"148-color-management-and-pipeline\"></a> ## 14.8 Color Management and Pipeline Colour is a shared Studio PIPELINE, not a per-domain feature. Every fill, stroke, swatch, gradient, pattern, text colour, adjustment, grade, LUT, proof and separation across raster, vector, layout, video, motion and compositing resolves through ONE colour value model, ONE profile primitive (`StudioColorProfile`), ONE swatch primitive (`StudioSwatch`), ONE gradient primitive (`StudioGradient`), ONE pattern primitive (`StudioPattern`), and ONE engine (`ColorEngine: Send + Sync`). A source suite's colour panel or command name is never a Studio name. This module is SELF-CONTAINED. A capable implementer with no chat context and no access to the Studio research corpus MUST be able to implement the colour pipeline, and to derive the colour microtask set (14.8.22), from this module plus the shared contracts it names (14.0 storage, 14.2 architecture, 14.3 primitives, 14.7 typography, 14.23 canonical field contracts, 14.24 validation). Where this module and 14.23 disagree on a FIELD NAME, TYPE or SCHEMA ID, 14.23 wins; where they disagree on BEHAVIOUR, RANGE, DEFAULT, UNIT or ENUMERATED VALUE, this module wins and the divergence is a defect in 14.23 to be repaired. --- ### 14.8.0 Authority, Derivation and Supersession"
+    "spec_clause_text": "[STU-TYP-033] Warping or enveloping a `StudioTextStory` (arc, arch, bulge, wave, flag, fish, rise, and free-form envelope distortions, with orientation, bend, and horizontal/vertical distortion) is a `StudioEffectStack` operation owned by 14.5 (envelope/warp mesh) and 14.9 (live effects), applied non-destructively over a still-editable story (provenance: Photoshop Warp Text; Illustrator envelope distort). 14.7's contract is only that the story remains a live, editable, re-shapeable `StudioTextStory` under the warp and that the shaping engine re-runs on edit; 14.7 does NOT define warp styles or the distortion mesh. --- --- ## 14.8 Color Management & Pipeline <a id=\"148-color-management-and-pipeline\"></a> ## 14.8 Color Management and Pipeline Colour is a shared Studio PIPELINE, not a per-domain feature. Every fill, stroke, swatch, gradient, pattern, text colour, adjustment, grade, LUT, proof and separation across raster, vector, layout, video, motion and compositing resolves through ONE colour value model, ONE profile primitive (`StudioColorProfile`), ONE swatch primitive (`StudioSwatch`), ONE gradient primitive (`StudioGradient`), ONE pattern primitive (`StudioPattern`), and ONE engine (`ColorEngine: Send + Sync`). A source suite's colour panel or command name is never a Studio name. This module is SELF-CONTAINED. A capable implementer with no chat context and no access to the Studio research corpus MUST be able to implement the colour pipeline, and to derive the colour microtask set (14.8.19), from this module plus the shared contracts it names (14.0 storage, 14.2 architecture, 14.3 primitives, 14.7 typography, 14.23 canonical field contracts, 14.24 validation). Where this module and 14.23 disagree on a FIELD NAME, TYPE or SCHEMA ID, 14.23 wins; where they disagree on BEHAVIOUR, RANGE, DEFAULT, UNIT or ENUMERATED VALUE, this module wins and the divergence is a defect in 14.23 to be repaired. --- ### 14.8.0 Authority, Derivation and Supersession"
    }
   ],
   "spec_clause_count": 1,
@@ -179,7 +179,7 @@
  },
  "patch_provenance": {
   "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
-  "patched_at": "2026-09-04T13:36:26+00:00",
+  "patched_at": "2026-09-04T20:08:28+00:00",
   "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
   "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
  }

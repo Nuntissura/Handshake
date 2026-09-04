@@ -4,7 +4,7 @@
  "contract_authority": "PRIMARY_MACHINE_READABLE",
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-31160",
- "created_at_utc": "2026-09-04T13:36:05+00:00",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
  "generated_by": "handshake.greenroom.spec_derive.v1",
  "derivation": {
   "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
@@ -12,7 +12,7 @@
   "unit_kind": "clause",
   "spec_module": "14-studio-creative-suite.md",
   "spec_heading": "10. Warp / Envelope Text Touchpoint",
-  "spec_line": 9399,
+  "spec_line": 9558,
   "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
  },
  "lifecycle": {
@@ -35,7 +35,7 @@
  "acceptance_criteria": [
   {
    "id": "AC-001",
-   "criterion": "A capable implementer with no chat context and no access to the Studio research corpus MUST be able to implement the colour pipeline, and to derive the colour microtask set (14.8.22), from this module plus the shared contracts it names (14.0 storage, 14.2 architecture, 14.3 primitives, 14.7 typography, 14.23 canonical field contracts, 14.24 validation).",
+   "criterion": "A capable implementer with no chat context and no access to the Studio research corpus MUST be able to implement the colour pipeline, and to derive the colour microtask set (14.8.19), from this module plus the shared contracts it names (14.0 storage, 14.2 architecture, 14.3 primitives, 14.7 typography, 14.23 canonical field contracts, 14.24 validation).",
    "evidence_kind": "runtime_assertion",
    "source": "14-studio-creative-suite.md STU-TYP-033"
   }

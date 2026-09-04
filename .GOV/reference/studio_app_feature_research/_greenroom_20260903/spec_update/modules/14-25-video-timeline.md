@@ -775,6 +775,16 @@ convenience operations over them: toggle all sources, toggle all targets, move a
 down, move all targets up or down, set a source to a gap (so a stream is skipped), add tracks to
 match the source's stream count, and save and recall named source-assignment presets.
 
+**[STU-VID-105] Scopes and legal-range checking are owned by 14.8 (CROSS-REFERENCE).** The
+waveform, parade, vectorscope and histogram surfaces an editor uses to judge a grade, and the
+legal-range and out-of-gamut checking that decides whether a sequence may be delivered, are
+specified once in 14.8 at [STU-COL-330] through [STU-COL-337]. They are stated there rather than
+here because a scope measures colour and its reading is meaningless without naming the space it
+measures in, which is the timeline working space declared by [STU-COL-156]. This clause exists so
+that an editor reading the clip timeline finds them; it adds no obligation of its own and yields no
+microtask, because the work is counted once in 14.8 and counting it twice would put two contracts
+against one behaviour.
+
 ### 4. Trim operations
 
 **[STU-VID-026] The normative trim vocabulary.** Each is a typed command on `event_family =
@@ -2849,7 +2859,7 @@ the markers:
    proving 453 identifier bound-sets is a different obligation from building the inspector. 14 plus
    14, not 14 and not 453.
 
-**[STU-VID-100a] The no-yield set: 14 clauses.** Nothing else may be excluded, and a clause not on
+**[STU-VID-100a] The no-yield set: 15 clauses.** Nothing else may be excluded, and a clause not on
 this list yields under rule A whether or not it is convenient.
 In this list a MEMBER of the set is written in backticks, as `STU-AREA-nnn`, and an anchor written
 in brackets, as [STU-AREA-nnn], is a REFERENCE and is not excluded from anything. The two forms
@@ -2868,6 +2878,8 @@ The members:
    points at [STU-VID-017a] and `STU-VID-081` at [STU-VID-012b].
 5. **This derivation section.** `STU-VID-100`, `STU-VID-100a`, `STU-VID-101`, `STU-VID-102`,
    `STU-VID-103` and `STU-VID-104`.
+6. **Pure cross-reference to another sub-section.** `STU-VID-105`, which points at the scope and
+   legal-range contract of [STU-COL-330]-[STU-COL-337] and states no obligation of its own.
 
 Clause [STU-VID-090] is NOT in the no-yield set: its lead paragraph restates the steerability law, but it
 carries three obligations specific to the clip timeline -- a headless trim form taking an explicit
@@ -2894,8 +2906,8 @@ microtask may cite the green-room corpus as its source of truth ([STU-SECTION-00
 
 | Ledger line | Basis | Yields |
 |---|---|---|
-| Clauses in 14.25 | anchors 001 through 104, sub-lettered anchors included | 82 |
-| less the no-yield set | the 14 clauses of [STU-VID-100a] | -14 |
+| Clauses in 14.25 | anchors 001 through 104, sub-lettered anchors included | 83 |
+| less the no-yield set | the 15 clauses of [STU-VID-100a] | -15 |
 | **Rule A subtotal** | one microtask per yielding clause | **68** |
 | Parameter tables | 14 tables: the per-facet export parameter tables of 061b, each taken whole | 14 |
 | Enumeration tables | 4 tables: the tick-rate table of 013, the time-display codes of 012a, the frame-interpolation methods of 031, the exposed-control types of 070a | 4 |

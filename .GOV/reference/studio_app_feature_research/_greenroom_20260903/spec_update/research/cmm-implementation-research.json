@@ -1,0 +1,538 @@
+{
+ "schema_id": "handshake.reference.studio_cmm_implementation_research@1",
+ "file_id": "studio-cmm-implementation-research-20260904",
+ "status": "research_record_not_spec_authority",
+ "authority_note": "This file is a research basis for an operator decision. It is NOT spec authority, it does not amend any clause, and nothing under .GOV/spec or .GOV/task_packets was read for write or touched to produce it.",
+ "generated_at": "2026-09-04",
+ "researched_by": "greenroom spec-update agent, session 015hXyeB1vN1h9PCuDwPoWts",
+
+ "decision_under_research": {
+  "clause": "[STU-COL-141] in 14-08-color.md",
+  "what_the_clause_leaves_open": "Studio MUST implement ICC parsing and transform evaluation itself inside ColorEngine, OR vendor a pure-Rust colour-management implementation as a managed workspace dependency behind that trait. The clause deliberately names no crate.",
+  "the_question": "Which of those two routes, and if the vendored route, which implementation.",
+  "why_it_is_the_highest_risk_decision_in_the_colour_work": "Every colour-accuracy claim the product makes resolves to this component being correct. A wrong separation, a mishandled v4 lutBToA tag, or a rendering intent that is silently the wrong one produces output that looks plausible on screen and is wrong on press, and no downstream test that only compares against Studio's own output can detect it.",
+  "scope_forced_by_the_product": "Photo, video AND print in one engine. Print is what makes this hard: it requires B2A evaluation (PCS to CMYK), N-channel, black point compensation, black preservation, device links, named colour and gamut checking, none of which a display-only colour path needs."
+ },
+
+ "constraints_that_bind_the_choice": [
+  {
+   "id": "C1",
+   "source": "[STU-COL-140]",
+   "constraint": "No platform CMM (Windows ICM/WCS, macOS ColorSync), no system-installed LittleCMS, no subscription colour service, at runtime, on any platform, in any build profile, INCLUDING TESTS.",
+   "consequence": "Rules out the cheapest route outright, and also rules out using a system LittleCMS as a test oracle inside the build. An oracle is still usable if it runs OFFLINE and only its output vectors are checked in as data."
+  },
+  {
+   "id": "C2",
+   "source": "[STU-COL-141]",
+   "constraint": "Implement it, or vendor a PURE-RUST implementation as a managed workspace dependency.",
+   "consequence": "As worded this forecloses a Rust binding to a C engine, including a vendored static build of Little CMS. That is a real narrowing and the operator should decide it knowingly rather than discover it during implementation. Reopening it is a spec amendment, not an implementation choice."
+  },
+  {
+   "id": "C3",
+   "source": "[STU-COL-143]",
+   "constraint": "For a fixed key the materialised transform MUST be bit-identical on every host. Interpolation, rounding mode and clamping are part of the engine contract.",
+   "consequence": "THE decisive constraint, and the one no candidate satisfies out of the box. Every serious CMM, C or Rust, ships runtime CPU-feature dispatch (SSE/AVX/AVX-512/NEON/SVE). A path selected by what the host CPU happens to support is not bit-identical across hosts by construction."
+  },
+  {
+   "id": "C4",
+   "source": "[STU-COL-136]",
+   "constraint": "Black point compensation is an INDEPENDENT boolean, selectable separately on convert-to-profile, soft-proof, export conversion, display transform and per-adjustment conversion.",
+   "consequence": "BPC is not optional and not bundled into the intent. Any candidate without BPC obliges Studio to implement it."
+  },
+  {
+   "id": "C5",
+   "source": "[STU-COL-138]",
+   "constraint": "Under colorimetric intents the engine MUST clip AND MUST be able to report that clipping occurred per pixel or per object, because that report drives the gamut warning.",
+   "consequence": "Clip reporting is a first-class output of the transform, not a side effect. A baked LUT destroys it unless the bake carries it deliberately."
+  },
+  {
+   "id": "C6",
+   "source": "[STU-COL-139]",
+   "constraint": "Chromatic adaptation MUST use the profile's chad tag where present and a DECLARED default matrix where absent; the default must be recorded in engine configuration.",
+   "consequence": "The chosen implementation's internal adaptation default must be knowable and overridable, or Studio cannot declare it."
+  },
+  {
+   "id": "C7",
+   "source": "[STU-ARC-002] / SAD-004",
+   "constraint": "handshake_core MUST NOT gain wgpu, WGSL or any GPU dependency. studio-engine is a standalone crate with no handshake_core dependency and owns colour management and the GPU render path, behind six Send + Sync traits including ColorEngine and RenderEngine.",
+   "consequence": "The CMM lives in studio-engine only. It must be Send + Sync at the trait boundary, and it must not itself pull a GPU dependency into anything handshake_core sees. It does not otherwise interact with the GPU rule, because the CMM never touches the GPU: it emits an artefact that RenderEngine consumes."
+  },
+  {
+   "id": "C8",
+   "source": "operator standing rule, recorded in ui_deliberation/studio-architecture-decisions.json decisions[3]",
+   "constraint": "\"everything needs to be rust unless a dependency is needed/plug in so front and back end\"; third-party code is admitted only as a managed dependency behind Handshake's own boundaries.",
+   "consequence": "Rust-first, but the rule explicitly permits a dependency where one is genuinely needed. It is a preference with an escape hatch, not a prohibition. The stricter precedent is [STU-TYP-008], where the operator's general rule was DELIBERATELY hardened for text shaping because determinism demanded it; that precedent is directly analogous here and is the reason to harden rather than soften the colour rule too."
+  },
+  {
+   "id": "C9",
+   "source": "[STU-COL-144]",
+   "constraint": "Evaluate at a declared internal precision at least as high as the higher of source and destination document precision, never below 16-bit; a 32-bit float pipeline stays float throughout.",
+   "consequence": "A candidate whose fast path is 8-bit or fixed-point must expose a float path that can be selected and proven, not merely present."
+  }
+ ],
+
+ "sources": [
+  {
+   "url": "https://github.com/awxkee/moxcms",
+   "consulted_at": "2026-09-04",
+   "evidences": "moxcms exists, is described as 'fast and safe conversion between ICC profiles; in pure Rust', supports RGB, CMYK, Gray, LAB and N-channel up to 16 inks, supports CLUT and floating-point paths, dual BSD-3-Clause / Apache-2.0, active (688 commits on master). States conversions CMYK<->RGB, RGBX<->RGBX, RGBX<->GRAY, LAB<->RGBX, CMYK<->LAB, GRAY<->RGB and 'any 3/4 color profiles'."
+  },
+  {
+   "url": "https://lib.rs/crates/moxcms",
+   "consulted_at": "2026-09-04",
+   "evidences": "moxcms 0.9.0 released 2026-07-22; 14,115,656 downloads per month; used in 9,445 crates, 37 of them directly; 1.5 MB, ~36k SLOC; BSD-3-Clause OR Apache-2.0; SIMD paths for AVX, AVX-512, NEON, SSE; 8-bit and extended-range processing; in-place transforms. This is the field-usage evidence, and it is substantial."
+  },
+  {
+   "url": "https://docs.rs/moxcms/latest/moxcms/",
+   "consulted_at": "2026-09-04",
+   "evidences": "Public API carries RenderingIntent, TransformOptions, DataColorSpace, LutDataType, LutMultidimensionalType (the ICC v4 mAB/mBA-class structure), LutWarehouse, LutType, ToneReprCurve, InterpolationMethod, CicpProfile. Documentation coverage is stated as 22.06 percent, so semantics are largely undocumented."
+  },
+  {
+   "url": "https://docs.rs/moxcms/latest/moxcms/struct.TransformOptions.html",
+   "consulted_at": "2026-09-04",
+   "evidences": "TransformOptions has exactly six fields: rendering_intent, allow_use_cicp_transfer, prefer_fixed_point (Q2.13 for RGB->XYZ->RGB, Q0.15 for LUT interpolation), interpolation_method (documented as applying to gamma-encoded spaces only; LAB, XYZ and scene-linear RGB always use trilinear/quadlinear), barycentric_weight_scale, allow_extended_range_rgb_xyz (feature-gated). NO black point compensation field."
+  },
+  {
+   "url": "https://docs.rs/moxcms/latest/moxcms/enum.RenderingIntent.html",
+   "consulted_at": "2026-09-04",
+   "evidences": "Four variants Perceptual=0, RelativeColorimetric=1, Saturation=2, AbsoluteColorimetric=3, matching the ICC intent numbers that [STU-COL-135] requires. No documentation of which are actually honoured per profile type; no mention of BPC."
+  },
+  {
+   "url": "https://docs.rs/moxcms/latest/moxcms/all.html",
+   "consulted_at": "2026-09-04",
+   "evidences": "Searched the full public-item listing for BlackPointCompensation, Bpc, GamutCheck, DeviceLink, NamedColor, ChromaticAdaptation, Chad, MultiProcessElement, Softproof, Proofing, Lut3D, Lut4D, Cube, Hypercube. Only Cube and Hypercube are present. The other twelve are absent from the public API. Hypercube confirms a 4D CLUT path exists, which is what a CMYK source needs."
+  },
+  {
+   "url": "https://github.com/awxkee/moxcms/releases",
+   "consulted_at": "2026-09-04",
+   "evidences": "Release history 0.7.5 through 0.9.0 across Aug 2025 - Jul 2026 is dominated by parser hardening: fuzzer-discovered bug fixes, out-of-bounds read fixes, stricter cube LUT dimension validation, tolerating byte-swapped rendering intent in old profiles, truncated desc tag in v4 profiles, non-standard ICC profile versions, white-point calculation fix in the RGB->XYZ matrix, AVX prismatic interpolation fix, AVX-512 stable-Rust build fix, NEON intrinsic fixes, SVE added, generic Q0.15 LUT4-to-3 transforms, ITU-R matrix coefficient revision. This is exactly the cost profile a from-scratch implementation would inherit."
+  },
+  {
+   "url": "https://github.com/tirr-c/jxl-oxide/blob/main/README.md",
+   "consulted_at": "2026-09-04",
+   "evidences": "Field usage, and the reason for it: jxl-oxide integrates moxcms as an optional feature because it 'supports arbitrary ICC profiles like lcms2 and is written in pure Rust, so it won't add any additional C dependency', and because jxl-oxide alone 'does not support conversion to and from arbitrary ICC profiles, notably CMYK profiles'. A real project made this exact trade for this exact reason."
+  },
+  {
+   "url": "https://lib.rs/crates/lcms2",
+   "consulted_at": "2026-09-04",
+   "evidences": "Rust lcms2 binding 6.2.0 released 2026-08-26; 467,909 downloads per month; 44 dependent crates, 19 direct; MIT; depends on lcms2-sys ^4.0.6 with a 'static' feature; compatible with Little CMS up to 2.19.1; requires Rust 1.89. Described as 'a mature, fully-featured color management engine' with bindings 'stable for years, and used in production at scale'."
+  },
+  {
+   "url": "https://github.com/kornelski/rust-lcms2",
+   "consulted_at": "2026-09-04",
+   "evidences": "Thread-safety detail that matters for ColorEngine: Send + Sync. Transform does NOT implement Sync by default because Little CMS keeps a thread-unsafe cache; Sync requires Flags::NO_CACHE, which the crate enforces at compile time. ThreadContext constructors make profiles and transforms Send. MIT licence."
+  },
+  {
+   "url": "https://www.littlecms.com/color-engine/",
+   "consulted_at": "2026-09-04",
+   "evidences": "The reference feature set to measure any candidate against: FULL implementation of ICC 4.4; all V2 and V4 profiles; named colour; CMYK and multicolour up to 15 inks; black point compensation; black preservation on CMYK; incomplete state of adaptation on absolute intents; device links; multiProcessElements; floating-point ICC extension plugin; gamut check and softproofing; CIECAM02; PostScript CSA and CRD generation. C99, MIT, widely portable."
+  },
+  {
+   "url": "https://github.com/mm2/Little-CMS",
+   "consulted_at": "2026-09-04",
+   "evidences": "Corroborates the feature claims from the repository side: 'FULL IMPLEMENTATION of ICC specification 4.4', 'all kind of V2 and V4 profiles, including abstract, devicelink and named color profiles', MIT, active since 1998, 1,402 commits, used in most Linux distributions, printer firmware, cameras and publishing applications. Nothing on the page states bit-exactness across platforms."
+  },
+  {
+   "url": "https://bugzilla.mozilla.org/show_bug.cgi?id=488800",
+   "consulted_at": "2026-09-04",
+   "evidences": "qcms scope: 'qcms doesn't support ICC version 4'. Historical (bug filed 2009). Corroborated by MDN's ICC colour correction page stating qcms supports only ICC v2. Related bug 538114 records that qcms does not support LUT-based ICCv2 profiles in either LAB or XYZ form."
+  },
+  {
+   "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/3.5/ICC_color_correction_in_Firefox",
+   "consulted_at": "2026-09-04",
+   "evidences": "qcms is a browser display-transform engine: v2 only, images may render too dark against v4 profiles, and Firefox moved from lcms to qcms for maintenance and security reasons rather than for capability. It 'prefers speed over quality' by design."
+  },
+  {
+   "url": "https://github.com/FirefoxGraphics/qcms",
+   "consulted_at": "2026-09-04",
+   "evidences": "qcms is 'Firefox's library for transforming image data between ICC profiles', originally C, machine-translated to Rust with c2rust and then refactored. 337 commits on main. The README states no capability matrix and no limitations, so its CURRENT v4 and LUT status could not be established from the repository page."
+  },
+  {
+   "url": "https://github.com/cepiloth/skcms/blob/master/skcms.h",
+   "consulted_at": "2026-09-04",
+   "evidences": "skcms A2B structure: input_channels constrained to [1,4] and output_channels ALWAYS 3. There is no B2A path. skcms can therefore read a CMYK profile as a source but cannot convert TO a CMYK device profile, which disqualifies it for print output."
+  },
+  {
+   "url": "https://www.color.org/iccmax/reficcmax/index.xalter",
+   "consulted_at": "2026-09-04",
+   "evidences": "The ICC's own open-source reference implementation, DemoIccMAX, renamed iccDEV in September 2025. IccProfLib is a cross-platform C++ reference library for reading, writing, applying and manipulating iccMAX profiles AND the v2 and v4 profiles. Ships comprehensive test profile definition files and command-line test suites. This is the correct conformance ORACLE and test corpus, not a runtime candidate."
+  },
+  {
+   "url": "https://www.color.org/icc_specs2.xalter",
+   "consulted_at": "2026-09-04",
+   "evidences": "Current specification is ICC.1:2022, profile version 4.4.0.0. iccMAX is ICC.2. Fixes the conformance target."
+  },
+  {
+   "url": "https://archive.color.org/specification/ICC.1-2022-05.pdf",
+   "consulted_at": "2026-09-04",
+   "evidences": "Located as the authoritative v4.4 specification text. NOT read in full in this pass; see evidence_gaps."
+  },
+  {
+   "url": "https://onlinelibrary.wiley.com/doi/abs/10.1002/9780470688106.ch28",
+   "consulted_at": "2026-09-04",
+   "evidences": "LUT-based transforms in ICC profiles: lutAToBType is the sequence [1D curves - matrix - 1D curves - CLUT - 1D curves], and the v4 lutAToBType/lutBToAType structures fixed the v2 restriction that the CLUT have the same number of grid points in every dimension. Interpolation over the CLUT is over a hypercube in the input space, so input dimensionality, not output, sets the table's dimensionality."
+  },
+  {
+   "url": "https://github.com/AcademySoftwareFoundation/OpenColorIO/issues/1763",
+   "consulted_at": "2026-09-04",
+   "evidences": "GPU 3D LUT banding in a production colour system: significant banding on the OCIO GPU path, mitigable only by raising LUT resolution substantially. Direct evidence that grid size is an accuracy parameter, not a performance knob."
+  },
+  {
+   "url": "https://github.com/imageworks/OpenColorIO/issues/445",
+   "consulted_at": "2026-09-04",
+   "evidences": "The OCIO GPU code path falls back to linear interpolation where the CPU path uses tetrahedral, and the two are 'not always equivalent'. Direct evidence that a CPU proof render and a GPU viewport will disagree unless the interpolation rule is specified identically on both sides."
+  },
+  {
+   "url": "https://groups.google.com/g/ocio-dev/c/UyPlerRNkUs",
+   "consulted_at": "2026-09-04",
+   "evidences": "Tetrahedral interpolation is more accurate than trilinear at the same grid size because the interior-point-to-vertex distances are smaller; practitioners report it can also be faster on CPU. Hardware 3D texture sampling gives trilinear only, so tetrahedral on GPU must be written explicitly in the shader."
+  },
+  {
+   "url": "https://pmndrs.github.io/postprocessing/public/docs/class/src/effects/LUT3DEffect.js~LUT3DEffect.html",
+   "consulted_at": "2026-09-04",
+   "evidences": "Corroborates that the tetrahedral GPU implementations in the field are derived from OpenColorIO's, i.e. there is a single well-known field implementation to align with rather than an open design question."
+  },
+  {
+   "url": "https://www.prepressure.com/design/basics/tic",
+   "consulted_at": "2026-09-04",
+   "evidences": "Used for TASK 2, not for the CMM decision. Total ink coverage definition, 400 percent structural maximum for CMYK, and typical maxima: sheetfed coated 320-340, heatset web 300-320, non-heatset newsprint 240-260, SWOP 300, inkjet and electrophotographic 300-350. Also that GCR/UCR black generation is the mechanism that creates TAC headroom, and that preflight tools check TAC through separation/output preview."
+  },
+  {
+   "url": "https://eci.org/doku.php_id=en_colorstandards_offset.html",
+   "consulted_at": "2026-09-04",
+   "evidences": "Used for TASK 2. ISO Coated v2 (ECI), FOGRA39, paper types 1 and 2, TAC 330 percent; ISO Coated v2 300% (ECI), same characterisation, TAC 300 percent. Proves that TAC is a property of the SEPARATION built into a profile, not of the characterisation data set, because two profiles on the same data carry different TAC."
+  },
+  {
+   "url": "https://acgkit.com/guides/en/choose-printing-icc-standard/",
+   "consulted_at": "2026-09-04",
+   "evidences": "Used for TASK 2. GRACoL 2006 US #1 coated sheetfed 310 percent; SWOP 2006 US #3 coated web 300 percent; Japan Color 2011 coated sheetfed 300 percent; FOGRA47 uncoated 260 percent. Note this source gives FOGRA39 as 300 percent where ECI gives 330 percent for its ISO Coated v2 profile; the disagreement is recorded rather than resolved silently."
+  },
+  {
+   "url": "https://www0.enfocus.com/en/appstore/product/pdf-ink-coverage-inspector",
+   "consulted_at": "2026-09-04",
+   "evidences": "Used for TASK 2. Field preflight practice: TAC analysis renders the page and reports MAXIMUM and AVERAGE TAC per page, which is why [STU-LAY-252] requires maximum, mean and area-above-limit rather than a maximum alone."
+  }
+ ],
+
+ "field_patterns_found": [
+  {
+   "pattern": "Applications that need only display transforms ship a narrow engine; applications that need print ship Little CMS or its equivalent.",
+   "evidence": "Firefox ships qcms (v2, matrix/TRC-first, no LUT profiles, speed over quality). Chrome/Skia ships skcms (A2B in, 3 channels out, no B2A). Both are display engines and both are structurally incapable of emitting CMYK. Every print-capable open pipeline in the field goes through Little CMS.",
+   "implication_for_studio": "Studio is in the second category. The display-engine class of crate is not a candidate, and its existence should not be read as evidence that a small colour engine is sufficient."
+  },
+  {
+   "pattern": "The pure-Rust CMM gap closed during 2025-2026.",
+   "evidence": "moxcms 0.9.0 (2026-07-22) does CMYK, LAB, Gray, N-channel to 16 inks, v4 multidimensional LUT types, 3D and 4D CLUTs, float and fixed-point paths, and is pulled by 9,445 crates. jxl-oxide adopted it explicitly as the pure-Rust alternative to lcms2 for arbitrary and CMYK profiles.",
+   "implication_for_studio": "The premise behind the 'or implement it yourself' half of [STU-COL-141] is weaker now than when the clause was written. There is a pure-Rust option with real field mileage."
+  },
+  {
+   "pattern": "ICC profile parsing is an untrusted-input attack surface and the field pays for it continuously.",
+   "evidence": "moxcms's entire 0.7.x-0.9.x release stream is fuzzer-driven: out-of-bounds read fixes, cube-LUT dimension validation, malformed-tag tolerance, byte-swapped intent fields, truncated v4 desc tags, non-standard version numbers.",
+   "implication_for_studio": "A from-scratch parser inherits all of that work and none of the hardening. This is the strongest single argument against writing one."
+  },
+  {
+   "pattern": "Every production CMM ships runtime CPU-feature dispatch.",
+   "evidence": "moxcms advertises SSE, AVX, AVX-512, NEON and SVE paths; Little CMS has long-standing SSE2 optimisation. Neither states bit-exactness across hosts.",
+   "implication_for_studio": "[STU-COL-143] is not satisfiable by picking a better library. It has to be satisfied architecturally."
+  },
+  {
+   "pattern": "GPU colour is a bake, and the bake's fidelity is governed by grid size, shaper and interpolation rule, all three.",
+   "evidence": "OCIO reports GPU banding mitigable only by much higher LUT resolution, and its GPU path silently substitutes trilinear where the CPU uses tetrahedral, which it records as not always equivalent. Field LUT interchange settled on 17/33/65 per side with a shaper prelut for non-uniform input domains.",
+   "implication_for_studio": "[STU-COL-142] is right to require a declared grid size, a declared domain and a shaper, and is incomplete without a declared interpolation rule that binds CPU and GPU to the same answer."
+  },
+  {
+   "pattern": "The ICC publishes its own reference implementation and a conformance profile corpus.",
+   "evidence": "DemoIccMAX / iccDEV (IccProfLib) covers v2, v4 and iccMAX, with test profile definition files and command-line test suites.",
+   "implication_for_studio": "There is an external oracle. Validation does not have to be self-referential, which matters because [GLOBAL-CLOSURE-042] forbids accepting a proof producer you authored as proof of your own output."
+  }
+ ],
+
+ "reuse_opportunities": [
+  "moxcms's ICC v4 tag and LUT parsing, and its 4D hypercube CLUT path, are the expensive parts and already exist, fuzzed, under a permissive dual licence compatible with vendoring.",
+  "The ICC reference implementation's test profile corpus can be checked into the repo as static data and used as the parser conformance suite without any build dependency.",
+  "Little CMS can generate a golden-vector corpus OFFLINE, outside the build, whose outputs are checked in as data files. That gives an independent oracle while staying inside [STU-COL-140], which bans depending on it at runtime or in any build profile, not banning the existence of data it once produced.",
+  "OpenColorIO's tetrahedral GPU shader is the field's reference implementation of the one piece of GPU colour maths that is easy to get subtly wrong, and it is BSD-3-Clause.",
+  "[STU-TYP-008] is a decided precedent for the same shape of question (native Rust, determinism-motivated, stricter than the general rule). The reasoning transfers and does not need to be re-litigated."
+ ],
+
+ "options": [
+  {
+   "id": "A",
+   "name": "Write the whole CMM in Studio",
+   "what_it_means": "Studio implements ICC v2/v4 tag parsing, curve types, lut8/lut16/mAB/mBA evaluation, CLUT interpolation, PCS encoding, adaptation, intents and BPC from the specification.",
+   "correctness_risk": "Highest. The conformance surface is ICC.1:2022 in full; the field's own reference implementation is a long-running C++ project. Errors are silent and produce plausible-looking wrong output.",
+   "maintenance": "Highest and permanent. Inherits the entire malformed-profile hardening stream that moxcms's release history documents.",
+   "build_complexity": "Lowest. Pure Rust, no toolchain beyond cargo.",
+   "portability": "Best. Any target Rust targets, including wasm and cross-compiled ARM, with no C toolchain.",
+   "determinism": "Best controllable, because every path is ours.",
+   "verdict": "Rejected as the primary route. Kept as the fallback for specific missing evaluation paths."
+  },
+  {
+   "id": "B",
+   "name": "Bind a mature C implementation (Little CMS via lcms2 / lcms2-sys)",
+   "what_it_means": "Vendor and statically build the C source inside the workspace; ColorEngine wraps it.",
+   "correctness_risk": "Lowest available. Full ICC 4.4, all v2/v4 profile classes including abstract, device link and named colour, CMYK and multicolour to 15 inks, BPC, black preservation, multiProcessElements, gamut check, softproofing, float plugin. 25+ years of press-verified field use.",
+   "maintenance": "Low for features, non-trivial for the boundary: Transform is not Sync without Flags::NO_CACHE, which ColorEngine: Send + Sync forces on, giving up the transform cache that Little CMS relies on for speed.",
+   "build_complexity": "A C toolchain in every build and CI matrix, plus the vendored source in the workspace and in the OSS register.",
+   "portability": "Good but not free: every cross-compilation target needs a working C cross-toolchain.",
+   "determinism": "Same SIMD-dispatch problem as any other engine; unverified either way.",
+   "safety": "A memory-unsafe parser over attacker-supplied embedded profiles, inside the process.",
+   "verdict": "Rejected, on the clause as written. [STU-COL-141] permits 'a pure-Rust colour-management implementation'; a vendored C build is not that. This option is only available if the operator amends the clause, and the research does not find a capability gap large enough to justify asking for that amendment."
+  },
+  {
+   "id": "C",
+   "name": "Vendor a pure-Rust CMM (moxcms) behind ColorEngine, and own the gaps",
+   "what_it_means": "moxcms as a managed workspace dependency supplying ICC parsing, tag and LUT evaluation, 3D and 4D CLUT interpolation and the intent machinery; Studio owns a specified layer above it for BPC, clip reporting, adaptation defaults, device links, named colour, and deterministic materialisation.",
+   "correctness_risk": "Moderate and bounded, because the gaps are enumerable and each is separately specifiable and separately testable against an external oracle.",
+   "maintenance": "Shared upstream for the parser; ours for the layer above. The vendored copy means an upstream regression cannot arrive unannounced.",
+   "build_complexity": "Lowest. Pure Rust, permissive dual licence, no C toolchain.",
+   "portability": "Best, same as option A.",
+   "determinism": "Requires the architectural split described below; not solved by the choice itself.",
+   "verdict": "RECOMMENDED."
+  },
+  {
+   "id": "D",
+   "name": "Adopt a display-class Rust engine (qcms) and extend it",
+   "what_it_means": "Start from Firefox's engine.",
+   "verdict": "Rejected. Its documented scope is v2 matrix/TRC display transforms with no LUT-based profile support and an explicit speed-over-quality posture; it has no CMYK path at all. Extending it to a print engine is option A with a misleading head start. Note the evidence here is dated (2009-2016 Mozilla bug and MDN material) and its CURRENT capability was not inspected; the scope argument does not depend on the dated detail."
+  },
+  {
+   "id": "E",
+   "name": "Adopt skcms",
+   "verdict": "Rejected on structure, not maturity. A2B output_channels is always 3 and there is no B2A path, so it cannot convert TO a CMYK device profile. It is also C."
+  },
+  {
+   "id": "F",
+   "name": "Embed the ICC reference implementation (DemoIccMAX / iccDEV)",
+   "verdict": "Rejected as a runtime engine: C++, reference-oriented rather than embedding-oriented, and it would carry a C++ toolchain into every build. ADOPTED instead as the offline conformance oracle and test-profile corpus, which is what it is designed for."
+  }
+ ],
+
+ "recommendation": {
+  "choice": "Option C. Vendor moxcms as a managed workspace dependency inside studio-engine, behind ColorEngine, and specify Studio's own layer for what it does not do.",
+  "one_paragraph": "There is now a pure-Rust colour engine with genuine print capability and genuine field mileage, and adopting it is materially less risky than writing an ICC implementation from scratch while staying inside the clause as written. moxcms 0.9.0 parses ICC v4 including the multidimensional LUT types, evaluates 3D and 4D CLUTs, handles CMYK, Lab, Gray and N-channel to sixteen inks, carries the four ICC rendering intents at their ICC numbering, offers float and fixed-point paths, is BSD-3-Clause OR Apache-2.0, and is pulled by 9,445 crates including jxl-oxide, which adopted it specifically to get arbitrary and CMYK ICC support without a C dependency. Its documented gaps against Little CMS are enumerable rather than diffuse: no black point compensation, no device link, no named colour, no multiProcessElements, no gamut-check or soft-proof transform, and an undocumented chromatic-adaptation default. Each of those maps onto a clause Studio already has to satisfy anyway, so each becomes a specified Studio-owned unit rather than an unknown. Little CMS and the ICC's own reference implementation stay in the picture as OFFLINE oracles whose golden vectors are checked in as data, which keeps [STU-COL-140] intact while giving the independent verification that a self-authored proof cannot provide.",
+  "main_risk_in_one_sentence": "[STU-COL-143] requires the materialised transform to be bit-identical on every host, and moxcms dispatches on SSE, AVX, AVX-512, NEON and SVE at runtime with no bit-exactness guarantee stated anywhere, so cross-host determinism has to be won architecturally rather than assumed from the choice.",
+  "the_architectural_split_that_makes_it_work": {
+   "principle": "[STU-COL-143]'s determinism obligation attaches to the MATERIALISED transform of [STU-COL-142], not to the per-pixel application, and [STU-COL-142] already names the cache key. Split the engine on that line.",
+   "materialisation_path": "Profile bytes plus (intent, BPC, precision, grid size) produce a matrix/TRC chain or a baked LUT. This path MUST be scalar, fixed-precision, SIMD-dispatch-disabled and bit-identical across hosts. It runs once per cache key, so its cost is amortised and the speed argument for SIMD does not apply here.",
+   "application_path": "Consumes an already-materialised artefact. May be SIMD on CPU and is the GPU path via RenderEngine. Its determinism obligation is CPU/GPU equivalence within a declared tolerance, which is a different and weaker requirement than bit-identity, and it belongs to RenderEngine rather than ColorEngine.",
+   "why_this_matters_beyond_moxcms": "This split is required whatever CMM is chosen. It is the reason the choice of library is less decisive than it first appears, and it is the single most useful thing this research produces."
+  },
+  "studio_owned_layer_the_recommendation_obliges": [
+   "Black point compensation, as an independent boolean per [STU-COL-136], implemented as the published ICC black-point scaling in the PCS between detected source and destination black points. Bounded, specified, testable against golden vectors.",
+   "Gamut-clip reporting per [STU-COL-138]: the materialisation must emit a clip signal alongside the transform, because a baked LUT cannot recover it afterwards.",
+   "The declared chromatic-adaptation default of [STU-COL-139], since moxcms's internal default is not documented and must be either overridden or read out and recorded.",
+   "Device link and named-colour profile handling, absent from the moxcms public API and required for spot inks and for press-supplied device links.",
+   "Deterministic materialisation and the transform cache keyed exactly as [STU-COL-142] states.",
+   "The precision contract of [STU-COL-144]: prefer_fixed_point defaults to true in moxcms, so the float path must be explicitly selected and proven for float documents rather than assumed."
+  ],
+  "fallback_trigger_and_fallback": "If a conformance gap proves unfixable upstream and un-patchable in the vendored copy within the work packet, the fallback is option A for that specific evaluation path only, not option B. Adding a C engine is foreclosed by [STU-COL-141] and reopening it is an operator decision on the spec, not an implementation decision."
+ },
+
+ "gpu_materialisation": {
+  "question": "How a transform gets onto the GPU at all, what precision and grid size that needs, and where the approximation stops being acceptable.",
+  "the_two_forms": [
+   {
+    "form": "matrix plus 1D TRC chain",
+    "when": "Both profiles are matrix/TRC: sRGB, Display P3, Adobe RGB, Rec.2020, most display profiles, and any profile whose transform reduces to curves and a 3x3.",
+    "accuracy": "EXACT, not an approximation. There is no grid and no interpolation error. This form MUST be preferred wherever it applies, and an engine that bakes a LUT for an sRGB-to-Display-P3 transform has introduced error for nothing."
+   },
+   {
+    "form": "baked 3D LUT plus shaper 1D LUT",
+    "when": "Anything with a CLUT: perceptual and saturation intents, every print profile, OCIO looks and view transforms, abstract profiles.",
+    "accuracy": "Approximate, governed by three things together: grid size, the shaper, and the interpolation rule."
+   }
+  ],
+  "grid_size": {
+   "field_practice": "LUT interchange settled on 17, 33 and 65 points per side. OCIO's GPU path uses a configurable edge length and its users report banding that is only mitigated by raising the resolution substantially.",
+   "reading": "33 per side is the practical floor for a display transform. 65 per side where the transform is strongly non-linear, which includes log and HDR input domains and perceptual-intent print transforms. 17 is a preview grid, not an output grid.",
+   "cost": "A 65^3 float32 RGB LUT is 65*65*65*3*4 bytes, about 3.3 MB, which is cheap on a GPU and is not a reason to choose a coarser grid. Arithmetic, stated so the trade is visible; not sourced."
+  },
+  "shaper": {
+   "rule": "A 3D LUT distributes its grid uniformly over its input domain. If the input is not perceptually uniform - log, scene-linear, HDR - a uniform grid spends most of its resolution where the eye cannot see and starves the region where it can. A shaper 1D LUT applied before the 3D LUT maps the input into a uniform domain first.",
+   "consequence": "[STU-COL-142]'s requirement of a shaper 'where the transform is non-linear' is correct and should be read as mandatory for any scene-linear or log input, not as an optimisation."
+  },
+  "precision": {
+   "rule": "The LUT storage precision must be at least the document precision required by [STU-COL-144]. 8-bit or 10-bit unorm LUT storage is not acceptable for a 16-bit or float document; float16 is the floor for HDR and scene-linear, float32 where the pipeline is float throughout.",
+   "trap": "moxcms defaults prefer_fixed_point to true, using Q0.15 for LUT interpolation. For a float document that default must be turned off explicitly. This is a defaults trap, not a capability gap."
+  },
+  "interpolation": {
+   "finding": "Tetrahedral interpolation is more accurate than trilinear at the same grid size. GPU 3D texture sampling gives trilinear only, so tetrahedral on GPU must be written explicitly in the shader. OCIO's own GPU path falls back to linear where its CPU path uses tetrahedral and records that the two are not always equivalent.",
+   "consequence_for_studio": "If ColorEngine materialises for a CPU proof render and RenderEngine samples the same LUT on GPU with hardware trilinear, the viewport and the proof will differ. [STU-COL-142] declares grid size and domain but not the interpolation rule; that is a gap in the clause, and it should declare the rule as part of the cache key and bind both paths to it."
+  },
+  "where_the_approximation_stops_being_acceptable": [
+   {
+    "case": "Four or more input channels",
+    "why": "A CMYK or N-channel SOURCE needs a 4D or higher CLUT. A GPU 3D texture is 3D. moxcms has a Hypercube type for exactly this on the CPU side, but there is no direct GPU equivalent.",
+    "resolution": "Evaluate CMYK-source transforms on the CPU, or split them: bake source-to-PCS on the CPU and put only PCS-to-display on the GPU. A CMYK soft-proof viewport is the concrete case, and it must not be served from a 3D LUT."
+   },
+   {
+    "case": "Gamut-clip reporting",
+    "why": "[STU-COL-138] requires per-pixel or per-object reporting that clipping occurred. Clipping happens inside the bake, so a baked LUT has already discarded the signal by the time pixels are sampled.",
+    "resolution": "Either bake a second channel or a companion LUT carrying the clip flag, or evaluate the report on the CPU. Not solvable by grid size."
+   },
+   {
+    "case": "Named colours and spot inks",
+    "why": "A spot resolved through a named-colour profile is an exact table lookup, not a point in a continuous space. Passing it through a grid interpolates it into something else.",
+    "resolution": "Spot and named-colour values bypass the LUT entirely."
+   },
+   {
+    "case": "Out-of-domain float values",
+    "why": "A baked LUT has a declared domain. In a 32-bit float scene-linear pipeline, values below 0 and above 1 are normal and are outside it; sampling there is extrapolation, and clamping there silently destroys highlight and negative-lobe data.",
+    "resolution": "This is precisely why [STU-COL-142] requires a declared domain. The behaviour outside the domain must be declared as part of the engine contract, not left to the sampler's clamp mode."
+   },
+   {
+    "case": "Absolute colorimetric with paper-white simulation, and strong BPC near black",
+    "why": "Both compress a narrow region of the input range hard, which is where a uniform grid has the least resolution.",
+    "resolution": "Shaper LUT, and 65 per side rather than 33."
+   }
+  ]
+ },
+
+ "risks": [
+  {
+   "id": "R1",
+   "risk": "Cross-host bit-identity under [STU-COL-143] is not provided by any candidate and moxcms's SIMD dispatch actively works against it.",
+   "severity": "high",
+   "mitigation": "Adopt the materialisation/application split above. Pin the materialisation path to a scalar, fixed-precision implementation with SIMD dispatch disabled. Add a determinism test that materialises the same key on x86-64 with and without AVX-512 available and on aarch64 and compares the artefact byte for byte. If moxcms cannot be forced onto a single scalar path by feature flags, that specific path is the one Studio implements itself under the option A fallback."
+  },
+  {
+   "id": "R2",
+   "risk": "moxcms has no black point compensation, and [STU-COL-136] requires it independently selectable on five surfaces.",
+   "severity": "high",
+   "mitigation": "Specify BPC as a Studio-owned unit implementing the published ICC black-point scaling in the PCS. Validate against golden vectors generated offline from an engine that has BPC. This is bounded, well-specified work, not research."
+  },
+  {
+   "id": "R3",
+   "risk": "moxcms's stated profile-class coverage is 'Display Class ICC profiles up to 16 inks'. Print profiles are Output class (prtr). Whether Output-class B2A evaluation is fully covered was NOT established.",
+   "severity": "high",
+   "mitigation": "This is the first thing to test, before any commitment. Run a real CMYK output profile through RGB-to-CMYK in all four intents and compare against offline golden vectors. If Output-class B2A is incomplete, the recommendation changes and the operator must be told before the work packet is written. Treat this as a gate, not a risk to monitor."
+  },
+  {
+   "id": "R4",
+   "risk": "No device link, named colour or multiProcessElements in the moxcms public API. Press-supplied device links and spot-colour books are normal print inputs.",
+   "severity": "medium",
+   "mitigation": "Specify each as a Studio-owned unit. Device link evaluation is a straightforward A-to-B chain once the tags parse; named colour is a table lookup. Confirm first whether moxcms PARSES the tags even if it does not evaluate them, since parsing is the expensive half."
+  },
+  {
+   "id": "R5",
+   "risk": "moxcms documentation coverage is 22 percent, so intent semantics, clamping behaviour and adaptation defaults are undocumented and must be read from source.",
+   "severity": "medium",
+   "mitigation": "Budget a source-reading pass as an explicit microtask whose output is a written statement of the engine's actual behaviour on each of the six binding constraints above. [STU-COL-139] cannot be satisfied without it, because Studio must DECLARE the adaptation default."
+  },
+  {
+   "id": "R6",
+   "risk": "Single-maintainer upstream. moxcms is one author's project, however active.",
+   "severity": "medium",
+   "mitigation": "Vendor rather than depend on a version range, which [STU-COL-141] already requires ('managed workspace dependency'). Vendoring also means the SIMD-disabling and BPC work can be carried as patches if upstream declines them. Dual BSD-3/Apache-2.0 permits this cleanly. Record it in the OSS register."
+  },
+  {
+   "id": "R7",
+   "risk": "Self-referential validation. If Studio's only proof of colour correctness is Studio's own output, a systematic error is invisible.",
+   "severity": "high",
+   "mitigation": "Golden vectors generated OFFLINE from an independent engine and checked in as data, plus the ICC reference test-profile corpus. This keeps [STU-COL-140] intact and satisfies the requirement that the proof producer not be the thing under test."
+  },
+  {
+   "id": "R8",
+   "risk": "A baked-LUT viewport and a CPU proof render disagree because the interpolation rule is unstated, and the disagreement is read as a rendering bug rather than a specification gap.",
+   "severity": "medium",
+   "mitigation": "Add the interpolation rule to [STU-COL-142]'s declared set and to its cache key. This is a spec observation arising from the research, offered for the colour module's owner; it is NOT applied here, because 14-08-color.md is another agent's file."
+  },
+  {
+   "id": "R9",
+   "risk": "The recommendation is read as 'moxcms is the colour engine', and the Studio-owned layer quietly does not get built.",
+   "severity": "medium",
+   "mitigation": "The six Studio-owned units above should become named microtasks in the colour work packet, each with its own acceptance criteria, rather than living as caveats in this file."
+  }
+ ],
+
+ "validation_plan": [
+  {
+   "step": "V1 - gate before commitment",
+   "what": "Output-class (prtr) CMYK profile, RGB-to-CMYK and CMYK-to-RGB, all four intents, compared against offline golden vectors from an independent engine.",
+   "pass_condition": "Within a declared delta-E tolerance on the ICC reference corpus. Failure changes the recommendation and must reach the operator before the work packet is authored."
+  },
+  {
+   "step": "V2",
+   "what": "Parser conformance over the ICC reference test-profile corpus, v2 and v4, including the malformed profiles the corpus provides.",
+   "pass_condition": "No panic, no unbounded allocation, and a typed error for every malformed input rather than a silent default."
+  },
+  {
+   "step": "V3 - the [STU-COL-143] proof",
+   "what": "Materialise the same cache key on x86-64 with AVX-512 present, on x86-64 with it masked off, and on aarch64. Compare the artefacts byte for byte.",
+   "pass_condition": "Byte-identical. This is the acceptance surface for the determinism claim and nothing else substitutes for it."
+  },
+  {
+   "step": "V4",
+   "what": "BPC on and off across all five surfaces of [STU-COL-136], against golden vectors.",
+   "pass_condition": "BPC changes the result on all five, is independently selectable on all five, and never appears as a fifth rendering intent."
+  },
+  {
+   "step": "V5",
+   "what": "Baked-LUT fidelity: for each grid size in {17, 33, 65}, with and without a shaper, measure the maximum and mean delta-E of the baked transform against direct CPU evaluation, across a scrambled-Sobol sample of the input domain and a set of memory colours.",
+   "pass_condition": "Produces the declared grid size for each transform class, empirically, rather than accepting an assumed 33."
+  },
+  {
+   "step": "V6",
+   "what": "CPU/GPU equivalence: same materialised LUT, CPU tetrahedral versus GPU shader, same image.",
+   "pass_condition": "Within a declared tolerance, with the tolerance itself written into the engine contract rather than discovered."
+  },
+  {
+   "step": "V7",
+   "what": "Clip reporting under [STU-COL-138] survives the bake: an out-of-gamut input reports clipping through the GPU path, not only the CPU path."
+  },
+  {
+   "step": "V8",
+   "what": "Precision under [STU-COL-144]: a 32-bit float document round-trips without touching an 8-bit or 16-bit intermediate, with prefer_fixed_point explicitly disabled and the disabling asserted, not assumed."
+  }
+ ],
+
+ "evidence_gaps": [
+  {
+   "gap": "moxcms Output-class (prtr) profile coverage",
+   "status": "NOT_INSPECTED",
+   "detail": "The repository describes 'Display Class ICC profiles up to 16 inks' while also claiming CMYK<->RGB and CMYK<->LAB. Whether full Output-class B2A evaluation is present was not established from documentation, and the source was not read. This is the single most important unknown in the recommendation, which is why it is V1 and a gate rather than a risk."
+  },
+  {
+   "gap": "moxcms black point compensation, device link, named colour, multiProcessElements, gamut check, chromatic adaptation",
+   "status": "inferred from absence in the public API listing",
+   "detail": "Established by searching the docs.rs all-items listing for each name; only Cube and Hypercube matched. Absence from the PUBLIC API is not proof of absence internally. The source was not read."
+  },
+  {
+   "gap": "Bit-exactness of moxcms or Little CMS across hosts",
+   "status": "UNVERIFIED",
+   "detail": "No statement found in either project's material. Nothing was benchmarked or executed. The SIMD-dispatch risk is inferred from the advertised feature set and the release notes, which is sound for identifying the risk but is not a measurement."
+  },
+  {
+   "gap": "qcms current capability",
+   "status": "NOT_INSPECTED, and the evidence held is dated",
+   "detail": "The v4 and LUT limitations come from Mozilla bug material of 2009-2016 vintage and an MDN page of similar age. The repository README states no capability matrix. qcms is rejected on SCOPE - a browser display engine with no CMYK path - which does not depend on the dated detail, but the dated detail should not be cited as current."
+  },
+  {
+   "gap": "ArgyllCMS",
+   "status": "NOT_INSPECTED",
+   "detail": "A serious open colour engine and a plausible second oracle. Not examined in this pass; the WebSearch budget was exhausted before it could be reached."
+  },
+  {
+   "gap": "ICC.1:2022 read directly",
+   "status": "NOT_INSPECTED",
+   "detail": "The specification PDF was located but not read. The lutAToBType structure and the v4 relaxation of equal grid points per dimension come from a secondary academic source. The maximum CLUT grid points per dimension was not confirmed from the specification."
+  },
+  {
+   "gap": "Performance",
+   "status": "not measured",
+   "detail": "No benchmark of any candidate was run. The recommendation rests on correctness, conformance surface, licence, portability and determinism, not on speed, and it should not be read as a performance claim."
+  },
+  {
+   "gap": "TAC figures for TASK 2",
+   "status": "sources disagree, disagreement recorded rather than resolved",
+   "detail": "One source gives FOGRA39 as a 300 percent condition; ECI publishes ISO Coated v2 on FOGRA39 at 330 percent and a separate 300 percent variant on the same data. The disagreement is real and explains itself: total ink coverage is a property of the separation built into a profile, not of the characterisation data set. ISO 12647-2's own normative text was not read; it is not freely available."
+  }
+ ],
+
+ "what_this_record_does_not_do": [
+  "It does not amend [STU-COL-141] or any other clause. 14-08-color.md was read and NOT written by this agent.",
+  "It does not name a crate in the specification. If the operator accepts the recommendation, the naming decision belongs in the work packet and the OSS register, not necessarily in the spec, and [STU-COL-141]'s deliberate silence about crates may well be correct to keep.",
+  "It does not close the Output-class question. That is a gate to be run before the colour work packet is authored."
+ ]
+}

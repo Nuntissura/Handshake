@@ -8,11 +8,11 @@ title: "14.8 Color Management and Pipeline"
 source_baseline_version: "v02.205"
 source_baseline_path: ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md"
 supersedes_body_range: "14-studio-creative-suite.md lines 1483-1643 (14.8 Color Management & Pipeline)"
-declared_yields_total: 225
+declared_yields_total: 320
 yields_ledger_clause: "STU-COL-272"
 metadata_rule: "frontmatter is machine metadata; body follows after this block"
 anchor_prefix: "STU-COL"
-anchor_range_new: "STU-COL-100 .. STU-COL-273 (plus STU-COL-104A)"
+anchor_range_new: "STU-COL-100 .. STU-COL-275, STU-COL-300 .. STU-COL-355 (plus STU-COL-104A)"
 anchor_range_preserved: "STU-COL-001 .. STU-COL-036 (see 14.8.0 for the disposition of each)"
 ---
 <a id="148-color-management-and-pipeline"></a>
@@ -27,7 +27,7 @@ video, motion and compositing resolves through ONE colour value model, ONE profi
 
 This module is SELF-CONTAINED. A capable implementer with no chat context and no access to the
 Studio research corpus MUST be able to implement the colour pipeline, and to derive the colour
-microtask set (14.8.22), from this module plus the shared contracts it names (14.0 storage,
+microtask set (14.8.19), from this module plus the shared contracts it names (14.0 storage,
 14.2 architecture, 14.3 primitives, 14.7 typography, 14.23 canonical field contracts,
 14.24 validation). Where this module and 14.23 disagree on a FIELD NAME, TYPE or SCHEMA ID, 14.23
 wins; where they disagree on BEHAVIOUR, RANGE, DEFAULT, UNIT or ENUMERATED VALUE, this module wins
@@ -191,15 +191,15 @@ control, the chosen value is recorded with `soft_bound_source = "implementation"
 `hard_*`, and never presented as vendor-derived. Where THIS MODULE fixes a bound that no capture
 declared, the clause says so inline and the bound is a Studio normative choice, not an observation.
 
-**SELF-AUDIT.** This module carries 120 numeric parameter rows across 28 parameter tables. **35**
-carry a complete seven-field set with no `UNKNOWN`; **85** carry at least one stated `UNKNOWN`; 331
-of the 840 individual fields are `UNKNOWN`. Colour has a materially higher completion rate than
+**SELF-AUDIT.** This module carries 144 numeric parameter rows across 36 parameter tables. **38**
+carry a complete seven-field set with no `UNKNOWN`; **106** carry at least one stated `UNKNOWN`; 375
+of the 1,008 individual fields are `UNKNOWN`. Colour has a materially higher completion rate than
 typography (which has zero complete rows, see [STU-TYP-238]) for one reason: the captured grading
 surface declares hard and soft bounds SEPARATELY on many of its parameters, and the colour-component
 type libraries declare bounds and defaults. Those declarations are the reason the seven-field
 contract exists at all ([STU-COL-105]).
 
-Every one of those 120 rows carries `hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`,
+Every one of those 144 rows carries `hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`,
 `unit` and `precision` as SEVEN SEPARATE COLUMNS, with the literal token `UNKNOWN` written into each
 unknown cell. No table omits a column. This is a hard requirement and not a formatting preference:
 an omitted column is indistinguishable from an unknown value once the table is read back, and a
@@ -550,15 +550,27 @@ does this has not found a gap in the specification; the specification is telling
 **[STU-COL-142] Transform materialisation.** `ColorEngine` MUST materialise every transform into a
 form `RenderEngine` can consume without knowing about colour: either an explicit matrix-plus-curve
 chain, or a baked 3D LUT with a declared grid size and domain, plus a shaper 1D LUT where the
-transform is non-linear. Pixels MUST NOT reach `RenderEngine` with an unresolved profile reference.
-The materialised transform is CACHEABLE and MUST be keyed by
-(source profile hash, destination profile hash, intent, BPC, precision, grid size).
+transform is non-linear. The matrix-plus-curve form is EXACT and carries no interpolation error at
+all, so it MUST be preferred wherever both profiles reduce to curves and a 3x3; baking a LUT for a
+transform that has a matrix form introduces error for nothing. Pixels MUST NOT reach `RenderEngine`
+with an unresolved profile reference. The materialised transform is CACHEABLE and MUST be keyed by
+(source profile hash, destination profile hash, intent, BPC, precision, grid size, domain,
+INTERPOLATION RULE, shaper presence and shaper identity). The interpolation rule is part of the key
+and part of the artefact's declared fields for the reason [STU-COL-353] gives: two transforms built
+from the same profiles, the same grid and the same domain but evaluated under different
+interpolation rules are DIFFERENT transforms and MUST NOT share a cache entry.
 
-**[STU-COL-143] Transform determinism.** For a fixed key under [STU-COL-142], the materialised
-transform MUST be bit-identical on every host. Interpolation, rounding mode and clamping behaviour
-are part of the engine contract, not implementation freedom. This is a promotion-equivalence
-requirement of 14.24: a colour conversion that differs by one least-significant bit across hosts
-fails promotion.
+**[STU-COL-143] Materialisation determinism (SCOPED to the materialisation path).** For a fixed key
+under [STU-COL-142], the MATERIALISED transform MUST be bit-identical on every host. Interpolation
+rule, rounding mode, evaluation order and clamping behaviour are part of the engine contract, not
+implementation freedom. This is a promotion-equivalence requirement of 14.24: a materialised
+transform that differs by one least-significant bit across hosts fails promotion. This obligation
+attaches to the ARTEFACT that [STU-COL-142] caches and NOT to the per-pixel application of it; the
+two paths are separated by [STU-COL-350], and the application path is held to the numeric tolerance
+of [STU-COL-352] instead. Read without that separation this clause is unsatisfiable by any
+implementation that dispatches on the processor features it finds at runtime, which is every
+implementation in the field, so the separation is what makes the requirement real rather than
+aspirational.
 
 **[STU-COL-144] Precision contract.** Transforms evaluate at a declared internal precision that is
 at least as high as the higher of the source and destination document precisions, and never lower
@@ -1519,9 +1531,9 @@ document fields. For scale: the captured camera-profile corpus alone is 895 MB.
 ### 14.8.17 Validation and Acceptance
 
 **[STU-COL-260] Colour validation descriptors.** The `StudioValidationDescriptor` catalog (14.24)
-MUST include the twelve descriptors below. This table SPAWNS TWELVE microtasks, one per row.
+MUST include the eighteen descriptors below. This table SPAWNS EIGHTEEN microtasks, one per row.
 
-*Derivation: catalogue table, splits per row; yields 12 microtasks, one per validation descriptor. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.*
+*Derivation: catalogue table, splits per row; yields 18 microtasks, one per validation descriptor. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.*
 
 | Validation descriptor | What it checks | Governing clause |
 |---|---|---|
@@ -1537,16 +1549,22 @@ MUST include the twelve descriptors below. This table SPAWNS TWELVE microtasks, 
 | `col.overlay_purity` | Warnings, previews and separations never composite into authority values | [STU-COL-164] |
 | `col.no_platform_cmm` | No platform colour-management module or system colour library in the graph | [STU-COL-140] |
 | `col.swatch_reference_resolvable` | Every swatch reference resolves in document, application then system order | [STU-COL-178] |
+| `col.display_profile_sourced` | Every display device resolves its profile through a named acquisition mechanism or is explicitly unmanaged; no code path substitutes sRGB for a missing profile | [STU-COL-306] |
+| `col.config_provenance_recorded` | Every scene-linear document records the configuration identity, closure hash and declared versions it was authored against | [STU-COL-314] |
+| `col.accuracy_within_tolerance` | Every path measured against the reference corpus is within its declared mean and maximum CIEDE2000 tolerance, computed with the declared white point | [STU-COL-323] |
+| `col.scope_measurement_point_declared` | Every scope reading carries the measurement point and the scale it was taken in, and a delivery check is never taken on the display-referred branch | [STU-COL-332] |
+| `col.materialisation_is_scalar` | The materialisation path carries no runtime vector dispatch, and no application-path code is reachable from it | [STU-COL-351] |
+| `col.interpolation_is_keyed` | Every materialised transform carrying a lookup table declares its interpolation rule, and that rule is part of the cache key rather than inferred from the sampler | [STU-COL-353] |
 
 **[STU-COL-261] No-platform-CMM tripwire.** The build MUST fail if any crate in the `studio-engine`
 or `handshake_core` dependency graph links a platform colour-management module or a
 system-installed colour library. The tripwire runs alongside the SQLite tripwire of [STU-OVR-003]
 and the text-engine tripwire of [STU-TYP-231].
 
-**[STU-COL-262] Mandatory acceptance cases.** Acceptance MUST include the eighteen cases below.
-This table SPAWNS EIGHTEEN microtasks, one per row.
+**[STU-COL-262] Mandatory acceptance cases.** Acceptance MUST include the twenty-six cases below.
+This table SPAWNS TWENTY-SIX microtasks, one per row.
 
-*Derivation: catalogue table, splits per row; yields 18 microtasks, one per acceptance case. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.*
+*Derivation: catalogue table, splits per row; yields 26 microtasks, one per acceptance case. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.*
 
 | Acceptance case | What it proves | Governing clause |
 |---|---|---|
@@ -1554,7 +1572,7 @@ This table SPAWNS EIGHTEEN microtasks, one per row.
 | `acc.assign_vs_convert` | Assign leaves components unchanged; convert changes them and preserves appearance within a declared tolerance | [STU-COL-131] |
 | `acc.four_intents_differ` | All four intents give four different results for an out-of-gamut source, and BPC changes the result independently of intent | [STU-COL-135] |
 | `acc.device_link_inert` | A device-link profile reports intent and BPC as inert rather than applying them | [STU-COL-134] |
-| `acc.cross_host_bit_identical` | The same conversion on two hosts is bit-identical | [STU-COL-143] |
+| `acc.cross_host_bit_identical` | The same MATERIALISED transform, built from one cache key, is byte-identical on two hosts | [STU-COL-143] |
 | `acc.lut_domain_honoured` | A LUT with a non-0-1 domain applies correctly, and applying it as if the domain were 0-1 gives a detectably different result | [STU-COL-158] |
 | `acc.stack_order_enforced` | Reordering the grade stack changes the result and an out-of-order stack is refused | [STU-COL-160] |
 | `acc.legacy_grade_keys` | A five-wheel grade imported from a legacy-key source recovers all fifteen values, including the four stored under split-toning keys | [STU-COL-223] |
@@ -1568,6 +1586,14 @@ This table SPAWNS EIGHTEEN microtasks, one per row.
 | `acc.gamut_coverage_readable` | Gamut-warning coverage is readable as a number by a headless model | [STU-COL-244] |
 | `acc.blending_space_effective` | Changing the blending space alters a composite result and the change is reported | [STU-COL-162] |
 | `acc.untagged_command_rejected` | A colour command carrying an untagged component array is rejected at decode | [STU-COL-252] |
+| `acc.delta_e_reference_pairs` | The colour-difference implementation reproduces the published reference value for all thirty-four conformance pairs, including the pairs that cross the hue-difference branch | [STU-COL-322] |
+| `acc.display_profile_change_detected` | Changing a monitor's associated profile outside Studio causes the display transform to be re-materialised without a restart, and the old transform is evicted from the cache | [STU-COL-303] |
+| `acc.unmanaged_display_is_visible` | A monitor with no resolvable profile reports the unmanaged state as readable inspection state and is not rendered as if it were sRGB | [STU-COL-306] |
+| `acc.window_span_reported` | A window straddling two monitors with different profiles binds to the majority-area monitor and reports the spanning condition rather than presenting the second part as verified | [STU-COL-305] |
+| `acc.config_closure_mismatch_reported` | A document whose recorded configuration closure differs from the resolved one reports the mismatch and names the differing side instead of re-rendering the grade silently | [STU-COL-315] |
+| `acc.legal_range_area_threshold` | A signal outside the preferred range over more than the threshold area reports an out-of-gamut fraction, one below the threshold does not raise, and an out-of-range component is reported separately from an invalid combination | [STU-COL-335] |
+| `acc.materialisation_dispatch_invariant` | The same cache key materialises byte-identically on one architecture with a wider instruction set available and with it disabled, and again on a second architecture | [STU-COL-351] |
+| `acc.interpolation_rules_differ_and_are_keyed` | The same profiles, grid and domain materialised under the two interpolation rules produce two DIFFERENT artefacts, two different cache entries, and a measurably different image; and a path that substitutes a rule reports the substitution rather than hiding it | [STU-COL-353] |
 
 **[STU-COL-263] Round-trip obligation.** Every field named in this module MUST survive a
 save/load/save cycle byte-identically, and MUST survive an import/export round trip through the
@@ -1585,7 +1611,14 @@ OCIO and scene-linear; LUTs and their application order; the pipeline position o
 relative to the compositor; swatches, groups, palettes and interchange; branded colour books; spot
 inks, ink manager, separations, overprint, trapping, flattening and appearance of black; gradients
 and patterns; blend-mode encoding; the colour picker; harmony and recolour; camera colour rendering;
-the grading model; soft proof, gamut warning and colour-vision simulation.
+the grading model; soft proof, gamut warning and colour-vision simulation; DISPLAY device
+characterisation, meaning the consumption of a display profile, monitor identity, reaction to display
+change and the unmanaged state, together with the optional out-of-process calibration adapter lane;
+the ACES-named scene-linear default with its role bindings, display targets and configuration
+provenance record; the colour-accuracy metric, its per-path tolerances and its reference patch
+corpus; the video scope measurement contract with legal-range and gamut-error checking; and the split
+between transform materialisation and transform application with the determinism obligation each
+carries.
 
 **[STU-COL-266] Not owned here (referenced).** Channel operations, alpha and spot channels,
 apply-image and calculations (14.4); tonal and colour ADJUSTMENT LAYERS as layer objects (14.4) -
@@ -1628,19 +1661,23 @@ markers and is a projection of them, never a second source: where the two disagr
 and the index is regenerated.
 
 **Clause arithmetic (NORMATIVE, and stated so a divergence is diagnosable).** 14.8 defines
-146 clause anchors, every one of them as a paragraph opening with its bold anchor at line start,
+185 clause anchors, every one of them as a paragraph opening with its bold anchor at line start,
 none inside a table cell, none inside a blockquote and none inside a fenced block. Subtracting the
-17 anchors of the non-yielding set above leaves 129 yielding clauses, and 129 is exactly what
+18 anchors of the non-yielding set below leaves 167 yielding clauses, and 167 is exactly what
 the clause rows of the ledger in [STU-COL-272] sum to. A tool that reaches a different
-yielding-clause count for 14.8 is either not seeing all 146 definitions or honouring more than
-17 exclusions, and this arithmetic says which. Note that the non-yielding set names only anchors
-this module defines: an anchor from the superseded v02.205 module cannot be excluded here because it
-was never counted here in the first place.
+yielding-clause count for 14.8 is either not seeing all 185 definitions or honouring more than
+18 exclusions, and this arithmetic says which. ONE reading is legitimately different and is not a
+divergence: exactly one of the 185, the letter-suffixed `STU-COL-104A`, is also one of the 18
+exclusions, so a tool whose anchor pattern does not admit an upper-case letter suffix sees 184 minus
+17 and reaches the same 167. Both readings are correct and the fourth-pass note in [STU-COL-275]
+records why. Note also that the non-yielding set names only anchors this module defines: an anchor
+from the superseded v02.205 module cannot be excluded here because it was never counted here in the
+first place.
 
-**Rule 0a -- anchors inside table cells are never definitions here.** Every one of the 146 clauses
+**Rule 0a -- anchors inside table cells are never definitions here.** Every one of the 185 clauses
 in 14.8 is defined as a PARAGRAPH opening with its bold anchor at line start; not one is defined
-inside a table cell. 126 distinct anchors appear in cells of this sub-section, and they fall into
-exactly two categories, neither of which is a definition. 91 are cross-references to clauses
+inside a table cell. 167 distinct anchors appear in cells of this sub-section, and they fall into
+exactly two categories, neither of which is a definition. 132 are cross-references to clauses
 defined as paragraphs elsewhere in 14.8. The remaining 35, spanning STU-COL-001 to STU-COL-036, are
 anchors of the SUPERSEDED v02.205 module whose disposition [STU-COL-102] records; the clauses they name
 are withdrawn, retained or refined there, not defined here. Every table carrying an in-cell anchor
@@ -1669,12 +1706,12 @@ token across section 14.
 5. **Validation descriptor.** One microtask per descriptor row of [STU-COL-260].
 6. **Acceptance case.** One microtask per row of [STU-COL-262].
 
-**Declared non-yielding set (NORMATIVE, by anchor).** These seventeen clauses yield NOTHING. They
+**Declared non-yielding set (NORMATIVE, by anchor).** These eighteen clauses yield NOTHING. They
 are authority bookkeeping, scope statements, pure cross-references, or obligations that attach to
 every other microtask rather than forming one:
 `STU-COL-100`, `STU-COL-101`, `STU-COL-102`, `STU-COL-103`, `STU-COL-104`, `STU-COL-104A`,
 `STU-COL-250`, `STU-COL-265`, `STU-COL-266`, `STU-COL-267`, `STU-COL-268`, `STU-COL-270`,
-`STU-COL-271`, `STU-COL-272`, `STU-COL-273`, `STU-COL-274`, `STU-COL-275`.
+`STU-COL-271`, `STU-COL-272`, `STU-COL-273`, `STU-COL-274`, `STU-COL-275`, `STU-COL-340`.
 Every other clause anchor in this module yields exactly one microtask. A tool MUST use this list
 rather than inferring exclusions from prose, because inference produced the two-clause divergence
 that is recorded in [STU-COL-275].
@@ -1712,15 +1749,29 @@ total and is the figure a reconciler compares against a derivation tool's output
 | Proof, gamut, accessibility | [STU-COL-240]-[STU-COL-246] | clause | 7 |
 | Model steerability | [STU-COL-251]-[STU-COL-254] | clause | 4 |
 | Validation clauses | [STU-COL-260]-[STU-COL-263] | clause | 4 |
-| Numeric parameter tables (28 tables, 120 rows) | throughout 14.8.2-14.8.15 | parameter table | 28 |
+| Display device characterisation | [STU-COL-300]-[STU-COL-308] | clause | 9 |
+| ACES scene-linear default | [STU-COL-310]-[STU-COL-317] | clause | 8 |
+| Colour accuracy metric and patch sets | [STU-COL-320]-[STU-COL-326] | clause | 7 |
+| Video scopes and legal range | [STU-COL-330]-[STU-COL-337] | clause | 8 |
+| Materialisation and application paths | [STU-COL-350]-[STU-COL-355] | clause | 6 |
+| Numeric parameter tables (36 tables, 144 rows) | throughout 14.8.2-14.8.25 | parameter table | 36 |
 | Rendering intents | [STU-COL-135] | enumeration | 1 |
 | Swatch kinds | [STU-COL-171] | catalogue row | 7 |
 | Gradient geometries | [STU-COL-190] | catalogue row | 7 |
 | Colour adjustment catalogue | [STU-COL-229] | catalogue row | 23 |
-| Validation descriptors | [STU-COL-260] | validator | 12 |
-| Mandatory acceptance cases | [STU-COL-262] | acceptance case | 18 |
+| Validation descriptors | [STU-COL-260] | validator | 18 |
+| Mandatory acceptance cases | [STU-COL-262] | acceptance case | 26 |
+| Display profile acquisition mechanisms | [STU-COL-301] | catalogue row | 4 |
+| Display change kinds | [STU-COL-303] | enumeration | 1 |
+| ACES encodings | [STU-COL-311] | catalogue row | 4 |
+| Display targets and their views | [STU-COL-313] | catalogue row | 7 |
+| Reference patch sets | [STU-COL-324] | catalogue row | 6 |
+| Video scopes | [STU-COL-331] | catalogue row | 6 |
+| Scope measurement points | [STU-COL-332] | enumeration | 1 |
+| Scope scales | [STU-COL-333] | enumeration | 1 |
+| Non-bakeable materialisation cases | [STU-COL-354] | catalogue row | 5 |
 | Declared non-yielding clauses | [STU-COL-270] non-yielding set | excluded | 0 |
-| **TOTAL** | **14.8 whole** | **all kinds** | **225** |
+| **TOTAL** | **14.8 whole** | **all kinds** | **320** |
 
 **[STU-COL-273] Anchor binding.** A microtask derived from this module cites the clause anchor
 directly. A microtask staged before this module landed carries
@@ -1736,7 +1787,7 @@ shape alone whether it is one unit or many. This clause declares it for every no
 
 | Table (first column) | Clause | Rows | Marker classification | Yields |
 |---|---|---|---|---|
-| All numeric parameter tables | throughout | 120 | parameter table, taken whole (each) | 28 |
+| All numeric parameter tables | throughout | 144 | parameter table, taken whole (each) | 36 |
 | Anchor | [STU-COL-102] | 34 | reading aid in a non-yielding clause | 0 |
 | Field | [STU-COL-106] | 7 | contract table carried into its clause | 0 |
 | Model | [STU-COL-121] | 8 | contract table carried into its clause | 0 |
@@ -1745,12 +1796,31 @@ shape alone whether it is one unit or many. This clause declares it for every no
 | `swatch_kind` | [STU-COL-171] | 7 | catalogue, splits per row (one per swatch kind) | 7 |
 | Gradient geometry | [STU-COL-190] | 7 | catalogue, splits per row (one per gradient geometry) | 7 |
 | Adjustment | [STU-COL-229] | 23 | catalogue, splits per row (one per colour adjustment) | 23 |
-| Validation descriptor | [STU-COL-260] | 12 | catalogue, splits per row (one per validation descriptor) | 12 |
-| Acceptance case | [STU-COL-262] | 18 | catalogue, splits per row (one per acceptance case) | 18 |
-| Unit group | [STU-COL-272] | 26 | reading aid in a non-yielding clause | 0 |
-| Table (first column) | [STU-COL-274] | 15 | reading aid in a non-yielding clause | 0 |
+| Validation descriptor | [STU-COL-260] | 18 | catalogue, splits per row (one per validation descriptor) | 18 |
+| Acceptance case | [STU-COL-262] | 26 | catalogue, splits per row (one per acceptance case) | 26 |
+| Unit group | [STU-COL-272] | 40 | reading aid in a non-yielding clause | 0 |
+| Table (first column) | [STU-COL-274] | 34 | reading aid in a non-yielding clause | 0 |
 | Missed unit group | [STU-COL-275] | 6 | reading aid in a non-yielding clause | 0 |
-| **TOTAL TABLE UNITS** | **all tables** | **296** | **computed from the markers above** | **96** |
+| Acquisition mechanism | [STU-COL-301] | 4 | catalogue, splits per row (one per acquisition mechanism) | 4 |
+| Display device field | [STU-COL-302] | 7 | contract table carried into its clause | 0 |
+| `display_change_kind` | [STU-COL-303] | 6 | enumeration table, taken whole | 1 |
+| Adapter boundary field | [STU-COL-308] | 6 | contract table carried into its clause | 0 |
+| Colour space | [STU-COL-311] | 4 | catalogue, splits per row (one per ACES encoding) | 4 |
+| Role | [STU-COL-312] | 9 | contract table carried into its clause | 0 |
+| Display target | [STU-COL-313] | 7 | catalogue, splits per row (one per display target) | 7 |
+| Configuration provenance field | [STU-COL-314] | 8 | contract table carried into its clause | 0 |
+| Implementation trap | [STU-COL-322] | 4 | contract table carried into its clause | 0 |
+| Reference patch set | [STU-COL-324] | 6 | catalogue, splits per row (one per reference patch set) | 6 |
+| Scope | [STU-COL-331] | 6 | catalogue, splits per row (one per scope) | 6 |
+| `scope_measurement_point` | [STU-COL-332] | 5 | enumeration table, taken whole | 1 |
+| `scope_scale` | [STU-COL-333] | 5 | enumeration table, taken whole | 1 |
+| Quantisation level | [STU-COL-333] | 6 | contract table carried into its clause | 0 |
+| Term | [STU-COL-334] | 4 | contract table carried into its clause | 0 |
+| Open item | [STU-COL-340] | 10 | reading aid in a non-yielding clause | 0 |
+| Path | [STU-COL-350] | 2 | contract table carried into its clause | 0 |
+| Obligation | [STU-COL-353] | 5 | contract table carried into its clause | 0 |
+| Non-bakeable case | [STU-COL-354] | 5 | catalogue, splits per row (one per non-bakeable case) | 5 |
+| **TOTAL TABLE UNITS** | **all 68 tables** | **476** | **computed from the markers above** | **153** |
 
 **[STU-COL-275] Reconciliation of record.** **First pass (ledger).** A derivation tool run against this module before the
 ledger existed reached **185**. The declared total is **225**. The difference is **40** and
@@ -1814,4 +1884,843 @@ now publishes 146 minus 17 equals 129 so the divergence is diagnosable from the 
 inspection: a tool reaching 126 is either not seeing three of the 146 definitions or honouring three
 exclusions the module does not declare, and those are the only two possibilities. Until that is
 resolved on the tool side, the declared total stands at 225 on the evidence above.
+
+**Fourth pass (the letter-suffixed anchor), and its closure.** The counts recorded in the three
+passes above describe 14.8 AS IT STOOD AT THOSE PASSES, before sub-sections 14.8.20 through 14.8.25
+were added; they are kept as the record of how each divergence was found and closed, and the current
+figures are the ones in [STU-COL-270] and [STU-COL-272]. The third pass left a residual of 3
+unattributed. It is now attributed, and it is arithmetic rather than a missing clause. This module
+defines one anchor with an UPPER-CASE letter suffix, `STU-COL-104A`, and declares that same anchor
+non-yielding. A tool whose anchor pattern admits only a lower-case suffix does not see that
+definition at all, so it counts one fewer definition AND one fewer exclusion than this sub-section
+does. Both counts move together and the yielding total is unchanged: this sub-section's human count
+is 185 definitions minus 18 exclusions, and such a tool's count is 184 minus 17, and both equal 167.
+The two numbers are therefore BOTH correct readings of the same text and neither is a defect to
+repair; a tool reaching a yielding-clause count other than 167 has a real divergence, and a tool
+whose definition and exclusion counts are each exactly one lower than the human count has this one.
+The letter-suffixed form stays because [STU-COL-104A] declares it legal and other sub-sections of
+section 14 carry the same form.
+
+**Fifth pass (four gaps closed, and two engine defects).** Sub-sections 14.8.20 through 14.8.23
+close four verified holes: device characterisation, which was absent entirely because all fourteen
+calibration mentions in 14.8 were CAMERA calibration; an ACES-named scene-linear default, which the
+OCIO machinery of 14.8.6 required but never named; a testable colour-accuracy metric, which the
+module demanded in more than thirty places while stating no number anywhere; and video scopes with
+legal-range checking, which did not exist in section 14 at all because every waveform in the
+timeline sub-section is an AUDIO waveform. Sub-section 14.8.25 closes two defects found in the
+engine clauses while researching an unrelated question: [STU-COL-142] declared a cache key without
+the interpolation rule, which let two genuinely different transforms share one cache entry,
+and [STU-COL-143] required bit-identity in terms broad enough to be unsatisfiable by any implementation
+that dispatches on processor features at runtime. Both are now repaired in the clauses themselves
+and in [STU-COL-350]-[STU-COL-355]. The declared total moves from 225 to 320 and the ledger
+of [STU-COL-272] carries the decomposition; nothing was renumbered and no clause was removed.
+
+---
+
+### 14.8.20 Display Device Characterisation
+
+**[STU-COL-300] Studio consumes display characterisation; it does not measure it (SCOPE POSTURE,
+CLOSING A NAMED GAP).** Fourteen places in this module speak of calibration and every one of them
+is CAMERA calibration - the illuminant-referenced matrices of [STU-COL-218] and the seven camera
+calibration controls of [STU-COL-224]. Not one is DISPLAY characterisation. That is a real
+hole: [STU-COL-154] lets a document select `icc_display`, and the display transform of [STU-COL-161]
+stage 6a converts working space to display, but nothing said where the display's profile comes
+from, so the profile at the end of the pipeline was assumed rather than sourced. This sub-section
+sources it. Studio READS a display profile that something else produced and REACTS when it changes.
+Studio does NOT drive a colorimeter or a spectrophotometer, does NOT implement an instrument
+protocol, and does NOT ship an instrument driver; measuring a display is an optional out-of-process
+adapter lane ([STU-COL-308]) on the same posture as every other adapter in this module
+([STU-COL-185], [STU-COL-237]). A display profile is an ordinary `StudioColorProfile` of
+`profile_class = display` ([STU-COL-125]) and requires no new profile primitive.
+
+**[STU-COL-301] Per-monitor profile acquisition from the host.** The host operating system, not
+Studio, holds the association between a monitor and its ICC profile, and each platform exposes that
+association through a different named mechanism. Studio MUST implement acquisition on each supported
+platform through the mechanism named below, MUST acquire PER MONITOR rather than once per
+application, and MUST record which mechanism produced the profile it is using so a wrong colour on
+one host is diagnosable without guessing. Where a platform offers both a per-device and a
+per-drawing-surface call, the per-device call is authoritative, because a per-surface call answers
+for whichever monitor the surface currently sits on and therefore cannot characterise a second
+monitor at all. Mechanisms are named here as the published platform interfaces they are, which is
+provenance under [STU-SECTION-003]; no Studio type, command or panel takes its name from one.
+
+*Derivation: catalogue table, splits per row; yields 4 microtasks, one per acquisition mechanism.*
+
+| Acquisition mechanism | Platform | What Studio calls or reads | Failure and absence behaviour |
+|---|---|---|---|
+| `display_profile.windows_wcs` | Windows | The Windows Color System per-device association, keyed on the monitor rather than on a device context, resolved through the per-user scope first and the machine-wide scope as fallback. TWO generations of that per-device call exist and they are NOT equivalent: the older one is keyed on the monitor's device name and is documented as not covering advanced-colour profiles, and the newer one is keyed on the graphics adapter's locally unique identifier plus a source index and does cover them. Studio MUST prefer the newer call where the host provides it, because on an HDR display the older call answers with the wrong profile rather than with no profile. | An unassociated monitor yields no profile and enters the unmanaged state of [STU-COL-306]; it is never silently treated as sRGB |
+| `display_profile.macos_colorsync` | macOS | The ColorSync display-device association for the specific screen, or equivalently the screen's own colour space, read PER SCREEN and never as one application-wide default. The raw ICC bytes are extracted from the returned colour space so the result is an ordinary `StudioColorProfile` under [STU-COL-125]. | A screen reporting no profile enters the unmanaged state of [STU-COL-306] |
+| `display_profile.x11_atom_and_colord` | Linux under X11 | The ICC Profiles in X root-window property, whose name carries an output index suffix for every output after the first, and, where the display extension exposes per-output objects, the same property carried on the OUTPUT object, which is the authoritative source for a multi-monitor session because the root-window property alone cannot address a second monitor. The colour-management D-Bus service's device database is consulted for the device-to-profile mapping when neither property is present. | Neither source present is the unmanaged state of [STU-COL-306], not an error dialog |
+| `display_profile.wayland_protocol` | Linux under Wayland | The compositor colour-management protocol, whose presence MUST be probed at runtime and never assumed, with the colour-management D-Bus service's device database as the fallback source | A compositor that does not advertise the protocol falls back, and if the fallback is also absent the state is unmanaged |
+
+The Wayland row is the one an implementer will find least stable, and this module does not pretend
+otherwise: at the time this module was written that protocol was published in the staging area of the
+platform's protocol collection rather than in the stable area, and had been revised more than once
+while there ([STU-COL-340] records this). The acquisition path is therefore stated as a
+probe-then-fall-back contract rather than as a fixed interface version. What Studio MUST NOT do is
+treat a missing protocol as a licence to assume sRGB.
+
+**[STU-COL-302] `StudioDisplayDevice` and stable monitor identity.** Schema id
+`hsk.studio.display_device@1`. A display device record binds a monitor to the profile in force on
+it, and its identity MUST survive disconnection, reconnection, a reboot and a change of connector,
+because a display-transform selection that loses its monitor on every unplug is not a colour-managed
+pipeline. Identity is derived from the monitor's own descriptor data, not from an enumeration index
+and not from a connector name; both of those are reassigned by the host and by a docking or
+stream-splitting topology.
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Field | Meaning |
+|---|---|
+| `display_device_id` | The stable identity: a hash over the monitor descriptor's manufacturer id, product code, and serial-number and monitor-name descriptor blocks. Stable across reconnection because it is derived from the monitor, not from the host's enumeration. |
+| `descriptor_bytes_hash` | Content hash of the whole raw monitor descriptor as read, so two units that collide on the fields above are still distinguishable by their full descriptor. |
+| `identity_confidence` | `unique` when the descriptor carries a serial-number or monitor-name descriptor block; `ambiguous` when it does not, or when two connected monitors resolve to the same `display_device_id`; `absent` when no descriptor was readable at all. |
+| `host_enumeration_key` | The platform's own current handle or device name. VOLATILE by contract, stored for diagnosis, and MUST NOT be used as identity. |
+| `active_profile_ref` | The `content_hash` of the `StudioColorProfile` in force ([STU-COL-125]), or the unmanaged marker of [STU-COL-306]. |
+| `profile_source` | Which mechanism of [STU-COL-301] produced it, or `operator_supplied` under [STU-COL-304]. |
+| `acquired_at` | When the association was last read, so a stale association is visible rather than assumed current. |
+
+The identity fields are the monitor descriptor's own: the manufacturer identifier and product code
+in the descriptor's fixed header, the optional binary serial number beside them, and the free-text
+serial-number and monitor-name descriptor blocks. Three failure modes are known and MUST be handled
+rather than assumed away, and the first two are documented failures of the field service that solves
+this problem on one platform, not hypotheticals. Two units of the same model can ship with identical
+manufacturer, model and serial fields, so a device id composed of those three fields collides; the
+field service's own issue history records the second monitor's profile registration being silently
+dropped on exactly that collision, EVEN THOUGH its own descriptor checksum could have separated the
+two. `descriptor_bytes_hash` exists so Studio has that separation, and `identity_confidence` exists so
+an unseparable pair is surfaced to the operator instead of silently binding a grade to the wrong
+panel. Some connections present no descriptor at all, which is `absent`. A monitor reached through a
+dock or a multi-stream topology may change its host enumeration key without changing its descriptor,
+which is exactly the case `host_enumeration_key` is kept volatile for; that last case is reported in
+the field but this module found no primary specification for it, so it is handled defensively rather
+than cited as established behaviour ([STU-COL-340]).
+
+**[STU-COL-303] Reacting to display change, and the notification that does not exist.** The display
+association is LIVE. Studio MUST subscribe to the host's display-configuration notifications and MUST
+re-resolve the active profile, the materialised display transform of [STU-COL-142] and its cache key
+when one arrives. A pipeline that reads the display profile once at startup shows the operator a
+stale transform for the rest of the session and is non-conformant. The design constraint an
+implementer will hit is that NO platform surveyed for this module publishes a notification meaning
+"a monitor's associated profile changed": the platforms publish resolution, arrangement, scale and
+add/remove notifications, and an operator changing the profile in a host control panel produces
+either a general configuration notification or nothing at all. `profile_association_changed` is
+therefore DETECTED, not received - Studio re-reads the association under [STU-COL-301] and compares
+the resulting profile `content_hash` with the stored `active_profile_ref`, on every configuration
+notification and on window activation. Waiting for a profile-changed event is waiting for an event
+that is not sent.
+
+*Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.*
+
+| `display_change_kind` | What triggers it | What Studio MUST re-derive |
+|---|---|---|
+| `profile_association_changed` | A re-read of the association returns a profile whose `content_hash` differs from the stored `active_profile_ref`. Detected by comparison, never received as an event. | The `active_profile_ref`, the display transform, and every cached transform keyed on the old profile hash |
+| `display_added` | A monitor is connected | A `StudioDisplayDevice` record and its profile, before the first frame is presented on it |
+| `display_removed` | A monitor is disconnected | The binding of every window that was on it, and the unmanaged state where no replacement resolves |
+| `display_reconfigured` | Resolution, arrangement, refresh or the primary-monitor selection changes | The monitor-to-window mapping of [STU-COL-305] |
+| `scale_factor_changed` | The per-monitor scale factor changes for a window | The monitor-to-window mapping only; a scale change alone never changes colour and MUST NOT invalidate a colour transform cache |
+| `session_or_compositor_changed` | The graphics session, compositor or colour-management service restarts | Every field of every `StudioDisplayDevice`, because the whole association layer was replaced |
+
+`scale_factor_changed` is listed precisely so it is NOT treated as a colour event. A resolution or
+scale change that flushes the colour transform cache costs a full re-materialisation for nothing,
+and an implementer who folds the two together will not notice, because the output is still correct.
+
+**[STU-COL-304] Operator-supplied display profile.** An operator MUST be able to supply an ICC
+display profile for a specific `display_device_id` and have it OVERRIDE what [STU-COL-301] read from
+the host. The override is stored against the display device, survives restart, is separately
+clearable, and is reported in the inspection state of [STU-COL-307] as an override rather than as a
+host reading, because a colour complaint whose cause is a forgotten override is otherwise
+undiagnosable. A supplied profile is validated as a display-class profile on load; a profile whose
+`profile_class` is not `display` MUST be refused with a reason, not accepted and quietly misused.
+
+**[STU-COL-305] Multiple monitors and a window that spans two.** Studio MUST support a different
+profile per monitor simultaneously. A window is bound to exactly ONE display device at a time for
+colour purposes, and that binding is the monitor holding the largest area of the window. When a
+window spans two monitors with different profiles the parts on the second monitor are colour-managed
+for the FIRST, which is a real and unavoidable error under a single-transform presentation path;
+Studio MUST therefore report the spanning condition in the inspection state of [STU-COL-307] rather
+than let the operator judge colour on a surface that is silently wrong. The binding changes when the
+majority-area monitor changes, which re-derives the display transform under [STU-COL-303].
+
+*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*
+
+| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |
+|---|---|---|---|---|---|---|---|
+| `display_binding.majority_area_fraction` | 0.5 | 1.0 | 0.5 | 1.0 | 0.5 | unit_interval | 3 |
+| `display_binding.rebind_hysteresis` | 0.0 | 0.5 | 0.0 | 0.2 | 0.05 | unit_interval | 3 |
+
+Neither bound is a measurement. `majority_area_fraction` is fixed at 0.5 by the definition of a
+majority and cannot be lower; its upper bound is the whole window. `rebind_hysteresis` is a Studio
+normative choice under [STU-COL-107], declared here as such: it exists so a window dragged along a
+monitor boundary does not re-materialise its display transform on every frame, and the 0.05 default
+is a judgement, not an observation. No capture in this corpus declares either value.
+
+The largest-area rule is not invented here either. It is what the platform call that maps a window to
+a monitor already does - it returns the monitor holding the largest area of intersection - and it is
+what one of the two major browser engines resolves a window's display with. The other engine is the
+counter-example this clause exists to avoid: it applies the PRIMARY monitor's profile to every window
+regardless of which monitor the window is on, and does not re-resolve when a window moves, which is
+a defect its own issue tracker has carried open for years. Studio MUST bind per window, and MUST
+re-bind on move.
+
+**[STU-COL-306] The unmanaged display state is explicit and visible.** Where no profile resolves for
+a display device, Studio enters `display_color_state = unmanaged` for that device. Unmanaged is a
+NAMED, STORED, REPORTED state and MUST NOT be implemented as a silent substitution of sRGB. Studio
+MUST present values through the `unmanaged_linear` path of [STU-COL-154] when in this state, MUST
+show a persistent operator-visible indication that colour on that display is unverified, and MUST
+report the state in the inspection state of [STU-COL-307]. Assuming sRGB is the specific failure this
+clause exists to forbid: it is correct often enough to hide the problem and wrong often enough to
+lose work, and it is indistinguishable from a working configuration in a screenshot.
+
+**[STU-COL-307] Display characterisation in the inspection state.** [STU-COL-154] already argues
+that a screenshot cannot distinguish the three display-transform modes, so the selection is
+inspection state. The same argument reaches further and this clause carries it there: a screenshot
+also cannot distinguish a correct display profile from a wrong one, an operator override from a
+host reading, a stale association from a current one, or a colour-managed window from one spanning
+onto a second monitor. Studio MUST therefore expose, as structured Argus inspection state
+under [STU-COL-250], for every display device and every window: the `display_device_id` and its
+`identity_confidence`; the `active_profile_ref` and the profile's `display_name`; the
+`profile_source` and whether it is an override; `acquired_at`; the `display_color_state`; the
+window-to-device binding and whether the window is spanning; and the cache key of the materialised
+display transform in force ([STU-COL-142]). A headless model MUST be able to read "this window is
+unmanaged" as a value rather than infer it from a picture.
+
+**[STU-COL-308] Hardware calibration is an optional out-of-process adapter lane.** Driving a
+colorimeter or spectrophotometer to MEASURE a display and generate a profile is OUT of the Studio
+process and is an optional `StudioDeviceAdapter` lane, on the same posture as the colour-book data
+adapter of [STU-COL-185] and the generative adapter of [STU-COL-237]. It MUST NOT be a hard
+dependency, MUST NOT be required for any capability in this sub-section, and MUST NOT be the only
+path to a display profile - an operator who supplies a profile under [STU-COL-304] never touches the
+lane. Studio links no instrument library into `studio-engine` or `handshake_core`; the no-platform-CMM
+tripwire of [STU-COL-261] applies unchanged, and an instrument SDK linked into either crate is the
+same defect.
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Adapter boundary field | Contract |
+|---|---|
+| `invocation` | A separate process invoked with arguments and observed through its exit status and its files. Never an in-process library call, and never a dynamically loaded instrument driver. |
+| `capability_probe` | The lane reports whether an instrument is present, and its identity, WITHOUT taking a measurement. Absence is an ordinary answer, not an error. |
+| `inputs` | A test-patch set to display and a measurement configuration, written to a working directory Studio owns. |
+| `outputs` | A measurement data file and an ICC display profile written to that working directory. The profile is then ingested through [STU-COL-304] exactly as an operator-supplied profile would be; the lane has no privileged path into the engine. |
+| `licence_isolation` | The adapter's licence terms attach to the adapter, never to Studio. The lane MUST run correctly against a replacement adapter, so no adapter's file naming, option spelling or version is a Studio contract. |
+| `absence_behaviour` | With no adapter installed, every clause of this sub-section still holds and the operator uses host or supplied profiles. Nothing degrades and nothing is disabled. |
+
+The boundary is specified as processes and files because that is the boundary the field-standard
+open-source calibration toolchain actually exposes: separate command-line executables that generate
+a test-patch list, discover and drive an instrument, read measured patches into a measurement data
+file, build an ICC profile from that file, and install the profile through the host's own mechanism.
+There is no documented library or daemon interface; the integration surface IS the file set and the
+exit status. A second and independent reason for the process boundary is licensing - that toolchain
+is distributed under a strong copyleft licence, with a separate commercial licence sold for
+closed-source incorporation, so linking it into `studio-engine` would be a licensing decision
+disguised as an engineering one. Studio names no adapter product in this module, and an implementer
+MUST NOT harden the lane around one adapter's spelling of its options or its file extensions.
+
+---
+
+### 14.8.21 ACES Scene-Linear Default
+
+**[STU-COL-310] ACES is the named scene-linear default (CLOSING A NAMED GAP), and it is a
+CONFIGURATION contract rather than new machinery.** [STU-COL-150] already mandates an
+OpenColorIO-class configuration at both profile-version-1 and version-2 semantics, [STU-COL-151]
+already requires the whole configuration surface to be exposed, and [STU-COL-156] already lists
+ACES2065-1, ACEScg, ACEScc and ACEScct among the working spaces a timeline may declare. What was
+missing is the naming: nothing said WHICH configuration governs scene-linear work, so two documents
+could both be "scene-linear", disagree completely, and neither could say why. Studio therefore
+fixes a DEFAULT SCENE-LINEAR CONTRACT, expressed entirely in machinery [STU-COL-150]
+through [STU-COL-157] already require, adding no engine capability: when a document works scene-linear, the
+active configuration MUST satisfy the role bindings of [STU-COL-312] and MUST offer the display
+targets and views of [STU-COL-313], and the document MUST record which configuration it was
+authored against under [STU-COL-314]. A configuration that does not satisfy the contract is
+reported as non-satisfying under [STU-COL-315]; it is never silently accepted. This does not
+reverse [STU-COL-153]: that clause forbids bundling a configuration captured from a source
+application, and whether an openly published reference configuration ships with Studio remains a
+content decision under [STU-COL-268], not a specification decision. The contract binds either way.
+
+**[STU-COL-311] The ACES encodings Studio MUST carry.** Four encodings, and they are four different
+jobs. Treating them as interchangeable "ACES" is the single most common way a scene-linear pipeline
+goes wrong: an archival encoding used as a render working space wastes precision on colours no
+render produces, and a log grading encoding that cannot represent values at or below zero silently
+destroys the shadow detail a lift operation needs.
+
+*Derivation: catalogue table, splits per row; yields 4 microtasks, one per ACES encoding.*
+
+| Colour space | Primaries and white point | Encoding | Job in the default binding |
+|---|---|---|---|
+| `ACES2065-1` | AP0 primaries, which enclose the visible spectral locus, on the ACES white point at chromaticity x 0.32168, y 0.33767 | scene-linear | Archival and interchange only. The space the interchange role of [STU-COL-316] resolves to, and the space an ACES container writes. Not a working space. |
+| `ACEScg` | AP1 primaries, narrower than AP0 and close to but not identical with BT.2020, on the same white point | scene-linear | The DEFAULT working and compositing space. AP1 is chosen over AP0 because render and composite arithmetic on AP0 primaries produces negative components and wastes precision. |
+| `ACEScc` | AP1 primaries, same white point | logarithmic, pure log with no toe; cannot represent values at or below zero | Offered for grading compatibility, and NOT the default. A lift applied in this encoding clips at zero. |
+| `ACEScct` | AP1 primaries, same white point | logarithmic with a toe below the breakpoint 0.0078125; identical to `ACEScc` above that breakpoint | The DEFAULT log grading encoding. The toe is what lets it carry true black and negative values through a lift, which is the difference an operator actually feels. |
+
+**[STU-COL-312] Role bindings under the default.** [STU-COL-152] fixes the role vocabulary Studio
+MUST recognise and states it as a minimum. This clause states what those roles RESOLVE TO under the
+scene-linear default, which is the part that makes two hosts agree. A role is still an indirection
+([STU-COL-152]): a document naming a role and opened under a different satisfying configuration
+resolves to that configuration's binding, not to the names below.
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Role | Resolves to under the default | Why this binding |
+|---|---|---|
+| `scene_linear` | `ACEScg` | The working space every render, composite and adjustment evaluates in. |
+| `compositing_log` | `ACEScct` | The log encoding a log-domain operation converts through. |
+| `color_timing` | `ACEScct` | The encoding the grade stack of [STU-COL-160] operates in, so wheels and curves behave as a colourist expects. |
+| `matte_paint` | `ACEScct` | Paint work needs the same log response as grading, not a linear one. |
+| `texture_paint` | A display-encoded BT.709 space | Texture authoring happens against a display encoding, not a scene encoding. |
+| `color_picking` | A display-encoded BT.709 space | The picker of [STU-COL-230] shows the operator display-referred numbers; picking in scene-linear presents values no operator can reason about. |
+| `data` | The configuration's raw pass-through space | Non-colour channels. A transform applied to a data channel corrupts it, which is why the role exists at all. |
+| `aces_interchange` | `ACES2065-1` | The scene-referred interchange anchor of [STU-COL-316]. |
+| `cie_xyz_d65_interchange` | The configuration's display-referred CIE XYZ D65 space | The display-referred interchange anchor of [STU-COL-316]. |
+
+The last two extend the minimum vocabulary of [STU-COL-152], which does not name them. They are
+added here because without a declared interchange anchor on each side, a value cannot be carried
+from one configuration to another at all, and [STU-COL-157] requires ICC and OCIO to be two paths
+through one engine rather than two closed worlds.
+
+**[STU-COL-313] Display targets and their view transforms.** A view transform under a
+version-2-semantics configuration is a TWO-STAGE conversion and both stages are named separately:
+the view transform converts the scene-referred reference to a display-referred reference, and the
+display colour space then converts that to the physical display's own encoding ([STU-COL-151]
+exposes both as `view_transforms` and `display_colorspaces`). Collapsing them into one baked
+transform per display is what makes a pipeline unable to add a display target without re-authoring
+every view. Studio MUST support both stages, and MUST support a shared view referenced from more
+than one display rather than duplicated per display.
+
+*Derivation: catalogue table, splits per row; yields 7 microtasks, one per display target.*
+
+| Display target | Standard it encodes | Tone-mapped view required | Colorimetric and pass-through views required |
+|---|---|---|---|
+| `srgb_display` | IEC 61966-2-1 sRGB | An SDR view at the 100 cd/m2 reference presentation | An untone-mapped colorimetric view and a raw data pass-through view |
+| `rec1886_rec709_display` | ITU-R BT.1886 EOTF on ITU-R BT.709 primaries | An SDR view at the 100 cd/m2 reference presentation | An untone-mapped colorimetric view and a raw data pass-through view |
+| `gamma22_rec709_display` | A pure 2.2 power EOTF on ITU-R BT.709 primaries, kept separate from `rec1886_rec709_display` because the two EOTFs differ in the shadows | An SDR view at the 100 cd/m2 reference presentation | An untone-mapped colorimetric view and a raw data pass-through view |
+| `p3_d65_display` | DCI-P3 primaries on a D65 white point | An SDR view rendered for the P3 D65 gamut | An untone-mapped colorimetric view and a raw data pass-through view |
+| `display_p3_display` | DCI-P3 primaries on D65 with the sRGB piecewise EOTF, kept separate from `p3_d65_display` because the EOTF differs | An SDR view rendered for the P3 D65 gamut | An untone-mapped colorimetric view and a raw data pass-through view |
+| `rec2100_pq_display` | ITU-R BT.2100 with the perceptual quantiser transfer function | HDR views at more than one peak luminance, selected by `aces_view.peak_luminance` below, and rendered for a declared limiting gamut | An untone-mapped colorimetric view and a raw data pass-through view |
+| `rec2100_hlg_display` | ITU-R BT.2100 with the hybrid log-gamma transfer function | An HDR view at the peak luminance the target declares | An untone-mapped colorimetric view and a raw data pass-through view |
+
+*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*
+
+| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |
+|---|---|---|---|---|---|---|---|
+| `aces_view.peak_luminance` | UNKNOWN | UNKNOWN | 100 | 4000 | 100 | nits | 0 |
+| `aces_view.limiting_primaries_index` | 0 | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | index | 0 |
+
+The soft bounds on `aces_view.peak_luminance` are OBSERVED under [STU-COL-108], not declared: the
+published reference configuration examined for this module presents one SDR view at 100 and HDR views
+at 500, 1000, 2000 and 4000. No source declares a hard bound on either side, so both are `UNKNOWN`
+and are NOT mirrored from the soft bounds. This parameter is distinct from the document-level
+`hdr_peak_luminance` of [STU-COL-122]: that one describes the DOCUMENT's dynamic range, this one
+selects which VIEW is presented, and a document may be graded at one and viewed at another.
+
+**[STU-COL-314] Configuration provenance on the document.** A grade is only reproducible if the
+document says what it was graded through. A document working scene-linear MUST therefore carry a
+configuration provenance record, and it MUST be carried even when the configuration was resolved by
+a named identifier rather than from a file, because an identifier that resolves differently on
+another host is exactly the failure this record exists to catch.
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Field | Meaning |
+|---|---|
+| `config_identifier` | The configuration's published identifier string, which by field convention carries the configuration version, the ACES version and the configuration-syntax version in one token, of the shape `<variant>-config-v<config>_aces-v<aces>_ocio-v<syntax>`. Stored verbatim as read; Studio does not reformat it. |
+| `config_name` | The configuration's own declared name key, which may differ from the file name it arrived in. |
+| `config_syntax_version` | The configuration's declared profile-syntax version, which is what decides whether the two-stage display model of [STU-COL-313] is available at all. |
+| `aces_version` | The ACES release the configuration declares. `UNKNOWN` where the configuration declares none; Studio MUST NOT infer one from the identifier string, and MUST NOT substitute the version it happens to know. |
+| `config_content_hash` | Content hash of the serialised configuration bytes, which is the identity [STU-COL-150] already requires. |
+| `config_closure_id` | A hash covering the serialised configuration AND every external LUT file it references. A configuration whose text is unchanged but whose referenced LUT file changed is a DIFFERENT transform graph, and `config_content_hash` alone cannot see that. |
+| `resolution_mode` | `operator_supplied_file`, `named_identifier`, or `absent`. |
+| `display_view_selection` | The (display, view) pair in force, which is the `ocio_display` selection [STU-COL-154] already defines. |
+
+**[STU-COL-315] Configuration absence, mismatch and re-resolution.** Three cases, each with a
+required behaviour and none of them a silent one. Where a document names a configuration that does
+not resolve on this host, Studio MUST open the document, MUST mark it configuration-absent, MUST
+report the recorded `config_identifier` so the operator knows what to supply, and MUST NOT
+substitute another configuration - a grade re-rendered through a different transform graph is a
+wrong image that looks like a working one. Where a configuration resolves but its
+`config_closure_id` differs from the recorded one, Studio MUST report the mismatch, name which side
+differs, and require an explicit operator or model decision to proceed. Where a configuration
+resolves and satisfies [STU-COL-312] and [STU-COL-313] but the recorded `aces_version` is `UNKNOWN`
+on either side, the document opens and the unknown is reported as unknown; an unrecorded version is
+a missing fact, not a mismatch, and MUST NOT be reported as one.
+
+**[STU-COL-316] Interchange anchors.** A configuration is a closed world unless it declares what
+its spaces mean in terms something outside it can read. Studio MUST require, of any configuration
+satisfying the scene-linear default, a scene-referred interchange anchor bound to `ACES2065-1` and
+a display-referred interchange anchor bound to a display-referred CIE XYZ D65 space, and MUST use
+those two anchors when transferring a value between two configurations or between the OCIO path and
+the ICC path of [STU-COL-157]. A configuration missing either anchor is reported as non-satisfying
+under [STU-COL-315]. This is also what lets a colour picked in a colour-managed ICC document and a
+colour graded in a scene-linear document be compared at all, which the accuracy metric
+of [STU-COL-320] depends on.
+
+**[STU-COL-317] What this module does NOT fix about the ACES release.** Stated so an implementer
+does not read a version number into a contract that does not carry one. This module fixes the ROLE
+BINDINGS, the DISPLAY TARGETS and the PROVENANCE RECORD. It does NOT fix an ACES release number, and
+`aces_version` is recorded from what the configuration declares rather than asserted by Studio, for a
+reason recorded in [STU-COL-340]: at the time this module was written the current release was
+documented by the publishing project's own changelog and announcement but was not marked by a
+corresponding repository release tag, so the release identifier is a fact to be READ from a
+configuration and never a constant to be COMPILED IN. A build that hardcodes a version string here
+will be wrong within one release cycle and will be wrong silently.
+
+---
+
+### 14.8.22 Colour Accuracy Metric and Reference Patch Sets
+
+**[STU-COL-320] The colour-accuracy metric (CLOSING A NAMED GAP).** This module requires colour to be
+CORRECT in more than thirty places and, until this clause, stated no number anywhere: no colour
+difference formula, no perceptual colour space in which to compute one, and no tolerance. An
+obligation with no number cannot be gated by a validator, cannot fail a regression, and cannot be
+argued about with evidence, which means "the colour is wrong" was an opinion. Studio therefore fixes
+ONE metric. The colour difference between two colours is CIEDE2000, computed on CIELAB values, and
+reported as `delta_e_2000`. CIELAB is the colour space of ISO/CIE 11664-4; CIEDE2000 is the formula
+of ISO/CIE 11664-6, which originates in CIE technical report 142-2001. The simple Euclidean CIELAB
+difference of 1976 MUST NOT be used as the acceptance metric, because it over-weights chroma
+differences and a pipeline tuned to pass it is tuned to the wrong thing; Studio MAY report it
+alongside as `delta_e_76` for comparison with legacy figures, clearly labelled, and MUST NOT gate on
+it. Every reported difference carries its reference white and observer, which are never implicit:
+a measurement on an ICC path uses the D50 profile-connection-space white with the 2-degree observer,
+whose tristimulus values are X 0.9642, Y 1.0000, Z 0.8249, and a measurement on a display or video
+path uses D65 with the 2-degree observer. Comparing a number computed under one white point with a
+number computed under the other is a category error, so the white point is part of the value.
+
+**[STU-COL-321] Metric parametric factors.** CIEDE2000 carries three parametric weighting factors.
+Their standard reference-condition values are all 1, and a value other than 1 is an application
+convention, not a different formula. Studio stores all three explicitly so a reported difference can
+never be reproduced incorrectly by an implementation that assumed a convention.
+
+*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*
+
+| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |
+|---|---|---|---|---|---|---|---|
+| `delta_e.k_l` | UNKNOWN | UNKNOWN | 1 | 2 | 1 | dimensionless | 2 |
+| `delta_e.k_c` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 1 | dimensionless | 2 |
+| `delta_e.k_h` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 1 | dimensionless | 2 |
+
+The defaults are the standard's reference conditions and are DECLARED, not chosen. The soft range on
+`delta_e.k_l` is OBSERVED under [STU-COL-108]: the only other value in general use is 2, which is a
+textile-industry convention and not part of the standard's default. No source declares a hard bound
+on any of the three, so all six hard fields are `UNKNOWN` and are NOT mirrored from the soft fields.
+
+**[STU-COL-322] Metric implementation conformance.** A CIEDE2000 implementation that is subtly wrong
+produces plausible numbers, so the metric itself MUST be proven before anything is gated on it.
+Studio's implementation MUST reproduce the published supplementary test data for the formula: 34
+CIELAB colour pairs with their computed reference differences, published by Sharma, Wu and Dalal in
+2005 precisely because the standard's own worked examples were too sparse to expose the branch bugs
+below. Reproducing all 34 is an acceptance obligation, not a suggestion.
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Implementation trap | What goes wrong, and the required handling |
+|---|---|
+| Hue-difference quadrant | The hue difference branches on whether the absolute difference exceeds 180 degrees, subtracting or adding 360 depending on which hue is larger. Getting the branch wrong is invisible on most pairs and badly wrong on a few. The mean hue has its OWN, different branch and MUST NOT reuse the first one. |
+| Undefined hue at the achromatic point | With both the chroma-corrected `a` and `b` at zero the two-argument arctangent is undefined in most languages. The hue MUST be set to zero by convention rather than left to whatever the platform returns. |
+| The chroma correction factor | The `a` axis is scaled by a chroma-dependent factor computed from the MEAN chroma of the PAIR before hue and chroma are taken. An implementation that computes hue from the uncorrected `a` is a different formula. |
+| The blue-region rotation term | A rotation term centred near hue 275 degrees couples the chroma and hue terms. Omitting it leaves the formula numerically close on most pairs and wrong exactly where the formula was designed to be right. |
+
+**[STU-COL-323] Per-path accuracy tolerances.** A tolerance is only meaningful per PATH, because the
+four paths have different irreducible error. A conversion inside the engine is arithmetic and should
+be near-exact; a soft proof simulates a device that does not exist on the screen it is shown on, and
+cannot be. Studio therefore declares a tolerance per path, as a mean and a maximum over the reference
+patch set of [STU-COL-324], and a validator gates on both.
+
+*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*
+
+| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |
+|---|---|---|---|---|---|---|---|
+| `accuracy.document_conversion.mean_delta_e` | 0 | UNKNOWN | 0 | 2.5 | 0.5 | dimensionless | 2 |
+| `accuracy.document_conversion.max_delta_e` | 0 | UNKNOWN | 0 | 5.0 | 1.0 | dimensionless | 2 |
+| `accuracy.display_transform.mean_delta_e` | 0 | UNKNOWN | 0 | 3.0 | 1.0 | dimensionless | 2 |
+| `accuracy.display_transform.max_delta_e` | 0 | UNKNOWN | 0 | 5.0 | 2.0 | dimensionless | 2 |
+| `accuracy.soft_proof.mean_delta_e` | 0 | UNKNOWN | 0 | 5.0 | 2.5 | dimensionless | 2 |
+| `accuracy.soft_proof.max_delta_e` | 0 | UNKNOWN | 0 | 10.0 | 5.0 | dimensionless | 2 |
+| `accuracy.export_conversion.mean_delta_e` | 0 | UNKNOWN | 0 | 5.0 | 2.5 | dimensionless | 2 |
+| `accuracy.export_conversion.max_delta_e` | 0 | UNKNOWN | 0 | 10.0 | 5.0 | dimensionless | 2 |
+
+Which of these are MEASURED and which are JUDGEMENTS is stated here rather than left for a reader
+to guess, because a validator gating on a judgement the reader believed was a standard is worse
+than no gate. The soft-proof and export defaults, mean 2.5 and maximum 5.0, are taken from the
+certified proofing standard ISO 12647-7, whose 2016 edition states its tolerances in CIEDE2000
+rather than in the 1976 difference its earlier editions used; that same edition states 3.0 for
+substrate and for process-colour solids and 2.5 for spot inks, and specifies viewing under ISO
+3664. Those figures were read for this module from a full-text mirror rather than from an official
+issue of the standard, and [STU-COL-340] carries that as an open item: the microtask derived from
+this clause MUST confirm each cited cell against an official issue before the gate is enforced, and
+MUST record the confirmed values. `hard_min` 0 is declared by the formula, since a colour
+difference cannot be negative. No source surveyed declares a hard upper bound on a tolerance, so
+`hard_max` is `UNKNOWN` throughout and is NOT mirrored from `soft_max`. The document-conversion and
+display-transform defaults are Studio NORMATIVE CHOICES under [STU-COL-107] and are labelled as
+such: no standard surveyed states a numeric colour-difference gate for an in-engine conversion, and
+none states one for display-calibration verification either. Figures that circulate for
+professional display work - a mean under about 2 and a maximum under about 3 to 4 - are
+practitioner practice, not a standard, and this module does not cite them as one. The
+displayed-calibration standard ISO 12646 does state a display uniformity tolerance, but it states
+it as a chromaticity radius rather than as a colour difference, and translating it gives a figure
+that varies by more than a factor of five across the lightness range, so it is not usable as a
+single gate. An operator or a house standard MAY tighten any row; the defaults exist so that a
+regression is VISIBLE, which is the property the module lacked entirely.
+
+**[STU-COL-324] The reference patch corpus.** A tolerance needs something to measure. Studio ships a
+reference corpus of known patches with expected values, and the corpus is layered: synthetic sets
+prove the arithmetic with no measurement uncertainty at all, and measured sets prove the device paths.
+A corpus row is a separately buildable thing, so each is its own unit of work.
+
+*Derivation: catalogue table, splits per row; yields 6 microtasks, one per reference patch set.*
+
+| Reference patch set | What it contains | Where the expected values come from | The caveat that makes naive use wrong |
+|---|---|---|---|
+| `patches.metric_conformance` | 34 CIELAB colour pairs with their reference CIEDE2000 differences | Published supplementary test data for the formula ([STU-COL-322]) | It proves the METRIC, not the pipeline. Passing it says nothing about any transform. |
+| `patches.synthetic_ramp` | Neutral ramps and per-channel ramps at the document precision, plus the primaries and secondaries of each supported working space | Computed analytically from the space definitions, with no measurement | Expected values MUST be computed independently of the engine under test ([STU-COL-325]), or the corpus is the engine's own output and proves nothing. |
+| `patches.synthetic_gamut_edge` | Values deliberately outside the destination gamut, at and just past the boundary, for each rendering intent | Computed from the destination profile's own gamut tag or its inverse transform | Two intents legitimately give two different answers here, so a single expected value per patch is wrong; the expected value is per intent ([STU-COL-135]). |
+| `patches.reflective_chart_24` | The 24-patch reflective reference chart in general use for camera and display checks | The chart manufacturer's published colorimetric reference file for the chart's own production era | The chart's pigment formulation changed, and the two eras differ by up to more than one unit of difference on several patches. A corpus that does not RECORD which era's reference file it used is unusable, and the era is not inferable from the chart. |
+| `patches.print_characterisation` | The print characterisation patch set of ISO 12642-2, 1617 patches, which is a superset of the 928-patch set of ISO 12642-1 | Measured from the operator's own printed and measured proof; there is no universal published expected table | The expected values are the operator's own measurement, so this set proves REPEATABILITY and conformance to a proofing tolerance, not agreement with a universal reference. |
+| `patches.scene_referred_reference_images` | The published scene-referred reference images for the transform suite of 14.8.21, as image files rather than as patches | The publishing project's own reference renders per transform | The publisher states no numeric match tolerance, so any tolerance Studio applies to these is Studio's own choice and MUST be recorded as such ([STU-COL-340]). |
+
+**[STU-COL-325] Expected values are computed independently of the engine under test.** A golden corpus
+generated by running the engine and recording what came out proves that the engine is
+self-consistent, which it already was. Every expected value in [STU-COL-324] MUST come from an
+independent source: a published reference table, an independently implemented reference computation,
+or a physical measurement. Where an expected value is produced by a second implementation rather than
+read from a publication, the corpus record MUST name that implementation and its version, so a later
+disagreement can be attributed rather than argued. This clause is the accuracy-domain instance of the
+rule already stated for determinism in [STU-COL-143]: an engine cannot be its own authority.
+
+**[STU-COL-326] Accuracy is queryable state, not a test log.** A measured difference MUST be readable
+as structured inspection state under [STU-COL-250], not only printed by a test harness, because the
+operator question "is this document's display path accurate right now" is asked at runtime and not at
+build time. Studio MUST expose, per path of [STU-COL-323] and per corpus of [STU-COL-324]: the mean
+and maximum `delta_e_2000`, the patch identifier of the worst patch, the reference white and observer
+used, the corpus identifier and its recorded era or version, and a pass or fail against the tolerance
+in force. A headless model MUST be able to read "the soft-proof path is at mean 2.9 against a
+tolerance of 2.5, worst patch `p_17`" rather than infer accuracy from a picture, which is the same
+argument [STU-COL-164] already makes for gamut coverage and [STU-COL-154] makes for the display path.
+
+---
+
+### 14.8.23 Video Scopes and Legal Range
+
+**[STU-COL-330] Scopes are a colour-analysis contract owned here (CLOSING A NAMED GAP).** Section 14
+contained no video scope of any kind: every waveform in the timeline sub-section is an AUDIO
+waveform, and there was no vectorscope, no parade, no histogram over a video signal and no
+legal-range checking anywhere. That is a hole in COLOUR, not in the timeline: a scope measures a
+colour signal, in a declared colour space, against a declared standard, and all three of those are
+this module's vocabulary. This sub-section therefore specifies the MEASUREMENT contract - what is
+measured, where in the pipeline, in what space, against which standard, and how the result is read.
+Where a scope appears as a panel, that panel is an operator surface belonging to the surrounding
+application shell and to the monitor surface of 14.25; this sub-section does not edit 14.25 and
+takes nothing from it. A scope is an OVERLAY-class computation under [STU-COL-164]: it is computed
+from the pipeline and MUST NOT alter an authority value.
+
+**[STU-COL-331] The scope catalogue.** Six scopes, each measuring a different quantity. They are
+separately implementable and each is its own unit of work.
+
+*Derivation: catalogue table, splits per row; yields 6 microtasks, one per scope.*
+
+| Scope | What it measures | Axes | Graticule and targets |
+|---|---|---|---|
+| `scope.waveform_luma` | Signal amplitude of the luma component | Horizontal picture position against amplitude | Reference black and nominal peak white at the levels of [STU-COL-333], plus the preferred and total range limits of [STU-COL-335] |
+| `scope.rgb_parade` | Signal amplitude of R, G and B, drawn as three cells side by side | Horizontal picture position against amplitude, per cell | Same levels as the luma waveform, drawn in each cell, because a channel can be out of range while luma is not |
+| `scope.ycbcr_parade` | Signal amplitude of the luma and the two colour-difference components, as three cells | Horizontal picture position against amplitude, per cell | Luma cell uses the luma levels; the colour-difference cells use the achromatic centre and the plus and minus peak levels of [STU-COL-333] |
+| `scope.vectorscope` | Chrominance as a polar plot | Hue as the angle, chroma as the radius from the centre | Boxes for the three primaries and the three secondaries, positioned where a correctly encoded colour-bar signal lands, with complementaries diametrically opposite. A flesh-tone reference direction MAY be drawn and, if drawn, its angle MUST be declared as a Studio choice, because no standards document surveyed for this module fixes one ([STU-COL-340]). |
+| `scope.histogram` | Distribution of code values per component over the whole frame, with no spatial dimension | Code value against pixel count, linear or logarithmic | Clipping markers at the extremes of the declared range |
+| `scope.chromaticity` | Distribution of pixel chromaticity on a chromaticity diagram | The two chromaticity coordinates | Gamut boundary outlines for the working space, the target display and the target delivery standard, drawn as separate outlines so the operator sees which boundary is being crossed |
+
+**[STU-COL-332] The measurement point is declared, never assumed.** The single most consequential
+scope decision is WHERE in the pipeline of [STU-COL-161] the measurement is taken, and no standard
+surveyed for this module specifies it: the colour-management library this module builds on is
+deliberately agnostic about it and leaves it to the host, and the applications that document a
+convention document it as an operator-selectable setting. A scope that does not say where it measured
+is therefore not a measurement, it is a picture. Studio MUST make the point EXPLICIT, selectable, and
+reported with every reading.
+
+*Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.*
+
+| `scope_measurement_point` | Where it taps the pipeline of [STU-COL-161] | What it answers |
+|---|---|---|
+| `working_space_pre_grade` | After stage 3, before the grade stack | What the source actually contains, independent of the grade |
+| `working_space_post_grade` | After stage 5, still in the timeline working space of [STU-COL-156] | What the grade produced. The DEFAULT, because it is the value that will be encoded on delivery. |
+| `display_referred` | After stage 6a, past the display transform or the view transform of [STU-COL-313] | What the operator's monitor is being sent, which is what a viewer sees and is NOT what gets delivered |
+| `proof_referred` | On the 6c proof branch | What the simulated output condition of [STU-COL-241] would produce |
+| `export_encoding` | After stage 6b, in the destination encoding with its declared range | Whether the DELIVERABLE is legal, which is the only measurement point a delivery specification accepts |
+
+Measuring at `display_referred` and reporting the result as a delivery check is the specific error
+this enumeration exists to prevent: the display path carries a view transform and a monitor profile
+that the deliverable does not, so a signal can look legal on that scope and be illegal in the file.
+
+**[STU-COL-333] Scales, units and reference levels.** A waveform is read in one of several scales and
+they are not interchangeable. Studio MUST expose the scale as an explicit selection and MUST label
+every reading with it.
+
+*Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.*
+
+| `scope_scale` | Meaning |
+|---|---|
+| `code_value` | The raw quantised integer at the signal's bit depth. The only scale in which a legal-range check is exact. |
+| `percent` | Nominal range mapped to 0 to 100, with sub-black and super-white expressed as negative and above-100 values rather than clipped away |
+| `ire` | The traditional analogue-referenced scale |
+| `millivolts` | The analogue voltage reference, where reference black is 0 and reference white is 700, and the colour-difference components run plus and minus 350 |
+| `nits` | Absolute display luminance in cd/m2, for the high-dynamic-range readings of [STU-COL-336] |
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Quantisation level | 8-bit | 10-bit | 12-bit |
+|---|---|---|---|
+| Reference black, luma | 16 | 64 | 256 |
+| Achromatic, colour-difference components | 128 | 512 | 2048 |
+| Nominal peak white, luma | 235 | 940 | 3760 |
+| Colour-difference peak, minus and plus | 16 and 240 | 64 and 960 | 256 and 3840 |
+| Total video-data range, both ends reserved | 1 to 254 | 4 to 1019 | 16 to 4079 |
+| Full-range coding, both components | 0 to 255 | 0 to 1023 | 0 to 4095 |
+
+These levels are the narrow-range quantisation of the ITU-R broadcast recommendations, stated
+identically in BT.709 for standard dynamic range and in BT.2100 for high dynamic range, and they are
+DECLARED values rather than Studio choices. Sub-black is the region below reference black down to the
+bottom of the video-data range, and super-white the region above nominal peak white up to its top;
+both are legal signal and MUST be displayed by a scope rather than clipped out of the trace, because
+a scope that hides them cannot show the operator the thing that is wrong.
+
+**[STU-COL-334] Legal, full and valid are three different things.** Conflating them is the usual
+cause of a delivery rejection that the operator's own scope said was fine.
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Term | Meaning | What it does NOT tell you |
+|---|---|---|
+| `full_range` | The signal uses the whole code-value space at its bit depth, with black at 0 and white at the maximum | Nothing about broadcast legality; a full-range signal delivered as narrow-range is simply wrong, not illegal |
+| `narrow_range` | The signal uses the reference black and nominal peak white of [STU-COL-333], leaving sub-black and super-white headroom | Nothing about whether the component values are individually within their limits |
+| `legal` | Every component of the signal, in its own encoding, is within the range that encoding permits | Nothing about what happens after conversion. A legal signal can still be invalid. |
+| `valid` | The signal remains within 0 to 100 percent on every component AFTER conversion to the target RGB encoding | Nothing about the source encoding, which may have been legal all along |
+
+A signal whose luma and colour-difference components are each individually within range can still
+de-matrix into red, green or blue values outside 0 to 100 percent. That is the legal-but-not-valid
+case, and it is what a gamut error means in a delivery specification. Studio MUST report the two
+conditions SEPARATELY, because the fix is different: an out-of-range component is clipped or rescaled,
+whereas an invalid combination needs a colour change.
+
+**[STU-COL-335] Range and gamut error reporting against the target standard.** A scope MUST check the
+signal against a declared TARGET, and the target is a delivery standard rather than a preference.
+Studio MUST support the widely used broadcast tolerance recommendation, whose preferred limits sit
+inside the total video-data range and are the limits a delivery check actually applies, and MUST
+report an error as an AREA FRACTION rather than as a boolean, because a single stray pixel is not a
+delivery failure and a specification that treats it as one trains the operator to ignore the warning.
+
+*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*
+
+| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |
+|---|---|---|---|---|---|---|---|
+| `legal_range.preferred_min` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | -5 | percent | 1 |
+| `legal_range.preferred_max` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 105 | percent | 1 |
+| `legal_range.error_area_threshold` | 0 | 100 | 0 | 100 | 1 | percent | 2 |
+
+The preferred limits are DECLARED by the broadcast tolerance recommendation, whose current version
+tabulates them as code values per bit depth - 5 to 246 at 8 bits, 20 to 984 at 10 bits, 80 to 3936 at
+12 bits and 1280 to 62976 at 16 bits - which are the minus 5 and plus 105 percent of nominal recorded
+above. The same recommendation states that measuring equipment should indicate an out-of-gamut
+occurrence only after the error exceeds 1 percent of the image, which is where the default area
+threshold comes from; it is a declared figure, not a Studio judgement. No source declares a hard bound
+on any of the three, except that an area fraction is bounded 0 to 100 by being a fraction, so the two
+percent-of-nominal rows carry `UNKNOWN` on all four bound fields and those are NOT mirrored from the
+defaults. That recommendation additionally specifies a filter to apply BEFORE gamut measurement - a
+seven-tap horizontal quarter-band filter with coefficients 1, 2, 3, 4, 3, 2, 1 over sixteen, and a
+three-tap vertical half-band filter with coefficients 1, 2, 1 over four - so that transient overshoot
+and noise do not register as gamut errors. Studio MUST apply that filtering when measuring gamut error
+and MUST NOT apply it to the displayed trace, which is a different question. Finally, an automatic
+range legaliser is available but MUST NOT be applied silently: the same recommendation warns that a
+legaliser can create artefacts more disturbing than the errors it corrects, so legalising is an
+explicit operator or model action with a recorded history entry, never a repair Studio performs on
+its own.
+
+**[STU-COL-336] High-dynamic-range readings.** In high dynamic range a percentage scale is close to
+meaningless to a colourist, who works in absolute luminance. Studio MUST offer the `nits` scale
+of [STU-COL-333] for a high-dynamic-range signal, MUST draw the reference levels below on it, and MUST
+report the two content light-level figures that a delivery specification asks for.
+
+*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*
+
+| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |
+|---|---|---|---|---|---|---|---|
+| `scope.hdr_reference_white` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 203 | nits | 0 |
+| `scope.hdr_grey_card_level` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | 26 | nits | 0 |
+
+Both defaults are DECLARED, not chosen. The high-dynamic-range reference white - the nominal luminance
+obtained from a 100 percent reflectance white card - is stated as 203 cd/m2 in the ITU-R
+high-dynamic-range image-parameter recommendation and again in its companion operational report, which
+also gives the 18 percent grey card at 26 cd/m2 and a 90 percent greyscale step at 179 cd/m2. Neither
+source states a bound on either value, so all eight bound fields are `UNKNOWN`. The two transfer
+functions of that recommendation, perceptual quantisation and hybrid log-gamma, place the same
+reference white at different signal levels, so a nits scale MUST be derived through the transfer
+function actually in force and never through a fixed table. Maximum content light level is the
+luminance of the brightest single colour component over every pixel of every frame, and maximum
+frame-average light level is the highest per-frame average of the brightest component per pixel; both
+are computed over the whole delivered sequence, both are reported as `nits`, and both MUST be
+recomputed rather than carried forward when the grade changes. The consumer-electronics standard that
+defines those two figures was not read directly for this module and [STU-COL-340] records that;
+the DEFINITIONS above are corroborated across multiple implementation sources and are what Studio
+implements.
+
+**[STU-COL-337] A scope reading is structured state.** Every scope MUST publish its reading as
+queryable inspection state under [STU-COL-250], not only as a rendered trace, for the same
+reason [STU-COL-164] gives for gamut coverage: a headless model cannot read a graph. At minimum, per
+component and per frame: minimum, low, average, high and maximum levels; the saturation and hue
+statistics a vectorscope reading implies; the out-of-range area fraction and the out-of-gamut area
+fraction as SEPARATE numbers per [STU-COL-334]; the `scope_measurement_point` and the `scope_scale`
+in force; the declared target standard; and, for high dynamic range, the two content light-level
+figures of [STU-COL-336]. A model MUST be able to read "0.4 percent of the frame is out of gamut at
+the export encoding, below the 1 percent threshold" as values.
+
+---
+
+### 14.8.24 Declared Open Items for 14.8.20 Through 14.8.23
+
+**[STU-COL-340] Open items of record (NON-YIELDING).** Each item below is a question this module
+could not close from a source it could read, and each is already stated inline in the clause it
+affects, with a contract written so the unknown does not become an invented value. This clause is an
+INDEX of those statements and yields no microtask of its own; the work of closing each one belongs to
+the microtask of the clause that carries it, which is why no item here is orphaned. Listing them
+together exists so a reviewer can audit the additions of 14.8.20 through 14.8.23 for invented facts in
+one pass instead of reading four sub-sections.
+
+*Derivation: reading aid inside a non-yielding clause; yields no microtask. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.*
+
+| Open item | Clause that carries it | How the clause is written so the unknown is safe |
+|---|---|---|
+| The compositor colour-management protocol was published in the staging area of its protocol collection rather than the stable area, and was revised more than once while there | [STU-COL-301] | The acquisition path is a runtime probe with a declared fallback, not a fixed interface version |
+| Docking and multi-stream topologies are reported in the field to change monitor enumeration and cache descriptors, but no primary specification for that behaviour was found | [STU-COL-302] | The host enumeration key is declared volatile by contract, so the behaviour cannot matter to identity |
+| The current release identifier of the scene-linear transform suite is documented by its publisher's changelog and announcement but was not marked by a corresponding repository release tag | [STU-COL-317] | The version is READ from the configuration into `aces_version` and is `UNKNOWN` when the configuration declares none; nothing is compiled in |
+| The certified-proofing tolerance cells were read from a full-text mirror rather than an official issue of the standard | [STU-COL-323] | The microtask of that clause MUST confirm each cited cell against an official issue before the gate is enforced, and record the confirmed values |
+| No standard states a numeric colour-difference gate for an in-engine conversion or for display-calibration verification | [STU-COL-323] | Those two defaults are labelled Studio normative choices under [STU-COL-107], not measurements, in the clause itself |
+| The publisher of the scene-referred reference images states no numeric match tolerance | [STU-COL-324] | Any tolerance applied to that corpus is recorded as a Studio choice rather than presented as the publisher's |
+| No standards document surveyed fixes an angle for the flesh-tone reference direction on a vectorscope graticule | [STU-COL-331] | The line is optional, and if drawn its angle is declared as a Studio choice |
+| The consumer-electronics standard defining the two content light-level figures was not read directly | [STU-COL-336] | The definitions are stated from corroborating implementation sources and the standard is not cited as if it had been read |
+| Whether any candidate colour-management implementation can be forced onto a single scalar evaluation path by configuration alone | [STU-COL-351] | The obligation is stated on the PATH, not on a library: an implementation that cannot be forced scalar is one Studio implements for that path, which is a stated outcome rather than a blocker |
+| Whether hardware three-dimensional texture sampling can be made to agree bit-for-bit with a software tetrahedral evaluation | [STU-COL-353] | It is assumed it cannot. The clause requires the rule to be declared per path and the discrepancy to be reported, rather than requiring an agreement no source claims |
+
+---
+
+### 14.8.25 Transform Materialisation and Application
+
+**[STU-COL-350] Materialisation and application are two paths with two different determinism
+obligations (CLOSING A DEFECT IN [STU-COL-143]).** [STU-COL-143] as originally written required "the
+materialised transform" to be bit-identical on every host, and a reader could take that to govern the
+whole engine including per-pixel evaluation. Under that reading the clause is unsatisfiable: every
+colour-evaluation implementation in the field dispatches at runtime on the vector instruction sets it
+finds - the several x86 generations, and the equivalents on other architectures - and none of them
+states a bit-exactness guarantee across those paths. A requirement no implementation can meet is not
+a strict requirement, it is a dead one, because it gets quietly waived the first time it fails.
+Studio therefore splits the engine on the line [STU-COL-142] already draws, and each half carries the
+obligation it can actually satisfy.
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Path | What it does | Its determinism obligation | Who owns it |
+|---|---|---|---|
+| Materialisation | Turns profile bytes plus the key of [STU-COL-142] into the matrix-and-curve chain or the baked LUT, once per cache key | BIT-IDENTICAL across hosts, architectures and instruction-set availability ([STU-COL-351]). This is the artefact that gets cached, compared, promoted and shipped, so it is the thing that has to be identical. | `ColorEngine` |
+| Application | Pushes pixels through an already-materialised artefact | CPU-and-GPU EQUIVALENCE within the declared tolerance of [STU-COL-352]. Weaker than bit-identity, and deliberately so, because it is what a vector or GPU path can meet. | `RenderEngine`, per [STU-COL-163] |
+
+The split costs nothing in speed. Materialisation runs once per cache key and its result is reused
+for every pixel, so the argument for vectorising it is negligible while the argument against it is
+the whole determinism contract. This split is required whatever colour-management implementation is
+eventually selected, which is why it belongs in the specification rather than in an implementation
+note: it is a property of the architecture, not of a library.
+
+**[STU-COL-351] The materialisation path is scalar and reproducible.** The materialisation path
+MUST evaluate on a single scalar code path with runtime vector dispatch DISABLED, at a fixed
+evaluation order, a fixed rounding mode and a fixed internal precision satisfying [STU-COL-144].
+The same key materialised on two different architectures, and on one architecture with and without
+a wider instruction set available, MUST produce byte-identical artefacts, and that comparison is an
+acceptance obligation rather than an assumption. Where a chosen implementation cannot be forced
+onto a single scalar path by its own configuration, Studio implements THAT PATH itself
+under [STU-COL-141]; that is a stated outcome of this clause, not a failure of it, and it is the reason
+this clause names an obligation and not a library. Studio MUST record, per materialised artefact,
+the engine identity and version that produced it, so an artefact that stops reproducing can be
+attributed to a change rather than argued about.
+
+**[STU-COL-352] The application path is held to a numeric tolerance.** The application path MAY use
+vector instructions on the CPU and MUST use the GPU where [STU-COL-163] puts it. It is held to
+agreement, not to identity, and the agreement is expressed in the SAME metric as everything else in
+this module so that one number means one thing: the colour difference of [STU-COL-320], measured over
+the reference corpus of [STU-COL-324]. Any two application paths applying the SAME materialised
+artefact - CPU scalar, CPU vector, and GPU - MUST agree within the tolerance below, and a path that
+does not is a defect in that path rather than a licence to loosen the tolerance.
+
+*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*
+
+| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |
+|---|---|---|---|---|---|---|---|
+| `apply.path_agreement.mean_delta_e` | 0 | UNKNOWN | 0 | 1.0 | 0.1 | dimensionless | 3 |
+| `apply.path_agreement.max_delta_e` | 0 | UNKNOWN | 0 | 2.0 | 0.5 | dimensionless | 3 |
+
+Both defaults are Studio NORMATIVE CHOICES under [STU-COL-107] and are labelled as such: no source
+surveyed states a numeric agreement tolerance between a vector and a scalar evaluation of the same
+transform, nor between a software and a hardware one. They are set an order of magnitude below the
+document-conversion tolerance of [STU-COL-323] because this is not a perceptual question at all - two
+paths applying the identical artefact should differ only by accumulated rounding, so a difference
+approaching a perceptible one is evidence that the paths are not applying the same transform.
+`hard_min` 0 is declared by the metric. No hard upper bound is declared by any source, so `hard_max`
+is `UNKNOWN` and is NOT mirrored from `soft_max`.
+
+**[STU-COL-353] The interpolation rule is part of the transform's identity.** This clause closes a
+second defect in [STU-COL-142]. The two interpolation rules in general use for a 3D colour lookup,
+enumerated by [STU-COL-158] as `trilinear` and `tetrahedral`, are NOT equivalent: tetrahedral is
+more accurate at the same grid size, and the two give different results on the same grid and the
+same data. The gap this clause closes is that [STU-COL-142] originally declared grid size and
+domain but said nothing about the rule, so two materialisations differing only in it could collide
+in one cache entry and a viewport could disagree with a proof render while both correctly claimed
+to be applying "the same transform". The concrete mechanism is well documented in the field:
+hardware three-dimensional texture sampling provides trilinear only, so a tetrahedral rule on the
+GPU has to be written explicitly rather than sampled, and at least one widely used
+colour-management implementation records its own GPU path falling back to the linear rule where its
+CPU path uses the tetrahedral one, and records that the two are not always equivalent.
+
+*Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.*
+
+| Obligation | Requirement |
+|---|---|
+| Declared field | `interpolation` is a REQUIRED field of every materialised transform carrying a lookup table, taking its values from the enumeration of [STU-COL-158]. It has no default and MUST NOT be inferred from the sampler. |
+| Cache key | `interpolation` is part of the cache key of [STU-COL-142]. Two artefacts differing only in it are different artefacts. |
+| Path binding | Every application path of [STU-COL-352] MUST apply the rule the artefact declares. A path that cannot MUST NOT silently apply a different one. |
+| Declared discrepancy | Where a path genuinely cannot apply the declared rule, the artefact is marked with the rule that path actually applied, that fact is reported as inspection state under [STU-COL-250], and the resulting difference is measured against [STU-COL-352] rather than assumed small. Hiding the substitution is the defect; substituting and declaring it is a stated, bounded condition. |
+| Proof and viewport | A proof render under [STU-COL-240] and the viewport MUST resolve to the same declared rule, or the proof MUST report that it did not. A soft proof that silently differs from the viewport is worse than no soft proof, because it is trusted. |
+
+**[STU-COL-354] Where a baked lookup table stops being an acceptable materialisation.** A baked table
+is an approximation and there are five cases where the approximation is not merely coarse but WRONG,
+and no grid size fixes any of them. Each is a separate engine behaviour with its own resolution.
+
+*Derivation: catalogue table, splits per row; yields 5 microtasks, one per non-bakeable case.*
+
+| Non-bakeable case | Why a baked three-dimensional table cannot serve it | Required resolution |
+|---|---|---|
+| `bake.four_or_more_input_channels` | A CMYK or N-channel SOURCE needs a four-dimensional or higher lookup; a hardware three-dimensional texture is three-dimensional | Evaluate the source-side transform on the CPU, or split the chain and put only the connection-space-to-display half on the GPU. A CMYK soft-proof viewport is the concrete case and MUST NOT be served from a three-dimensional table. |
+| `bake.gamut_clip_reporting` | [STU-COL-138] requires clipping to be reportable per pixel or per object, and the clipping happens inside the bake, so the signal is gone before a pixel is sampled | Bake a companion channel or companion table carrying the clip flag, or evaluate the report on the CPU. Not solvable by raising the grid size. |
+| `bake.named_and_spot_values` | A spot resolved through a named-colour profile ([STU-COL-185]) is an exact table lookup, not a point in a continuous space, and interpolating it produces a different colour | Named and spot values bypass the lookup table entirely and resolve against their own table. |
+| `bake.out_of_domain_float` | In a 32-bit float scene-linear pipeline, values below 0 and above 1 are ordinary and lie outside the declared domain; sampling there is extrapolation and clamping there destroys highlight and negative-lobe data | The behaviour outside the declared domain is part of the engine contract and MUST be declared explicitly, never left to a sampler's clamp mode. This is what the required domain of [STU-COL-158] and [STU-COL-142] is for. |
+| `bake.hard_compression_near_black_or_white` | Absolute-colorimetric paper-white simulation and strong black point compensation both compress a narrow input region hard, which is exactly where a uniform grid has least resolution | A shaper table is mandatory here, and the grid takes the upper size of [STU-COL-355] rather than the default. |
+
+**[STU-COL-355] Grid size, shaper and storage precision for a baked materialisation.** The shaper
+requirement of [STU-COL-142] is MANDATORY, not an optimisation, for any input that is not
+perceptually uniform - every log encoding, every scene-linear encoding and every high-dynamic-range
+encoding - because a uniform grid over a non-uniform input spends its resolution where the eye cannot
+see it and starves the region where it can. Storage precision of a baked table MUST be at least the
+document precision required by [STU-COL-144]: an 8-bit or 10-bit normalised-integer table is not an
+acceptable materialisation for a 16-bit or float document, half-float is the floor for
+high-dynamic-range and scene-linear work, and a pipeline that is float throughout stores float.
+Where a chosen implementation defaults to a fixed-point evaluation path, that default MUST be
+explicitly overridden and the override proven for float documents rather than assumed.
+
+*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*
+
+| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision |
+|---|---|---|---|---|---|---|---|
+| `materialised_transform.grid_size` | 2 | UNKNOWN | 33 | 65 | 33 | count | 0 |
+| `materialised_transform.preview_grid_size` | 2 | UNKNOWN | 17 | 33 | 17 | count | 0 |
+
+`hard_min` 2 follows from the format, exactly as it does for `lut.grid_size` in [STU-COL-158], and no
+source declares a hard upper bound, so `hard_max` is `UNKNOWN` on both rows and is NOT mirrored from
+`soft_max`. The soft ranges are OBSERVED under [STU-COL-108]: lookup-table interchange in the field
+settled on 17, 33 and 65 points per side, 33 is the practical floor for a display transform, 65 is
+what a strongly non-linear transform needs, and 17 is a preview grid rather than an output grid. The
+defaults are Studio choices within that observed set and are labelled as such. Memory is not a reason
+to choose a coarser grid: a 65-per-side three-channel float table is a few megabytes, which is
+negligible against the error a coarse grid introduces.
 

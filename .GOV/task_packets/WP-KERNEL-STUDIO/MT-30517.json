@@ -4,7 +4,7 @@
  "contract_authority": "PRIMARY_MACHINE_READABLE",
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-30517",
- "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "created_at_utc": "2026-09-04T20:07:52+00:00",
  "generated_by": "handshake.greenroom.spec_derive.v1",
  "derivation": {
   "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",

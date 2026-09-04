@@ -12,7 +12,7 @@
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-387",
  "created_at_utc": "2026-07-09T00:00:00Z",
- "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "updated_at_utc": "2026-09-04T20:08:28+00:00",
  "authority_files": {
   "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-387.json",
   "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-387.md",
@@ -212,7 +212,7 @@
  },
  "patch_provenance": {
   "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
-  "patched_at": "2026-09-04T13:36:26+00:00",
+  "patched_at": "2026-09-04T20:08:28+00:00",
   "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
   "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
  }

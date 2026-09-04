@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35509",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-COL-334#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.8.23 Video Scopes and Legal Range",
+  "spec_line": 12031,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Legal, full and valid are three different things",
+ "spec_anchor": [
+  "STU-COL-334"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "colour",
+ "scope": {
+  "summary": "Legal, full and valid are three different things.** Conflating them is the usual cause of a delivery rejection that the operator's own scope said was fine. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Term | Meaning | What it does NOT tell you | |---|---|---| | `full_range` | The signal uses the whole code-value space at its bit depth, with black at 0 and white at the maximum | Nothing about broadcast legality; a full-range signal delivered as narrow-range is simply wrong, not illegal | | `narrow_range` | The signal uses the reference black and nominal peak white of [STU-COL-333], leaving sub-black and super-white headroom | Nothing about whether the component values are individually within their limits | | `legal` | Every component of the signal, in its own encoding, is within the range that encoding permits | Nothing about what happens after conversion. A legal signal can still be invalid. | | `valid` | The signal remains within 0 to 100 percent on every component AFTER conversion to the target RGB encoding | Nothing about the source encoding, which may have been legal all along | A signal whose luma and colour-difference components are each individually within range can still de-matrix into red, green or blue values outside 0 to 100 percent. That is the legal-but-not-valid case, and it is what [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Studio MUST report the two conditions SEPARATELY, because the fix is different: an out-of-range component is clipped or rescaled, whereas an invalid combination needs a colour change.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-334"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

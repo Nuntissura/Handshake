@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-002",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-09-02T20:42:11.264Z",
+  "updated_at_utc": "2026-09-04T15:13:57.731Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-002.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-001"
     ],
@@ -26,17 +26,17 @@
       "MT-007",
       "MT-008"
     ],
-    "active": true,
+    "active": false,
     "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260902-180244",
     "claimed_at_utc": "2026-09-02T20:42:11.264Z",
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "ready_for_validation_by": "KERNEL_BUILDER-20260902-180244",
+    "ready_for_validation_at_utc": "2026-09-04T15:17:02.214Z",
     "ready_for_validation_reason": null,
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet.",
+    "proof_status": "V6_GREEN_2026_09_04: cargo test --locked -j 2 --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests -- --test-threads=3 => ok. 10 passed; 0 failed (2836.00s) on unchanged tree at commit bd940163. Embedded SurrealDB only; no PostgreSQL/SQLite in production, fixtures or proof. Implementation evidence only; no validator verdict claimed.",
     "hbr_status": "VALIDATION_PENDING_V6: five-field durable ResourceScope, mismatch non-disclosure, legacy fail-closed behavior, schema uniqueness/idempotency, and lifecycle assertions remain unproven on the corrected embedded-store target.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
@@ -87,10 +87,7 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact"
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests -- --nocapture --test-threads=3"
     ],
     "risk_if_missed": "Later routing can only pass opaque prompt text and cannot recover lane state.",
     "reference_only_paths": [
@@ -148,6 +145,9 @@
       "postgres_eventledger_crdt_state_recovery",
       "rust_native_argus_operator_surface_and_usermanual",
       "spec_realism_negative_guards_and_mt_status_signaling"
+    ],
+    "proof_commands": [
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests -- --nocapture --test-threads=3"
     ]
   },
   "red_team": {
@@ -405,7 +405,57 @@
         "prior_blocker": "MT-002 V6 embedded-store test migration is blocked at Parfit's in-progress ModelLane provider boundary: ModelLaneStore owns SurrealStorage but required schema, terminal-status, diagnostics, navigation, recovery, and schema-registry methods still reference the removed self.pool/new_with_access path. The public embedded-store test surface also lacks a ModelLane-specific read-only row projection and malformed-scope fixture seam needed to preserve durable five-field and legacy-attribution assertions without a compatibility fallback.",
         "prior_missing_resource": "A compiling embedded ModelLane provider for every MT-002 exercised method, plus a feature-gated ModelLane test API that can project model_lane_authority/model_lane_event_ledger scope fields and seed one deliberately incomplete-attribution row in the same namespace/database.",
         "prior_proof_status": "VALIDATION_PENDING_V6_BLOCKED_ON_PROVIDER: no MT-002 test migration or Cargo validation was claimed. Fresh focused embedded-store target checks remain owed after the provider boundary exists; the parent retains the serialized Cargo slot."
+      },
+      {
+        "at_utc": "2026-09-04T15:09:51.028Z",
+        "kind": "PROOF",
+        "note": null,
+        "prior_status": "CLAIMED",
+        "prior_claimed_by": "KERNEL_BUILDER-20260902-180244",
+        "prior_blocker": null,
+        "prior_missing_resource": null,
+        "prior_proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet."
       }
-    ]
-  }
+    ],
+    "proof": {
+      "commands": [
+        "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests -- --nocapture --test-threads=3"
+      ],
+      "evidence": {
+        "result": "ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2836.00s",
+        "commit": "bd940163",
+        "cargo_target_dir": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-cargo-target/wp1-mmo-v6-kb0902",
+        "log": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp1-mmo-v6/wp1-mmo-v6-kb0902/2026-09-04T14-09-53-325Z-mt002-green.log",
+        "surreal_test_store_root": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp1-mmo-v6/wp1-mmo-v6-kb0902/surreal-stores"
+      },
+      "recorded_at_utc": "2026-09-04T15:09:51.028Z"
+    }
+  },
+  "v6_proof_target_supersession_2026_09_04": {
+    "authority": "OPERATOR_DIRECTIVE_2026_09_01_EMBEDDED_SURREALDB_ONLY plus CX-503R; recorded by KERNEL_BUILDER-20260902-180244 on 2026-09-04.",
+    "reason": "The declared proof targets named model_lane_schema_pg_tests, a PostgreSQL-era target that embedded-SurrealDB-only law forbids as production, fixture or proof. That target is now fenced behind the never-default feature legacy-postgres-superseded and cannot run. The user_manual_api_tests entry named a UserManual currency case that the Surreal replacement suite now covers directly.",
+    "superseded_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact"
+    ],
+    "replacement_targets": [
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests -- --nocapture --test-threads=3"
+    ],
+    "assertion_continuity": "The replacement suite preserves every substantive assertion of the superseded target: schema persistence and EventLedger replay for ModelLaneRun/ModelLane/ModelLaneMessage, Dexterity launch recording the real swarm spawn session runtime path, rejection of missing locus binding and idempotency conflict, exact five-field ResourceScope isolation, legacy/incomplete-attribution denial, and UserManual entry currency.",
+    "result": "ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2836.00s",
+    "proved_at_commit": "bd940163",
+    "artifact_root_correction": "Superseded contract text pointed cargo output at sibling roots such as Handshake/_Artifacts. All proof now runs through the parent cargo slot with CARGO_TARGET_DIR and HANDSHAKE_SURREAL_TEST_STORE_ROOT under ${HANDSHAKE_ARTIFACTS_ROOT}.",
+    "recorded_at_utc": "2026-09-04T15:13:57.731Z"
+  },
+  "owned_files": [
+    "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+    "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+    "src/backend/handshake_core/src/storage/surreal/schema.rs",
+    "src/backend/handshake_core/src/storage/surreal/test_inspector.rs",
+    "src/backend/handshake_core/src/storage/surreal.rs",
+    "src/backend/handshake_core/tests/model_lane_schema_surreal_tests.rs",
+    "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs"
+  ]
 }

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-019",
   "created_at_utc": "2026-07-29T03:23:21Z",
-  "updated_at_utc": "2026-09-02T20:42:14.419Z",
+  "updated_at_utc": "2026-09-04T19:41:31.755Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,21 +15,21 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-007"
     ],
     "blocks": [],
-    "active": true,
+    "active": false,
     "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260902-180244",
     "claimed_at_utc": "2026-09-02T20:42:14.419Z",
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "ready_for_validation_by": "KERNEL_BUILDER-20260902-180244",
+    "ready_for_validation_at_utc": "2026-09-04T19:42:19.042Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet.",
+    "proof_status": "V6_GREEN_2026_09_04: all five contract targets pass on commit f8e190c9 with embedded SurrealDB only. process_ledger_surreal_tests 15/0; process_reclaim_real_lifecycle_surreal_tests 22/0; restart_resume_surreal_tests 5/0; process_runtime_owner_identity_surreal_tests 4/0; restart_resume_boot_bound_surreal_tests 3/0; cargo check --all-targets exit 0. Shutdown/reopen continuity, orphan-receipt counterfactual and exact-scope ownership inspection are each proven by named tests. AC F4 remains PARTIAL: source gap closed and verified, runtime proof of the startup-recovery-only branch belongs to the shared composition owner. Implementation evidence only; no validator verdict claimed.",
     "hbr_status": "PENDING_PARENT_RUNTIME_PROOF: source and focused tests cover exact process-set ownership, one-field/missing-scope denial, same-instance and foreign-owner safety, two-sample dead-owner corroboration, set-drift rejection, bounded kill timeout, STOP-reservation rejection, crash-after-kill no-rekill recovery, concurrent one-kill/one-STOP fencing, production-runtime fail-open reporting, durable Surreal STOP closure, periodic retry, production-runtime timeout, and real-process identity fencing. Runtime verdict is intentionally unclaimed.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
@@ -88,12 +88,9 @@
       "P-6 (PROOF HONESTY, applies to every proof command in this MT): each --exact proof asserts a non-zero executed-test count or greps --nocapture output for the test name, because cargo exits 0 when an --exact filter matches nothing."
     ],
     "proof_commands": [
-      "$env:CARGO_TARGET_DIR = 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt019-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test process_ledger_surreal_tests -- --nocapture",
-      "$env:CARGO_TARGET_DIR = 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt019-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test process_reclaim_real_lifecycle_surreal_tests -- --nocapture",
-      "$env:CARGO_TARGET_DIR = 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt019-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test process_runtime_owner_identity_surreal_tests -- --nocapture",
-      "$env:CARGO_TARGET_DIR = 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt019-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test restart_resume_surreal_tests -- --nocapture",
-      "$env:CARGO_TARGET_DIR = 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt019-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test restart_resume_boot_bound_surreal_tests -- --nocapture",
-      "git diff --check -- .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json"
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_ledger_surreal_tests --test process_runtime_owner_identity_surreal_tests --test restart_resume_surreal_tests --test restart_resume_boot_bound_surreal_tests -- --nocapture --test-threads=2",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_reclaim_real_lifecycle_surreal_tests -- --nocapture --test-threads=1",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets"
     ],
     "risk_if_missed": "A live owner can be misclassified and killed, an orphan can remain open without retry, a false STOP can be recorded, or a registry consumer can widen ownership because it lacks an exact-scope canonical inspection boundary.",
     "reference_only_paths": []
@@ -132,6 +129,11 @@
       "running-app reap window safety against live children",
       "doc-vs-code honesty (fail-open claims, counter semantics)",
       "HBR-QUIET-003 process ownership and orphan reclamation"
+    ],
+    "proof_commands": [
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_ledger_surreal_tests --test process_runtime_owner_identity_surreal_tests --test restart_resume_surreal_tests --test restart_resume_boot_bound_surreal_tests -- --nocapture --test-threads=2",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_reclaim_real_lifecycle_surreal_tests -- --nocapture --test-threads=1",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets"
     ]
   },
   "red_team": {
@@ -535,7 +537,74 @@
         "prior_blocker": "V6 source and shared main composition are present, but mandatory current runtime evidence is absent. The focused Surreal targets have not run in the parent-owned serialized Cargo slot; no current proof reopens the same durable namespace/database across a real storage shutdown/restart; no dedicated counterfactual seeds a canonical kernel EventLedger receipt without its lifecycle mutation and proves identical retry fails closed; and SurrealProcessLedgerStore lacks the registry lane's required read-only exact-scope ownership inspection API.",
         "prior_missing_resource": "Parent-owned serialized -j 1 Cargo execution under D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts; focused same-namespace shutdown/reopen and orphan-receipt counterfactual coverage; and an assigned provider change exposing exact-scope process-UUID and latest-by-artifact ownership inspection, including stopped rows and canonical EventLedger verification.",
         "prior_proof_status": "SOURCE_COMPLETE_STATIC_ONLY_BLOCKED_ON_DEPENDENCY: inspected production source and renamed tests are embedded-Surreal-only, exact-scope, and composed through one cloned SurrealStorage; no Cargo/build/test/runtime proof was run in this lane."
+      },
+      {
+        "at_utc": "2026-09-04T19:40:52.603Z",
+        "kind": "PROOF",
+        "note": null,
+        "prior_status": "CLAIMED",
+        "prior_claimed_by": "KERNEL_BUILDER-20260902-180244",
+        "prior_blocker": null,
+        "prior_missing_resource": null,
+        "prior_proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet."
       }
-    ]
+    ],
+    "proof": {
+      "evidence": {
+        "commit": "f8e190c9",
+        "logs": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp1-mmo-v6/wp1-mmo-v6-kb0902/*mt019-s1g-fast4.log, *mt019-s2e-reclaim.log, *mt019-s4-check.log",
+        "totals": "49 passed; 0 failed across the five targets"
+      },
+      "recorded_at_utc": "2026-09-04T19:40:52.603Z"
+    }
+  },
+  "v6_proof_target_supersession_2026_09_04": {
+    "authority": "OPERATOR_DIRECTIVE_2026_09_01_EMBEDDED_SURREALDB_ONLY plus CX-503R and CX-984; recorded by KERNEL_BUILDER-20260902-180244 on 2026-09-04.",
+    "reason": "The declared proof commands pinned CARGO_TARGET_DIR to the sibling folder Handshake\\_Artifacts\\mt019-v6-target, which is an illegal artifact root under CX-984-001. All proof now runs through the parent cargo slot, which pins CARGO_TARGET_DIR and HANDSHAKE_SURREAL_TEST_STORE_ROOT under ${HANDSHAKE_ARTIFACTS_ROOT}. The five targets themselves are unchanged in substance; they are bundled here to cut repeated schema bootstraps.",
+    "superseded_commands": [
+      "$env:CARGO_TARGET_DIR = 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt019-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test process_ledger_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR = 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt019-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test process_reclaim_real_lifecycle_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR = 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt019-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test process_runtime_owner_identity_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR = 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt019-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test restart_resume_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR = 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt019-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test restart_resume_boot_bound_surreal_tests -- --nocapture",
+      "git diff --check -- .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json"
+    ],
+    "replacement_commands": [
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_ledger_surreal_tests --test process_runtime_owner_identity_surreal_tests --test restart_resume_surreal_tests --test restart_resume_boot_bound_surreal_tests -- --nocapture --test-threads=2",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_reclaim_real_lifecycle_surreal_tests -- --nocapture --test-threads=1",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets"
+    ],
+    "results": {
+      "process_ledger_surreal_tests": "ok. 15 passed; 0 failed (111.01s)",
+      "process_runtime_owner_identity_surreal_tests": "ok. 4 passed; 0 failed (27.55s)",
+      "restart_resume_boot_bound_surreal_tests": "ok. 3 passed; 0 failed (22.45s)",
+      "restart_resume_surreal_tests": "ok. 5 passed; 0 failed (48.67s)",
+      "process_reclaim_real_lifecycle_surreal_tests": "ok. 22 passed; 0 failed (447.72s, --test-threads=1)",
+      "cargo_check_all_targets": "exit 0, Finished in 6m 08s"
+    },
+    "proved_at_commit": "f8e190c9",
+    "artifact_root_finding": "tests/process_reclaim_real_lifecycle_surreal_tests.rs created its embedded stores in the OS temp directory on C:, an artifact-root violation as well as a performance defect: roughly 17 minutes per test there versus 447.72s for all 22 tests on the artifacts volume.",
+    "recorded_at_utc": "2026-09-04T19:40:52.507Z"
+  },
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/restart_resume.rs",
+    "src/backend/handshake_core/src/storage/surreal/process_ledger.rs",
+    "src/backend/handshake_core/tests/process_ledger_surreal_tests.rs",
+    "src/backend/handshake_core/tests/process_ledger_surreal_support/mod.rs",
+    "src/backend/handshake_core/tests/process_reclaim_real_lifecycle_surreal_tests.rs",
+    "src/backend/handshake_core/tests/process_runtime_owner_identity_surreal_tests.rs",
+    "src/backend/handshake_core/tests/restart_resume_surreal_tests.rs"
+  ],
+  "v6_out_of_lane_findings_2026_09_04": {
+    "target": "tests/user_manual_behavior_coverage_tests.rs",
+    "result": "FAILED. 17 passed; 11 failed",
+    "classification": "Independently verified by the parent: none of the 11 failures is a reclaim, process-ledger, restart or orphan assertion, so none belongs to MT-019. Every MT-019 UserManual currency assertion passed.",
+    "owners": {
+      "wp1.model_lane.cloud_projection_plan / cloud_consent / cloud_consent_denial": "MT-006 cloud projection, consent and authority boundaries: coverage rows report a missing EventLedger/FlightRecorder evidence path.",
+      "ScopeDenied(LifecycleUnknown) at :1127, :1214, :2374": "Needs the authorizing new_scoped_with_lifecycle plus register_active pattern that MT-002 established; applies to whichever MT owns these coverage rows.",
+      "src/user_manual/store.rs :101": "Writes an array into user_manual_sections.body_json, typed none | object.",
+      "worktree_microvm_model_lane_is_documented_and_toc_reachable": "MT-023 worktree microVM."
+    },
+    "recorded_at_utc": "2026-09-04T19:40:52.507Z"
   }
 }

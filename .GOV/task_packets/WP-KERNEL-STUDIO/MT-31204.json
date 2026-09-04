@@ -4,7 +4,7 @@
  "contract_authority": "PRIMARY_MACHINE_READABLE",
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-31204",
- "created_at_utc": "2026-09-04T13:36:05+00:00",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
  "generated_by": "handshake.greenroom.spec_derive.v1",
  "derivation": {
   "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
@@ -12,7 +12,7 @@
   "unit_kind": "clause",
   "spec_module": "14-studio-creative-suite.md",
   "spec_heading": "14.8.5 The Colour Engine",
-  "spec_line": 9946,
+  "spec_line": 10111,
   "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
  },
  "lifecycle": {
@@ -22,20 +22,20 @@
   "active": false,
   "validator_verdict": "PENDING"
  },
- "clause": "Transform determinism",
+ "clause": "Materialisation determinism (SCOPED to the materialisation path)",
  "spec_anchor": [
   "STU-COL-143"
  ],
  "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
  "domain": "colour",
  "scope": {
-  "summary": "Transform determinism.** For a fixed key under [STU-COL-142], the materialised transform MUST be bit-identical on every host. Interpolation, rounding mode and clamping behaviour are part of the engine contract, not implementation freedom. This is a promotion-equivalence requirement of 14.24: a colour conversion that differs by one least-significant bit across hosts fails promotion.",
+  "summary": "Materialisation determinism (SCOPED to the materialisation path).** For a fixed key under [STU-COL-142], the MATERIALISED transform MUST be bit-identical on every host. Interpolation rule, rounding mode, evaluation order and clamping behaviour are part of the engine contract, not implementation freedom. This is a promotion-equivalence requirement of 14.24: a materialised transform that differs by one least-significant bit across hosts fails promotion. This obligation attaches to the ARTEFACT that [STU-COL-142] caches and NOT to the per-pixel application of it; the two paths are separated by [STU-COL-350], and the application path is held to the numeric tolerance of [STU-COL-352] instead. Read without that separation this clause is unsatisfiable by any implementation that dispatches on the processor features it finds at runtime, which is every implementation in the field, so the separation is what makes the requirement real rather than aspirational.",
   "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
  },
  "acceptance_criteria": [
   {
    "id": "AC-001",
-   "criterion": "Transform determinism.** For a fixed key under [STU-COL-142], the materialised transform MUST be bit-identical on every host.",
+   "criterion": "Materialisation determinism (SCOPED to the materialisation path).** For a fixed key under [STU-COL-142], the MATERIALISED transform MUST be bit-identical on every host.",
    "evidence_kind": "runtime_assertion",
    "source": "14-studio-creative-suite.md STU-COL-143"
   }

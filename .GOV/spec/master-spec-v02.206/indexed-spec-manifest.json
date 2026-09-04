@@ -492,14 +492,14 @@
       "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
       "source_line_start": null,
       "source_line_end": null,
-      "line_count": 31879,
-      "byte_count": 2763787,
-      "sha256": "61a250a31f639ca5428740144f2624bd5753ce1fb1e103da7f27cd75756b6482",
-      "heading_count": 513,
+      "line_count": 32959,
+      "byte_count": 2865651,
+      "sha256": "d013a58e9ffe343969b9f85af803f1e9658455d1904cee8f0fb3506475261f0b",
+      "heading_count": 519,
       "heading_level_counts": {
         "1": 7,
         "2": 123,
-        "3": 356,
+        "3": 362,
         "4": 27
       },
       "spec_version": "v02.206",
@@ -507,11 +507,11 @@
       "metadata_schema": "handshake.indexed_spec.module@1",
       "source_baseline_version": "v02.199",
       "source_body_original_sha256": "6615c8092bf5ab965e42fef5a15fa543fb662759975b6b8287055e7144a22eb3",
-      "body_sha256": "7be3ad1fe5f810d0e2e6897999c06149b6dd3db98133bcafb943a69f266314ff",
-      "body_byte_count": 2763245,
-      "body_line_count": 31866,
-      "file_byte_count": 2763787,
-      "file_line_count": 31879
+      "body_sha256": "4e1e9f26f0d1b7fdb41f6336fab8acd8283f6c376f40aebc4c2f7d675153dd38",
+      "body_byte_count": 2865109,
+      "body_line_count": 32946,
+      "file_byte_count": 2865651,
+      "file_line_count": 32959
     }
   ],
   "reconstruction": {
@@ -533,7 +533,7 @@
       "spec-modules/13-tailor-cloth-garment-engine.md",
       "spec-modules/14-studio-creative-suite.md"
     ],
-    "reconstructed_sha256": "6883980a5da613c1a3cef2423ab07e7926f33624b5062b17ac98a525cabd58da",
+    "reconstructed_sha256": "f88bde3af9eed56dde961b2622dccfcc512422436d4487a8fe68ca9a96597045",
     "matches_source_sha256": false,
     "byte_exact_match": false,
     "coverage": {

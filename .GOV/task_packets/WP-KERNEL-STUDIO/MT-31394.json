@@ -4,7 +4,7 @@
  "contract_authority": "PRIMARY_MACHINE_READABLE",
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-31394",
- "created_at_utc": "2026-09-04T13:36:05+00:00",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
  "generated_by": "handshake.greenroom.spec_derive.v1",
  "derivation": {
   "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
@@ -12,7 +12,7 @@
   "unit_kind": "catalogue_row",
   "spec_module": "14-studio-creative-suite.md",
   "spec_heading": "14.8.17 Validation and Acceptance",
-  "spec_line": 10935,
+  "spec_line": 11112,
   "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
  },
  "lifecycle": {
@@ -29,7 +29,7 @@
  "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
  "domain": "colour",
  "scope": {
-  "summary": "Mandatory acceptance cases.** Acceptance MUST include the eighteen cases below. This table SPAWNS EIGHTEEN microtasks, one per row. *Derivation: catalogue table, splits per row; yields 18 microtasks, one per acceptance case. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Acceptance case | What it proves | Governing clause | |---|---|---| | `acc.model_round_trip` | A value round-trips through every model pair with bounded error | [STU-COL-111] | | `acc.assign_vs_convert` | Assign leaves components unchanged; convert changes them and preserves appearance within a declared tolerance | [STU-COL-131] | | `acc.four_intents_differ` | All four intents give four different results for an out-of-gamut source, and BPC changes the result independently of intent | [STU-COL-135] | | `acc.device_link_inert` | A device-link profile reports intent and BPC as inert rather than applying them | [STU-COL-134] | | `acc.cross_host_bit_identical` | The same conversion on two hosts is bit-identical | [STU-COL-143] | | `acc.lut_domain_honoured` | A LUT with a non-0-1 domain applies correctly, and applying it as if the domain were 0-1 gives a detectably different result | [STU-COL-158] | | `acc.stack_order_enforced` | Reordering the grade stack changes the result an [...]",
+  "summary": "Mandatory acceptance cases.** Acceptance MUST include the twenty-six cases below. This table SPAWNS TWENTY-SIX microtasks, one per row. *Derivation: catalogue table, splits per row; yields 26 microtasks, one per acceptance case. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Acceptance case | What it proves | Governing clause | |---|---|---| | `acc.model_round_trip` | A value round-trips through every model pair with bounded error | [STU-COL-111] | | `acc.assign_vs_convert` | Assign leaves components unchanged; convert changes them and preserves appearance within a declared tolerance | [STU-COL-131] | | `acc.four_intents_differ` | All four intents give four different results for an out-of-gamut source, and BPC changes the result independently of intent | [STU-COL-135] | | `acc.device_link_inert` | A device-link profile reports intent and BPC as inert rather than applying them | [STU-COL-134] | | `acc.cross_host_bit_identical` | The same MATERIALISED transform, built from one cache key, is byte-identical on two hosts | [STU-COL-143] | | `acc.lut_domain_honoured` | A LUT with a non-0-1 domain applies correctly, and applying it as if the domain were 0-1 gives a detectably different result | [STU-COL-158] | | `acc.stack_order_enforced` | Reor [...]",
   "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
  },
  "acceptance_criteria": [

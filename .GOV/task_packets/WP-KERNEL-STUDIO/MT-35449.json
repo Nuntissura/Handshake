@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35449",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-COL-301#catalogue_row#0_display_profile_windows_wcs",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.8.20 Display Device Characterisation",
+  "spec_line": 11484,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "display_profile.windows_wcs",
+ "spec_anchor": [
+  "STU-COL-301"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "colour",
+ "scope": {
+  "summary": "Per-monitor profile acquisition from the host.** The host operating system, not Studio, holds the association between a monitor and its ICC profile, and each platform exposes that association through a different named mechanism. Studio MUST implement acquisition on each supported platform through the mechanism named below, MUST acquire PER MONITOR rather than once per application, and MUST record which mechanism produced the profile it is using so a wrong colour on one host is diagnosable without guessing. Where a platform offers both a per-device and a per-drawing-surface call, the per-device call is authoritative, because a per-surface call answers for whichever monitor the surface currently sits on and therefore cannot characterise a second monitor at all. Mechanisms are named here as the published platform interfaces they are, which is provenance under [STU-SECTION-003]; no Studio type, command or panel takes its name from one. *Derivation: catalogue table, splits per row; yields 4 microtasks, one per acquisition mechanism.* | Acquisition mechanism | Platform | What Studio calls or reads | Failure and absence behaviour | |---|---|---|---| | `display_profile.windows_wcs` | Windows | The Windows Color System per-device association, keyed on the monitor rather than on a device context, resolved through the per-user scope first and the machine-wide scope as fallback. TWO genera [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`display_profile.windows_wcs` satisfies the spec's stated acquisition mechanism: `display_profile.windows_wcs`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-301 catalogue row `display_profile.windows_wcs`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`display_profile.windows_wcs` satisfies the spec's stated platform: Windows",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-301 catalogue row `display_profile.windows_wcs`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`display_profile.windows_wcs` satisfies the spec's stated what studio calls or reads: The Windows Color System per-device association, keyed on the monitor rather than on a device context, resolved through the per-user scope first and the machine-wide scope as fallback. TWO generations of that per-device call exist and they are NOT equivalent: the older one is keyed on the monitor's device name and is documented as not covering advanced-colour profiles, and the newer one is keyed o [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-301 catalogue row `display_profile.windows_wcs`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`display_profile.windows_wcs` satisfies the spec's stated failure and absence behaviour: An unassociated monitor yields no profile and enters the unmanaged state of [STU-COL-306]; it is never silently treated as sRGB",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-301 catalogue row `display_profile.windows_wcs`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`display_profile.windows_wcs` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-COL-301"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

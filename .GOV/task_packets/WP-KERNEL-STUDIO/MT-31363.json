@@ -4,7 +4,7 @@
  "contract_authority": "PRIMARY_MACHINE_READABLE",
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-31363",
- "created_at_utc": "2026-09-04T13:36:05+00:00",
+ "created_at_utc": "2026-09-04T20:07:53+00:00",
  "generated_by": "handshake.greenroom.spec_derive.v1",
  "derivation": {
   "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
@@ -12,7 +12,7 @@
   "unit_kind": "catalogue_row",
   "spec_module": "14-studio-creative-suite.md",
   "spec_heading": "14.8.17 Validation and Acceptance",
-  "spec_line": 10910,
+  "spec_line": 11081,
   "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
  },
  "lifecycle": {
@@ -29,7 +29,7 @@
  "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
  "domain": "colour",
  "scope": {
-  "summary": "Colour validation descriptors.** The `StudioValidationDescriptor` catalog (14.24) MUST include the twelve descriptors below. This table SPAWNS TWELVE microtasks, one per row. *Derivation: catalogue table, splits per row; yields 12 microtasks, one per validation descriptor. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Validation descriptor | What it checks | Governing clause | |---|---|---| | `col.parameter_record_complete` | Every numeric parameter carries all seven fields as separate stored fields | [STU-COL-106] | | `col.no_invented_bound` | No `UNKNOWN` bound replaced by a number; no `soft_*` mirrored from a `hard_*` | [STU-COL-107] | | `col.no_clamp_to_observed` | No observed preset range used as a hard bound | [STU-COL-108] | | `col.tagged_value_law` | No untagged device triple anywhere, including on the wire and in model commands | [STU-COL-110] | | `col.enumeration_encoding` | Every enumeration carries its full member list and Studio's own encoding | [STU-COL-135] | | `col.assign_vs_convert` | Assign preserves components; convert preserves appearance; neither is the other | [STU-COL-130] | | `col.transform_deterministic` | A transform materialised from one cache key is bit-identical across hosts | [STU-COL-143] | | `col.pipeline_ [...]",
+  "summary": "Colour validation descriptors.** The `StudioValidationDescriptor` catalog (14.24) MUST include the eighteen descriptors below. This table SPAWNS EIGHTEEN microtasks, one per row. *Derivation: catalogue table, splits per row; yields 18 microtasks, one per validation descriptor. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Validation descriptor | What it checks | Governing clause | |---|---|---| | `col.parameter_record_complete` | Every numeric parameter carries all seven fields as separate stored fields | [STU-COL-106] | | `col.no_invented_bound` | No `UNKNOWN` bound replaced by a number; no `soft_*` mirrored from a `hard_*` | [STU-COL-107] | | `col.no_clamp_to_observed` | No observed preset range used as a hard bound | [STU-COL-108] | | `col.tagged_value_law` | No untagged device triple anywhere, including on the wire and in model commands | [STU-COL-110] | | `col.enumeration_encoding` | Every enumeration carries its full member list and Studio's own encoding | [STU-COL-135] | | `col.assign_vs_convert` | Assign preserves components; convert preserves appearance; neither is the other | [STU-COL-130] | | `col.transform_deterministic` | A transform materialised from one cache key is bit-identical across hosts | [STU-COL-143] | | `col.pipel [...]",
   "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
  },
  "acceptance_criteria": [

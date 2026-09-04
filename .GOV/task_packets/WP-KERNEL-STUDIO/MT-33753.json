@@ -4,7 +4,7 @@
  "contract_authority": "PRIMARY_MACHINE_READABLE",
  "wp_id": "WP-KERNEL-STUDIO",
  "mt_id": "MT-33753",
- "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "created_at_utc": "2026-09-04T20:07:59+00:00",
  "generated_by": "handshake.greenroom.spec_derive.v1",
  "derivation": {
   "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
@@ -12,7 +12,7 @@
   "unit_kind": "command_table",
   "spec_module": "14-studio-creative-suite.md",
   "spec_heading": "14. The command surface",
-  "spec_line": 22306,
+  "spec_line": 23384,
   "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
  },
  "lifecycle": {
