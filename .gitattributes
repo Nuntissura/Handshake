@@ -1,6 +1,9 @@
 .gitattributes text eol=lf
 *.md text eol=lf
 *.mjs text eol=lf
+# include_str!-ed by the product and hashed for the compiled-manifest check, so
+# a CRLF checkout breaks embedded-store bootstrap on Windows.
+*.surql text eol=lf
 Handshake_Master_Spec_v*.md text eol=lf
 .GOV/roles_shared/SPEC_CURRENT.md text eol=lf
 .GOV/roles_shared/START_HERE.md text eol=lf

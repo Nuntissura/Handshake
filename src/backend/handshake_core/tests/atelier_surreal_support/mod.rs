@@ -38,7 +38,7 @@ pub struct NativeMediaArtifact {
 pub fn write_native_media_artifact(payload: &[u8]) -> NativeMediaArtifact {
     let workspace_root = tempfile::tempdir()
         .expect("create isolated native artifact workspace")
-        .into_path();
+        .keep();
     write_native_media_artifact_in_workspace(&workspace_root, payload)
 }
 
@@ -86,6 +86,47 @@ pub fn write_native_media_artifact_from_stored_payload(payload: &[u8]) -> Native
     write_native_media_artifact(payload)
 }
 
+/// Owns a temporary directory for the lifetime of a harness and removes it when
+/// dropped.
+///
+/// `tempfile::TempDir` cannot serve this role: it has no constructor that
+/// adopts an already-existing directory, which `open_existing` needs in order to
+/// re-take ownership of the path handed back by `close_for_reopen`. Its
+/// `from_path` sibling belongs to `TempPath`, which owns a single file rather
+/// than a directory tree.
+struct OwnedTempRoot {
+    path: Option<PathBuf>,
+}
+
+impl OwnedTempRoot {
+    /// Take ownership of an existing directory.
+    fn adopt(path: PathBuf) -> Self {
+        Self { path: Some(path) }
+    }
+
+    fn path(&self) -> &Path {
+        self.path
+            .as_deref()
+            .expect("temporary root is still owned by this guard")
+    }
+
+    /// Give up ownership without removing the directory so that a later harness
+    /// can adopt the same path.
+    fn release(mut self) -> PathBuf {
+        self.path
+            .take()
+            .expect("temporary root is still owned by this guard")
+    }
+}
+
+impl Drop for OwnedTempRoot {
+    fn drop(&mut self) {
+        if let Some(path) = self.path.take() {
+            let _ = fs::remove_dir_all(path);
+        }
+    }
+}
+
 /// One isolated, fully bootstrapped embedded-SurrealDB authority for Atelier
 /// integration tests. Keeping the temporary directory in this value guarantees
 /// that the on-disk engine outlives every handle derived from it.
@@ -93,7 +134,7 @@ pub struct AtelierSurrealHarness {
     pub atelier: AtelierStore,
     pub database: Arc<dyn Database>,
     pub storage: SurrealStorage,
-    _directory: tempfile::TempDir,
+    _directory: OwnedTempRoot,
 }
 
 /// A test-owned store plus its backing harness. The wrapper keeps the
@@ -115,16 +156,16 @@ impl std::ops::Deref for ConnectedAtelier {
 impl AtelierSurrealHarness {
     pub async fn create() -> Self {
         let directory = tempfile::tempdir().expect("create isolated Atelier SurrealDB root");
-        Self::open_directory(directory).await
+        Self::open_directory(OwnedTempRoot::adopt(directory.keep())).await
     }
 
     /// Re-open an existing on-disk store for a real close/reopen durability
     /// proof. Ownership of the directory remains with the returned harness.
     pub async fn open_existing(data_dir: PathBuf) -> Self {
-        Self::open_directory(tempfile::TempDir::from_path(data_dir)).await
+        Self::open_directory(OwnedTempRoot::adopt(data_dir)).await
     }
 
-    async fn open_directory(directory: tempfile::TempDir) -> Self {
+    async fn open_directory(directory: OwnedTempRoot) -> Self {
         let storage = SurrealStorage::open(
             SurrealStorageConfig::for_data_dir(directory.path())
                 .expect("configure isolated Atelier SurrealDB"),
@@ -156,7 +197,7 @@ impl AtelierSurrealHarness {
             .shutdown()
             .await
             .expect("close isolated Atelier SurrealDB");
-        self._directory.into_path()
+        self._directory.release()
     }
 
     pub async fn shutdown(self) {
