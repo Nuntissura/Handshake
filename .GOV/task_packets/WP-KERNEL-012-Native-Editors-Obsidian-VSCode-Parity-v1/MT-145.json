@@ -31,21 +31,27 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-144"
     ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260904-050242",
+    "claimed_at_utc": "2026-09-04T05:03:00Z",
     "created_by": "KERNEL_BUILDER-20260903-213930",
     "created_at_utc": "2026-09-03T22:59:00.571Z",
     "creation_reason": "MT-144 restored the handshake_core lib test target to a compiling state and fixed the store-lifetime defect in five modules (api/jobs.rs, api/workspaces.rs, api/loom.rs, api/memory.rs, bundles/exporter.rs). Two modules were left untouched because they fall outside the MT-144 allowed_paths, and they carry the identical defect: api/flight_recorder.rs and workflows.rs. Both were disclosed rather than silently left, and this contract gives them an owner.",
     "origin": "Created 2026-09-04 by KERNEL_BUILDER-20260903-213930 from a code-verified finding while completing MT-118. Not speculative: the defect is visible in the source and is the same one that produced the embedded-database-is-closed error on all 25 api::memory tests before MT-144 fixed it there.",
     "why_not_mt_144": "MT-144 declares allowed_paths covering only api/jobs.rs, api/workspaces.rs and api/loom.rs, plus the api/memory.rs and bundles/exporter.rs work its acceptance criteria name. Widening that contract after its ready receipt was emitted would invalidate the receipt, so the remaining two modules get their own contract instead.",
-    "why_not_mt_141": "MT-141 owns src/backend/handshake_core/tests/**, the out-of-crate integration suite. Everything here is in-crate cfg(test) code under src/, which MT-141 forbids."
+    "why_not_mt_141": "MT-141 owns src/backend/handshake_core/tests/**, the out-of-crate integration suite. Everything here is in-crate cfg(test) code under src/, which MT-141 forbids.",
+    "contract_correction_2026_09_04": {
+      "at_utc": "2026-09-04T05:09:57.648Z",
+      "by": "KERNEL_BUILDER-20260903-213930",
+      "reason": "Corrected AC-145-2's call-site count from 54 to 55 and narrowed AC-145-5 to the cfg(test) surface, after the implementing agent found the original wording unsatisfiable without violating AC-145-6. Both changes were verified against the source before amending. No obligation was relaxed: the cfg(test) surface must still come out clean, and the newly found 56th defect instance was added to scope rather than dropped."
+    }
   },
   "scope": {
     "summary": "Make the in-crate cfg(test) modules in api/flight_recorder.rs and workflows.rs run against a live embedded SurrealDB store instead of a store that has already been shut down, and delete the vestigial skip branches that can no longer be taken. Today both modules build, but their setup_state helpers destroy the store before the first assertion runs.",
@@ -64,10 +70,10 @@
     "embedded_mode_boundary": "SurrealDB and EventLedger only. No SQLite and no PostgreSQL may be added, restored, imported, or referenced as a live backend. Historical mentions in doc comments that explain why a skip branch was removed are permitted, matching the convention already used in storage/tests.rs and accepted for MT-144.",
     "acceptance_criteria": [
       "AC-145-1: setup_state in both modules returns the EmbeddedTestBackend alongside the AppState so the store outlives every assertion, using the same tuple shape MT-144 established.",
-      "AC-145-2: all 54 let-else skip call sites become unconditional bindings that also hold the backend for the life of the test. No test keeps a branch that can return Ok without asserting anything.",
+      "AC-145-2: every let-else skip call site becomes an unconditional binding that also holds the backend for the life of the test. The count is 55, not the 54 this contract first stated: api/flight_recorder.rs has 28 `let Some(state)` plus one `let Some(base_state)` at line 2982, and workflows.rs has 26. No test keeps a branch that can return Ok without asserting anything.",
       "AC-145-3: no assertion is weakened, ignored, or deleted to make a test pass. Every test that fails once the store is live must be either fixed or recorded with a named owner and a stated reason; none may be quietly marked ignore.",
       "AC-145-4: the full api::flight_recorder and workflows in-crate suites are run and their pass and fail counts recorded verbatim, including a per-test attribution for every failure.",
-      "AC-145-5: no SQLite or PostgreSQL identifier, DSN, env var, or helper survives as live code in either module.",
+      "AC-145-5: no SQLite or PostgreSQL identifier, DSN, env var, or helper survives as live code INSIDE THE cfg(test) MODULES this microtask touches. Live product references elsewhere in workflows.rs are explicitly out of scope and must not be touched: an error string at line 2909 and a real call to locus::sqlite_store::parse_locus_operation at line 11034 are working product behaviour, not test-era leftovers.",
       "AC-145-6: the product binary still builds, proving the change stayed inside cfg(test)."
     ],
     "proof_targets": [
@@ -83,7 +89,30 @@
       "Do not touch src/backend/handshake_core/tests/**: MT-141 owns that tree.",
       "Do not touch api/memory.rs: its three remaining assertion failures are owned by MT-146."
     ],
-    "risk_if_missed": "54 in-crate tests currently compile and are counted as present but cannot exercise storage at all. Any of them expected to guard flight-recorder ingestion or workflow execution against regression is providing no protection, and the vestigial skip branch means a future refactor could turn them from loud failures into silent passes. This is the same class of hidden proof loss that MT-144 exists to undo."
+    "risk_if_missed": "54 in-crate tests currently compile and are counted as present but cannot exercise storage at all. Any of them expected to guard flight-recorder ingestion or workflow execution against regression is providing no protection, and the vestigial skip branch means a future refactor could turn them from loud failures into silent passes. This is the same class of hidden proof loss that MT-144 exists to undo.",
+    "defects_found_during_implementation": {
+      "recorded_by": "KERNEL_BUILDER-20260903-213930",
+      "recorded_at_utc": "2026-09-04T05:09:57.648Z",
+      "source": "Reported by the implementing agent after reading the source rather than the brief, and independently verified by the orchestrator against workflows.rs before amending this contract.",
+      "items": [
+        {
+          "id": "F-145-1",
+          "finding": "The call-site count is 55, not 54. api/flight_recorder.rs carries a 29th instance in the form of `let Some(base_state)` at line 2982, which the original count missed because it only matched `let Some(state)`.",
+          "disposition": "In scope. AC-145-2 corrected to 55."
+        },
+        {
+          "id": "F-145-2",
+          "finding": "workflows.rs contains a 56th instance of the same store-lifetime defect outside setup_state: fems_forget_persists_exact_status_events_and_sorted_commit_hash at roughly line 30470 calls embedded_test_backend() inline and moves both fields out of the returned backend. It compiles in this feature set because app-runtime enables duckdb-flight-recorder.",
+          "disposition": "In scope: it is in an allowed path and is the same defect this microtask exists to remove. Fix it and disclose it rather than leaving one instance of the class behind."
+        },
+        {
+          "id": "F-145-3",
+          "finding": "AC-145-5 as originally written was not satisfiable without violating AC-145-6. It demanded that no SQLite identifier survive as live code in either module, but workflows.rs carries two live product references: an error string at line 2909 and a call to locus::sqlite_store::parse_locus_operation at line 11034 inside the job dispatcher. Both are working product behaviour, not test-era residue, and removing them would be a product-code change in a contract whose own criterion requires the change to stay inside cfg(test).",
+          "disposition": "Contract defect, mine. AC-145-5 is narrowed to the cfg(test) surface and the two live references are named as explicitly out of scope. The implementer was right to refuse to either touch live code or claim the module clean.",
+          "author_note": "The criterion was copied from MT-144, where every affected module was a test-only surface. workflows.rs is not, and the criterion should not have been carried across unchanged."
+        }
+      ]
+    }
   },
   "gui_obligation": {
     "operator_surface_required": false,
@@ -137,5 +166,6 @@
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
-  }
+  },
+  "updated_at_utc": "2026-09-04T05:09:57.648Z"
 }
