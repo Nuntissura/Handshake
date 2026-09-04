@@ -137,7 +137,11 @@
         "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/red2-workflows.log - model_run_timeout_ms_fails_before_simulated_runtime_finishes FAILED with Error: Database(\"embedded database is closed\"), 0 passed 1 failed",
         "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/red2-flight_recorder.log - list_events_preserves_model_session_id_filter_and_payload ok, 1 passed 0 failed, non-store-touching target"
       ],
-      "method_note": "The corrected flight_recorder RED target was selected by a rule fixed in advance — first store-touching test in file order — specifically so the evidence could not be shopped for. The implementer committed to reporting a green result as falsifying the deterministic reading rather than trying another target."
+      "method_note": "The corrected flight_recorder RED target was selected by a rule fixed in advance — first store-touching test in file order — specifically so the evidence could not be shopped for. The implementer committed to reporting a green result as falsifying the deterministic reading rather than trying another target.",
+      "figure_is_a_lower_bound": {
+        "recorded_at_utc": "2026-09-04T15:55:53.574Z",
+        "note": "The '12 tests never touch the store after setup_state' figure is a LOWER BOUND on store usage, not a firm count, and should not be quoted as exact. The implementer's classifier matched textual `.storage` and `.surreal` references only, so it missed tests that reach the store indirectly through API handlers such as ingest_native_editor. At least one test I recorded as non-store-touching, native_editor_same_id_mutated_envelope_conflicts, in fact reaches the store that way — which is why it went on to fail on a genuine assertion once the store was live. The direction of the error is safe: more tests were losing proof than the figure implies, not fewer. The implementer identified this itself after the suite results contradicted its own classification."
+      }
     }
   },
   "gui_obligation": {
@@ -193,5 +197,5 @@
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
   },
-  "updated_at_utc": "2026-09-04T15:10:56.430Z"
+  "updated_at_utc": "2026-09-04T15:55:53.574Z"
 }
