@@ -31,12 +31,12 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [
       "MT-144"
     ],
     "blocks": [],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260904-050242",
@@ -195,7 +195,29 @@
       "finding": "The implementer found 7 postgres tokens in workflows cfg(test), all inside the single passing test postgres_structured_collab_artifacts_materialize_parity_fields: the test fn name, a fixture file-path string, a done_criteria string, a label, a WP-ID string, and two expect() messages. None is a DSN, env var, connection, or helper, and no PostgreSQL is contacted. It is a Locus fixture named after a historical work packet. api::flight_recorder cfg(test) is completely clean at zero tokens.",
       "reason": "This is the same drafting error as the first AC-145-5 correction, one layer down. I wrote a criterion broader than its intent: it was meant to catch live backend wiring, and instead it catches any occurrence of the word. Renaming the label and done_criteria would change values the test stores and asserts on, which risks AC-145-3; renaming only the fn name would make the clean claim technically true while the fixture strings remain, which is a distinction without substance and worse than disclosing. The criterion is narrowed to say what it always meant. Nothing is relaxed, because those 7 tokens create no PostgreSQL dependency of any kind.",
       "effect": "AC-145-5 is MET, not PROVED_WITH_DISCLOSURE. The disclosure is retained as a finding for the reader, not as a shortfall against the criterion."
-    }
+    },
+    "ready_for_validation_at_utc": "2026-09-04T18:28:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260904-050242",
+    "ready_receipt": {
+      "kind": "KB_READY_CHECKLIST_RECEIPT",
+      "overall_verdict": "PASS",
+      "blockers": [],
+      "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "rubric_answers": {
+        "RC-001": "yes",
+        "RC-002": "n/a",
+        "RC-003": "yes",
+        "RC-004": "yes",
+        "RC-005": "yes",
+        "RC-006": "yes"
+      },
+      "reader_flags": [
+        "RC-004 answered yes on the basis of an attached CI run URL, with the delta stated: Actions run 33821501747 (job cross-platform-build, ubuntu-latest) is on feat/WP-KERNEL-012 at 70c289cb and does NOT cover the two files changed on feat/WP-KERNEL-012-mt145. No non-Windows toolchain check was run against the modified tree.",
+        "RC-005 answered yes on the basis that the contract defines PT-145-2 and PT-145-3 as run to completion with counts recorded, not as exit-0. Both suites exited 101 because of 7 attributed pre-existing failures. A validator reading the criterion strictly as exit-0 may downgrade this item; the exit codes are quoted verbatim in the receipt so that judgement is available."
+      ]
+    },
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
   },
   "scope": {
     "summary": "Make the in-crate cfg(test) modules in api/flight_recorder.rs and workflows.rs run against a live embedded SurrealDB store instead of a store that has already been shut down, and delete the vestigial skip branches that can no longer be taken. Today both modules build, but their setup_state helpers destroy the store before the first assertion runs.",
