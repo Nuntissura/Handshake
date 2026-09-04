@@ -57,11 +57,11 @@
       "schema_id": "hsk.mt_cross_platform_proof@1",
       "recorded_by": "KERNEL_BUILDER-20260903-213930",
       "recorded_at_utc": "2026-09-04T00:44:31.812Z",
-      "run_id": "33819481804",
+      "run_id": "33821501747",
       "job": "cross-platform-build",
-      "job_id": "100858813968",
+      "job_id": "see mt147-after-jobs.log",
       "runner": "ubuntu-latest",
-      "product_commit": "817fca6f",
+      "product_commit": "70c289cb",
       "product_branch": "feat/WP-KERNEL-012",
       "conclusion": "success",
       "steps": [
@@ -80,7 +80,81 @@
       ],
       "what_it_establishes": "handshake_core compiles on Linux with all features, both as a library and as the in-crate test target. That is a platform this Windows host cannot build for: aarch64-pc-windows-msvc dies in the DuckDB C++ build under clang-cl because the MSVC install carries no ARM64 compiler, and x86_64-unknown-linux-musl has no musl C sysroot here so ring cannot compile. The second step matters specifically for MT-118 and MT-144, whose work is the in-crate cfg(test) layer: it is now proven to compile on a second platform.",
       "scope_honesty": "This proves the build, not the tests. The tests are not executed by this job, and the crate's out-of-crate integration tree under tests/ is deliberately excluded because it does not compile at all (see the MT-141 disclosure). Nothing here should be read as a claim that the test suite passes on Linux.",
-      "evidence_ref": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-cross-platform-build.log"
+      "evidence_ref": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-cross-platform-build.log",
+      "also_green_at": "Run 33819481804 at 817fca6f, where both steps first went green with the same durations (22m51s and 26m05s). The job is unchanged between the two commits; the final run is cited because a receipt must bind to the final tree."
+    },
+    "implementation_result_2026_09_04": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260903-213930",
+      "recorded_at_utc": "2026-09-04T01:05:13.565Z",
+      "product_commit": "70c289cb",
+      "product_branch": "feat/WP-KERNEL-012",
+      "commits": [
+        "8e0daf25 corepack ordering, dbus deps, backend-storage matrix collapse, artifacts root, cross-platform-build job",
+        "66de2c77 pnpm/action-setup, gitleaks module path, syft release binary",
+        "817fca6f cross-platform job rescoped off the uncompilable integration tree",
+        "6cd4d2fa docs-check paths, mex_tests required features",
+        "c1b7210a one integration target per storage job instead of all 393",
+        "70c289cb required features for both storage targets"
+      ],
+      "before": {
+        "run": "33666580708",
+        "result": "1 of 11 jobs green (traceability only).",
+        "detail": "Ten jobs failed for infrastructure reasons: pnpm missing from PATH, the dbus-1 system library absent, gitleaks and syft installed by paths that cannot resolve, and a storage matrix wired to backends the product no longer has. No job compiled handshake_core successfully, so RC-004 had nothing to cite anywhere in the packet.",
+        "evidence": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-baseline-jobs.log"
+      },
+      "after": {
+        "run": "33821501747",
+        "result": "5 of 11 jobs green.",
+        "green": [
+          "cross-platform-build",
+          "traceability",
+          "sbom_generate",
+          "vuln_scan",
+          "license_scan"
+        ],
+        "red_with_owner": [
+          "backend-storage - now runs the suite and reports 1 passed / 2 failed, both on the MT-123 teardown drain",
+          "validate - now reaches Codex checks and fails on genuine direct-fetch violations in app/src",
+          "governance (ubuntu-latest) and governance (windows-latest) - now run the real gov-check, which reports 12 failing checks originating in other packets",
+          "dependency_audit - pnpm audit socket timeout to the npm advisory endpoint",
+          "secret_scan - the gitleaks MEX envelope returns Failed where the test requires Succeeded"
+        ],
+        "evidence": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-after-jobs.log"
+      },
+      "ac_147_1": {
+        "status": "MET",
+        "detail": "cross-platform-build completed successfully on ubuntu-latest. cargo check --lib --bins --all-features finished in 22m51s and cargo test --lib --all-features --no-run finished in 26m05s, producing the unittests executable. RC-004 now has a citable Linux build of handshake_core.",
+        "evidence": [
+          "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-cross-platform-build.log",
+          "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-after-jobs.log"
+        ]
+      },
+      "ac_147_2": {
+        "status": "MET",
+        "detail": "Both jobs clear Setup pnpm, Setup Node.js and Install frontend deps. validate now proceeds as far as Codex checks and dependency_audit as far as Frontend audit, neither of which was reachable before."
+      },
+      "ac_147_3": {
+        "status": "MET",
+        "detail": "No job fails on the dbus-1 library. The three Rust jobs that died in libdbus-sys build scripts now compile: governance (ubuntu) reaches the governance check itself, backend-storage reaches and runs its tests, and the scan jobs reach their MEX tests."
+      },
+      "ac_147_4": {
+        "status": "MET",
+        "detail": "backend-storage runs once against the embedded store. The matrix, the Postgres 16 service container and both env-configuration steps are gone, and grep confirms no sqlite or postgres identifier, DSN or environment variable survives anywhere in the workflow. The two cargo invocations the job ran before are unchanged apart from target selection and required features."
+      },
+      "ac_147_5": {
+        "status": "MET",
+        "detail": "Every one of the six commits touches only .github/workflows/ci.yml. No product source, app source or governance file was modified on the product branch.",
+        "evidence": [
+          "git show --stat for each of the six commits"
+        ]
+      },
+      "ac_147_6": {
+        "status": "MET",
+        "detail": "All five remaining failures carry a named owner and a stated non-infrastructure reason, recorded in scope.carried_failures_not_owned_by_mt_147. None was fixed by weakening a check, and none is left unattributed. Two of them are findings this repair surfaced for the first time: the direct-fetch violations in app/src, and the MT-123 teardown drain failing tests outright on Linux rather than merely printing a warning."
+      },
+      "scope_honesty": "The pipeline is not green and this microtask does not claim it is. What changed is that failures now mean something: before, ten jobs failed before running anything, so a real regression was indistinguishable from the standing noise. Every remaining red job now fails on its own content.",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only; completed_by remains null."
     }
   },
   "scope": {
@@ -247,6 +321,15 @@
           "owner": "Frontend product code, or whoever owns the Codex check's precision. MT-147 is confined to .github/workflows/ci.yml. Editing app/src is forbidden by this contract, and loosening the check's regex inside ci.yml would change a governance rule's meaning to make a red check green, which AC-147-6 and the red-team profile both forbid.",
           "progress_made": "This step was previously unreachable: validate died at Setup Node.js in the baseline, then at Docs check once pnpm was fixed. Reaching Codex checks and failing on real content is the pipeline working as intended.",
           "evidence": "GitHub Actions run 33820723714, job validate, job id 100862602004."
+        },
+        {
+          "job": "secret_scan",
+          "failure": "Reaches its Run supply-chain MEX step and fails on a product assertion: panicked at tests/mex_tests.rs:1690 with assertion `left == right` failed, left: Failed, right: Succeeded. The MEX runtime executes gitleaks through the terminal service and the envelope comes back EngineStatus::Failed where the test requires Succeeded.",
+          "attribution": "A product behaviour failure, not CI configuration. Whether gitleaks is reporting findings, the terminal service is mis-invoking it, or the envelope is mis-classifying the outcome cannot be settled from .github/workflows/ci.yml, which is the only path this microtask may touch.",
+          "owner": "The MEX supply-chain surface. It needs its own microtask; deliberately not opened here, because opening a second contract mid-flight would split this one's closure unit.",
+          "scope_correction": "An earlier version of this entry grouped all four supply-chain jobs together and assumed they shared this failure. They do not. Once the required features were passed, vuln_scan, sbom_generate and license_scan all completed successfully. Only secret_scan fails, and it fails on gitleaks specifically.",
+          "progress_made": "This is the proof that D-147-2, D-147-6 and D-147-8 are closed for all four jobs. In the baseline none of the four ran: secret_scan and sbom_generate died at their go install step, vuln_scan and license_scan died in the dbus build script, and after those were fixed all four were refused by cargo for missing required features. Three now pass outright and the fourth reaches its assertion.",
+          "evidence": "GitHub Actions run 33821501747 at product commit 70c289cb: sbom_generate success, vuln_scan success, license_scan success, secret_scan failure."
         }
       ]
     }
@@ -306,5 +389,5 @@
     "review_response_receipt_id": null,
     "baseline_failing_run": "33666580708"
   },
-  "updated_at_utc": "2026-09-04T00:44:31.812Z"
+  "updated_at_utc": "2026-09-04T01:05:13.565Z"
 }
