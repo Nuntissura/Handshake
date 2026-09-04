@@ -194,7 +194,25 @@ impl SurrealModelLaneStaleSessionSource {
             .map(|row| (row, true))
             .chain(incomplete_rows.into_iter().map(|row| (row, false)))
         {
-            let scope = restart_lifecycle_scope(&row)?;
+            // A row from the incomplete-attribution query may carry a PARTIAL
+            // ResourceScope. Such a row cannot participate in a scope-keyed
+            // reclaim decision, so it must VETO its session (handled below) and
+            // must NOT abort the whole scan: one legacy unattributed row may not
+            // suppress every genuinely reclaimable sibling session (MT-019 P-1).
+            // A complete-scope row with partial attribution is still fail-closed.
+            let scope = match restart_lifecycle_scope(&row) {
+                Ok(scope) => scope,
+                Err(error) if !complete_scope => {
+                    tracing::warn!(
+                        target: "handshake::process_ledger::reclaim",
+                        process_uuid = %row.process_uuid,
+                        error = %error,
+                        "restart-orphan row carries partial ResourceScope attribution; vetoing its session instead of aborting the scan"
+                    );
+                    None
+                }
+                Err(error) => return Err(error),
+            };
             if complete_scope && scope.is_none() {
                 return Err(ProcessLedgerError::Store(
                     "complete-scope Surreal restart row has no ResourceScope".to_owned(),
@@ -1789,6 +1807,11 @@ struct RecoveryBindings {
 #[derive(Debug, SurrealValue)]
 struct RecoveryRow {
     process_uuid: Uuid,
+    /// Projected only because SurrealDB requires every `ORDER BY` idiom to be
+    /// present in the statement's selection; the bounded recovery sweep orders
+    /// oldest-first so a crash-left backlog drains deterministically.
+    #[allow(dead_code)]
+    started_at: DateTime<Utc>,
     owner_account_id: String,
     actor_principal_id: String,
     authenticated_session_id: String,
@@ -1813,6 +1836,10 @@ struct StaleLifecycleRow {
 #[derive(Debug, SurrealValue)]
 struct ModelLaneAuthorityRow {
     record_json: String,
+    /// Projected only because SurrealDB requires every `ORDER BY` idiom to be
+    /// present in the statement's selection; lanes are read newest-first.
+    #[allow(dead_code)]
+    event_seq: i64,
     owner_account_id: String,
     actor_principal_id: String,
     authenticated_session_id: String,
@@ -1879,7 +1906,7 @@ SELECT id, process_uuid, os_pid, model_artifact_sha256, started_at, stopped_at,
         AND authenticated_session_id = $authenticated_session_id
         AND access_space_id = $access_space_id
         AND workspace_id = $workspace_id) AS exact_scope_match
-FROM ONLY $record
+FROM $record
 WHERE process_uuid = $process_uuid;
 "#;
 
@@ -1924,7 +1951,7 @@ SELECT id, event_id, event_version, aggregate_type, aggregate_id,
     idempotency_key, event_type, payload_hash, source_component, payload,
     owner_account_id, actor_principal_id, authenticated_session_id,
     access_space_id, workspace_id
-FROM ONLY $event_record
+FROM $event_record
 WHERE owner_account_id = $owner_account_id
     AND actor_principal_id = $actor_principal_id
     AND authenticated_session_id = $authenticated_session_id
@@ -2633,7 +2660,7 @@ RETURN AFTER;
 "#;
 
 const IN_PROGRESS_FOR_SESSION: &str = r#"
-SELECT process_uuid, owner_account_id, actor_principal_id,
+SELECT process_uuid, started_at, owner_account_id, actor_principal_id,
     authenticated_session_id, access_space_id, workspace_id,
     reclaim_kill_operation_uuid FROM kernel_process_lifecycle
 WHERE parent_session_id = $session_id AND stopped_at = NONE
@@ -2663,7 +2690,7 @@ ORDER BY started_at, process_uuid LIMIT $limit;
 "#;
 
 const IN_PROGRESS_FOR_STALE_OWNER: &str = r#"
-SELECT process_uuid, owner_account_id, actor_principal_id,
+SELECT process_uuid, started_at, owner_account_id, actor_principal_id,
     authenticated_session_id, access_space_id, workspace_id,
     reclaim_kill_operation_uuid FROM kernel_process_lifecycle
 WHERE parent_session_id = $session_id AND stopped_at = NONE
@@ -2740,7 +2767,7 @@ ORDER BY parent_session_id, process_uuid;
 "#;
 
 const MODEL_LANE_AUTHORITY_ROWS_FOR_SCOPE: &str = r#"
-SELECT record_json, owner_account_id, actor_principal_id,
+SELECT record_json, event_seq, owner_account_id, actor_principal_id,
     authenticated_session_id, access_space_id, workspace_id
 FROM model_lane_authority
 WHERE record_kind = 'lane'

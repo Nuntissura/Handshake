@@ -87,7 +87,13 @@ async fn missing_all_five_scope_fields_rejects_new_runtime_owner_row() {
         .write_batch(vec![LedgerEvent::Start(start.clone())])
         .await
         .expect_err("unattributed runtime owner must fail closed");
-    assert!(error.to_string().contains("five ResourceScope fields"));
+    assert!(
+        error.to_string().contains(
+            "all five non-empty ResourceScope fields are required for ProcessLedger writes"
+        ),
+        "an unattributed runtime-owner START must fail closed with the canonical exact-scope \
+         reason, got: {error}"
+    );
     assert!(harness.lifecycle(start.process_uuid).await.is_none());
     assert_eq!(harness.process_event_count().await, 0);
     harness.close().await;

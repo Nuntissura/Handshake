@@ -46,9 +46,34 @@ impl Drop for DeadOwnerGapReset {
     }
 }
 
+/// Allocate this fixture's embedded store under the external artifacts root when
+/// the harness exports one.
+///
+/// A bare `tempfile::tempdir()` lands in the OS temp directory, which is both an
+/// artifact-root violation ([CX-984-001]: every test output belongs under
+/// `../Handshake_Artifacts/`) and, on this host, a heavily contended volume that
+/// made each embedded bootstrap orders of magnitude slower than the same
+/// bootstrap on the artifacts volume. The tempdir fallback is kept so the target
+/// still runs outside the governed slot.
+fn fixture_store_dir() -> tempfile::TempDir {
+    let root = std::env::var_os("HANDSHAKE_SURREAL_TEST_STORE_ROOT")
+        .or_else(|| std::env::var_os("HANDSHAKE_ARTIFACTS_DIR"))
+        .map(std::path::PathBuf::from);
+    match root {
+        Some(root) => {
+            std::fs::create_dir_all(&root).expect("create MT-019 Surreal test store root");
+            tempfile::Builder::new()
+                .prefix("mt019-reclaim-")
+                .tempdir_in(&root)
+                .expect("create MT-019 Surreal test directory in the artifacts root")
+        }
+        None => tempfile::tempdir().expect("create MT-019 Surreal test directory"),
+    }
+}
+
 impl Fixture {
     async fn open() -> Self {
-        let directory = tempfile::tempdir().expect("create MT-019 Surreal test directory");
+        let directory = fixture_store_dir();
         let storage = SurrealStorage::open(
             SurrealStorageConfig::for_data_dir(directory.path().join("data"))
                 .expect("configure MT-019 Surreal test store"),
@@ -175,7 +200,10 @@ struct LifecycleState {
 const READ_LIFECYCLE: &str = r#"
 SELECT process_uuid, stopped_at, stop_reason, reclaim_claimant_uuid,
     reclaim_generation, metadata
-FROM ONLY $record
+-- `FROM $record`, not `FROM ONLY $record`: callers assert ABSENCE (a vetoed or
+-- foreign-scope row) as `None`. `ONLY` yields SurrealDB `NONE`, which the typed
+-- row decoder rejects as "Expected object, got none".
+FROM $record
 WHERE owner_account_id = $owner_account_id
     AND actor_principal_id = $actor_principal_id
     AND authenticated_session_id = $authenticated_session_id
@@ -892,7 +920,10 @@ async fn mt019_post_boot_periodic_task_resurfaces_restart_orphan() {
     fixture.shutdown().await;
 }
 
-#[tokio::test]
+// Two reclaimers race on ONE embedded store. Production runs them as separate
+// tasks on a multi-threaded runtime; on the default current_thread runtime the
+// two concurrent store operations block each other and the test deadlocks.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt019_concurrent_reclaimers_claim_each_process_exactly_once() {
     let fixture = Fixture::open().await;
     let session_id = format!("session-{}", Uuid::now_v7());
@@ -950,7 +981,9 @@ async fn mt019_concurrent_reclaimers_claim_each_process_exactly_once() {
     fixture.shutdown().await;
 }
 
-#[tokio::test]
+// Same reason as the claim race above: two concurrent reclaimers need a real
+// multi-threaded runtime, not the default current_thread one.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt019_concurrent_reclaimers_produce_one_kill_and_one_durable_stop() {
     let fixture = Fixture::open().await;
     let session_id = format!("session-{}", Uuid::now_v7());

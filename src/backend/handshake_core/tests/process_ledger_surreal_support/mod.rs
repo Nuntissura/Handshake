@@ -292,7 +292,10 @@ SELECT process_uuid, os_pid, engine_kind, started_at, stopped_at, exit_code,
     stop_reason, model_artifact_sha256, owner_role, owner_runtime_instance_id,
     owner_host_scope_id, owner_lease_schema_id, owner_lease_protocol,
     owner_lease_address, owner_lease_port, event_ledger_event_id, metadata
-FROM ONLY $record
+-- `FROM $record`, not `FROM ONLY $record`: an exact-scope probe must observe
+-- ABSENCE (rejected write, foreign scope) as `None`. `ONLY` yields SurrealDB
+-- `NONE`, which the typed row decoder rejects as "Expected object, got none".
+FROM $record
 WHERE owner_account_id = $owner_account_id
     AND actor_principal_id = $actor_principal_id
     AND authenticated_session_id = $authenticated_session_id

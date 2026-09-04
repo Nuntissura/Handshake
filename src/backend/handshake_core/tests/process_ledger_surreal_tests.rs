@@ -247,9 +247,12 @@ async fn surreal_store_proves_atomicity_idempotency_exact_scope_and_writer_drain
         .write_batch(vec![LedgerEvent::Start(verification_start.clone())])
         .await
         .expect_err("final-row mismatch must fail closed before commit");
-    assert!(error
-        .to_string()
-        .contains("PROCESS_LEDGER_VERIFICATION_MISMATCH:0"));
+    assert!(
+        error
+            .to_string()
+            .contains("PROCESS_LEDGER_VERIFICATION_MISMATCH:0"),
+        "final-row verification must surface its typed marker through the rollback, got: {error}"
+    );
     assert_eq!(
         fixture
             .lifecycle(verification_start.process_uuid, &fixture.scope)
@@ -579,9 +582,12 @@ async fn ownership_inspection_rejects_missing_foreign_or_incomplete_evidence_wit
         .inspect_ownership_by_process_uuid(&fixture.scope, missing_link.process_uuid)
         .await
         .expect_err("missing receipt linkage fails closed");
-    assert!(error
-        .to_string()
-        .contains("missing canonical EventLedger receipt"));
+    assert!(
+        error
+            .to_string()
+            .contains("missing canonical EventLedger receipt"),
+        "a cleared receipt link must fail closed with its typed reason, got: {error}"
+    );
     assert_eq!(
         fixture
             .lifecycle(missing_link.process_uuid, &fixture.scope)
@@ -614,9 +620,12 @@ async fn ownership_inspection_rejects_missing_foreign_or_incomplete_evidence_wit
         .inspect_ownership_by_process_uuid(&fixture.scope, foreign_receipt.process_uuid)
         .await
         .expect_err("foreign receipt fails closed");
-    assert!(error
-        .to_string()
-        .contains("missing or foreign canonical EventLedger receipt"));
+    assert!(
+        error
+            .to_string()
+            .contains("missing or foreign canonical EventLedger receipt"),
+        "a receipt moved out of the caller's exact scope must fail closed with its typed reason, got: {error}"
+    );
     assert!(fixture
         .store
         .inspect_ownership_by_process_uuid(&foreign_scope, foreign_receipt.process_uuid)
@@ -653,9 +662,12 @@ async fn ownership_inspection_rejects_missing_foreign_or_incomplete_evidence_wit
         .inspect_ownership_by_process_uuid(&fixture.scope, mismatched_link.process_uuid)
         .await
         .expect_err("mismatched EventLedger linkage fails closed");
-    assert!(error
-        .to_string()
-        .contains("canonical EventLedger linkage mismatch"));
+    assert!(
+        error
+            .to_string()
+            .contains("canonical EventLedger linkage mismatch"),
+        "a link pointing at another process receipt must fail closed with its typed reason, got: {error}"
+    );
 
     let incomplete = start_event(&fixture.scope, "kernel_builder", "WP-KERNEL-004")
         .with_model_artifact_sha256("3".repeat(64));
@@ -674,9 +686,12 @@ async fn ownership_inspection_rejects_missing_foreign_or_incomplete_evidence_wit
         .inspect_ownership_by_process_uuid(&fixture.scope, incomplete.process_uuid)
         .await
         .expect_err("incomplete lifecycle scope fails closed");
-    assert!(error
-        .to_string()
-        .contains("stored ResourceScope is incomplete"));
+    assert!(
+        error
+            .to_string()
+            .contains("stored ResourceScope is incomplete"),
+        "an incomplete stored scope must fail closed with its typed reason, got: {error}"
+    );
 
     for (index, field, value, expected_error) in [
         (
@@ -1784,7 +1799,7 @@ const READ_EXACT_RECLAIM_STATE: &str = r#"
 SELECT stopped_at, stop_reason, reclaim_state, reclaim_claimant_uuid,
     reclaim_kill_operation_uuid, reclaim_generation, reclaim_claimed_at_unix_ms,
     reclaim_lease_expires_at_unix_ms, metadata
-FROM ONLY $record
+FROM $record
 WHERE owner_account_id = $owner_account_id
     AND actor_principal_id = $actor_principal_id
     AND authenticated_session_id = $authenticated_session_id
@@ -1807,9 +1822,13 @@ WHERE source_component = 'process_ledger'
     AND payload.metadata_jsonb.workspace_id = $workspace_id);
 "#;
 
+// `FROM $record` rather than `FROM ONLY $record`: an exact-scope probe must be
+// able to observe ABSENCE (deleted projection, foreign scope) as `None`. `ONLY`
+// yields SurrealDB `NONE`, which the typed row decoder rejects as
+// "Expected object, got none" instead of reporting an empty result.
 const READ_EXACT_LIFECYCLE: &str = r#"
 SELECT process_uuid, engine_kind, stopped_at, exit_code, event_ledger_event_id, metadata
-FROM ONLY $record
+FROM $record
 WHERE owner_account_id = $owner_account_id
     AND actor_principal_id = $actor_principal_id
     AND authenticated_session_id = $authenticated_session_id
@@ -1841,7 +1860,7 @@ RETURN AFTER;
 const READ_EXACT_EVENT: &str = r#"
 SELECT event_type, created_at, owner_account_id, actor_principal_id,
     authenticated_session_id, access_space_id, workspace_id
-FROM ONLY $record
+FROM $record
 WHERE owner_account_id = $owner_account_id
     AND actor_principal_id = $actor_principal_id
     AND authenticated_session_id = $authenticated_session_id

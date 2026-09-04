@@ -115,6 +115,10 @@ struct ResumeCandidateRow {
     kernel_task_run_id: String,
     adapter_id: String,
     state: String,
+    /// Projected only because SurrealDB requires every `ORDER BY` idiom to be
+    /// present in the statement's selection; the boot pass resumes oldest-first.
+    #[allow(dead_code)]
+    created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, SurrealValue)]
@@ -152,7 +156,7 @@ struct SurrealResumeCandidate {
 }
 
 const LOAD_RESUME_CANDIDATES: &str = r#"
-SELECT id, session_run_id, kernel_task_run_id, adapter_id, state
+SELECT id, session_run_id, kernel_task_run_id, adapter_id, state, created_at
 FROM kernel_session_queue
 WHERE state IN $resumable_states
     AND owner_account_id = $owner_account_id
@@ -247,15 +251,31 @@ WHERE owner_account_id = $owner_account_id
     AND authenticated_session_id = $authenticated_session_id
     AND access_space_id = $access_space_id
     AND workspace_id = $workspace_id
-    AND checkpoint_id = $checkpoint.checkpoint_id
-    AND session_id = $checkpoint.session_id
+    AND checkpoint_id = <uuid>$checkpoint.checkpoint_id
+    AND session_id = <uuid>$checkpoint.session_id
     AND last_event_ledger_seq = $checkpoint.last_event_ledger_seq
     AND compact_state = $checkpoint.compact_state;
 IF $existing = NONE {
     IF record::exists($checkpoint_record) {
         THROW 'RESTART_RESUME_CHECKPOINT_IDEMPOTENCY_CONFLICT';
     };
-    CREATE $checkpoint_record CONTENT $checkpoint;
+    CREATE $checkpoint_record CONTENT {
+        checkpoint_id: <uuid>$checkpoint.checkpoint_id,
+        session_id: <uuid>$checkpoint.session_id,
+        model_session_id: <uuid>$checkpoint.model_session_id,
+        last_event_ledger_seq: $checkpoint.last_event_ledger_seq,
+        compact_state: $checkpoint.compact_state,
+        state_kind: $checkpoint.state_kind,
+        pending_artifacts: $checkpoint.pending_artifacts,
+        created_at_utc: <datetime>$checkpoint.created_at_utc,
+        created_by_process: $checkpoint.created_by_process,
+        schema_version: $checkpoint.schema_version,
+        owner_account_id: $owner_account_id,
+        actor_principal_id: $actor_principal_id,
+        authenticated_session_id: $authenticated_session_id,
+        access_space_id: $access_space_id,
+        workspace_id: $workspace_id
+    };
 };
 LET $verified = SELECT * FROM ONLY $checkpoint_record
 WHERE owner_account_id = $owner_account_id
@@ -263,8 +283,8 @@ WHERE owner_account_id = $owner_account_id
     AND authenticated_session_id = $authenticated_session_id
     AND access_space_id = $access_space_id
     AND workspace_id = $workspace_id
-    AND checkpoint_id = $checkpoint.checkpoint_id
-    AND session_id = $checkpoint.session_id
+    AND checkpoint_id = <uuid>$checkpoint.checkpoint_id
+    AND session_id = <uuid>$checkpoint.session_id
     AND last_event_ledger_seq = $checkpoint.last_event_ledger_seq
     AND compact_state = $checkpoint.compact_state;
 IF $verified = NONE {
@@ -296,16 +316,37 @@ WHERE owner_account_id = $owner_account_id
     AND authenticated_session_id = $authenticated_session_id
     AND access_space_id = $access_space_id
     AND workspace_id = $workspace_id
-    AND report_id = $report.report_id
+    AND report_id = <uuid>$report.report_id
     AND sessions_examined = $report.sessions_examined
     AND total_replay_events = $report.total_replay_events;
 IF $existing = NONE {
     IF record::exists($report_record) {
         THROW 'RESTART_RESUME_REPORT_IDEMPOTENCY_CONFLICT';
     };
-    CREATE $report_record CONTENT $report;
+    CREATE $report_record CONTENT {
+        report_id: <uuid>$report.report_id,
+        sessions_examined: $report.sessions_examined,
+        sessions_resumed: $report.sessions_resumed,
+        sessions_recovery_failed: $report.sessions_recovery_failed,
+        total_replay_events: $report.total_replay_events,
+        total_duration_ms: $report.total_duration_ms,
+        started_at_utc: <datetime>$report.started_at_utc,
+        completed_at_utc: <datetime>$report.completed_at_utc,
+        orphan_reclaims: $report.orphan_reclaims,
+        operator_decision_requests: $report.operator_decision_requests,
+        fr_events_emitted: $report.fr_events_emitted,
+        schema_version: $report.schema_version,
+        owner_account_id: $owner_account_id,
+        actor_principal_id: $actor_principal_id,
+        authenticated_session_id: $authenticated_session_id,
+        access_space_id: $access_space_id,
+        workspace_id: $workspace_id
+    };
 };
-RETURN array::len(SELECT VALUE id FROM ONLY $report_record
+-- `FROM $report_record`, not `FROM ONLY`: `ONLY` yields the bare record (or
+-- NONE), so `array::len` would receive a record/NONE instead of an array and the
+-- acknowledgement could never be read back as an int.
+RETURN array::len(SELECT VALUE id FROM $report_record
     WHERE owner_account_id = $owner_account_id
         AND actor_principal_id = $actor_principal_id
         AND authenticated_session_id = $authenticated_session_id
@@ -748,7 +789,10 @@ impl SurrealRestartResumeRunner {
             .with_data_operation(|database| {
                 Box::pin(async move {
                     database
-                        .query_values_at::<i64, _>(RESUME_CANDIDATE_TRANSACTION, bindings, 8)
+                        // Result 7 is `RETURN 1`. SurrealDB indexes BEGIN (0) and
+                        // COMMIT (8) as their own results, so reading 8 yields the
+                        // COMMIT's NONE rather than the acknowledgement.
+                        .query_values_at::<i64, _>(RESUME_CANDIDATE_TRANSACTION, bindings, 7)
                         .await
                 })
             })

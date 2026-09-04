@@ -85,6 +85,10 @@ struct CheckpointProbe {
     compact_state: Value,
     last_event_ledger_seq: i64,
     state_kind: String,
+    /// Projected only because SurrealDB requires every `ORDER BY` idiom to be
+    /// present in the statement's selection; the probe reads newest-first.
+    #[allow(dead_code)]
+    created_at_utc: DateTime<Utc>,
 }
 
 #[derive(Debug, SurrealValue)]
@@ -173,7 +177,7 @@ WHERE owner_account_id = $owner_account_id
 "#;
 
 const READ_LATEST_CHECKPOINT: &str = r#"
-SELECT compact_state, last_event_ledger_seq, state_kind
+SELECT compact_state, last_event_ledger_seq, state_kind, created_at_utc
 FROM kernel_session_checkpoint
 WHERE session_id = $session_id
     AND owner_account_id = $owner_account_id
