@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -39,7 +40,7 @@ const PENDING_SCHEMA_INFO_SHA256: &str =
 
 const SCHEMA: &str = include_str!("schema.surql");
 const SOURCE_MANIFEST_DOMAIN: &[u8] = b"handshake.surreal.source-wave-manifest.v1\0";
-const BOOTSTRAP_STATE_TABLE: &str = "handshake_schema_state";
+pub(super) const BOOTSTRAP_STATE_TABLE: &str = "handshake_schema_state";
 const BOOTSTRAP_STATE_ID: &str = "handshake_schema_state:primary";
 const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
     "accesses",
@@ -77,7 +78,24 @@ const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 const REFERENCE_FIELD_COUNT: usize = 388;
 const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 217;
 
-static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
+static BOOTSTRAP_LOCKS: Mutex<BTreeMap<(String, String), Arc<Mutex<()>>>> =
+    Mutex::const_new(BTreeMap::new());
+
+/// Serializes bootstrap per embedded namespace/database rather than per process.
+///
+/// Concurrent callers against the SAME namespace/database are still fully serialized, which
+/// is the invariant the original process-wide guard existed to protect. Callers against
+/// DIFFERENT namespaces/databases no longer queue behind each other: every isolated test
+/// store owns a distinct namespace/database, so the process-wide guard made an N-test suite
+/// pay N times one full bootstrap (measured 2026-09-03: ~820s each, so a 10-test suite cost
+/// 8224s instead of one bootstrap plus overhead).
+async fn bootstrap_guard_for(namespace: &str, database: &str) -> Arc<Mutex<()>> {
+    let mut locks = BOOTSTRAP_LOCKS.lock().await;
+    locks
+        .entry((namespace.to_owned(), database.to_owned()))
+        .or_insert_with(|| Arc::new(Mutex::new(())))
+        .clone()
+}
 
 const SOURCE_WAVE_FILES: [(&str, &[u8]); SOURCE_FORWARD_MIGRATION_COUNT] = [
     (
@@ -1115,13 +1133,14 @@ struct CanonicalInfoEnvelope {
 /// This is intentionally a transitional source-wave bridge, not a complete product-schema
 /// migration system. V1 fails closed for every lower or divergent lineage. The sole resumable
 /// incomplete state is the exact-current `schema_applied` receipt written after committed DDL;
-/// it is finalized only after complete live INFO matches the compiled fingerprint. A process-wide
-/// mutex serializes callers; the DDL transaction repeats the fresh-state guard before mutation.
+/// it is finalized only after complete live INFO matches the compiled fingerprint. A per
+/// namespace/database mutex serializes callers against the same database; the DDL transaction repeats the fresh-state guard before mutation.
 /// Exact-current restarts return before executing any `OVERWRITE` statement.
 pub async fn bootstrap_schema(
     storage: &SurrealStorage,
 ) -> Result<SchemaBootstrapReport, SurrealStorageError> {
-    let _bootstrap_guard = BOOTSTRAP_MUTEX.lock().await;
+    let bootstrap_guard_handle = bootstrap_guard_for(storage.namespace(), storage.database()).await;
+    let _bootstrap_guard = bootstrap_guard_handle.lock().await;
     storage
         .with_admin_operation(|database| {
             Box::pin(async move {

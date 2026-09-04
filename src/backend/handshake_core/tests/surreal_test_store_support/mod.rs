@@ -15,7 +15,11 @@ use uuid::Uuid;
 pub const TEST_STORE_ROOT_ENV: &str = "HANDSHAKE_SURREAL_TEST_STORE_ROOT";
 pub const TEST_STORE_STALE_AGE_MS_ENV: &str = "HANDSHAKE_SURREAL_TEST_STORE_STALE_AGE_MS";
 pub const DEFAULT_STALE_AGE: Duration = Duration::ZERO;
-pub const DEFAULT_EMBEDDED_SCOPE_TIMEOUT: Duration = Duration::from_secs(10);
+// Liveness bound for embedded scope allocate/remove/close, not a proof gate. 10s was tuned on an
+// idle machine; a fresh canonical bootstrap costs ~820s and concurrent proof stores saturate disk,
+// so allocate/remove/close routinely exceeded 10s and failed tests for machine load rather than
+// product behaviour.
+pub const DEFAULT_EMBEDDED_SCOPE_TIMEOUT: Duration = Duration::from_secs(120);
 
 const SCOPE_PREFIX: &str = "surreal-test-store-";
 const OWNER_MARKER_SUFFIX: &str = ".owner";

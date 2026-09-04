@@ -61,7 +61,7 @@ const TASK_BOARD_ID: &str = "task-board://wp-1";
 const MODEL_LANE_EVENT_ID_PREFIX: &str = "evt-model-lane-";
 
 struct Harness {
-    isolated: EmbeddedSurrealTestScope,
+    isolated: Option<EmbeddedSurrealTestScope>,
     storage: SurrealStorage,
     scope: ResourceScope,
     lifecycle: ResourceAccessLifecycleRegistry,
@@ -69,7 +69,14 @@ struct Harness {
 }
 
 impl Harness {
+    /// Every test owns an exclusive embedded store. Sharing one database across concurrent
+    /// tests was measured to fail with key-value transaction conflicts, so isolation stays
+    /// per test; bootstrap cost is held down by rooting stores on the artifacts drive.
     async fn create(label: &str) -> Self {
+        Self::create_exclusive(label).await
+    }
+
+    async fn create_exclusive(label: &str) -> Self {
         let mut isolated = EmbeddedSurrealTestScope::create()
             .await
             .expect("allocate exact ModelLane embedded scope");
@@ -80,6 +87,14 @@ impl Harness {
         bootstrap_schema(&storage)
             .await
             .expect("bootstrap canonical embedded schema");
+        Self::with_storage(label, Some(isolated), storage)
+    }
+
+    fn with_storage(
+        label: &str,
+        isolated: Option<EmbeddedSurrealTestScope>,
+        storage: SurrealStorage,
+    ) -> Self {
         let scope = exact_scope(label);
         let lifecycle = ResourceAccessLifecycleRegistry::new();
         register_active_context(&lifecycle, &scope);
@@ -152,17 +167,21 @@ impl Harness {
     async fn cleanup(mut self) {
         drop(self.store);
         drop(self.storage);
-        self.isolated
-            .cleanup()
-            .await
-            .expect("clean exact ModelLane embedded scope");
+        // A shared-store harness owns no scope to reclaim; the process-wide store is swept
+        // by the harness stale-scope sweep after the run.
+        if let Some(isolated) = self.isolated.as_mut() {
+            isolated
+                .cleanup()
+                .await
+                .expect("clean exact ModelLane embedded scope");
+        }
     }
 }
 
 #[tokio::test]
 async fn model_lane_schema_persists_and_replays_eventledger_rows() {
     let label = "schema-replay";
-    let mut harness = Harness::create(label).await;
+    let mut harness = Harness::create_exclusive(label).await;
     let lane_ids = [
         default_lane_id(label),
         "lane-cloud".to_owned(),
@@ -334,7 +353,18 @@ async fn model_lane_schema_persists_and_replays_eventledger_rows() {
     );
     let expected_scope = expected_scope_fields(&harness.scope);
     for receipt in &receipts {
-        assert_eq!(receipt.event_type, "MODEL_LANE_AUTHORITY_RECORDED");
+        // Each durable row links to the canonical ledger event its own write path emits:
+        // run/lane admission records MODEL_LANE_AUTHORITY_RECORDED, while a message records
+        // MODEL_LANE_MESSAGE_RECORDED. Asserting one blanket type would hide that mapping.
+        let expected_event_type = match receipt.record_kind.as_str() {
+            "message" => "MODEL_LANE_MESSAGE_RECORDED",
+            _ => "MODEL_LANE_AUTHORITY_RECORDED",
+        };
+        assert_eq!(
+            receipt.event_type, expected_event_type,
+            "record_kind {} must be backed by its canonical event type",
+            receipt.record_kind
+        );
         assert_eq!(receipt.run_id, run.run_id);
         assert_eq!(
             [
@@ -428,14 +458,16 @@ async fn model_lane_schema_persists_and_replays_eventledger_rows() {
 
     drop(harness.store);
     drop(harness.storage);
-    harness
+    let isolated = harness
         .isolated
+        .as_mut()
+        .expect("restart proof requires an exclusive embedded scope");
+    isolated
         .shutdown_storage_for_reopen()
         .await
         .expect("close storage before restart");
-    harness.isolated.reopen().await.expect("reopen same scope");
-    let reopened_storage = harness
-        .isolated
+    isolated.reopen().await.expect("reopen same scope");
+    let reopened_storage = isolated
         .activate_storage()
         .await
         .expect("reactivate same namespace/database");

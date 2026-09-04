@@ -925,22 +925,30 @@ impl ModelLaneStore {
     }
 
     fn surreal_write_scope(&self, operation: &str) -> ModelLaneResult<SurrealModelLaneScope> {
-        self.access.require_lifecycle_active()?;
+        // Shape and lifecycle first (see surreal_read_scope), then write authority. All three
+        // remain mandatory and all three fail closed; ordering only decides which cause is
+        // reported, and a malformed five-field scope must not be reported as a write-authority
+        // or authentication problem.
+        let scope = self.surreal_read_scope(operation)?;
         if self.write_scope().is_none() {
             return Err(ModelLaneError::AuthorityDenied(format!(
                 "{operation} requires scoped write authority"
             )));
         }
-        self.surreal_read_scope(operation)
+        Ok(scope)
     }
 
     fn surreal_read_scope(&self, operation: &str) -> ModelLaneResult<SurrealModelLaneScope> {
-        self.access.require_lifecycle_active()?;
+        // Shape before lifecycle. A scope missing any of the five fields can never be registered
+        // active, so reporting it as an unknown authenticated context describes the wrong defect
+        // and sends the caller looking at authentication instead of the malformed scope. Both
+        // checks remain mandatory and both fail closed; only the reported cause changes.
         let exact = self.access.exact_read_scope().ok_or_else(|| {
             ModelLaneError::AuthorityDenied(format!(
                 "{operation} requires exact owner, Principal, authenticated session, AccessSpace, and workspace authority"
             ))
         })?;
+        self.access.require_lifecycle_active()?;
         Ok(SurrealModelLaneScope {
             owner_account_id: exact.owner_account_id.as_uuid().to_string(),
             actor_principal_id: exact.actor_principal_id.as_uuid().to_string(),
@@ -8058,9 +8066,25 @@ fn validate_surreal_message_retry(
             input.idempotency_key, existing.payload_sha256
         )));
     }
+    // Contract (MT-002): a duplicate retry carrying the same idempotency_key AND the same
+    // payload hash MUST be idempotent; only a different payload hash may fail closed. The
+    // payload hash is checked above, so what remains is to normalize the fields that are
+    // per-attempt identity rather than meaning. message_id and its derived span, correlation
+    // and artifact-ref values differ on every retry by construction, so comparing them would
+    // reject exactly the replay the contract requires to succeed. Meaning-bearing fields
+    // (run_id, lanes, kind, authority, summary, payload_sha256) stay under the equality guard
+    // and still fail closed.
     let mut retry_identity = input.clone();
     retry_identity.message_id = existing.message_id.clone();
     retry_identity.message_span_id = existing.message_span_id.clone();
+    retry_identity.payload_ref = existing.inner.payload_ref.clone();
+    retry_identity.replay_order_key = existing.inner.replay_order_key.clone();
+    if let (Some(retry_routing), Some(existing_routing)) = (
+        retry_identity.routing.as_mut(),
+        existing.inner.routing.as_ref(),
+    ) {
+        retry_routing.correlation_id = existing_routing.correlation_id.clone();
+    }
     ensure_idempotent_input_matches(
         "model_lane_message",
         &input.idempotency_key,

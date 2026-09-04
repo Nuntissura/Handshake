@@ -234,6 +234,12 @@ struct CountRow {
     count: i64,
 }
 
+#[derive(Debug, SurrealValue)]
+struct RecordedSchemaState {
+    apply_state: String,
+    info_fingerprint_sha256: String,
+}
+
 impl SurrealTestInspector {
     pub(super) fn new(storage: SurrealStorage) -> Self {
         Self { storage }
@@ -296,10 +302,42 @@ impl SurrealTestInspector {
                 "canonical schema fingerprint is not pinned".to_owned(),
             ));
         }
-        if info_fingerprint_sha256 != super::EXPECTED_SCHEMA_INFO_SHA256 {
+        // Provenance, not a live recompute. The live catalog legitimately carries feature
+        // schemas applied on top of the canonical wave (ModelLane alone adds 8 tables), so a
+        // live fingerprint can never equal the canonical pin in a real product database.
+        // What must hold is that THIS database was bootstrapped from the pinned canonical
+        // schema and finalized, which the durable bootstrap-state receipt records.
+        let recorded_state: Option<RecordedSchemaState> = self
+            .storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut response = database
+                        .query(format!(
+                            "SELECT apply_state, info_fingerprint_sha256 FROM {} LIMIT 1;",
+                            super::schema::BOOTSTRAP_STATE_TABLE
+                        ))
+                        .await?;
+                    let rows: Vec<RecordedSchemaState> = response.take(0)?;
+                    Ok(rows.into_iter().next())
+                })
+            })
+            .await?;
+        let Some(recorded_state) = recorded_state else {
+            return Err(SurrealTestInspectorError::InvalidCatalog(
+                "canonical schema bootstrap receipt is absent".to_owned(),
+            ));
+        };
+        if recorded_state.apply_state != "complete" {
             return Err(SurrealTestInspectorError::InvalidCatalog(format!(
-                "canonical schema fingerprint mismatch: expected {}, observed {info_fingerprint_sha256}",
-                super::EXPECTED_SCHEMA_INFO_SHA256
+                "canonical schema bootstrap is not finalized: apply_state={}",
+                recorded_state.apply_state
+            )));
+        }
+        if recorded_state.info_fingerprint_sha256 != super::EXPECTED_SCHEMA_INFO_SHA256 {
+            return Err(SurrealTestInspectorError::InvalidCatalog(format!(
+                "canonical schema fingerprint mismatch: expected {}, recorded {}",
+                super::EXPECTED_SCHEMA_INFO_SHA256,
+                recorded_state.info_fingerprint_sha256
             )));
         }
         let mut tables = Vec::with_capacity(table_names.len());
@@ -828,11 +866,45 @@ fn parse_projected_row(
         let value = object.get(field).cloned().ok_or_else(|| {
             SurrealTestInspectorError::InvalidRow(format!("missing projected field `{field}`"))
         })?;
-        let value = serde_json::to_value(value)
-            .map_err(|error| SurrealTestInspectorError::InvalidRow(error.to_string()))?;
+        let value = projected_json(&value)?;
         values.insert(field.clone(), value);
     }
     Ok(ProjectedRow { record_id, values })
+}
+
+/// Projects one stored field as plain JSON for assertions.
+///
+/// `serde_json::to_value` on a Surreal value serializes the externally tagged enum, so a
+/// stored string arrives as {"String": "..."} rather than "...". Callers compare projected
+/// scope columns against plain strings, so the tag is unwrapped here for the scalar shapes a
+/// projection can return; anything else keeps its structural serialization.
+fn projected_json(
+    value: &SurrealValueData,
+) -> Result<serde_json::Value, SurrealTestInspectorError> {
+    let tagged = serde_json::to_value(value)
+        .map_err(|error| SurrealTestInspectorError::InvalidRow(error.to_string()))?;
+    let serde_json::Value::Object(map) = &tagged else {
+        return Ok(tagged);
+    };
+    if map.len() != 1 {
+        return Ok(tagged);
+    }
+    let (variant, inner) = map
+        .iter()
+        .next()
+        .expect("single-entry object has one entry");
+    match (variant.as_str(), inner) {
+        ("String", inner @ serde_json::Value::String(_)) => Ok(inner.clone()),
+        ("Bool", inner @ serde_json::Value::Bool(_)) => Ok(inner.clone()),
+        ("Number" | "Int" | "Float" | "Decimal", inner) if inner.is_number() => {
+            Ok(inner.clone())
+        }
+        ("Null" | "None", _) => Ok(serde_json::Value::Null),
+        ("Uuid" | "Datetime" | "Strand", inner @ serde_json::Value::String(_)) => {
+            Ok(inner.clone())
+        }
+        _ => Ok(tagged),
+    }
 }
 
 fn parse_record_identity(

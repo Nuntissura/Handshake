@@ -416,12 +416,12 @@ impl SurrealDataContext<'_> {
     where
         B: surrealdb::types::SurrealValue + Send,
     {
-        Ok(self
+        let response = self
             .client
             .query(statement.into())
             .bind(surrealdb::types::SurrealValue::into_value(bindings))
-            .await?
-            .check()?)
+            .await?;
+        Ok(check_indexed_results(response)?)
     }
 
 
@@ -497,7 +497,8 @@ impl SurrealAdminContext<'_> {
         &self,
         statement: impl Into<String> + Send,
     ) -> Result<surrealdb::IndexedResults, SurrealStorageError> {
-        Ok(self.client.query(statement.into()).await?.check()?)
+        let response = self.client.query(statement.into()).await?;
+        Ok(check_indexed_results(response)?)
     }
 
     async fn query_bound<B>(
@@ -508,13 +509,62 @@ impl SurrealAdminContext<'_> {
     where
         B: surrealdb::types::SurrealValue + Send,
     {
-        Ok(self
+        let response = self
             .client
             .query(statement.into())
             .bind(surrealdb::types::SurrealValue::into_value(bindings))
-            .await?
-            .check()?)
+            .await?;
+        Ok(check_indexed_results(response)?)
     }
+}
+
+/// Returns the first *meaningful* statement error in a response.
+///
+/// SurrealDB marks every statement after a failed one in the same transaction as
+/// "not executed due to a failed transaction". `Response::check` can therefore surface that
+/// cascade artifact instead of the real cause, which hides an explicit `THROW` (for example a
+/// compare-and-set or idempotency conflict) behind a generic message that no caller can act on.
+/// Errors are ranked by statement index so the earliest genuine failure wins, and the cascade
+/// marker is used only when nothing else is present. Failure remains closed either way; only
+/// the reported cause changes.
+/// Bounded retry budget for embedded key-value write conflicts.
+///
+/// The embedded store uses optimistic concurrency: when two transactions touch overlapping
+/// keys, the loser fails at COMMIT with "Transaction conflict: Resource busy. This transaction
+/// can be retried". Nothing is committed in that case, so replaying the whole transaction is
+/// safe and is the contract the engine expects of its callers. Without this, concurrent model
+/// lanes surface a spurious infrastructure error instead of their own compare-and-set or
+/// idempotency verdict, which is exactly the swarm-safety behaviour this kernel must provide.
+const KV_CONFLICT_RETRY_ATTEMPTS: usize = 8;
+const KV_CONFLICT_RETRY_BASE_DELAY_MS: u64 = 4;
+
+/// True for the retryable embedded key-value conflict, and only that.
+///
+/// Deliberately narrow: a provider THROW (idempotency conflict, compare-and-set mismatch,
+/// authority changed before admission) must reach the caller unchanged, never be retried away.
+fn is_retryable_kv_conflict(error: &SurrealStorageError) -> bool {
+    let message = error.to_string();
+    message.contains("Transaction conflict") && message.contains("can be retried")
+}
+
+fn check_indexed_results(
+    mut response: surrealdb::IndexedResults,
+) -> Result<surrealdb::IndexedResults, SurrealStorageError> {
+    let errors = response.take_errors();
+    if errors.is_empty() {
+        return Ok(response);
+    }
+    let mut ranked: Vec<(usize, surrealdb::Error)> = errors.into_iter().collect();
+    ranked.sort_by_key(|(index, _)| *index);
+    let cascade = |error: &surrealdb::Error| {
+        error.to_string().contains("not executed due to a failed transaction")
+    };
+    let chosen = ranked
+        .iter()
+        .position(|(_, error)| !cascade(error))
+        .unwrap_or(0);
+    let (_, error) = ranked.swap_remove(chosen);
+    Err(SurrealStorageError::from(error))
 }
 
 /// Bound SurrealQL query surface of [`SurrealDataContext`]. Statements stay
@@ -564,13 +614,25 @@ macro_rules! surreal_data_context_query_api {
         R: surrealdb::types::SurrealValue,
         B: surrealdb::types::SurrealValue + Send,
     {
-        let mut response = self
-            .client
-            .query(statement)
-            .bind(surrealdb::types::SurrealValue::into_value(bindings))
-            .await?
-            .check()?;
-        Ok(response.take(result_index)?)
+        let bound = surrealdb::types::SurrealValue::into_value(bindings);
+        let mut attempt = 0usize;
+        loop {
+            let response = self.client.query(statement).bind(bound.clone()).await?;
+            match check_indexed_results(response) {
+                Ok(mut response) => return Ok(response.take(result_index)?),
+                Err(error)
+                    if attempt < KV_CONFLICT_RETRY_ATTEMPTS
+                        && is_retryable_kv_conflict(&error) =>
+                {
+                    attempt += 1;
+                    tokio::time::sleep(std::time::Duration::from_millis(
+                        KV_CONFLICT_RETRY_BASE_DELAY_MS * attempt as u64,
+                    ))
+                    .await;
+                }
+                Err(error) => return Err(error),
+            }
+        }
     }
 
     /// [`Self::query_values`] returning only the first row.
