@@ -22,7 +22,7 @@
   "title": "B6-MT-118-Heal-Legacy-Canonical-Proposal-Artifact-So-Pre-Hardening-Rows-Can-Retry",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T19:10:56.234Z",
-  "updated_at_utc": "2026-09-03T23:23:19.707Z",
+  "updated_at_utc": "2026-09-04T02:31:10.495Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-112"
@@ -73,9 +73,9 @@
         "PT-118-3": "SATISFIED AND EXCEEDED. MT-112 left this suite at 27 passed / 1 failed; the contract asked for 28+/0. Result: 29 passed / 0 failed."
       }
     },
-    "ready_for_validation_at_utc": "2026-08-12T13:15:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260812-113007",
-    "ready_for_validation_summary": "GREEN against real PostgreSQL. The prior session heal is retained unchanged and was correct; the remaining blocker was a SECOND UUID enforcement site in the Flight Recorder schema validator, found by capturing the real error behind an opaque 500. AC-118-1 through AC-118-5 and PT-118-1 through PT-118-3 all satisfied. Official validator verdict remains PENDING.",
+    "ready_for_validation_at_utc": "2026-09-04T02:31:10.495Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260903-213930",
+    "ready_for_validation_summary": "The legacy memory proposal retry now heals both a missing EventLedger receipt and a missing lifecycle outbox row, validating the canonical artifact before any write so a rejected retry leaves no residue. Both named proof targets are green and the api::memory suite reports 26 passed / 3 failed, up from 23 / 6. AC-118-5 is partial with a named retirement: its second test was removed with the PostgreSQL migration corpus under the MT-139 sever decision, and the surviving differential identity test passes. RC-004 was the only blocker and is now met by the Linux build in run 33821501747; the product source at that commit is byte-identical to the tree this work was proven on. Ready receipt is PASS with no blockers.",
     "claim_attribution_repair_2026_09_02": {
       "by": "KERNEL_BUILDER-20260902-175214",
       "at_utc": "2026-09-02T17:56:26.687Z",
@@ -109,6 +109,13 @@
         "reason": "Implementation complete and proven at a153d2ce (both named proof targets green; api::memory:: 26 passed / 3 failed, up from 23 / 6). KB_READY_CHECKLIST_RECEIPT BLOCKED on RC-004 only. Held out of READY_FOR_VALIDATION per the receipt rule, matching MT-144.",
         "previous_status": "CLAIMED",
         "new_status": "BLOCKED_ON_DEPENDENCY"
+      },
+      {
+        "at_utc": "2026-09-04T02:31:10.495Z",
+        "by": "KERNEL_BUILDER-20260903-213930",
+        "reason": "RC-004 resolved by MT-147's CI repair: the cross-platform-build job builds handshake_core on Linux with all features and compiles the in-crate test layer, run 33821501747 at 70c289cb. That was this microtask's only outstanding checklist item, so a fresh ready receipt comes back PASS with no blockers.",
+        "previous_status": "BLOCKED_ON_DEPENDENCY",
+        "new_status": "READY_FOR_VALIDATION_V4"
       }
     ],
     "proof_evidence_status_2026_09_02": {
@@ -119,13 +126,11 @@
     },
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
-      "generated_at_utc": "2026-09-03T22:52:13.250Z",
+      "generated_at_utc": "2026-09-04T02:30:06.751Z",
       "actor_session": "KERNEL_BUILDER-20260903-213930",
-      "overall_verdict": "BLOCKED",
-      "product_commit": "a153d2cee6f7851ee4a831978c636df37171c899",
-      "blocked_items": [
-        "RC-004"
-      ]
+      "overall_verdict": "PASS",
+      "product_commit": "70c289cba57a057ee641493ccefd71022cb532f1",
+      "blocked_items": []
     },
     "claimed_at_utc": "2026-09-03T21:39:55.430Z",
     "unblocked_2026_09_03": {
@@ -184,7 +189,7 @@
       "remaining_failures_note": "These three are pre-existing assertion failures made visible by MT-144 restoring the lib test target. They are not MT-118 proof targets and are not caused by this change. Owner needed; disclosed rather than silenced.",
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only; completed_by remains null."
     },
-    "blocker": "RC-004 only. Every MT-118 acceptance criterion is met at product a153d2ce except AC-118-5, which is partial for a recorded reason: its second named test, migration_0345_old_schema_identity_and_down_up_retry_converge, no longer exists because the PostgreSQL migration corpus was retired under MT-139 SEVER decision; the surviving differential test canonical_request_identity_matches_embedded_contract_across_actor_and_hash_edges passes. The ready receipt is BLOCKED because no cross-platform verification of handshake_core is obtainable on this host: cargo check --target aarch64-pc-windows-msvc dies in DuckDB C++ under clang-cl for arm64 (no ARM64 MSVC compiler installed), x86_64-unknown-linux-musl has no musl C sysroot so ring cannot compile, and branch CI is unusable because every job except traceability fails at setup or on legacy sqlite/postgres storage matrices (run 33666580708). This is the same environment gap that holds MT-144, and it is an environment/CI dependency rather than a defect in the change. Resolution needs either an ARM64 MSVC or musl toolchain on this host, or a repaired CI workflow. CORRECTION 2026-09-04 by KERNEL_BUILDER-20260903-213930: an earlier version of this blocker said the CI workflow files are main-only authoring surfaces needing Operator authorization for direct-main work. That was wrong and is retracted. .github/workflows/ci.yml triggers on push to branches \"**\", so it runs on feat/WP-KERNEL-012 already and can be repaired on the branch under an ordinary microtask. The only main-only rule in KERNEL_BUILDER_PROTOCOL.md line 229 concerns editing the ../handshake_main checkout directly, not workflow files. The real blocker is that the CI repair has no owner yet, not that it needs authorization.",
+    "blocker": null,
     "blocker_correction_2026_09_04": {
       "at_utc": "2026-09-03T23:23:19.707Z",
       "by": "KERNEL_BUILDER-20260903-213930",
@@ -192,6 +197,34 @@
       "why_wrong": ".github/workflows/ci.yml declares on.push.branches [\"**\"] and on.pull_request, so it already runs on feat/WP-KERNEL-012 and a fix committed to that branch takes effect on the next push. No rule in the KERNEL_BUILDER protocol or the governance topology restricts workflow-file edits to main; the only main-only rule concerns editing the ../handshake_main checkout directly.",
       "verified_by": "Read .github/workflows/ci.yml lines 1-25 at product a153d2ce and grepped the role protocol and governance topology for any workflow-edit restriction.",
       "effect": "RC-004 stays unmet for this MT, but the path to meeting it is an ordinary branch-side microtask, not an Operator authorization."
+    },
+    "rc_004_resolution_2026_09_04": {
+      "schema_id": "hsk.mt_rc004_resolution@1",
+      "resolved_by": "KERNEL_BUILDER-20260903-213930",
+      "resolved_at_utc": "2026-09-04T02:21:53.646Z",
+      "previously": "no",
+      "now": "yes",
+      "what_changed": "MT-147 repaired the branch CI pipeline and added a cross-platform-build job. RC-004 was unmet only because no Linux build of handshake_core was obtainable: this Windows host has no ARM64 MSVC compiler for the DuckDB C++ build and no musl C sysroot for ring, and every CI job that compiled the crate was failing for infrastructure reasons. That is no longer true.",
+      "citation": {
+        "run_id": "33821501747",
+        "job": "cross-platform-build",
+        "runner": "ubuntu-latest",
+        "conclusion": "success",
+        "product_commit": "70c289cba57a057ee641493ccefd71022cb532f1",
+        "product_branch": "feat/WP-KERNEL-012",
+        "steps": [
+          "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib --bins --all-features - success, Finished `dev` profile in 22m 51s",
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --all-features --no-run - success, Finished `test` profile in 26m 05s, produced Executable unittests src/lib.rs"
+        ],
+        "also_green_at": "Run 33819481804 at 817fca6f, with the same two steps green and the same durations. The job is unchanged between the two commits."
+      },
+      "scope_honesty": "This proves the crate builds on a second platform. It does not run the tests, and it deliberately excludes the out-of-crate integration tree under tests/, which does not compile on any host because tempfile resolves to 3.27.0 where TempDir::from_path no longer exists. That breakage is disclosed on MT-141. Nothing here should be read as a claim that the suite passes on Linux.",
+      "evidence": [
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-cross-platform-build.log",
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-after-jobs.log"
+      ],
+      "tree_argument": "The implementation evidence for MT-118 was recorded at product a153d2ce. git diff a153d2ce..70c289cb reports exactly one changed file, .github/workflows/ci.yml, so the product source at the cited commit is byte-identical to the tree MT-118 was proven on. The Linux build therefore covers this microtask's code without qualification.",
+      "surface_relevance": "The second step is the one that matters here. MT-118's change lives in src/storage/fems_memory.rs and is exercised by the in-crate cfg(test) layer, which is exactly what cargo test --lib --no-run compiles. That layer is now proven to compile on Linux as well as Windows."
     }
   },
   "scope": {

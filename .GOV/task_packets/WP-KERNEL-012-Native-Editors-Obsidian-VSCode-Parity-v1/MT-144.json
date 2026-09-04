@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": [
       "MT-118"
@@ -95,16 +95,14 @@
       },
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only; completed_by remains null."
     },
-    "blocker": "RC-004 only. All six MT-144 acceptance criteria are met and the code work is complete at product e2365695 (lib test target 24 errors -> 0; api::memory:: runs 23/6; product binary builds). The ready receipt is BLOCKED because no cross-platform verification of handshake_core is obtainable: cargo check --target aarch64-pc-windows-msvc dies in DuckDB C++ under clang-cl for arm64 (the MSVC install has no ARM64 compiler), x86_64-unknown-linux-musl has no musl C sysroot on this host so ring cannot compile, and branch CI is unusable because every job except traceability fails at setup or on legacy sqlite/postgres storage matrices (run 33666580708). This is an environment/CI dependency, not a defect in the change. It is the THIRD microtask blocked by the same gap (MT-118, and now MT-144 which exists to unblock MT-118). Resolution needs either an ARM64 MSVC or musl toolchain on this host, or a repaired CI workflow. CORRECTION 2026-09-04 by KERNEL_BUILDER-20260903-213930: an earlier version of this blocker said the CI workflow files are main-only authoring surfaces needing Operator authorization for direct-main work. That was wrong and is retracted. .github/workflows/ci.yml triggers on push to branches \"**\", so it runs on feat/WP-KERNEL-012 already and can be repaired on the branch under an ordinary microtask. The only main-only rule in KERNEL_BUILDER_PROTOCOL.md line 229 concerns editing the ../handshake_main checkout directly, not workflow files. The real blocker is that the CI repair has no owner yet, not that it needs authorization.",
+    "blocker": null,
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
-      "generated_at_utc": "2026-09-03T19:22:03.797Z",
-      "actor_session": "KERNEL_BUILDER-20260902-175214",
-      "overall_verdict": "BLOCKED",
-      "product_commit": "e2365695d89bae570694a8329b0203316f448399",
-      "blocked_items": [
-        "RC-004"
-      ]
+      "generated_at_utc": "2026-09-04T02:30:53.509Z",
+      "actor_session": "KERNEL_BUILDER-20260903-213930",
+      "overall_verdict": "PASS",
+      "product_commit": "70c289cba57a057ee641493ccefd71022cb532f1",
+      "blocked_items": []
     },
     "state_correction_history": [
       {
@@ -113,6 +111,13 @@
         "reason": "Implementation complete and proven at e2365695; KB_READY_CHECKLIST_RECEIPT BLOCKED on RC-004 (no cross-platform check obtainable for handshake_core on this host, CI broken). Held out of READY_FOR_VALIDATION per the receipt rule.",
         "previous_status": "CLAIMED",
         "new_status": "BLOCKED_ON_DEPENDENCY"
+      },
+      {
+        "at_utc": "2026-09-04T02:31:10.495Z",
+        "by": "KERNEL_BUILDER-20260903-213930",
+        "reason": "RC-004 resolved by MT-147's CI repair: the cross-platform-build job builds handshake_core on Linux with all features and compiles the in-crate test layer, run 33821501747 at 70c289cb. That was this microtask's only outstanding checklist item, so a fresh ready receipt comes back PASS with no blockers.",
+        "previous_status": "BLOCKED_ON_DEPENDENCY",
+        "new_status": "READY_FOR_VALIDATION_V4"
       }
     ],
     "blocker_correction_2026_09_04": {
@@ -122,7 +127,39 @@
       "why_wrong": ".github/workflows/ci.yml declares on.push.branches [\"**\"] and on.pull_request, so it already runs on feat/WP-KERNEL-012 and a fix committed to that branch takes effect on the next push. No rule in the KERNEL_BUILDER protocol or the governance topology restricts workflow-file edits to main; the only main-only rule concerns editing the ../handshake_main checkout directly.",
       "verified_by": "Read .github/workflows/ci.yml lines 1-25 at product a153d2ce and grepped the role protocol and governance topology for any workflow-edit restriction.",
       "effect": "RC-004 stays unmet for this MT, but the path to meeting it is an ordinary branch-side microtask, not an Operator authorization."
-    }
+    },
+    "rc_004_resolution_2026_09_04": {
+      "schema_id": "hsk.mt_rc004_resolution@1",
+      "resolved_by": "KERNEL_BUILDER-20260903-213930",
+      "resolved_at_utc": "2026-09-04T02:21:53.646Z",
+      "previously": "no",
+      "now": "yes",
+      "what_changed": "MT-147 repaired the branch CI pipeline and added a cross-platform-build job. RC-004 was unmet only because no Linux build of handshake_core was obtainable: this Windows host has no ARM64 MSVC compiler for the DuckDB C++ build and no musl C sysroot for ring, and every CI job that compiled the crate was failing for infrastructure reasons. That is no longer true.",
+      "citation": {
+        "run_id": "33821501747",
+        "job": "cross-platform-build",
+        "runner": "ubuntu-latest",
+        "conclusion": "success",
+        "product_commit": "70c289cba57a057ee641493ccefd71022cb532f1",
+        "product_branch": "feat/WP-KERNEL-012",
+        "steps": [
+          "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib --bins --all-features - success, Finished `dev` profile in 22m 51s",
+          "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --all-features --no-run - success, Finished `test` profile in 26m 05s, produced Executable unittests src/lib.rs"
+        ],
+        "also_green_at": "Run 33819481804 at 817fca6f, with the same two steps green and the same durations. The job is unchanged between the two commits."
+      },
+      "scope_honesty": "This proves the crate builds on a second platform. It does not run the tests, and it deliberately excludes the out-of-crate integration tree under tests/, which does not compile on any host because tempfile resolves to 3.27.0 where TempDir::from_path no longer exists. That breakage is disclosed on MT-141. Nothing here should be read as a claim that the suite passes on Linux.",
+      "evidence": [
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-cross-platform-build.log",
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-after-jobs.log"
+      ],
+      "tree_argument": "The implementation evidence for MT-144 was recorded at product e2365695. git diff e2365695..70c289cb excluding .github reports one changed file, src/storage/fems_memory.rs, which is MT-118's work. None of MT-144's own files (api/jobs.rs, api/workspaces.rs, api/loom.rs, api/memory.rs, bundles/exporter.rs) has changed since its commit.",
+      "surface_relevance": "MT-144 exists to make the in-crate test target compile at all, so the second step is a direct proof of its deliverable on a second platform: cargo test --lib --all-features --no-run succeeds and produces the unittests executable.",
+      "later_result_note": "MT-144's PT-144-2 recorded api::memory:: at 23 passed / 6 failed at e2365695. On the final tree that same suite reports 26 passed / 3 failed, because MT-118 subsequently fixed two of its own proof targets and a third failure cleared with them. The acceptance criterion is that the suite runs and its failures are attributed, and it still holds on the final tree with a strictly better result. Stated rather than glossed, because the number in the original evidence no longer matches the current tree."
+    },
+    "ready_for_validation_at_utc": "2026-09-04T02:31:10.495Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260903-213930",
+    "ready_for_validation_summary": "The handshake_core lib test target compiles again, from 24 errors to 0, and api::memory runs instead of being unbuildable. 17 skip branches and 2 ignore attributes were removed so those tests run unconditionally, and no assertion was weakened or retired. RC-004 was the only blocker and is now met by the Linux build in run 33821501747, whose second step compiles the in-crate test layer and is therefore a direct proof of this microtask's deliverable on a second platform. One recorded number has moved: PT-144-2's 23 passed / 6 failed is 26 / 3 on the final tree after MT-118 landed. Ready receipt is PASS with no blockers."
   },
   "scope": {
     "summary": "Restore `cargo test -p handshake_core --lib` to a compiling state on the embedded-SurrealDB-only tree, without weakening what the affected unit tests prove. MEASURED at product 7f279596 with `cargo test -p handshake_core --lib --features app-runtime,test-utils,surreal-test-support --no-run`: 24 errors across five files, in two distinct classes. CLASS A, removed-PostgreSQL leftovers: `crate::storage::tests::optional_postgres_backend_with_pool_from_env` is imported by cfg(test) modules in `src/api/jobs.rs:383`, `src/api/workspaces.rs:1462` and `src/bundles/exporter.rs:2428` but no longer exists anywhere in the crate, and those same modules construct `AppState` with a `postgres_pool` field that no longer exists (`src/api/jobs.rs:400`, `src/api/workspaces.rs:1479` and `:1520`, `:1536`, `:1549`, `src/bundles/exporter.rs:2487`). AppState now carries `storage: Arc<dyn Database>` and `surreal: SurrealStorage` instead. CLASS B, SurrealDB API mismatches in test code that was never rebuilt after the port: `RecordIdKey: From<&String>` is not satisfied at `src/api/loom.rs:4804` and `:6091` and at `src/api/memory.rs:2512`, `:2733`, `:2809`, `:2843`, `:3274`, `:3908`, `:4697`, `:4929`; a lifetime bound on a generic `B` at `src/api/loom.rs:4578` (E0310/E0311); `R cannot be sent between threads safely` at `src/api/memory.rs:1774` against the bound on `SurrealStorage::with_data_operation`; `ProposalAck` lacks `PartialEq` at `src/api/memory.rs:2354`; and a `?` error conversion from `(StatusCode, Json<Value>)` at `src/api/memory.rs:2407`. The product BINARY already builds cleanly with `--features app-runtime`, so this is confined to test-only code. The work is to port these modules onto the embedded store the way the surviving backend tests do, retiring only what the pivot genuinely removed and naming the superseding proof when a test is retired.",
@@ -288,5 +325,5 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-03T23:23:19.707Z"
+  "updated_at_utc": "2026-09-04T02:31:10.495Z"
 }

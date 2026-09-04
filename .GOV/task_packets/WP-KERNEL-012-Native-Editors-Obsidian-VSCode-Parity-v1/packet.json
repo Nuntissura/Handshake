@@ -620,7 +620,7 @@
       "MT-115": "READY_FOR_VALIDATION_V4",
       "MT-116": "READY_FOR_VALIDATION_V4",
       "MT-117": "READY_FOR_VALIDATION_V4",
-      "MT-118": "BLOCKED_ON_DEPENDENCY",
+      "MT-118": "READY_FOR_VALIDATION_V4",
       "MT-119": "READY_FOR_VALIDATION_V4",
       "MT-120": "READY_FOR_VALIDATION_V4",
       "MT-121": "READY_FOR_VALIDATION_V4",
@@ -646,7 +646,7 @@
       "MT-141": "CLAIMED",
       "MT-142": "READY_FOR_DEV",
       "MT-143": "READY_FOR_VALIDATION_V4",
-      "MT-144": "BLOCKED_ON_DEPENDENCY",
+      "MT-144": "READY_FOR_VALIDATION_V4",
       "MT-145": "READY_FOR_DEV",
       "MT-146": "READY_FOR_DEV",
       "MT-147": "READY_FOR_VALIDATION_V4"
@@ -1215,7 +1215,7 @@
       "MT-115": "READY_FOR_VALIDATION_V4",
       "MT-116": "READY_FOR_VALIDATION_V4",
       "MT-117": "READY_FOR_VALIDATION_V4",
-      "MT-118": "BLOCKED_ON_DEPENDENCY",
+      "MT-118": "READY_FOR_VALIDATION_V4",
       "MT-119": "READY_FOR_VALIDATION_V4",
       "MT-120": "READY_FOR_VALIDATION_V4",
       "MT-121": "READY_FOR_VALIDATION_V4",
@@ -1241,7 +1241,7 @@
       "MT-141": "CLAIMED",
       "MT-142": "READY_FOR_DEV",
       "MT-143": "READY_FOR_VALIDATION_V4",
-      "MT-144": "BLOCKED_ON_DEPENDENCY",
+      "MT-144": "READY_FOR_VALIDATION_V4",
       "MT-145": "READY_FOR_DEV",
       "MT-146": "READY_FOR_DEV",
       "MT-147": "READY_FOR_VALIDATION_V4"
@@ -1283,7 +1283,8 @@
     "status_sync_note_2026_09_04_mt145": "MT-145 declared 2026-09-04 by KERNEL_BUILDER-20260903-213930. It owns the store-lifetime defect and the 54 vestigial silent-skip branches in src/api/flight_recorder.rs and src/workflows.rs, the two in-crate test modules MT-144 could not touch because they fall outside its allowed_paths. Both helpers drop the EmbeddedTestBackend before the first assertion, so every test in them that touches storage cannot exercise it. Declared READY_FOR_DEV and unclaimed.",
     "status_sync_note_2026_09_04_mt146": "MT-146 declared 2026-09-04 by KERNEL_BUILDER-20260903-213930. It owns the three api::memory assertion failures that survived MT-118, each reproduced individually at product a153d2ce with its panic quoted verbatim in the contract: workspace deletion leaves an orphan proposal under a concurrent insert, the proposal list never puts approved proposals ahead of newer pending ones, and the commit crash window preserves only one of the two flight-recorder events it must. All three are pre-existing behaviour that the restored in-crate test layer made visible, not regressions. Declared READY_FOR_DEV and unclaimed.",
     "status_sync_note_2026_09_04_mt147": "MT-147 declared and claimed 2026-09-04 by KERNEL_BUILDER-20260903-213930. It repairs the branch CI pipeline, which is the sole remaining blocker on RC-004 for MT-118 and MT-144 and would block MT-145 and MT-146 on completion. Nine of the eleven CI jobs test product code, so this is product work on the product branch, not repo governance.",
-    "status_sync_note_2026_09_04_mt147_ready": "MT-147 moved CLAIMED -> READY_FOR_VALIDATION_V4 at 2026-09-04T01:10:25.031Z on a PASS ready receipt with no blockers, product 70c289cb. Branch CI went from one green job of eleven to five, and the new cross-platform-build job gives the packet its first citable Linux build of handshake_core."
+    "status_sync_note_2026_09_04_mt147_ready": "MT-147 moved CLAIMED -> READY_FOR_VALIDATION_V4 at 2026-09-04T01:10:25.031Z on a PASS ready receipt with no blockers, product 70c289cb. Branch CI went from one green job of eleven to five, and the new cross-platform-build job gives the packet its first citable Linux build of handshake_core.",
+    "status_sync_note_2026_09_04_rc004": "MT-118 and MT-144 moved BLOCKED_ON_DEPENDENCY -> READY_FOR_VALIDATION_V4 at 2026-09-04T02:31:19.859Z. RC-004 was their only outstanding checklist item and MT-147 resolved it: the cross-platform-build job builds handshake_core on Linux with all features and compiles the in-crate test layer, run 33821501747 at 70c289cb. Fresh ready receipts for both are PASS with no blockers. No BLOCKED_ON_DEPENDENCY microtasks remain in this packet."
   },
   "status_sync_note_2026_07_05_mt101_repair": "MT-101 moved OPEN -> READY_FOR_VALIDATION by KERNEL_BUILDER-20260705-025228 after focused hardcode/local-load repair: ordinary operator model-session /jobs requests omit wp_id, mt_id, prompt, and simulate_duration_ms; promptless bootstrap/manual wording is updated; local GGUF load is now surfaced as LocalModelLoadEndpointMissing kernel_model_runtime_load while direct spawn remains kernel_swarm_spawn_session IPC-only. Proofs passed: model_session_launch 14/14 with external screenshots, manual_content 19/19, cargo fmt --check, scoped git diff --check, cargo check --lib, CONTROL-4 no_hardcoded_color32 1/1, and git ls-files src/**/*.png empty. Official validator has not run; validator_verdict remains PENDING. Full suite/clippy/live local+cloud managed backend execution remain unproven/NEEDS_MANAGED_RESOURCE_PROOF. Contract under-scoped manual_content_editors.rs and tests/test_manual_content.rs for HBR-MAN same-change proof; operator waiver required.",
   "operator_requirement_verification_2026_08_05": {
