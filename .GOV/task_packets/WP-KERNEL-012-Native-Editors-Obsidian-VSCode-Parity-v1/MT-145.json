@@ -61,6 +61,140 @@
       "at_utc": "2026-09-04T15:10:56.430Z",
       "by": "KERNEL_BUILDER-20260903-213930 (orchestrator, contract author)",
       "note": "Corrected a stale per-module runtime estimate that I had written from guesswork. Reported by the implementer from live measurement while its suites were running. No acceptance criterion changes; this only stops a future reader from misdiagnosing a healthy multi-hour run as a hang and killing it."
+    },
+    "implementation_result_at_utc": "2026-09-04T18:20:00Z",
+    "implementation_result_by": "KERNEL_BUILDER-20260904-050242",
+    "implementation_result_summary": "Both setup_state helpers now return (AppState, EmbeddedTestBackend); all 55 let-else skip call sites became unconditional (state, _store) bindings; the 56th inline instance of the same defect in fems_forget_persists_exact_status_events_and_sorted_commit_hash was fixed with .clone(). RED captured pre-fix in both modules. Both suites run to completion. Product binary builds. 7 test failures remain, all pre-existing defects EXPOSED (not caused) by the fix, each attributed; none silenced.",
+    "implementation_result_acceptance": {
+      "AC-145-1": {
+        "status": "PROVED",
+        "evidence": "Both helpers return the MT-144 tuple shape Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn Error>>. flight_recorder.rs:2012, workflows.rs:28615.",
+        "proof": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp-kernel-012-kb-0902-proof-logs/green-compile.log"
+      },
+      "AC-145-2": {
+        "status": "PROVED",
+        "evidence": "55 call sites converted (28 state + 1 base_state in flight_recorder.rs, 26 in workflows.rs). Post-edit verified: 55 _store bindings, 0 bare underscore, 0 residual let-else, 0 residual Option-returning helper.",
+        "proof": "git diff line census: every changed line falls in helper/binding/clone categories; a filter for anything outside them returned empty."
+      },
+      "AC-145-3": {
+        "status": "PROVED",
+        "evidence": "No assertion weakened, deleted or ignored. Count of ignore attributes unchanged: only the pre-existing MT-109 guard at flight_recorder.rs:4417 (was 4473, shifted by deletions), gated on absence of the duckdb-flight-recorder feature. All 7 failures recorded with root cause and proposed owner."
+      },
+      "AC-145-4": {
+        "status": "PROVED",
+        "evidence": "api::flight_recorder 38 passed / 1 failed; workflows 67 passed / 6 failed; per-test attribution in implementation_result_failures.",
+        "proof": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp-kernel-012-kb-0902-proof-logs/green-flight_recorder-suite.log ; ${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp-kernel-012-kb-0902-proof-logs/green-workflows-suite.log"
+      },
+      "AC-145-5": {
+        "status": "MET",
+        "evidence": "No SQLite or PostgreSQL backend wiring survives in either touched cfg(test) module: no DSN, env var, connection, feature gate, import, or code path reaching PostgreSQL. api::flight_recorder cfg(test) contains zero SQLite/PostgreSQL tokens of any kind.",
+        "finding_for_reader": "workflows cfg(test) retains 7 occurrences of the word postgres, all inside the single PASSING test postgres_structured_collab_artifacts_materialize_parity_fields (lines 28997, 29006, 29041, 29048, 29061, 29073, 29131): a test fn name, a fixture file-path string, a done_criteria string, a label, a WP-ID string and two expect messages. These are historical naming inside Locus fixture data for a work packet called WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1. They create no PostgreSQL dependency. Orchestrator ruling 2026-09-04: historical naming in fixture data is explicitly out of scope for AC-145-5; recorded as a finding for the reader, not a shortfall. Renaming was rejected because the label and done_criteria are values the test stores and asserts on, so rewriting them would brush AC-145-3.",
+        "proof": "Token inventory over both cfg(test) module ranges; out-of-scope live refs at workflows.rs:2909 and 11034 left untouched per amended contract."
+      },
+      "AC-145-6": {
+        "status": "PROVED",
+        "evidence": "cargo build --bin handshake_core --features app-runtime -j 1 gave exit 0 in 3m09s; cargo build --bins -j 1 gave exit 0 in 1m46s; handshake_core.exe produced at 259710464 bytes. Confirms the change stayed inside cfg(test).",
+        "proof": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp-kernel-012-kb-0902-proof-logs/build-j1-product.log ; ${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp-kernel-012-kb-0902-proof-logs/build-j1-allbins.log"
+      }
+    },
+    "implementation_result_proof_targets": {
+      "PT-145-1": {
+        "status": "CAPTURED",
+        "evidence": "Pre-fix RED in both modules, verbatim Error: Database(embedded database is closed). The flight_recorder target native_editor_reconciler_repairs_durable_pending_after_restart_window was selected structurally, first in file order among the 8 direct store-touching tests, not by outcome.",
+        "proof": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp-kernel-012-kb-0902-proof-logs/red3-flight_recorder.log ; ${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp-kernel-012-kb-0902-proof-logs/red2-workflows.log"
+      },
+      "PT-145-2": {
+        "status": "RUN",
+        "evidence": "test result: FAILED. 38 passed; 1 failed; 0 ignored; 0 measured; 2074 filtered out; finished in 4541.17s",
+        "proof": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp-kernel-012-kb-0902-proof-logs/green-flight_recorder-suite.log"
+      },
+      "PT-145-3": {
+        "status": "RUN",
+        "evidence": "test result: FAILED. 67 passed; 6 failed; 0 ignored; 0 measured; 2040 filtered out; finished in 517.23s",
+        "proof": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp-kernel-012-kb-0902-proof-logs/green-workflows-suite.log"
+      },
+      "PT-145-4": {
+        "status": "PROVED",
+        "evidence": "exit 0 when serialized; the parallel link previously hit LINK fatal error LNK1102 out of memory",
+        "proof": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp-kernel-012-kb-0902-proof-logs/build-j1-product.log"
+      }
+    },
+    "implementation_result_failures": [
+      {
+        "test": "api::flight_recorder::tests::native_editor_same_id_mutated_envelope_conflicts",
+        "error": "panicked at src/api/flight_recorder.rs:2388: same event_id with changed pane must conflict",
+        "root_cause": "Genuine conflict-detection assertion evaluated against a live store for the first time; pre-fix the store was closed so this assertion could never have been proving anything.",
+        "caused_by_this_mt": false,
+        "proposed_owner": "NEW MT in WP-KERNEL-012: native-editor same-event_id conflict detection"
+      },
+      {
+        "test": "workflows::tests::fems_extract_emits_proposal_without_commit_and_without_raw_fr_content",
+        "error": "panicked at src/workflows.rs:30403: expected memory_write_proposed event",
+        "root_cause": "NoopTestRecorder at workflows.rs:28611 discards events and exposes no DuckDB connection",
+        "caused_by_this_mt": false,
+        "proposed_owner": "NEW MT in WP-KERNEL-012: workflows setup_state must supply a DuckDB-backed recorder"
+      },
+      {
+        "test": "workflows::tests::governance_workflow_mirror_gate_transition_emits_fr_event",
+        "error": "Terminal(failed to open workflow spec session log mailbox: duckdb error: flight_recorder does not expose DuckDB connection)",
+        "root_cause": "NoopTestRecorder at workflows.rs:28611 discards events and exposes no DuckDB connection",
+        "caused_by_this_mt": false,
+        "proposed_owner": "NEW MT in WP-KERNEL-012: workflows setup_state must supply a DuckDB-backed recorder"
+      },
+      {
+        "test": "workflows::tests::test_mark_stalled_workflows",
+        "error": "Custom { kind: Other, error: Recovery event not found in Flight Recorder }",
+        "root_cause": "NoopTestRecorder at workflows.rs:28611 discards events and exposes no DuckDB connection",
+        "caused_by_this_mt": false,
+        "proposed_owner": "NEW MT in WP-KERNEL-012: workflows setup_state must supply a DuckDB-backed recorder"
+      },
+      {
+        "test": "workflows::tests::test_mark_stalled_workflows_recovers_orphaned_active_session",
+        "error": "Recovery event not found in Flight Recorder",
+        "root_cause": "NoopTestRecorder at workflows.rs:28611 discards events and exposes no DuckDB connection",
+        "caused_by_this_mt": false,
+        "proposed_owner": "NEW MT in WP-KERNEL-012: workflows setup_state must supply a DuckDB-backed recorder"
+      },
+      {
+        "test": "workflows::tests::test_recover_session_from_checkpoint",
+        "error": "Recovery event not found in Flight Recorder",
+        "root_cause": "NoopTestRecorder at workflows.rs:28611 discards events and exposes no DuckDB connection",
+        "caused_by_this_mt": false,
+        "proposed_owner": "NEW MT in WP-KERNEL-012: workflows setup_state must supply a DuckDB-backed recorder"
+      },
+      {
+        "test": "workflows::tests::validator_gate_runtime_summary_links_check_evidence",
+        "error": "Terminal(failed to open workflow spec session log mailbox: duckdb error: flight_recorder does not expose DuckDB connection)",
+        "root_cause": "NoopTestRecorder at workflows.rs:28611 discards events and exposes no DuckDB connection",
+        "caused_by_this_mt": false,
+        "proposed_owner": "NEW MT in WP-KERNEL-012: workflows setup_state must supply a DuckDB-backed recorder"
+      }
+    ],
+    "implementation_result_root_cause_note": "All 6 workflows failures share ONE harness root cause: workflows.rs:28611 fn test_recorder returns Arc<NoopTestRecorder>, a no-op recorder that discards events and exposes no DuckDB connection, while those 6 tests assert on Flight Recorder contents. Previously masked because the test died on the closed store before reaching the assertion. Fixing it means changing what setup_state supplies, which is outside AC-145-1 and AC-145-2, so it is recorded per AC-145-3 rather than patched.",
+    "implementation_result_disclosed_environmental_repairs": [
+      {
+        "what": "Normalized CRLF to LF in storage/surreal/schema.surql and storage/surreal/knowledge_schema_registry_seed.surql, in the wtc-k12-mt145 worktree only.",
+        "why": "Both files are embedded via include_str and SHA-256 hashed against compile-time constants. This worktree checked them out CRLF (core.autocrlf is true and .gitattributes carries no eol rule for surql files), so verify_compiled_manifest failed closed with HANDSHAKE_SURREAL_SCHEMA_COMPILED_MANIFEST_DRIFT and no embedded test could bootstrap at all. Proven by hashing: sha256 of the as-is CRLF bytes equals the runtime value, sha256 of the LF-normalized bytes equals the source constant, for both files. PT-145-1 was unobtainable without this repair.",
+        "content_change": "NONE. Line endings only; git diff reports zero changed lines.",
+        "committed": false,
+        "reason_uncommitted": "Outside allowed_paths, and schema.surql belongs to MT-146. Committing a line-ending flip would renormalize the files on the branch and could break that lane. Left uncommitted per orchestrator disposition.",
+        "backups": "CRLF originals retained in the session scratchpad; restorable by plain file copy with no git operation.",
+        "durable_fix_owner": "Orchestrator-recorded finding: add a surql eol=lf rule to .gitattributes under its own microtask. Repo-wide renormalization, deliberately not carried by MT-145."
+      }
+    ],
+    "implementation_result_execution_notes": [
+      "Suites were run with --test-threads=4 rather than the default. Each test opens its own RocksDB store, and the host had already produced one STATUS_DLL_INIT_FAILED under memory pressure with a concurrent lane active. Lower concurrency keeps per-test attribution trustworthy.",
+      "The product binary build required -j 1. Parallel linking of about 14 debug binaries hit LINK fatal error LNK1102 out of memory on a 127.9 GB host with 106.4 GB free; identical source links cleanly when serialized.",
+      "The contract execution_constraints estimate of roughly 30 minutes for a 28-test module is stale: observed 4541s for api::flight_recorder at --test-threads=4.",
+      "Correction to an earlier structural estimate made during diagnosis: a classifier matching only textual .storage / .surreal / ensure_test_workspace under-counts store usage, because tests also reach the store through API handlers such as ingest_native_editor. Treat the figure of 12 tests never touching the store as a lower bound, not a firm count."
+    ],
+    "ac_145_5_second_correction_2026_09_04": {
+      "at_utc": "2026-09-04T16:25:14.991Z",
+      "by": "KERNEL_BUILDER-20260903-213930 (orchestrator, contract author)",
+      "ruling": "Disposition (a): leave the 7 residual postgres tokens as disclosed. Do not rename them.",
+      "finding": "The implementer found 7 postgres tokens in workflows cfg(test), all inside the single passing test postgres_structured_collab_artifacts_materialize_parity_fields: the test fn name, a fixture file-path string, a done_criteria string, a label, a WP-ID string, and two expect() messages. None is a DSN, env var, connection, or helper, and no PostgreSQL is contacted. It is a Locus fixture named after a historical work packet. api::flight_recorder cfg(test) is completely clean at zero tokens.",
+      "reason": "This is the same drafting error as the first AC-145-5 correction, one layer down. I wrote a criterion broader than its intent: it was meant to catch live backend wiring, and instead it catches any occurrence of the word. Renaming the label and done_criteria would change values the test stores and asserts on, which risks AC-145-3; renaming only the fn name would make the clean claim technically true while the fixture strings remain, which is a distinction without substance and worse than disclosing. The criterion is narrowed to say what it always meant. Nothing is relaxed, because those 7 tokens create no PostgreSQL dependency of any kind.",
+      "effect": "AC-145-5 is MET, not PROVED_WITH_DISCLOSURE. The disclosure is retained as a finding for the reader, not as a shortfall against the criterion."
     }
   },
   "scope": {
@@ -83,7 +217,7 @@
       "AC-145-2: every let-else skip call site becomes an unconditional binding that also holds the backend for the life of the test. The count is 55, not the 54 this contract first stated: api/flight_recorder.rs has 28 `let Some(state)` plus one `let Some(base_state)` at line 2982, and workflows.rs has 26. No test keeps a branch that can return Ok without asserting anything.",
       "AC-145-3: no assertion is weakened, ignored, or deleted to make a test pass. Every test that fails once the store is live must be either fixed or recorded with a named owner and a stated reason; none may be quietly marked ignore.",
       "AC-145-4: the full api::flight_recorder and workflows in-crate suites are run and their pass and fail counts recorded verbatim, including a per-test attribution for every failure.",
-      "AC-145-5: no SQLite or PostgreSQL identifier, DSN, env var, or helper survives as live code INSIDE THE cfg(test) MODULES this microtask touches. Live product references elsewhere in workflows.rs are explicitly out of scope and must not be touched: an error string at line 2909 and a real call to locus::sqlite_store::parse_locus_operation at line 11034 are working product behaviour, not test-era leftovers.",
+      "AC-145-5: no SQLite or PostgreSQL BACKEND WIRING survives inside the cfg(test) modules this microtask touches - meaning no DSN, connection string, env var, feature gate, import, helper, or code path that would reach either engine. Historical naming in fixture data does not count and must not be rewritten: identifiers, file-path strings, labels, work-packet ids and assertion messages that merely contain the word are out of scope, because rewriting values a test stores and asserts on would risk AC-145-3. Live product references elsewhere in workflows.rs are also out of scope: the error string at line 2909 and the locus::sqlite_store::parse_locus_operation call at line 11034 are working product behaviour, not test-era leftovers.",
       "AC-145-6: the product binary still builds, proving the change stayed inside cfg(test)."
     ],
     "proof_targets": [
@@ -197,5 +331,5 @@
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
   },
-  "updated_at_utc": "2026-09-04T15:55:53.574Z"
+  "updated_at_utc": "2026-09-04T16:25:14.991Z"
 }
