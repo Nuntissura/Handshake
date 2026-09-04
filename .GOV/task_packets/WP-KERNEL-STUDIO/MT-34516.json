@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34516",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-080#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "4.3 The panel inventory and the shipping spine",
+  "spec_line": 30301,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Merge law",
+ "spec_anchor": [
+  "STU-SHL-080"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "Merge law.** A consolidation that only works given an unbuilt capability is not a consolidation, it is deferred debt. A merge is permitted ONLY where the merged panel is usable AS-IS. The operational test: does the merge require two of its members to be VISIBLE AT THE SAME TIME? If yes, the merge is REJECTED. Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a category error: three of the five are not panels at all | | the graph editor → a mode of the keyframe timeline | **PERMITTED** | the graph replaces the keyframe strip for the SAME properties at the same time; the two views are alternatives, never simultaneous | | 34 control-panel variants → the `context-bar` slot | **PERMITTED** | 34 alternative layouts of ONE slot chosen by selection; only one selection exists at a time | | 60 property inspectors → one `properties` panel plus 60 bindings [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Consequences that MUST hold: | Merge | Verdict | Reason | |---|---|---| | twelve preset surfaces → one preset library | **REJECTED** | requires simultaneous visibility; the panels stay separate | | the clip timeline and the keyframe timeline → one panel with a mode switch | **REJECTED** | see [STU-SHL-086] | | five titling surfaces → one panel | **REJECTED** and redecomposed: properties → the inspector slot by binding; styles → `text-styles`; tools → the Tool Rail; actions → `align-distribute`; the on-canvas editor → a Viewport editing mode; the template browser → `graphics-templates` | a cate [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-080"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

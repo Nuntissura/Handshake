@@ -1,0 +1,2680 @@
+{
+ "schema_id": "handshake.reference.spec_module_provenance@1",
+ "file_id": "14-07-typography-provenance-20260904",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "module": {
+  "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+  "section_id": "14.7",
+  "title": "14.7 Typography Engine",
+  "anchor_prefix": "STU-TYP",
+  "anchor_range_new": "STU-TYP-100..STU-TYP-245 plus STU-TYP-104A",
+  "supersedes": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md lines 1240-1482"
+ },
+ "purpose": "Maps every clause anchor in the module to the capture file and record it was derived from. The module is the authority; this file records HOW each clause was derived so a reviewer can audit it. Nothing here is normative.",
+ "capture_root": ".GOV/reference/studio_app_feature_research/",
+ "evidence_kind_legend": {
+  "parsed": "read directly out of a parsed capture record",
+  "derived": "computed or inferred from parsed capture records; the inference is stated in the clause",
+  "contract": "an authoring-contract or operator rule, not an application observation",
+  "operator_decision": "an operator-confirmed architecture decision",
+  "spec_text": "the superseded Master Spec text itself",
+  "defect_notice": "a recorded defect in the capture, cited so the clause does not rely on it",
+  "recovery_limit": "a capture that did not recover the value; the clause records UNKNOWN"
+ },
+ "derivation_legend": {
+  "parsed": "clause states what the capture states",
+  "derived": "clause states a consequence of what the capture states",
+  "studio_normative_choice": "clause fixes a value no capture declared; the clause says so inline",
+  "contradiction_of_record": "clause records a disagreement between capture and superseded spec text",
+  "contradiction_resolution": "clause replaces superseded spec text on the strength of a capture",
+  "restatement": "clause restates a retained anchor",
+  "restatement_hardened": "clause restates a retained anchor and adds binding detail",
+  "governance": "clause is authority or scope bookkeeping, not behaviour",
+  "contract": "clause implements an authoring-contract rule",
+  "parsed+normative_choice": "clause mixes parsed values with a stated Studio choice",
+  "parsed+self_audit": "clause reports counts measured over the capture and over this module"
+ },
+ "self_check": {
+  "anchors_defined_in_module": 131,
+  "anchors_mapped_here": 131,
+  "unmapped_anchors": [],
+  "mapped_but_not_in_module": []
+ },
+ "contradictions_of_record": [
+  {
+   "id": "TYP-CONTRA-1",
+   "superseded_anchor": "STU-TYP-010",
+   "successor": "STU-TYP-135..STU-TYP-140",
+   "claim_in_spec": "composition is one closed four-value enumeration: paragraph, single_line, world_ready, cjk",
+   "capture_says": "composition is two independent axes plus a name registry",
+   "evidence": [
+    "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json :: classes.ParagraphAttributes.ComposerEngine (enum) and .EveryLineComposer (bool) are separate properties",
+    "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json :: enums.AiComposerEngineType has 3 members (aiLatinCJKComposer=0, aiOptycaComposer=1, aiAdornment=2)",
+    "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json :: enums.PsTextComposer has 2 members (psAdobeSingleLine=1, psAdobeEveryLine=2)",
+    "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json :: attributes['composer'].type == 'string', not an enumeration"
+   ],
+   "consequence": "the four-value enumeration cannot express world-ready single-line composition, which ships"
+  },
+  {
+   "id": "TYP-CONTRA-2",
+   "superseded_anchor": "STU-TYP-003",
+   "successor": "STU-TYP-116..STU-TYP-119",
+   "claim_in_spec": "auto-size has three modes: auto_width, auto_height, fixed",
+   "capture_says": "five modes plus a separate nine-value anchor axis plus separate minimums, and truncation is a separate two-state property with its own max-lines",
+   "evidence": [
+    "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json :: enumerations['auto sizing type enum'] has 5 members",
+    "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json :: enumerations['auto sizing reference enum'] has 9 members",
+    "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json :: classes['text frame preference'].{minimum height for auto sizing, minimum width for auto sizing, use minimum height for auto sizing, use minimum width for auto sizing}",
+    "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json :: node_types.TextNode.properties.textAutoResize (4 members), .textTruncation (DISABLED|ENDING), .maxLines"
+   ],
+   "consequence": "proportional growth is dropped entirely and a resize has no recorded anchor, so it is unreproducible"
+  },
+  {
+   "id": "TYP-CONTRA-3",
+   "superseded_anchor": "STU-TYP-011",
+   "successor": "STU-TYP-141",
+   "claim_in_spec": "balance ragged lines is an optional boolean mode that requires the paragraph composer",
+   "capture_says": "the attribute is typed variant and accepts an enumeration value, and its constraint is against the single-line scope, not against one named composer",
+   "evidence": [
+    "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json :: attributes['balance ragged lines'].type == 'any / variant'; description: 'If true or set to an enumeration value, balances ragged lines. Note: Not valid with a single-line text composer.'",
+    "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json :: enums.TextWrapStyle == AUTO | BALANCE | PRETTY, a three-mode balance control in a second lineage"
+   ],
+   "consequence": "a boolean control cannot express the shipped modes, and world-ready every-line composition is wrongly excluded"
+  }
+ ],
+ "clauses": {
+  "STU-TYP-100": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "where_the_behaviour_comes_from.rule",
+     "evidence_kind": "contract",
+     "detail": "every parameter/range/default/unit/enumerated value must be traceable to a named capture file"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].operator_reinforcement_20260904",
+     "evidence_kind": "operator_decision",
+     "detail": "master spec is sole source of truth; corpus is evidence, never authority"
+    }
+   ]
+  },
+  "STU-TYP-101": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "anchors STU-TYP-001..051",
+     "evidence_kind": "spec_text",
+     "detail": "highest pre-existing typography anchor is STU-TYP-051"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].anchor_dependency",
+     "evidence_kind": "operator_decision",
+     "detail": "spec rewrite assigns real anchors"
+    }
+   ]
+  },
+  "STU-TYP-102": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "14.7 lines 1240-1482",
+     "evidence_kind": "spec_text",
+     "detail": "full pre-existing clause set, dispositioned row by row"
+    }
+   ]
+  },
+  "STU-TYP-103": {
+   "derivation": "contradiction_of_record",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.ParagraphAttributes.ComposerEngine + .EveryLineComposer",
+     "evidence_kind": "parsed",
+     "detail": "two independent properties: enum AiComposerEngineType and a separate boolean"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiComposerEngineType",
+     "evidence_kind": "parsed",
+     "detail": "aiLatinCJKComposer=0, aiOptycaComposer=1, aiAdornment=2"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsTextComposer",
+     "evidence_kind": "parsed",
+     "detail": "psAdobeSingleLine=1, psAdobeEveryLine=2 (scope axis only, 2 members)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['composer'].type",
+     "evidence_kind": "parsed",
+     "detail": "string, not an enumeration; owners story/text/paragraph style/text default"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['auto sizing type enum']",
+     "evidence_kind": "parsed",
+     "detail": "5 members: off, height only, width only, height and width, height and width proportionally"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['auto sizing reference enum']",
+     "evidence_kind": "parsed",
+     "detail": "9 members (box anchor points)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties.textAutoResize / textTruncation / maxLines",
+     "evidence_kind": "parsed",
+     "detail": "4 + 2 + 1: resize, truncation and max-lines are separate properties"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['balance ragged lines']",
+     "evidence_kind": "parsed",
+     "detail": "type 'any / variant'; description: 'If true or set to an enumeration value ... Not valid with a single-line text composer'"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-010], [STU-TYP-003], [STU-TYP-011]",
+     "evidence_kind": "spec_text",
+     "detail": "the three superseded clauses"
+    }
+   ]
+  },
+  "STU-TYP-104": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[3]",
+     "evidence_kind": "operator_decision",
+     "detail": "[STU-TYP-008] is STRICTER than the operator general rule and must not be softened"
+    }
+   ]
+  },
+  "STU-TYP-104A": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "naming_discipline.rule",
+     "evidence_kind": "contract",
+     "detail": "a source product name is never a Studio tool, command, panel or manual name; vendor names appear only as provenance in evidence fields"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-SECTION-003]",
+     "evidence_kind": "spec_text",
+     "detail": "dedup and no-double-features law"
+    }
+   ]
+  },
+  "STU-TYP-105": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.required_fields",
+     "evidence_kind": "contract",
+     "detail": "hard_min/hard_max, soft_min/soft_max, default, unit, precision, step/coarse_step/fine_step"
+    },
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.irreversible_mistake",
+     "evidence_kind": "contract",
+     "detail": "collapsing hard and soft is irreversible"
+    }
+   ]
+  },
+  "STU-TYP-106": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.where_bounds_are_absent",
+     "evidence_kind": "contract",
+     "detail": "where a bound is unknown, say so; never invent one"
+    }
+   ]
+  },
+  "STU-TYP-107": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.where_bounds_are_absent",
+     "evidence_kind": "contract",
+     "detail": "observed ranges across shipped presets are not declared bounds; clamping to them would forbid legal values"
+    }
+   ]
+  },
+  "STU-TYP-108": {
+   "derivation": "parsed+normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes.{Size,Leading,BaselineShift}.units_hint",
+     "evidence_kind": "parsed",
+     "detail": "points"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes.Tracking.doc",
+     "evidence_kind": "parsed",
+     "detail": "'the tracking or range kerning amount in thousands of an em'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.TextRange.Kerning.doc",
+     "evidence_kind": "parsed",
+     "detail": "'controls the spacing between two characters (in milli-ems)' - same unit, different vendor name"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes.{HorizontalScale,VerticalScale,Tsume}.units_hint",
+     "evidence_kind": "parsed",
+     "detail": "percent"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes.Rotation.units_hint",
+     "evidence_kind": "parsed",
+     "detail": "degrees"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes.{AkiLeft,AkiRight}.doc",
+     "evidence_kind": "parsed",
+     "detail": "'the em amount of left/right aki'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.TextItem.Size.constraints.unit",
+     "evidence_kind": "parsed",
+     "detail": "points"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['point size'].type",
+     "evidence_kind": "parsed",
+     "detail": "measurement (unit-bearing real)"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-051]",
+     "evidence_kind": "spec_text",
+     "detail": "pre-existing type measurement law, extended here"
+    }
+   ]
+  },
+  "STU-TYP-109": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['kerning key increment'].description",
+     "evidence_kind": "parsed",
+     "detail": "'(Range: 1 to 100)' per 1000 ems"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['leading key increment'].description",
+     "evidence_kind": "parsed",
+     "detail": "'(Range: .001 to 100)'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['baseline shift key increment'].description",
+     "evidence_kind": "parsed",
+     "detail": "'(Range: .001 to 100)'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].what_the_spec_rewrite_must_cover[4]",
+     "evidence_kind": "operator_decision",
+     "detail": "specify the scrubbable numeric control per OUI-008 including the AccessKit clamp path"
+    }
+   ]
+  },
+  "STU-TYP-110": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes.story (356 properties), classes.text (343), classes['text style range'], classes['character style range'], classes['paragraph style range']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "interfaces.StyledTextSegment (29 members)",
+     "evidence_kind": "parsed",
+     "detail": "characters, start, end plus the full resolved attribute record per run"
+    }
+   ]
+  },
+  "STU-TYP-111": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes.{character,word,line,paragraph,'text column','insertion point','text style range','character style range','paragraph style range'}",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties",
+     "evidence_kind": "parsed",
+     "detail": "every range-valued property declares PluginAPI['mixed']"
+    }
+   ]
+  },
+  "STU-TYP-112": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.methods.getStyledTextSegments plus 21 getRange*/setRange* methods",
+     "evidence_kind": "parsed",
+     "detail": "per-attribute range getters and setters"
+    }
+   ]
+  },
+  "STU-TYP-113": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['story direction options']",
+     "evidence_kind": "parsed",
+     "detail": "3 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['paragraph direction options']",
+     "evidence_kind": "parsed",
+     "detail": "2 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['character direction options']",
+     "evidence_kind": "parsed",
+     "detail": "3 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiParagraphDirectionType and AiDirOverrideType",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-114": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiTextType",
+     "evidence_kind": "parsed",
+     "detail": "aiPointText=0, aiAreaText=1, aiPathText=2"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsTextType",
+     "evidence_kind": "parsed",
+     "detail": "psPointText=1, psParagraphText=2"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['frame types']",
+     "evidence_kind": "parsed",
+     "detail": "text frame type, frame grid type, unknown"
+    }
+   ]
+  },
+  "STU-TYP-115": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-050]",
+     "evidence_kind": "spec_text",
+     "detail": "history binding retained"
+    }
+   ]
+  },
+  "STU-TYP-116": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['auto sizing type enum']",
+     "evidence_kind": "parsed",
+     "detail": "off, height only, width only, height and width, height and width proportionally"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties.textAutoResize",
+     "evidence_kind": "parsed",
+     "detail": "NONE | WIDTH_AND_HEIGHT | HEIGHT | TRUNCATE"
+    }
+   ]
+  },
+  "STU-TYP-117": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['auto sizing reference enum']",
+     "evidence_kind": "parsed",
+     "detail": "9 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['text frame preference'].properties['auto sizing reference point'].description",
+     "evidence_kind": "parsed",
+     "detail": "reference point is automatically adjusted to a suitable value depending on the auto-sizing type"
+    }
+   ]
+  },
+  "STU-TYP-118": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['text frame preference'].properties['minimum height for auto sizing','minimum width for auto sizing','use minimum height for auto sizing','use minimum width for auto sizing']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-119": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties.textTruncation",
+     "evidence_kind": "parsed",
+     "detail": "DISABLED | ENDING"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties.maxLines",
+     "evidence_kind": "parsed",
+     "detail": "number | null"
+    }
+   ]
+  },
+  "STU-TYP-120": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.TextFrame.{StartTValue,EndTValue,Spacing}",
+     "evidence_kind": "parsed",
+     "detail": "path text only"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['flip values']",
+     "evidence_kind": "parsed",
+     "detail": "not flipped, flipped, undefined flip value"
+    }
+   ]
+  },
+  "STU-TYP-121": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['path type alignments']",
+     "evidence_kind": "parsed",
+     "detail": "3 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['text type alignments']",
+     "evidence_kind": "parsed",
+     "detail": "8 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['text path effects']",
+     "evidence_kind": "parsed",
+     "detail": "rainbow, skew, ribbon, stair step, gravity"
+    }
+   ]
+  },
+  "STU-TYP-122": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.TextFrame.{NextFrame,PreviousFrame,FlowLinksHorizontally}",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes.story and classes['text frame']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-123": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.frame_and_flow",
+     "evidence_kind": "parsed",
+     "detail": "133 flow attributes"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-005]",
+     "evidence_kind": "spec_text",
+     "detail": "four flow modes retained and named"
+    }
+   ]
+  },
+  "STU-TYP-124": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['add page options']",
+     "evidence_kind": "parsed",
+     "detail": "end of story, end of section, end of document"
+    }
+   ]
+  },
+  "STU-TYP-125": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['linked story option'] (5 properties)",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['lock state values']",
+     "evidence_kind": "parsed",
+     "detail": "8 members"
+    }
+   ]
+  },
+  "STU-TYP-126": {
+   "derivation": "restatement_hardened",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[3]",
+     "evidence_kind": "operator_decision",
+     "detail": "text shaping MUST be native Rust of the cosmic-text/rustybuzz/swash class; a platform text engine is forbidden even where easier; the reason is promotion equivalence"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "must_reach_the_microtasks[4]",
+     "evidence_kind": "operator_decision",
+     "detail": "No MT may adopt a platform text engine"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-008]",
+     "evidence_kind": "spec_text",
+     "detail": "retained in force"
+    }
+   ]
+  },
+  "STU-TYP-127": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[2]",
+     "evidence_kind": "operator_decision",
+     "detail": "six Send+Sync traits; TextEngine is one"
+    }
+   ]
+  },
+  "STU-TYP-128": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[3]",
+     "evidence_kind": "operator_decision",
+     "detail": "determinism and byte-identity require a pure input closure"
+    }
+   ]
+  },
+  "STU-TYP-129": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes.font.properties.{status,location,'PostScript name'}",
+     "evidence_kind": "parsed",
+     "detail": "font identity fields available for content hashing"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties.hasMissingFont",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-130": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[3]",
+     "evidence_kind": "operator_decision",
+     "detail": "byte-identity across hosts requires a versioned engine-semantics token"
+    }
+   ]
+  },
+  "STU-TYP-131": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-008] final sentence",
+     "evidence_kind": "spec_text",
+     "detail": "promotion-equivalence requirement of 14.24"
+    }
+   ]
+  },
+  "STU-TYP-132": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiLanguageType",
+     "evidence_kind": "parsed",
+     "detail": "44 members including Hindi, Marathi, Bengali, Punjabi, Gujarati, Oriya, Tamil, Telugu, Kannada, Malayalam, Arabic, Farsi, Chinese, Japanese"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['digits type options']",
+     "evidence_kind": "parsed",
+     "detail": "20 members including thai, lao, devanagari, tibetan, khmer, burmese"
+    }
+   ]
+  },
+  "STU-TYP-133": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['digits type options']",
+     "evidence_kind": "parsed",
+     "detail": "20 members, verbatim list"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiDigitSetType",
+     "evidence_kind": "parsed",
+     "detail": "4 members, narrower than the 20"
+    }
+   ]
+  },
+  "STU-TYP-134": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiKashidasType",
+     "evidence_kind": "parsed",
+     "detail": "aiKashidaDefault=0, aiKashidaOn=0, aiKashidaOff=1"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiKashidaWidthType",
+     "evidence_kind": "parsed",
+     "detail": "none, small, medium, long, stylistic"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['diacritic position options']",
+     "evidence_kind": "parsed",
+     "detail": "6 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['positional forms']",
+     "evidence_kind": "parsed",
+     "detail": "none, calculate, initial, medial, final, isolated"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['paragraph justification options']",
+     "evidence_kind": "parsed",
+     "detail": "7 members including naskh tatweel frac and naskh kashida frac"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes.{DiacXOffset,DiacYOffset,ConnectionForms,JustificationAlternates}",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-135": {
+   "derivation": "contradiction_resolution",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.ParagraphAttributes.ComposerEngine",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.ParagraphAttributes.EveryLineComposer",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiComposerEngineType",
+     "evidence_kind": "parsed",
+     "detail": "3 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsTextComposer",
+     "evidence_kind": "parsed",
+     "detail": "2 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['composer'].type",
+     "evidence_kind": "parsed",
+     "detail": "string"
+    }
+   ]
+  },
+  "STU-TYP-136": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['composer']",
+     "evidence_kind": "parsed",
+     "detail": "typed string, implying a name registry rather than a closed enumeration"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "pmst_value_vocabulary.composer_names",
+     "evidence_kind": "parsed",
+     "detail": "20 composer-name strings recovered from the English UI string tables"
+    }
+   ]
+  },
+  "STU-TYP-137": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['kinsoku table']",
+     "evidence_kind": "parsed",
+     "detail": "4 character-class fields: cant be separated chars, cant begin line chars, cant end line chars, hanging punctuation chars"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['kinsoku type']",
+     "evidence_kind": "parsed",
+     "detail": "4 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['kinsoku hang types']",
+     "evidence_kind": "parsed",
+     "detail": "none, kinsoku hang regular, kinsoku hang force"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['bunri kinshi'].description",
+     "evidence_kind": "parsed",
+     "detail": "adds the double period, ellipse and double hyphen to the selected kinsoku set"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes.rensuuji.description",
+     "evidence_kind": "parsed",
+     "detail": "disallows line breaks in numbers"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiBurasagariTypeEnum",
+     "evidence_kind": "parsed",
+     "detail": "none, standard, forced"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiKinsokuOrderEnum",
+     "evidence_kind": "parsed",
+     "detail": "aiPushIn=0, aiPushOutFirst=1, aiPushOutOnly=2"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "pmst_value_vocabulary.kinsoku_sets",
+     "evidence_kind": "parsed",
+     "detail": "91 kinsoku UI strings from the CJK Text Attributes plugin"
+    }
+   ]
+  },
+  "STU-TYP-138": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['mojikumi table defaults']",
+     "evidence_kind": "parsed",
+     "detail": "17 members, verbatim"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['mojikumi table']",
+     "evidence_kind": "parsed",
+     "detail": "based on mojikumi set, name, override mojikumi aki list"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['use cid mojikumi'].description",
+     "evidence_kind": "parsed",
+     "detail": "uses the glyph CID to get the mojikumi class of the character"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "pmst_value_vocabulary.mojikumi_sets",
+     "evidence_kind": "parsed",
+     "detail": "98 mojikumi UI strings"
+    }
+   ]
+  },
+  "STU-TYP-139": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['leading model']",
+     "evidence_kind": "parsed",
+     "detail": "5 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['use paragraph leading']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiAutoLeadingType",
+     "evidence_kind": "parsed",
+     "detail": "aiBottomToBottom=0, aiTopToTop=1"
+    }
+   ]
+  },
+  "STU-TYP-140": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-008]",
+     "evidence_kind": "spec_text",
+     "detail": "determinism obligation"
+    }
+   ]
+  },
+  "STU-TYP-141": {
+   "derivation": "contradiction_resolution",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['balance ragged lines']",
+     "evidence_kind": "parsed",
+     "detail": "type 'any / variant'; 'If true or set to an enumeration value, balances ragged lines. Note: Not valid with a single-line text composer.'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.TextWrapStyle",
+     "evidence_kind": "parsed",
+     "detail": "AUTO, BALANCE, PRETTY - a three-mode balance control in a second lineage"
+    }
+   ]
+  },
+  "STU-TYP-145": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations.justification",
+     "evidence_kind": "parsed",
+     "detail": "9 members including to binding side and away from binding side"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiJustification",
+     "evidence_kind": "parsed",
+     "detail": "7 members, no binding-side members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsJustification",
+     "evidence_kind": "parsed",
+     "detail": "7 members"
+    }
+   ]
+  },
+  "STU-TYP-146": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['single word justification']",
+     "evidence_kind": "parsed",
+     "detail": "4 members"
+    }
+   ]
+  },
+  "STU-TYP-147": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['minimum word spacing','desired word spacing','maximum word spacing'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 0 to 1000) percentage of the font word space value"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['minimum letter spacing','desired letter spacing','maximum letter spacing'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: -100 to 500) percentage of the built-in space between letters"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['minimum glyph scaling','desired glyph scaling','maximum glyph scaling'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 50 to 200) percentage width of individual characters"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.ParagraphAttributes.{Minimum,Desired,Maximum}{WordSpacing,LetterSpacing,GlyphScaling}",
+     "evidence_kind": "parsed",
+     "detail": "units_hint percent, no declared range"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.TextItem.{Minimum,Desired,Maximum}{WordScaling,LetterScaling,GlyphScaling}",
+     "evidence_kind": "parsed",
+     "detail": "declared with empty help strings: no range and no default"
+    }
+   ]
+  },
+  "STU-TYP-148": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['auto leading'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 0 to 500) percent of the type size"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.ParagraphAttributes.AutoLeadingAmount",
+     "evidence_kind": "parsed",
+     "detail": "units_hint percent"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.TextItem.{UseAutoLeading,AutoLeadingAmount}",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-149": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-016]",
+     "evidence_kind": "spec_text",
+     "detail": "composer consumption retained"
+    }
+   ]
+  },
+  "STU-TYP-150": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['hyphen weight'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 0 to 100) relative desirability of better spacing vs fewer hyphens; a LOWER value results in greater use of hyphens"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['hyphenate words longer than','hyphenate after first','hyphenate before last','hyphenate ladder limit','hyphenation zone']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['hyphenate ladder limit'].description",
+     "evidence_kind": "parsed",
+     "detail": "to specify unlimited consecutive lines, use zero"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.TextItem.HyphenateWordsLongerThan.constraints",
+     "evidence_kind": "parsed",
+     "detail": "minimum 0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.TextItem.{HyphenateAfterFirst,HyphenateBeforeLast,HyphenLimit,HyphenationZone}",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-151": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['hyphenate capitalized words','hyphenate last word','hyphenate across columns','allow arbitrary hyphenation']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.TextItem.HyphenateCapitalWords",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-152": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.ParagraphAttributes.HyphenationPreference",
+     "evidence_kind": "parsed",
+     "detail": "range_hint {min:0.0,max:1.0}; 'hyphenation preference scale for better spacing (0) or fewer hyphens (1)'"
+    }
+   ]
+  },
+  "STU-TYP-153": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['hyphenation style enum']",
+     "evidence_kind": "parsed",
+     "detail": "4 members; the description names the Duden provider as the only current supporter"
+    }
+   ]
+  },
+  "STU-TYP-154": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['hyphenation exception']",
+     "evidence_kind": "parsed",
+     "detail": "added exceptions, removed exceptions, add exception(), remove exception()"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['compose using']",
+     "evidence_kind": "parsed",
+     "detail": "use user dictionary, use document, both"
+    }
+   ]
+  },
+  "STU-TYP-155": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes",
+     "evidence_kind": "parsed",
+     "detail": "65 properties; units_hint points for Size/Leading/BaselineShift, percent for HorizontalScale/VerticalScale/Tsume, degrees for Rotation, thousandths of an em for Tracking"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.TextItem",
+     "evidence_kind": "parsed",
+     "detail": "60 properties; VerticalScale/HorizontalScale unit percent as VT_I4, Size unit points, BaselineShift/Leading unit_value_generic"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.size_and_scale (13 attributes) and topics.kerning_tracking (5 attributes)",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "interfaces.LetterSpacing",
+     "evidence_kind": "parsed",
+     "detail": "{value, unit: 'PIXELS'|'PERCENT'} - letter spacing carries its own unit discriminator"
+    }
+   ]
+  },
+  "STU-TYP-156": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiAutoKernType",
+     "evidence_kind": "parsed",
+     "detail": "aiNoAutoKern=0, aiAuto=1, aiOptical=2, aiMetricsRomanOnly=3"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsAutoKernType",
+     "evidence_kind": "parsed",
+     "detail": "psManual=1, psMetrics=2, psOptical=3 - 3 members, no metrics-roman-only"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations.capitalization",
+     "evidence_kind": "parsed",
+     "detail": "normal, small caps, all caps, cap to small cap, lower case"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiFontCapsOption",
+     "evidence_kind": "parsed",
+     "detail": "4 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.TextCase",
+     "evidence_kind": "parsed",
+     "detail": "LOWER, ORIGINAL, SMALL_CAPS, SMALL_CAPS_FORCED, TITLE, UPPER"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations.position",
+     "evidence_kind": "parsed",
+     "detail": "7 members including OT superscript, OT subscript, OT numerator, OT denominator"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsAntiAlias",
+     "evidence_kind": "parsed",
+     "detail": "psNoAntialias=1, psSharp=2, psCrisp=3, psStrong=4, psSmooth=5"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiTextAntialias",
+     "evidence_kind": "parsed",
+     "detail": "aiNone=1, aiSharp=2, aiCrisp=3, aiStrong=4 - 4 members, no smooth"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['character alignment']",
+     "evidence_kind": "parsed",
+     "detail": "6 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['alternate glyph forms']",
+     "evidence_kind": "parsed",
+     "detail": "13 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiAlternateGlyphsForm",
+     "evidence_kind": "parsed",
+     "detail": "12 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiBaselineDirectionType and AiFontBaselineOption",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-157": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.opentype",
+     "evidence_kind": "parsed",
+     "detail": "30 attributes: OTF contextual alternate, discretionary ligature, fraction, justification alternate, ordinal, overlap swash, slashed zero, stretched alternate, stylistic alternate, stylistic sets, swash, titling, ligatures and others"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes.{Ligature,DiscretionaryLigature,ContextualLigature,Swash,Titling,Ordinals,Fractions,Ornaments,StylisticAlternates,JustificationAlternates,ConnectionForms,ProportionalMetrics,Kana,Italics,NoBreak,OverprintFill,OverprintStroke}",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.TextItem.{Ligatures,AlternateLigatures,OldStyle,FauxBold,FauxItalic,NoBreak}",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-158": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['small cap'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 1 to 200) percentage of the font size"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['superscript size'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 0 to 200)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['subscript size'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 0 to 200)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['superscript position'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: -500 to 500) percentage of the regular leading"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['subscript position'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: -500 to 500)"
+    }
+   ]
+  },
+  "STU-TYP-159": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.rules_and_decoration",
+     "evidence_kind": "parsed",
+     "detail": "underline and strike through each carry colour, gap colour, gap overprint, gap tint (Range 0 to 100), offset, overprint, tint (Range 0 to 100), type and weight"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsUnderlineType",
+     "evidence_kind": "parsed",
+     "detail": "psUnderlineOff=1, psUnderlineRight=2, psUnderlineLeft=3"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsStrikeThruType",
+     "evidence_kind": "parsed",
+     "detail": "psStrikeOff=1, psStrikeHeight=2, psStrikeBox=3"
+    }
+   ]
+  },
+  "STU-TYP-160": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.TextDecorationStyle",
+     "evidence_kind": "parsed",
+     "detail": "DOTTED, SOLID, WAVY"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.TextDecorationThickness and TextDecorationOffset",
+     "evidence_kind": "parsed",
+     "detail": "AUTO, PERCENT, PIXELS"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.TextDecorationColor",
+     "evidence_kind": "parsed",
+     "detail": "AUTO"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties.textDecorationSkipInk",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-161": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.HyperlinkTarget",
+     "evidence_kind": "parsed",
+     "detail": "NODE, URL"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties.hyperlink plus methods.getRangeHyperlink and setRangeHyperlink",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['hyperlink text source'] and classes['hyperlink text destination']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-165": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['grid data information']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['grid view settings']",
+     "evidence_kind": "parsed",
+     "detail": "4 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['grid alignment']",
+     "evidence_kind": "parsed",
+     "detail": "7 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['grid align first line only']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.grid_alignment",
+     "evidence_kind": "parsed",
+     "detail": "36 attributes"
+    }
+   ]
+  },
+  "STU-TYP-166": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes.jidori.description",
+     "evidence_kind": "parsed",
+     "detail": "the number of grid squares in which to arrange the text"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['grid gyoudori'] and attributes['paragraph gyoudori']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-167": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.cjk",
+     "evidence_kind": "parsed",
+     "detail": "28 ruby-prefixed attributes"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['ruby alignments']",
+     "evidence_kind": "parsed",
+     "detail": "7 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['ruby types']",
+     "evidence_kind": "parsed",
+     "detail": "group ruby, per character ruby"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['ruby overhang']",
+     "evidence_kind": "parsed",
+     "detail": "6 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['ruby parent spacing']",
+     "evidence_kind": "parsed",
+     "detail": "5 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['ruby kenten position']",
+     "evidence_kind": "parsed",
+     "detail": "above right, below left"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['ruby tint'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 0 to 100)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['ruby stroke tint'].description",
+     "evidence_kind": "parsed",
+     "detail": "no declared range - the asymmetry is preserved deliberately"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['adornment overprint']",
+     "evidence_kind": "parsed",
+     "detail": "auto, overprint on, overprint off"
+    }
+   ]
+  },
+  "STU-TYP-168": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['kenten character']",
+     "evidence_kind": "parsed",
+     "detail": "12 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['kenten character set']",
+     "evidence_kind": "parsed",
+     "detail": "5 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['kenten alignment']",
+     "evidence_kind": "parsed",
+     "detail": "2 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['kenten tint'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 0 to 100)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['kenten stroke tint'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 0 to 100)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.cjk",
+     "evidence_kind": "parsed",
+     "detail": "16 kenten-prefixed attributes"
+    }
+   ]
+  },
+  "STU-TYP-169": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['warichu alignment']",
+     "evidence_kind": "parsed",
+     "detail": "8 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['warichu lines','warichu size','warichu line spacing','warichu chars before break','warichu chars after break']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['tatechuyoko','tatechuyoko X offset','tatechuyoko Y offset']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['shatai degree angle','shatai magnification','shatai adjust rotation','shatai adjust tsume']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes.{WariChuEnabled,WariChuLines,WariChuScale,WariChuLineGap,WariChuCharactersBeforeBreak,WariChuCharactersAfterBreak,WariChuJustification,TateChuYokoHorizontal,TateChuYokoVertical}",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiWariChuJustificationType",
+     "evidence_kind": "parsed",
+     "detail": "8 members"
+    }
+   ]
+  },
+  "STU-TYP-170": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.OpenTypeFeature",
+     "evidence_kind": "parsed",
+     "detail": "229 four-character feature tags"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties.openTypeFeatures and methods.getRangeOpenTypeFeatures",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-171": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.OpenTypeFeature",
+     "evidence_kind": "parsed",
+     "detail": "source of the 229-tag list projected into groups"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.opentype",
+     "evidence_kind": "parsed",
+     "detail": "30 OTF attributes mapped into the group projection"
+    }
+   ]
+  },
+  "STU-TYP-172": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['OTF *'].description",
+     "evidence_kind": "parsed",
+     "detail": "every OTF attribute is a boolean applied at layout, not a stream rewrite"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-049]",
+     "evidence_kind": "spec_text",
+     "detail": "feature-application semantics retained"
+    }
+   ]
+  },
+  "STU-TYP-173": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes.font.methods['check OpenType feature']",
+     "evidence_kind": "parsed",
+     "detail": "'Checks whether the font supports the specified OpenType feature.'"
+    }
+   ]
+  },
+  "STU-TYP-174": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.opentype",
+     "evidence_kind": "parsed",
+     "detail": "the boolean OTF attributes enumerated verbatim"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes",
+     "evidence_kind": "parsed",
+     "detail": "the same booleans in a second lineage"
+    }
+   ]
+  },
+  "STU-TYP-175": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['OTF figure style']",
+     "evidence_kind": "parsed",
+     "detail": "tabular lining, proportional oldstyle, proportional lining, tabular oldstyle, default"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiFigureStyleType",
+     "evidence_kind": "parsed",
+     "detail": "5 members, same set"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['OTF stylistic sets'].type",
+     "evidence_kind": "parsed",
+     "detail": "long integer, i.e. a bitfield"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes.StylisticSets",
+     "evidence_kind": "parsed",
+     "detail": "int32"
+    }
+   ]
+  },
+  "STU-TYP-176": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes.font",
+     "evidence_kind": "parsed",
+     "detail": "25 properties including PostScript name, allow PDF embedding, allow editable embedding, allow outlines, allow printing, restricted printing, location, ordering, registry, writing script, version"
+    }
+   ]
+  },
+  "STU-TYP-177": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['font types']",
+     "evidence_kind": "parsed",
+     "detail": "type 1, TrueType, CID, ATC, bitmap, OCF, OpenType CFF, OpenType CID, OpenType TT, unknown"
+    }
+   ]
+  },
+  "STU-TYP-178": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['font status']",
+     "evidence_kind": "parsed",
+     "detail": "installed, not available, fauxed, substituted, unknown"
+    }
+   ]
+  },
+  "STU-TYP-179": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes.font.properties['design axes name','design axes range','design axes values','num design axes']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "interfaces.FontName.variationSettings",
+     "evidence_kind": "parsed",
+     "detail": "FontVariationSettings"
+    }
+   ]
+  },
+  "STU-TYP-180": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties.hasMissingFont",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['font status'] member 'not available'",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-181": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsFontPreviewType",
+     "evidence_kind": "parsed",
+     "detail": "psFontPreviewNone=0 through psFontPreviewHuge=5, 6 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes.font.methods['Create subset font']",
+     "evidence_kind": "parsed",
+     "detail": "'Create a copy of the font with just enough information to render the list of characters given.'"
+    }
+   ]
+  },
+  "STU-TYP-182": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['composite font entry']",
+     "evidence_kind": "parsed",
+     "detail": "10 properties: applied font, baseline shift, custom characters, font style, horizontal scale, locked, name, relative size, scale option, vertical scale"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['composite font']",
+     "evidence_kind": "parsed",
+     "detail": "name, add(), delete()"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['composite font entry'].properties['relative size'].description",
+     "evidence_kind": "parsed",
+     "detail": "'The size of the entry relative to the base entry. Note: The base entry cannot be modified.'"
+    }
+   ]
+  },
+  "STU-TYP-183": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-002].bulk_binary_position",
+     "evidence_kind": "operator_decision",
+     "detail": "fonts belong in content-addressed artifact storage with SurrealDB holding records and references"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-028]",
+     "evidence_kind": "spec_text",
+     "detail": "no cloud font service retained"
+    }
+   ]
+  },
+  "STU-TYP-185": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.indent_spacing",
+     "evidence_kind": "parsed",
+     "detail": "first line indent, last line indent, left indent, right indent, space before, space after"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.ParagraphAttributes.{FirstLineIndent,LeftIndent,RightIndent,SpaceBefore,SpaceAfter}",
+     "evidence_kind": "parsed",
+     "detail": "units_hint points"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.TextItem.{LeftIndent,FirstLineIndent,RightIndent,SpaceBefore,SpaceAfter}",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-186": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.span_split",
+     "evidence_kind": "parsed",
+     "detail": "keep all lines together, keep first lines, keep last lines, keep lines together, keep with next, keep with previous, start paragraph"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['start paragraph']",
+     "evidence_kind": "parsed",
+     "detail": "anywhere, next column, next frame, next page, next odd page, next even page"
+    }
+   ]
+  },
+  "STU-TYP-187": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['span column type options']",
+     "evidence_kind": "parsed",
+     "detail": "single column, span columns, split columns"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['span split column count','span column min space before','span column min space after','split column inside gutter','split column outside gutter']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-188": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['align to baseline'] and attributes['grid align first line only']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-189": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['optical margin size'].description",
+     "evidence_kind": "parsed",
+     "detail": "(Range: 0.1 to 1296) 'The point size used as the basis for calculating optical margin alignment.'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.TextFrame.OpticalAlignment",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties.hangingPunctuation and .hangingList",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.TextItem.HangingPuntuation and .HangingPunctuation",
+     "evidence_kind": "parsed",
+     "detail": "the source declares the same property twice, once misspelled"
+    }
+   ]
+  },
+  "STU-TYP-190": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['vertical justification']",
+     "evidence_kind": "parsed",
+     "detail": "top align, center align, bottom align, justify align"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['text frame preference']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['vertical threshold'].description",
+     "evidence_kind": "parsed",
+     "detail": "valid only when vertical justification is justified"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['vertical balance columns']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-191": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['first baseline']",
+     "evidence_kind": "parsed",
+     "detail": "ascent offset, cap height, leading offset, embox height, x height, fixed height"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiFirstBaselineType",
+     "evidence_kind": "parsed",
+     "detail": "7 members including aiBaselineLegacy=6"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['text frame preference'].properties['minimum first baseline offset']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-192": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['end cap']",
+     "evidence_kind": "parsed",
+     "detail": "butt, round, projecting"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['end join']",
+     "evidence_kind": "parsed",
+     "detail": "miter, round, bevel"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes ending in 'stroke type'",
+     "evidence_kind": "parsed",
+     "detail": "typed 'stroke style' - a named registry, not an enumeration"
+    }
+   ]
+  },
+  "STU-TYP-193": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.rules_and_decoration",
+     "evidence_kind": "parsed",
+     "detail": "rule above and rule below each carry gap colour, gap overprint, gap tint (Range 0 to 100), left indent, right indent, line weight, offset, overprint, tint (Range 0 to 100), type, width"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['rule width']",
+     "evidence_kind": "parsed",
+     "detail": "text width, column width"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['keep rule above in frame']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-194": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.rules_and_decoration",
+     "evidence_kind": "parsed",
+     "detail": "22 paragraph-shading attributes"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['paragraph shading top origin enum']",
+     "evidence_kind": "parsed",
+     "detail": "5 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['paragraph shading bottom origin enum']",
+     "evidence_kind": "parsed",
+     "detail": "4 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['paragraph shading width enum']",
+     "evidence_kind": "parsed",
+     "detail": "text width, column width"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['corner options']",
+     "evidence_kind": "parsed",
+     "detail": "none, rounded corner, inverse rounded corner, inset corner, bevel corner, fancy corner"
+    }
+   ]
+  },
+  "STU-TYP-195": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.rules_and_decoration",
+     "evidence_kind": "parsed",
+     "detail": "26 paragraph-border attributes including four independent line weights and paragraph border display if splits"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['paragraph border top origin enum']",
+     "evidence_kind": "parsed",
+     "detail": "5 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['paragraph border bottom origin enum']",
+     "evidence_kind": "parsed",
+     "detail": "4 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['paragraph border enum']",
+     "evidence_kind": "parsed",
+     "detail": "text width, column width"
+    }
+   ]
+  },
+  "STU-TYP-196": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.style_features",
+     "evidence_kind": "parsed",
+     "detail": "drop-cap attributes"
+    }
+   ]
+  },
+  "STU-TYP-197": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['tab stop']",
+     "evidence_kind": "parsed",
+     "detail": "4 properties: alignment, leader, position, align on"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['tab stop alignment']",
+     "evidence_kind": "parsed",
+     "detail": "left align, center align, right align, character align"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._TabStopInfo",
+     "evidence_kind": "parsed",
+     "detail": "Alignment default LeftTab, DecimalCharacter default '.', Position default 0.0 points, Leader"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiTabStopAlignment",
+     "evidence_kind": "parsed",
+     "detail": "aiLeftTab=0, aiCenterTab=1, aiRightTab=2, aiDecimalTab=3"
+    }
+   ]
+  },
+  "STU-TYP-198": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations.listtype",
+     "evidence_kind": "parsed",
+     "detail": "no list, bullet list, numbered list"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['list alignment']",
+     "evidence_kind": "parsed",
+     "detail": "hanging list, flush left list, custom aligned list"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations.bulletcharactertype",
+     "evidence_kind": "parsed",
+     "detail": "unicode only, unicode with font, glyph with font"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes.bullet",
+     "evidence_kind": "parsed",
+     "detail": "5 properties"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['numbering list']",
+     "evidence_kind": "parsed",
+     "detail": "continue numbers across documents, continue numbers across stories, name"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['restart policy']",
+     "evidence_kind": "parsed",
+     "detail": "any previous level, after specific level, range of levels"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.TextListOptions",
+     "evidence_kind": "parsed",
+     "detail": "NONE, ORDERED, UNORDERED"
+    }
+   ]
+  },
+  "STU-TYP-199": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['nested style']",
+     "evidence_kind": "parsed",
+     "detail": "applied character style, delimiter, inclusive, repetition"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['nested line style']",
+     "evidence_kind": "parsed",
+     "detail": "applied character style, line count, repeat last"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['nested grep style']",
+     "evidence_kind": "parsed",
+     "detail": "applied character style, grep expression"
+    }
+   ]
+  },
+  "STU-TYP-200": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['style type']",
+     "evidence_kind": "parsed",
+     "detail": "character style type, paragraph style type"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['character style'] (161 properties) and classes['paragraph style'] (334 properties)",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-201": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['text default'] (323 properties)",
+     "evidence_kind": "parsed",
+     "detail": "the document-level default layer of the cascade"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.style_features",
+     "evidence_kind": "parsed",
+     "detail": "based on and next style attributes"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.VariableScope",
+     "evidence_kind": "parsed",
+     "detail": "FONT_FAMILY, FONT_SIZE, FONT_STYLE, FONT_WEIGHT, LETTER_SPACING, LINE_HEIGHT, PARAGRAPH_INDENT, PARAGRAPH_SPACING, TEXT_CONTENT - the variable layer of the cascade"
+    }
+   ]
+  },
+  "STU-TYP-202": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['override type']",
+     "evidence_kind": "parsed",
+     "detail": "all, character only, paragraph only"
+    }
+   ]
+  },
+  "STU-TYP-203": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.style_features",
+     "evidence_kind": "parsed",
+     "detail": "next style attribute"
+    }
+   ]
+  },
+  "STU-TYP-204": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.VariableBindableTextField",
+     "evidence_kind": "parsed",
+     "detail": "fontFamily, fontSize, fontStyle, fontWeight, letterSpacing, lineHeight, paragraphIndent, paragraphSpacing - 8 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.VariableBindableNodeField",
+     "evidence_kind": "parsed",
+     "detail": "includes characters, so text content is variable-bindable"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.VariableResolvedDataType",
+     "evidence_kind": "parsed",
+     "detail": "BOOLEAN, COLOR, EASING, FLOAT, STRING, TIMING"
+    }
+   ]
+  },
+  "STU-TYP-205": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['find change glyph option'] and classes['find glyph preference']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-020]",
+     "evidence_kind": "spec_text",
+     "detail": "glyph browser retained"
+    }
+   ]
+  },
+  "STU-TYP-206": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-021]",
+     "evidence_kind": "spec_text",
+     "detail": "user glyph sets retained"
+    }
+   ]
+  },
+  "STU-TYP-207": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['paragraph break types']",
+     "evidence_kind": "parsed",
+     "detail": "anywhere, next column, next frame, next page, next odd page, next even page"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['page number types']",
+     "evidence_kind": "parsed",
+     "detail": "auto page number, next page number, previous page number, text variable"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-022]",
+     "evidence_kind": "spec_text",
+     "detail": "the white-space and symbol catalog retained and extended"
+    }
+   ]
+  },
+  "STU-TYP-208": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['variable types']",
+     "evidence_kind": "parsed",
+     "detail": "12 members verbatim: custom text, file name, last page number, chapter number, output date, creation date, modification date, match character style, match paragraph style, xref page number, xref chapter number, live caption"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['text variable']",
+     "evidence_kind": "parsed",
+     "detail": "name, variable options, variable type, associated instances, convert to text()"
+    }
+   ]
+  },
+  "STU-TYP-209": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes.language",
+     "evidence_kind": "parsed",
+     "detail": "10 properties: double quotes, hyphenation vendor, icu locale name, id, name, primary language name, single quotes, spelling vendor, sublanguage name, untranslated name"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "sections.dictionaries",
+     "evidence_kind": "recovery_limit",
+     "detail": "116 dictionary files; the parse recovered file counts and extensions (.idrc 112, .apln 2, .xml 1) but NOT an enumerated language or vendor list, so the vendor set is recorded as UNKNOWN"
+    }
+   ]
+  },
+  "STU-TYP-210": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['applied language']",
+     "evidence_kind": "parsed",
+     "detail": "owners include the change and find text, grep and transliterate preferences, i.e. a range-level attribute"
+    }
+   ]
+  },
+  "STU-TYP-211": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['user dictionary']",
+     "evidence_kind": "parsed",
+     "detail": "added words, removed words, add word(), remove word()"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['spell preference']",
+     "evidence_kind": "parsed",
+     "detail": "10 properties including check misspelled words, check capitalized words, dynamic spell check, misspelled word color"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['dictionary preference'].properties['merge user dictionary']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-TYP-212": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['find text preference','find grep preference','find glyph preference','find transliterate preference'] and their change counterparts",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['find change object option'] and classes['find change color option']",
+     "evidence_kind": "parsed",
+     "detail": "the two modes explicitly delegated to other modules"
+    }
+   ]
+  },
+  "STU-TYP-213": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['find change text option'] (13 properties), ['find change grep option'] (9), ['find change transliterate option'] (11)",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "attributes['kana sensitive'].description",
+     "evidence_kind": "parsed",
+     "detail": "finds only text that matches the specified kana type"
+    }
+   ]
+  },
+  "STU-TYP-214": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "classes['change text preference'] (217 properties) and classes['find text preference'] (214 properties)",
+     "evidence_kind": "parsed",
+     "detail": "a near-complete character plus paragraph attribute record on both the find and the change side"
+    }
+   ]
+  },
+  "STU-TYP-215": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "sections.find_change_queries",
+     "evidence_kind": "parsed",
+     "detail": "11 shipped GREP queries under Presets/Find-Change Queries/GREP/en_US, each an XML Query document"
+    }
+   ]
+  },
+  "STU-TYP-216": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['find change transliterate character types']",
+     "evidence_kind": "parsed",
+     "detail": "8 members verbatim"
+    }
+   ]
+  },
+  "STU-TYP-217": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "sections.autocorrect",
+     "evidence_kind": "parsed",
+     "detail": "6 language tables: English Canadian, English UK and English USA at 673 pairs each; French and French Canadian at 213 each; Spanish Castilian at 512"
+    }
+   ]
+  },
+  "STU-TYP-220": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-TYP-OBLIG-001]",
+     "evidence_kind": "spec_text",
+     "detail": "obligation restated in scope"
+    }
+   ]
+  },
+  "STU-TYP-221": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_test",
+     "evidence_kind": "contract",
+     "detail": "a no-context model must implement without guessing a range, a default, an enumerated value or a unit"
+    }
+   ]
+  },
+  "STU-TYP-222": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "node_types.TextNode.properties",
+     "evidence_kind": "parsed",
+     "detail": "every range-valued property is typed 'T | PluginAPI[\"mixed\"]'"
+    }
+   ]
+  },
+  "STU-TYP-223": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-002].verified_in_012",
+     "evidence_kind": "operator_decision",
+     "detail": "SurrealDB with the EventLedger; idempotency and expected-revision preconditions"
+    }
+   ]
+  },
+  "STU-TYP-224": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry",
+     "evidence_kind": "contract",
+     "detail": "resource_privacy_obligation"
+    }
+   ]
+  },
+  "STU-TYP-230": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry",
+     "evidence_kind": "contract",
+     "detail": "validator_focus that names what a reviewer should attack, specific to this behaviour"
+    }
+   ]
+  },
+  "STU-TYP-231": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "must_reach_the_microtasks[4]",
+     "evidence_kind": "operator_decision",
+     "detail": "No MT may adopt a platform text engine"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "[STU-OVR-003]",
+     "evidence_kind": "spec_text",
+     "detail": "the no_sqlite_tripwire precedent"
+    }
+   ]
+  },
+  "STU-TYP-232": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[3]",
+     "evidence_kind": "operator_decision",
+     "detail": "byte-identical shaping across hosts requires a golden corpus"
+    }
+   ]
+  },
+  "STU-TYP-233": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_test",
+     "evidence_kind": "contract",
+     "detail": "no guessing implies a lossless round trip"
+    }
+   ]
+  },
+  "STU-TYP-235": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "14.7 preamble",
+     "evidence_kind": "spec_text",
+     "detail": "scope statement carried forward"
+    }
+   ]
+  },
+  "STU-TYP-236": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.7",
+     "record": "14.7 preamble plus [STU-TYP-025] and [STU-TYP-033]",
+     "evidence_kind": "spec_text",
+     "detail": "cross-module boundaries carried forward"
+    }
+   ]
+  },
+  "STU-TYP-237": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/studio-capability-registry.json",
+     "record": "capabilities where domain=='typography'",
+     "evidence_kind": "parsed",
+     "detail": "3040 rows; option 1551, capability 581, command 483, panel 121, dialog 102, preset 87, menu 63, tool 52"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "known_defects_in_this_green_room[GRD-001]",
+     "evidence_kind": "defect_notice",
+     "detail": "the registry merged on normalised name alone, so sharing counts are invalid"
+    }
+   ]
+  },
+  "STU-TYP-238": {
+   "derivation": "parsed+self_audit",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "totals.distinct_attributes",
+     "evidence_kind": "parsed",
+     "detail": "1181 distinct attributes; 87 of them carry an explicit '(Range: ...)' in their description, i.e. 7.4 percent, and none declares a soft or UI bound"
+    },
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.where_bounds_are_absent",
+     "evidence_kind": "contract",
+     "detail": "where a bound is unknown, say so explicitly"
+    }
+   ]
+  },
+  "STU-TYP-240": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].operator_reinforcement_20260904.completeness_test",
+     "evidence_kind": "operator_decision",
+     "detail": "a capable model with no chat context and no green-room access must implement from section 14 alone"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].operator_reinforcement_20260904.granularity_rule",
+     "evidence_kind": "operator_decision",
+     "detail": "the test is loss of CONTRACT, not loss of rows"
+    }
+   ]
+  },
+  "STU-TYP-241": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry",
+     "evidence_kind": "contract",
+     "detail": "the full field list a microtask must carry"
+    }
+   ]
+  },
+  "STU-TYP-242": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "what_agents_must_do",
+     "evidence_kind": "contract",
+     "detail": "replace generic content with real behavioural specification drawn from the captures"
+    }
+   ]
+  },
+  "STU-TYP-243": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].anchor_dependency",
+     "evidence_kind": "operator_decision",
+     "detail": "every authored microtask ships spec_anchor_status PROVISIONAL until the spec update gives it something true to cite"
+    },
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "hard_rules_from_operator_decisions SAD-008",
+     "evidence_kind": "contract",
+     "detail": "do not invent anchor ids"
+    }
+   ]
+  },
+  "STU-TYP-244": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/spec_update/RECONCILIATION_BRIEF.json",
+     "record": "how_to_close_a_delta.derived_greater_than_declared",
+     "evidence_kind": "contract",
+     "detail": "state in the clause which table spawns and how many, so the tool can be corrected to match"
+    },
+    {
+     "capture_file": "_greenroom_20260903/spec_update/RECONCILIATION_BRIEF.json",
+     "record": "what_the_deriver_extracts",
+     "evidence_kind": "contract",
+     "detail": "the unit kinds a derivation tool extracts"
+    }
+   ]
+  },
+  "STU-TYP-245": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/spec_update/RECONCILIATION_BRIEF.json",
+     "record": "the_operator_acceptance_test",
+     "evidence_kind": "contract",
+     "detail": "the derived count and the module's own declared yields total must agree"
+    },
+    {
+     "capture_file": "_greenroom_20260903/spec_update/RECONCILIATION_BRIEF.json",
+     "record": "authority_direction",
+     "evidence_kind": "contract",
+     "detail": "the spec is authority; the tool reconciles to it, but a ledger claiming non-derivable work is a spec defect"
+    },
+    {
+     "capture_file": "_greenroom_20260903/spec_update/RECONCILIATION_BRIEF.json",
+     "record": "how_to_close_a_delta.no_declared_total",
+     "evidence_kind": "contract",
+     "detail": "add a yields index table ending in a total row; the reconciler reads the LAST numeric column"
+    }
+   ]
+  }
+ }
+}

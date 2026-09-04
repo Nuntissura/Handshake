@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34355",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-WEB-126#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.28.8 Site definition, transports and server models",
+  "spec_line": 29371,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Server-behaviour posture (declared reduction)",
+ "spec_anchor": [
+  "STU-WEB-126"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "web_authoring",
+ "scope": {
+  "summary": "Server-behaviour posture (declared reduction).** The source application ships 116 server behaviours over 243 participant files carrying 1,176 real code blocks, 128 parameter dialogs with 387 controls, 41 database connection surfaces with 310 setting controls, 377 server-format entries, 28 data-source entries and 16 component definitions — a code-generation system that writes server-side data-access code into the page. **Studio does NOT port that system.** Studio's posture is: recognise these constructs for parsing, colouring, validation, formatting, round-trip and publishing fidelity ([STU-WEB-002]); do not generate them, do not open database connections, and do not ship a data-access code generator. A document containing them MUST round-trip byte-for-byte and MUST be editable as text and through the contextual panel mechanism where an inspector exists. This is a deliberate scope edge recorded per [STU-SECTION-003], not an omission. If the operator later brings server-side code generation into scope, it is a new work packet with its own refinement, not an extension of this clause.",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "A document containing them MUST round-trip byte-for-byte and MUST be editable as text and through the contextual panel mechanism where an inspector exists.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-126"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

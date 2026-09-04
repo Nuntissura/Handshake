@@ -1,129 +1,233 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-420",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-420.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-420.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-411",
-      "MT-412"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Panel group — Geometry / transform [STU-RAW-010]",
-  "spec_anchor": [
-    "STU-RAW-010",
-    "STU-RAW-018"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-420",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-420.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-420.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-411",
+   "MT-412"
   ],
-  "scope": {
-    "summary": "Add the Geometry group: automatic perspective/level (upright-class) correction with off/level/vertical/full/guided modes; guided-mode reference lines the operator/model draws; manual transform sliders (Vertical, Horizontal, Rotate, Aspect, Scale, X/Y Offset); and a Constrain-Crop option trimming exposed borders. Parametric and reversible like every other develop group.",
-    "allowed_paths": [
-      "src/studio/raw/**",
-      "studio-engine/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "geometry modes + guided lines + transform + constrain-crop; reversible; Argus + manual"
-    ],
-    "proof_targets": [
-      "upright + guided + transform reversibility test"
-    ],
-    "code_surfaces": [
-      "src/studio/raw/panels/geometry.rs",
-      "studio-engine/src/raw/adjust/geometry.rs",
-      "src/frontend/handshake_native/src/studio/raw/panel_geometry.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::raw::geometry",
-      "test: upright modes + guided reference lines + manual transform sliders + constrain-crop; reversible",
-      "argus: geometry panel reachable"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "Geometry panel"
-    ],
-    "argus_targets": [
-      "studio.raw.geometry"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Camera Raw & Develop / Geometry & transform"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Panel group — Geometry / transform [STU-RAW-010]",
+ "spec_anchor": [
+  "STU-RAW-010",
+  "STU-RAW-018"
+ ],
+ "scope": {
+  "summary": "Add the Geometry group: automatic perspective/level (upright-class) correction with off/level/vertical/full/guided modes; guided-mode reference lines the operator/model draws; manual transform sliders (Vertical, Horizontal, Rotate, Aspect, Scale, X/Y Offset); and a Constrain-Crop option trimming exposed borders. Parametric and reversible like every other develop group.",
+  "allowed_paths": [
+   "src/studio/raw/**",
+   "studio-engine/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No perspective/transform correction; parity gap.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Geometry modes",
+   "Guided lines",
+   "Transform",
+   "Constrain-crop",
+   "Reversible",
+   "Argus",
+   "Manual"
+  ],
+  "proof_targets": [
+   "upright + guided + transform reversibility test"
+  ],
+  "code_surfaces": [
+   "src/studio/raw/panels/geometry.rs",
+   "studio-engine/src/raw/adjust/geometry.rs",
+   "src/frontend/handshake_native/src/studio/raw/panel_geometry.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::raw::geometry",
+   "test: upright modes + guided reference lines + manual transform sliders + constrain-crop; reversible",
+   "argus: geometry panel reachable"
+  ],
+  "acceptance_criteria_original": [
+   "geometry modes + guided lines + transform + constrain-crop; reversible; Argus + manual"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "Geometry panel"
+  ],
+  "argus_targets": [
+   "studio.raw.geometry"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Camera Raw & Develop / Geometry & transform"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No perspective/transform correction; parity gap.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Geometry modes",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "upright + guided + transform reversibility test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Guided lines",
+   "evidence_kind": "gui_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Transform",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Constrain-crop",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Reversible",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "Argus",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "Manual",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 7,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-RAW-010",
+    "spec_clause_text": "**[STU-RAW-010]** The Geometry group MUST provide automatic perspective/level correction with off, level, vertical, full and guided modes; guided-mode reference lines the operator or model draws; manual vertical, horizontal, rotate, aspect, scale and X/Y offset sliders; and a constrain-crop option that trims exposed borders. Contract in [STU-RAW-118]."
+   },
+   {
+    "anchor": "STU-RAW-018",
+    "spec_clause_text": "**[STU-RAW-018]** Every `StudioRawDevelop` control group, mask source, enhance operation, profile and preset action, and workflow option MUST be exposed as a typed, model-steerable command with a stable identifier and MUST be observable through the Studio visual-debug/inspection surface (Argus) per 14.16; all raw develop operations MUST run headless and quiet under 14.20 (no foreground window, no focus steal, bounded and observable); and each MUST carry a dual-audience UserManual entry per 14.22 covering purpose, inputs and outputs, and failure and recovery. A model-authored develop edit MUST pass the sandbox → `StudioValidationDescriptor` → `PromotionGate` lifecycle of [STU-ARC-005] before it changes authority rows; model confidence never bypasses the gate."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

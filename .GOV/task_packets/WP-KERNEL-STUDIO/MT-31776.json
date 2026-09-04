@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-31776",
+ "created_at_utc": "2026-09-04T13:36:06+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-FX-130#catalogue_row#15_hdr_compander",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.9.3 Catalogue: the compositing effect set",
+  "spec_line": 11838,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "HDR Compander",
+ "spec_anchor": [
+  "STU-FX-130"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "effects",
+ "scope": {
+  "summary": "**The tables in this group are the normative Studio effect set for the compositing and motion domain.** Each row is ONE Studio effect. The `GPU` column states `Req` where a GPU registration exists for that effect and `--` where none does; per [STU-FX-125] a Studio build declares its own requirement, and `Req` here means \"the field implementation is GPU-backed and a CPU fallback must be proven promotion-equivalent before it is claimed\". The `Typed params` column is the number of parameter records recovered; a row showing `--` is covered by [STU-FX-128]. The `Import key` column is provenance for round-trip only and is never a Studio-facing name. **Blur & Sharpen** (21 effects) *Derivation: catalogue table, splits per row; yields 20 microtasks, one per Studio effect.* | Studio effect | GPU | Typed params | Behaviour (from capture) | Import key (provenance) | |---|---|---|---|---| | Bilateral Blur | -- | -- | _no vendor description recovered_ | `ADBE Bilateral` | | Box Blur | -- | -- | _no vendor description recovered_ | `ADBE Box Blur` | | Camera Lens Blur | -- | -- | _no vendor description recovered_ | `ADBE Camera Lens Blur` | | Camera-Shake Deblur | -- | -- | _no vendor description recovered_ | `ADBE CameraShakeDeblur` | | Cross Blur | -- | -- | _no vendor description recovered_ | `CS CrossBlur` | | Radial Blur (Alternate Engine) | -- | -- | _no vendor description recovered_ | [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`HDR Compander` satisfies the spec's stated studio effect: HDR Compander",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-130 catalogue row `HDR Compander`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`HDR Compander` satisfies the spec's stated typed params: 4",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-130 catalogue row `HDR Compander`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`HDR Compander` satisfies the spec's stated behaviour (from capture): _no vendor description recovered_",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-130 catalogue row `HDR Compander`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`HDR Compander` satisfies the spec's stated import key (provenance): `ADBE Compander`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-130 catalogue row `HDR Compander`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`HDR Compander` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-FX-130"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

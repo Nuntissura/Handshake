@@ -1,121 +1,189 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-519",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-519.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-519.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-510",
-      "MT-490"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "OS and clipboard handoff commands [STU-AUT-026]",
-  "spec_anchor": [
-    "STU-AUT-026",
-    "STU-DOC-001"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-519",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:27+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-519.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-519.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-510",
+   "MT-490"
   ],
-  "scope": {
-    "summary": "Implement OS/clipboard handoff as commands: copy-as-CSS/SVG/PNG of a selection to the clipboard for cross-tool paste; open-in/edit-in round trips that stay within the ONE unified StudioDocument (no exporting between separate apps - raster/vector/layout are one document); and loading third-party raster filter plugins under the sandboxed plugin/consent contract (Section 7), never as ambient native code. Platform-exclusive OS integrations (OS photo-app extensions, pen/dial/tablet input) supported where the native shell provides the surface, otherwise out of scope, never a hosted/platform-locked runtime dependency.",
-    "allowed_paths": [
-      "src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "copy-as-CSS/SVG/PNG + in-document edit-in + sandboxed third-party filter loading"
-    ],
-    "proof_targets": [
-      "copy-as + edit-in + sandboxed-filter runtime test"
-    ],
-    "code_surfaces": [
-      "src/studio/automation/os_clipboard.rs"
-    ],
-    "expected_tests": [
-      "live: copy-as-SVG/PNG/CSS of a selection to clipboard",
-      "test: edit-in round trip stays within one StudioDocument (no external export)",
-      "negative: third-party raster filter loads only via sandboxed consent contract"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Automation / OS & clipboard handoff (model layer)"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "OS and clipboard handoff commands [STU-AUT-026]",
+ "spec_anchor": [
+  "STU-AUT-026",
+  "STU-DOC-001"
+ ],
+ "scope": {
+  "summary": "Implement OS/clipboard handoff as commands: copy-as-CSS/SVG/PNG of a selection to the clipboard for cross-tool paste; open-in/edit-in round trips that stay within the ONE unified StudioDocument (no exporting between separate apps - raster/vector/layout are one document); and loading third-party raster filter plugins under the sandboxed plugin/consent contract (Section 7), never as ambient native code. Platform-exclusive OS integrations (OS photo-app extensions, pen/dial/tablet input) supported where the native shell provides the surface, otherwise out of scope, never a hosted/platform-locked runtime dependency.",
+  "allowed_paths": [
+   "src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Clipboard/OS handoff missing, or third-party filters run as ambient native code.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Copy-as-CSS/SVG/PNG",
+   "In-document edit-in",
+   "Sandboxed third-party filter loading"
+  ],
+  "proof_targets": [
+   "copy-as + edit-in + sandboxed-filter runtime test"
+  ],
+  "code_surfaces": [
+   "src/studio/automation/os_clipboard.rs"
+  ],
+  "expected_tests": [
+   "live: copy-as-SVG/PNG/CSS of a selection to clipboard",
+   "test: edit-in round trip stays within one StudioDocument (no external export)",
+   "negative: third-party raster filter loads only via sandboxed consent contract"
+  ],
+  "acceptance_criteria_original": [
+   "copy-as-CSS/SVG/PNG + in-document edit-in + sandboxed third-party filter loading"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Automation / OS & clipboard handoff (model layer)"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Clipboard/OS handoff missing, or third-party filters run as ambient native code.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Copy-as-CSS/SVG/PNG",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "copy-as + edit-in + sandboxed-filter runtime test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "In-document edit-in",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Sandboxed third-party filter loading",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-AUT-026",
+    "spec_clause_text": "[STU-AUT-026] Studio MUST support OS and clipboard handoff as commands: copy-as-CSS/SVG/PNG of a selection to the clipboard for cross-tool paste; open-in / edit-in round trips that stay within the ONE unified `StudioDocument` rather than exporting between separate applications (dedup of cross-app edit-in round trips — Studio needs none because raster/vector/layout are one document per [STU-DOC-001]); and loading third-party raster filter plugins under the sandboxed plugin/consent contract of Section 7, never as ambient native code. Platform-exclusive OS integrations (OS photo-app editor extensions, pen/dial/tablet input) are supported where the native shell provides the surface and are otherwise out of scope, never a hosted or platform-locked runtime dependency ([STU-OVR-002]). ### 10. GUI, diagnostics, and manual obligations"
+   },
+   {
+    "anchor": "STU-DOC-001",
+    "spec_clause_text": "[STU-DOC-001] `StudioDocument` (schema id `hsk.studio.document@1`) is the single unified document type spanning all Studio domains. One document holds a tree of `StudioLayer` nodes over one or more `StudioArtboard`/`StudioPageSpread` containers; a layer's `kind` selects its domain payload (`raster`, `vector`, `text`, `group`, `adjustment`, `live_filter`, `mask`, `fill`, `component_instance`, `frame`, `placed_asset`). There is no per-source-app document silo: a raster edit, a vector edit, and a layout edit operate on layers in the same `StudioDocument` through the same selection, history, color, and export surfaces. `StudioDocument` MUST derive `schemars::JsonSchema` so its MCP `inputSchema` is auto-generated, and it is the single type shared between the model's output surface, the engines' input surface, and the typed SurrealDB object field (`studio_documents.doc_json`)."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:27+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

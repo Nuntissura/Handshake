@@ -1,0 +1,172 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33754",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-VID-041a#command_table#8",
+  "unit_kind": "command_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14. The command surface",
+  "spec_line": 22306,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Two command labels named a vendor product and have been renamed to name the - command and binding set (9)",
+ "spec_anchor": [
+  "STU-VID-041a"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "video_timeline",
+ "scope": {
+  "summary": "Two command labels named a vendor product and have been renamed to name the capability instead.** [STU-SECTION-003] forbids a source product name as a Studio command, panel or manual name, and a label is exactly such a name. The behaviour, the command identity and the binding are unchanged; only the operator-facing label changed. The captured label is preserved here as provenance so an importer and a shortcut-migration path can still match on it: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Command id | Studio label | Captured source label (provenance) | |---|---|---| | `cmd.clip.aeify` | Replace With Composition | `Replace With After Effects Composition` | | `cmd.clip.openstockaudiosearch` | Search Stock Audio Library | `Find Adobe Stock Audio` | Neither rename creates or removes a capability. `Replace With Composition` is the sequence-side entry to the composition/sequence interoperation of [STU-CMP-004] and produces an ordinary nested composition clip. `Search Stock Audio Library` is an asset-library search; per [STU-FX-032]'s posture and [STU-OVR-002] no stock or account-bound service is native behaviour, so the command resolves against whatever asset library is bound and MUST NOT require an account or a network. **`timeline` namespace** (127 commands) *Derivation: preset/command table, taken [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Search Stock Audio Library` is an asset-library search; per [STU-FX-032]'s posture and [STU-OVR-002] no stock or account-bound service is native behaviour, so the command resolves against whatever asset library is bound and MUST NOT require an account or a network. **`timeline` namespace** (127 commands) *Derivation: preset/command table, taken whole; yields 1 microtask.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.timeline.activate.next.caption.track` | _(no menu label; executable-only)_ | -- | | `cmd.timeline.activate.prev.caption.track` | _(no menu label; executable-only)_ | -- | | `cmd.timeline.audio.clip.keyframes.show` | _(no menu label; executable-only)_ | -- | | `cmd.timeline.audio.show.audioheaderonsmalltracks` | Show Audio Clip Header on Small Tracks | -- | | `cmd.timeline.audio.show.channel.labels` | Show Audio Channel Labels | -- | | `cmd.timeline.audio. [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.trim.focusin` | _(no menu label; executable-only)_ | -- | | `cmd.trim.focusinandout` | _(no menu label; executable-only)_ | -- | | `cmd.trim.focusout` | _(no menu label; executable-only)_ | -- | | `cmd.trim.minus.major` | _(no menu label; executable-only)_ | -- | | `cmd.trim.minus.minor` | _(no menu label; executable-only)_ | -- | | `cmd.trim.monitor.paused.resolution.eighth` | 1/8 | -- | | `cmd.trim.monitor.paused.resolution.full` | Full | -- | | `cmd.tr [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.tlnav.add.tracks.to.match.source` | Add Tracks to Match Source | -- | | `cmd.tlnav.assign.black` | Gap | -- | | `cmd.tlnav.go.to.next.selected.edit` | _(no menu label; executable-only)_ | -- | | `cmd.tlnav.go.to.prev.selected.edit` | _(no menu label; executable-only)_ | -- | | `cmd.tlnav.move.all.source.audio.down` | _(no menu label; executable-only)_ | -- | | `cmd.tlnav.move.all.source.audio.up` | _(no menu label; executable-only)_ | -- | | `cmd.tlnav.mo [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.sequence.addaudiosubmixtrack` | Add Audio Submix Track | -- | | `cmd.sequence.addtrack` | Add Track | -- | | `cmd.sequence.addtracks` | Add &Tracks... | -- | | `cmd.sequence.addvideotrack` | _(no menu label; executable-only)_ | -- | | `cmd.sequence.applydefaultaudiotransition` | Apply &Audio Transition | `Ctrl+Shift+D` | | `cmd.sequence.applydefaulttransitions` | Apply &Default Transitions to Selection | `Shift+D` | | `cmd.sequence.applydefaultvideotransi [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.clip.adjustmentlayer` | Adjustment Layer | -- | | `cmd.clip.aeify` | Replace With Composition | -- | | `cmd.clip.attachhires` | Reconnect Full Resolution Media... | -- | | `cmd.clip.attachproxy` | Attach Proxies... | -- | | `cmd.clip.audiocategorization` | Auto-Tag Audio Types | -- | | `cmd.clip.audiooptions.breakouttomono` | &Breakout to Mono | -- | | `cmd.clip.audiooptions.gain` | Audio Gain... | `G` | | `cmd.clip.audiooptions.nudgevolumedown` | _(no me [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.multicam.audio.follows.video` | Multi-Camera Audio Follows Video | -- | | `cmd.multicam.choose.camera.1` | _(no menu label; executable-only)_ | `Ctrl+1` | | `cmd.multicam.choose.camera.10` | _(no menu label; executable-only)_ | -- | | `cmd.multicam.choose.camera.11` | _(no menu label; executable-only)_ | -- | | `cmd.multicam.choose.camera.12` | _(no menu label; executable-only)_ | -- | | `cmd.multicam.choose.camera.13` | _(no menu label; executable-only)_ [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.tools.01pointer` | _(no menu label; executable-only)_ | `V` | | `cmd.tools.02_5trackselectbackward` | _(no menu label; executable-only)_ | `Shift+A` | | `cmd.tools.02trackselectforward` | _(no menu label; executable-only)_ | `A` | | `cmd.tools.03ripple` | _(no menu label; executable-only)_ | `B` | | `cmd.tools.04roll` | _(no menu label; executable-only)_ | `N` | | `cmd.tools.05ratestretch` | _(no menu label; executable-only)_ | `R` | | `cmd.tools.06razor` [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.monitor.addcliptoproject` | _(no menu label; executable-only)_ | -- | | `cmd.monitor.addguide` | &Add Guide... | -- | | `cmd.monitor.ambisonics.monitor.toggle` | Monitor Ambisonics | -- | | `cmd.monitor.closeallclips` | _(no menu label; executable-only)_ | -- | | `cmd.monitor.closeclip` | _(no menu label; executable-only)_ | -- | | `cmd.monitor.colormanagement.ganged` | Gang to Active Sequence Color Management | -- | | `cmd.monitor.colormanagement.off` | [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.transport.fastforward` | _(no menu label; executable-only)_ | -- | | `cmd.transport.play.ctitoaudioout` | _(no menu label; executable-only)_ | -- | | `cmd.transport.play.ctitoout` | _(no menu label; executable-only)_ | `Ctrl+Space` | | `cmd.transport.play.ctitovideoout` | _(no menu label; executable-only)_ | -- | | `cmd.transport.play.fat` | _(no menu label; executable-only)_ | `Shift+Space` | | `cmd.transport.playaudiointoout` | _(no menu label; executab [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.marker.add.0` | _(no menu label; executable-only)_ | -- | | `cmd.marker.add.1` | _(no menu label; executable-only)_ | -- | | `cmd.marker.add.2` | _(no menu label; executable-only)_ | -- | | `cmd.marker.add.3` | _(no menu label; executable-only)_ | -- | | `cmd.marker.add.4` | _(no menu label; executable-only)_ | -- | | `cmd.marker.add.5` | _(no menu label; executable-only)_ | -- | | `cmd.marker.add.6` | _(no menu label; executable-only)_ | -- | | `cmd.mark [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.track.bidirectional` | Track Mask | -- | **`capture` namespace** (11 commands) *Derivation: preset/command table, taken whole; yields 1 microtask.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-013",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.capture.eject` | _(no menu label; executable-only)_ | `E` | | `cmd.capture.fastforward` | _(no menu label; executable-only)_ | `F` | | `cmd.capture.fastrewind` | _(no menu label; executable-only)_ | `R` | | `cmd.capture.goto.inpoint` | _(no menu label; executable-only)_ | `Q` | | `cmd.capture.goto.outpoint` | _(no menu label; executable-only)_ | `W` | | `cmd.capture.record` | _(no menu label; executable-only)_ | `G` | | `cmd.capture.record.audio` | _(no m [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-014",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.posterframe.clear` | Clear Poster Frame | `Ctrl+Shift+P` | | `cmd.posterframe.move.backward` | _(no menu label; executable-only)_ | -- | | `cmd.posterframe.move.forward` | _(no menu label; executable-only)_ | -- | | `cmd.posterframe.set` | Set Poster Frame | `Shift+P` | **`roughcut` namespace** (3 commands) *Derivation: preset/command table, taken whole; yields 1 microtask.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-015",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.roughcut.add51audiotrack` | _(no menu label; executable-only)_ | -- | | `cmd.roughcut.addmonoaudiotrack` | _(no menu label; executable-only)_ | -- | | `cmd.roughcut.addstereoaudiotrack` | _(no menu label; executable-only)_ | -- | **`clipgrid` namespace** (7 commands) *Derivation: preset/command table, taken whole; yields 1 microtask.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  },
+  {
+   "id": "AC-016",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Command id | Label | Default binding (en) | |---|---|---| | `cmd.clipgrid.pastegradetoclip.andappend` | Paste and Append | -- | | `cmd.clipgrid.pastegradetoclip.andreplace` | Paste and Replace | -- | | `cmd.clipgrid.pastegradetoclip.asclipadjustments` | Paste as Clip Adjustments | -- | | `cmd.clipgrid.pastegradetoclip.asclipoperations` | _(no menu label; executable-only)_ | -- | | `cmd.clipgrid.pastegradetoclip.preservegrouprelationships` | Paste to Preserve Group Relationships | -- | | `cmd.clipgrid.pastegradetoselect [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-041a"
+  }
+ ],
+ "acceptance_criteria_count": 16,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

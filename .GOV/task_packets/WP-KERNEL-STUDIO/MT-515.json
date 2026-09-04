@@ -1,128 +1,192 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-515",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-515.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-515.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-514",
-      "MT-496",
-      "MT-008"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Developer inspect + codegen surface [STU-AUT-022]",
-  "spec_anchor": [
-    "STU-AUT-022"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-515",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:27+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-515.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-515.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-514",
+   "MT-496",
+   "MT-008"
   ],
-  "scope": {
-    "summary": "Implement the native, read-oriented inspect/codegen surface (deduped design-to-code inspect + native MCP server equivalent): structured design context + framework-shaped generated code for a selection/node reference; the variables/tokens and styles used within a selection; a rendered selection screenshot for visual verification (ties to the visual-inspection duty 14.16); and a component-to-code mapping that substitutes a team's real component code for auto-generated snippets. Read-oriented; any writeback is a normal promotion-gated command. Framework set is codegen-plugin-extensible.",
-    "allowed_paths": [
-      "src/studio/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "read-oriented inspect/codegen; context+code+tokens+screenshot+component-map; writeback promotion-gated"
-    ],
-    "proof_targets": [
-      "inspect context+codegen+screenshot runtime test"
-    ],
-    "code_surfaces": [
-      "src/studio/automation/inspect_codegen.rs",
-      "src/frontend/handshake_native/src/studio/inspect_panel.rs"
-    ],
-    "expected_tests": [
-      "live: inspect returns structured context + code + token defs for a selection",
-      "live: selection screenshot rendered for verification",
-      "test: component-to-code map overrides generated snippet"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "inspect/dev-mode panel"
-    ],
-    "argus_targets": [
-      "studio.inspect_panel",
-      "studio.inspect.codegen"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Automation / Inspect & code generation"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Developer inspect + codegen surface [STU-AUT-022]",
+ "spec_anchor": [
+  "STU-AUT-022"
+ ],
+ "scope": {
+  "summary": "Implement the native, read-oriented inspect/codegen surface (deduped design-to-code inspect + native MCP server equivalent): structured design context + framework-shaped generated code for a selection/node reference; the variables/tokens and styles used within a selection; a rendered selection screenshot for visual verification (ties to the visual-inspection duty 14.16); and a component-to-code mapping that substitutes a team's real component code for auto-generated snippets. Read-oriented; any writeback is a normal promotion-gated command. Framework set is codegen-plugin-extensible.",
+  "allowed_paths": [
+   "src/studio/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No design-to-code inspect/handoff; agent visual verification gap.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Read-oriented inspect/codegen",
+   "Context+code+tokens+screenshot+component-map",
+   "Writeback promotion-gated"
+  ],
+  "proof_targets": [
+   "inspect context+codegen+screenshot runtime test"
+  ],
+  "code_surfaces": [
+   "src/studio/automation/inspect_codegen.rs",
+   "src/frontend/handshake_native/src/studio/inspect_panel.rs"
+  ],
+  "expected_tests": [
+   "live: inspect returns structured context + code + token defs for a selection",
+   "live: selection screenshot rendered for verification",
+   "test: component-to-code map overrides generated snippet"
+  ],
+  "acceptance_criteria_original": [
+   "read-oriented inspect/codegen; context+code+tokens+screenshot+component-map; writeback promotion-gated"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "inspect/dev-mode panel"
+  ],
+  "argus_targets": [
+   "studio.inspect_panel",
+   "studio.inspect.codegen"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Automation / Inspect & code generation"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No design-to-code inspect/handoff; agent visual verification gap.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Read-oriented inspect/codegen",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "inspect context+codegen+screenshot runtime test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Context+code+tokens+screenshot+component-map",
+   "evidence_kind": "gui_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Writeback promotion-gated",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-AUT-022",
+    "spec_clause_text": "[STU-AUT-022] Studio MUST provide a **developer inspect and codegen** surface — the deduped equivalent of a design-to-code inspect mode and its native MCP server — as a local, read-oriented projection of the command contract. It exposes: structured design context and generated code for the current selection or a node reference; the variables/tokens and styles used within a selection; a rendered screenshot of a selection for visual verification; and a component-to-code mapping concept that substitutes a team's real component code for auto-generated snippets. The prior art here is a design tool's Dev-Mode MCP server exposed to coding agents; Studio's equivalent is native (no hosted dependency) and is a projection of the one command contract, not a separate product mode. This inspect/codegen surface is read-oriented; any writeback it offers is a normal promotion-gated command. | External/inspect capability | Behavior | Local-first posture | |---|---|---| | MCP command tools | The full typed command contract as MCP tools | Native, primary surface (same as 14.16); no hosted dependency | | Document JSON tree read | Serialize a document (or a node subtree) as a typed JSON node tree | Native command; source-suite serialized-tree schema is a compatibility reference only | | Server-side render | Render a node/selection to PNG/JPG/SVG/PDF bytes at a requested scale | Native `export` command / `StudioExportRecipe` | | Inspect context / codegen | Structured design context + framework-shaped code for a selection | Native inspect projection; framework set is codegen-plugin-extensible | | Token/variable defs | Variables, tokens, and styles used within a selection | Native read over `StudioVariable`/`StudioStyleRegistry` | | Selection screenshot | Rendered screenshot of a selection for agent visual verification | Native render; ties to the visual inspection duty (14.16) | | Component-to-code map | Map a component to real code implementations, overriding generated snippets | Native mapping concept over `StudioComponent` | | Optional REST/webhooks | Files/nodes/images/comments/versions/components/variables endpoints and an event webhook catalog | OPTIONAL adapter over the command contract; capability-gated; maps to `studio.*` events |"
+   }
+  ],
+  "spec_clause_count": 1,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:27+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

@@ -1,122 +1,199 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-444",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-444.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-444.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-442",
-      "MT-443",
-      "MT-008"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Interop fixture + round-trip harness (15-target native fixture plan) [STU-IO-011]",
-  "spec_anchor": [
-    "STU-IO-011",
-    "STU-IO-004"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-444",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-444.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-444.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-442",
+   "MT-443",
+   "MT-008"
   ],
-  "scope": {
-    "summary": "Implement the fixture + round-trip test harness that every format family MT plugs into: representative fixtures + receipts for each supported app-and-direction; round-trip expectations stated as a BOUNDED fidelity envelope (not 'identical') verified by fixture comparison rather than capability memory. Seed the native 15-target fixture plan by family — Affinity (5), Figma family (6), Illustrator (3), InDesign (2), Photoshop (2) — each declaring all four support directions (import, edit-preserve, export, round-trip) and its schema-public status (documented interchange XML / partly-documented native / vendor-private native / vendor-private-or-PDF-compatible / vendor-private local-copy / vendor-private template) governing how much is semantically imported versus preservation-blobbed.",
-    "allowed_paths": [
-      "src/studio/interop/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "fixture + bounded round-trip harness live; 15 native targets seeded; no memory-asserted parity"
-    ],
-    "proof_targets": [
-      "round-trip harness + 15-target fixture-plan test"
-    ],
-    "code_surfaces": [
-      "tests/studio/interop/fixtures/**",
-      "tests/studio/interop/roundtrip_harness.rs",
-      "src/studio/interop/fixture.rs"
-    ],
-    "expected_tests": [
-      "test: round-trip harness compares import->export against a bounded fidelity envelope (not identity)",
-      "test: 15 native targets registered by family with 4 directions + schema-public status",
-      "test: a format with no passing fixtures is not parity-complete"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-VIS-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Interop fixture + round-trip harness (15-target native fixture plan) [STU-IO-011]",
+ "spec_anchor": [
+  "STU-IO-011",
+  "STU-IO-004"
+ ],
+ "scope": {
+  "summary": "Implement the fixture + round-trip test harness that every format family MT plugs into: representative fixtures + receipts for each supported app-and-direction; round-trip expectations stated as a BOUNDED fidelity envelope (not 'identical') verified by fixture comparison rather than capability memory. Seed the native 15-target fixture plan by family — Affinity (5), Figma family (6), Illustrator (3), InDesign (2), Photoshop (2) — each declaring all four support directions (import, edit-preserve, export, round-trip) and its schema-public status (documented interchange XML / partly-documented native / vendor-private native / vendor-private-or-PDF-compatible / vendor-private local-copy / vendor-private template) governing how much is semantically imported versus preservation-blobbed.",
+  "allowed_paths": [
+   "src/studio/interop/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Format claims asserted from memory; no round-trip proof surface.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Fixture",
+   "Bounded round-trip harness live",
+   "15 native targets seeded",
+   "No memory-asserted parity"
+  ],
+  "proof_targets": [
+   "round-trip harness + 15-target fixture-plan test"
+  ],
+  "code_surfaces": [
+   "tests/studio/interop/fixtures/**",
+   "tests/studio/interop/roundtrip_harness.rs",
+   "src/studio/interop/fixture.rs"
+  ],
+  "expected_tests": [
+   "test: round-trip harness compares import->export against a bounded fidelity envelope (not identity)",
+   "test: 15 native targets registered by family with 4 directions + schema-public status",
+   "test: a format with no passing fixtures is not parity-complete"
+  ],
+  "acceptance_criteria_original": [
+   "fixture + bounded round-trip harness live; 15 native targets seeded; no memory-asserted parity"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-VIS-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Format claims asserted from memory; no round-trip proof surface.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Fixture",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "round-trip harness + 15-target fixture-plan test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Bounded round-trip harness live",
+   "evidence_kind": "test_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "15 native targets seeded",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "No memory-asserted parity",
+   "evidence_kind": "test_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-IO-011",
+    "spec_clause_text": "[STU-IO-011] Fixture law: every supported app-and-direction in the matrix MUST have representative fixtures and receipts; a format is not parity-complete until its fixtures pass and its unsupported features are documented in receipts and the Studio UserManual (14.22). The proprietary/native round-trip families MUST be covered by the native fixture plan of 15 native targets: - By family: Affinity (5), Figma family (6), Illustrator (3), InDesign (2), Photoshop (2). - Each target declares all four required support directions — import, edit-preserve, export, round-trip. - Each target declares its schema-public status, which governs how much is semantically imported versus preservation-blobbed: documented interchange XML with source-behavior fixtures; partly-documented native/large-native document; vendor-private native document; vendor-private-or-PDF-compatible native document; vendor-private local-copy document; and vendor-private template document. Round-trip expectations MUST be stated as a bounded fidelity envelope, not \"identical,\" and MUST be verified by fixture comparison rather than asserted from capability memory. ### 8. Recovery and diagnostics"
+   },
+   {
+    "anchor": "STU-IO-004",
+    "spec_clause_text": "[STU-IO-004] NORMATIVE GATE. A format import or export feature MUST NOT be promoted (marked parity-complete or shippable) unless it declares ALL of the following five artifacts: - (a) **compatibility scope** — an explicit statement of which structures are preserved, transformed, rasterized, or unsupported. - (b) **fixtures** — representative fixtures for every supported app-and-direction it claims. - (c) **round-trip expectations** — the documented, bounded fidelity envelope after import->export. - (d) **unsupported-feature diagnostics/receipts** — a machine-readable receipt enumerating every source feature that could not be represented, was degraded, or was baked, emitted at decode/encode time and surfaced to the operator and model. - (e) **recovery behavior** — deterministic, non-destructive handling of malformed, partial, truncated, password-protected, or version-newer inputs (fail closed with a receipt, never a silent partial write to authority). A format that cannot meet all five is `unsupported` or `optional adapter`, not promoted."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

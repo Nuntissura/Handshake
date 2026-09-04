@@ -1,129 +1,201 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-426",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-426.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-426.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-424",
-      "MT-425",
-      "MT-007"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "AI-assisted mask sources (optional StudioModelAdapter) [STU-RAW-014a,STU-RAW-014b]",
-  "spec_anchor": [
-    "STU-RAW-014a",
-    "STU-RAW-014b",
-    "STU-RAW-014"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-426",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-426.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-426.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-424",
+   "MT-425",
+   "MT-007"
   ],
-  "scope": {
-    "summary": "Implement AI-assisted mask sources as an OPTIONAL StudioModelAdapter (14.23), local model preferred, no required cloud/account: Subject, Sky, Background, Landscape components, Objects (from a rough brush stroke or drawn rectangle), and People (per-person, with per-person component sub-masks such as skin, hair, clothing). When no adapter is present the masking system MUST degrade to the manual/range sources of MT-424 and surface a capability receipt rather than failing. AI-produced masks are the same StudioMask primitive and participate in compose/manage/review (MT-425).",
-    "allowed_paths": [
-      "src/studio/raw/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "AI mask sources as optional adapter; degrades to manual with capability receipt; no cloud dependency"
-    ],
-    "proof_targets": [
-      "AI-mask adapter + no-adapter-degrade receipt test"
-    ],
-    "code_surfaces": [
-      "src/studio/raw/mask/ai_sources.rs",
-      "src/studio/raw/adapter.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::raw::mask::ai",
-      "test: AI sources produce StudioMask when adapter present; per-person component sub-masks",
-      "negative: no adapter installed -> degrades to manual/range + capability receipt (no failure)"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "masking panel (AI sources)"
-    ],
-    "argus_targets": [
-      "studio.raw.mask.ai"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Camera Raw & Develop / Masking — AI sources (optional)"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-SWARM-001",
-    "HBR-VIS-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "AI-assisted mask sources (optional StudioModelAdapter) [STU-RAW-014a,STU-RAW-014b]",
+ "spec_anchor": [
+  "STU-RAW-014a",
+  "STU-RAW-014b",
+  "STU-RAW-014"
+ ],
+ "scope": {
+  "summary": "Implement AI-assisted mask sources as an OPTIONAL StudioModelAdapter (14.23), local model preferred, no required cloud/account: Subject, Sky, Background, Landscape components, Objects (from a rough brush stroke or drawn rectangle), and People (per-person, with per-person component sub-masks such as skin, hair, clothing). When no adapter is present the masking system MUST degrade to the manual/range sources of MT-424 and surface a capability receipt rather than failing. AI-produced masks are the same StudioMask primitive and participate in compose/manage/review (MT-425).",
+  "allowed_paths": [
+   "src/studio/raw/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "AI masks become a hard cloud dependency or crash without adapter.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "AI mask sources as optional adapter",
+   "Degrades to manual with capability receipt",
+   "No cloud dependency"
+  ],
+  "proof_targets": [
+   "AI-mask adapter + no-adapter-degrade receipt test"
+  ],
+  "code_surfaces": [
+   "src/studio/raw/mask/ai_sources.rs",
+   "src/studio/raw/adapter.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::raw::mask::ai",
+   "test: AI sources produce StudioMask when adapter present; per-person component sub-masks",
+   "negative: no adapter installed -> degrades to manual/range + capability receipt (no failure)"
+  ],
+  "acceptance_criteria_original": [
+   "AI mask sources as optional adapter; degrades to manual with capability receipt; no cloud dependency"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "masking panel (AI sources)"
+  ],
+  "argus_targets": [
+   "studio.raw.mask.ai"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Camera Raw & Develop / Masking — AI sources (optional)"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-SWARM-001",
+  "HBR-VIS-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "AI masks become a hard cloud dependency or crash without adapter.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "AI mask sources as optional adapter",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "AI-mask adapter + no-adapter-degrade receipt test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Degrades to manual with capability receipt",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "No cloud dependency",
+   "evidence_kind": "build_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-RAW-014a",
+    "spec_clause_text": "**[STU-RAW-014a]** Local adjustment MUST be expressed through `StudioMask` (the same masking primitive used by 14.4 and 14.9), not a raw-only mask type. The develop masking system MUST support the full mask-source set: manual and geometric sources (linear gradient, radial gradient, brush); range sources (colour range, luminance range, depth range); and model-assisted sources (subject, sky, background, landscape components, objects from a rough stroke or rectangle, and people with per-person component sub-masks), the last of which are an optional adapter per [STU-RAW-130] and degrade to the manual sources when no adapter is present."
+   },
+   {
+    "anchor": "STU-RAW-014b",
+    "spec_clause_text": "**[STU-RAW-014b]** Masks MUST compose and manage: combine by add, subtract and intersect between any mask sources; invert, including duplicate-and-invert; duplicate, rename, hide and delete; a customizable mask overlay display; and a mask-local develop slider stack saveable as a local-adjustment preset re-applied with an amount control. Intersect and subtract semantics are the canonical `StudioMask` semantics of 14.23; the develop pipeline does not fork them."
+   },
+   {
+    "anchor": "STU-RAW-014",
+    "spec_clause_text": "**[STU-RAW-014]** Enhance operations MUST be split into the native deterministic tier and the optional model-adapter tier exactly as [STU-RAW-130] specifies. ### 17. Crop, Workflow Output, and Linkage to the Raster Document"
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

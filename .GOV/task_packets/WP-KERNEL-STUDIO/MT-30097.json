@@ -1,0 +1,88 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30097",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-125#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "6. The Brush Engine",
+  "spec_line": 774,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023])",
+ "spec_anchor": [
+  "STU-RAS-125"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush. [STU-RAS-023]'s statement that there is one engine is retained. Its enumeration of that engine's parameters as \"brush tip/preset, size, hardness, blend mode, opacity, flow, spacing, angle/roundness, pressure and tilt dynamics, and a stroke-smoothing option set (0–100 ...)\" is SUPERSEDED and MUST NOT be implemented: it is roughly a tenth of the real surface and its smoothing range is wrong. The parsed brush libraries carry 223 distinct parameter keys across 643 shipped presets in one source serialization, and a 38-tag parameter schema over 455 shipped brushes in another; the engine is a tip model plus a five-sub-engine composition (dual tip, scatter, texture, colour dynamics, wet mixing) plus eleven independently-controlled dynamics channels. [STU-RAS-126] through [STU-RAS-136] are the replacement.",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "ONE BRUSH ENGINE (supersedes the parameter list of [STU-RAS-023]).** Studio MUST implement exactly one native brush engine, in `studio-engine` behind `RasterEngine`, driving every painting tool, every retouching tool, every eraser, every mask-painting surface, every selection brush, every refinement brush, and every develop-time local brush.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-125"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Its enumeration of that engine's parameters as \"brush tip/preset, size, hardness, blend mode, opacity, flow, spacing, angle/roundness, pressure and tilt dynamics, and a stroke-smoothing option set (0–100 ...)\" is SUPERSEDED and MUST NOT be implemented: it is roughly a tenth of the real surface and its smoothing range is wrong.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-125"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

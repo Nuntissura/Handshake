@@ -5,7 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-020",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-08-14T18:51:07.751Z",
+  "updated_at_utc": "2026-09-01T17:16:03.494Z",
+  "scope_status": "V6_BLOCKED_ON_DEPENDENCY_2026-09-01",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -16,7 +17,7 @@
     "path": "",
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
-  "v5_remediation_2026_08_02": {
+  "historical_v5_remediation_2026_08_02_superseded": {
     "validator_verdict_remediated": "FAIL_V5",
     "validator_session": "WP_VALIDATOR-20260801-062930",
     "validator_judgment": "Current-cycle proof is incomplete: only serial factory module ran; AC-3 also requires default-parallel, AC-6 full reclaim/falsifiability, AC-7 both all-target checks, and AC-5 baseline proof. lifecycle.hbr_status is null for required HBR-INT-001 and HBR-STOP-003.",
@@ -55,7 +56,7 @@
     ],
     "note_on_scope": "MT-020 was NOT given HBR-PRIV rows during the 2026-08-02 declaration sweep: it repairs pre-existing failing tests in the production_factory module and creates no product resource, so HBR-PRIV-001's not_applicable_when clause genuinely applies. That is a reasoned exclusion, not an omission."
   },
-  "lifecycle": {
+  "historical_lifecycle_v5_superseded": {
     "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [],
     "blocks": [],
@@ -66,23 +67,23 @@
     "ready_for_validation_by": null,
     "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": "MT-006-owned model_lane_cloud_consent_scope_pg_tests does not compile under the declared default cargo check --all-targets because it calls test_finalize_cloud_consent_revocation while that helper is gated behind feature test-utils.",
-    "missing_resource": "MT-006 default-all-target feature-gating remediation and passing recheck",
-    "proof_status": "SOURCE_REMEDIATED_BLOCKED_ON_DEPENDENCY: product commit 2dd294d7; production_factory passed 40/40 default and 40/40 serial, full process-ledger reclaim passed 34/34, test-utils all-targets check passed, diff checks passed, exact leaked schemas cleaned to zero. The declared default all-targets check remains red only on the named MT-006-owned feature-gating compile defect.",
-    "hbr_status": "HBR-INT-001 and HBR-STOP-003 PASS_PENDING_DEPENDENCY: MT-020 factory and reclaim behavior is proven without guard weakening. HBR-PRIV remains not applicable because this remediation changes test authority construction only and creates no product resource.",
+    "blocker": "The MT-006-owned source blocker is statically remediated: the stale non-Surreal auto-discovered consent-scope shim was removed and only the explicitly declared embedded-SurrealDB target remains. MT-020 stays blocked until the parent serialized lane runs fresh default and feature-enabled Cargo all-target checks on the unchanged source tree.",
+    "missing_resource": "Parent-owned fresh cargo check --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --all-targets and cargo check --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets",
+    "proof_status": "SOURCE_STATIC_REMEDIATED_BLOCKED_ON_PARENT_CARGO_RECHECK_2026_09_01: product commit 2dd294d7 remains the historical MT-020 behavior proof; the MT-006 default-all-target source defect is removed and only the embedded-SurrealDB consent-scope path remains. This delegated lane ran only rustfmt/static rg/scoped git diff checks as directed and did not run Cargo. MT-020 is not READY_FOR_VALIDATION until both fresh parent-owned all-target checks pass on the unchanged tree.",
+    "hbr_status": "HBR-INT-001 and HBR-STOP-003 NON_READY_PENDING_PARENT_ALL_TARGET_PROOF: MT-020 factory and reclaim behavior remains historically proven without guard weakening; current-tree dependency closure still requires the two fresh parent-owned Cargo checks. HBR-PRIV remains not applicable because this remediation changes test-target topology only and creates no product resource.",
     "pre_implementation_adversarial_review_status": null,
     "post_implementation_adversarial_review_status": "COMPLETED_LOCAL_MULTILENS_2026-08-14; independent subagent unavailable at global agent-thread limit",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
-    "last_runtime_status_ref": "SOURCE_REMEDIATED at 2dd294d7; waiting on MT-006 default-all-target feature-gating repair before MT-020 readiness recheck"
+    "last_runtime_status_ref": "SOURCE_STATIC_REMEDIATED_2026_09_01; waiting on parent-owned fresh default and test-utils,surreal-test-support Cargo all-target checks before any MT-020 readiness recheck"
   },
-  "origin": {
+  "historical_origin_v5_superseded": {
     "discovered_by": "KERNEL_BUILDER-20260729-225554",
     "discovered_at_utc": "2026-07-30T00:30:00Z",
     "discovery_context": "Found while verifying the three MT-017 final-hardening fixes on 2026-07-30. Deferred into its own MT per the Operator rule that an unexpected gap not belonging to the current MT is carried into a future MT in the same work packet so it is not lost.",
     "additional_discovery_2026_07_30": "Confirmed at runtime while proving MT-019 P-1: the same sandbox_adapter_id omission that made the new P-1 regression test unfalsifiable also breaks one pre-existing stale-source test and renders another vacuous. This is the third instance in one session of a test being silently red or vacuous because the declared proofs only ever ran narrow --exact filters (the first was five tests in the production_factory lib module)."
   },
-  "scope": {
+  "historical_scope_v5_superseded": {
     "summary": "Repair five PRE-EXISTING failing tests in the production_factory lib module that are invisible to MT-017's declared proof set, so the module is honestly green rather than green-by-narrow-filter.",
     "root_cause": "MT-017 proof command [16] runs ONLY swarm_orchestration::production_factory::tests::factory_dispatches_official_cli_to_cli_builder, which passes. Running the WHOLE module (2026-07-30, both parallel and serial: 27 passed / 5 failed, EXIT=101) exposes five failures that the narrow filter hides. TWO DISTINCT CAUSES. (a) FOUR tests fail with PROCESS_LEDGER_DURABILITY_ACK_TIMEOUT ('START row for process_uuid ... was not durably acknowledged within 5000 ms'): byok_cloud_provider_selection_honors_anthropic_when_openai_also_configured (production_factory.rs:2712), official_cli_provider_selection_honors_requested_provider (:2812), cloud_success_dispatch_records_start_and_teardown_records_stop_and_unloads (:2631), from_vault_factory_cloud_spawn_records_start_and_stop (:3210). All four build their ledger with ledger_pair() (production_factory.rs:2263-2272), which calls LedgerBatcher::manual_for_tests - a MANUAL batcher that spawns no writer task and therefore can never durably acknowledge a START row, while record_cloud_session_start awaits exactly that ack. The passing sibling factory_dispatches_official_cli_to_cli_builder instead uses an explicit LedgerBatcher::spawn plus drain_and_join_ledger_writer, which is why it is unaffected. (b) ONE test, production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan (:2423), asserts matches!(err, SwarmError::FactoryFailed(_)) for a missing-artifact local spawn but receives SwarmError::LedgerFailed from the ModelLaneStore dexterity guard at coordinator.rs:992 ('ModelLaneStore-backed coordinators require SpawnRequest::with_dexterity_launch before runtime creation'), because the coordinator is built with lazy_model_lane_store() (:2274-2279). The guard fires before the factory is ever reached, so the expectation is stale.",
     "allowed_paths": [
@@ -114,7 +115,118 @@
     ],
     "risk_if_missed": "The production_factory module carries five silent failures. Any future WP that widens the proof filter beyond the single declared test inherits a red module and cannot tell new breakage from old. Worse, the four ack timeouts mean the cloud-session START durability path has NO honest passing coverage in this module, so a real durability regression would be indistinguishable from the known noise. Additionally, the cross-reclaim protection for stale sessions currently has NO falsifiable test: postgres_stale_source_does_not_cross_reclaim_healthy_sibling_lane would pass even if that protection were removed, so a regression there would ship silently. Additionally, shared test-support modules auto-discovered as standalone default-feature test targets are a standing trap: they compile in a configuration their consumers never use, so a gated import added later breaks the default build of the whole crate and therefore every dependent crate."
   },
-  "implementation_notes": [
+  "lifecycle": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "depends_on": [
+      "MT-003",
+      "MT-019"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "WP1-V6-AUDIT-20260901",
+    "claimed_at_utc": "2026-09-01T17:16:03.494Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": "Parfit owns the concurrently modified production_factory, ModelLane facade/provider, events, terminal outbox, composition, and routing dependencies. Static inspection finds the five historical production_factory tests source-remediated and converted to an embedded-Surreal fixture, but current production_factory calls a nonexistent ModelLaneStore::surreal_storage() facade method, the terminal Surreal outbox has no focused runtime suite, routing still waits on Parfit atomic facade APIs, and no current-tree Cargo proof is authorized or available.",
+    "missing_resource": "Parfit must close the ModelLaneStore storage-clone boundary without an Option or alternate database fallback, finish same-storage factory/events/outbox composition, land focused embedded-Surreal terminal-outbox scope/restart/drain tests, and provide a frozen compilable source tree. MT-019 must provide the current embedded-Surreal reclaim/falsifiability equivalent for historical AC-6. The parent serialized Cargo lane must then run the exact MT-020 V6 commands under the required _Artifacts roots.",
+    "proof_status": "V6_NOT_RUN_BLOCKED. The five historical failures are source-fixed at the inspected source level, but all V5 PostgreSQL-era, prior-commit, and historical green results are superseded provenance and are not current V6 proof. The foreign WP-KERNEL Cargo process is not MT-020 evidence.",
+    "hbr_status": "HBR-INT-001, HBR-STOP-003, and scoped-resource HBR-PRIV proof remain pending. Product-global UserManual is not an MT-020 resource. Exact five-field scope applies to ModelLane, durable worktree/VM bindings, terminal outbox rows, and their canonical kernel EventLedger links.",
+    "pre_implementation_adversarial_review_status": "V6_COMPLETED_BLOCKED_ON_DEPENDENCY",
+    "post_implementation_adversarial_review_status": "NOT_STARTED_CONTRACT_ONLY_PASS",
+    "adversarial_findings_status": "OPEN_PARFIT_FACADE_AND_SURREAL_RUNTIME_PROOF_DEPENDENCIES_RECORDED",
+    "kb_ready_checklist_receipt_id": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "last_runtime_status_ref": null
+  },
+  "scope": {
+    "summary": "Preserve the five historical production-factory behavior repairs while proving their current embedded-Surreal composition, exact-scope authority, canonical EventLedger linkage, deterministic writer/outbox draining, and shutdown behavior without relational fixtures or compatibility paths.",
+    "allowed_paths": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json"
+    ],
+    "forbidden_paths": [
+      "product source or product tests in this contract-only pass",
+      "Parfit-owned production_factory, ModelLane facade/provider, events, outbox, composition, routing, main, lib, and API files",
+      "PostgreSQL, SQLite, sqlx, PgPool, relational fixtures, compatibility constructors, alternate namespace/database opens, cfg(any()), or fail-loud placeholders",
+      "test deletion, ignore attributes, renamed filters, vacuous filters, weakened durability acknowledgement, or historical proof presented as current",
+      "broad taskboard projection"
+    ],
+    "historical_failure_disposition": [
+      {
+        "test": "swarm_orchestration::production_factory::tests::cloud_success_dispatch_records_start_and_teardown_records_stop_and_unloads",
+        "status": "SOURCE_FIXED_WITH_SURREAL_FIXTURE_PENDING_RUNTIME_PROOF",
+        "basis": "The test uses spawned_ledger, requires a Flushed bounded drain, asserts one START and one STOP, and constructs an exact-scoped embedded ModelLaneStore. Its current-tree result is unrun."
+      },
+      {
+        "test": "swarm_orchestration::production_factory::tests::byok_cloud_provider_selection_honors_anthropic_when_openai_also_configured",
+        "status": "SOURCE_FIXED_WITH_SURREAL_FIXTURE_PENDING_RUNTIME_PROOF",
+        "basis": "The test uses the driven writer, selects only Anthropic, drains and joins, and asserts the acknowledged START. Its current-tree result is unrun."
+      },
+      {
+        "test": "swarm_orchestration::production_factory::tests::official_cli_provider_selection_honors_requested_provider",
+        "status": "SOURCE_FIXED_WITH_SURREAL_FIXTURE_PENDING_RUNTIME_PROOF",
+        "basis": "The test uses the driven writer and embedded exact-scope ModelLane fixture while preserving requested CLI-provider selection. Its current-tree result is unrun."
+      },
+      {
+        "test": "swarm_orchestration::production_factory::tests::from_vault_factory_cloud_spawn_records_start_and_stop",
+        "status": "SOURCE_FIXED_WITH_SURREAL_FIXTURE_PENDING_RUNTIME_PROOF",
+        "basis": "The test uses the driven writer, bounded Flushed drain, exact-scoped embedded ModelLane fixture, and START/STOP symmetry. Its current-tree result is unrun."
+      },
+      {
+        "test": "swarm_orchestration::production_factory::tests::production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan",
+        "status": "SOURCE_FIXED_WITH_SURREAL_FIXTURE_PENDING_RUNTIME_PROOF",
+        "basis": "The test now separately proves the ModelLane-backed pre-dispatch Dexterity guard and the dispatch-permitted missing-artifact FactoryFailed path, with zero orphan rows. Its current-tree result is unrun; one comment still describes the removed lazy-pool fixture and must be corrected by Parfit."
+      }
+    ],
+    "acceptance_criteria": [
+      "AC-1: All five named production_factory tests remain present under their exact names, are not ignored, and pass both individually and as part of the unfiltered production_factory module on the same frozen source revision.",
+      "AC-2: The four historical durability-ack failures use a real driven LedgerBatcher writer, preserve the five-second durable START acknowledgement, release all reserved permits, and prove a bounded Flushed drain-and-join. No manual batcher, shortened timeout, optional ack, or detached writer may make them green.",
+      "AC-3: The fifth historical failure preserves both boundaries: a ModelLane-backed coordinator rejects a contract-less launch before factory dispatch with no mutation, while a dispatch-permitted coordinator returns the real missing-artifact FactoryFailed and leaves no session or ledger orphan. The guard remains unchanged.",
+      "AC-4: Factory, ModelLane, durable worktree/VM registry, terminal event outbox, and EventLedger receive clones of one injected SurrealStorage namespace/database. No constructor may open a default or alternate store and no Option-backed relational/in-memory compatibility branch is allowed.",
+      "AC-5: Every durable ModelLane, worktree/VM binding, terminal outbox, and linked EventLedger read or mutation predicates owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id. Incomplete authority and each one-field mismatch fail closed without identifiers or mutation.",
+      "AC-6: Terminal swarm events are written atomically with a canonical kernel EventLedger receipt in the same Surreal transaction. Identical retries are deterministic, conflicting reuse is denied, and no domain-local audit island, event-without-outbox, or outbox-without-event state is accepted.",
+      "AC-7: The owner-held DurableSwarmFrDrain stops admission, drains ordinary and terminal queues, retries pending terminal outbox rows, joins under a bounded deadline, and reports false on timeout, persistence failure, fencing, or drops. Product shutdown consumes that result and cannot report a clean lifecycle when any drain fails.",
+      "AC-8: Close/reopen of the same embedded store preserves pending terminal events and canonical receipts; a healthy restart delivers each pending event once and removes only the exact-scope outbox row. Foreign-scope rows remain invisible and untouched.",
+      "AC-9: The historical process-reclaim eligibility and healthy-sibling non-reclaim intent remains required through MT-019's coherent embedded-Surreal suite, including a nonvacuous positive control and counterfactual failure. No PostgreSQL stale-source target is active MT-020 proof.",
+      "AC-10: Default and feature-enabled all-target compilation, the five exact filters, both unfiltered module execution modes, focused Surreal outbox tests, and MT-019 dependency proof all pass at one frozen source revision. No prior commit, unrun command, timeout, foreign Cargo process, or historical result is credited."
+    ],
+    "existing_focused_test_filters": [
+      "swarm_orchestration::production_factory::tests::cloud_success_dispatch_records_start_and_teardown_records_stop_and_unloads",
+      "swarm_orchestration::production_factory::tests::byok_cloud_provider_selection_honors_anthropic_when_openai_also_configured",
+      "swarm_orchestration::production_factory::tests::official_cli_provider_selection_honors_requested_provider",
+      "swarm_orchestration::production_factory::tests::from_vault_factory_cloud_spawn_records_start_and_stop",
+      "swarm_orchestration::production_factory::tests::production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan",
+      "swarm_orchestration::events::tests::durable_swarm_fr_bridge_records_events_to_recorder",
+      "swarm_orchestration::events::tests::durable_swarm_fr_bridge_fences_terminal_producer_on_persistence_failure"
+    ],
+    "required_new_test_filters": [
+      "swarm_orchestration::events::tests::durable_swarm_fr_bridge_surreal_outbox_exact_scope_restart_and_shutdown_drains",
+      "swarm_orchestration::events::tests::durable_swarm_fr_bridge_surreal_outbox_rejects_each_scope_mismatch_without_mutation",
+      "swarm_orchestration::events::tests::durable_swarm_fr_bridge_surreal_outbox_idempotent_retry_and_conflict_are_deterministic"
+    ],
+    "missing_facade_and_composition_seams": [
+      "production_factory.rs currently calls ModelLaneStore::surreal_storage(), but the current facade exposes only pub(crate) fn storage(&self) -> &SurrealStorage. Parfit must use the existing cloneable storage accessor or land one exact non-optional equivalent.",
+      "DurableWorktreeVmStore currently stores Option<SurrealStorage> even though ModelLaneStore is Surreal-only. Parfit must make the field a required SurrealStorage clone and remove the compatibility-shaped None branch.",
+      "The current SurrealSwarmOutboxStore and DurableSwarmFrBridge production path lacks focused exact-scope, canonical-event, restart, idempotency-conflict, pending-retry, and bounded-shutdown proof.",
+      "Routing composition remains blocked on Parfit's atomic routing/ModelLane facade APIs; MT-020 cannot obtain a frozen compile boundary until that shared source closes."
+    ],
+    "proof_commands": [
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::cloud_success_dispatch_records_start_and_teardown_records_stop_and_unloads -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::byok_cloud_provider_selection_honors_anthropic_when_openai_also_configured -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::official_cli_provider_selection_honors_requested_provider -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::from_vault_factory_cloud_spawn_records_start_and_stop -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests -- --test-threads=1 --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::events::tests::durable_swarm_fr_bridge_surreal_outbox -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; cargo check --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --all-targets",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; cargo check --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --all-targets"
+    ],
+    "risk_if_missed": "A green historical module could mask a current source compile break, detached writer, unflushed terminal event, cross-scope outbox disclosure, orphaned EventLedger receipt, or retry conflict. Treating the prior PostgreSQL-era run as current would make all of those regressions invisible."
+  },
+  "historical_implementation_notes_v5_superseded": [
     "Do not 'fix' this by shortening the 5000 ms ack deadline or making the ack optional - that would delete the durability guarantee these tests exist to prove.",
     "ledger_pair() at production_factory.rs:2263 is shared by several tests; changing it affects every caller. Prefer giving the four cloud tests a driven ledger over mutating the shared manual helper, unless a repo-wide audit shows every caller wants a driven batcher.",
     "Reference the working pattern in factory_dispatches_official_cli_to_cli_builder (LedgerBatcher::spawn + drain_and_join_ledger_writer, ~production_factory.rs:3530-3592).",
@@ -150,11 +262,11 @@
   },
   "handshake_compatibility": {
     "native_rust_backend_first": true,
-    "durable_authority": "kernel_process_lifecycle (ProcessOwnershipLedger); PostgreSQL/EventLedger, no SQLite",
+    "durable_authority": "Injected embedded SurrealDB only; canonical kernel EventLedger for durable terminal outbox authority; no PostgreSQL, SQLite, sqlx, PgPool, compatibility store, or alternate database open",
     "rust_only_implementation": true,
-    "spec_realism_gate": "The four ack tests must pass because a real ledger writer acknowledged a real START row, not because the assertion was relaxed."
+    "spec_realism_gate": "The four ack tests must pass because a driven writer durably acknowledged a real START row, and terminal event success must mean the exact-scope Surreal outbox transaction committed and the owner-held drain completed."
   },
-  "related_findings_2026_08_01": {
+  "historical_related_findings_2026_08_01_superseded": {
     "note": "RECORDED FOR ROUTING, NOT an acceptance criterion of the in-flight MT-020 work. Preserved here so it is not lost.",
     "finding": "The handshake-native frontend lib-unit suite has NINE deterministic failures: 406 passed / 9 failed at head efea010a.",
     "hypothesis_refuted": "These were initially suspected to be load-induced flakes, because the first observation happened while 6+ concurrent cargo builds were running. REFUTED: re-run on a completely quiet machine (0 builders) reproduces the SAME 9 failures, and faster (11.62s vs 24.90s). They are deterministic.",
@@ -172,7 +284,7 @@
     ],
     "routing": "Belongs to the handshake-native shell owner, not WP-1. Needs its own item. Note module_switcher::tests::definitions_match_react compares native module definitions against the React app - and the React/Tauri stack is SUPERSEDED per Codex CX-009-VIS and frozen since 2026-07-23, so that test may be asserting parity with a deliberately frozen surface."
   },
-  "implementation_2026_08_01": {
+  "historical_implementation_2026_08_01_superseded": {
     "implemented_by": "KERNEL_BUILDER-20260729-225554 (delegated coder; diff reviewed and claims independently verified by parent)",
     "commit": "50517aec",
     "per_ac": {
@@ -201,7 +313,7 @@
       "cargo clippy, just gov-check, and the wider test suite were not run - outside the declared proof set for this MT."
     ]
   },
-  "ac5_baseline_2026_08_04": {
+  "historical_ac5_baseline_2026_08_04_superseded": {
     "question": "Do the five production_factory failures also reproduce at 6fd044b0^ (before the MT-017 fixes)?",
     "answer": "YES - they are PRE-EXISTING. Established by MECHANISM with direct evidence, which is stronger than an A/B observation because it identifies cause rather than correlation.",
     "evidence": {
@@ -230,8 +342,8 @@
       "cleanup": "The throwaway baseline worktree must be removed via `just delete-local-worktree` per CX-122 - NEVER raw `git worktree remove`, which follows the .GOV junction and destroys real governance files."
     }
   },
-  "validator_verdict": "FAIL_V5",
-  "integration_validation_v5_2026_08_14": {
+  "historical_validator_verdict_v5_superseded": "FAIL_V5",
+  "historical_integration_validation_v5_2026_08_14_superseded": {
     "verdict": "FAIL_V5",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",

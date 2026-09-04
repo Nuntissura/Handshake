@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35305",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-101#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "0. Replacement, Derivation, and Anchor Disposition",
+  "spec_line": 241,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "ANCHOR DISPOSITION",
+ "spec_anchor": [
+  "STU-RAS-101"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "ANCHOR DISPOSITION.** Every anchor in the v02.205 bodies of 14.4 and 14.12 carries an explicit disposition. `RETAINED` means the clause is reproduced in this module with its meaning unchanged. `EXTENDED` means the clause is retained and one or more new clauses add captured detail it lacked; the retained text remains true. `SUPERSEDED-IN-PART` means a named portion of the clause is replaced by a new clause because the captured behaviour contradicts it; the clause states which portion. No anchor is silently dropped, and no retired anchor id is ever reused. New anchors in this module begin at 100 in each prefix so that nothing collides with the v02.205 range, which ran to STU-RAS-051 and STU-RAW-018. `[STU-RAS-140]` is deliberately unissued; it was drafted and renumbered before publication and MUST NOT be assigned later. The letter-suffixed anchors `[STU-RAW-008a]`, `[STU-RAW-014a]` and `[STU-RAW-014b]` are inherited from v02.205 and are retained exactly as written; new anchors never use letter suffixes. `[STU-RAW-014c]` was NEVER ASSIGNED. It appears in no Master Spec bundle from v02.200 through v02.205, where the develop enhance/mask family runs `[STU-RAW-014]`, `[STU-RAW-014a]` and `[STU-RAW-014b]` and stops; it is therefore not a clause that was renumbered, and no text was lost with it. A microtask contract citing it is citing a clause that has never existed and cannot be vali [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`[STU-RAS-140]` is deliberately unissued; it was drafted and renumbered before publication and MUST NOT be assigned later.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-101"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The behaviour such a contract names — the Enhance split into a native deterministic tier and an optional model-adapter tier, with its re-editability lifecycle and receipts — is carried in this module by `[STU-RAW-014]` and `[STU-RAW-130]`, and a stale citation MUST be corrected to those anchors rather than resolved by writing a new clause to fit it.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-101"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`[STU-RAW-014c]` MUST NOT be assigned later.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-101"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Two further letter-suffixed ids that earlier drafts of this module used in cross-references were likewise NEVER ASSIGNED and MUST NOT be assigned later: `[STU-CON-007c]` and `[STU-RAS-001c]`.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-101"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "A stale citation to either suffixed id MUST be corrected the same way, never resolved by writing a new clause to fit it. *Derivation: reading aid inside a non-yielding clause; yields no microtask.* | v02.205 anchor | Disposition | Extending / superseding clause | |---|---|---| | STU-RAS-001 ..",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-101"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -1,0 +1,2705 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33791",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-VID-061b#parameter_table#7",
+  "unit_kind": "parameter_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.25.4 Export",
+  "spec_line": 23309,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Reading convention for the facet tables below, and what the export capture did NOT - parameter bounds (8)",
+ "spec_anchor": [
+  "STU-VID-061b"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "video_timeline",
+ "scope": {
+  "summary": "Reading convention for the facet tables below, and what the export capture did NOT declare.** Every facet table carries the seven parameter fields of [STU-FX-105] as SEPARATE columns -- `hard_min`, `hard_max`, `soft_min`, `soft_max`, `default`, `unit`, `precision` -- followed by three provenance columns that are not part of the parameter contract. `--` means the source declares nothing and Studio declares nothing, exactly as [STU-FX-131a] defines it; it never means zero, never means unbounded-by-decision, and never licenses a clamp. 1. `hard_min` and `hard_max` carry the capture's declared minimum and maximum. A boolean identifier declares `false`/`false` and a group header declares `0`/`0`; both are the declared domain of that identifier, not a numeric range. 2. `soft_min` and `soft_max` are `--` on every row of every facet table. The export capture declares a valid range and a CONTROL-IS-SCRUBBABLE flag, but no separate control range. The flag is preserved as the `slider` column, which is a boolean and is NOT a soft range; reading it as one would fabricate bounds. This is the opposite asymmetry to 14.9's effect records, where 745 rows declare both pairs and 505 of them differ ([STU-FX-105a]), and the two must not be conflated. 3. `default` is `--` on every row. Export defaults are carried by the 1,541 shipped recipes ([STU-VID-063]), not by the identifier dictionary; a per-id [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The parameter `0` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=0, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The parameter `13` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The parameter `201` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The parameter `203` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The parameter `204` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The parameter `206` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The parameter `207` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The parameter `208` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The parameter `209` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The parameter `214` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The parameter `251` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The parameter `253` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 12"
+  },
+  {
+   "id": "AC-013",
+   "criterion": "The parameter `254` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 13"
+  },
+  {
+   "id": "AC-014",
+   "criterion": "The parameter `260` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 14"
+  },
+  {
+   "id": "AC-015",
+   "criterion": "The parameter `261` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 15"
+  },
+  {
+   "id": "AC-016",
+   "criterion": "The parameter `263` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 16"
+  },
+  {
+   "id": "AC-017",
+   "criterion": "The parameter `3001` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 17"
+  },
+  {
+   "id": "AC-018",
+   "criterion": "The parameter `315` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 18"
+  },
+  {
+   "id": "AC-019",
+   "criterion": "The parameter `316` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 19"
+  },
+  {
+   "id": "AC-020",
+   "criterion": "The parameter `317` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 20"
+  },
+  {
+   "id": "AC-021",
+   "criterion": "The parameter `318` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 21"
+  },
+  {
+   "id": "AC-022",
+   "criterion": "The parameter `319` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 22"
+  },
+  {
+   "id": "AC-023",
+   "criterion": "The parameter `320` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 23"
+  },
+  {
+   "id": "AC-024",
+   "criterion": "The parameter `324` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 24"
+  },
+  {
+   "id": "AC-025",
+   "criterion": "The parameter `325` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 25"
+  },
+  {
+   "id": "AC-026",
+   "criterion": "The parameter `35` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 26"
+  },
+  {
+   "id": "AC-027",
+   "criterion": "The parameter `36` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 27"
+  },
+  {
+   "id": "AC-028",
+   "criterion": "The parameter `37` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 28"
+  },
+  {
+   "id": "AC-029",
+   "criterion": "The parameter `38` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 29"
+  },
+  {
+   "id": "AC-030",
+   "criterion": "The parameter `4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 30"
+  },
+  {
+   "id": "AC-031",
+   "criterion": "The parameter `407` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 31"
+  },
+  {
+   "id": "AC-032",
+   "criterion": "The parameter `408` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 32"
+  },
+  {
+   "id": "AC-033",
+   "criterion": "The parameter `41` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 33"
+  },
+  {
+   "id": "AC-034",
+   "criterion": "The parameter `412` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 34"
+  },
+  {
+   "id": "AC-035",
+   "criterion": "The parameter `415` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 35"
+  },
+  {
+   "id": "AC-036",
+   "criterion": "The parameter `417` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 36"
+  },
+  {
+   "id": "AC-037",
+   "criterion": "The parameter `434` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 37"
+  },
+  {
+   "id": "AC-038",
+   "criterion": "The parameter `438` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 38"
+  },
+  {
+   "id": "AC-039",
+   "criterion": "The parameter `439` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 39"
+  },
+  {
+   "id": "AC-040",
+   "criterion": "The parameter `448` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 40"
+  },
+  {
+   "id": "AC-041",
+   "criterion": "The parameter `449` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 41"
+  },
+  {
+   "id": "AC-042",
+   "criterion": "The parameter `466` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 42"
+  },
+  {
+   "id": "AC-043",
+   "criterion": "The parameter `468` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 43"
+  },
+  {
+   "id": "AC-044",
+   "criterion": "The parameter `469` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 44"
+  },
+  {
+   "id": "AC-045",
+   "criterion": "The parameter `47` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 45"
+  },
+  {
+   "id": "AC-046",
+   "criterion": "The parameter `470` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 46"
+  },
+  {
+   "id": "AC-047",
+   "criterion": "The parameter `477` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 47"
+  },
+  {
+   "id": "AC-048",
+   "criterion": "The parameter `479` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 48"
+  },
+  {
+   "id": "AC-049",
+   "criterion": "The parameter `480` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 49"
+  },
+  {
+   "id": "AC-050",
+   "criterion": "The parameter `481` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 50"
+  },
+  {
+   "id": "AC-051",
+   "criterion": "The parameter `50` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 51"
+  },
+  {
+   "id": "AC-052",
+   "criterion": "The parameter `51` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 52"
+  },
+  {
+   "id": "AC-053",
+   "criterion": "The parameter `52` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 53"
+  },
+  {
+   "id": "AC-054",
+   "criterion": "The parameter `53` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 54"
+  },
+  {
+   "id": "AC-055",
+   "criterion": "The parameter `54` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 55"
+  },
+  {
+   "id": "AC-056",
+   "criterion": "The parameter `780` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 56"
+  },
+  {
+   "id": "AC-057",
+   "criterion": "The parameter `92` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 57"
+  },
+  {
+   "id": "AC-058",
+   "criterion": "The parameter `ADBE10BitBlackPoint` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=1023, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 58"
+  },
+  {
+   "id": "AC-059",
+   "criterion": "The parameter `ADBE10BitWhitePoint` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=1023, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 59"
+  },
+  {
+   "id": "AC-060",
+   "criterion": "The parameter `ADBEAACParametricStereo` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=false, hard_max=false, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 60"
+  },
+  {
+   "id": "AC-061",
+   "criterion": "The parameter `ADBEAS11ShimIndex` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 61"
+  },
+  {
+   "id": "AC-062",
+   "criterion": "The parameter `ADBEAlternatesAlternateBool` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 62"
+  },
+  {
+   "id": "AC-063",
+   "criterion": "The parameter `ADBEAlternatesAutoplay` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 63"
+  },
+  {
+   "id": "AC-064",
+   "criterion": "The parameter `ADBEAlternatesComputerPower` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 64"
+  },
+  {
+   "id": "AC-065",
+   "criterion": "The parameter `ADBEAlternatesConnection` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 65"
+  },
+  {
+   "id": "AC-066",
+   "criterion": "The parameter `ADBEAlternatesHintedMovieType` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 66"
+  },
+  {
+   "id": "AC-067",
+   "criterion": "The parameter `ADBEAlternatesLanguage` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 67"
+  },
+  {
+   "id": "AC-068",
+   "criterion": "The parameter `ADBEAlternatesLoop` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 68"
+  },
+  {
+   "id": "AC-069",
+   "criterion": "The parameter `ADBEAlternatesPlatform` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 69"
+  },
+  {
+   "id": "AC-070",
+   "criterion": "The parameter `ADBEAlternatesQTVersion` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 70"
+  },
+  {
+   "id": "AC-071",
+   "criterion": "The parameter `ADBEAlternatesServerPath` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 71"
+  },
+  {
+   "id": "AC-072",
+   "criterion": "The parameter `ADBEBlackPoint` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=1, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 72"
+  },
+  {
+   "id": "AC-073",
+   "criterion": "The parameter `ADBECCFileSyncFolder` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 73"
+  },
+  {
+   "id": "AC-074",
+   "criterion": "The parameter `ADBECCFileSyncSubFolder` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 74"
+  },
+  {
+   "id": "AC-075",
+   "criterion": "The parameter `ADBEDolby_1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 75"
+  },
+  {
+   "id": "AC-076",
+   "criterion": "The parameter `ADBEDolby_10` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 76"
+  },
+  {
+   "id": "AC-077",
+   "criterion": "The parameter `ADBEDolby_11` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 77"
+  },
+  {
+   "id": "AC-078",
+   "criterion": "The parameter `ADBEDolby_12` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 78"
+  },
+  {
+   "id": "AC-079",
+   "criterion": "The parameter `ADBEDolby_13` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 79"
+  },
+  {
+   "id": "AC-080",
+   "criterion": "The parameter `ADBEDolby_14` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 80"
+  },
+  {
+   "id": "AC-081",
+   "criterion": "The parameter `ADBEDolby_15` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 81"
+  },
+  {
+   "id": "AC-082",
+   "criterion": "The parameter `ADBEDolby_16` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 82"
+  },
+  {
+   "id": "AC-083",
+   "criterion": "The parameter `ADBEDolby_17` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 83"
+  },
+  {
+   "id": "AC-084",
+   "criterion": "The parameter `ADBEDolby_18` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 84"
+  },
+  {
+   "id": "AC-085",
+   "criterion": "The parameter `ADBEDolby_19` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 85"
+  },
+  {
+   "id": "AC-086",
+   "criterion": "The parameter `ADBEDolby_2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 86"
+  },
+  {
+   "id": "AC-087",
+   "criterion": "The parameter `ADBEDolby_20` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 87"
+  },
+  {
+   "id": "AC-088",
+   "criterion": "The parameter `ADBEDolby_21` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 88"
+  },
+  {
+   "id": "AC-089",
+   "criterion": "The parameter `ADBEDolby_22` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 89"
+  },
+  {
+   "id": "AC-090",
+   "criterion": "The parameter `ADBEDolby_23` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 90"
+  },
+  {
+   "id": "AC-091",
+   "criterion": "The parameter `ADBEDolby_4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 91"
+  },
+  {
+   "id": "AC-092",
+   "criterion": "The parameter `ADBEDolby_5` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 92"
+  },
+  {
+   "id": "AC-093",
+   "criterion": "The parameter `ADBEDolby_6` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 93"
+  },
+  {
+   "id": "AC-094",
+   "criterion": "The parameter `ADBEDolby_7` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 94"
+  },
+  {
+   "id": "AC-095",
+   "criterion": "The parameter `ADBEDolby_8` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 95"
+  },
+  {
+   "id": "AC-096",
+   "criterion": "The parameter `ADBEDolby_9` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 96"
+  },
+  {
+   "id": "AC-097",
+   "criterion": "The parameter `ADBEDolby_Group_0` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 97"
+  },
+  {
+   "id": "AC-098",
+   "criterion": "The parameter `ADBEDolby_Group_1` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 98"
+  },
+  {
+   "id": "AC-099",
+   "criterion": "The parameter `ADBEDolby_Group_2` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 99"
+  },
+  {
+   "id": "AC-100",
+   "criterion": "The parameter `ADBEDolby_Group_3` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 100"
+  },
+  {
+   "id": "AC-101",
+   "criterion": "The parameter `ADBEDolby_Group_4` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 101"
+  },
+  {
+   "id": "AC-102",
+   "criterion": "The parameter `ADBEDolby_Group_5` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 102"
+  },
+  {
+   "id": "AC-103",
+   "criterion": "The parameter `ADBEExpandStills` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 103"
+  },
+  {
+   "id": "AC-104",
+   "criterion": "The parameter `ADBEFLVUndershootTarget` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 104"
+  },
+  {
+   "id": "AC-105",
+   "criterion": "The parameter `ADBEForceTCTimebase` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 105"
+  },
+  {
+   "id": "AC-106",
+   "criterion": "The parameter `ADBEFrameFieldCoding` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 106"
+  },
+  {
+   "id": "AC-107",
+   "criterion": "The parameter `ADBEHiddenTicksPerFrame` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 107"
+  },
+  {
+   "id": "AC-108",
+   "criterion": "The parameter `ADBEHiddenTimeDisplay` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 108"
+  },
+  {
+   "id": "AC-109",
+   "criterion": "The parameter `ADBEHighlight` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=1023, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 109"
+  },
+  {
+   "id": "AC-110",
+   "criterion": "The parameter `ADBELog` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 110"
+  },
+  {
+   "id": "AC-111",
+   "criterion": "The parameter `ADBEReorderFrames` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 111"
+  },
+  {
+   "id": "AC-112",
+   "criterion": "The parameter `ADBEShimType` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 112"
+  },
+  {
+   "id": "AC-113",
+   "criterion": "The parameter `ADBESonyDeviceCompatibility` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 113"
+  },
+  {
+   "id": "AC-114",
+   "criterion": "The parameter `ADBEStillSequence` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 114"
+  },
+  {
+   "id": "AC-115",
+   "criterion": "The parameter `ADBEStockLogin` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 115"
+  },
+  {
+   "id": "AC-116",
+   "criterion": "The parameter `ADBEStockRefreshToken` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 116"
+  },
+  {
+   "id": "AC-117",
+   "criterion": "The parameter `ADBEStockStatusText` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 117"
+  },
+  {
+   "id": "AC-118",
+   "criterion": "The parameter `ADBETVStandard` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 118"
+  },
+  {
+   "id": "AC-119",
+   "criterion": "The parameter `ADBETransparencyType` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 119"
+  },
+  {
+   "id": "AC-120",
+   "criterion": "The parameter `ADBEUseAlpha` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 120"
+  },
+  {
+   "id": "AC-121",
+   "criterion": "The parameter `ADBEUseIRTStructure` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 121"
+  },
+  {
+   "id": "AC-122",
+   "criterion": "The parameter `ADBEVMC_Video_M` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 122"
+  },
+  {
+   "id": "AC-123",
+   "criterion": "The parameter `ADBEVMC_Video_N` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 123"
+  },
+  {
+   "id": "AC-124",
+   "criterion": "The parameter `ADBEVideoAlpha` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 124"
+  },
+  {
+   "id": "AC-125",
+   "criterion": "The parameter `ADBEVideoAvgBitRate` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 125"
+  },
+  {
+   "id": "AC-126",
+   "criterion": "The parameter `ADBEVideoBitRate` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 126"
+  },
+  {
+   "id": "AC-127",
+   "criterion": "The parameter `ADBEVideoBounds` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 127"
+  },
+  {
+   "id": "AC-128",
+   "criterion": "The parameter `ADBEVideoDisplayAspect` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 128"
+  },
+  {
+   "id": "AC-129",
+   "criterion": "The parameter `ADBEVideoEmbedSVCDUserBlks` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 129"
+  },
+  {
+   "id": "AC-130",
+   "criterion": "The parameter `ADBEVideoForceVBVDelay` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 130"
+  },
+  {
+   "id": "AC-131",
+   "criterion": "The parameter `ADBEVideoGraphicsWhiteLuminance` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=300, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 131"
+  },
+  {
+   "id": "AC-132",
+   "criterion": "The parameter `ADBEVideoHinterBool` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 132"
+  },
+  {
+   "id": "AC-133",
+   "criterion": "The parameter `ADBEVideoHinterInterval` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 133"
+  },
+  {
+   "id": "AC-134",
+   "criterion": "The parameter `ADBEVideoHinterPacketDurationLimit` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 134"
+  },
+  {
+   "id": "AC-135",
+   "criterion": "The parameter `ADBEVideoHinterPacketSize` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 135"
+  },
+  {
+   "id": "AC-136",
+   "criterion": "The parameter `ADBEVideoHorizontal` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 136"
+  },
+  {
+   "id": "AC-137",
+   "criterion": "The parameter `ADBEVideoIgnoreFrameInterval` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 137"
+  },
+  {
+   "id": "AC-138",
+   "criterion": "The parameter `ADBEVideoIntraDCPrecision` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 138"
+  },
+  {
+   "id": "AC-139",
+   "criterion": "The parameter `ADBEVideoJ2KAlphaEnable` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 139"
+  },
+  {
+   "id": "AC-140",
+   "criterion": "The parameter `ADBEVideoJ2KDepthAndColorspace` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 140"
+  },
+  {
+   "id": "AC-141",
+   "criterion": "The parameter `ADBEVideoJ2KLossless` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 141"
+  },
+  {
+   "id": "AC-142",
+   "criterion": "The parameter `ADBEVideoJ2KParameterVersion` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 142"
+  },
+  {
+   "id": "AC-143",
+   "criterion": "The parameter `ADBEVideoMacroblockQuantization` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 143"
+  },
+  {
+   "id": "AC-144",
+   "criterion": "The parameter `ADBEVideoMatchSource` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=false, hard_max=false, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 144"
+  },
+  {
+   "id": "AC-145",
+   "criterion": "The parameter `ADBEVideoMaxBitRate` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 145"
+  },
+  {
+   "id": "AC-146",
+   "criterion": "The parameter `ADBEVideoMinBitRate` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 146"
+  },
+  {
+   "id": "AC-147",
+   "criterion": "The parameter `ADBEVideoMinFramePercentage` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 147"
+  },
+  {
+   "id": "AC-148",
+   "criterion": "The parameter `ADBEVideoNFrames` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 148"
+  },
+  {
+   "id": "AC-149",
+   "criterion": "The parameter `ADBEVideoNoiseControl` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 149"
+  },
+  {
+   "id": "AC-150",
+   "criterion": "The parameter `ADBEVideoPadFramePercentage` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 150"
+  },
+  {
+   "id": "AC-151",
+   "criterion": "The parameter `ADBEVideoPayloadEncoding` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 151"
+  },
+  {
+   "id": "AC-152",
+   "criterion": "The parameter `ADBEVideoPulldown` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 152"
+  },
+  {
+   "id": "AC-153",
+   "criterion": "The parameter `ADBEVideoResolution` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=2. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 153"
+  },
+  {
+   "id": "AC-154",
+   "criterion": "The parameter `ADBEVideoTransferChars` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 154"
+  },
+  {
+   "id": "AC-155",
+   "criterion": "The parameter `ADBEVideoVBVBufferSize` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 155"
+  },
+  {
+   "id": "AC-156",
+   "criterion": "The parameter `ADBEVideoVertical` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 156"
+  },
+  {
+   "id": "AC-157",
+   "criterion": "The parameter `ADBEVideoVideoFormat` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 157"
+  },
+  {
+   "id": "AC-158",
+   "criterion": "The parameter `ADBEVideoWriteSDE` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 158"
+  },
+  {
+   "id": "AC-159",
+   "criterion": "The parameter `ADBEVideoWriteSeqEndCode` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 159"
+  },
+  {
+   "id": "AC-160",
+   "criterion": "The parameter `ADBEWhitePoint` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=1, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 160"
+  },
+  {
+   "id": "AC-161",
+   "criterion": "The parameter `AdvancedMXFSettings` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 161"
+  },
+  {
+   "id": "AC-162",
+   "criterion": "The parameter `BitRate` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 162"
+  },
+  {
+   "id": "AC-163",
+   "criterion": "The parameter `CustomEditUnits` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 163"
+  },
+  {
+   "id": "AC-164",
+   "criterion": "The parameter `EXRBypassLinear` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 164"
+  },
+  {
+   "id": "AC-165",
+   "criterion": "The parameter `EXRCompression` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 165"
+  },
+  {
+   "id": "AC-166",
+   "criterion": "The parameter `EXRfloat` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 166"
+  },
+  {
+   "id": "AC-167",
+   "criterion": "The parameter `EXRlumichrom` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 167"
+  },
+  {
+   "id": "AC-168",
+   "criterion": "The parameter `EditUnitsPerPartition` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 168"
+  },
+  {
+   "id": "AC-169",
+   "criterion": "The parameter `Faked_PAR` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 169"
+  },
+  {
+   "id": "AC-170",
+   "criterion": "The parameter `J2KTile` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 170"
+  },
+  {
+   "id": "AC-171",
+   "criterion": "The parameter `PlayerButton` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 171"
+  },
+  {
+   "id": "AC-172",
+   "criterion": "The parameter `SeparateMonoFiles` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 172"
+  },
+  {
+   "id": "AC-173",
+   "criterion": "The parameter `Transcode_VBI_ANC` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 173"
+  },
+  {
+   "id": "AC-174",
+   "criterion": "The parameter `WMVideoAvgBitRate` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 174"
+  },
+  {
+   "id": "AC-175",
+   "criterion": "The parameter `WMVideoBufferSize` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 175"
+  },
+  {
+   "id": "AC-176",
+   "criterion": "The parameter `WMVideoDecoderComplexity` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 176"
+  },
+  {
+   "id": "AC-177",
+   "criterion": "The parameter `WMVideoPeakBitRate` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 177"
+  },
+  {
+   "id": "AC-178",
+   "criterion": "The parameter `WMVideoPeakBufferSize` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=--, hard_max=--, soft_min=--, soft_max=--, default=--, unit=--, precision=--. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "unit",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-VID-061b parameter table row 178"
+  }
+ ],
+ "acceptance_criteria_count": 178,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

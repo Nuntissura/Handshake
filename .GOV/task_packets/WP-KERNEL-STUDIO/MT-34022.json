@@ -1,0 +1,160 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34022",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-MOT-121#enumeration#0",
+  "unit_kind": "enumeration",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.26.10 Render and output for compositions",
+  "spec_line": 26647,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "The normative render settings record - enumeration",
+ "spec_anchor": [
+  "STU-MOT-121"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "motion",
+ "scope": {
+  "summary": "The normative render settings record.** 104 controls recovered; the 18 that carry a value are reproduced with their complete option lists, because a render setting whose members are unknown cannot be implemented. *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Setting | Members | |---|---| | `quality` | `current_settings`, `best`, `draft`, `wireframe` | | `resolution` | `current_settings`, `full`, `half`, `third`, `quarter`, `custom` (custom takes an explicit divisor pair) | | `disk_cache` | `current_settings`, `read_only` | | `proxy_use` | `current_settings`, `use_all_proxies`, `use_comp_proxies_only`, `use_no_proxies` | | `effects` | `current_settings`, `all_on`, `all_off` | | `solo_switches` | `current_settings`, `all_off` | | `guide_layers` | `current_settings`, `all_off` | | `color_depth` | `current_settings`, `8_bits_per_channel`, `16_bits_per_channel`, `32_bits_per_channel` | | `frame_blending` | `current_settings`, `on_for_checked_layers`, `off_for_all_layers` | | `field_render` | `off`, `upper_field_first`, `lower_field_first` | | `pulldown_3_2` | `off`, `WSSWW`, `SSWWW`, `SWWWS`, `WWWSS`, `WWSSW` (the five phase choices; each letter is a whole or split frame) | | `motion_blur` | `current_settings`, `on_for_checked_layers`, `off_for_all_layers` | | `time_span` | `length_of_comp`, `work_area_only`, `custom` | [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The enumeration accepts the member `quality` with the exact meaning the spec states: `current_settings`, `best`, `draft`, `wireframe`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The enumeration accepts the member `resolution` with the exact meaning the spec states: `current_settings`, `full`, `half`, `third`, `quarter`, `custom` (custom takes an explicit divisor pair). No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The enumeration accepts the member `disk_cache` with the exact meaning the spec states: `current_settings`, `read_only`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The enumeration accepts the member `proxy_use` with the exact meaning the spec states: `current_settings`, `use_all_proxies`, `use_comp_proxies_only`, `use_no_proxies`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The enumeration accepts the member `effects` with the exact meaning the spec states: `current_settings`, `all_on`, `all_off`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The enumeration accepts the member `solo_switches` with the exact meaning the spec states: `current_settings`, `all_off`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The enumeration accepts the member `guide_layers` with the exact meaning the spec states: `current_settings`, `all_off`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The enumeration accepts the member `color_depth` with the exact meaning the spec states: `current_settings`, `8_bits_per_channel`, `16_bits_per_channel`, `32_bits_per_channel`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The enumeration accepts the member `frame_blending` with the exact meaning the spec states: `current_settings`, `on_for_checked_layers`, `off_for_all_layers`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The enumeration accepts the member `field_render` with the exact meaning the spec states: `off`, `upper_field_first`, `lower_field_first`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The enumeration accepts the member `pulldown_3_2` with the exact meaning the spec states: `off`, `WSSWW`, `SSWWW`, `SWWWS`, `WWWSS`, `WWSSW` (the five phase choices; each letter is a whole or split frame). No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The enumeration accepts the member `motion_blur` with the exact meaning the spec states: `current_settings`, `on_for_checked_layers`, `off_for_all_layers`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 12"
+  },
+  {
+   "id": "AC-013",
+   "criterion": "The enumeration accepts the member `time_span` with the exact meaning the spec states: `length_of_comp`, `work_area_only`, `custom`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 13"
+  },
+  {
+   "id": "AC-014",
+   "criterion": "The enumeration accepts the member `frame_rate` with the exact meaning the spec states: `use_comps_frame_rate` or an explicit rate, `hard_min` 0.1, `hard_max` 999. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-121 enumeration row 14"
+  }
+ ],
+ "acceptance_criteria_count": 14,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

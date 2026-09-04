@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30485",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-VEC-135#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.5.5 Fills",
+  "spec_line": 3669,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Gradient geometry enumeration",
+ "spec_anchor": [
+  "STU-VEC-135"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "vector",
+ "scope": {
+  "summary": "Gradient geometry enumeration.** SUPERSEDES the six-member informal list of v02.205 [STU-VEC-016]. Two captures disagree on the closed set and both are recorded: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Studio member | Captured value | Source of the value | |---|---|---| | `gradient.linear` | `1` / `GRADIENT_LINEAR` | Both captures. | | `gradient.radial` | `2` / `GRADIENT_RADIAL` | Both captures. | | `gradient.angular` | `GRADIENT_ANGULAR` | Collaborative-suite capture only; no integer captured. | | `gradient.diamond` | `GRADIENT_DIAMOND` | Collaborative-suite capture only; no integer captured. | | `gradient.freeform` | UNKNOWN | Present as a distinct authoring construct in the vector suite (point/line editing mode) but NOT a member of its two-member gradient-type enumeration. Studio carries it as a gradient kind; its interchange value is UNKNOWN. | | `gradient.mesh` | UNKNOWN | Present as a distinct object kind (mesh item), NOT as a gradient-type enumerator. Studio carries it as a gradient kind per [STU-VEC-034]; its interchange value is UNKNOWN. | The normative Studio set is all six. The recorded fact that only `linear` and ` [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The recorded fact that only `linear` and `radial` carry captured integers means an interchange writer MUST NOT assume a numeric round-trip for the other four and MUST use the token form.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-135"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -1,0 +1,88 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30277",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-156#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "13. Layer Effects and Advanced Blending",
+  "spec_line": 1649,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "EFFECTS ARE MULTI-INSTANCE (supersedes the one-instance-per-kind model implied",
+ "spec_anchor": [
+  "STU-RAS-156"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "EFFECTS ARE MULTI-INSTANCE (supersedes the one-instance-per-kind model implied by [STU-RAS-040]).** A `StudioEffectStack` is an ordered list of effect instances, and several instances of the *same* effect kind may coexist on one layer. This is not an enhancement; it is required to load shipped art. The captured field library of 370 layer styles carries explicit multi-instance lists — drop shadow observed with up to 4 simultaneous instances, stroke with up to 8, gradient overlay with up to 8, inner shadow with up to 2, and colour overlay with up to 2 — alongside a separate single-instance slot per kind that the same style may also populate. A model that allows one drop shadow per layer cannot represent a style that ships with four, and there is no lossless way to collapse them. Studio's normative model is therefore: - `StudioEffectStack.effects` is an ordered list of `StudioEffect` instances. Order is authoritative and MUST be preserved; render order follows list order. - Each instance carries `kind`, a stable instance id, `enabled`, `visible_in_editor`, and its kind-specific parameter block. - The minimum instance capacity per kind that Studio MUST support is 10; the hard maximum is `unknown` and MUST NOT be enforced below 10. - Import MUST merge a source's single-instance slot and its multi-instance list for the same kind into one ordered list, preserving both, and MUST NOT dr [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Order is authoritative and MUST be preserved; render order follows list order. - Each instance carries `kind`, a stable instance id, `enabled`, `visible_in_editor`, and its kind-specific parameter block. - The minimum instance capacity per kind that Studio MUST support is 10; the hard maximum is `unknown` and MUST NOT be enforced below 10. - Import MUST merge a source's single-instance slot and its multi-instance list for the same kind into one ordered list, preserving both, and MUST NOT drop either.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-156"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Export to a format carrying that split MUST reproduce it. - The stack carries a stack-wide `scale` in percent (observed 100.0, `derived` default 100.0) and a stack-wide master enable, both of which apply to every instance.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-156"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

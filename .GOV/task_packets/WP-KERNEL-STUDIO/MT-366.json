@@ -1,124 +1,187 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-366",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-366.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-366.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-007",
-      "MT-357",
-      "MT-353",
-      "MT-362",
-      "MT-363"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Design-system model API + steerability [STU-DS-051,STU-MDL-001]",
-  "spec_anchor": [
-    "STU-DS-051",
-    "STU-MDL-001",
-    "STU-MDL-003"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-366",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-366.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-366.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-007",
+   "MT-357",
+   "MT-353",
+   "MT-362",
+   "MT-363"
   ],
-  "scope": {
-    "summary": "Ensure every design-system panel, picker, inspector field, and visible state (component/variant editors, component-property inspector, variable/collection/mode editor, style registry, auto-layout/constraint/grid controls) is model-visible and typed-steerable through the Studio command surface (MT-007): typed command ids, auto-generated input/outputSchema, dry_run, receipts, and undo semantics for the whole design-system command family. This is the backend model-control closure over 14.10, distinct from the aggregate GUI/Argus/manual closure (MT-367).",
-    "allowed_paths": [
-      "src/studio/design_system/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "entire 14.10 command family model-visible + typed-steerable with dry_run/receipt/undo"
-    ],
-    "proof_targets": [
-      "design-system command typed-I/O + dry_run/receipt/undo test"
-    ],
-    "code_surfaces": [
-      "src/studio/design_system/model_api.rs",
-      "src/api/studio.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::design_system::model_api",
-      "live: every design-system command exposes typed I/O + dry_run + receipt + undo through the Studio command surface; no operator-only design-system mutation"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-SWARM-001",
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Design-system model API + steerability [STU-DS-051,STU-MDL-001]",
+ "spec_anchor": [
+  "STU-DS-051",
+  "STU-MDL-001",
+  "STU-MDL-003"
+ ],
+ "scope": {
+  "summary": "Ensure every design-system panel, picker, inspector field, and visible state (component/variant editors, component-property inspector, variable/collection/mode editor, style registry, auto-layout/constraint/grid controls) is model-visible and typed-steerable through the Studio command surface (MT-007): typed command ids, auto-generated input/outputSchema, dry_run, receipts, and undo semantics for the whole design-system command family. This is the backend model-control closure over 14.10, distinct from the aggregate GUI/Argus/manual closure (MT-367).",
+  "allowed_paths": [
+   "src/studio/design_system/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Design-system surface not fully model-steerable; models cannot drive components/variables/styles/layout.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Entire 14.10 command family model-visible",
+   "Typed-steerable with dry_run/receipt/undo"
+  ],
+  "proof_targets": [
+   "design-system command typed-I/O + dry_run/receipt/undo test"
+  ],
+  "code_surfaces": [
+   "src/studio/design_system/model_api.rs",
+   "src/api/studio.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::design_system::model_api",
+   "live: every design-system command exposes typed I/O + dry_run + receipt + undo through the Studio command surface; no operator-only design-system mutation"
+  ],
+  "acceptance_criteria_original": [
+   "entire 14.10 command family model-visible + typed-steerable with dry_run/receipt/undo"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-SWARM-001",
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Design-system surface not fully model-steerable; models cannot drive components/variables/styles/layout.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Entire 14.10 command family model-visible",
+   "evidence_kind": "gui_proof",
+   "proof_target": "design-system command typed-I/O + dry_run/receipt/undo test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Typed-steerable with dry_run/receipt/undo",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-DS-051",
+    "spec_clause_text": "[STU-DS-051] GUI / Argus / UserManual obligation. Every design-system panel, picker, inspector field, and visible state in this sub-section (component and variant editors, the component-property inspector, the variable/collection/mode editor, the style registry, and the auto-layout/constraint/grid controls) MUST be model-visible and typed-steerable through the Studio command surface ([STU-SECTION 14.16]); MUST be headlessly inspectable, steerable, and screenshot-capturable through Argus with no foreground focus steal ([STU-SECTION 14.20], HBR-VIS/HBR-QUIET); and MUST ship dual-audience UserManual entries — operator layer (task-oriented) plus model layer (command ids, typed I/O, receipts, undo semantics, Argus targets, failure/recovery) — kept same-change current ([STU-SECTION 14.22]). --- --- ## 14.11 Prototyping, Motion & Interaction ## 14.11 Prototyping & Interaction (prototyping half) This module is the normative field-level contract for Studio's interaction surface: the reaction record, the trigger vocabulary, the action vocabulary, transition and easing value shapes, overlay behaviour, scroll and overflow behaviour, runtime variable writes and conditionals, and presentation. It replaces the behavioural sketch in v02.205 [STU-PRO-001] through [STU-PRO-027] and [STU-PRO-043] with the enumerated tokens, record shapes and parameter bounds an implementer needs. ### 0. Scope disposition, baseline and supersession"
+   },
+   {
+    "anchor": "STU-MDL-001",
+    "spec_clause_text": "[STU-MDL-001] BACKEND VISIBILITY. Every Studio capability MUST be reachable through a typed command contract on the unified Studio command API (14.14). The API MUST expose: (a) a structured read surface over `StudioDocument` — the scene/layer-graph tree, selectors by id/kind/name, semantic diffs between document states, and structured render receipts; and (b) a typed write surface where every command declares typed inputs/outputs, `dry_run` support, a receipt shape, undo semantics, and deterministic replay. A model MUST be able to inspect the full Studio document and tool surface from the API alone, without screen-reading and without source-app knowledge."
+   },
+   {
+    "anchor": "STU-MDL-003",
+    "spec_clause_text": "[STU-MDL-003] COMMAND-CONTRACT COMPLETENESS. Every shipped Studio command MUST carry a typed contract with: stable `command_id` (`studio.<domain>.<command>.v<N>`), `inputSchema`/`outputSchema` (auto-generated via `schemars::JsonSchema`), `dry_run` availability, a `SimulationReceipt`-class receipt with stable finding codes and a JSON-Pointer `suggested_fix` (deterministic model self-correction loop, mirroring [TAI-OVR-005]), undo semantics (14.19), and a declared Argus target for any operator-visible surface it affects. Commands without a typed contract MUST NOT ship."
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

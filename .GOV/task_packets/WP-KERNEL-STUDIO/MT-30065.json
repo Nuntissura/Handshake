@@ -1,0 +1,94 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30065",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-015#catalogue_row#0_compound_mask",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "4. Placed-Asset Container and Masking Semantics",
+  "spec_line": 606,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Compound mask",
+ "spec_anchor": [
+  "STU-RAS-015"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "`StudioMask` is the single canonical masking primitive across all Studio domains (14.3). Studio MUST support these deduped mask forms, all attachable to any maskable layer or group: *Derivation: catalogue table, splits per row; yields 5 microtasks, one per mask form.* | Mask form | Normative behavior | |---|---| | Grayscale (pixel) mask | Paintable/fillable 8/16-bit alpha mask hiding/revealing its parent; created blank, from selection, or from a channel. | | Vector mask | Path-defined (`StudioVectorPath`) mask with resolution-independent edges; convertible to/from a pixel mask and combinable with one. | | Clipping mask | Uses a base layer's content/alpha to clip the layers clipped to it. | | Compound mask | Combines multiple mask nodes non-destructively via boolean operators (add / subtract / intersect / xor). | | Parametric (live) mask | Non-destructive mask generated live from image properties and auto-updating with the image, in the normative types Hue-Range, Luminosity-Range, and Band-pass; stays re-editable. |",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Compound mask` satisfies the spec's stated mask form: Compound mask",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-015 catalogue row `Compound mask`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`Compound mask` satisfies the spec's stated normative behavior: Combines multiple mask nodes non-destructively via boolean operators (add / subtract / intersect / xor).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-015 catalogue row `Compound mask`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`Compound mask` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-RAS-015"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

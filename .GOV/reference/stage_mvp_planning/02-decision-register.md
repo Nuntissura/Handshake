@@ -1,12 +1,12 @@
 ---
 file_id: stage-mvp-decision-register
 file_kind: reference-decision-register
-updated_at: "2026-07-20"
+updated_at: "2026-09-01"
 status: research-hardened-supersession-locked
 wp_id: WP-1-Handshake-Stage-MVP-v1
 ---
 
-<topic id="stage-mvp-decision-register" status="research-hardened-supersession-locked" version="v0.6" wp="WP-1-Handshake-Stage-MVP-v1" updated_at="2026-07-20">
+<topic id="stage-mvp-decision-register" status="research-hardened-supersession-locked" version="v0.7" wp="WP-1-Handshake-Stage-MVP-v1" updated_at="2026-09-01">
 
 # Stage planning decision register
 
@@ -36,6 +36,7 @@ wp_id: WP-1-Handshake-Stage-MVP-v1
 | STAGE-DEC-020 | The core Stage product framing is simple: Stage is a normal browser whose single defining performance requirement is that 3,000+ tabs do not tax the CPU. Every other behavior defaults to what a normal browser does, inherited from the embedded engine and standard browser conventions, unless another Handshake module's contract explicitly overrides it. Planning, requirements, and future WP/MT authoring must not invent bespoke replacements for ordinary browser behavior; complexity is only justified by the tab-scale requirement, a Handshake-module integration, or a proven security/safety need. | LOCKED |
 | STAGE-DEC-021 | The WebView2/Chromium bootstrap lives or dies on authenticated YouTube. The governed session-import path must prove a working logged-in YouTube journey in WebView2: logged-in state on youtube.com, playback, playlist/channel access, and authenticated download handoff. If that proof fails, the Chromium bootstrap and the `STAGE-WIN-BOOTSTRAP-PROD` release slice are abandoned and all Stage effort focuses on Servo. No compensating second browser lane (full-browser compatibility route or similar) is built to rescue the bootstrap. | LOCKED |
 | STAGE-DEC-022 | `STAGE-WP-COMPLETE` is the one true "Stage is finished" definition: every release-slice proof complete and Chromium retired or demoted. No intermediate slice, bootstrap release, or alpha may ever be represented as Stage completion. | LOCKED |
+| STAGE-DEC-023 | Stage product persistence uses Handshake-managed embedded SurrealDB/EventLedger exclusively through the shared application-bootstrap storage handle and a typed Stage-owned repository boundary. Stage must not introduce Turso, libSQL, SQLite, PostgreSQL, a feature-private database engine, fallback storage, or dual-write authority. Browser-engine profile files remain isolated engine materialization rather than canonical Stage database or backup authority. | LOCKED |
 
 `STAGE-DEC-017` resolves the earlier compatibility assumption around the WP-12 Stage prototype. The new Stage module is canonical. An editor-to-Stage workflow may be designed as a new public integration, but the existing `StagePane`, routes, wire types, storage, capability IDs, connectors, adapters, and mockups do not receive a survival guarantee merely because they exist or are already built.
 
@@ -50,6 +51,8 @@ wp_id: WP-1-Handshake-Stage-MVP-v1
 Spike status (see research note `STAGE-RW-021`): a Rust WebView2 harness was built and run on 2026-07-20 against the operator's real Google/YouTube session (read from the Firefox `default-release` profile). Empirical result: governed session import into WebView2 **works** — with the essential ~40 `.youtube.com` auth cookies injected, YouTube reports logged-in (`LOGGED_IN=true`, account avatar, notification badge), and the auth-gated `/feed/subscriptions` page rendered as a logged-in YouTube Premium session (screenshot visually confirmed). Gate parts 1-3 PASS; part 4 (authenticated download handoff) not tested. This **corrects the earlier prediction of FAIL/FRAGILE**: Google's embedded-webview block targets interactive login, not the presentation of already-valid session cookies, so cookie import sidesteps it. Therefore `STAGE-DEC-021` does NOT fire on current evidence and the `STAGE-WIN-BOOTSTRAP-PROD` slice stays alive. Two engineering constraints surfaced: (1) session import must scope cookies to the target site's essential set — importing the full cross-property Google jar triggers HTTP 413; (2) Firefox is the practical unencrypted session source on this machine. One open question remains — session DURABILITY over time under DBSC/cookie-refresh (not yet soak-tested); that governs the re-import UX, not initial viability, and Servo inherits the same approach and question. Harness lives at `C:\Handshake_Stage_Spike` (outside the governance kernel, on C:).
 
 `STAGE-DEC-022` locks the closure semantics that were previously pending approval: intermediate slices are delivery milestones, never completion claims. Whole-WP closure requires Chromium retired or demoted, consistent with the bootstrap-feature-freeze and promotion-gate topics.
+
+`STAGE-DEC-023` locks the Stage persistence boundary. Stage-owned durable records use typed SCHEMAFULL SurrealDB tables, indexes, assertions, authenticated record-user permissions, SurrealKit rollouts, and EventLedger transitions through an injected `StageRepository`; application bootstrap owns the canonical embedded `SurrealStorage` handle. ArtifactStore remains byte/manifests/hash/retention/materialization authority, while Stage stores opaque artifact references and lineage. Engine-native cookies, cache, local storage, IndexedDB, service workers, DRM state, and similar profile data may remain in isolated engine profile directories, but those files cannot become a second product database or canonical backup source.
 
 ## Working recommendations requiring later confirmation
 

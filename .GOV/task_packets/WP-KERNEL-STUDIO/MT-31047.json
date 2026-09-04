@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-31047",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-TYP-230#catalogue_row#0_typ_no_invented_bound",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.7.19 Validation and Acceptance",
+  "spec_line": 8850,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "typ.no_invented_bound",
+ "spec_anchor": [
+  "STU-TYP-230"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "typography",
+ "scope": {
+  "summary": "Typography validation descriptors.** The `StudioValidationDescriptor` catalog (14.24) MUST include the nine descriptors below. This table SPAWNS NINE microtasks, one per row. *Derivation: catalogue table, splits per row; yields 9 microtasks, one per validation descriptor. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Validation descriptor | What it checks | Governing clause | |---|---|---| | `typ.parameter_record_complete` | Every numeric parameter carries all seven fields as separate stored fields | [STU-TYP-105] | | `typ.no_invented_bound` | No `UNKNOWN` bound has been replaced by a number, and no `soft_*` mirrors a `hard_*` | [STU-TYP-106] | | `typ.enumeration_complete` | Every enumeration in this module carries its full declared member list | [STU-TYP-156] | | `typ.unit_correct_at_decode` | Unit conversion happens only at the API decode boundary; no mixed-unit field | [STU-TYP-108] | | `typ.resolution_order_correct` | The eight-step style resolution order is implemented literally; `based_on` cycles fail | [STU-TYP-201] | | `typ.composition_deterministic` | Identical input closures produce byte-identical positioned glyphs across hosts | [STU-TYP-131] | | `typ.no_platform_text_engine` | No platform or C shaping, bidi, segmentation or f [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`typ.no_invented_bound` satisfies the spec's stated validation descriptor: `typ.no_invented_bound`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-TYP-230 catalogue row `typ.no_invented_bound`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`typ.no_invented_bound` satisfies the spec's stated what it checks: No `UNKNOWN` bound has been replaced by a number, and no `soft_*` mirrors a `hard_*`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-TYP-230 catalogue row `typ.no_invented_bound`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`typ.no_invented_bound` satisfies the spec's stated governing clause: [STU-TYP-106]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-TYP-230 catalogue row `typ.no_invented_bound`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`typ.no_invented_bound` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-TYP-230"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

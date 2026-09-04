@@ -1,0 +1,119 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33552",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-AUT-005#command_table#0",
+  "unit_kind": "command_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.14.CARRIED Clauses carried forward unchanged from v02.205",
+  "spec_line": 20718,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "The command contract is versioned and capability-namespaced. Each command declares the capability it requires (e.g. `studio.document.write`, `studio.export`, `studio.filesystem.read`); the caller's gr [...] - command and binding set (2)",
+ "spec_anchor": [
+  "STU-AUT-005"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "automation",
+ "scope": {
+  "summary": "The command contract is versioned and capability-namespaced. Each command declares the capability it requires (e.g. `studio.document.write`, `studio.export`, `studio.filesystem.read`); the caller's granted capability set (operator, or a plugin's manifest-declared and consent-granted set per Section 7 below) gates which commands resolve. An unknown or ungranted command MUST fail closed with a typed error, never silently no-op. The command contract is organized into stable command families. This table is the normative family set; it is the deduped union of the five source scripting DOMs' object domains, mapped onto canonical primitives. | Command family | Canonical primitive(s) operated on | Deduped source-DOM provenance | |---|---|---| | `document` | `StudioDocument`, `StudioArtboard`, `StudioPageSpread` | app/document/documents root, open/save/export/print, spreads/pages | | `layer` | `StudioLayer`, `StudioLayerGraph`, `StudioMask` | Layer/Layers, PageItem/GroupItem, FrameNode/GroupNode/SectionNode | | `selection` | `StudioSelectionSet` | selection APIs, currentPage selection, bulk edit | | `vector` | `StudioVectorPath`, `StudioVectorNetwork` | PathItem/PathPoint/CompoundPath, VectorNode (network + paths), boolean-operation nodes | | `text` | `StudioTextStory`, `StudioTypeStyle` | TextFrame/TextRange/Story/Characters/Paragraphs, TextNode range styling, Story/Text hierarchy | | [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "An unknown or ungranted command MUST fail closed with a typed error, never silently no-op.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-AUT-005"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [
+   {
+    "app": "indesign",
+    "file": "indesign_dom_full.json",
+    "path": "properties[]",
+    "param": {
+     "script_id": 137853,
+     "tag": "pHep",
+     "name": "html5 export preferences",
+     "description": "HTML5 Export preference settings",
+     "plugin": "EBookExport",
+     "source_file": "Plug-Ins/Filters/(EBookExport Resources)/idrc_SCE2/21100.idrc",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     },
+     "type_id": 137852,
+     "type": {
+      "name": "html5 export preference",
+      "kind": "class",
+      "tag": "cHep",
+      "resolution": "parsed"
+     },
+     "flags": 1,
+     "value_block": "00000000000000000000000000000000",
+     "related_id": 0,
+     "declared_on": [
+      {
+       "owner_id": 137852,
+       "owner_name": "html5 export preference",
+       "owner_kind": "class"
+      }
+     ]
+    }
+   }
+  ],
+  "behaviour_record_count": 1,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

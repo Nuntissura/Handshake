@@ -1,0 +1,75 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34452",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-031#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "1.3 The full menu tree",
+  "spec_line": 29961,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "EFFECTS (Studio module menu)",
+ "spec_anchor": [
+  "STU-SHL-031"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "EFFECTS (Studio module menu).** - `Last Effect`, `Last Effect Options…` | items - `Apply Effect` | expansion | `studio.effect.apply` — leaf source: the effect registry, grouped at level 3 by effect FAMILY. The family level is MANDATORY; a flat effect list is unusable at this scale. - `Adjustments` | expansion | `studio.effect.adjustment` - `Layer Effects` | submenu → Drop Shadow…, Inner Shadow…, Outer Glow…, Inner Glow…, Bevel & Emboss…, Satin…, Colour Overlay…, Gradient Overlay…, Pattern Overlay…, Stroke…, Layer Blur…, 3D Effect…, Global Light…, Scale Effects…, Copy Layer Style, Paste Layer Style, Clear Layer Style, Create Layer from Style, Hide All Effects - `Live Filters` | submenu → Add Live Filter…, Edit Live Filter…, Disable Live Filter, Rasterise Live Filter, Live Filter Mask…, Reorder Live Filters… - `Effect Stack` | submenu → Reorder Effects…, Duplicate Effect, Delete Effect, Effect Opacity…, Effect Blend Mode…, Mask Effect with Selection, Disable All Effects, Reset All Parameters, Copy Effect Stack, Paste Effect Stack, Manage Effects… - `Interactive Effect Workspaces` | submenu — each leaf enters a Task Scope ([STU-SHL-152]), not a Layout Preset → Liquify…, Vanishing Point…, Lens Correction…, Wide Angle Correction…, Raw Filter…, Blur Gallery…, Effect Gallery…, Displace…, Content-Aware Fill…, Select & Refine… - `Effect Presets & Styles` | submenu → Save Effect Preset… [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [],
+ "acceptance_criteria_count": 0,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

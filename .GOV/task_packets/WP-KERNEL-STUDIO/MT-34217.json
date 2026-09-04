@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34217",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-CMP-110#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.27.11 Model steerability, GUI, diagnostics and manual obligation",
+  "spec_line": 28583,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Every panel, control, layer switch, mask, matte assignment, camera, light and visible",
+ "spec_anchor": [
+  "STU-CMP-110"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "compositing",
+ "scope": {
+  "summary": "Every panel, control, layer switch, mask, matte assignment, camera, light and visible state in this sub-section MUST be model-visible and typed-steerable through the Studio command surface (14.16); MUST be headlessly inspectable, steerable and screenshot-capturable through Argus with no foreground focus steal (14.20); and MUST ship dual-audience UserManual entries kept same-change current (14.22). Four obligations are specific to compositing: 1. **The render graph MUST be inspectable as structured data.** For a given frame, the Argus diagnostic MUST be able to report, per layer, which stage of [STU-CMP-010] produced what: whether masks contributed, whether the effect stack ran, whether a track matte was applied, which blend mode composited it, and whether a 3D run was broken by an intervening 2D layer ([STU-CMP-035a]). A rendered frame alone cannot answer any of those questions, and without the structured answer a compositing bug is diagnosed by guessing. 2. **Every \"nothing happened\" state MUST have a determinate reason.** A shadow that does not appear ([STU-CMP-045a]), a property the renderer ignores ([STU-CMP-060.3]), a collapsed layer whose blend mode is unavailable ([STU-CMP-016]), a 3D run broken by a 2D layer, a matte referencing a deleted layer, and an effect returning `EFFECT_GPU_UNAVAILABLE` ([STU-FX-018]) each have a named result and a visible indication. Silence is [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Every panel, control, layer switch, mask, matte assignment, camera, light and visible state in this sub-section MUST be model-visible and typed-steerable through the Studio command surface (14.16);",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-CMP-110"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "MUST be headlessly inspectable, steerable and screenshot-capturable through Argus with no foreground focus steal (14.20); and MUST ship dual-audience UserManual entries kept same-change current (14.22).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-CMP-110"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Four obligations are specific to compositing: 1. **The render graph MUST be inspectable as structured data.** For a given frame, the Argus diagnostic MUST be able to report, per layer, which stage of [STU-CMP-010] produced what: whether masks contributed, whether the effect stack ran, whether a track matte was applied, which blend mode composited it, and whether a 3D run was broken by an intervening 2D layer ([STU-CMP-035a]).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-CMP-110"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "A rendered frame alone cannot answer any of those questions, and without the structured answer a compositing bug is diagnosed by guessing. 2. **Every \"nothing happened\" state MUST have a determinate reason.** A shadow that does not appear ([STU-CMP-045a]), a property the renderer ignores ([STU-CMP-060.3]), a collapsed layer whose blend mode is unavailable ([STU-CMP-016]), a 3D run broken by a 2D layer, a matte referencing a deleted layer, and an effect returning `EFFECT_GPU_UNAVAILABLE` ([STU-FX-018]) each have a named result and a visible indication.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-CMP-110"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Silence is not an acceptable outcome. 3. **Keying and tracking MUST be fully drivable headlessly**, including screen-colour selection, track-point placement and per-frame correction ([STU-CMP-065]), because these are the operations most naturally expressed as on-canvas gestures and therefore the ones most likely to be left operator-only by accident. 4. **The manual entry for render order ([STU-CMP-010]) is mandatory and is not optional prose.** The two facts in [STU-CMP-010b] -- masks before effects, transform after effects -- explain a large fraction of the surprising results a compositor wil [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-CMP-110"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

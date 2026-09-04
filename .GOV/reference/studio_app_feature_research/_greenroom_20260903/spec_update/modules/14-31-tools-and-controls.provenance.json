@@ -1,0 +1,786 @@
+{
+ "schema": "handshake.spec_module.provenance@1",
+ "module_id": "14-31",
+ "section_id": "14.31",
+ "spec_module_file": "14-31-tools-and-controls.md",
+ "title": "14.31 Tools, the Options Surface, and the Scrubbable Numeric Control",
+ "generated_at": "2026-09-04",
+ "authority_note": "The Master Spec module is the single source of truth. This file records, for each clause anchor, WHERE that clause was derived from, so a reviewer can audit the derivation. It is provenance ONLY: it is not co-authority, the spec never cites it as a source of contract, and deleting it weakens no clause. Per SAD-008 operator_reinforcement_20260904, a capable model with no chat context and no access to the green room must be able to build the shell, and derive the microtask set, from the spec module alone.",
+ "authority_order": [
+  "1. studio-integrated-ui-design.json (ADJUDICATION) wins over the three source proposals wherever they differ.",
+  "2. operator-ui-requirements.json (OUI-001..010) binds absolutely.",
+  "3. studio-architecture-decisions.json (SAD-001..008, GRD-001) binds absolutely.",
+  "4. studio-menu-architecture.json / studio-panel-dock-architecture.json / studio-tools-tooltips-architecture.json are detail only.",
+  "5. installed_exports/** capture records are measurement; a capture beats a proposal's citation of an earlier revision of that same capture."
+ ],
+ "settled_numbers_used": {
+  "distinct_tools": 362,
+  "tool_families": 22,
+  "distinct_panels": 90,
+  "reused_shell_panes": 9,
+  "effects": 635,
+  "effect_categories": 46,
+  "typed_parameter_records": 1573,
+  "keyframable_parameters": 1246,
+  "explicit_menu_leaves_designed": 1533,
+  "menu_submenus": 203,
+  "menu_only_nodes": 375,
+  "top_level_menus": 19,
+  "approximate_parameter_total": 14681,
+  "tool_prose_ceiling_pct": 58.0,
+  "tools_proven_without_prose": 57,
+  "chord_union_without_the_fifth_table": 448,
+  "fifth_table_bindings": 673,
+  "fifth_table_contexts": 32,
+  "superseded_figures_that_must_not_be_cited": [
+   353,
+   21,
+   75,
+   84,
+   814,
+   1270,
+   481,
+   36,
+   618,
+   2001,
+   24,
+   6247,
+   693,
+   310
+  ]
+ },
+ "sources": {
+  "ADJ": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-integrated-ui-design.json",
+   "role": "ADJUDICATION - the authority. Reconciled the three source proposals, resolved 22 contradictions, folded in the compositing teardown all three predate. Supersedes MENU, PANEL and TOOLS wherever they differ."
+  },
+  "OUI": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/operator-ui-requirements.json",
+   "role": "Operator-stated UI requirements OUI-001..010. Binding."
+  },
+  "SAD": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+   "role": "Operator-confirmed architecture decisions SAD-001..008 plus green-room defect GRD-001. Binding."
+  },
+  "MENU": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-menu-architecture.json",
+   "role": "Source proposal 1 of 3: menu tree. Detail only; never preferred over ADJ."
+  },
+  "PANEL": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-panel-dock-architecture.json",
+   "role": "Source proposal 2 of 3: dock model and panels. Detail only; never preferred over ADJ."
+  },
+  "TOOLS": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-tools-tooltips-architecture.json",
+   "role": "Source proposal 3 of 3: tools, tooltips, scrub control. Detail only; never preferred over ADJ."
+  },
+  "AE-CMD": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_commands_shortcuts.json",
+   "role": "Capture record: 1,305 menu items in 227 groups, 673 bindings in 32 contexts, 665 labelled commands in 31 categories, 22 palette tools."
+  },
+  "AE-PAN": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_panels_dialogs.json",
+   "role": "Capture record: 16 factory workspaces with splitter trees, 28 panel ids, 405 control-tree surfaces, 6,137 controls, 144 dialog surfaces."
+  },
+  "AE-FX": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+   "role": "Capture record: 635 effects in 46 categories, 1,573 typed parameter records, 833 hard bounds, 606 soft, 366 differing, 327 cannot-time-vary, 359 support URLs to 225 pages."
+  },
+  "AE-LPM": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+   "role": "Capture record: 1,326 match names, 759 containment edges, 13 property group topics, keyframe record format, expression container."
+  },
+  "AE-EXP": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_scripting_expressions.json",
+   "role": "Capture record: 333 expression identifiers in 12 categories, 37 unbound argument signatures, 1,751 scripting members."
+  },
+  "AE-RND": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+   "role": "Capture record: 29 exporters, 35 importers, 32 render/output dialog surfaces carrying 989 controls."
+  },
+  "SPEC205": {
+   "path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+   "role": "v02.205 baseline. Clauses cited here remain in force; this module extends them."
+  },
+  "HS": {
+   "path": "(none)",
+   "role": "handshake_authored - no capture or deliberation source. Authored to make the spec self-standing under the no-context completeness test. Flagged so authored content stays countable."
+  }
+ },
+ "pointer_syntax": "<SOURCE_KEY>#<dotted path, clause id, or measured field within that source>",
+ "derivation_kinds": {
+  "adjudication": "derived from studio-integrated-ui-design.json, the authority",
+  "operator_requirement": "derived from a binding OUI requirement",
+  "architecture_decision": "derived from a binding SAD decision",
+  "baseline_binding": "restates or binds to a v02.205 clause that remains in force",
+  "baseline_clarification": "clarifies a v02.205 clause without superseding it",
+  "declared_spec_debt": "records an unresolved item as debt, not as a decision",
+  "handshake_authored": "no capture or deliberation source; authored to make the spec self-standing"
+ },
+ "clause_count": 70,
+ "microtask_yield_total": 432,
+ "clause_provenance": [
+  {
+   "anchor": "[STU-SHL-140]",
+   "title": "Tool count",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.counts",
+    "ADJ#contradictions_resolved[CR-05]",
+    "ADJ#carried_gaps[CG-11]",
+    "SAD#known_defects_in_this_green_room[GRD-001]"
+   ],
+   "note": "362 in 22 families. 353/21 and 1,270 are superseded."
+  },
+  {
+   "anchor": "[STU-SHL-141]",
+   "title": "The 22 families",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "TOOLS#analysis.tool_families",
+    "ADJ#integrated_design.tools.families.list",
+    "ADJ#integrated_design.tools.families.new_family[camera_3d]",
+    "ADJ#integrated_design.tools.families.reassignments",
+    "AE-CMD#palette_tools=22, command_categories.Tools=27"
+   ],
+   "note": "Member counts recomputed against the fold-in: shape 36->37, transform 38->42, camera_3d 4 new. Sum is exactly 362."
+  },
+  {
+   "anchor": "[STU-SHL-142]",
+   "title": "adjustment_live and filter_live are a declared vendor artefact",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "TOOLS#analysis.family_grouping_notes.two_families_are_a_vendor_artefact",
+    "ADJ#open_questions[OQ-F]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-143]",
+   "title": "Tool record",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.UiDescriptor_required_fields",
+    "TOOLS#proposal.tooltip_data_contract"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-144]",
+   "title": "Four projections, one command id",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#contradictions_resolved[CR-01].resolution",
+    "ADJ#integrated_design.menu.one_registry_two_projections_zero_drift.invariants[INV-7]",
+    "SPEC205#[STU-MDL-006]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-145]",
+   "title": "Tool Rail shape",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.palette_model.shape"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-146]",
+   "title": "Family versus group",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.palette_model.grouping_rule"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-147]",
+   "title": "Visible at rest",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.palette_model.visible_at_rest"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-148]",
+   "title": "The honest architecture",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.palette_model.the_honest_architecture",
+    "ADJ#contradictions_resolved[CR-03].reason"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-149]",
+   "title": "Variant disclosure must be untimed",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.palette_model.variant_disclosure",
+    "ADJ#integrated_design.tools.palette_model.variant_disclosure.cycling_evidence_strengthened",
+    "ADJ#integrated_design.tools.palette_model.variant_disclosure.group_size_evidence",
+    "AE-CMD#named cycle commands with Shift+letter"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-150]",
+   "title": "Adaptive face",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.palette_model.variant_disclosure.adaptive_face"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-151]",
+   "title": "The rail may reorder; it may never gate",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.palette_model.availability",
+    "ADJ#integrated_design.tools.palette_model.worked_examples",
+    "ADJ#contradictions_resolved[CR-02].resolution_detail.per_surface_rendering.tool_rail"
+   ],
+   "note": "The worked-example table is deliberately NOT a catalogue: its rows re-cite tools that [STU-SHL-155] already enumerates, and counting them again would file two microtasks against one tool."
+  },
+  {
+   "anchor": "[STU-SHL-152]",
+   "title": "Task Scope",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.palette_model.task_scopes.definition",
+    "ADJ#contradictions_resolved[CR-15].do_not_collapse",
+    "ADJ#contradictions_resolved[CR-02].resolution_detail.clause_kinds[task_scope]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-153]",
+   "title": "Shipped Task Scopes",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.palette_model.task_scopes.proposed",
+    "ADJ#integrated_design.tools.palette_model.task_scopes.prior_art",
+    "ADJ#open_questions[OQ-N]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-154]",
+   "title": "Model-backed tools and the exclusion boundary",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#contradictions_resolved[CR-05].excluded",
+    "ADJ#open_questions[OQ-K]",
+    "ADJ#video_scope_both_ways.if_in_scope.what_is_still_excluded"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-155]",
+   "title": "The tool catalogue (normative, closed)",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "TOOLS#analysis.distinct_tools (353 records: canonical_id, canonical_name, family, source_apps, vendor_variants)",
+    "ADJ#contradictions_resolved[CR-05].net_new_canonical_rows (9 new: pan behind, unified/orbit/pan/dolly camera, parametric mesh, puppet pin/overlap/starch)",
+    "ADJ#integrated_design.tools.families.reassignments",
+    "AE-CMD#palette_tools=22, command_categories.Tools=27"
+   ],
+   "note": "ENUMERATION ADDED 2026-09-04. The 362-tool count was asserted in [STU-SHL-140] and never listed, so 362 units were unreachable by any derivation tool. Each row is now one microtask. Per-family row counts match [STU-SHL-141] exactly and sum to 362. Rail group, chord and Task Scope membership are UNKNOWN per row and are declared so rather than guessed."
+  },
+  {
+   "anchor": "[STU-SHL-156]",
+   "title": "Catalogue integrity",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#authored to bind the catalogue to the counts it enumerates",
+    "ADJ#open_questions[OQ-F]"
+   ],
+   "note": "Makes a count change and a catalogue change inseparable, so OD-3 cannot silently delete 80 tools."
+  },
+  {
+   "anchor": "[STU-SHL-160]",
+   "title": "One region, two zones",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#contradictions_resolved[CR-14].resolution",
+    "ADJ#contradictions_resolved[CR-14].zones",
+    "ADJ#contradictions_resolved[CR-14].the_captures_split_the_same_way"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-161]",
+   "title": "The split rule",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#contradictions_resolved[CR-14].the_rule",
+    "ADJ#integrated_design.tools.options_surface.the_split_rule"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-162]",
+   "title": "Tool Zone contents",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#contradictions_resolved[CR-14].zones.tool_zone.contents"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-163]",
+   "title": "Shared Context Bar contract",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#contradictions_resolved[CR-14].shared"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-164]",
+   "title": "When a bar becomes a panel",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.options_surface.when_a_bar_becomes_a_panel",
+    "AE-FX#74 group pairs, 294 collapse flags"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-165]",
+   "title": "Legibility mechanisms",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tools.options_surface.legibility_mechanisms"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-170]",
+   "title": "ParamSpec is generated",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.principle",
+    "ADJ#integrated_design.tooltips.data_contract.why_the_generator_emits_manual_rows_directly",
+    "OUI#requirements[OUI-008].why_this_is_cheap_here"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-171]",
+   "title": "ParamSpec fields",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.ParamSpec_additional_fields_when_kind_is_param"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-172]",
+   "title": "Hard and soft bounds are separate fields",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.clamping",
+    "ADJ#risks[IR-04]",
+    "ADJ#prerequisites_ordered[P-09].hard_rule",
+    "ADJ#integrated_design.tooltips.data_contract.ci_gates",
+    "AE-FX#606 declare both, 366 differ (60.4%)",
+    "SAD#decisions[SAD-008].what_the_spec_rewrite_must_cover"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-173]",
+   "title": "observed bounds must not clamp",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.observed_bounds_hazard",
+    "ADJ#integrated_design.numeric_control.metadata_source_precedence[rank 6].CAUTION"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-174]",
+   "title": "bounds_unknown renders unclamped",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.honest_limit"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-175]",
+   "title": "Metadata source precedence",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.metadata_source_precedence"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-176]",
+   "title": "Field-to-capture mapping",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.field_to_capture_mapping_corrected",
+    "ADJ#contradictions_resolved[CR-06].corrections_that_change_a_design_decision",
+    "AE-FX#typed parameter records"
+   ],
+   "note": "Four corrections carried: soft bounds 606 not 618; option lists are 157 parameters / 422 lists / 1,047 strings, not 2,001; group boundaries are parameter TYPES not flags; collapse and cannot-time-vary ARE flag bits."
+  },
+  {
+   "anchor": "[STU-SHL-177]",
+   "title": "keyframable is static and generated",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#contradictions_resolved[CR-06].measured_from_the_current_file",
+    "ADJ#contradictions_resolved[CR-19].resolution",
+    "AE-FX#CANNOT_TIME_VARY=327, keyframable=1246 of 1573"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-185]",
+   "title": "One widget from a ParamSpec",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.principle",
+    "OUI#requirements[OUI-008]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-186]",
+   "title": "Hover",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.hover",
+    "ADJ#contradictions_resolved[CR-10]",
+    "OUI#requirements[OUI-008].required_behaviours[4]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-187]",
+   "title": "Click to type",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.click_without_movement",
+    "OUI#requirements[OUI-008].required_behaviours[0]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-188]",
+   "title": "Press and drag, both axes",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.press_and_drag",
+    "OUI#requirements[OUI-008].required_behaviours[1]"
+   ],
+   "note": "delta = dx - dy, so rightward and upward both increase; summing rather than axis-locking removes the direction-change discontinuity."
+  },
+  {
+   "anchor": "[STU-SHL-189]",
+   "title": "Wheel",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.wheel",
+    "OUI#requirements[OUI-008].required_behaviours[2]",
+    "ADJ#contradictions_resolved[CR-11]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-190]",
+   "title": "Modifiers",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.modifiers",
+    "ADJ#contradictions_resolved[CR-09]",
+    "OUI#requirements[OUI-008].required_behaviours[3]"
+   ],
+   "note": "Expanded 2026-09-04 to carry the full modifier contract rather than deferring to [STU-SHL-106]. This is one of the operator's required scrub behaviours (OUI-008) and as a pointer clause it yielded no microtask."
+  },
+  {
+   "anchor": "[STU-SHL-191]",
+   "title": "Sensitivity",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.sensitivity"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-192]",
+   "title": "Clamping",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.clamping",
+    "OUI#requirements[OUI-008].required_behaviours[5]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-193]",
+   "title": "Formatting",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.formatting",
+    "OUI#requirements[OUI-008].required_behaviours[5]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-194]",
+   "title": "Undo",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.undo",
+    "ADJ#integrated_design.docks.pointer_gesture_arbitration.rule_7_undo",
+    "OUI#requirements[OUI-008].required_behaviours[6]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-195]",
+   "title": "Double-click and secondary-click",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.interaction_contract.double_click",
+    "ADJ#integrated_design.numeric_control.interaction_contract.secondary_click"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-196]",
+   "title": "Geometry",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.docks.panel_density_model.scrub_allowance",
+    "ADJ#integrated_design.numeric_control.accessibility.grab_rect"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-200]",
+   "title": "Why TemporalState exists",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#contradictions_resolved[CR-19]",
+    "ADJ#integrated_design.numeric_control.temporal_state.why_it_is_new",
+    "ADJ#integrated_design.numeric_control.temporal_state.where_it_lives",
+    "AE-FX#1246 of 1573 keyframable",
+    "AE-LPM#expr chunk on the value stream"
+   ],
+   "note": "CR-19 records that ALL THREE source proposals missed this; OUI-008 itself describes a control over a static number."
+  },
+  {
+   "anchor": "[STU-SHL-201]",
+   "title": "The four states",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.temporal_state.states"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-202]",
+   "title": "Scrub behaviour by state",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.temporal_state.scrub_behaviour_by_state",
+    "AE-CMD#EnableAutoKeyframe document-level toggle"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-203]",
+   "title": "Scrubbing an expression-driven field is refused at press",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.temporal_state.scrub_behaviour_by_state[Expression]",
+    "ADJ#contradictions_resolved[CR-02].resolution_detail.reason_codes[EXPRESSION_DRIVEN]",
+    "ADJ#integrated_design.numeric_control.accessibility.expression_refusal_must_be_explicit",
+    "ADJ#risks[IR-03]"
+   ],
+   "note": "This is the availability predicate of 14.30 applied to a value field, which is what unifies the gating design with OUI-008."
+  },
+  {
+   "anchor": "[STU-SHL-204]",
+   "title": "Affordance placement",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.temporal_state.affordance_placement"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-205]",
+   "title": "Keyframe navigation commands",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.temporal_state.grounded_shortcuts",
+    "ADJ#integrated_design.after_effects_surfaces.surfaces[Keyframe timeline].navigation_and_edit_commands",
+    "AE-CMD#keyboard bindings"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-206]",
+   "title": "Temporal interpolation vocabulary",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.after_effects_surfaces.surfaces[Keyframe timeline].interpolation_vocabulary",
+    "ADJ#integrated_design.menu.menu_changes_forced_by_after_effects.new_enumerations_now_available_for_the_menu",
+    "ADJ#carried_gaps[CG-06]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-210]",
+   "title": "set_param_clamped",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.accessibility.single_path_rule",
+    "ADJ#prerequisites_ordered[P-09].what_to_do",
+    "OUI#requirements[OUI-008].accessibility_requirement"
+   ],
+   "note": "Signature (author_id, value, time, intent, source)."
+  },
+  {
+   "anchor": "[STU-SHL-211]",
+   "title": "All five sources use the same path",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.accessibility.single_path_rule"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-212]",
+   "title": "What one call produces",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.accessibility.single_path_rule",
+    "ADJ#integrated_design.docks.pointer_gesture_arbitration.rule_7_undo"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-213]",
+   "title": "Refusals are typed and returned",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.accessibility.expression_refusal_must_be_explicit",
+    "ADJ#contradictions_resolved[CR-02].resolution_detail.reason_codes"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-220]",
+   "title": "Universal command contract",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-CON-007]",
+    "SPEC205#[STU-MDL-006]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-221]",
+   "title": "Parallel-safety granularity",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-SDB-004]",
+    "SPEC205#[STU-PAR-002]",
+    "ADJ#contradictions_resolved[CR-02].resolution_detail.reason_codes[LEASE_HELD_BY_OTHER_ACTOR]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-222]",
+   "title": "Validation descriptors",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#derived from the clauses of this sub-section",
+    "SPEC205#[STU-VAL-001]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-223]",
+   "title": "Manual obligation",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-MAN-001]",
+    "SPEC205#[STU-MAN-004]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-224]",
+   "title": "Derivation rule",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#derivation rule authored to satisfy the operator acceptance test",
+    "SAD#decisions[SAD-008].operator_reinforcement_20260904.completeness_test"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-225]",
+   "title": "Clauses that yield no microtask",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#derivation rule"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-226]",
+   "title": "An open item still yields a microtask",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#derivation rule",
+    "ADJ#open_questions[OQ-F]",
+    "ADJ#open_questions[OQ-K]",
+    "ADJ#carried_gaps[CG-06]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-227]",
+   "title": "Yields index",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#enumerated from the clauses of this sub-section"
+   ],
+   "note": "503 microtasks. Counts enumerated, not estimated."
+  },
+  {
+   "anchor": "[STU-SHL-228]",
+   "title": "Anchor binding",
+   "derivation_kind": "architecture_decision",
+   "derived_from": [
+    "SAD#decisions[SAD-008].anchor_dependency"
+   ]
+  },
+  {
+   "anchor": "[STU-MDL-110]",
+   "title": "Role selection",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#contradictions_resolved[CR-12]"
+   ],
+   "note": "Resolves a disagreement worth 240 parameters in the compositing corpus alone; the rule is a soft range EXISTS, not a soft range DIFFERS, so the role is stable across capture revisions."
+  },
+  {
+   "anchor": "[STU-MDL-111]",
+   "title": "Exposed properties",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.accessibility.exposed_properties",
+    "ADJ#carried_gaps[CG-02]"
+   ]
+  },
+  {
+   "anchor": "[STU-MDL-112]",
+   "title": "The reported bounds must be the grab rect",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.accessibility.grab_rect"
+   ]
+  },
+  {
+   "anchor": "[STU-MDL-113]",
+   "title": "Agreement tests",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.accessibility.agreement_test",
+    "ADJ#integrated_design.tooltips.data_contract.ci_gates"
+   ]
+  },
+  {
+   "anchor": "[STU-MDL-114]",
+   "title": "Enumerated parameters",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.ParamSpec_additional_fields_when_kind_is_param",
+    "ADJ#contradictions_resolved[CR-06].corrections_that_change_a_design_decision"
+   ]
+  },
+  {
+   "anchor": "[STU-MDL-115]",
+   "title": "Refusal parity",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.numeric_control.accessibility.expression_refusal_must_be_explicit",
+    "SPEC205#[STU-MDL-005]"
+   ]
+  },
+  {
+   "anchor": "[STU-MDL-116]",
+   "title": "Tool state is inspectable",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-MDL-002]",
+    "ADJ#contradictions_resolved[CR-13].kept_from_the_panel_proposal"
+   ]
+  }
+ ],
+ "derivation_note": "The module's Microtask Derivation sub-section declares this yields total, and the reference deriver extracts exactly this many units from the module text. Declared and derived agree."
+}

@@ -5,7 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-018",
   "created_at_utc": "2026-07-24T00:00:00Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-09-01T00:00:00Z",
+  "scope_status": "V6_BLOCKED_ON_DEPENDENCY_2026-09-01",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-018.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -14,7 +15,8 @@
     "path": "",
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
-  "lifecycle": {
+  "owned_files": [],
+  "historical_lifecycle_v5_superseded": {
     "status": "FAIL_V5",
     "depends_on": [
       "MT-004",
@@ -42,13 +44,13 @@
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
     "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
   },
-  "origin": {
+  "historical_origin_v5_superseded": {
     "discovered_by": "KERNEL_BUILDER V5 remediation, 2026-07-24",
     "discovery_context": "While remediating the MT-004/005/009 CRDT fail-closed admission path, a closed constraint loop was found and independently confirmed by direct source inspection that makes a Proposal-kind CRDT-bearing ModelLaneMessage UN-ADMITTABLE at HEAD: no crdt_proposal_ref row can ever satisfy the resolver's applied_update_sha256 == kernel_crdt_updates.update_sha256 cross-check, because the two hashes are computed over different byte encodings of the same edit.",
     "operator_directive": "Operator instruction 2026-07-23/24: 'if you see unexpected future gaps or work address it inside the same MT or defer it if this does not correlate with the current MT to a future MT in the same WP so we do not forget to address it.' This gap crosses into the knowledge-CRDT pillar (migration + spec touch) so it is deferred here rather than fixed inside MT-004/005/009.",
     "layer_1_already_shipped": "MT-004/005/009 V5 shipped the Layer-1 sync-layer fix in validate_message_authority (model_lane.rs): CRDT posture completeness is no longer required unconditionally on every crdt_* field, so a real Status-kind CRDT message backed by a real Yjs update + real snapshot + active lease is now admissible, and the kind-aware durable proposal-ref rule at validate_message_crdt_authority_tx is no longer dead code. Layer-2 (this MT) is the remaining spec-level fix for the Proposal-kind path only."
   },
-  "scope": {
+  "historical_scope_v5_superseded": {
     "summary": "Resolve the diff-hash vs Yjs-update-hash conflation that makes an approved-proposal-backed (Proposal-kind) CRDT ModelLaneMessage un-admittable, so proposal-anchored CRDT authority can be proven end-to-end.",
     "root_cause": "apply_approved_ai_edit (src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs ~665-691) computes applied_content_sha256 = sha256(serde_json::to_vec(applied_diff)) — a hash of the JSON diff object. bind_applied_ai_edit_update (src/backend/handshake_core/src/storage/knowledge_crdt.rs ~1562-1586) and migration 0192's CHECK force applied_update_sha256 = diff_sha256, i.e. that same JSON hash. But resolve_model_lane_crdt_authority_tx (src/backend/handshake_core/src/swarm_orchestration/model_lane.rs ~13011,13073-13085) requires the referenced kernel_crdt_updates row to satisfy BOTH sha256(update_bytes) == update_sha256 AND Update::decode_v1(update_bytes) succeeds — i.e. update_sha256 is the hash of the Yjs v1 BINARY update. Then the proposal cross-check (~13784-13793) requires proposal.applied_update_sha256 == resolved.update_sha256. Equating a JSON-object hash with a Yjs-binary hash is unsatisfiable short of a SHA-256 collision, so no honest proposal row can ever back an admitted CRDT message.",
     "allowed_paths": [
@@ -87,7 +89,7 @@
     "reference_only_paths": [],
     "root_cause_addendum_2026_07_30": "SECOND INDEPENDENT BLOCKER, omitted from root_cause above and VERIFIED at source: apply_approved_ai_edit also blocks BEFORE the resolver is ever reached. ai_edit_proposal.rs:702-709 calls knowledge_crdt::find_applied_crdt_update_sha256, which SELECTs kernel_crdt_updates.update_sha256 (knowledge_crdt.rs:1597-1623) — the Yjs-BINARY hash. Line 710 then compares that against applied_content_sha256, the JSON-diff hash computed at line 691. So the binder can only ever stamp a row when the persisted update_bytes ARE the JSON diff bytes, which then cannot decode as Yjs v1 at model_lane.rs:13123. Fixing only the resolver cross-check leaves the proposal un-mintable. The comment at ai_edit_proposal.rs:693-701 shows the INTENT was existence + row integrity; the implementation conflated the two hash spaces. Fix: make line 710 an existence check (stored_update_sha256.is_none()), still passing stored_update_sha256 into deny_applied_update_missing so the update_row_absent discriminator stays meaningful. Row integrity is already enforced by the resolver at model_lane.rs:13118-13127 and must not be duplicated."
   },
-  "implementation_notes": [
+  "historical_implementation_notes_v5_superseded": [
     "Preferred direction (verify against spec + code before choosing): bind and cross-check on applied_update_id (identity) and verify the referenced kernel_crdt_updates row's OWN integrity (sha256(update_bytes)==update_sha256 + Update::decode_v1) independently, instead of requiring proposal.applied_update_sha256 to equal the Yjs update hash. The proposal's own content integrity (diff_sha256 over the JSON diff) stays a separate, still-enforced invariant.",
     "Do NOT relax any resolver gate to make the loop close; the fix is to stop conflating two distinct hashes, not to drop a check.",
     "Migration discipline: never edit 0192 in place; add a forward migration and document whether 0192's applied_update_sha256=diff_sha256 CHECK is superseded, retained, or replaced, with reasoning.",
@@ -95,6 +97,227 @@
     "If this MT changes any product behavior, storage/event contract, or diagnostic surface, update the in-product UserManual in the same change per HBR-MAN-004.",
     "Rust-only backend change plus governed migration; PostgreSQL/EventLedger authority only; no SQLite."
   ],
+  "lifecycle": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "depends_on": [
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "WP1-V6-AUDIT-20260901",
+    "claimed_at_utc": "2026-09-01T00:00:00Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": "Parfit owns the active ModelLane, CRDT provider, composition, and shared test surfaces. Surreal proposal primitives exist but have no production caller, the current proposal service and reusable helper still use superseded authority, and no coherent Surreal MT-018 suite proves scope, hash separation, canonical-event atomicity, or restart continuity.",
+    "missing_resource": "A production proposal lifecycle composed through the same cloned SurrealStorage as ModelLane and CRDT updates/snapshots; exact five-field proposal/update/snapshot/receipt authority; independently validated proposal-diff and Yjs-update hashes; coherent positive, replay, concurrency, stale, revoked, mixed-scope, incomplete-row, and one-field-mismatch tests.",
+    "proof_status": "V6_NOT_RUN_BLOCKED. V5 relational and mixed-suite results are explicitly superseded provenance and are not active V6 proof.",
+    "hbr_status": "HBR-PRIV and HBR-INT remain blocked for proposal, CRDT update, snapshot, lease, message, and receipt resources pending coherent same-storage runtime proof.",
+    "pre_implementation_adversarial_review_status": "V6_COMPLETED_BLOCKED_ON_DEPENDENCY",
+    "post_implementation_adversarial_review_status": "NOT_STARTED_NO_CONTRACT_ONLY_IMPLEMENTATION",
+    "adversarial_findings_status": "OPEN_V6_PARFIT_DEPENDENCIES_RECORDED",
+    "kb_ready_checklist_receipt_id": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "last_runtime_status_ref": null
+  },
+  "scope": {
+    "summary": "Preserve the approved-proposal diff-hash versus Yjs-update-hash distinction while proving proposal-backed CRDT ModelLane admission, replay, denial, and restart against one embedded Surreal authority.",
+    "allowed_paths": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-018.json"
+    ],
+    "forbidden_paths": [
+      "Parfit-owned ModelLane facade/provider/schema/composition and shared CRDT tests",
+      "product source and product tests in this contract-only pass",
+      "relational bridge, fixtures, active proof, or alternate-authority path",
+      "disabled-code proof, vacuous targets, raw-row shortcuts, or weakened admission gates",
+      "broad taskboard projection"
+    ],
+    "acceptance_criteria": [
+      "AC-1: Proposal diff_sha256 is computed over canonical approved-diff bytes; Yjs update_sha256 is computed independently over persisted Yjs v1 update bytes. The values remain distinct invariants, are never equated, and are independently recomputed before admission and replay.",
+      "AC-2: An approved and applied proposal binds to the real scoped update by applied_update_id while applied_update_sha256 remains the proposal's approved-diff hash; ModelLane separately verifies the cited update row's update_sha256, Yjs decoding, state-vector advance, causal chain, and terminal identity.",
+      "AC-3: Proposal record, approve/reject/promote transition, applied-update binding, CRDT update, snapshot, lease, ModelLane message, and denial/admission receipt use exact owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id predicates on both resource and linked canonical-event rows.",
+      "AC-4: Scope derivation never widens. Mixed-source proposal inputs are refused rather than unioned, and each one-field mismatch, stale context, revoked context, incomplete row, malformed ref, or mixed-scope linked event returns no resource metadata and performs zero mutation.",
+      "AC-5: Every durable proposal/update/snapshot/lease/message/receipt mutation appends or links the canonical kernel EventLedger atomically in the same Surreal transaction; no domain-local audit island or event-without-resource/resource-without-event state is admissible.",
+      "AC-6: Proposal, ModelLane, CRDT update/snapshot, lease, receipt, and replay providers receive clones of one injected SurrealStorage namespace/database. Restart reopens that same authority and preserves both hashes, applied identity, canonical-event links, ordering, and idempotency.",
+      "AC-7: A real Proposal-kind ModelLaneMessage backed by an approved applied proposal, real persisted Yjs update, causally prior snapshot, active exact-scope lease, matching actor/session/trace/document identities, and complete CRDT fields is admitted and replays unchanged.",
+      "AC-8: Fabricated update/proposal refs, Yjs byte-hash mismatch, approved-diff mismatch, proposal bound to another real update, stale/unrelated vector or snapshot, wrong actor/session/trace/document, unapproved/rejected review state, missing applied binding, duplicate conflict, and tampered linked event all fail closed with stable denial taxonomy.",
+      "AC-9: One reusable Surreal admissible-CRDT helper constructs all positive authority only through production APIs and is reused by the MT-002, MT-005, MT-009, and MT-018 positive and negative proof surfaces; no raw insert may manufacture a green posture.",
+      "AC-10: The original provisional decision remains explicit: applied_update_sha256 names approved-diff integrity, applied_update_id names the real Yjs update, and the Yjs row owns its independent update_sha256. Any specification enrichment must preserve this separation."
+    ],
+    "required_targets_to_land": [
+      "knowledge_crdt_proposal_surreal_tests",
+      "mixed_model_lane_integration_surreal_tests"
+    ],
+    "proof_commands": [
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt018-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt018-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test knowledge_crdt_proposal_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt018-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt018-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test mixed_model_lane_integration_surreal_tests mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt018-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt018-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test mixed_model_lane_integration_surreal_tests mt018_distinct_diff_and_yjs_hashes_are_replay_stable -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt018-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt018-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test mixed_model_lane_integration_surreal_tests mt018_scope_stale_revoked_mixed_and_incomplete_rows_deny_without_mutation_or_leakage -- --exact --nocapture"
+    ],
+    "risk_if_missed": "The proposal path can become false-green by equating unrelated hashes, accepting a cross-scope or stale proposal, linking an update without canonical event integrity, reopening another database after restart, or proving only a hand-built test row that production cannot create."
+  },
+  "implementation_notes": [
+    "Do not weaken ModelLane CRDT resolution. Preserve identity binding by applied_update_id, proposal-content integrity by diff_sha256/applied_update_sha256, and Yjs-byte integrity by the update row's independently recomputed update_sha256.",
+    "The current Surreal provider primitives are necessary but not sufficient: production proposal APIs must call them, and the same injected storage clone must reach proposal, update, snapshot, lease, message, receipt, replay, and restart paths.",
+    "Denied scoped reads return absence or a non-identifying denial; they must not reveal whether a proposal, update, snapshot, lease, message, or linked event exists under another scope.",
+    "This contract-only pass makes no product or test claim and cannot advance readiness."
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "distinct_diff_and_yjs_hash_integrity",
+      "five_field_scope_and_non_widening",
+      "canonical_event_atomicity_and_receipt_linkage",
+      "same_storage_restart_and_replay",
+      "negative_paths_and_metadata_non_disclosure"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "V6_EMBEDDED_SURREAL_CRDT_AUTHORITY",
+    "minimum_controls": [
+      "Recompute both hashes from their own bytes and assert they differ for the positive fixture.",
+      "Prove five independent one-field mismatches plus mixed and incomplete attribution cause zero mutation and no identifier leakage.",
+      "Prove event/resource atomicity under exact retry, conflicting retry, interrupted write, and restart.",
+      "Construct positive posture only through production proposal and CRDT APIs using one cloned storage handle."
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "durable_authority": [
+      "embedded SurrealDB",
+      "canonical kernel EventLedger",
+      "kernel_crdt_updates",
+      "kernel_crdt_snapshots",
+      "knowledge_crdt_ai_edit_proposals"
+    ],
+    "rust_only_implementation": "Rust backend and focused integration proof only.",
+    "spec_realism_gate": "READY_FOR_VALIDATION_V6 requires coherent production API and restart proof over one injected storage namespace; static inspection and historical proof cannot substitute."
+  },
+  "v6_surreal_only_audit_2026_09_01": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "risk": "HIGH",
+    "write_set": {
+      "edited": [
+        ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-018.json"
+      ],
+      "not_edited": [
+        "product source",
+        "product tests",
+        "Cargo targets",
+        "packet.json",
+        "mt_index.json"
+      ]
+    },
+    "authority_hashes_before_sha256": {
+      "MT-018.json": "A3EEDAF55D526DDD1C66B7047EB452C9CB0D3E199B7F35C0A5B761DBF6544FD4",
+      "packet.json": "78F6FE15F2220B3563B252C22DBAF7A465B374C4F2817FA7B1CA350D2743A98A",
+      "mt_index.json": "06B3406487C3B9A02A1B69DF83F9FF330C754BA2E6B1CB817F8BACD6E9C4C38C"
+    },
+    "inspected_source_hashes_sha256": {
+      "src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs": "804741216495A7D9E2DEDBBD2C0A207996494A24EA9A5C76FAF9825FDCB94ACF",
+      "src/backend/handshake_core/src/storage/knowledge_crdt.rs": "3E3BC576DC72A815953188F4F90B879EB5BBA4EB32724DDCAD14541F8722DE0B",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs": "15F1350436AF5D1A0D13CB1AC4E24E111DDAF54C3F33541DFE4C07BAF4025302",
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs": "7310CBAC97C6B5707E7860F4587118CC927B5AB1D7F534C64A24564DC24C38EC",
+      "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql": "B3DAAE4720D338132CCE2346D04BB6BCDE4352F532CD9B8CD1B3721074CC32D2",
+      "src/backend/handshake_core/tests/model_lane_crdt_support.rs": "291E0A0234537FDA15DB6843B1B25455D3824C5D700952C60002151DACB2083D",
+      "src/backend/handshake_core/tests/knowledge_crdt_proposal_tests.rs": "982FD395BA589528860A2D690B4C95F3635AE9E5EDF5DAE1373B90D46CE9B6AB",
+      "src/backend/handshake_core/tests/mixed_model_lane_integration_pg_tests.rs": "D472DD14E03BDF60DA8A0151D8D1D81E0D34FE3D1601E9E061F1EE3CF3AF60A7",
+      "src/backend/handshake_core/tests/model_lane_context_bundle_pg_tests.rs": "E68E9B099ED244878937D50B642559F5ABDF2ED47D7CCECBEEA170C149263260",
+      "src/backend/handshake_core/Cargo.toml": "73CBB6B59C82A5D80F7B9A0D6D385074861F8B71312411D95D0C0A6293E86CC6"
+    },
+    "current_implementation_inventory": [
+      "The ModelLane Surreal resolver independently validates persisted Yjs bytes, update_sha256, decoding, causal replay, state vectors, snapshot ordering, actor/session/trace/document identity, and terminal update identity.",
+      "The resolver accepts a proposal only when applied_update_id equals the real update id and applied_update_sha256 equals the proposal's own diff_sha256; it does not equate either proposal hash with the Yjs update hash.",
+      "The Surreal provider defines atomic CRDT update, snapshot, lease, proposal record, proposal decision, and proposal binding methods with exact five-field predicates and canonical-event writes.",
+      "No production or test caller invokes record_crdt_proposal_atomic, decide_crdt_proposal_atomic, or bind_crdt_proposal_update_atomic.",
+      "The current proposal service, proposal tests, reusable CRDT helper, mixed integration suite, and context-bundle suite remain on superseded authority and cannot certify V6.",
+      "No coherent Surreal proposal-backed CRDT suite or same-storage restart proof exists."
+    ],
+    "parfit_blockers": [
+      "Expose or compose the Surreal proposal record/decision/apply primitives through the production proposal service without a legacy or alternate-authority path.",
+      "Pass the same cloned SurrealStorage and exact ResourceScope through proposal, update, snapshot, lease, ModelLane admission, receipts, replay, and restart.",
+      "Resolve the bind path's event-actor self-check: bind_crdt_proposal_update_atomic validates event.actor_id against a clone of itself rather than independently tying the actor to proposal/update authority.",
+      "Validate every optional proposal receipt/event reference used by admission or replay against exact scope and canonical event semantics, not only recorded_event_id and last_transition_event_id.",
+      "Decide whether proposal recording may omit a lease; RECORD_CRDT_PROPOSAL_QUERY currently treats a missing lease as valid while the existing production proposal service requires a workspace lease.",
+      "Land coherent Surreal tests covering hash separation, approval/application, five one-field mismatches, mixed/incomplete rows, stale/revoked contexts, no leakage, concurrency, idempotency, interrupted atomicity, and restart."
+    ],
+    "unowned_disjoint_product_lane": {
+      "found": false,
+      "reason": "All implementation and proof seams touch Parfit-owned ModelLane facade/provider/schema/composition or shared CRDT test surfaces. Assigning a parallel product writer would create an active write collision."
+    },
+    "superseded_test_provenance": [
+      "src/backend/handshake_core/tests/knowledge_crdt_proposal_tests.rs",
+      "src/backend/handshake_core/tests/mixed_model_lane_integration_pg_tests.rs",
+      "src/backend/handshake_core/tests/model_lane_context_bundle_pg_tests.rs",
+      "src/backend/handshake_core/tests/model_lane_crdt_support.rs"
+    ],
+    "DIFF_ATTACK_SURFACES": [
+      "proposal diff serialization and diff_sha256 derivation",
+      "Yjs update bytes, update_sha256, decode, and state-vector derivation",
+      "proposal applied_update_id binding without hash conflation",
+      "proposal/update/snapshot/lease/message/receipt five-field scope propagation",
+      "canonical-event creation and linked-event scope",
+      "mixed-source non-widening and metadata non-disclosure",
+      "idempotent retry, conflicting retry, concurrency, and interrupted transaction",
+      "same-storage restart and replay stability"
+    ],
+    "INDEPENDENT_CHECKS_RUN": [
+      "Compared MT-018 contract, packet entry, taskboard projection, lifecycle, acceptance inventory, and V5 evidence.",
+      "Traced proposal content hashing, applied binding, ModelLane proposal admission, Yjs integrity, snapshot replay, and state-vector validation across current source.",
+      "Inspected Surreal provider transaction text and schema for five-field predicates, canonical-event linkage, proposal/update/snapshot/lease APIs, and call-site propagation.",
+      "Searched current tests and Cargo targets for a coherent Surreal MT-018 suite and verified that the Surreal proposal mutation methods have no callers."
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      "If ModelLane compared proposal.applied_update_sha256 to update.update_sha256, honest approved proposals would again become un-admittable because the hashes cover different bytes.",
+      "If applied_update_id were not cross-checked against the cited update, a valid proposal could authorize a different real update.",
+      "If any one ResourceScope predicate were removed from a proposal or linked-event query, another principal/session/space/workspace could observe or mutate the same identifier.",
+      "If proposal and canonical event writes were split across transactions, interrupted execution could leave an authoritative proposal without its audit event or vice versa.",
+      "If restart opened a new namespace, in-process positive tests would pass while replay lost proposal/update/snapshot authority."
+    ],
+    "BOUNDARY_PROBES": [
+      "canonical JSON diff bytes versus Yjs v1 binary bytes",
+      "proposal writer versus ModelLane proposal reader",
+      "proposal applied identity versus cited update identity",
+      "snapshot covered sequence immediately before and at the update sequence",
+      "same process versus reopened provider over the same storage clone",
+      "one proposal identifier under each one-field scope mismatch"
+    ],
+    "NEGATIVE_PATH_CHECKS": [
+      "fabricated proposal and update refs",
+      "proposal bound to another real update",
+      "tampered diff bytes or Yjs bytes",
+      "stale or unrelated state vector and snapshot",
+      "wrong actor, session, trace, document, or CRDT document",
+      "unapproved, rejected, unapplied, stale, or revoked proposal context",
+      "mixed-source or incomplete scope with zero mutation and no identifier leakage",
+      "duplicate idempotency, conflicting retry, concurrent apply, and interrupted atomic write"
+    ],
+    "INDEPENDENT_FINDINGS": [
+      "The V5 ready/validator posture is stale and invalid under V6 authority.",
+      "Current ModelLane code preserves the intended distinction between approved-diff and Yjs-update hashes.",
+      "Surreal proposal/update/snapshot/lease primitives exist but proposal mutation primitives are unreachable from production and tests.",
+      "The current proposal service and reusable positive helper remain tied to superseded authority.",
+      "No coherent Surreal MT-018 test target exists.",
+      "The Surreal proposal bind actor validation is self-referential and lacks an independent actor-authority comparison.",
+      "Proposal recording currently permits no lease, which differs from the existing production service's lease chokepoint.",
+      "No runtime evidence proves all optional receipt links, five mismatch denials, non-widening, no leakage, atomic interruption behavior, or same-storage restart."
+    ],
+    "RESIDUAL_UNCERTAINTY": [
+      "Parfit-owned source is concurrently changing; recorded hashes are inspection anchors, not final validation inputs.",
+      "Static query inspection cannot prove transaction behavior, concurrency, interruption, or restart continuity.",
+      "The required Surreal test targets do not yet exist, so proof command names are required seams rather than runnable evidence.",
+      "No compile, test, database, runtime, or visual command ran in this contract-only pass.",
+      "Final specification disposition for the two-hash naming remains provisional, although the required semantic separation is explicit."
+    ]
+  },
   "required_build_rules": [
     "HBR-INT-001",
     "HBR-INT-005",
@@ -109,7 +332,7 @@
     "INT",
     "MAN"
   ],
-  "handoff": {
+  "historical_handoff_v5_superseded": {
     "coder_session": null,
     "wp_validator_session": null,
     "post_implementation_adversarial_review_required": true,
@@ -120,7 +343,7 @@
       "spec_realism_negative_guards_and_no_loop_reintroduction"
     ]
   },
-  "red_team": {
+  "historical_red_team_v5_superseded": {
     "required": true,
     "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
     "risks": [
@@ -134,7 +357,7 @@
       "Helper builds authority exclusively through real product APIs (apply_approved_ai_edit path or its governed equivalent), never by raw INSERT of an inconsistent row."
     ]
   },
-  "handshake_compatibility": {
+  "historical_handshake_compatibility_v5_superseded": {
     "native_rust_backend_first": true,
     "durable_authority": [
       "PostgreSQL",
@@ -145,8 +368,8 @@
     "rust_only_implementation": "Rust backend + governed migration only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after the three real-PG proof targets pass against the Handshake-managed cluster; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V5",
-  "contract_repair_2026_07_30": {
+  "historical_validator_verdict_v5_superseded": "FAIL_V5",
+  "historical_contract_repair_2026_07_30_superseded": {
     "repaired_by": "KERNEL_BUILDER-20260729-225554",
     "operator_disclosure_required": true,
     "defects_repaired": [
@@ -160,7 +383,7 @@
       "AC[4] spec-enrichment branch resolves to SILENT: grep of .GOV/spec/master-spec-v02.202/spec-modules/ found zero hits for diff_sha256, applied_update_sha256, applied_update_id. Recording a local ASSUMPTION/PROVISIONAL DECISION per AC[4] rather than claiming a spec anchor. Pre-existing citation drift noted: migrations 0192 and 0290 both cite 02-system-architecture.md 2.3.13.11 as the anchor for the applied binding, but that section does not define these semantics."
     ]
   },
-  "implementation_2026_07_30": {
+  "historical_implementation_2026_07_30_superseded": {
     "implemented_by": "KERNEL_BUILDER-20260729-225554 (delegated coder, diff reviewed by parent)",
     "commit": "e5888b3d",
     "branch": "feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
@@ -190,7 +413,7 @@
       "Rule on the AC[4] ASSUMPTION and whether the Master Spec should be enriched."
     ]
   },
-  "mixed_suite_proof_recheck_2026_08_05": {
+  "historical_mixed_suite_proof_recheck_2026_08_05_superseded": {
     "headline": "mixed_model_lane_integration_pg_tests is NOT green. Recorded because both MT-009 and MT-018 declare this binary as a proof and are recorded READY_FOR_VALIDATION_V5, so the status currently overstates the evidence.",
     "observed": "41 passed, 7 failed, and 2 tests that NEVER COMPLETE. Run with --test-threads=4 on the external managed PostgreSQL (127.0.0.1:5544).",
     "failing": [
@@ -223,7 +446,7 @@
     "recorded_at_utc": "2026-08-05T02:00:00Z",
     "status_note": "Status intentionally NOT changed. Downgrading is a scope decision; this record exists so the recorded status is not silently trusted."
   },
-  "mixed_suite_repairs_2026_08_05": {
+  "historical_mixed_suite_repairs_2026_08_05_superseded": {
     "headline": "Two of the seven mixed-suite failures are FIXED and verified green. A third is now a CONFIRMED PRODUCT DEFECT rather than an ambiguous failure.",
     "fixed_and_verified": {
       "mt009_kernel_crdt_authority_rejects_truncate": {
@@ -249,7 +472,7 @@
     "recorded_by": "KERNEL_BUILDER-20260801-214802",
     "recorded_at_utc": "2026-08-05T03:00:00Z"
   },
-  "cancellation_defect_2026_08_05": {
+  "historical_cancellation_defect_2026_08_05_superseded": {
     "headline": "The two tests that HUNG the mixed suite are now bounded, and they resolve to ONE product defect: the coordinator cannot interrupt an in-progress factory create, so cancellation either blocks or fails to reach the worker.",
     "before": "ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create and ac9_cancel_terminalizes_parallel_siblings_and_live_sessions never completed. 86 minutes elapsed for 62 CPU-seconds with every other test in the binary finished. Because libtest prints failure detail only at the end, these two hangs suppressed the reporting of the WHOLE binary - which is why mixed_model_lane_integration_pg_tests could not be used as evidence for anything, and why MT-017's capstone (which declares this binary) was unreachable.",
     "change_made": "Bounded both awaits with tokio::time::timeout(60s). NO assertion was altered, removed, or weakened - only the FAILURE MODE. A hang is not a more cautious outcome than a failed assertion; it is a worse one, because it destroys the suite's ability to report at all.",
@@ -267,7 +490,7 @@
     "recorded_by": "KERNEL_BUILDER-20260801-214802",
     "recorded_at_utc": "2026-08-05T03:45:00Z"
   },
-  "cancellation_fix_2026_08_05": {
+  "historical_cancellation_fix_2026_08_05_superseded": {
     "headline": "PRODUCT FIX LANDED. The blocked-factory-create cancellation defect is FIXED and its test now PASSES (was an infinite hang). The sibling case is a SEPARATE defect, now narrowed to a precise mechanism.",
     "fix_applied": {
       "file": "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (spawn admission path)",
@@ -288,7 +511,7 @@
     "recorded_by": "KERNEL_BUILDER-20260801-214802",
     "recorded_at_utc": "2026-08-05T04:15:00Z"
   },
-  "advisory_lock_cancellation_deadlock_2026_08_05": {
+  "historical_advisory_lock_cancellation_deadlock_2026_08_05_superseded": {
     "headline": "ROOT CAUSE OF THE SIBLING CANCELLATION HANG, established from LIVE PostgreSQL evidence, not inference: a pg_advisory_xact_lock is held across an in-process await, so cancellation queues behind the very work it is cancelling.",
     "how_it_was_established": "The test was run while sampling pg_stat_activity and pg_blocking_pids during the hang window. This replaced two earlier hypotheses that were both WRONG and are recorded as refuted below.",
     "observed_blocking_chain": {
@@ -308,7 +531,7 @@
     "recorded_by": "KERNEL_BUILDER-20260801-214802",
     "recorded_at_utc": "2026-08-05T04:45:00Z"
   },
-  "transaction_across_generation_root_cause_2026_08_05": {
+  "historical_transaction_across_generation_root_cause_2026_08_05_superseded": {
     "headline": "CORRECTED ROOT CAUSE. The advisory lock was a SYMPTOM. The actual defect is that the routing wave holds a PostgreSQL transaction OPEN ACROSS MODEL GENERATION, so every concurrent operation - including operator cancellation - queues behind inference.",
     "correction_of_my_earlier_claim": "An earlier record in this MT stated the advisory lock held across an await was the root cause, and a later message claimed 'the deadlock is broken'. Both were PARTIAL. The advisory lock was the first blocking point only; removing cancellation's dependency on it fixed one of the two tests and moved the hang, it did not remove it. Recorded here so the earlier, narrower diagnosis is not trusted as complete.",
     "evidence_second_sample": {
@@ -332,7 +555,7 @@
     "recorded_by": "KERNEL_BUILDER-20260801-214802",
     "recorded_at_utc": "2026-08-05T05:30:00Z"
   },
-  "mixed_suite_contention_cascade_2026_08_05": {
+  "historical_mixed_suite_contention_cascade_2026_08_05_superseded": {
     "headline": "The mixed-suite failures CASCADE. Which tests fail or hang depends on scheduling, because one test holding a transaction across generation blocks unrelated tests that touch the same rows. This suite cannot be validated at default parallelism until the transaction boundary is fixed.",
     "evidence_failure_set_is_UNSTABLE": {
       "run_A_4_threads": "failed = ac9_authority_retry..., ac9_reassignment..., ac9_redispatch..., ac9_replay_rejects_message_and_artifact_projection_drift, mixed_model_lane_recovery_rejects_eventledger_aggregate_mismatch, mixed_model_lane_recovery_replays_post_checkpoint..., mt009_kernel_crdt_authority_rejects_truncate. HUNG = ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create, ac9_cancel_terminalizes_parallel_siblings_and_live_sessions.",
@@ -349,7 +572,7 @@
     "recorded_by": "KERNEL_BUILDER-20260801-214802",
     "recorded_at_utc": "2026-08-05T06:15:00Z"
   },
-  "advisory_lock_database_scope_cascade_2026_08_05": {
+  "historical_advisory_lock_database_scope_cascade_2026_08_05_superseded": {
     "headline": "DEFINITIVE EXPLANATION OF THE MIXED-SUITE CASCADE: PostgreSQL advisory locks are DATABASE-scoped, but this harness isolates tests by SCHEMA inside one shared database. Per-schema isolation therefore does NOT isolate the locks these code paths take, so parallel tests serialize and deadlock across schema boundaries.",
     "the_two_facts_that_combine": {
       "1_locks_are_database_wide": "pg_advisory_xact_lock keys live in a single per-DATABASE namespace. Two sessions in different schemas of the same database contend on the same key.",
@@ -372,7 +595,7 @@
     "recorded_by": "KERNEL_BUILDER-20260801-214802",
     "recorded_at_utc": "2026-08-05T06:45:00Z"
   },
-  "runtime_flavor_hypothesis_refuted_2026_08_05": {
+  "historical_runtime_flavor_hypothesis_refuted_2026_08_05_superseded": {
     "hypothesis": "The mixed-suite cancellation tests use `#[tokio::test]`, which is a CURRENT-THREAD runtime, while production runs multi-threaded. A single-threaded executor can manufacture ordering deadlocks (task starvation, lock-holder never polled) that cannot occur in the real product. If so, the defect would be in the TEST HARNESS's runtime flavor, not in the coordinator.",
     "experiment": "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions was temporarily switched to #[tokio::test(flavor = \"multi_thread\", worker_threads = 4)] and run in isolation with --exact --test-threads=1.",
     "RESULT_REFUTED": "It FAILED IDENTICALLY: 'cancel_routing_execution must not hang while siblings are live: Elapsed', 81.84s. Executor starvation and single-threaded ordering are therefore RULED OUT. The deadlock reproduces on a multi-threaded runtime, so it is a genuine product-side lock-ordering defect, not a test-harness artifact.",
@@ -388,7 +611,7 @@
     "recorded_by": "KERNEL_BUILDER-20260801-214802",
     "recorded_at_utc": "2026-08-05T07:15:00Z"
   },
-  "SUPERSEDING_POINTER_2026_08_05": {
+  "historical_SUPERSEDING_POINTER_2026_08_05_superseded": {
     "headline": "The 'STILL STANDING' line above is SUPERSEDED. The transaction is not held across MODEL GENERATION; it is held across a re-entrant advisory-lock acquisition. Full corrected diagnosis and its live evidence live in MT-009 under cancellation_root_cause_CORRECTED_2026_08_05.",
     "one_line_correction": "The holder's FULL statement was captured this time and ends in FOR UPDATE, which identifies model_lane.rs:5029 (record_or_extend_run_tx) and exonerates model_lane.rs:2431 (replay_run) - the two the earlier truncated capture could not distinguish.",
     "pool_exhaustion_refuted": "max_connections raised 5 -> 25 as a probe: the hang REPRODUCED and got slower (318.1s). Connection availability is not the necessary condition. Probe reverted and verified clean.",
@@ -398,7 +621,7 @@
     "recorded_by": "KERNEL_BUILDER-20260805-053606",
     "recorded_at_utc": "2026-08-05T08:40:00Z"
   },
-  "integration_validation_v5_2026_08_14": {
+  "historical_integration_validation_v5_2026_08_14_superseded": {
     "verdict": "FAIL_V5",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",

@@ -1,122 +1,207 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-014",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-014.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-014.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-009",
-      "MT-013"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Headless/Quiet law enforcement + negative-input harness [STU-QUIET-001,STU-QUIET-002,STU-QUIET-004]",
-  "spec_anchor": [
-    "STU-QUIET-001",
-    "STU-QUIET-002",
-    "STU-QUIET-004",
-    "STU-PAR-005"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-014",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:25+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-014.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-014.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-009",
+   "MT-013"
   ],
-  "scope": {
-    "summary": "Enforce the headless/quiet law: agent-driven Studio runs headless, no focus/keyboard/mouse steal, no window pop; every automation surface reachable via command API + Argus without OS input injection (negative-test harness asserts no automation surface responds to simulated global input); render/export processes hidden, owner-tagged, reclaimed.",
-    "allowed_paths": [
-      "src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "headless/quiet proven; no OS-input automation; no focus steal; processes reclaimed"
-    ],
-    "proof_targets": [
-      "OS-input negative test + focus-audit"
-    ],
-    "code_surfaces": [
-      "src/studio/quiet.rs",
-      "tests/studio/quiet_negative.rs"
-    ],
-    "expected_tests": [
-      "negative: simulated global keyboard/mouse input triggers no Studio automation",
-      "test: focus/Z-order unchanged during agent run; processes reclaimed"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-QUIET-001",
-    "HBR-QUIET-002",
-    "HBR-QUIET-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Headless/Quiet law enforcement + negative-input harness [STU-QUIET-001,STU-QUIET-002,STU-QUIET-004]",
+ "spec_anchor": [
+  "STU-QUIET-001",
+  "STU-QUIET-002",
+  "STU-QUIET-004",
+  "STU-PAR-005"
+ ],
+ "scope": {
+  "summary": "Enforce the headless/quiet law: agent-driven Studio runs headless, no focus/keyboard/mouse steal, no window pop; every automation surface reachable via command API + Argus without OS input injection (negative-test harness asserts no automation surface responds to simulated global input); render/export processes hidden, owner-tagged, reclaimed.",
+  "allowed_paths": [
+   "src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Agent work steals focus / conflicts with operator; QUIET law violated.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Headless/quiet proven",
+   "No OS-input automation",
+   "No focus steal",
+   "Processes reclaimed"
+  ],
+  "proof_targets": [
+   "OS-input negative test + focus-audit"
+  ],
+  "code_surfaces": [
+   "src/studio/quiet.rs",
+   "tests/studio/quiet_negative.rs"
+  ],
+  "expected_tests": [
+   "negative: simulated global keyboard/mouse input triggers no Studio automation",
+   "test: focus/Z-order unchanged during agent run; processes reclaimed"
+  ],
+  "acceptance_criteria_original": [
+   "headless/quiet proven; no OS-input automation; no focus steal; processes reclaimed"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-QUIET-001",
+  "HBR-QUIET-002",
+  "HBR-QUIET-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Agent work steals focus / conflicts with operator; QUIET law violated.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Headless/quiet proven",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "OS-input negative test + focus-audit",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "No OS-input automation",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "No focus steal",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Processes reclaimed",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-QUIET-001",
+    "spec_clause_text": "[STU-QUIET-001] HEADLESS BY LAW. Agent-driven Studio work MUST run headless (no visible window brought to foreground). It MUST NOT steal keyboard focus, hijack keyboard input, move or click the OS mouse/cursor, capture focus, or use attention-stealing desktop APIs (HBR-QUIET-001)."
+   },
+   {
+    "anchor": "STU-QUIET-002",
+    "spec_clause_text": "[STU-QUIET-002] NO OS-INPUT AUTOMATION. Every Studio automation surface MUST be reachable through the command API and the Argus/AccessKit path without OS-level input injection; a negative-test harness MUST confirm no automation surface responds to simulated global keyboard/mouse input (HBR-QUIET-002)."
+   },
+   {
+    "anchor": "STU-QUIET-004",
+    "spec_clause_text": "[STU-QUIET-004] PROCESS/TERMINAL HYGIENE. Headless render/export/harness processes are hidden, owner-tagged, and reclaimed on completion/failure/staleness (14.17; HBR-QUIET-003). No blank or stale windows persist on the operator desktop."
+   },
+   {
+    "anchor": "STU-PAR-005",
+    "spec_clause_text": "[STU-PAR-005] PROCESS OWNERSHIP. Every Studio-spawned process (render workers, export jobs, headless harness instances) MUST register in the kernel process-lifecycle ledger with `owner_session`/`owner_wp`/`owner_role`/`started_at`, and MUST be reclaimed on session close, failure, staleness, or operator cancel. No orphan processes after a run (HBR-QUIET-003). --- --- ## 14.18 Propose-Work System Model-authored Studio edits MUST flow through a typed propose-work system, never directly into authority. This sub-section is normative."
+   }
+  ],
+  "spec_clause_count": 4,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:25+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

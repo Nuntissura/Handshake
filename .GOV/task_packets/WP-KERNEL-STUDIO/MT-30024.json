@@ -1,0 +1,88 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30024",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-103#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "1. The Parameter Contract (normative for 14.4 and 14.12)",
+  "spec_line": 344,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "`StudioParameterSpec`",
+ "spec_anchor": [
+  "STU-RAS-103"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "`StudioParameterSpec`.** Every numeric parameter exposed by any Studio raster or develop primitive MUST be declared as a `StudioParameterSpec` (schema id `hsk.studio.parameter_spec@1`, a canonical primitive added to the [STU-DOC-002] set and field-owned by 14.23) carrying these fields as SEPARATE, independently-serialized values. Collapsing any two of them into one is forbidden. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Field | Meaning | Absent value | |---|---|---| | `hard_min`, `hard_max` | the values the engine accepts. A value outside them is an error, not a clamp target. | `unknown` | | `soft_min`, `soft_max` | the range the default control presents. An operator or model MAY type a value beyond a soft bound; it MUST NOT exceed a hard bound. | `unknown` | | `default` | the factory value the parameter holds when the operator has made no edit. | `unknown` | | `unit` | a token from the [STU-RAS-105] unit vocabulary. | `unknown` | | `precision` | decimal places carried by the value. | `unknown` | | `step`, `coarse_step`, `fine_step` | increments for the scrubbable control. | derived per [STU-RAS-107] | | `observed_min`, `observed_max` | the range seen across shipped authoring data. Evidence only. | `absent` | | `bound_classification` | `declared` \\| `observed` \\| `derived` \\| `unknown`, per bo [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`StudioParameterSpec`.** Every numeric parameter exposed by any Studio raster or develop primitive MUST be declared as a `StudioParameterSpec` (schema id `hsk.studio.parameter_spec@1`, a canonical primitive added to the [STU-DOC-002] set and field-owned by 14.23) carrying these fields as SEPARATE, independently-serialized values.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-103"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "An operator or model MAY type a value beyond a soft bound; it MUST NOT exceed a hard bound. | `unknown` | | `default` | the factory value the parameter holds when the operator has made no edit. | `unknown` | | `unit` | a token from the [STU-RAS-105] unit vocabulary. | `unknown` | | `precision` | decimal places carried by the value. | `unknown` | | `step`, `coarse_step`, `fine_step` | increments for the scrubbable control. | derived per [STU-RAS-107] | | `observed_min`, `observed_max` | the range seen across shipped authoring data.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-103"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

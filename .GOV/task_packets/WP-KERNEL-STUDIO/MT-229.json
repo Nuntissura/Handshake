@@ -1,133 +1,219 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-229",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-229.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-229.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-198",
-      "MT-202",
-      "MT-009"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Language + proofing + find/change over text [STU-TYP-031,STU-TYP-032]",
-  "spec_anchor": [
-    "STU-TYP-031",
-    "STU-TYP-032"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-229",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-229.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-229.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-198",
+   "MT-202",
+   "MT-009"
   ],
-  "scope": {
-    "summary": "Language + proofing: per-range language tags drive hyphenation and spelling dictionaries; Studio MUST support a Hunspell-class dictionary stack with per-language user dictionaries (added/removed word lists, import/export) and inline spell-check with suggestions (ID dictionary stack; AI per-run dictionaries; Figma spell-check; Affinity per-language hyphenation, deduped). Match-font (analyze type in a raster region and suggest matching installed faces) is an optional deterministic assist; any generative font-suggestion path is an optional StudioModelAdapter, never a hard dependency. Find/change over text: text, regex (GREP), and glyph find/change modes with format-attribute criteria, scope selection (all documents/document/story/to-end-of-story/selection), inclusion toggles (locked/hidden layers, parent pages, footnotes), and saved reusable queries (ID Find/Change + saved queries; Affinity regex, deduped).",
-    "allowed_paths": [
-      "src/studio/typography/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "Hunspell dictionary stack + per-language user dicts + inline spell-check; text/GREP/glyph find-change with scope/toggles/saved queries; match-font optional"
-    ],
-    "proof_targets": [
-      "dictionary spell-check + text/GREP/glyph find-change test"
-    ],
-    "code_surfaces": [
-      "src/studio/typography/proofing.rs",
-      "src/studio/typography/find_change.rs",
-      "src/frontend/handshake_native/src/studio/typography/find_change_panel.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::typography::proofing",
-      "live: Hunspell-class per-language dictionaries + inline spell-check suggestions; per-range language drives hyphenation",
-      "live: text/GREP/glyph find-change with format criteria, scope, inclusion toggles, saved queries; match-font is optional assist not a dependency"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "spell-check",
-      "find/change panel"
-    ],
-    "argus_targets": [
-      "studio.type.proofing",
-      "studio.type.find_change"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Typography / Language, spelling & find-change"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-VIS-002",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Language + proofing + find/change over text [STU-TYP-031,STU-TYP-032]",
+ "spec_anchor": [
+  "STU-TYP-031",
+  "STU-TYP-032"
+ ],
+ "scope": {
+  "summary": "Language + proofing: per-range language tags drive hyphenation and spelling dictionaries; Studio MUST support a Hunspell-class dictionary stack with per-language user dictionaries (added/removed word lists, import/export) and inline spell-check with suggestions (ID dictionary stack; AI per-run dictionaries; Figma spell-check; Affinity per-language hyphenation, deduped). Match-font (analyze type in a raster region and suggest matching installed faces) is an optional deterministic assist; any generative font-suggestion path is an optional StudioModelAdapter, never a hard dependency. Find/change over text: text, regex (GREP), and glyph find/change modes with format-attribute criteria, scope selection (all documents/document/story/to-end-of-story/selection), inclusion toggles (locked/hidden layers, parent pages, footnotes), and saved reusable queries (ID Find/Change + saved queries; Affinity regex, deduped).",
+  "allowed_paths": [
+   "src/studio/typography/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No spell-check/hyphenation dictionaries or find-change; editorial workflow unmet.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Hunspell dictionary stack",
+   "Per-language user dicts",
+   "Inline spell-check",
+   "Text/GREP/glyph find-change with scope/toggles/saved queries",
+   "Match-font optional"
+  ],
+  "proof_targets": [
+   "dictionary spell-check + text/GREP/glyph find-change test"
+  ],
+  "code_surfaces": [
+   "src/studio/typography/proofing.rs",
+   "src/studio/typography/find_change.rs",
+   "src/frontend/handshake_native/src/studio/typography/find_change_panel.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::typography::proofing",
+   "live: Hunspell-class per-language dictionaries + inline spell-check suggestions; per-range language drives hyphenation",
+   "live: text/GREP/glyph find-change with format criteria, scope, inclusion toggles, saved queries; match-font is optional assist not a dependency"
+  ],
+  "acceptance_criteria_original": [
+   "Hunspell dictionary stack + per-language user dicts + inline spell-check; text/GREP/glyph find-change with scope/toggles/saved queries; match-font optional"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "spell-check",
+   "find/change panel"
+  ],
+  "argus_targets": [
+   "studio.type.proofing",
+   "studio.type.find_change"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Typography / Language, spelling & find-change"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-VIS-002",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No spell-check/hyphenation dictionaries or find-change; editorial workflow unmet.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Hunspell dictionary stack",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "dictionary spell-check + text/GREP/glyph find-change test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Per-language user dicts",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Inline spell-check",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Text/GREP/glyph find-change with scope/toggles/saved queries",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Match-font optional",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-TYP-031",
+    "spec_clause_text": "[STU-TYP-031] Language + proofing: per-range language tags drive hyphenation and spelling dictionaries; Studio MUST support a Hunspell-class dictionary stack with per-language user dictionaries (added/removed word lists, import/export) and inline spell-check with suggestions (provenance: InDesign dictionary stack; Illustrator per-run dictionaries; Figma spell-check; Affinity per-language hyphenation, deduped). Match-font (analyze type in a raster region and suggest matching installed faces) is an optional deterministic assist; any generative font-suggestion path is an optional `StudioModelAdapter`, never a hard dependency (provenance: Photoshop Match Font)."
+   },
+   {
+    "anchor": "STU-TYP-032",
+    "spec_clause_text": "[STU-TYP-032] Find/change over text: Studio MUST support text, regex (GREP), and glyph find/change modes with format-attribute criteria, scope selection (all documents / document / story / to-end-of-story / selection), inclusion toggles (locked/hidden layers, parent pages, footnotes), and saved reusable queries (provenance: InDesign Find/Change text/GREP/glyph modes + saved queries; Affinity regex find/replace, deduped). Object-mode and color-mode find/change are governed by 14.5/14.6/14.8 respectively. --- ### 10. Warp / Envelope Text Touchpoint"
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

@@ -1,0 +1,152 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30337",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAW-114#parameter_table#0",
+  "unit_kind": "parameter_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "6. Detail — Sharpening and Noise",
+  "spec_line": 2194,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "DETAIL PARAMETER CONTRACT - parameter bounds",
+ "spec_anchor": [
+  "STU-RAW-114"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "DETAIL PARAMETER CONTRACT.** All four sharpening parameters are always written, so all four defaults are trustworthy; the noise parameters are mixed. *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | observed | classification | |---|---|---|---|---|---|---|---|---|---| | `sharpen_amount` | unknown | unknown | 0 | 150 | 40 | count | 0 | 0 .. 75 | default `derived` — and it is **not zero** | | `sharpen_radius` | unknown | unknown | 0.5 | 3.0 | 1.0 | pixels | 1 | 0.5 .. 1.4 | default `derived`; precision 1 `observed` | | `sharpen_detail` | 0 | 100 | 0 | 100 | 25 | count | 0 | 0 .. 50 | default `derived` | | `sharpen_edge_masking` | 0 | 100 | 0 | 100 | 0 | count | 0 | 0 .. 80 | default `derived` | | `colour_noise_reduction` | 0 | 100 | 0 | 100 | 25 | count | 0 | 0 .. 50 | default `derived` — **not zero**; colour noise reduction is on by default | | `colour_noise_detail` | 0 | 100 | 0 | 100 | 50 | count | 0 | 46 .. 57 | default `observed` | | `colour_noise_smoothness` | 0 | 100 | 0 | 100 | 50 | count | 0 | 46 .. 50 | default `observed` | | `luminance_noise_reduction` | 0 | 100 | 0 | 100 | 0 | count | 0 | 0 .. 25 | sparse; identity default `derived` | | `luminance_noise_detail` | 0 | 100 | 0 | 100 | 50 | count | 0 | 50 | de [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The parameter `sharpen_amount` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=0, soft_max=150, default=40, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-RAW-114 parameter table row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The parameter `sharpen_radius` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=0.5, soft_max=3.0, default=1.0, unit=pixels, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-RAW-114 parameter table row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The parameter `sharpen_detail` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=25, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAW-114 parameter table row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The parameter `sharpen_edge_masking` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAW-114 parameter table row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The parameter `colour_noise_reduction` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=25, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAW-114 parameter table row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The parameter `colour_noise_detail` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=50, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAW-114 parameter table row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The parameter `colour_noise_smoothness` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=50, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAW-114 parameter table row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The parameter `luminance_noise_reduction` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAW-114 parameter table row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The parameter `luminance_noise_detail` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=50, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAW-114 parameter table row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The parameter `luminance_noise_contrast` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAW-114 parameter table row 10"
+  }
+ ],
+ "acceptance_criteria_count": 10,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

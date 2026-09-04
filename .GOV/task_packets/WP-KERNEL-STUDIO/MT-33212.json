@@ -1,0 +1,107 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33212",
+ "created_at_utc": "2026-09-04T13:36:11+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-DS-051#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "11. Design-System Analytics and Library-Management Posture",
+  "spec_line": 19157,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "GUI / Argus / UserManual obligation. Every design-system panel, picker, inspector field, and visible state in this sub-section (component and variant editors, the component-property inspector, the var [...]",
+ "spec_anchor": [
+  "STU-DS-051"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "design_systems",
+ "scope": {
+  "summary": "GUI / Argus / UserManual obligation. Every design-system panel, picker, inspector field, and visible state in this sub-section (component and variant editors, the component-property inspector, the variable/collection/mode editor, the style registry, and the auto-layout/constraint/grid controls) MUST be model-visible and typed-steerable through the Studio command surface ([STU-SECTION 14.16]); MUST be headlessly inspectable, steerable, and screenshot-capturable through Argus with no foreground focus steal ([STU-SECTION 14.20], HBR-VIS/HBR-QUIET); and MUST ship dual-audience UserManual entries — operator layer (task-oriented) plus model layer (command ids, typed I/O, receipts, undo semantics, Argus targets, failure/recovery) — kept same-change current ([STU-SECTION 14.22]). --- --- ## 14.11 Prototyping, Motion & Interaction ## 14.11 Prototyping & Interaction (prototyping half) This module is the normative field-level contract for Studio's interaction surface: the reaction record, the trigger vocabulary, the action vocabulary, transition and easing value shapes, overlay behaviour, scroll and overflow behaviour, runtime variable writes and conditionals, and presentation. It replaces the behavioural sketch in v02.205 [STU-PRO-001] through [STU-PRO-027] and [STU-PRO-043] with the enumerated tokens, record shapes and parameter bounds an implementer needs. ### 0. Scope disposition, bas [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Every design-system panel, picker, inspector field, and visible state in this sub-section (component and variant editors, the component-property inspector, the variable/collection/mode editor, the style registry, and the auto-layout/constraint/grid controls) MUST be model-visible and typed-steerable through the Studio command surface ([STU-SECTION 14.16]);",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-DS-051"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "MUST be headlessly inspectable, steerable, and screenshot-capturable through Argus with no foreground focus steal ([STU-SECTION 14.20], HBR-VIS/HBR-QUIET); and MUST ship dual-audience UserManual entries — operator layer (task-oriented) plus model layer (command ids, typed I/O, receipts, undo semantics, Argus targets, failure/recovery) — kept same-change current ([STU-SECTION 14.22]). --- --- ## 14.11 Prototyping, Motion & Interaction ## 14.11 Prototyping & Interaction (prototyping half) This module is the normative field-level contract for Studio's interaction surface: the reaction record, the [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-DS-051"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "extracted_behaviour": [
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_objects_behaviors.json",
+    "path": "behaviors[].parameter_dialog_controls[].raw_attributes",
+    "param": {
+     "type": "checkbox",
+     "name": "toolbar"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_objects_behaviors.json",
+    "path": "behaviors[].parameter_dialog_controls[].raw_attributes",
+    "param": {
+     "type": "checkbox",
+     "name": "toolbar"
+    }
+   }
+  ],
+  "behaviour_record_count": 2,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

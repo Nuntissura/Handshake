@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33762",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-VID-050#command_table#0",
+  "unit_kind": "command_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.25.3 Media import, codecs and containers",
+  "spec_line": 23121,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Import is a typed, enumerable capability surface, not a file-open dialog - command and binding set",
+ "spec_anchor": [
+  "STU-VID-050"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "video_timeline",
+ "scope": {
+  "summary": "Import is a typed, enumerable capability surface, not a file-open dialog.** Studio declares its importable media types explicitly, and an unsupported item produces a determinate `MEDIA_IMPORT_UNSUPPORTED` result naming the detected type rather than a generic failure. 39 importer modules with 404 declared namespace strings are recovered and reproduced below as the coverage target. *Derivation: preset/command table, taken whole; yields 1 microtask. Its rows are acceptance criteria and MUST NOT become one microtask each.* | Importer module | Display name | Namespace strings | |---|---|---| | `BarsAndTone` | -- | 39 | | `ExporterGIF` | -- | 2 | | `ImporterAIEPS` | Adobe Illustrator File | 1 | | `ImporterAIFF` | Audio Interchange File Format | 2 | | `ImporterARRIRAW` | ARRIRAW Files | 27 | | `ImporterAVI` | AVI Movie | 37 | | `ImporterBarsAndTone` | Bars and Tone | 5 | | `ImporterBlackMatte` | Black Video | 1 | | `ImporterColorMatte` | Color Matte | 3 | | `ImporterDPX` | Cineon/DPX File | 2 | | `ImporterDirectShow` | AVI Movie | 1 | | `ImporterFFMPEG` | AVI Motion JPEG | 4 | | `ImporterFastMPEG` | MPEG Movie | 2 | | `ImporterFrameGen` | Frame Generator Test Tool | 1 | | `ImporterGraphics` | Graphic | 1 | | `ImporterHEIF` | -- | 2 | | `ImporterJPEG` | JPEG File | 3 | | `ImporterLeader` | Universal Counting Leader | 6 | | `ImporterLumetri` | -- | 9 | | `ImporterMP3` | MP3 Audio | 1 | [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Importer module | Display name | Namespace strings | |---|---|---| | `BarsAndTone` | -- | 39 | | `ExporterGIF` | -- | 2 | | `ImporterAIEPS` | Adobe Illustrator File | 1 | | `ImporterAIFF` | Audio Interchange File Format | 2 | | `ImporterARRIRAW` | ARRIRAW Files | 27 | | `ImporterAVI` | AVI Movie | 37 | | `ImporterBarsAndTone` | Bars and Tone | 5 | | `ImporterBlackMatte` | Black Video | 1 | | `ImporterColorMatte` | Color Matte | 3 | | `ImporterDPX` | Cineon/DPX File | 2 | | `ImporterDirectShow` | AVI Movie | 1 | | `Impo [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-050"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -4,9 +4,9 @@
   "generated_at_utc": "2026-07-20T00:00:00Z",
   "generator": "gen_stage_mts.py (deterministic from requirements-and-traceability.yaml + acceptance shards)",
   "execution_authority": "PREP_ONLY_NON_EXECUTION",
-  "total": 124,
-  "range": "MT-001..MT-124",
-  "note": "Prep-only MT set for the folded Stage umbrella stub. NOT ACTIVATED. One MT per STAGE-REQ-* requirement (mapped by lane tag) plus foundational spine MTs (L00-L04) and integration/promotion MTs (L22). status=PENDING for all; COMPLETED remains validator-only after activation. depends_on is currently the L00-L04 foundational spine (coarse DAG); finer intra-lane ordering is recoverable from lane + requirement_id and refined at activation. Operator may add/remove/split/reorder MTs; keep this index and MT-*.json in sync.",
+  "total": 125,
+  "range": "MT-001..MT-125",
+  "note": "Prep-only MT set for the folded Stage umbrella stub. NOT ACTIVATED. One MT per STAGE-REQ-* requirement (mapped by lane tag) plus foundational spine MTs (L00-L04), MT-125 as the cross-cutting SurrealDB storage foundation, and integration/promotion MTs (L22). status=PENDING for all; COMPLETED remains validator-only after activation. Feature MTs depend on MT-125 so no data-bearing lane can establish an alternative database first. Operator may add/remove/split/reorder MTs; keep this index and MT-*.json in sync.",
   "state_recovery": {
     "how_to_resume": "A no-context model resumes from: (1) this index for MT status/deps, (2) the folded stub .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json, (3) each MT-*.json planning_metadata.no_context_read_order, (4) the planning corpus .GOV/reference/stage_mvp_planning/.",
     "status_values": [
@@ -22,7 +22,7 @@
     "L00": 1,
     "L01": 2,
     "L02": 2,
-    "L03": 1,
+    "L03": 2,
     "L04": 5,
     "L05": 10,
     "L06": 8,
@@ -48,7 +48,8 @@
     "MT-002",
     "MT-004",
     "MT-006",
-    "MT-007"
+    "MT-007",
+    "MT-125"
   ],
   "microtasks": [
     {
@@ -182,7 +183,8 @@
         "MT-121",
         "MT-122",
         "MT-123",
-        "MT-124"
+        "MT-124",
+        "MT-125"
       ],
       "summary": "Bind the approved integration baseline: exact commits for handshake_main + active WP worktrees (WP-1 orchestration, WP-12 editors, CKC), and inventory exact public APIs, schemas, migrations, tests, Us",
       "proof_target": "signed-source-map-and-runnable-baseline",
@@ -320,7 +322,8 @@
         "MT-121",
         "MT-122",
         "MT-123",
-        "MT-124"
+        "MT-124",
+        "MT-125"
       ],
       "summary": "Produce the zero-orphan source-disposition and current-requirement coverage: every STAGE-PRES-* and folded-stub outcome has exactly one reaffirmed/superseded/external-boundary/operator-decision dispos",
       "proof_target": "zero-orphan-requirement-and-disposition-coverage",
@@ -477,7 +480,8 @@
         "MT-121",
         "MT-122",
         "MT-123",
-        "MT-124"
+        "MT-124",
+        "MT-125"
       ],
       "summary": "Author the Stage threat model plus the command/query/tool/capability/error/event/config/action/permission/artifact/evidence registries and renderer-adapter capability-negotiation invariants that later",
       "proof_target": "schema-validators-and-threat-entrypoint-coverage",
@@ -634,7 +638,8 @@
         "MT-121",
         "MT-122",
         "MT-123",
-        "MT-124"
+        "MT-124",
+        "MT-125"
       ],
       "summary": "Window, session, tab, folder, bookmark, visit, recently-closed, attachment, action, capture, and bulk-run records use stable versioned IDs.",
       "proof_target": "schema-registry",
@@ -772,7 +777,8 @@
         "MT-121",
         "MT-122",
         "MT-123",
-        "MT-124"
+        "MT-124",
+        "MT-125"
       ],
       "summary": "Build the diagnostics + fixtures spine: fake-adapter harness, controlled self-hosted test sites, evidence-manifest schema, and the structured health/log/trace/screenshot capture surface with redaction",
       "proof_target": "harness-self-tests-and-evidence-validation",
@@ -790,7 +796,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Compatibility matrix covers authentication, forms, uploads, downloads, JS apps, media/codecs/DRM, WebRTC, PDF, 3D, accessibility, storage, and offline transitions.",
@@ -809,7 +816,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "YouTube anonymous, authenticated, media discovery, download handoff, captions, and ASR-fallback journeys are separate gates.",
@@ -828,7 +836,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "External sites are monitored but deterministic self-hosted fixtures remain release authority.",
@@ -847,7 +856,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Versioned web-test manifests declare build, viewport, DPR, locale/timezone, permissions, network, inputs, postconditions, screenshots, traces, and cleanup across supported adapters.",
@@ -866,7 +876,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Inspect element, console, network, storage/service workers, performance, accessibility, screenshots, and redacted trace export are explicit operator capabilities.",
@@ -885,7 +896,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Native omnibox distinguishes URL from search and exposes provider and privacy impact.",
@@ -904,7 +916,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Back, forward, reload, stop, home/new-tab, close, and restore expose stable action IDs and capability results.",
@@ -923,7 +936,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Duplicate, move, pin, mute, close-others/right, and reopen-closed actions preserve canonical state.",
@@ -942,7 +956,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Find-in-page, zoom, fullscreen, page audio, context menu, hover URL, and popup flows are native and capability-aware.",
@@ -961,7 +976,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Keyboard, command palette, pointer, drag/drop, clipboard, file chooser, touchpad, and IME routes are deterministic.",
@@ -980,7 +996,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Origin, TLS, permissions, engine, profile, private state, model lease, capture, and download state are visible.",
@@ -999,7 +1016,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "View-source, developer-tools, readable-view, spellcheck, picture-in-picture, and media controls are explicit capabilities.",
@@ -1018,7 +1036,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Stage provides native equivalents for required browser UI missing from embedded WebView2.",
@@ -1037,7 +1056,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "The new full Stage module is canonical; the WP-12 Stage pane and ModuleId placeholder are superseded and removed or replaced, not retained as compatibility clients.",
@@ -1056,7 +1076,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Per-tab joint session history is distinct from profile visit history and supports engine-qualified restore.",
@@ -1075,7 +1096,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Profile visit history supports search, filter, delete, clear-by-time, and private-mode exclusion.",
@@ -1094,7 +1116,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Recently closed tabs/windows have bounded retention, explicit removal, ordered restore, and crash-safe persistence.",
@@ -1113,7 +1136,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Folders, groups, ordering, color labels, pins, bookmarks, notes, reminders, opened-from, and Loom links round trip.",
@@ -1132,7 +1156,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Bookmark/folder/URL-list import and export are versioned, idempotent, and report partial loss.",
@@ -1151,7 +1176,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Existing 3000-plus-tab corpora import without eager navigation, renderer explosion, or hierarchy loss.",
@@ -1170,7 +1196,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Bulk operations freeze a canonical target set and reconcile every item, including never-rendered rows.",
@@ -1189,7 +1216,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Duplicate suggestions never silently delete distinct state, notes, ordering, history, or artifacts.",
@@ -1208,7 +1236,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "3000-plus durable records coexist with bounded live renderers and virtualized UI.",
@@ -1227,7 +1256,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Global, session, and window budgets reserve interactive capacity and expose deterministic admission/eviction reasons.",
@@ -1246,7 +1276,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Unsaved input, active media/WebRTC, explicit keep-live, operator/test holds, and model leases are bounded expiring protections; pins/bookmarks/folders are metadata, and downloads protect a renderer on",
@@ -1265,7 +1296,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Restore/navigation/capture/index rates prevent CPU, memory, disk, and network storms.",
@@ -1284,7 +1316,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Renderer attachment state and profile-level service-worker/background activity are independently modeled.",
@@ -1303,7 +1336,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Unloaded/archive records create no per-record renderer, timer, watcher, poller, subscription, widget/accessibility node, decoded thumbnail, refresher, Loom-sync future, or maintenance task.",
@@ -1322,7 +1356,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Machine-wide renderer/background-work ceilings, reserved interactive capacity, fairness, expiry, and why-awake attribution remain effective across simultaneous windows and sessions.",
@@ -1341,7 +1376,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Tree flattening, filtering, counts, search, accessibility, drag/drop, and bulk projections use incremental invalidation or bounded paging and do not hide per-frame/per-event full-record walks behind r",
@@ -1360,7 +1396,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Service workers, utilities, GPU processes, workflow jobs, migration/reindex, thumbnails, backup, capture, ArtifactStore maintenance, and diagnostics are independently attributed, bounded, cancellable,",
@@ -1379,7 +1416,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Implement the direct WebView2 production adapter: COM/STA ownership, callback cleanup, profile/process/failure events, browser-service surface, runtime feature detection/update, and Windows integratio",
@@ -1398,7 +1436,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Establish the Servo strategic adapter foundation: exact Servo pin/fork/toolchain, embedding queues, process/storage/request policy, and the trusted-content restricted-alpha profile; arbitrary-web rema",
@@ -1417,7 +1456,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Servo arbitrary-web Windows is security-blocked until effective content-process sandbox and escape tests pass.",
@@ -1436,7 +1476,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "A bounded development-test profile permits only declared loopback/local targets with TTL, visible state, separate credentials, process ownership, and automatic revocation.",
@@ -1455,7 +1496,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Host request policy covers redirects, DNS/address changes, loopback, link-local, private networks, IPv4/IPv6, files, and custom schemes.",
@@ -1474,7 +1516,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Proxy/PAC, proxy authentication, TLS inspection, enterprise roots, HSTS, client certificates, and captive portals have explicit behavior.",
@@ -1493,7 +1536,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Certificate errors never auto-bypass and every exception is operator-visible, scoped, and recorded.",
@@ -1512,7 +1556,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "WebSocket, WebTransport, WebRTC, service-worker, cache, authentication, and download transports are included in policy coverage or marked blocked.",
@@ -1531,7 +1576,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Ad/tracker filtering has signed/provenanced lists, deterministic precedence, user rules, exceptions, update rollback, and receipts.",
@@ -1550,7 +1596,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Safe-browsing/download-scanning coverage and capability gaps are visible per engine/runtime.",
@@ -1569,7 +1616,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Every engine permission kind passes through a default-deny per-origin/session broker.",
@@ -1588,7 +1636,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Allow-once, allow-session, persistent allow/deny, expiry, reset, and receipts are supported.",
@@ -1607,7 +1656,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "New windows, popups, external schemes, and protocol handlers require Stage-owned policy and destination visibility.",
@@ -1626,7 +1676,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Camera, microphone, geolocation, clipboard, file, MIDI/device, fonts, screen capture, window management, notifications, and automatic downloads are individually governed.",
@@ -1645,7 +1696,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Authenticated-site compatibility is journey-tested; embedded Google OAuth is recorded as blocked in WebView2.",
@@ -1664,7 +1716,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Native-app OAuth uses an external user-agent with PKCE and an explicit redirect/deep-link contract.",
@@ -1683,7 +1736,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "OAuth API tokens are not misrepresented as arbitrary website cookies or website login state.",
@@ -1702,7 +1756,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Engine-native login, external OAuth, governed cookie import, and unsupported/degraded paths are explicit per site.",
@@ -1721,7 +1776,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Passkey/WebAuthn, password/autofill, HTTP auth, proxy auth, and client-certificate behavior are qualified without a Stage raw-password vault.",
@@ -1740,7 +1796,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Persistent, strong-isolation, and ephemeral session classes have exact profile/process/storage materialization rules.",
@@ -1759,7 +1816,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Cookies, cache, storage, IndexedDB, service workers, permissions, history, and preferences are isolated and clearable by profile.",
@@ -1778,7 +1836,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Ephemeral cleanup waits for engine exit, verifies deletion, and persists retry receipts for locked files.",
@@ -1797,7 +1856,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Cookie edit/import/export is scoped, redacted, high sensitivity, attribute-preserving, and loss-reporting.",
@@ -1816,7 +1876,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Cross-engine session transfer is explicit, partial, encrypted when persisted, and reports unsupported state.",
@@ -1835,7 +1896,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Clear-browsing-data supports data kind/time range and cannot affect another profile.",
@@ -1854,7 +1916,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Engine-neutral versioned actions and observations use stable Stage IDs, expected revisions, and ephemeral engine generation.",
@@ -1873,7 +1936,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Durable intent precedes side effect and result includes postcondition or uncertain-outcome reconciliation state.",
@@ -1892,7 +1956,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "DOM/accessibility, geometry/actionability, screenshot, navigation, focus, console, network, and resource observations are attributable.",
@@ -1911,7 +1976,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Parallel actors use leases/fencing, revision checks, bounded queues, cancellation, and recoverable receipts without focus theft.",
@@ -1930,7 +1996,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Page content is untrusted data and never transfers instruction authority or expands tool capability.",
@@ -1949,7 +2016,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Cross-origin URL/data exfiltration uses source-sink policy, sensitive-data detection, explicit confirmation or blocking, and receipts.",
@@ -1968,7 +2036,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Consequential actions use watch/confirmation/takeover policies based on site and action risk.",
@@ -1987,7 +2056,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Model control consumes WP-1 ToolGate, process, promotion, telemetry, and cancellation contracts instead of duplicating them.",
@@ -2006,7 +2076,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Operator takeover protects credential and challenge entry from model observation and resumes from a fresh state.",
@@ -2025,7 +2096,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Stage App package manifest, origin, signing/trust, install, update, rollback, revoke, migration, and diagnostics are versioned.",
@@ -2044,7 +2116,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Trusted bridge binds package/origin/digest, removes authority on navigation, bounds messages, and exposes explicit methods only.",
@@ -2063,7 +2136,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Arbitrary web and captured/replayed hostile HTML cannot access the Stage App bridge.",
@@ -2082,7 +2156,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Renderer capture records tab, session, navigation, engine generation, requested/actual components, completeness, MIME, length, hashes, and versions.",
@@ -2101,7 +2176,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Original, sanitized, readable, translated, screenshot, PDF, media, and 3D outputs remain distinct linked artifacts.",
@@ -2120,7 +2196,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Renderer-state capture and independent WARC/archive acquisition are distinct jobs and claims.",
@@ -2139,7 +2216,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Capture staging/finalization, partial success, orphan cleanup, content sniffing, size/decompression limits, and parser isolation are defined.",
@@ -2158,7 +2236,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Web page, selection, readable content, screenshot, PDF, direct asset, media candidates, document, and supported 3D paths are covered.",
@@ -2177,7 +2256,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "StageCaptureCoordinator owns capture intent, source correlation, lineage, and handoff while shared ArtifactStore owns bytes/manifests/hash/retention/GC/materialization; Stage introduces no byte store,",
@@ -2196,7 +2276,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Production capture/download ingest streams with incremental hash and backpressure, atomic idempotent finalization, abort/orphan cleanup, range reads, and bounded materialization without buffering larg",
@@ -2215,7 +2296,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Native download manager exposes progress, pause, resume, cancel, retry, destination, and collision policy.",
@@ -2234,7 +2316,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Disk-full, access, path, network, server, authorization, certificate, hash, policy, malware, and scan failures are distinct.",
@@ -2253,7 +2336,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Governed downloads detach from tab lifetime and route to Media Downloader/ArtifactStore with lineage.",
@@ -2272,7 +2356,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Interrupted download recovery persists enough state to resume or visibly restart according to server capability.",
@@ -2291,7 +2376,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Active downloads are never stopped, paused, frozen, or made dormant by tab suspend/unload/archive, resource budgets, machine-wide ceilings, window/tab close, or session dormancy; renderer-bound downlo",
@@ -2310,7 +2396,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Page media, playlist/channel, gallery/forum, generic video, and direct assets route through existing Downloader schemas.",
@@ -2329,7 +2416,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Destination project and Lens/Atelier/CKC intake expose batch progress, per-item result, idempotency, retry, cancellation, and lineage.",
@@ -2348,7 +2436,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Captions-first and ASR fallback preserve media hash, probe facts, transcript artifacts, timing anchors, and job receipts.",
@@ -2367,7 +2456,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Downloader receives revocable scoped credential leases; raw cookie files are exceptional operator exports.",
@@ -2386,7 +2476,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Fuzzy metadata search covers all canonical records without renderer activation.",
@@ -2405,7 +2496,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Captured full-text search returns artifact/provenance/time/staleness and never silently refetches.",
@@ -2424,7 +2516,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Loom owns knowledge relations; Stage stores only references and explicit local organization fields.",
@@ -2443,7 +2536,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Index rebuild, corruption recovery, retention, URL normalization, ranking, and semantic-query boundary are deterministic.",
@@ -2462,7 +2556,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Local translation is offline for installed pairs; cloud translation requires visible content egress and provider provenance.",
@@ -2481,7 +2576,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Translation source is immutable and derived artifacts record model/package/version/language/quality facts.",
@@ -2500,7 +2596,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Readable Markdown, print-page PDF, and captured-document PDF are distinct sanitized/exported operations.",
@@ -2519,7 +2616,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Export is atomic, disk-agnostic, collision-aware, provenance-preserving, and uses ArtifactStore Materialize/Export authority.",
@@ -2538,7 +2636,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Native and embedded focus/accessibility models support keyboard-only and screen-reader completion.",
@@ -2557,7 +2656,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "High contrast, text scaling, zoom, reduced motion, DPI, multi-monitor, IME, and no-overlap behavior are visually verified.",
@@ -2576,7 +2676,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Stable resource IDs, BCP-47 locales, fallback/plurals, RTL, locale sort/search, pseudo-localization, and long strings are supported.",
@@ -2595,7 +2696,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Engine locale, Accept-Language, translation language, search collation, and error/manual locale stay coherent per session.",
@@ -2614,7 +2716,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "UserManual covers install, run, navigation, sessions, auth gaps, permissions, model control, capture, updates, backup, diagnostics, and recovery.",
@@ -2633,7 +2736,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "No-context models discover stable action IDs, state, health, receipts, screenshots, failures, and evidence without chat history.",
@@ -2652,7 +2756,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Any editor-to-Stage and capture/embed-back workflow selected by the current plan uses a newly specified StageCaptureCoordinator contract returning shared ArtifactHandles without legacy WP-12 aliases.",
@@ -2671,7 +2776,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "CKC remains a public artifact/lineage consumer and cannot access Stage tables, profiles, cookies, or engine IDs.",
@@ -2690,7 +2796,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Studio receives reciprocal versioned ArtifactHandle, source/capture lineage, action/correlation, and result envelopes without Stage absorbing Studio authoring authority.",
@@ -2709,7 +2816,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Old Stage assets may be salvaged only after direct conformance to current requirements with no legacy compatibility concession; real operator data receives an explicit retain/export/one-way-import/del",
@@ -2728,7 +2836,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "WP-1 owns model lanes, ToolGate, process cancellation/reap, promotion, EventLedger, Flight Recorder, and Argus; Stage is a versioned consumer.",
@@ -2747,7 +2856,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Dependent production gates bind to a validated future WP-1 baseline and do not treat current dirty/failed state as proven.",
@@ -2766,7 +2876,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "WP-12 Stage routes, aliases, wire types, panes, connectors, adapters, schemas, and mockups are superseded; any editor integration is a new consumer of the current Stage public contract.",
@@ -2785,7 +2896,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "WP-12 duplicate 16KiB storage and stage.jobs.enqueue authority are removed; real operator data, if present, receives a verified one-way import into ArtifactStore and current tool/capability contracts.",
@@ -2804,7 +2916,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "WP-12 0341/0346/0348/0349 migrations and cross-table guards receive collision-safe replacement/removal and optional one-way data import, with no presumed legacy compatibility window.",
@@ -2823,7 +2936,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Install, repair, upgrade, uninstall, missing/offline runtime, non-admin, enterprise policy, x64/ARM64, and retained-data behavior are tested.",
@@ -2842,7 +2956,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Runtime/engine/app updates have version qualification, state-preserving restart, forward-compatibility, kill switches, and owned rollback semantics.",
@@ -2861,7 +2976,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "All engines, crates, native binaries, codecs, lists, models, and runtime assets have pins, hashes, SBOM, notices, advisory policy, signing, and update owner.",
@@ -2880,7 +2996,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Browser, renderer, GPU, network, profile, and host failures have deduplicated state machines and bounded retry.",
@@ -2899,7 +3016,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Crash-loop breaker, quarantine, safe-mode restore, operator choices, and orphan cleanup are production journeys.",
@@ -2918,7 +3036,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Disk full, low memory, corrupt/locked profile, database outage, event loss/reorder, and interrupted migration are fault-injected.",
@@ -2937,7 +3056,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Backups restore canonical records/artifacts first; raw live browser UDFs are not canonical backup authority.",
@@ -2956,7 +3076,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Production support bundle is redacted, bounded, versioned, operator-reviewable, and correlates state, events, processes, profiles, and evidence.",
@@ -2975,7 +3096,8 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "Whole-WP integration and promotion closure: wave integration, WebView2 production-promotion gate, Servo restricted/arbitrary-web promotion gates, and spec/refinement/WP/MT/taskboard/traceability synch",
@@ -2994,12 +3116,156 @@
         "MT-002",
         "MT-004",
         "MT-006",
-        "MT-007"
+        "MT-007",
+        "MT-125"
       ],
       "blocks": [],
       "summary": "WebView2 production bootstrap and Servo promotion have distinct non-deceptive gates.",
       "proof_target": "promotion-gate-registry",
       "validator_verdict": "PENDING"
+    },
+    {
+      "mt_id": "MT-125",
+      "status": "PENDING",
+      "lane": "L03",
+      "kind": "foundational",
+      "requirement_id": null,
+      "acceptance_id": null,
+      "depends_on": [
+        "MT-001",
+        "MT-002",
+        "MT-004",
+        "MT-006",
+        "MT-007"
+      ],
+      "blocks": [
+        "MT-008",
+        "MT-009",
+        "MT-010",
+        "MT-011",
+        "MT-012",
+        "MT-013",
+        "MT-014",
+        "MT-015",
+        "MT-016",
+        "MT-017",
+        "MT-018",
+        "MT-019",
+        "MT-020",
+        "MT-021",
+        "MT-022",
+        "MT-023",
+        "MT-024",
+        "MT-025",
+        "MT-026",
+        "MT-027",
+        "MT-028",
+        "MT-029",
+        "MT-030",
+        "MT-031",
+        "MT-032",
+        "MT-033",
+        "MT-034",
+        "MT-035",
+        "MT-036",
+        "MT-037",
+        "MT-038",
+        "MT-039",
+        "MT-040",
+        "MT-041",
+        "MT-042",
+        "MT-043",
+        "MT-044",
+        "MT-045",
+        "MT-046",
+        "MT-047",
+        "MT-048",
+        "MT-049",
+        "MT-050",
+        "MT-051",
+        "MT-052",
+        "MT-053",
+        "MT-054",
+        "MT-055",
+        "MT-056",
+        "MT-057",
+        "MT-058",
+        "MT-059",
+        "MT-060",
+        "MT-061",
+        "MT-062",
+        "MT-063",
+        "MT-064",
+        "MT-065",
+        "MT-066",
+        "MT-067",
+        "MT-068",
+        "MT-069",
+        "MT-070",
+        "MT-071",
+        "MT-072",
+        "MT-073",
+        "MT-074",
+        "MT-075",
+        "MT-076",
+        "MT-077",
+        "MT-078",
+        "MT-079",
+        "MT-080",
+        "MT-081",
+        "MT-082",
+        "MT-083",
+        "MT-084",
+        "MT-085",
+        "MT-086",
+        "MT-087",
+        "MT-088",
+        "MT-089",
+        "MT-090",
+        "MT-091",
+        "MT-092",
+        "MT-093",
+        "MT-094",
+        "MT-095",
+        "MT-096",
+        "MT-097",
+        "MT-098",
+        "MT-099",
+        "MT-100",
+        "MT-101",
+        "MT-102",
+        "MT-103",
+        "MT-104",
+        "MT-105",
+        "MT-106",
+        "MT-107",
+        "MT-108",
+        "MT-109",
+        "MT-110",
+        "MT-111",
+        "MT-112",
+        "MT-113",
+        "MT-114",
+        "MT-115",
+        "MT-116",
+        "MT-117",
+        "MT-118",
+        "MT-119",
+        "MT-120",
+        "MT-121",
+        "MT-122",
+        "MT-123",
+        "MT-124"
+      ],
+      "summary": "Establish Stage's typed SurrealDB storage foundation, shared application-bootstrap handle, SCHEMAFULL SurrealKit rollouts, EventLedger boundary, ArtifactStore references, browser-profile materialization boundary, and real-database proof harness before feature lanes persist state.",
+      "proof_target": "stage-surrealdb-foundation",
+      "validator_verdict": "PENDING"
     }
-  ]
+  ],
+  "updated_at_utc": "2026-09-01T00:00:00Z",
+  "storage_contract": {
+    "contract_ref": ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json#storage_contract",
+    "posture": "SURREALDB_EXCLUSIVE_AUTHORITY",
+    "foundation_mt": "MT-125"
+  }
 }

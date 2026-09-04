@@ -1,142 +1,231 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-190",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-190.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-190.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-149",
-      "MT-164",
-      "MT-173",
-      "MT-012",
-      "MT-013",
-      "MT-556",
-      "MT-557",
-      "MT-558",
-      "MT-559",
-      "MT-560"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Structured interchange + interactive/EPUB touchpoint + collaboration posture [STU-LAY-064,STU-LAY-065,STU-LAY-066,STU-LAY-067]",
-  "spec_anchor": [
-    "STU-LAY-064",
-    "STU-LAY-065",
-    "STU-LAY-066",
-    "STU-LAY-067",
-    "STU-ARC-005"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-190",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-190.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-190.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-149",
+   "MT-164",
+   "MT-173",
+   "MT-012",
+   "MT-013",
+   "MT-556",
+   "MT-557",
+   "MT-558",
+   "MT-559",
+   "MT-560"
   ],
-  "scope": {
-    "summary": "Fix that layout content is representable in structured exchange form: round-trip interchange formats (layout markup export/open for cross-version exchange, tagged-text plain-format round-trip, and structured-XML tagging with a structure tree, tag mapping to/from styles, schema validation, and image-copying export); concrete file formats/matrices owned by 14.13 (hand off, do not fork). Carry layout-side authoring of interactive objects — hyperlinks, bookmarks, buttons, MSO (MT-164), placed media (MT-161), interactive TOCs (MT-173), reflowable/fixed-layout EPUB — on the object StudioLayer and hand the interactive payload to 14.11 for export; MUST NOT define a second interactive runtime. Implement local-first review/collaboration: the native review surface (comments, annotations, markup anchored to layout positions, and a document-states/history surface beyond linear undo, 14.19/MT-149) is first-class, backed by kernel CRDT collaboration, requiring no external account/cloud; hosted/cloud capabilities (share-for-review, cloud docs/version-history, invite-to-edit, hosted fonts, generative-AI assists) are optional adapter-backed rows, never primary; file-based assignment/check-in-check-out copy-editing is native over shared local/network storage. Import of external review comments back into the layout (position-anchored) via the interchange path (14.13). This MT also records the STU-LAY-067 cross-cutting obligation (dual operator-UI + model/MCP projections, 14.16/14.17 model-visibility & parallel-workflow, headless/quiet output law 14.20, dual-audience UserManual + GUI/diagnostic/accessibility 14.22, and the sandbox->validation->PromotionGate propose-work lifecycle 14.18/MT-012) as satisfied across this plan.",
-    "allowed_paths": [
-      "src/studio/layout/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "structured interchange representable; interactive payload handed to 14.11 without a second runtime; local-first CRDT review primary, hosted optional; STU-LAY-067 obligation recorded"
-    ],
-    "proof_targets": [
-      "structured interchange round-trip runtime; local-first CRDT review + adapter-optional test"
-    ],
-    "code_surfaces": [
-      "src/studio/layout/interchange.rs",
-      "src/studio/layout/interactive_handoff.rs",
-      "src/studio/layout/review.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::layout::review",
-      "live: structured-XML export round-trips layout content with style<->tag mapping + schema validation; interactive payload handed to 14.11 (no second runtime)",
-      "test: native CRDT-backed comments/annotations anchored to positions with no external account; hosted capabilities are optional adapter rows; import external review comments position-anchored"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "comments/review panel",
-      "interchange import/export"
-    ],
-    "argus_targets": [
-      "studio.layout.review_panel",
-      "studio.layout.interchange"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Page Layout / Interchange, interactive handoff & review"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-SWARM-001",
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Structured interchange + interactive/EPUB touchpoint + collaboration posture [STU-LAY-064,STU-LAY-065,STU-LAY-066,STU-LAY-067]",
+ "spec_anchor": [
+  "STU-LAY-064",
+  "STU-LAY-065",
+  "STU-LAY-066",
+  "STU-LAY-067",
+  "STU-ARC-005"
+ ],
+ "scope": {
+  "summary": "Fix that layout content is representable in structured exchange form: round-trip interchange formats (layout markup export/open for cross-version exchange, tagged-text plain-format round-trip, and structured-XML tagging with a structure tree, tag mapping to/from styles, schema validation, and image-copying export); concrete file formats/matrices owned by 14.13 (hand off, do not fork). Carry layout-side authoring of interactive objects — hyperlinks, bookmarks, buttons, MSO (MT-164), placed media (MT-161), interactive TOCs (MT-173), reflowable/fixed-layout EPUB — on the object StudioLayer and hand the interactive payload to 14.11 for export; MUST NOT define a second interactive runtime. Implement local-first review/collaboration: the native review surface (comments, annotations, markup anchored to layout positions, and a document-states/history surface beyond linear undo, 14.19/MT-149) is first-class, backed by kernel CRDT collaboration, requiring no external account/cloud; hosted/cloud capabilities (share-for-review, cloud docs/version-history, invite-to-edit, hosted fonts, generative-AI assists) are optional adapter-backed rows, never primary; file-based assignment/check-in-check-out copy-editing is native over shared local/network storage. Import of external review comments back into the layout (position-anchored) via the interchange path (14.13). This MT also records the STU-LAY-067 cross-cutting obligation (dual operator-UI + model/MCP projections, 14.16/14.17 model-visibility & parallel-workflow, headless/quiet output law 14.20, dual-audience UserManual + GUI/diagnostic/accessibility 14.22, and the sandbox->validation->PromotionGate propose-work lifecycle 14.18/MT-012) as satisfied across this plan.",
+  "allowed_paths": [
+   "src/studio/layout/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No cross-version/structured interchange; interactive export forks a second runtime; collaboration forced onto cloud, violating local-first posture.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Structured interchange representable",
+   "Interactive payload handed to 14.11 without a second runtime",
+   "Local-first CRDT review primary, hosted optional",
+   "STU-LAY-067 obligation recorded"
+  ],
+  "proof_targets": [
+   "structured interchange round-trip runtime; local-first CRDT review + adapter-optional test"
+  ],
+  "code_surfaces": [
+   "src/studio/layout/interchange.rs",
+   "src/studio/layout/interactive_handoff.rs",
+   "src/studio/layout/review.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::layout::review",
+   "live: structured-XML export round-trips layout content with style<->tag mapping + schema validation; interactive payload handed to 14.11 (no second runtime)",
+   "test: native CRDT-backed comments/annotations anchored to positions with no external account; hosted capabilities are optional adapter rows; import external review comments position-anchored"
+  ],
+  "acceptance_criteria_original": [
+   "structured interchange representable; interactive payload handed to 14.11 without a second runtime; local-first CRDT review primary, hosted optional; STU-LAY-067 obligation recorded"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "comments/review panel",
+   "interchange import/export"
+  ],
+  "argus_targets": [
+   "studio.layout.review_panel",
+   "studio.layout.interchange"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Page Layout / Interchange, interactive handoff & review"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-SWARM-001",
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No cross-version/structured interchange; interactive export forks a second runtime; collaboration forced onto cloud, violating local-first posture.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Structured interchange representable",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "structured interchange round-trip runtime; local-first CRDT review + adapter-optional test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Interactive payload handed to 14.11 without a second runtime",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Local-first CRDT review primary, hosted optional",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "STU-LAY-067 obligation recorded",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-LAY-064",
+    "spec_clause_text": "**[STU-LAY-064]** Round-trip interchange formats -- layout markup export and open for cross-version exchange, tagged-text plain-format round-trip, and structured-XML tagging with a structure tree, tag mapping to and from styles, schema validation and image-copying export -- MUST be supported."
+   },
+   {
+    "anchor": "STU-LAY-065",
+    "spec_clause_text": "**[STU-LAY-065]** Layout objects with interactive behaviour -- hyperlinks, bookmarks, buttons, multi-state objects ([STU-LAY-136]), placed media, interactive TOCs ([STU-LAY-148]) and reflowable/fixed-layout EPUB export -- are AUTHORED in this catalog but their runtime interaction model and reflowable export pipeline are owned by 14.11. A layout object's interactive payload MUST be carried on its `StudioLayer` and handed to 14.11 for export; this catalog MUST NOT define a second interactive runtime."
+   },
+   {
+    "anchor": "STU-LAY-066",
+    "spec_clause_text": "**[STU-LAY-066]** Review and collaboration MUST be local-first. The native review surface -- comments, annotations and markup anchored to layout positions, plus a document-states/history surface beyond linear undo (14.19) -- is a first-class native Studio capability backed by kernel CRDT collaboration, requiring no external account or cloud service. Hosted/cloud collaboration capabilities MUST be treated as optional adapter-backed rows, never as the primary path: *Derivation: preset/command table, taken whole; yields 1 microtask. Its rows are acceptance criteria and MUST NOT become one microtask each.* | Capability | Studio posture | |---|---| | Hosted share-for-review link with pin, highlight, strike, insert and reply comments | Adapter-backed / optional; the native local review surface is the primary path. | | Cloud documents, autosave, cross-device version history | Adapter-backed / optional; local document plus kernel history is the primary path. | | Invite-to-edit, shared projects, asset-library sync | Adapter-backed / optional; kernel CRDT co-edit is the primary path. | | Hosted font activation and hosted custom-font rendering in reviews | Adapter-backed / optional; local font install is the primary path. | | File-based assignment and check-in/check-out copy-editing workflow | Native; operates on shared local or network storage. | | Generative assists (text variation, text-to-image, expand-image) | Adapter-backed / optional; provider-dependent via the model-lane surface. | The captured comment-import model is four object types -- a comment plus three destination kinds (page, page item and text) -- and an import command taking a source path and a property bag. Studio MUST carry all four so an imported comment anchors to the right thing. The captured check-in/check-out constraint vocabulary (locked elsewhere, locked by another user, locked exclusively, locked shared, would clobber a lock, a valid username is required) MUST be reproduced as typed errors for the native file-based workflow. --- ## 14.6.11 Constraint Vocabulary and Cross-Cutting Obligations"
+   },
+   {
+    "anchor": "STU-LAY-067",
+    "spec_clause_text": "**[STU-LAY-067]** Every capability in this catalog MUST be exposed through BOTH the operator UI and the typed model-steerable command/MCP surface as two projections of one primitive per [STU-DOC-004], MUST satisfy the model-visibility/steerability and parallel-workflow requirements (14.16, 14.17), MUST obey the headless/quiet output law so preflight, package, print, PDF and merge never steal focus or block on a foreground window (14.20), and MUST be represented in the dual-audience UserManual and the GUI/diagnostic and accessibility surfaces (14.22, 14.16). Model-authored layout mutations MUST pass the sandbox -> validation -> `PromotionGate` lifecycle ([STU-ARC-005]) via the propose-work system (14.18) before layout authority rows change. All durable layout authority persists through the canonical Studio SurrealDB tables and `studio.layout` EventLedger events (14.23) under the SurrealDB-only authority guard ([STU-SDB-002]); live collaborative editing is CRDT-backed. This obligation is stated once and is not restated per clause."
+   },
+   {
+    "anchor": "STU-ARC-005",
+    "spec_clause_text": "[STU-ARC-005] A model-authored Studio mutation (any command batch that changes document authority) MUST NOT be written directly to a SurrealDB authority record. It MUST enter the kernel sandbox (`SandboxAdapter`, process-tier by default), be validated by the `StudioValidationDescriptor` catalog (14.24), and pass the `PromotionGate` (`PromotionDecisionV1: Accepted`) before authority records change. This lifecycle is not optional and MUST NOT be bypassed regardless of model confidence (mirrors [TAI-OVR-004]). See 14.18 for the propose-work system that carries model edits through this lifecycle."
+   }
+  ],
+  "spec_clause_count": 5,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

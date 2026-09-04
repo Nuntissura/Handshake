@@ -1,0 +1,1734 @@
+{
+ "schema_id": "handshake.spec.module_provenance@1",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "authority_note": "This sidecar is PROVENANCE ONLY. It is not authority and MUST NOT be cited as the source of any Studio contract. Per [STU-SECTION-002] the Master Spec module is the single source of truth; this file records HOW each clause was derived so a reviewer can check the derivation, and so a later capture can supersede a studio_declared value without ambiguity. A disagreement between this file and the module is a defect in this file.",
+ "module_file": "14-28-web-authoring.md",
+ "module_title": "14.28 Web Authoring, Code Intelligence & Site Publishing",
+ "module_body_sha256": "02645435eb7b588f447a5bcb769a58269c9fbf1fc6b9596fe82afdb883fbbd3b",
+ "spec_target_bundle": "master-spec-v02.206",
+ "spec_baseline_bundle": "master-spec-v02.205",
+ "green_room": ".GOV/reference/studio_app_feature_research/_greenroom_20260903",
+ "derivation_legend": {
+  "parsed": "the value, field, enumeration or count is read literally from the named record in the named capture file",
+  "derived": "the clause is computed or reasoned from parsed records; the reasoning is stated in the note and is NOT itself in any capture",
+  "studio_declared": "no source declares this value; the Master Spec declares it as Studio's own contract and the clause labels it as such",
+  "spec_internal": "the source is another Master Spec clause, not a green-room capture",
+  "operator_decision": "the source is a recorded operator decision or a shipped work-packet contract, not a capture",
+  "declared_gap": "the clause declares an absence: something the captures do not contain and which this module deliberately does not invent"
+ },
+ "clause_count": 167,
+ "derivable_microtask_count": 174,
+ "derivation_rule_anchor": "STU-WEB-141",
+ "source_reference_count": 192,
+ "derivation_census": {
+  "parsed": 122,
+  "derived": 12,
+  "studio_declared": 1,
+  "spec_internal": 46,
+  "operator_decision": 10,
+  "declared_gap": 1
+ },
+ "capture_files_referenced": {
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json": 41,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json": 32,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md": 27,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json": 22,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json": 19,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json": 16,
+  ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md": 14,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json": 7,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md": 5,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json": 4,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json": 3,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/studio-capability-registry.json": 1,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json": 1
+ },
+ "clauses": {
+  "STU-WEB-001": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008].what_the_spec_rewrite_must_cover",
+     "derivation": "operator_decision",
+     "note": "add the domains section 14 lacks, including web authoring"
+    }
+   ]
+  },
+  "STU-WEB-002": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.server_models (8); $.counts.server_behavior_groups = 116; $.counts.connection_surfaces = 41",
+     "derivation": "operator_decision",
+     "note": "Studio recognises but does not execute server models; scope edge declared at [STU-WEB-126]"
+    }
+   ]
+  },
+  "STU-WEB-003": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-DOC-001] unified document model",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-004": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.tags[*].formatting_rules[formatcontents, preserveattrcase]",
+     "derivation": "derived",
+     "note": "text-is-authority corollary derived from the verbatim-preservation flags"
+    }
+   ]
+  },
+  "STU-WEB-005": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SECTION-003]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.naming_discipline",
+     "derivation": "operator_decision"
+    }
+   ]
+  },
+  "STU-WEB-006": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-OVR-002]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-007": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SDB-002]..[STU-SDB-008], [STU-OVR-003]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-002]",
+     "derivation": "operator_decision"
+    }
+   ]
+  },
+  "STU-WEB-008": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-003]",
+     "derivation": "operator_decision",
+     "note": "no extra router; Studio registers into the existing navigation layers"
+    }
+   ]
+  },
+  "STU-WEB-009": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/studio-capability-registry.json",
+     "record": "$.capabilities filtered domain=='web' -> 458 rows",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-010": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.excluded_ai.conclusion; $.excluded_ai.raw_hit_count = 1, adjudicated false positive",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.excluded_ai.conclusion",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.excluded_ai.conclusion",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.excluded_ai.conclusion",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.excluded_ai.conclusion",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-011": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.document_types[*] fields: id, title, internal_type, windows_file_extensions, mac_file_extensions, mime_type, writes_byte_order_mark, dtd_context, server_model, starter_file",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-012": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.document_types[*].internal_type distinct values (HTML, Text, XML, XSLT, Dynamic, DWTemplate)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-013": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.document_types (39 rows, verbatim); $.counts.document_types = 39; $.counts.document_type_extensions_windows = 68",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-014": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.document_types[*].dtd_context distinct values",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-015": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.doctype_declarations (10 rows); $.counts.doctype_declarations = 10",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-016": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.mime_types (13 rows); $.counts.mime_type_rows = 13",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-017": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.tag_libraries[*] fields: library_id, library_name, applies_to_document_types, tag_chooser, prefix, tag_count_declared",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-018": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.tag_libraries (10 rows with applies_to and declared counts); $.counts.tag_libraries = 10; $.counts.tag_refs_declared_in_index = 466; $.counts.tag_definitions_parsed = 470",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-019": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.tags[*] fields: tag_name, library_id, has_end_tag, tag_type, formatting_rules, property_inspector_dialog, attribute_count, attributes",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-020": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.tags[*].formatting_rules observed key set and value domains (indentcontents, formatcontents, nlbeforetag, nlbeforecontents, nlaftercontents, nlaftertag, nlbeforetag_min, nlaftertag_min, nlbeforetag_max, nlaftertag_max, preserveattrcase)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-021": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.tags[*].attributes[*] fields: name, value_type, casesensitive, allowed_values",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-022": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.counts.tag_attribute_types (20 types with counts); $.counts.tag_attribute_definitions = 9741",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-023": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.counts.enumerated_attribute_values = 14733; $.tags[*].attributes[*].allowed_values (ordered)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-024": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.cross_tag_attributes (3 files); $.counts.cross_tag_attribute_groups = 3; $.counts.cross_tag_attribute_definitions = 82; $.counts.cross_tag_attribute_applications = 272",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-025": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.tags[*].attributes[*].casesensitive; $.tags[*].formatting_rules[preserveattrcase]; $.code_coloring_schemes[*].ignore_case",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-026": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.counts.tags_with_a_property_inspector_dialog = 265; $.tags[*].property_inspector_dialog",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-027": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.third_party_tags (2 files); $.counts.third_party_tag_files = 2",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-028": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.format_menu; $.formatter_scripts (1)",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.tags[*].formatting_rules",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-029": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.flat_command_index[DW_ApplyComment, DW_RemoveComment]",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.code_coloring_schemes[*].embedded_block_delimiters",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-030": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.counts.property_inspectors = 60; $.counts.property_inspectors_with_a_binding_declaration = 60",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-006]",
+     "derivation": "operator_decision",
+     "note": "operator rejected the whole-UI persona toggle; this is the alternative"
+    }
+   ]
+  },
+  "STU-WEB-031": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-006]",
+     "derivation": "operator_decision"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-UNI-002] task modes as named layout presets",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-032": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].binding_declaration (all 60 declare one)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-033": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].binding_declaration keys: tag, attrname, attrvalue, priority, selection, servermodel, hline, vline, hideclass, disabledinliveview; plus file, title, control_count, controls, api_hooks_implemented",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-034": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].binds_to_tag observed forms: literal tag, '*', '*LOCKED*', '*COMMENT*', pipe alternation 'input|Div', namespaced 'MMTemplate:Editable', 'xsl:comment', 'XSL:FOR-EACH'",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-035": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].selection_scope observed values: exact, within, insideLock",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-036": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].priority observed values: 1, 5, 6, 10, 50 across 60 inspectors",
+     "derivation": "parsed",
+     "note": "the band-to-meaning reading is Studio's, derived from which inspectors occupy which band"
+    }
+   ]
+  },
+  "STU-WEB-037": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[meta.htm priority 5, description.htm priority 6 attrname=name attrvalue=description, keywords.htm priority 6, refresh.htm priority 6 attrname=http-equiv, viewport.htm priority 6 attrvalue=viewport]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-038": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].binding_declaration[servermodel] observed values: ASP, Cold Fusion",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-039": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].binding_declaration[hline, vline, hideclass, disabledinliveview]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-040": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*] priority and selection_scope distribution",
+     "derivation": "derived",
+     "note": "the total deterministic ordering, including the panel_id tiebreak, is declared here; the source resolves ties implicitly"
+    }
+   ]
+  },
+  "STU-WEB-041": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors",
+     "derivation": "derived",
+     "note": "the resolution receipt is declared here; no equivalent exists in the source"
+    }
+   ]
+  },
+  "STU-WEB-042": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].binds_to_tag grammar",
+     "derivation": "derived",
+     "note": "static analysability follows from the closed selector grammar; the checks are declared here"
+    }
+   ]
+  },
+  "STU-WEB-043": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].controls[*] fields: control_kind, name, id, default_value, checked_by_default, disabled_by_default, size, maxlength, css_class, handlers, raw_attributes",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-CON-007]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-044": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].api_hooks_implemented census: canInspectSelection 60, inspectSelection 60, initializeUI 33, displayHelp 8",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-045": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.code_coloring_schemes[*] fields: scheme_id, scheme_name, applies_to_document_types, priority, ignore_case, ignore_tags, keyword_lists, keyword_total, delimiters, embedded_block_delimiters, tag_specs, sample_text",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-046": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.code_coloring_schemes[*].priority observed values 1, 5, 10, 20, 50",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-047": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.code_coloring_schemes[*].embedded_block_delimiters",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-048": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.counts.code_coloring_schemes = 33; $.counts.code_coloring_keyword_lists = 46; $.counts.code_coloring_keywords_total = 6894; $.counts.syntax_color_token_classes = 271; $.counts.code_theme_definitions = 15; largest scheme PHP_Script keyword_total = 3522",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-049": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.syntax_color_token_classes (271); $.code_themes (31 files, 15 default palettes)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-050": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.code_hints[*].menugroups[*].items[*] attributes: pattern, additionaldismisschars, allowwhitespaceprefix, displayrestriction, allowmultiplevalues; item fields label, value, icon",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-051": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.counts.code_hint_files = 29; $.counts.code_hint_menugroups = 22; $.counts.code_hint_items = 4811; $.counts.code_hint_description_files = 23; $.counts.code_hint_builtin_files = 10; $.counts.code_hint_cms_files = 2",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-052": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.validator_rule_files (10 files with node_counts); $.counts.validator_rule_files = 10",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-053": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.validator_rule_files[*].tree node kinds: VALIDATION, TAG, VERSIONINFO, ATTRIBUTES, ATTRIB, TAGOPTIONS, TAGOPTION, TAGCONTEXT, VALID, INVALID, ATTRIBREQUIREMENTS, REQSET",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-054": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.validator_rule_files[ValueMap.vtv].tree VALKEY entries (433) with ID, NOTE, QUOTE, RE, TYPE",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-055": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.validator_menu; $.validator_scripts (4)",
+     "derivation": "derived",
+     "note": "the typed diagnostic shape is declared here"
+    }
+   ]
+  },
+  "STU-WEB-056": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.linter_rule_sets (CSS.csslintrc 35 rules, HTML.htmlhintrc 23 rules, JS.jshintrc 69 options) with verbatim shipped default values",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-057": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.eslint_config (4 files: ecmaVersion 3, 5, 6 and current) with parserOptions, env and rule defaults",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-058": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.linter_rule_sets",
+     "derivation": "derived",
+     "note": "output contract shared with [STU-WEB-055]"
+    }
+   ]
+  },
+  "STU-WEB-059": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.toolbars[DW_CodeView_Toolbar].items (balance braces, collapse full tag, collapse selection, expand all, select parent tag, indent, outdent, word wrap, code navigator, format source, apply/remove comment)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-060": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_designer_categories; $.media_query_model",
+     "derivation": "derived",
+     "note": "the four-level source/media/selector/property structure is the Studio reading of the shipped surface"
+    }
+   ]
+  },
+  "STU-WEB-061": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_designer_categories (5 rows: Layout 22, Text 22, Border 4, Background 9, default/More 0); $.counts.css_designer_categories = 5; $.counts.css_designer_category_property_slots = 57",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-062": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_designer_property_surface (82 entries); $.counts.css_designer_properties = 82; $.counts.css_designer_property_option_entries = 924",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-063": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.counts.css_designer_control_types (14 tokens)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-064": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.media_query_model.value_lists.units (15); $.media_query_model.value_lists.resolutionunits (3); $.css_designer_property_surface[*].options",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-065": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_designer_property_surface entries for the Layout category with control_type, default_value, supports_negative_values and ordered options",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-066": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_designer_property_surface[opacity] control_type RangeHotText, default '1'",
+     "derivation": "parsed",
+     "note": "bounds derived from the CSS opacity domain 0..1"
+    }
+   ]
+  },
+  "STU-WEB-067": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_designer_property_surface[*].supports_negative_values",
+     "derivation": "parsed",
+     "note": "the negative flag is declared per property; NO NUMERIC BOUNDS ARE DECLARED anywhere in the source"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.the_parameter_contract.where_bounds_are_absent",
+     "derivation": "studio_declared"
+    }
+   ]
+  },
+  "STU-WEB-068": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_designer_property_surface entries for the Text category",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-069": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_designer_property_surface entries for the Border and Background categories",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-070": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_designer_property_surface[box-shadow, text-shadow] MultiControlLayout sub-controls with defaults",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-071": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_properties_recognised (369); $.counts.css_properties_recognised = 369",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-072": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_vendor_transforms (1 property, 4 value rules incl. the $delete-disable$ sentinel); $.counts.css_vendor_transform_properties = 1; $.counts.css_vendor_transform_rules = 4",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-073": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.css_transitions.groups (animatableProps 49, pseudoClasses 8, timingFunctions 6, vendorPrefixes 2)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-074": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.gradient_editor.numeric_constants.maxNumberOfSwatches = 5; $.gradient_editor.note",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-075": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.svg_export_defaults.defaults (trimtToArtBounds true, isResponsive true, precision 1)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-076": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.media_query_model.features[*] fields: feature, control_type, value_list, allowed_values, tooltip",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-077": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.media_query_model.value_lists.mediatypes (8)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-078": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.media_query_model.features (23) with control_type and value_list; $.counts.media_features = 23",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-079": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.visual_media_query.constants.VMQ_CONSTANTS and DW_RULER_CONSTANTS (verbatim numeric constants)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-080": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.visual_media_query.constants.VMQ_CONSTANTS[minWidthMQ 7, maxWidthMQ 5000, upperLimit 9999.999, maxDecimalDigits 3, maxDigits 8]",
+     "derivation": "parsed",
+     "note": "hard bounds ARE declared here; soft bounds are Studio-declared"
+    }
+   ]
+  },
+  "STU-WEB-081": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.visual_media_query.constants.VMQ_CONSTANTS[mqTypeMinWidth 1, mqTypeMaxWidth 0, mqTypeMinMaxWidth 2, minRangeVal 5]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-082": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.responsive_frameworks[*].settings keys",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-083": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.responsive_frameworks (4 files, 3 major version families) with numBreakpoints, gridClassPrefixes, defaultBreakPointMinWidths, resizeClassRegex, offsetClassRegex, hideClassRegex, totalNumOfCols",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.bootstrap_version_data.DW_NDD_CONSTANTS.ScreenBreakpointDefaults; $.bootstrap_version_data.BootstrapDefaults",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-084": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.bootstrap_version_data.DW_NDD_CONSTANTS[NumberOfColDefault 12, NumberOfColMin 1, NumberOfColMax 24, GutterWidthDefault 30, GutterWidthMin 1, GutterWidthMax 120]",
+     "derivation": "parsed",
+     "note": "these four bounds ARE declared in the source"
+    }
+   ]
+  },
+  "STU-WEB-085": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.bootstrap_version_data.DW_NDD_CONSTANTS[BootstrapCompleteVersions, JQueryMinSupportedVersions, BootstrapPopperJsFilesPaths, BootstrapBundlesPaths]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-086": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.document_types[less, scss, sass]",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.counts.sass_files = 107; $.counts.sass_frameworks (3 bundles)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-087": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.visual_media_query.constants.VMQ_HEADLIGHT_CONSTANTS (view resize events)",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-CON-007]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-088": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.media_query_model",
+     "derivation": "derived",
+     "note": "design-to-web breakpoint mapping is declared here"
+    }
+   ]
+  },
+  "STU-WEB-089": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[viewport.htm] binding tag=META attrname=name attrvalue=viewport priority=6",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-090": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.document_types[DWTemplate and the six server-model template types]; $.tag_libraries[DWTagLibrary_templates]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-091": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.insert_panel[DW_Insertbar_Templates].items (Make Template, Make Nested Template, Editable Region, Optional Region, Repeating Region, Editable Optional Region, Repeating Table)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-092": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.tags[library_id=DWTagLibrary_templates] (atExpr and passthroughAtExpr, both carrying $$EmbeddedCodeString)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-093": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[template.htm, template_text.htm, template_text_expr.htm, template_text_repeat.htm] priority 10 selection within",
+     "derivation": "derived",
+     "note": "propagation transactionality is declared here"
+    }
+   ]
+  },
+  "STU-WEB-094": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].binds_to_tag == '*LOCKED*'; $.property_inspectors[*].selection_scope == 'insideLock'",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-095": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.behaviors[*].safe_in_templates (14 true, 16 false)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-096": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.document_types[LibraryItem] extension lbi, dtd_context none",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-097": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.snippets[*] fields: snippet_name, description, folder, top_level_group, preview_mode, snippet_type, inserts_before_selection, inserts_after_selection, wraps_selection, all_insert_blocks",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-098": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.counts.snippets = 647; $.counts.snippet_groups = 9; $.counts.snippets_block_type = 628; $.counts.snippets_wrap_type = 18; group breakdown from $.snippets[*].top_level_group",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-099": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+     "record": "$.snippet_keyboard_triggers.map.snippets (5 triggers); $.counts.snippet_keyboard_triggers = 5",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-100": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.counts.insert_panel_categories = 12; $.counts.insert_panel_entries_total = 444; $.counts.insert_panel_entries_by_kind (button 378, menubutton 32, separator 34); $.counts.object_implementations_on_disk = 358; $.counts.object_implementations_wired_into_the_insert_panel = 339; $.counts.object_implementations_not_on_the_insert_panel = 19",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-101": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.insert_panel (12 categories with category_id, category_label, folder and ordered items)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-102": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.object_implementations[*] fields: object_file, folder, display_title, html_comment_directives, requires_dom, window_dimensions_js, inserts, own_dialog_controls, api_hooks_implemented",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-103": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.counts.objects_that_insert_literal_markup = 268; $.counts.objects_whose_body_is_the_inserted_markup = 7; $.counts.objects_that_insert_a_framework_component = 131; $.counts.objects_whose_framework_component_markup_was_resolved = 129",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-104": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.object_implementations[*].api_hooks_implemented (isDOMRequired, objectTag, windowDimensions, displayHelp); $.counts.objects_that_open_a_dialog = 47; $.counts.objects_with_their_own_dialog_controls = 48",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-105": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.behaviors[*] fields: behavior_file, group, display_title, safe_in_templates, parameter_dialog_controls, emits_page_functions_declared_by_behaviorFunction, helper_functions_shipped_into_the_page, event_handler_written_by_applyBehavior (template plus literal_only form)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-106": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.behaviors (30 entries in 2 groups); $.counts.behaviors = 30; $.counts.behavior_parameter_controls_total = 165; per-behaviour parameter_dialog_control_count",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-107": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.behaviors[*].safe_in_templates observed distribution 14 true / 16 false; every Effects-group behaviour false",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-108": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.behaviors[*].parameter_dialog_controls[*].control_kind observed set (input:text, textarea, select, input:checkbox, input:radio, input:button, input:image, input:mmcolorbutton)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-109": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.behavior_shared_js_helpers (13 files); $.counts.behavior_shared_js_helpers = 13",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-110": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.event_models[0] (event_model_name 'HTML 4.01', tag_count 79, distinct_events 18, per-tag ordered event list and default_event); $.counts.event_model_tag_rows = 79; $.counts.distinct_events_across_models = 18",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-111": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.counts.event_models = 1",
+     "derivation": "derived",
+     "note": "multi-model support is declared here; the shipped install carries one model"
+    }
+   ]
+  },
+  "STU-WEB-112": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.insert_panel; $.behaviors",
+     "derivation": "derived",
+     "note": "the typed command form of every catalogue entry and behaviour is declared here"
+    }
+   ]
+  },
+  "STU-WEB-113": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.site_definition_vocabulary (8 prefixes, 1284 strings) and $.site_and_transfer_dialogs (16 dialogs, 267 controls)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-114": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.site_definition_vocabulary[site, sitesetup, sitemanager, RemoteFileBrowser] key sets; $.site_and_transfer_dialogs",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-115": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.publishing_transports.netio_dlls_shipped (NetIO, NetIODav, NetIOFTP, NetIOSFTP) with provenance note; $.site_definition_vocabulary[git] (54 keys)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-116": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.publishing_transports.sftp_ssh_policy (HostkeyAlgorithms +ssh-rsa, PubkeyAcceptedAlgorithms +ssh-rsa)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-117": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.publishing_transports.ftp_extension_policy.lines (68 rows, verbatim ASCII/BINARY map)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-118": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.site_and_transfer_dialogs[SiteChangeLinksDialog]; $.site_definition_vocabulary[site] link keys",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-119": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.site_and_transfer_dialogs[SiteSyncDialog 28 controls, SyncDlg 19 controls, SiteUpdateDialog 18 controls]; $.site_definition_vocabulary[sync] (50 keys)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-120": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-006] matrix row 46 Web / markup output; [STU-IO-010]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-121": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.site_and_transfer_dialogs[SiteReportsView]; $.site_definition_vocabulary[site] report keys",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-122": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.site_definition_vocabulary[git] (54 keys); $.site_and_transfer_dialogs[GitAddRemoteDialog, GitManageRemotesDialog, GitUserDetailsDialog, CloneErrorDialog]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-123": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.browser_profiles (26 profiles plus one exceptions file); $.counts.browser_capability_profiles = 26",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-124": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.server_models (8) with server_info_literals[serverName, serverLanguage, serverVersion]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-125": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.server_models[*].api_hooks_implemented union (11 hooks)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-126": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.counts (server_behavior_groups 116, server_behavior_participant_files 243, server_behavior_code_blocks 1176, server_behavior_dialogs 128, server_behavior_dialog_controls 387, connection_surfaces 41, connection_setting_controls 310, server_format_entries 377, data_source_entries 28, component_definition_files 16, web_service_files 12)",
+     "derivation": "operator_decision",
+     "note": "declared scope edge: recognise, do not generate"
+    }
+   ]
+  },
+  "STU-WEB-127": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.site_definition_vocabulary[sitemanager] error keys; $.publishing_transports",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-012] receipts",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-128": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.toolbars[DW_Toolbar_Main].items (DW_CodeView, DW_SplitView, DW_DesignView, DW_LiveView); $.toolbars[DW_CodeView_Toolbar].items[DW_InspectMode]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-129": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-DOC-004] one primitive, two projections",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-130": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.panel_registry[DOMVis, visCSS]; $.toolbars[DW_CodeView_Toolbar].items[DW_CodeNavigator, DW_InspectMode]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-131": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-CON-007], [STU-SDB-004]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-132": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.counts (2176 invocable entries, 301 menus, 508 with a shortcut, 264 scripted command surfaces); $.keyboard_shortcut_sets (776, 701, 509); $.adaptive_keyboard_layout_sets = 23; $.keyboard_layouts.layouts = 138",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-133": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.flat_command_index[*].enabler_js present on 1274 of 2176 entries",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.still_open_for_operator[0]",
+     "derivation": "declared_gap",
+     "note": "whether disabled menu items stay visible and greyed is still an open operator question"
+    }
+   ]
+  },
+  "STU-WEB-134": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008].what_the_spec_rewrite_must_cover",
+     "derivation": "operator_decision",
+     "note": "bind CKC as the asset library"
+    }
+   ]
+  },
+  "STU-WEB-135": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.enums[CodeSyntaxPlatform].values[WEB]; $.mixins[AutoLayoutMixin].members; $.mixins[LayoutMixin].members[layoutSizingHorizontal, layoutSizingVertical]",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+     "record": "$.responsive_frameworks[*].settings",
+     "derivation": "derived",
+     "note": "the component-to-library-item and component-to-framework-component mapping is declared here"
+    }
+   ]
+  },
+  "STU-WEB-136": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-004] five-artifact promotion gate, [STU-IO-011] fixture law",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-137": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+     "record": "$.validator_rule_files; $.linter_rule_sets",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+     "record": "$.publishing_transports",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WEB-138": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.every_microtask_must_carry[hbr_int_009_tier_obligations]",
+     "derivation": "operator_decision",
+     "note": "all three tiers exist in the base"
+    }
+   ]
+  },
+  "STU-WEB-139": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SDB-005] ResourceBroker and record-level permissions",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-140": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-RAS-047]-class GUI/Argus/UserManual obligation pattern; 14.16, 14.20, 14.22",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WEB-141": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's own clause set [STU-WEB-001]-[STU-WEB-140]",
+     "derivation": "spec_internal",
+     "note": "Derivation rule (NORMATIVE): the closed unit list is enumerated from the clause kinds actually present in [STU-WEB-001]-[STU-WEB-140]; the rule form follows the precedent set by 14.7.21 [STU-TYP-240]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-WEB-142": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's own clause set [STU-WEB-001]-[STU-WEB-140]",
+     "derivation": "spec_internal",
+     "note": "Open items and blocked dependencies: derived from the declared-gap clauses of this module ([STU-WEB-133], [STU-WEB-136]); the rule that a gap still yields a microtask whose first acceptance criterion resolves the dependency is stated here"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-WEB-143": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's own clause set [STU-WEB-001]-[STU-WEB-140]",
+     "derivation": "spec_internal",
+     "note": "Microtask content obligation: derived from the enumerations, parameter contracts and record shapes stated in [STU-WEB-001]-[STU-WEB-140]; form follows 14.7.21 [STU-TYP-241]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-WEB-144": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's own clause set [STU-WEB-001]-[STU-WEB-140]",
+     "derivation": "spec_internal",
+     "note": "Yields index (NORMATIVE): counted mechanically over the clause anchors of [STU-WEB-001]-[STU-WEB-140], excluding the non-yielding classes named in the derivation rule and adding the individually named validation descriptors of [STU-WEB-137]; verified by three independent counts (recount from the non-yielding set, sum of the table Yields column, stated module total)"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-WEB-145": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's own clause set [STU-WEB-001]-[STU-WEB-140]",
+     "derivation": "spec_internal",
+     "note": "Anchor binding: derived from the provisional-anchor rule recorded in the green-room architecture decisions and the precedent of 14.7.21 [STU-TYP-243]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-WEB-146": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-013], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `document_type_extension_conflict` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-147": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-015], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `doctype_missing` (severity warning); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-148": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-018], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `tag_unknown_in_active_libraries` (severity warning); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-149": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-023], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `attribute_value_outside_enumeration` (severity warning); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-150": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-053], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `attribute_required_set_unsatisfied` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-151": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-053], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `tag_context_violation` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-152": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-024], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `cross_tag_attribute_collision` (severity warning); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-153": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-042], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `panel_binding_unresolvable_tie` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-154": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-037], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `panel_discriminator_does_not_outrank` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-155": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-042], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `panel_author_id_collision` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-156": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-080], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `breakpoint_below_minimum` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-157": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-081], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `breakpoint_range_below_minimum_span` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-158": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-085], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `framework_class_invalid_for_pinned_version` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-159": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-094], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `template_edit_in_locked_region` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-160": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-095], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `template_behavior_not_template_safe` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-161": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-099], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `snippet_trigger_duplicate` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-162": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-111], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `behavior_event_not_in_model` (severity warning); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-163": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-118], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `link_broken` (severity warning); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-164": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-118], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `file_orphaned` (severity info); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-165": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-117], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `transfer_mode_unmapped_extension` (severity warning); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-166": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-116], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `sftp_algorithm_weakened` (severity warning); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WEB-167": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-28-web-authoring.md",
+     "record": "this module's clause [STU-WEB-114], whose contract this descriptor enforces; the descriptor set is named in [STU-WEB-137]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `credential_in_site_record` (severity error); promoted from a prose list inside [STU-WEB-137] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  }
+ }
+}

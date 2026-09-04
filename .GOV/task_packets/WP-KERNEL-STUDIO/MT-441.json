@@ -1,125 +1,223 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-441",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-441.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-441.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-002",
-      "MT-003",
-      "MT-019"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "StudioImportProfile + StudioExportRecipe primitives + four-part support contract + native-format declaration [STU-IO-001,STU-IO-002,STU-IO-003]",
-  "spec_anchor": [
-    "STU-IO-001",
-    "STU-IO-002",
-    "STU-IO-003",
-    "STU-DOC-002",
-    "STU-OVR-002"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-441",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-441.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-441.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-002",
+   "MT-003",
+   "MT-019"
   ],
-  "scope": {
-    "summary": "Implement the two canonical interop primitives (StudioImportProfile hsk.studio.import_profile@1, StudioExportRecipe hsk.studio.export_recipe@1; field-owned by 14.23, members of the [STU-DOC-002] set). StudioImportProfile is a typed deterministic decode from a source format into StudioDocument/StudioLayer/StudioMask/StudioTextStory/StudioColorProfile; StudioExportRecipe is a typed encode back. Together they satisfy the four-part per-format contract (import, edit-preserve, export, round-trip). Every import/export is StudioColorProfile-explicit + unit-explicit (decode is the conversion boundary, no implicit device color) and emits EventLedger events (studio.document/studio.export) with a KernelActor distinguishing model- vs operator-authored interop. Enforce [STU-IO-001]: Studio MUST NOT invent a new interchange document format — native = the unified StudioDocument under SurrealDB/EventLedger authority; deliverables leave only via a StudioExportRecipe into a matrix format. PostgreSQL and SQLite are forbidden.",
-    "allowed_paths": [
-      "src/studio/interop/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "StudioImportProfile/StudioExportRecipe compile; four-part contract; color/unit-explicit; actor-attributed; no invented format"
-    ],
-    "proof_targets": [
-      "primitives + four-part contract + color/unit-explicit event test"
-    ],
-    "code_surfaces": [
-      "src/studio/interop/mod.rs",
-      "src/studio/interop/import_profile.rs",
-      "src/studio/interop/export_recipe.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::interop::primitives",
-      "test: StudioImportProfile/StudioExportRecipe derive JsonSchema; four-part contract shape present",
-      "test: import/export color+unit explicit; emits studio.document/studio.export events with KernelActor",
-      "test: no new on-disk interchange format (native = StudioDocument)"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "StudioImportProfile + StudioExportRecipe primitives + four-part support contract + native-format declaration [STU-IO-001,STU-IO-002,STU-IO-003]",
+ "spec_anchor": [
+  "STU-IO-001",
+  "STU-IO-002",
+  "STU-IO-003",
+  "STU-DOC-002",
+  "STU-OVR-002"
+ ],
+ "scope": {
+  "summary": "Implement the two canonical interop primitives (StudioImportProfile hsk.studio.import_profile@1, StudioExportRecipe hsk.studio.export_recipe@1; field-owned by 14.23, members of the [STU-DOC-002] set). StudioImportProfile is a typed deterministic decode from a source format into StudioDocument/StudioLayer/StudioMask/StudioTextStory/StudioColorProfile; StudioExportRecipe is a typed encode back. Together they satisfy the four-part per-format contract (import, edit-preserve, export, round-trip). Every import/export is StudioColorProfile-explicit + unit-explicit (decode is the conversion boundary, no implicit device color) and emits EventLedger events (studio.document/studio.export) with a KernelActor distinguishing model- vs operator-authored interop. Enforce [STU-IO-001]: Studio MUST NOT invent a new interchange document format — native = the unified StudioDocument under SurrealDB/EventLedger authority; deliverables leave only via a StudioExportRecipe into a matrix format. PostgreSQL and SQLite are forbidden.",
+  "allowed_paths": [
+   "src/studio/interop/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No interop primitives; formats fork; invented interchange format (spec violation).",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "StudioImportProfile/StudioExportRecipe compile",
+   "Four-part contract",
+   "Color/unit-explicit",
+   "Actor-attributed",
+   "No invented format"
+  ],
+  "proof_targets": [
+   "primitives + four-part contract + color/unit-explicit event test"
+  ],
+  "code_surfaces": [
+   "src/studio/interop/mod.rs",
+   "src/studio/interop/import_profile.rs",
+   "src/studio/interop/export_recipe.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::interop::primitives",
+   "test: StudioImportProfile/StudioExportRecipe derive JsonSchema; four-part contract shape present",
+   "test: import/export color+unit explicit; emits studio.document/studio.export events with KernelActor",
+   "test: no new on-disk interchange format (native = StudioDocument)"
+  ],
+  "acceptance_criteria_original": [
+   "StudioImportProfile/StudioExportRecipe compile; four-part contract; color/unit-explicit; actor-attributed; no invented format"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No interop primitives; formats fork; invented interchange format (spec violation).",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "StudioImportProfile/StudioExportRecipe compile",
+   "evidence_kind": "build_proof",
+   "proof_target": "primitives + four-part contract + color/unit-explicit event test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Four-part contract",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Color/unit-explicit",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Actor-attributed",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "No invented format",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-IO-001",
+    "spec_clause_text": "[STU-IO-001] NATIVE-FORMAT DECLARATION. Studio MUST NOT invent a new interchange document format to replace the existing creative formats. The native Studio document is the unified `StudioDocument` (14.3) persisted through Handshake document/project storage under SurrealDB/EventLedger authority ([STU-ARC-003]/[STU-ARC-004]) with CRDT live state; it is not a new file-on-disk interchange format competing with PSD/AI/IDML/`.af`/`.fig`. This restates and is bound by [STU-OVR-002]: interoperability with the source formats is in scope as import / edit-preserve / export / round-trip; a replacement interchange format and any runtime dependency on the source applications are out of scope. Where a deliverable file must leave Studio, it leaves through a `StudioExportRecipe` into one of the matrix formats below, never through a bespoke Studio-only container. --- ### 1. StudioImportProfile / StudioExportRecipe primitives and the round-trip contract"
+   },
+   {
+    "anchor": "STU-IO-002",
+    "spec_clause_text": "[STU-IO-002] `StudioImportProfile` MUST define a typed, deterministic decode from a source format into `StudioDocument`/`StudioLayer`/`StudioMask`/`StudioTextStory`/`StudioColorProfile` primitives, and `StudioExportRecipe` MUST define a typed encode from those primitives into a target format. Together they MUST satisfy a four-part support contract stated per format in the matrix ([STU-IO-006]): - **import** — open or place the source into Studio primitives. - **edit-preserve** — mutate the document and re-persist without discarding still-representable source structure. - **export** — encode Studio primitives into the target format. - **round-trip** — import then export with a documented, bounded fidelity envelope. Each direction a format claims MUST be backed by fixtures ([STU-IO-011]) and MUST NOT be asserted from capability memory."
+   },
+   {
+    "anchor": "STU-IO-003",
+    "spec_clause_text": "[STU-IO-003] Every import and export MUST be `StudioColorProfile`-explicit and unit-explicit per [STU-DOC-003]: the decode step is the conversion boundary; there is no implicit device color and no mixed-unit geometry crossing the boundary. Import and export are authority-affecting operations and MUST emit EventLedger events (`studio.document` / `studio.export`) with a `KernelActor` distinguishing model-authored from operator-authored interop per [STU-ARC-003]. ### 2. Compatibility scope, fixtures, receipts, and recovery — the promotion gate"
+   },
+   {
+    "anchor": "STU-DOC-002",
+    "spec_clause_text": "[STU-DOC-002] The canonical Studio primitive set is normative and deduped (one primitive per shared capability): `StudioDocument`, `StudioArtboard`, `StudioPageSpread`, `StudioLayer`, `StudioLayerGraph`, `StudioSelectionSet`, `StudioMask`, `StudioRasterTile`, `StudioVectorPath`, `StudioVectorNetwork`, `StudioTextStory`, `StudioTypeStyle`, `StudioColorProfile`, `StudioSwatch`, `StudioGradient`, `StudioPattern`, `StudioEffectStack`, `StudioAdjustment`, `StudioLiveFilter`, `StudioBlendMode`, `StudioComponent`, `StudioComponentInstance`, `StudioVariable`, `StudioVariableCollection`, `StudioStyleRegistry`, `StudioLayoutGrid`, `StudioConstraint`, `StudioAutoLayout`, `StudioPrototypeFlow`, `StudioMotionTimeline`, `StudioExportRecipe`, `StudioImportProfile`, `StudioHistoryEntry`, `StudioEditProposal`, `StudioModelAdapter`, `StudioValidationDescriptor`, `StudioRenderHarness`. The full field-level canonical definitions live in 14.23; the per-domain catalogs (14.4-14.15) reference these primitives rather than redefining them."
+   },
+   {
+    "anchor": "STU-OVR-002",
+    "spec_clause_text": "[STU-OVR-002] Studio MUST NOT require Adobe Photoshop, Illustrator, InDesign, the Affinity suite, Figma, or any other subscription-gated, account-gated, or platform-locked creative application at runtime. Interoperability with those tools' file formats (PSD, AI, IDML, the Affinity `.afphoto`/`.afdesign`/`.afpub`/`.af` family, `.fig`, SVG, PDF, and the raster/vector interchange set) is in scope as import/export/round-trip (14.13); runtime dependency on those apps is out of scope. Note the field precedent: Affinity's own October-2025 v3 relaunch unified its three apps into one application with Vector/Pixel/Layout studios over a single `.af` document — the same unification Studio targets — but gated that app behind a required online Canva account; Studio's unification is fully local-first with no account and no sign-in."
+   }
+  ],
+  "spec_clause_count": 5,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

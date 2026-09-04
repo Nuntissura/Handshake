@@ -1,121 +1,193 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-004",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-004.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-004.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-002",
-      "MT-003"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "SCHEMAFULL studio_* SurrealDB records + forward-only SurrealKit rollouts (foundation set) [STU-ARC-004,STU-CON-004]",
-  "spec_anchor": [
-    "STU-ARC-004",
-    "STU-CON-004",
-    "STU-VAL-005"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-004",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:25+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-004.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-004.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-002",
+   "MT-003"
   ],
-  "scope": {
-    "summary": "Author forward-only SurrealKit rollouts for SCHEMAFULL studio_* record types (studio_document SDOC-, studio_layer SLYR-, studio_artboard SART-, studio_page_spread SPGS-, studio_history_entry SHIS-, studio_edit_proposal SEPR-), with typed record ids, required EventLedger record links, authenticated record-user table/field PERMISSIONS, and typed SurrealDB-store writes. PostgreSQL and SQLite are forbidden.",
-    "allowed_paths": [
-      "src/studio/**",
-      "migrations/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "foundation SCHEMAFULL records roll forward through SurrealKit on managed SurrealDB; PostgreSQL/SQLite rejected; typed-store and record-user permissions proven"
-    ],
-    "proof_targets": [
-      "live SurrealDB namespace/database SurrealKit rollout + typed-store/write-permission test"
-    ],
-    "code_surfaces": [
-      "surrealkit/rollouts/*_studio_*.surql",
-      "src/studio/storage_glue.rs"
-    ],
-    "expected_tests": [
-      "live-SurrealDB: forward-only SurrealKit rollout applies cleanly and canonical records reread",
-      "test: no_legacy_database_tripwire rejects PostgreSQL/SQLite and any studio_* write outside the typed SurrealDB boundary",
-      "test: prefixed-id + event_ledger_event_id FK enforced"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "SCHEMAFULL studio_* SurrealDB records + forward-only SurrealKit rollouts (foundation set) [STU-ARC-004,STU-CON-004]",
+ "spec_anchor": [
+  "STU-ARC-004",
+  "STU-CON-004",
+  "STU-VAL-005"
+ ],
+ "scope": {
+  "summary": "Author forward-only SurrealKit rollouts for SCHEMAFULL studio_* record types (studio_document SDOC-, studio_layer SLYR-, studio_artboard SART-, studio_page_spread SPGS-, studio_history_entry SHIS-, studio_edit_proposal SEPR-), with typed record ids, required EventLedger record links, authenticated record-user table/field PERMISSIONS, and typed SurrealDB-store writes. PostgreSQL and SQLite are forbidden.",
+  "allowed_paths": [
+   "src/studio/**",
+   "migrations/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No durable authority store; edits cannot promote.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Foundation SCHEMAFULL records roll forward through SurrealKit on managed SurrealDB",
+   "PostgreSQL/SQLite rejected",
+   "Typed-store and record-user permissions proven"
+  ],
+  "proof_targets": [
+   "live SurrealDB namespace/database SurrealKit rollout + typed-store/write-permission test"
+  ],
+  "code_surfaces": [
+   "surrealkit/rollouts/*_studio_*.surql",
+   "src/studio/storage_glue.rs"
+  ],
+  "expected_tests": [
+   "live-SurrealDB: forward-only SurrealKit rollout applies cleanly and canonical records reread",
+   "test: no_legacy_database_tripwire rejects PostgreSQL/SQLite and any studio_* write outside the typed SurrealDB boundary",
+   "test: prefixed-id + event_ledger_event_id FK enforced"
+  ],
+  "acceptance_criteria_original": [
+   "foundation SCHEMAFULL records roll forward through SurrealKit on managed SurrealDB; PostgreSQL/SQLite rejected; typed-store and record-user permissions proven"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No durable authority store; edits cannot promote.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Foundation SCHEMAFULL records roll forward through SurrealKit on managed SurrealDB",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "live SurrealDB namespace/database SurrealKit rollout + typed-store/write-permission test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "PostgreSQL/SQLite rejected",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Typed-store and record-user permissions proven",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-ARC-004",
+    "spec_clause_text": "[STU-ARC-004] SurrealDB `SCHEMAFULL` tables for Studio MUST preserve prefixed string domain IDs (e.g. `document_id = \"SDOC-{uuid_v7}\"`, `layer_id = \"SLYR-{uuid_v7}\"`, `artboard_id = \"SART-{uuid_v7}\"`) at every API and receipt boundary. Every Studio authority record MUST carry a required typed `event_ledger_event_id` reference to `kernel_event_ledger`, and every create or mutating update MUST enter the SurrealDB-only authority guard and the atomic transaction required by [STU-SDB-004]. Schema evolution uses SurrealKit under [STU-SDB-007]; legacy dated SQL names are provenance only. The canonical table set is defined in 14.23 as translated by [STU-SDB-003]."
+   },
+   {
+    "anchor": "STU-CON-004",
+    "spec_clause_text": "[STU-CON-004] TABLES. Canonical `studio_*` SurrealDB `SCHEMAFULL` tables (all preserving the specified prefixed domain ids, all with a required typed `event_ledger_event_id` record reference, all protected by authenticated record-user and field permissions plus `ResourceBroker`, and all evolved through SurrealKit): `studio_documents` (SDOC-), `studio_layers` (SLYR-), `studio_artboards` (SART-), `studio_page_spreads` (SPGS-), `studio_masks` (SMSK-), `studio_vector_paths` (SVPT-), `studio_text_stories` (STXT-), `studio_type_styles` (STYS-), `studio_color_profiles` (SCPF-), `studio_swatches` (SSWT-), `studio_effect_stacks` (SEFX-), `studio_components` (SCMP-), `studio_component_instances` (SCIN-), `studio_variables` (SVAR-), `studio_variable_collections` (SVCL-), `studio_style_registries` (SSTY-), `studio_prototype_flows` (SPTF-), `studio_motion_timelines` (SMTL-), `studio_export_recipes` (SXPR-), `studio_import_profiles` (SIMP-), `studio_history_entries` (SHIS-), `studio_edit_proposals` (SEPR-). Typed field definitions, assertions, indexes, permissions, and rollout manifests are authored here as each table's implementing MT lands."
+   },
+   {
+    "anchor": "STU-VAL-005",
+    "spec_clause_text": "[STU-VAL-005] NATIVE-RUNTIME + SURREALDB/CRDT DUTY. Studio durable authority is Handshake-managed SurrealDB/EventLedger; live collaborative state is CRDT with persistence/reconnect/replay/conflict-visibility and promotion into authority. No PostgreSQL fallback or dual authority, no SQLite, no SQL-portability shim, no mock-only resource as default proof, and no Docker/third-party-daemon/outside-app as a core-operation dependency or acceptance shortcut. Test-only/fixture-only proof cannot satisfy a runtime/storage/EventLedger/UI/replay MUST; storage and privacy proof MUST meet [STU-SDB-008]."
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:25+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

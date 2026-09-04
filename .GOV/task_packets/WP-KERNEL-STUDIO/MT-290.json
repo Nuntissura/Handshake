@@ -1,124 +1,205 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-290",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-290.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-290.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-289",
-      "MT-265"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Vector live effects - 3D & Materials (GPU-required) [STU-FX-028]",
-  "spec_anchor": [
-    "STU-FX-028",
-    "STU-FX-036",
-    "STU-FX-018"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-290",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-290.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-290.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-289",
+   "MT-265"
   ],
-  "scope": {
-    "summary": "Implement the vector 3D-and-materials live effects (V,T,G): Extrude & Bevel (depth/cap/bevel shape+width/rotation), Revolve (profile around vertical axis, angle/offset/cap), Inflate (puffed 3D volume), 3D Rotate (plane effect, no depth), Materials (parametric materials + custom graphics on 3D surfaces; community material assets provider-optional per group 16), 3D Lighting (multiple lights: intensity/rotation/height/softness/ambient/shadow), Ray-Traced Render (GPU ray-traced quality settings before export/expand), 3D (Classic) legacy engine (Opt). Geometric extrude/revolve/inflate primitives are native; materials/ray-trace GPU-required with real-GPU proof + headless fallback.",
-    "allowed_paths": [
-      "src/studio/effects/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "Extrude & Bevel, Revolve, Inflate, 3D Rotate, Materials, 3D Lighting, Ray-Traced Render, 3D (Classic); GPU proof + headless; materials provider-optional"
-    ],
-    "proof_targets": [
-      "real-GPU 3D/materials/ray-trace render + headless fallback"
-    ],
-    "code_surfaces": [
-      "studio-engine/src/vector/three_d.rs",
-      "studio-engine/src/render/raytrace.rs",
-      "src/studio/effects/vector/three_d.rs"
-    ],
-    "expected_tests": [
-      "real-GPU: Extrude&Bevel/Revolve/Inflate/3D Rotate + Materials + 3D Lighting + Ray-Traced render",
-      "headless: EFFECT_GPU_UNAVAILABLE fallback; native extrude/revolve/inflate geometry without materials",
-      "test: community materials provider-optional (EFFECT_ADAPTER_UNAVAILABLE when absent)"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-VIS-001",
-    "HBR-QUIET-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Vector live effects - 3D & Materials (GPU-required) [STU-FX-028]",
+ "spec_anchor": [
+  "STU-FX-028",
+  "STU-FX-036",
+  "STU-FX-018"
+ ],
+ "scope": {
+  "summary": "Implement the vector 3D-and-materials live effects (V,T,G): Extrude & Bevel (depth/cap/bevel shape+width/rotation), Revolve (profile around vertical axis, angle/offset/cap), Inflate (puffed 3D volume), 3D Rotate (plane effect, no depth), Materials (parametric materials + custom graphics on 3D surfaces; community material assets provider-optional per group 16), 3D Lighting (multiple lights: intensity/rotation/height/softness/ambient/shadow), Ray-Traced Render (GPU ray-traced quality settings before export/expand), 3D (Classic) legacy engine (Opt). Geometric extrude/revolve/inflate primitives are native; materials/ray-trace GPU-required with real-GPU proof + headless fallback.",
+  "allowed_paths": [
+   "src/studio/effects/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Vector 3D/materials/ray-trace missing; parametric 3D unavailable.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Extrude & Bevel, Revolve, Inflate, 3D Rotate, Materials, 3D Lighting, Ray-Traced Render, 3D (Classic)",
+   "GPU proof",
+   "Headless",
+   "Materials provider-optional"
+  ],
+  "proof_targets": [
+   "real-GPU 3D/materials/ray-trace render + headless fallback"
+  ],
+  "code_surfaces": [
+   "studio-engine/src/vector/three_d.rs",
+   "studio-engine/src/render/raytrace.rs",
+   "src/studio/effects/vector/three_d.rs"
+  ],
+  "expected_tests": [
+   "real-GPU: Extrude&Bevel/Revolve/Inflate/3D Rotate + Materials + 3D Lighting + Ray-Traced render",
+   "headless: EFFECT_GPU_UNAVAILABLE fallback; native extrude/revolve/inflate geometry without materials",
+   "test: community materials provider-optional (EFFECT_ADAPTER_UNAVAILABLE when absent)"
+  ],
+  "acceptance_criteria_original": [
+   "Extrude & Bevel, Revolve, Inflate, 3D Rotate, Materials, 3D Lighting, Ray-Traced Render, 3D (Classic); GPU proof + headless; materials provider-optional"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-VIS-001",
+  "HBR-QUIET-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Vector 3D/materials/ray-trace missing; parametric 3D unavailable.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Extrude & Bevel, Revolve, Inflate, 3D Rotate, Materials, 3D Lighting, Ray-Traced Render, 3D (Classic)",
+   "evidence_kind": "gui_proof",
+   "proof_target": "real-GPU 3D/materials/ray-trace render + headless fallback",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "GPU proof",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Headless",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Materials provider-optional",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-FX-028",
+    "spec_clause_text": "[STU-FX-028] 3D-and-materials effects extrude/revolve/inflate/rotate 2D vector art into 3D with cap/bevel/rotation controls, and expose a materials + lighting model with an optional ray-traced GPU render pass. Parametric materials and community material assets are an optional provider-asset dependency (group 16); the geometric extrude/revolve/inflate primitives are native. **3D & Materials** | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Extrude & Bevel | V,T,G | Req | Extrudes 2D art into 3D with depth, cap, bevel shape/width, rotation. | | Revolve | V,T,G | Req | Revolves a profile path around a vertical axis with angle, offset, cap options. | | Inflate | V,T,G | Req | Inflates flat art into a puffed 3D volume with depth/inflation controls. | | 3D Rotate | V,T,G | Req | Rotates flat art in 3D space (plane effect) without adding depth. | | Materials | V,T,G | Req | Applies parametric materials + custom graphics onto 3D surfaces (community material assets are provider-optional). | | 3D Lighting | V,T,G | Req | Multiple lights with intensity, rotation, height, softness, ambient, and shadow options. | | Ray-Traced Render | V,T,G | Req | GPU ray-traced render pass for 3D objects with quality settings before export/expand. | | 3D (Classic) | V,T,G | Opt | Legacy 3D engine (classic extrude/revolve/rotate) with surface shading and map-art options. | **Distort & Transform (vector)** | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Free Distort | V,T,G | No | Reshapes vector art by dragging four corner points of a distortion frame. | | Pucker & Bloat | V,T,G | No | Pulls anchor points outward (pucker) or inward (bloat), curving segments opposite. | | Roughen | V,T,G | No | Turns segments into jagged peaks/valleys with size, detail, smooth/corner points. | | Transform (step-repeat) | V,T,G | No | Live move/scale/rotate/reflect with a copies count for procedural step-and-repeat stacks. | | Tweak | V,T,G | No | Randomly curves/distorts segments inward/outward by relative or absolute amounts. | | Twist | V,T,G | No | Rotates geometry more sharply at the center than the edges by a twist angle. | | Zig Zag (vector) | V,T,G | No | Transforms segments into uniform jagged or wavy arrays with size, ridges, point type. | **Pathfinder Effects (live)**"
+   },
+   {
+    "anchor": "STU-FX-036",
+    "spec_clause_text": "[STU-FX-036] Every filter/effect evaluates through the `studio-engine` `RenderEngine` (wgpu/WGSL), driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend; when none is available the effect returns a determinate `EFFECT_GPU_UNAVAILABLE` state ([STU-FX-018]) rather than a silent empty result, and the harness records the shortfall. Rows marked `Opt` have a CPU fallback path in `studio-engine` that produces promotion-equivalent output. GPU dependencies stay isolated in `studio-engine` and never enter `handshake_core`'s `Cargo.toml` ([STU-ARC-002])."
+   },
+   {
+    "anchor": "STU-FX-018",
+    "spec_clause_text": "[STU-FX-018] GPU-required render effects MUST declare their GPU dependency in the `StudioLiveFilter` descriptor so a headless/quiet run (14.20) and a no-GPU environment surface a determinate `EFFECT_GPU_UNAVAILABLE` result rather than silently producing empty output. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Clouds | R | Opt | Random cloud pattern between two colors, replacing layer data (seeded). | | Difference Clouds | R | Opt | Blends generated clouds with existing pixels in Difference mode; marble-like on repeat (seeded). | | Fibers | R | Opt | Woven-fiber texture from two colors with variance, strength, randomize. | | Lens Flare | R | Opt | Simulated lens-refraction flare with placeable center and lens-type presets. | | Lighting Effects | R | Req | GPU lighting workspace: point/spot/infinite lights, per-light properties, and grayscale texture channels as bump maps. Dedup of the lighting render filter and the 3D-style lighting live filter. | | Flame | R | Req | Parameterized realistic flames rendered along a selected path onto a pixel layer; requires GPU + an active work path. | | Picture Frame | R | Req | Scripted decorative frame designs drawn around the canvas; requires GPU + a pixel layer. | | Tree | R | Req | Parameterized tree species with leaf/branch/light settings; requires GPU + a pixel layer. | | Procedural Texture (formula) | R | Opt | User-authored mathematical pixel-math formulas generate/transform pixels (scriptable generator surface, deterministic per inputs). | --- ### 8. Sharpen & Detail Family"
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

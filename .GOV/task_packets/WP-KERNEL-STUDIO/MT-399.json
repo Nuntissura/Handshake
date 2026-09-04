@@ -1,143 +1,239 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-399",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-399.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-399.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-398",
-      "MT-396",
-      "MT-385"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Interactive-document animation + media + hyperlinks + page transitions + preview [STU-PRO-040,STU-PRO-040a,STU-PRO-040b,STU-PRO-040c,STU-PRO-040d,STU-PRO-041,STU-PRO-041a,STU-PRO-042,STU-PRO-042a]",
-  "spec_anchor": [
-    "STU-PRO-040",
-    "STU-PRO-040a",
-    "STU-PRO-040b",
-    "STU-PRO-040c",
-    "STU-PRO-040d",
-    "STU-PRO-041",
-    "STU-PRO-041a",
-    "STU-PRO-042",
-    "STU-PRO-042a"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-399",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-399.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-399.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-398",
+   "MT-396",
+   "MT-385"
   ],
-  "scope": {
-    "summary": "Implement the interactive-document animation and media surfaces: motion presets applied to objects with event triggers (on page load, on page click, on click self, on roll over self, on button event) and per-animation duration/play-count/loop/speed-easing/animate-from-to (opacity/rotation/scale/visibility); editable vector motion paths with any drawn path convertible to a motion path; a timing surface sequencing animations per trigger event with delays, reordering, and linked play-together groups with per-group play counts; custom motion presets saveable/duplicable/deletable/importable/exportable; sharing the easing catalog + keyframe/motion-path model with StudioMotionTimeline (two entry points onto ONE motion engine, not two engines); media placement (video with poster frame, controller skin, play-on-load, loop, navigation points; audio) targetable by button media actions and media triggers; hyperlinks (URL/file/email/page-with-zoom/text-anchor/shared-destination with appearance/highlight + auto URL detection) plus nested sortable PDF bookmarks and generated QR codes (web/text/SMS/email/business-card, editable afterward); per-spread or all-spread page transitions (blinds/comb/dissolve/fade/push/wipe/zoom/page-turn with direction + speed, honored in full-screen interactive PDF); and an in-app interactivity-preview surface previewing animations/MSOs/buttons/media for the current spread or whole document before export.",
-    "allowed_paths": [
-      "src/frontend/handshake_native/src/studio/**",
-      "src/studio/prototype/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "interactive-doc animation/timing/media/hyperlinks/QR/page-transitions/preview on one shared motion engine; author_ids + manual entry"
-    ],
-    "proof_targets": [
-      "Argus doc-animation + media + links + transitions + preview test"
-    ],
-    "code_surfaces": [
-      "src/frontend/handshake_native/src/studio/prototype/interactive_media.rs",
-      "src/studio/prototype/interactive_media.rs"
-    ],
-    "expected_tests": [
-      "argus: interactive-doc animation timing + media + hyperlinks + page transitions + interactivity preview reachable via author_ids",
-      "live: motion presets with event triggers + timing/delays/linked groups; save/import/export custom presets; shared easing/keyframe engine with timeline; video/audio placement; hyperlinks + bookmarks + QR; page transitions honored; in-app preview plays animations/MSO/buttons/media"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "interactive-doc animation + timing",
-      "media placement",
-      "hyperlinks/bookmarks/QR",
-      "page transitions",
-      "interactivity preview"
-    ],
-    "argus_targets": [
-      "studio.prototype.doc_animation",
-      "studio.prototype.media_placement",
-      "studio.prototype.hyperlinks",
-      "studio.prototype.page_transitions",
-      "studio.prototype.interactivity_preview"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Interactive Documents / Animation, media, links and transitions"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Interactive-document animation + media + hyperlinks + page transitions + preview [STU-PRO-040,STU-PRO-040a,STU-PRO-040b,STU-PRO-040c,STU-PRO-040d,STU-PRO-041,STU-PRO-041a,STU-PRO-042,STU-PRO-042a]",
+ "spec_anchor": [
+  "STU-PRO-040",
+  "STU-PRO-040a",
+  "STU-PRO-040b",
+  "STU-PRO-040c",
+  "STU-PRO-040d",
+  "STU-PRO-041",
+  "STU-PRO-041a",
+  "STU-PRO-042",
+  "STU-PRO-042a"
+ ],
+ "scope": {
+  "summary": "Implement the interactive-document animation and media surfaces: motion presets applied to objects with event triggers (on page load, on page click, on click self, on roll over self, on button event) and per-animation duration/play-count/loop/speed-easing/animate-from-to (opacity/rotation/scale/visibility); editable vector motion paths with any drawn path convertible to a motion path; a timing surface sequencing animations per trigger event with delays, reordering, and linked play-together groups with per-group play counts; custom motion presets saveable/duplicable/deletable/importable/exportable; sharing the easing catalog + keyframe/motion-path model with StudioMotionTimeline (two entry points onto ONE motion engine, not two engines); media placement (video with poster frame, controller skin, play-on-load, loop, navigation points; audio) targetable by button media actions and media triggers; hyperlinks (URL/file/email/page-with-zoom/text-anchor/shared-destination with appearance/highlight + auto URL detection) plus nested sortable PDF bookmarks and generated QR codes (web/text/SMS/email/business-card, editable afterward); per-spread or all-spread page transitions (blinds/comb/dissolve/fade/push/wipe/zoom/page-turn with direction + speed, honored in full-screen interactive PDF); and an in-app interactivity-preview surface previewing animations/MSOs/buttons/media for the current spread or whole document before export.",
+  "allowed_paths": [
+   "src/frontend/handshake_native/src/studio/**",
+   "src/studio/prototype/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No interactive-doc animation/media/transitions/preview; EPUB/PDF interactivity incomplete.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Interactive-doc animation/timing/media/hyperlinks/QR/page-transitions/preview on one shared motion engine",
+   "Author_ids",
+   "Manual entry"
+  ],
+  "proof_targets": [
+   "Argus doc-animation + media + links + transitions + preview test"
+  ],
+  "code_surfaces": [
+   "src/frontend/handshake_native/src/studio/prototype/interactive_media.rs",
+   "src/studio/prototype/interactive_media.rs"
+  ],
+  "expected_tests": [
+   "argus: interactive-doc animation timing + media + hyperlinks + page transitions + interactivity preview reachable via author_ids",
+   "live: motion presets with event triggers + timing/delays/linked groups; save/import/export custom presets; shared easing/keyframe engine with timeline; video/audio placement; hyperlinks + bookmarks + QR; page transitions honored; in-app preview plays animations/MSO/buttons/media"
+  ],
+  "acceptance_criteria_original": [
+   "interactive-doc animation/timing/media/hyperlinks/QR/page-transitions/preview on one shared motion engine; author_ids + manual entry"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "interactive-doc animation + timing",
+   "media placement",
+   "hyperlinks/bookmarks/QR",
+   "page transitions",
+   "interactivity preview"
+  ],
+  "argus_targets": [
+   "studio.prototype.doc_animation",
+   "studio.prototype.media_placement",
+   "studio.prototype.hyperlinks",
+   "studio.prototype.page_transitions",
+   "studio.prototype.interactivity_preview"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Interactive Documents / Animation, media, links and transitions"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No interactive-doc animation/media/transitions/preview; EPUB/PDF interactivity incomplete.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Interactive-doc animation/timing/media/hyperlinks/QR/page-transitions/preview on one shared motion engine",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "Argus doc-animation + media + links + transitions + preview test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Author_ids",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Manual entry",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-PRO-040",
+    "spec_clause_text": "[STU-PRO-040] The interactive-document animation surface MUST support motion presets applied to objects with event triggers (on page load, on page click, on click self, on roll over self, on button event), and per-animation duration, play count/loop, speed easing, and animate-from/to properties (opacity, rotation, scale, visibility)."
+   },
+   {
+    "anchor": "STU-PRO-040a",
+    "spec_clause_text": "[STU-PRO-040a] Interactive-document animations MUST support editable vector motion paths, with any drawn path convertible to a motion path for a selected object."
+   },
+   {
+    "anchor": "STU-PRO-040b",
+    "spec_clause_text": "[STU-PRO-040b] A timing surface MUST sequence animations per trigger event with delays, reordering, and linked play-together groups with per-group play counts."
+   },
+   {
+    "anchor": "STU-PRO-040c",
+    "spec_clause_text": "[STU-PRO-040c] Custom motion presets MUST be saveable, duplicable, deletable, and importable/exportable as preset files."
+   },
+   {
+    "anchor": "STU-PRO-040d",
+    "spec_clause_text": "[STU-PRO-040d] The interactive-document animation surface and `StudioMotionTimeline` ([STU-PRO-028]) MUST share the easing catalog ([STU-PRO-019]) and the keyframe/motion-path model; they are two authoring entry points onto one motion engine, not two independent engines ([STU-DOC-004])."
+   },
+   {
+    "anchor": "STU-PRO-041",
+    "spec_clause_text": "[STU-PRO-041] Media placement MUST support video (with poster frame, controller skin, play-on-load, loop, and navigation points) and audio, targetable by button media actions ([STU-PRO-037]) and media triggers ([STU-PRO-013])."
+   },
+   {
+    "anchor": "STU-PRO-041a",
+    "spec_clause_text": "[STU-PRO-041a] Hyperlinks MUST support URL, file, email, page-with-zoom, text-anchor, and shared-destination targets with configurable appearance and highlight, plus auto URL detection. Nested, sortable PDF bookmarks and generated QR codes (web/text/SMS/email/business-card, editable afterward) MUST be authorable as interactive objects."
+   },
+   {
+    "anchor": "STU-PRO-042",
+    "spec_clause_text": "[STU-PRO-042] Page transitions MUST support per-spread or all-spread presets (e.g. blinds, comb, dissolve, fade, push, wipe, zoom, page-turn) with direction and speed, honored in full-screen interactive PDF output."
+   },
+   {
+    "anchor": "STU-PRO-042a",
+    "spec_clause_text": "[STU-PRO-042a] An in-app interactivity-preview surface MUST preview animations, MSOs, buttons, and media for the current spread or the whole document before export. ### 12. Interactive and Animated Export Touchpoint This group is the boundary between authoring (here) and format production (14.13): it enumerates the interactive and animated targets and their option surfaces without duplicating the export engine."
+   }
+  ],
+  "spec_clause_count": 9,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

@@ -1,0 +1,112 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34609",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-081#catalogue_row#0_l0",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "4.4 Persistence",
+  "spec_line": 30417,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "L0",
+ "spec_anchor": [
+  "STU-SHL-081"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "The persistence cascade.** `effective_layout = L3 ?? (selected L1 preset) ?? L2 ?? L0`, keyed by PROFILE SIGNATURE ([STU-SHL-054]). | Layer | Name | Writable | Scope | Content | |---|---|---|---|---| | L0 | `shipped_default` | no | per signature | the default layouts of [STU-SHL-083] onward; \"Reset layout\" always returns here | | L1 | `layout_preset` | yes | per signature | operator-saved named arrangements, selected from a dropdown in the Studio tab strip listing only presets for the active signature | | L2 | `user_default` | yes | per signature | the operator's live arrangement, written automatically and debounced whenever anything moves. This is the layer that makes rearrangement stick. | | L3 | `tab_override` | yes | one open document tab | a diff against L2, created only when a per-tab override is explicitly engaged. Ephemeral unless the tab is part of a saved session. |",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`L0` satisfies the spec's stated layer: L0",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-081 catalogue row `L0`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`L0` satisfies the spec's stated name: `shipped_default`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-081 catalogue row `L0`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`L0` satisfies the spec's stated writable: no",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-081 catalogue row `L0`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`L0` satisfies the spec's stated scope: per signature",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-081 catalogue row `L0`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`L0` satisfies the spec's stated content: the default layouts of [STU-SHL-083] onward; \"Reset layout\" always returns here",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-081 catalogue row `L0`"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "`L0` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-SHL-081"
+  }
+ ],
+ "acceptance_criteria_count": 6,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

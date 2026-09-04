@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_index@1",
+ "generated_at_utc": "2026-09-03T17:55:07+00:00",
+ "generator": "handshake.greenroom.mt_regen.v1",
+ "staging_only": true,
+ "note": "Staging output. Not yet promoted into .GOV/task_packets/WP-KERNEL-STUDIO.",
+ "mt_count": 12,
+ "microtasks": [
+  {
+   "mt_id": "MT-600",
+   "clause": "Raster Brush Library: registry, categories, stock set, user entries, panel, persistence [STU-RAS-020,STU-DS-010]",
+   "domain": "raster",
+   "acceptance_rows": 8,
+   "stock_entries": 221,
+   "categories": 14
+  },
+  {
+   "mt_id": "MT-601",
+   "clause": "Vector Brush Library: registry, categories, stock set, user entries, panel, persistence [STU-VEC-030,STU-DS-010]",
+   "domain": "vector",
+   "acceptance_rows": 8,
+   "stock_entries": 242,
+   "categories": 12
+  },
+  {
+   "mt_id": "MT-602",
+   "clause": "Swatch and Fill Library: registry, categories, stock set, user entries, panel, persistence [STU-COL-008,STU-COL-009]",
+   "domain": "color",
+   "acceptance_rows": 8,
+   "stock_entries": 204,
+   "categories": 4
+  },
+  {
+   "mt_id": "MT-603",
+   "clause": "Adjustment Preset Library: registry, categories, stock set, user entries, panel, persistence [STU-RAS-030,STU-COL-012]",
+   "domain": "raster",
+   "acceptance_rows": 8,
+   "stock_entries": 172,
+   "categories": 26
+  },
+  {
+   "mt_id": "MT-604",
+   "clause": "Object Style Library: registry, categories, stock set, user entries, panel, persistence [STU-DS-004]",
+   "domain": "design_system",
+   "acceptance_rows": 8,
+   "stock_entries": 8,
+   "categories": 1
+  },
+  {
+   "mt_id": "MT-605",
+   "clause": "Asset Library: registry, categories, stock set, user entries, panel, persistence [STU-DS-011]",
+   "domain": "design_system",
+   "acceptance_rows": 8,
+   "stock_entries": 212,
+   "categories": 14
+  },
+  {
+   "mt_id": "MT-606",
+   "clause": "Tool Preset Library: registry, categories, stock set, user entries, panel, persistence [STU-UNI-006]",
+   "domain": "cross_cutting",
+   "acceptance_rows": 8,
+   "stock_entries": 79,
+   "categories": 12
+  },
+  {
+   "mt_id": "MT-607",
+   "clause": "Tone Map Preset Library: registry, categories, stock set, user entries, panel, persistence [STU-RAW-012]",
+   "domain": "raw",
+   "acceptance_rows": 8,
+   "stock_entries": 44,
+   "categories": 4
+  },
+  {
+   "mt_id": "MT-608",
+   "clause": "Grid and Guide Preset Library: registry, categories, stock set, user entries, panel, persistence [STU-LAY-020]",
+   "domain": "layout",
+   "acceptance_rows": 8,
+   "stock_entries": 14,
+   "categories": 4
+  },
+  {
+   "mt_id": "MT-609",
+   "clause": "Macro Library: registry, categories, stock set, user entries, panel, persistence [STU-AUT-004]",
+   "domain": "automation",
+   "acceptance_rows": 8,
+   "stock_entries": 6,
+   "categories": 1
+  },
+  {
+   "mt_id": "MT-610",
+   "clause": "Live Mask Preset Library: registry, categories, stock set, user entries, panel, persistence [STU-RAS-016]",
+   "domain": "raster",
+   "acceptance_rows": 8,
+   "stock_entries": 6,
+   "categories": 1
+  },
+  {
+   "mt_id": "MT-611",
+   "clause": "Cross-Reference Format Library: registry, categories, stock set, user entries, panel, persistence [STU-LAY-040]",
+   "domain": "layout",
+   "acceptance_rows": 8,
+   "stock_entries": 22,
+   "categories": 8
+  }
+ ]
+}

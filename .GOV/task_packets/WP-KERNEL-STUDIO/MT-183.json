@@ -1,129 +1,192 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-183",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-183.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-183.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-182",
-      "MT-007"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Preflight rule categories + structured findings to command surface [STU-LAY-057]",
-  "spec_anchor": [
-    "STU-LAY-057",
-    "STU-VAL-001",
-    "STU-LAY-067"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-183",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-183.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-183.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-182",
+   "MT-007"
   ],
-  "scope": {
-    "summary": "Author the enumerable, normative preflight rule categories over the MT-182 engine: Links/resources (missing links, modified links, low placed-image DPI, outdated linked resources, passthrough compatibility); Color (blend space, allowed plates, allowed color spaces, overprint, rich-black violations, CMY-in-gray, mismatched RGB spaces); Ink (ink density over threshold for fills/strokes/text); Images & objects (resolution, transparency/rasterization-forcing effects, minimum stroke weight, non-proportional scaling, hidden objects, bleed-zone hazards); Text (missing fonts, missing characters, overset text, spelling, text patterns — double spaces, straight quotes, double hyphens); Document (page size, page count, blank pages, bleed/slug); Accessibility/data (missing alt text, stale data-merge sources, out-of-date TOC, unnamed anchors, invalid hyperlinks, stale cross-references). Preflight rules MUST be surfaced to the model-steerable command surface as structured findings, not only to the operator UI.",
-    "allowed_paths": [
-      "src/studio/layout/**",
-      "src/api/studio.rs",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "all seven preflight rule categories fire + findings exposed as structured model-steerable output"
-    ],
-    "proof_targets": [
-      "per-category rule-fire runtime; structured-findings command test"
-    ],
-    "code_surfaces": [
-      "src/studio/layout/preflight/rules.rs",
-      "src/api/studio.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::layout::preflight::rules",
-      "live: representative rule from each of the seven categories fires on a crafted document (missing link, ink over-limit, overset text, missing alt text, stale cross-ref)",
-      "test: findings returned to model-steerable command surface as structured codes, not UI-only"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "preflight findings list"
-    ],
-    "argus_targets": [
-      "studio.layout.preflight_findings"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Page Layout / Preflight rule categories"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Preflight rule categories + structured findings to command surface [STU-LAY-057]",
+ "spec_anchor": [
+  "STU-LAY-057",
+  "STU-VAL-001",
+  "STU-LAY-067"
+ ],
+ "scope": {
+  "summary": "Author the enumerable, normative preflight rule categories over the MT-182 engine: Links/resources (missing links, modified links, low placed-image DPI, outdated linked resources, passthrough compatibility); Color (blend space, allowed plates, allowed color spaces, overprint, rich-black violations, CMY-in-gray, mismatched RGB spaces); Ink (ink density over threshold for fills/strokes/text); Images & objects (resolution, transparency/rasterization-forcing effects, minimum stroke weight, non-proportional scaling, hidden objects, bleed-zone hazards); Text (missing fonts, missing characters, overset text, spelling, text patterns — double spaces, straight quotes, double hyphens); Document (page size, page count, blank pages, bleed/slug); Accessibility/data (missing alt text, stale data-merge sources, out-of-date TOC, unnamed anchors, invalid hyperlinks, stale cross-references). Preflight rules MUST be surfaced to the model-steerable command surface as structured findings, not only to the operator UI.",
+  "allowed_paths": [
+   "src/studio/layout/**",
+   "src/api/studio.rs",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Preflight has no rules; models cannot consume findings; output defects undetected.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "All seven preflight rule categories fire",
+   "Findings exposed as structured model-steerable output"
+  ],
+  "proof_targets": [
+   "per-category rule-fire runtime; structured-findings command test"
+  ],
+  "code_surfaces": [
+   "src/studio/layout/preflight/rules.rs",
+   "src/api/studio.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::layout::preflight::rules",
+   "live: representative rule from each of the seven categories fires on a crafted document (missing link, ink over-limit, overset text, missing alt text, stale cross-ref)",
+   "test: findings returned to model-steerable command surface as structured codes, not UI-only"
+  ],
+  "acceptance_criteria_original": [
+   "all seven preflight rule categories fire + findings exposed as structured model-steerable output"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "preflight findings list"
+  ],
+  "argus_targets": [
+   "studio.layout.preflight_findings"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Page Layout / Preflight rule categories"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Preflight has no rules; models cannot consume findings; output defects undetected.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "All seven preflight rule categories fire",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "per-category rule-fire runtime; structured-findings command test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Findings exposed as structured model-steerable output",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-LAY-057",
+    "spec_clause_text": "**[STU-LAY-057]** The preflight rule categories are enumerable and normative: *Derivation: catalogue table, splits per row; yields 7 microtasks, one per preflight rule category.* | Category | Representative rules | |---|---| | Links / resources | Missing links, modified links, low placed-image effective resolution, outdated linked resources, passthrough compatibility. | | Colour | Blend space, allowed plates, allowed colour spaces, overprint, rich-black violations, CMY-in-grey, mismatched RGB spaces. | | Ink | Ink density over a threshold for fills, strokes and text. | | Images and objects | Resolution, transparency and rasterisation-forcing effects, minimum stroke weight, non-proportional scaling, hidden objects, bleed-zone hazards. | | Text | Missing fonts, missing characters, overset text, spelling, text patterns such as double spaces, straight quotes and double hyphens. | | Document | Page size, page count, blank pages, bleed and slug. | | Accessibility and data | Missing alternative text, stale data-merge sources, out-of-date TOC, unnamed anchors, invalid hyperlinks, stale cross-references. | Preflight findings MUST be surfaced to the model-steerable command surface as STRUCTURED findings carrying the rule id, the severity, the offending object reference and the page, not only to the operator UI. ### 14.6.9.2 Package and Print"
+   },
+   {
+    "anchor": "STU-VAL-001",
+    "spec_clause_text": "[STU-VAL-001] `StudioValidationDescriptor` is the Studio validation-check catalog (document-integrity checks, visual-diff checks, format round-trip checks, forbidden-pattern/anti-scaffold checks). Every model-authored proposal (14.18) and every implementing MT MUST pass the applicable checks before promotion/handoff. Checks carry stable codes and severities."
+   },
+   {
+    "anchor": "STU-LAY-067",
+    "spec_clause_text": "**[STU-LAY-067]** Every capability in this catalog MUST be exposed through BOTH the operator UI and the typed model-steerable command/MCP surface as two projections of one primitive per [STU-DOC-004], MUST satisfy the model-visibility/steerability and parallel-workflow requirements (14.16, 14.17), MUST obey the headless/quiet output law so preflight, package, print, PDF and merge never steal focus or block on a foreground window (14.20), and MUST be represented in the dual-audience UserManual and the GUI/diagnostic and accessibility surfaces (14.22, 14.16). Model-authored layout mutations MUST pass the sandbox -> validation -> `PromotionGate` lifecycle ([STU-ARC-005]) via the propose-work system (14.18) before layout authority rows change. All durable layout authority persists through the canonical Studio SurrealDB tables and `studio.layout` EventLedger events (14.23) under the SurrealDB-only authority guard ([STU-SDB-002]); live collaborative editing is CRDT-backed. This obligation is stated once and is not restated per clause."
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

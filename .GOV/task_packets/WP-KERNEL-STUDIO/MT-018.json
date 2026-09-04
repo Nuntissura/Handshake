@@ -1,101 +1,358 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-018",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-018.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-018.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-001"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Text shaping engine core (TextEngine, native Rust) [STU-TYP shaping,STU-CON-001]",
-  "spec_anchor": [
-    "STU-TYP-*",
-    "STU-ARC-002",
-    "STU-OVR-002"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-018",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:25+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-018.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-018.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-001"
   ],
-  "scope": {
-    "summary": "Implement the studio-engine TextEngine: native Rust text shaping (cosmic-text/rustybuzz-class, no platform/subscription dep) for StudioTextStory — glyph shaping, OpenType feature application, variable-font axes, line breaking + H&J, bidi. UI-agnostic; consumed by 14.6/14.7 MTs.",
-    "allowed_paths": [
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "native TextEngine shapes text with OpenType + variable fonts; no external dependency"
-    ],
-    "proof_targets": [
-      "text shaping + OpenType feature tests"
-    ],
-    "code_surfaces": [
-      "studio-engine/src/text/**"
-    ],
-    "expected_tests": [
-      "cargo test studio_engine::text",
-      "test: shaping + OpenType features + variable-font axes; no external/platform font dependency"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Text shaping engine core (TextEngine, native Rust) [STU-TYP shaping,STU-CON-001]",
+ "spec_anchor": [
+  "STU-TYP-*",
+  "STU-ARC-002",
+  "STU-OVR-002"
+ ],
+ "scope": {
+  "summary": "Implement the studio-engine TextEngine: native Rust text shaping (cosmic-text/rustybuzz-class, no platform/subscription dep) for StudioTextStory — glyph shaping, OpenType feature application, variable-font axes, line breaking + H&J, bidi. UI-agnostic; consumed by 14.6/14.7 MTs.",
+  "allowed_paths": [
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [],
-  "risk_if_missed": "No text engine; typography + layout MTs blocked.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
+  ],
+  "acceptance_criteria": [
+   "Native TextEngine shapes text with OpenType",
+   "Variable fonts",
+   "No external dependency"
+  ],
+  "proof_targets": [
+   "text shaping + OpenType feature tests"
+  ],
+  "code_surfaces": [
+   "studio-engine/src/text/**"
+  ],
+  "expected_tests": [
+   "cargo test studio_engine::text",
+   "test: shaping + OpenType features + variable-font axes; no external/platform font dependency"
+  ],
+  "acceptance_criteria_original": [
+   "native TextEngine shapes text with OpenType + variable fonts; no external dependency"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [],
+ "risk_if_missed": "No text engine; typography + layout MTs blocked.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Native TextEngine shapes text with OpenType",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "text shaping + OpenType feature tests",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "id": "AC-002",
+   "criterion": "Variable fonts",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "No external dependency",
+   "evidence_kind": "build_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
   }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-ARC-002",
+    "spec_clause_text": "[STU-ARC-002] `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `RasterEngine`/`VectorEngine`/`LayoutEngine`/`TextEngine`/`ColorEngine`/`RenderEngine: Send + Sync` trait boundaries defined in `studio-engine/src/lib.rs` (mirrors [TAI-OVR-009])."
+   },
+   {
+    "anchor": "STU-OVR-002",
+    "spec_clause_text": "[STU-OVR-002] Studio MUST NOT require Adobe Photoshop, Illustrator, InDesign, the Affinity suite, Figma, or any other subscription-gated, account-gated, or platform-locked creative application at runtime. Interoperability with those tools' file formats (PSD, AI, IDML, the Affinity `.afphoto`/`.afdesign`/`.afpub`/`.af` family, `.fig`, SVG, PDF, and the raster/vector interchange set) is in scope as import/export/round-trip (14.13); runtime dependency on those apps is out of scope. Note the field precedent: Affinity's own October-2025 v3 relaunch unified its three apps into one application with Vector/Pixel/Layout studios over a single `.af` document — the same unification Studio targets — but gated that app behind a required online Canva account; Studio's unification is fully local-first with no account and no sign-in."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [
+   {
+    "wildcard": "STU-TYP-*",
+    "member_count": 181,
+    "members": [
+     "STU-TYP-001",
+     "STU-TYP-002",
+     "STU-TYP-003",
+     "STU-TYP-004",
+     "STU-TYP-005",
+     "STU-TYP-006",
+     "STU-TYP-007",
+     "STU-TYP-008",
+     "STU-TYP-009",
+     "STU-TYP-010",
+     "STU-TYP-011",
+     "STU-TYP-012",
+     "STU-TYP-013",
+     "STU-TYP-014",
+     "STU-TYP-015",
+     "STU-TYP-016",
+     "STU-TYP-017",
+     "STU-TYP-018",
+     "STU-TYP-019",
+     "STU-TYP-020",
+     "STU-TYP-021",
+     "STU-TYP-022",
+     "STU-TYP-023",
+     "STU-TYP-024",
+     "STU-TYP-025",
+     "STU-TYP-026",
+     "STU-TYP-027",
+     "STU-TYP-028",
+     "STU-TYP-029",
+     "STU-TYP-030",
+     "STU-TYP-031",
+     "STU-TYP-032",
+     "STU-TYP-033",
+     "STU-TYP-034",
+     "STU-TYP-035",
+     "STU-TYP-036",
+     "STU-TYP-037",
+     "STU-TYP-038",
+     "STU-TYP-039",
+     "STU-TYP-040",
+     "STU-TYP-041",
+     "STU-TYP-042",
+     "STU-TYP-043",
+     "STU-TYP-044",
+     "STU-TYP-045",
+     "STU-TYP-046",
+     "STU-TYP-047",
+     "STU-TYP-048",
+     "STU-TYP-049",
+     "STU-TYP-050",
+     "STU-TYP-051",
+     "STU-TYP-100",
+     "STU-TYP-101",
+     "STU-TYP-102",
+     "STU-TYP-103",
+     "STU-TYP-104",
+     "STU-TYP-105",
+     "STU-TYP-106",
+     "STU-TYP-107",
+     "STU-TYP-108",
+     "STU-TYP-109",
+     "STU-TYP-110",
+     "STU-TYP-111",
+     "STU-TYP-112",
+     "STU-TYP-113",
+     "STU-TYP-114",
+     "STU-TYP-115",
+     "STU-TYP-116",
+     "STU-TYP-117",
+     "STU-TYP-118",
+     "STU-TYP-119",
+     "STU-TYP-120",
+     "STU-TYP-121",
+     "STU-TYP-122",
+     "STU-TYP-123",
+     "STU-TYP-124",
+     "STU-TYP-125",
+     "STU-TYP-126",
+     "STU-TYP-127",
+     "STU-TYP-128",
+     "STU-TYP-129",
+     "STU-TYP-130",
+     "STU-TYP-131",
+     "STU-TYP-132",
+     "STU-TYP-133",
+     "STU-TYP-134",
+     "STU-TYP-135",
+     "STU-TYP-136",
+     "STU-TYP-137",
+     "STU-TYP-138",
+     "STU-TYP-139",
+     "STU-TYP-140",
+     "STU-TYP-141",
+     "STU-TYP-145",
+     "STU-TYP-146",
+     "STU-TYP-147",
+     "STU-TYP-148",
+     "STU-TYP-149",
+     "STU-TYP-150",
+     "STU-TYP-151",
+     "STU-TYP-152",
+     "STU-TYP-153",
+     "STU-TYP-154",
+     "STU-TYP-155",
+     "STU-TYP-156",
+     "STU-TYP-157",
+     "STU-TYP-158",
+     "STU-TYP-159",
+     "STU-TYP-160",
+     "STU-TYP-161",
+     "STU-TYP-165",
+     "STU-TYP-166",
+     "STU-TYP-167",
+     "STU-TYP-168",
+     "STU-TYP-169",
+     "STU-TYP-170",
+     "STU-TYP-171",
+     "STU-TYP-172",
+     "STU-TYP-173",
+     "STU-TYP-174",
+     "STU-TYP-175",
+     "STU-TYP-176",
+     "STU-TYP-177",
+     "STU-TYP-178",
+     "STU-TYP-179",
+     "STU-TYP-180",
+     "STU-TYP-181",
+     "STU-TYP-182",
+     "STU-TYP-183",
+     "STU-TYP-185",
+     "STU-TYP-186",
+     "STU-TYP-187",
+     "STU-TYP-188",
+     "STU-TYP-189",
+     "STU-TYP-190",
+     "STU-TYP-191",
+     "STU-TYP-192",
+     "STU-TYP-193",
+     "STU-TYP-194",
+     "STU-TYP-195",
+     "STU-TYP-196",
+     "STU-TYP-197",
+     "STU-TYP-198",
+     "STU-TYP-199",
+     "STU-TYP-200",
+     "STU-TYP-201",
+     "STU-TYP-202",
+     "STU-TYP-203",
+     "STU-TYP-204",
+     "STU-TYP-205",
+     "STU-TYP-206",
+     "STU-TYP-207",
+     "STU-TYP-208",
+     "STU-TYP-209",
+     "STU-TYP-210",
+     "STU-TYP-211",
+     "STU-TYP-212",
+     "STU-TYP-213",
+     "STU-TYP-214",
+     "STU-TYP-215",
+     "STU-TYP-216",
+     "STU-TYP-217",
+     "STU-TYP-220",
+     "STU-TYP-221",
+     "STU-TYP-222",
+     "STU-TYP-223",
+     "STU-TYP-224",
+     "STU-TYP-230",
+     "STU-TYP-231",
+     "STU-TYP-232",
+     "STU-TYP-233",
+     "STU-TYP-235",
+     "STU-TYP-236",
+     "STU-TYP-237",
+     "STU-TYP-238",
+     "STU-TYP-240",
+     "STU-TYP-241",
+     "STU-TYP-242",
+     "STU-TYP-243",
+     "STU-TYP-244",
+     "STU-TYP-245"
+    ],
+    "note": "Family-scope citation. The contract spans this whole clause family; it does not cite one clause."
+   }
+  ],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:25+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

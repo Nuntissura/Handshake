@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-023",
   "created_at_utc": "2026-08-02T13:50:00Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-09-01T17:38:51.7220574Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -35,22 +35,23 @@
     "forbidden_paths": [
       "Re-architecting WP-KERNEL-004's worktree_vm_registry snapshot/restore or clone-safety design; this MT proves and wires the lane, it does not redesign the KERNEL-004 seam",
       "Faking live token generation from a restored VM - the existing module explicitly refuses to do this and so must this MT",
-      "SQLite in any form"
+      "Any database authority other than injected embedded SurrealStorage"
     ],
     "acceptance_criteria": [
       "AC-1: A model lane launches against a worktree-scoped folder inside a microVM and produces REAL generated tokens from a model loaded inside that VM. Fake adapters and in-memory doubles do not satisfy this; per HBR-STOP-003 and the Spec-Realism Gate the proof must touch the real managed resource boundary.",
-      "AC-2: The worktree_id -> VM binding is durable and recoverable: after a restart the binding resolves to the same VM (or fails closed with a named reason), proven against real PostgreSQL rather than in-memory state.",
+      "AC-2: The worktree_id -> VM binding is durable and recoverable through injected embedded SurrealStorage: after a database-engine and registry restart the binding resolves to the same VM or fails closed with a named reason; in-memory state is not authority.",
       "AC-3: Process ownership holds across the VM boundary (HBR-QUIET-003): the VM-hosted lane records START/STOP with owner metadata and is reclaimed on session close, failure, staleness, or operator cancel, leaving no orphan VM.",
-      "AC-4: HBR-PRIV: the worktree-VM binding and any artifact it produces carry owner_account_id / actor_principal_id / workspace scope per the account-bound resource scope introduced in migrations 0363+0364 and swarm_orchestration/resource_scope.rs, with a cross-account negative proving one account cannot enumerate or attach to another account's worktree VM.",
+      "AC-4: HBR-PRIV: the worktree-VM binding and every snapshot provenance record carry exact owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id from server-owned ResourceAccessContext; mismatched exact scope fails before VM spawn/restore and cross-account lookup cannot enumerate or attach to the binding.",
       "AC-5: The in-product internal UserManual documents the worktree-VM launch path (purpose, usage, inputs/outputs, failure modes, recovery) and records the HBR-INT-009 three-tier diagnostic posture, with internal_diagnostics/Palmistry marked DEFERRED-with-reason while WP-KERNEL-012 is unshipped.",
       "AC-6: If the live guest transport or a model-bearing guest image is genuinely unavailable, this MT is BLOCKED with the exact missing resource named in lifecycle.missing_resource. It MUST NOT be closed by weakening AC-1 to a fake-adapter test - that is precisely the scaffold-pass this packet has already been failed for."
     ],
     "proof_commands": [
-      "$env:CARGO_TARGET_DIR=(Resolve-Path '../Handshake_Artifacts/handshake-cargo-target/kb-wp1-mt023-pg-audit-20260810').Path; $env:POSTGRES_TEST_URL='postgres://postgres@127.0.0.1:59637/handshake'; Remove-Item Env:DATABASE_URL,Env:HANDSHAKE_TEST_PG_DATABASE_TEMPLATE,Env:HANDSHAKE_TEST_MANAGED_POSTGRES -ErrorAction SilentlyContinue; cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 4 --test worktree_vm_registry_pg_tests -- --test-threads=1 --nocapture | Out-String",
-      "$env:CARGO_TARGET_DIR=(Resolve-Path '../Handshake_Artifacts/handshake-cargo-target/kb-wp1-mt023-20260810').Path; $env:HANDSHAKE_MT023_LIVE='1'; $env:HANDSHAKE_MT023_WORKTREE_ROOT=(Resolve-Path '.').Path; $env:HANDSHAKE_SBX_GGUF='D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf'; $env:HANDSHAKE_SBX_GGUF_SHA256='452E1A2BAE39605977CE0CB34179E1ABBC58743A0EE0B7A4CF02D043D1A35BF0'; $env:HANDSHAKE_CH_WARM_AGENT_HOST_PATH=(Resolve-Path '../Handshake_Artifacts/warm-agent/wp1-kb-mt023/hsk-warm-agent').Path; $env:HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH=(Resolve-Path '../Handshake_Artifacts/warm-agent/wp1-kb-mt023/llama-server').Path; $env:HANDSHAKE_SANDBOX_ROOT='/home/ilja_smets/handshake-sandbox'; $env:HANDSHAKE_CH_WORK_DIR='/tmp/hsk-mt023-final-rerun-20260810'; $env:HANDSHAKE_CH_MEMORY_MIB='3072'; $env:HANDSHAKE_CH_COMMITTED_MEMORY_BUDGET_MIB='16384'; $env:HANDSHAKE_CH_VCPUS='4'; $env:HANDSHAKE_CH_TIMEOUT_MS='600000'; $env:HANDSHAKE_CH_PROBE_TIMEOUT_MS='60000'; $env:POSTGRES_TEST_URL='postgres://postgres@127.0.0.1:59647/handshake'; Remove-Item Env:DATABASE_URL,Env:HANDSHAKE_TEST_PG_DATABASE_TEMPLATE,Env:HANDSHAKE_TEST_MANAGED_POSTGRES -ErrorAction SilentlyContinue; cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 4 --test worktree_model_lane_live_pg_tests mt023_real_worktree_model_lane_runs_inside_microvm -- --ignored --exact --nocapture --test-threads=1 | Out-String",
-      "$env:CARGO_TARGET_DIR=(Resolve-Path '../Handshake_Artifacts/handshake-cargo-target/kb-wp1-mt023-20260810').Path; cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 4 --test user_manual_behavior_coverage_tests worktree_microvm_model_lane_is_documented_and_toc_reachable -- --exact --nocapture | Out-String",
-      "$env:CARGO_TARGET_DIR=(Resolve-Path '../Handshake_Artifacts/handshake-cargo-target/kb-wp1-mt023-20260810').Path; cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 4 --test user_manual_behavior_coverage_tests product_local_scope_manual_matches_server_owned_exact_authority -- --exact --nocapture | Out-String",
-      "$env:CARGO_TARGET_DIR=(Resolve-Path '../Handshake_Artifacts/handshake-cargo-target/kb-wp1-mt023-20260810').Path; cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 4 --test user_manual_behavior_coverage_tests wp1_console_manual_matches_scoped_stream_privacy -- --exact --nocapture | Out-String"
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-registry-v6-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-registry-v6-store'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --test worktree_vm_registry_surreal_tests -j 1 -- --test-threads=1 --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-package-v6-target'; cargo run --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --bin hsk-warm-agent-package -j 1 -- --distro Ubuntu --repo-root 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1' --output-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package' --target-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-package-v6-target' --llama-server '//wsl.localhost/Ubuntu/home/ilja_smets/handshake-sandbox/llama.cpp/build-static-server/bin/llama-server'",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-store'; $env:HANDSHAKE_MT023_LIVE='1'; $env:HANDSHAKE_MT023_WORKTREE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1'; $env:HANDSHAKE_SBX_GGUF='D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf'; $env:HANDSHAKE_SBX_GGUF_SHA256='452E1A2BAE39605977CE0CB34179E1ABBC58743A0EE0B7A4CF02D043D1A35BF0'; $env:HANDSHAKE_CH_WARM_AGENT_HOST_PATH='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package/hsk-warm-agent'; $env:HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package/llama-server'; $env:HANDSHAKE_SANDBOX_ROOT='/home/ilja_smets/handshake-sandbox'; $env:HANDSHAKE_CH_WORK_DIR='/tmp/hsk-mt023-surreal-live-v6'; $env:HANDSHAKE_CH_MEMORY_MIB='3072'; $env:HANDSHAKE_CH_COMMITTED_MEMORY_BUDGET_MIB='16384'; $env:HANDSHAKE_CH_VCPUS='4'; $env:HANDSHAKE_CH_TIMEOUT_MS='600000'; $env:HANDSHAKE_CH_PROBE_TIMEOUT_MS='60000'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --test worktree_model_lane_live_surreal_tests mt023_real_worktree_model_lane_runs_inside_microvm -j 1 -- --ignored --exact --nocapture --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-manual-v6-target'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests worktree_microvm_model_lane_is_documented_and_toc_reachable -j 1 -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-manual-v6-target'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests product_local_scope_manual_matches_server_owned_exact_authority -j 1 -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-manual-v6-target'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests wp1_console_manual_matches_scoped_stream_privacy -j 1 -- --exact --nocapture"
     ],
     "risk_if_missed": "The Operator has declared worktree-in-VM model launch non-negotiable. Leaving it fake-adapter-tested means Handshake claims a sandboxed-execution capability that has never run, which is the exact class of defect the Spec-Realism Gate exists to catch, and it would surface as a spec-vs-runtime gap at Integration Validation rather than here."
   },
@@ -75,32 +76,32 @@
     "A VM that outlives its session is an orphan with far higher cost than an orphan process; AC-3 is not optional.",
     "Marking this MT NOT_APPLICABLE because 'WP-KERNEL-004 owns the VM' would lose the Operator's non-negotiable. The seam is KERNEL-004's; proving the model-launch lane over it is this packet's."
   ],
-  "handshake_compatibility": "No SQLite. PostgreSQL/EventLedger authority only. Handshake-managed microVM via the existing Cloud Hypervisor adapter - not Docker Desktop, not a manually launched outside app (CX-503S).",
+  "handshake_compatibility": "Injected embedded SurrealStorage plus EventLedger is the sole durable authority. Handshake manages the microVM through the existing Cloud Hypervisor adapter; no external database service, Docker Desktop, or manually launched VM is proof authority (CX-503S).",
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "FAIL_V5",
-    "claimed_by": "KERNEL_BUILDER-20260806-230933",
-    "claimed_at_utc": "2026-08-07T00:15:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260806-230933",
-    "ready_for_validation_at_utc": "2026-08-10T17:19:40.7163235Z",
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": null,
-    "proof_status": "FAIL_V5: The mandatory live MicroVM proof cannot start in the current environment: WSL has no /dev/kvm, the contract-declared PostgreSQL ports 59637 and 59647 are closed, and the declared Cargo target directories do not exist. AC-6 forbids substituting deterministic registry tests for the real KVM/model/PostgreSQL path. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_INT_QUIET_MAN_STOP_PRIV_SWARM_FINAL_COMBINED_RUNTIME_AND_NEGATIVE_PROOFS_GREEN; WP-KERNEL-006/007 authentication/grants/RLS explicitly excluded by operator direction.",
+    "blocker": "MT-023 is not V6-ready. Source/static inspection confirms the recovered embedded-Surreal registry is intact and exact-five-scope predicates are present, but registry durability mutations do not emit or link canonical kernel EventLedger receipts. Focused embedded-Surreal tests have not run on the current source, and mandatory real worktree-in-microVM token generation, lifecycle, restart, fencing, denied non-mutation/leakage, and cleanup proof has not run. Deterministic registry tests cannot substitute for AC-1.",
+    "missing_resource": "Source dependency: canonical kernel EventLedger mutation/receipt linkage for WorktreeVmRegistry durable reserve/bind/snapshot/terminate/release paths using the same cloned SurrealStorage and exact five-field ResourceScope. Runtime dependency: one validated co-packaged hsk-warm-agent plus static llama-server under D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package, followed by the ignored live target. /dev/kvm is PRESENT and read/write in WSL2 Ubuntu and is not the current blocker; Cloud Hypervisor, ch-remote, the kernel, initramfs, and GGUF were also observed present.",
+    "proof_status": "BLOCKED_ON_DEPENDENCY_V6_CONTRACT_AUDIT: embedded SurrealDB is the sole accepted persistence authority. The recovered registry and both Surreal targets are nonzero and rustfmt-clean; all seven durable data query blocks are statically guarded by all five scope predicates, and tests cover restart, idempotency, fencing, incomplete scope, each one-field mismatch, raw snapshot denial, and cleanup. No Cargo or runtime proof ran in this contract-only audit. Canonical kernel EventLedger linkage is absent from the registry source/tests, the required warm-agent package is absent, and no fresh live KVM/model-lane result exists. Historical V1-V5 results are provenance only.",
+    "hbr_status": "BLOCKED_V6_REVALIDATION_REQUIRED: exact-scope source guards are present, but canonical EventLedger mutation receipts, focused embedded-Surreal runtime proof, and mandatory live microVM proof remain open.",
     "pre_implementation_adversarial_review_status": "DONE_2026-08-10_CONTRACT_AND_RUNTIME_ATTACK_SURFACES_REVIEWED",
-    "post_implementation_adversarial_review_status": "PASS_2026-08-10_INDEPENDENT_COMBINED_NO_OPEN_BLOCKER",
-    "adversarial_findings_status": "ALL_CONFIRMED_MT023_FINDINGS_REMEDIATED_AND_RECHECKED_GREEN",
-    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-023:2026-08-10T17:19:32.011Z",
+    "post_implementation_adversarial_review_status": "V6_CONTRACT_ONLY_AUDIT_BLOCKED_ON_SOURCE_AND_RUNTIME_DEPENDENCIES_2026-09-01",
+    "adversarial_findings_status": "OPEN_HIGH_RISK_EVENTLEDGER_AND_LIVE_MICROVM_PROOF_GAPS",
+    "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1 (explicit HANDSHAKE_PRODUCT_WORKTREE_ROOT; verified by KB checklist)",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
-    "blocked_at_utc": null,
-    "blocked_by": null,
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
+    "validated_by": null,
+    "validated_at_utc": null,
+    "blocked_at_utc": "2026-09-01T17:38:51.7220574Z",
+    "blocked_by": "V6_CONTRACT_ONLY_AUDIT_2026-09-01",
+    "last_runtime_status_ref": "NO_FRESH_V6_RUNTIME_RESULT: /dev/kvm is currently available, but canonical EventLedger source linkage, focused embedded-Surreal tests, the warm-agent package, and the mandatory live microVM target remain unproven"
   },
   "v5_block_2026_08_04": {
     "verification_commands": [
@@ -333,7 +334,7 @@
     "fixed_by": "KERNEL_BUILDER-20260805-053606",
     "fixed_at_utc": "2026-08-05T10:30:00Z"
   },
-  "validator_verdict": "FAIL_V5",
+  "validator_verdict": null,
   "integration_validation_v5_2026_08_14": {
     "verdict": "FAIL_V5",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
@@ -397,5 +398,163 @@
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
+  },
+  "v6_adversarial_review_2026_09_01": {
+    "reviewed_at_utc": "2026-09-01T14:51:26.7991170Z",
+    "review_mode": "KERNEL_BUILDER_HIGH_RISK_STATIC_ONLY_NO_CARGO_NO_RUNTIME",
+    "DIFF_ATTACK_SURFACES": [
+      "Recovered durable WorktreeVmRegistry ownership, reservation, snapshot, restore, teardown, reconciliation, and cleanup paths.",
+      "Seven durable Surreal read/mutation query blocks and the five-field ResourceScope authorization boundary.",
+      "Raw SnapshotRef restore versus durable WarmVmSnapshotManifest provenance, generation fencing, and adapter side effects.",
+      "Recovered integration-test compile boundary and nonvacuous negative-path coverage."
+    ],
+    "INDEPENDENT_CHECKS": [
+      "rustfmt --edition 2021 --config skip_children=true --check on both owned Rust files: exit 0.",
+      "git diff --check on both owned Rust files: exit 0; only the existing LF-to-CRLF warning was emitted.",
+      "Independent PowerShell extraction of all seven durable query blocks found zero missing five-field scope predicates.",
+      "Owned-file forbidden-backend static scan found zero forbidden product backend tokens; embedded SurrealDB remains sole persistence authority.",
+      "MT-023 JSON parsed successfully after this update."
+    ],
+    "COUNTERFACTUALS": [
+      "Changing exactly one of owner, actor, authenticated session, access space, or workspace must deny create/read/snapshot/teardown without a second spawn, snapshot, mutation, or identifier disclosure.",
+      "Supplying an arbitrary or cross-scope raw SnapshotRef to a durable registry must return SnapshotSourceMissing before adapter.restore and before creating a durable binding.",
+      "A legacy or incomplete row missing any scope field must not match any durable read/mutation predicate; runtime proof remains owed under the parent slot.",
+      "A stale generation/binding/process identity must not terminate its successor."
+    ],
+    "BOUNDARY_PROBES": [
+      "Same-scope durable restart adoption and terminalization are covered by the focused Surreal integration target.",
+      "All five one-field scope mismatches cover ensure, non-disclosing durable read, snapshot denial, teardown no-op, and unchanged owner binding.",
+      "Concurrent process-local registry claims cover one durable spawn; cross-process reservation behavior remains a focused runtime obligation.",
+      "Snapshot and teardown mutations are binding/generation/state fenced and compensate snapshot-persistence failure by deleting the captured snapshot.",
+      "Warm restore requires persisted source binding, generation, exact five-field scope, and exact stored snapshot before adapter restore."
+    ],
+    "NEGATIVE_PATHS": [
+      "Incomplete caller session, access-space, or workspace scope fails before spawn.",
+      "Raw durable restore fails closed before adapter side effects.",
+      "Scope-mismatched durable reads return None and teardown is non-disclosing and side-effect free.",
+      "Stale teardown identity fails before killing the successor.",
+      "Live KVM/model proof is not inferred from deterministic adapters or historical declarations."
+    ],
+    "INDEPENDENT_FINDINGS": [
+      "Fixed missing std::path::PathBuf import in the recovered integration test, which would otherwise prevent target compilation.",
+      "Fixed a durable cross-scope attachment path: public raw restore previously bypassed WarmVmSnapshotManifest source-scope authorization when manifest was None.",
+      "Corrected the constructor documentation, which falsely described a physical owner/workspace/worktree key although the physical key is worktree-derived and scope safety comes from all-five query predicates plus post-deserialization authorization.",
+      "Corrected active contract declarations that presented historical KVM and HBR PASS observations as current V6 proof."
+    ],
+    "RESIDUAL_UNCERTAINTY": [
+      "No Rust target was compiled or executed in this lane, so compile and runtime behavior are not claimed.",
+      "Legacy/incomplete-row fail-closed behavior is statically guarded by every-query predicate checks but still needs an embedded-Surreal runtime case.",
+      "Cross-process reservation races, interrupted compensation, retry after teardown persistence failure, and live Cloud Hypervisor cleanup need focused runtime proof.",
+      "The registry has reservation claim/release and stale-reservation expiry but no separate renewable lease API; lease-renew behavior is therefore not claimed for MT-023.",
+      "Historical /dev/kvm observations were not refreshed under this static-only authorization."
+    ],
+    "owned_artifacts": [
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs",
+        "bytes": 93633,
+        "sha256": "B060B378AA89AA28CC3533C58067DEBBEFE5C1F95F88F97C3E32649B0DBF0274"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/worktree_vm_registry_surreal_tests.rs",
+        "bytes": 23854,
+        "sha256": "671289366458A28E1EB8A0F990969179D12E389BBD05554609543CEF2F282B32"
+      }
+    ],
+    "proof_owed": {
+      "artifact_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts",
+      "cargo": "Parent must run only the focused MT-023 integration target with the canonical target directory under artifact_root, then remove disposable target data when no longer needed.",
+      "runtime": "Parent must run embedded-Surreal legacy/incomplete-row and cross-process reservation/compensation cases plus the exact live Cloud Hypervisor/KVM/model-lane proof. No external database is part of any proof.",
+      "readiness": "Do not mark READY until the parent-owned focused Cargo and required live runtime gates are fresh and green."
+    }
+  },
+  "v6_contract_only_audit_2026_09_01": {
+    "audited_at_utc": "2026-09-01T17:38:51.7220574Z",
+    "review_mode": "HIGH_RISK_CONTRACT_ONLY_CURRENT_SOURCE_STATIC_ENVIRONMENT_NO_CARGO_NO_PRODUCT_EDITS",
+    "verdict": "BLOCKED_ON_DEPENDENCY",
+    "authority_rebase": {
+      "active_persistence_authority": "Injected embedded SurrealStorage only; the same cloned namespace/database must be used by registry, ModelLane, ProcessLedger, and canonical kernel EventLedger paths.",
+      "superseded_requirements": "All historical external database endpoints, fixtures, ports, and proof commands are provenance only and are not V6 requirements.",
+      "source_vs_runtime": "Registry source/static closure and deterministic embedded-Surreal behavior are necessary but do not satisfy mandatory /dev/kvm Cloud Hypervisor launch with real in-guest token generation.",
+      "readiness": "Not READY_FOR_VALIDATION_V6. No current validator verdict or readiness receipt is retained."
+    },
+    "DIFF_ATTACK_SURFACES": [
+      "Recovered worktree_vm_registry.rs after the prior zero-byte truncation incident: schema, reserve, bind, snapshot, restore, terminate, release, restart adoption, stale-generation fencing, and compensation paths.",
+      "Seven durable data query blocks plus reservation CREATE content: exact owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id predicates/content on the durable row itself.",
+      "Registry writer versus canonical kernel EventLedger receipt/linkage boundary.",
+      "Deterministic embedded-Surreal registry tests versus the ignored real Cloud Hypervisor/KVM/GGUF model-lane acceptance target.",
+      "Same injected SurrealStorage clone across ModelLane, ProcessLedger, registry, restart, drain-before-shutdown, and cleanup."
+    ],
+    "INDEPENDENT_CHECKS_RUN": [
+      "rustfmt --edition 2021 --check on worktree_vm_registry.rs, worktree_vm_registry_surreal_tests.rs, and worktree_model_lane_live_surreal_tests.rs: exit 0.",
+      "git diff --check on the same three artifacts: exit 0; only the existing LF-to-CRLF warning appeared.",
+      "Forbidden active backend scan across the same three artifacts: zero external relational backend tokens.",
+      "Static query inventory found seven durable data read/mutation query blocks after excluding schema bootstrap; the focused source test enumerates all seven and requires all five predicates plus all five CREATE fields.",
+      "Canonical EventLedger scan across registry and both targets found no registry mutation receipt or event linkage; ProcessLedger batching and Flight Recorder capture in the live target do not prove registry EventLedger atomicity.",
+      "Fresh WSL2 probe: /dev/kvm exists as crw-rw---- root:kvm and is readable and writable by the current user. cloud-hypervisor, ch-remote, vmlinux-6.1.102, initramfs.cpio, and the configured GGUF exist."
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      "If any one of the five predicates were removed from reserve, release, bind, snapshot, terminate, scoped read, or snapshot-source lookup, a differently attributed caller could collide with, discover, attach to, or mutate the same physical worktree binding.",
+      "If binding_id, generation, and process_handle fencing were removed from teardown, a delayed cleanup could kill a successor VM after restart or retry.",
+      "If raw SnapshotRef restore were accepted without durable source manifest provenance, a cross-scope snapshot could reach adapter.restore before authorization.",
+      "If worktree_vm_registry_surreal_tests passed while the ignored live target remained unrun, AC-1 would still be false because no real model inside a KVM VM produced tokens.",
+      "If registry writes remain outside canonical kernel EventLedger linkage, durable state can advance without the acceptance-required auditable mutation receipt."
+    ],
+    "BOUNDARY_PROBES": [
+      "Writer/reader: reserve and bind stamp all five fields; scoped reads bind all five and authorize the deserialized row again.",
+      "Snapshot producer/consumer: snapshot state is binding/generation fenced; restore requires exact manifest scope, source binding, generation, and stored SnapshotRef before adapter side effects.",
+      "Registry/restart: the deterministic target reopens the exact embedded store and adopts the durable handle before terminal teardown.",
+      "Registry/EventLedger: no canonical kernel EventLedger producer or receipt reference is present in the registry durable mutation path; this boundary is open.",
+      "Static/live: the ignored live target checks linked-worktree identity inside the VM, real token output, exact-scope non-enumeration, terminal kill, orphan-set equality, ledger drain, and embedded-store cleanup, but has no fresh V6 execution result."
+    ],
+    "NEGATIVE_PATH_CHECKS": [
+      "Incomplete authenticated-session, AccessSpace, or workspace scope is designed to fail before storage or spawn.",
+      "Each one-field exact-scope mismatch is covered for create/read/snapshot/teardown denial with no second spawn, no snapshot, no teardown side effect, and owner binding preserved.",
+      "Unattributed raw snapshot restore is covered as SnapshotSourceMissing before adapter.restore and without a durable row.",
+      "Stale generation teardown is covered as StaleBinding while the successor remains running.",
+      "Missing warm-agent package currently prevents the live proof from starting; this is recorded rather than converted into a pass or replaced by deterministic tests."
+    ],
+    "INDEPENDENT_FINDINGS": [
+      "HIGH: WorktreeVmRegistry durable mutations have no canonical kernel EventLedger mutation/receipt linkage. Source/static closure is incomplete under the V6 requirement.",
+      "HIGH: Mandatory live worktree-in-microVM real-token proof has not run on current source. AC-1 and its lifecycle/cleanup assertions remain unproven.",
+      "MEDIUM: The required co-packaged hsk-warm-agent and llama-server paths under _Artifacts are absent. A static llama-server exists in WSL, but no validated sibling warm-agent package currently exists.",
+      "CORRECTION: /dev/kvm is currently present and read/write; it is not the current external blocker. Historical V5 claims requiring external database endpoints are superseded and must not be replayed.",
+      "INTEGRITY: The recovered registry is nonzero, rustfmt-clean, and retains the exact SHA-256 recorded by the prior recovery audit. No rewrite was performed."
+    ],
+    "RESIDUAL_UNCERTAINTY": [
+      "No Rust target was compiled or executed, so current compile and runtime behavior are not claimed.",
+      "Cross-process reservation behavior, interrupted compensation, retry after persistence failure, restart reconciliation, and physical orphan cleanup remain runtime questions until focused proof runs.",
+      "The live target captures Flight Recorder events and drains ProcessLedger but does not itself establish canonical EventLedger linkage for each registry mutation.",
+      "Warm-agent package construction and live target execution may reveal additional guest transport or packaging failures after the currently missing package is supplied."
+    ],
+    "source_integrity": [
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs",
+        "bytes": 93633,
+        "sha256": "B060B378AA89AA28CC3533C58067DEBBEFE5C1F95F88F97C3E32649B0DBF0274"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/worktree_vm_registry_surreal_tests.rs",
+        "bytes": 23854,
+        "sha256": "671289366458A28E1EB8A0F990969179D12E389BBD05554609543CEF2F282B32"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/worktree_model_lane_live_surreal_tests.rs",
+        "bytes": 12975,
+        "sha256": "580B19E53D771499E411AF875596F78D543A69AA71019D06AD346164FB5E60D4"
+      }
+    ],
+    "external_live_environment": {
+      "dev_kvm": "PRESENT_READ_WRITE_NOT_A_BLOCKER",
+      "cloud_hypervisor": "/home/ilja_smets/handshake-sandbox/bin/cloud-hypervisor PRESENT",
+      "ch_remote": "/home/ilja_smets/handshake-sandbox/bin/ch-remote PRESENT",
+      "kernel": "/home/ilja_smets/handshake-sandbox/vmlinux-6.1.102 PRESENT",
+      "initramfs": "/home/ilja_smets/handshake-sandbox/initramfs.cpio PRESENT",
+      "gguf": "D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf PRESENT",
+      "warm_agent_package": "ABSENT at D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package",
+      "fresh_live_result": "ABSENT"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260901-040340"
   }
 }

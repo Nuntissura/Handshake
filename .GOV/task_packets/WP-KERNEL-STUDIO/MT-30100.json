@@ -1,0 +1,88 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30100",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-127#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "6. The Brush Engine",
+  "spec_line": 803,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "PRIMARY TIP PARAMETER CONTRACT",
+ "spec_anchor": [
+  "STU-RAS-127"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "PRIMARY TIP PARAMETER CONTRACT.** Every brush tip MUST carry these parameters with these contracts. `declared` bounds come from the shipped brush-control surface; `observed` ranges are the spread across shipped presets and are evidence only ([STU-RAS-107]). *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | observed range | classification | |---|---|---|---|---|---|---|---|---|---| | `diameter` | 1 | 5000 | 1 | 5000 | unknown | pixels | 1 | 1.0 .. 504.0 | hard declared, soft declared | | `hardness` | 0 | 100 | 0 | 100 | unknown | percent | 1 | 0.0 .. 100.0 | hard declared, soft declared | | `angle` | -180 | 180 | -180 | 180 | 0.0 | degrees | 1 | -102.0 .. 90.0 | bounds `derived` from the angular domain; default `derived` (identity) | | `roundness` | 0 | 100 | 0 | 100 | 100.0 | percent | 1 | 0.0 .. 100.0 | bounds `derived` from the percentage domain; default `derived` (identity) | | `spacing` | unknown | unknown | 1 | 1000 | 25.0 | percent | 1 | 1.0 .. 190.0 | spacing above 100 percent is legal and shipped; hard max undeclared | | `spacing_enabled` | — | — | — | — | true | none | — | true in 637 of 643 | boolean | | `flip_x`, `flip_y` | — | — | — | — | false | none | — | false in all 643 | boolean | | `tip_shape_index` [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "PRIMARY TIP PARAMETER CONTRACT.** Every brush tip MUST carry these parameters with these contracts.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-127"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The `spacing` hard maximum is `unknown` and MUST NOT be clamped to 100: shipped presets carry spacing up to 190 percent on a primary tip and up to 279 percent on a dual tip, so a 100 percent clamp would break shipped art.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-127"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30273",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-039#catalogue_row#0_reflect",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "12. Blend Modes",
+  "spec_line": 1612,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "reflect",
+ "spec_anchor": [
+  "STU-RAS-039"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "Additional comparative/intensity modes present in one source family but not another MUST be included as `StudioBlendMode` values so no source blend behaviour is lost. They receive discriminants above 30 in the order below, and their applicability metadata MUST be populated per [STU-RAS-155]. They are enumerated here rather than named only in prose so that each carries its own implementable contract exactly as the thirty members of [STU-RAS-154] do: *Derivation: catalogue table, splits per row; yields 5 microtasks, one per additional blend mode.* | Blend mode (`StudioBlendMode`) | Discriminant | Group | Applicability and compositing function | |---|---|---|---| | `average` | 31 | comparative | applicability `unknown`; the compositing function was not recovered by the capture and MUST be established by governed spec enrichment before implementation, not guessed | | `negation` | 32 | comparative | applicability `unknown`; compositing function `unknown`, as above | | `reflect` | 33 | intensity | applicability `unknown`; compositing function `unknown`, as above | | `glow` | 34 | intensity | applicability `unknown`; compositing function `unknown`, as above | | `erase` | 35 | normal | applicability `unknown`; compositing function `unknown`, as above. The name is the source family's own and its semantics MUST be confirmed before a discriminant is frozen | The group column above is the [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`reflect` satisfies the spec's stated blend mode (`studioblendmode`): `reflect`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-039 catalogue row `reflect`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`reflect` satisfies the spec's stated discriminant: 33",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-039 catalogue row `reflect`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`reflect` satisfies the spec's stated group: intensity",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-039 catalogue row `reflect`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`reflect` satisfies the spec's stated applicability and compositing function: applicability `unknown`; compositing function `unknown`, as above",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-039 catalogue row `reflect`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`reflect` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-RAS-039"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

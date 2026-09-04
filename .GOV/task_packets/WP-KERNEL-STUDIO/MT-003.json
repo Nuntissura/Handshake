@@ -1,118 +1,168 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-003",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-003.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-003.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-002"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "STUDIO_* EventLedger variants [STU-ARC-003,STU-CON-003]",
-  "spec_anchor": [
-    "STU-ARC-003",
-    "STU-CON-003"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-003",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:25+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-003.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-003.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-002"
   ],
-  "scope": {
-    "summary": "Add the 22 STUDIO_* KernelEventType variants (SCREAMING_SNAKE wire, dot-namespaced event_family consts) from 14.23, register each in required_first_slice_events(), with KernelActor attribution on WriteContext.",
-    "allowed_paths": [
-      "src/studio/**",
-      "src/kernel/mod.rs",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "22 STUDIO_* variants present, registered, actor-attributed"
-    ],
-    "proof_targets": [
-      "events registered + wire-string test green"
-    ],
-    "code_surfaces": [
-      "src/kernel/mod.rs (KernelEventType)",
-      "src/studio/events.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::events",
-      "test: every STUDIO_* variant as_str() wire string + registered in required_first_slice_events()"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "STUDIO_* EventLedger variants [STU-ARC-003,STU-CON-003]",
+ "spec_anchor": [
+  "STU-ARC-003",
+  "STU-CON-003"
+ ],
+ "scope": {
+  "summary": "Add the 22 STUDIO_* KernelEventType variants (SCREAMING_SNAKE wire, dot-namespaced event_family consts) from 14.23, register each in required_first_slice_events(), with KernelActor attribution on WriteContext.",
+  "allowed_paths": [
+   "src/studio/**",
+   "src/kernel/mod.rs",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No typed events; authority mutations unauditable/unreplayable.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "22 STUDIO_* variants present, registered, actor-attributed"
+  ],
+  "proof_targets": [
+   "events registered + wire-string test green"
+  ],
+  "code_surfaces": [
+   "src/kernel/mod.rs (KernelEventType)",
+   "src/studio/events.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::events",
+   "test: every STUDIO_* variant as_str() wire string + registered in required_first_slice_events()"
+  ],
+  "acceptance_criteria_original": [
+   "22 STUDIO_* variants present, registered, actor-attributed"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No typed events; authority mutations unauditable/unreplayable.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "22 STUDIO_* variants present, registered, actor-attributed",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "events registered + wire-string test green",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-ARC-003",
+    "spec_clause_text": "[STU-ARC-003] EventLedger event variants for Studio MUST follow the canonical addition list in 14.23. The Studio module adds variants to `KernelEventType` in `kernel/mod.rs` (wire format `STUDIO_*` SCREAMING_SNAKE_CASE via `as_str()`) with dot-namespaced lowercase `event_family` constants (`studio.document`, `studio.raster`, `studio.vector`, `studio.layout`, `studio.typography`, `studio.color`, `studio.effect`, `studio.export`, `studio.history`, `studio.proposal`, `studio.design_system`, `studio.prototype`), and registers every variant in `required_first_slice_events()`. Every `WriteContext` carries a `KernelActor` variant so model-authored Studio rows are distinguishable from operator rows in the audit log."
+   },
+   {
+    "anchor": "STU-CON-003",
+    "spec_clause_text": "[STU-CON-003] EVENT VARIANTS. Canonical `KernelEventType` additions (wire `STUDIO_*` SCREAMING_SNAKE_CASE): `STUDIO_DOCUMENT_CREATED`, `STUDIO_DOCUMENT_PROMOTED`, `STUDIO_LAYER_CREATED`, `STUDIO_LAYER_MUTATED`, `STUDIO_SELECTION_CHANGED`, `STUDIO_MASK_APPLIED`, `STUDIO_ADJUSTMENT_APPLIED`, `STUDIO_EFFECT_APPLIED`, `STUDIO_VECTOR_PATH_EDITED`, `STUDIO_TEXT_EDITED`, `STUDIO_STYLE_APPLIED`, `STUDIO_COMPONENT_PUBLISHED`, `STUDIO_VARIABLE_SET`, `STUDIO_PROTOTYPE_EDITED`, `STUDIO_RAW_DEVELOPED`, `STUDIO_EXPORT_RENDERED`, `STUDIO_IMPORT_COMPLETED`, `STUDIO_EDIT_PROPOSAL_RECORDED`, `STUDIO_EDIT_PROMOTED`, `STUDIO_EDIT_REJECTED`, `STUDIO_HISTORY_UNDONE`, `STUDIO_HISTORY_REDONE`. The Flight Recorder business-event family is `FR-EVT-STUDIO-*` (14.24). Every variant registers in `required_first_slice_events()`."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:25+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

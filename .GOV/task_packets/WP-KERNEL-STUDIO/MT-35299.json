@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35299",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-MOT-074#catalogue_row#0_property_sampling_in_the_uncategorised_block",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "3. The identifier surface",
+  "spec_line": 26322,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Property sampling (in the uncategorised block)",
+ "spec_anchor": [
+  "STU-MOT-074"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "motion",
+ "scope": {
+  "summary": "**Six identifier families are load-bearing and are called out because an implementation that ships the language without them ships a calculator.** *Derivation: catalogue table, splits per row; yields 6 microtasks, one per load-bearing identifier family.* | Family | Members | Why it is load-bearing | |---|---|---| | Space transforms (30) | `toComp`, `fromComp`, `toWorld`, `fromWorld`, `toCompVec`, `fromCompVec`, `toWorldVec`, `fromWorldVec`, `fromCompToSurface` and their legacy spellings | Converting a point between a layer's space, the composition's space and world space is what makes rigging across a parent hierarchy possible. Without them, an expression cannot answer \"where is that layer, from here\". | | Property sampling (in the uncategorised block) | `valueAtTime`, `velocityAtTime`, `speedAtTime`, `nearestKey`, `nextKey`, `previousKey`, `numKeys`, `key` | Reading another property at another time is how delay, echo, follow and inertia rigs are built. | | Looping | `loopIn`, `loopOut`, `loopInDuration`, `loopOutDuration` with a `type = \"cycle\"` argument | Cycling, ping-ponging, continuing and offsetting an existing keyframe range without duplicating keyframes. | | Randomness | `seedRandom`, `random`, `gaussRandom`, `noise`, `wiggle`, `temporalWiggle` | Procedural variation. `seedRandom` is what makes it REPRODUCIBLE, and Studio requires the seed to be explicit exactly as [STU [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Property sampling (in the uncategorised block)` satisfies the spec's stated family: Property sampling (in the uncategorised block)",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-074 catalogue row `Property sampling (in the uncategorised block)`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`Property sampling (in the uncategorised block)` satisfies the spec's stated members: `valueAtTime`, `velocityAtTime`, `speedAtTime`, `nearestKey`, `nextKey`, `previousKey`, `numKeys`, `key`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-074 catalogue row `Property sampling (in the uncategorised block)`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`Property sampling (in the uncategorised block)` satisfies the spec's stated why it is load-bearing: Reading another property at another time is how delay, echo, follow and inertia rigs are built.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-074 catalogue row `Property sampling (in the uncategorised block)`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`Property sampling (in the uncategorised block)` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-MOT-074"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

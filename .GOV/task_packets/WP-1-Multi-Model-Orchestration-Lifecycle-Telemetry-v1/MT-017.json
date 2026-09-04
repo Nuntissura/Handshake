@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-017",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
-  "scope_status": "READY_FOR_VALIDATION_V3",
+  "updated_at_utc": "2026-09-01T00:00:00Z",
+  "scope_status": "V6_BLOCKED_ON_DEPENDENCY_2026-09-01",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,8 @@
     "path": "",
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
-  "lifecycle": {
+  "owned_files": [],
+  "historical_lifecycle_v5_superseded": {
     "status": "FAIL_V5",
     "depends_on": [
       "MT-003",
@@ -52,7 +53,7 @@
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
     "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
   },
-  "final_audit_remediation_2026_07_18": {
+  "historical_final_audit_remediation_2026_07_18_superseded": {
     "status": "PASS_READY_FOR_VALIDATION_ONLY",
     "verified_at_utc": "2026-07-18T10:47:32.982Z",
     "repairs": [
@@ -84,7 +85,7 @@
     "visual_verdict": "PASS_800X600_DIRECT_INSPECTION_READABLE_BOUNDED_NO_OVERLAP_NO_RED_DUPLICATE_WIDGET_DIAGNOSTICS",
     "validator_boundary": "validator_verdict remains PENDING; completed_by remains null."
   },
-  "scope": {
+  "historical_scope_v5_superseded": {
     "summary": "Close the deferred WP-1 hardening gaps discovered during the KERNEL_BUILDER adversarial re-proof of all 16 MTs at HEAD. These are real, evidence-backed gaps that were deliberately NOT folded into their originating MTs because they require design decisions or touch a security boundary.",
     "origin": "KERNEL_BUILDER takeover 2026-07-08/09: 6 parallel adversarial reviewers + full runtime re-proof at HEAD. Fixes already landed in-MT: MT-006 lane-bound consent negative test (commit 01c1ad8b), MT-009 HBR-SWARM-001 real concurrency (commit 750b9447), loom/ModelCapabilities compile fixes (commit 2e1204f0).",
     "allowed_paths": [
@@ -203,11 +204,117 @@
       "app/src/"
     ]
   },
-  "implementation_notes": [
+  "historical_implementation_notes_v5_superseded": [
     "AC-1 is a security-boundary change: broadening what a ConsentReceipt authorizes. It MUST be an explicit operator/validator decision, not an incidental refactor. Prefer removing SingleRun if run-scoped consent is not a real product requirement.",
     "AC-5 cannot be a single-crate serde round-trip: handshake_native deliberately does not depend on handshake_core (API-reuse only; a crate dep is forbidden for this WP).",
     "Already closed in-MT during the KERNEL_BUILDER re-proof and NOT part of this MT: MT-006 cross-lane consent reuse fails closed (cloud_consent_receipt_bound_to_other_lane_fails_closed); MT-009 HBR-SWARM-001 real concurrency on a shared CRDT key with a HumanOperator lane.",
     "Rust-only: Rust backend plus native egui/Argus. No TypeScript/React/app-src."
+  ],
+  "lifecycle": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "depends_on": [
+      "MT-003",
+      "MT-004",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-019"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "WP1-V6-AUDIT-20260901",
+    "claimed_at_utc": "2026-09-01T00:00:00Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": "MT-017 is the WP-1 capstone and cannot close before Parfit lands ModelLane/routing/outbox/composition, Banach lands registry/boot/local-router/embedding, and Halley lands ProcessLedger plus migrated callers. The current mixed test surface and historical visual receipts cannot certify V6.",
+    "missing_resource": "Complete coherent Surreal-only capstone suites for run-scoped cloud consent, CRDT snapshot/compaction/state-vector replay, streaming cancellation, diagnostics producer-consumer parity, routing execution/outbox recovery, lease reconciliation, registry/boot/process-ledger composition, operator-chat event suppression, and live production-socket native proof. Every linked provider must receive the same cloned SurrealStorage namespace/database and every scoped durable mutation must append the canonical kernel EventLedger atomically.",
+    "proof_status": "V6_NOT_RUN_BLOCKED. All earlier relational, mixed-storage, non-_Artifacts, ignored-pixel, headless proxy, and older-revision receipts are explicitly superseded historical provenance and are not active V6 proof.",
+    "hbr_status": "HBR-PRIV remains blocked for scoped ModelLane, routing, registry, selection, diagnostics, outbox, and ProcessLedger resources pending exact five-field positive/negative proof. UserManual content and routes are product-global, so HBR-PRIV is NOT_APPLICABLE to UserManual. HBR-VIS remains unproved until live production-socket native pixels are captured and inspected.",
+    "pre_implementation_adversarial_review_status": "V6_COMPLETED_BLOCKED_ON_DEPENDENCY",
+    "post_implementation_adversarial_review_status": "NOT_STARTED_NO_CONTRACT_ONLY_IMPLEMENTATION",
+    "adversarial_findings_status": "OPEN_V6_DEPENDENCIES_RECORDED",
+    "kb_ready_checklist_receipt_id": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "last_runtime_status_ref": null
+  },
+  "scope": {
+    "summary": "Close all sixteen original WP-1 capstone hardening intents against one injected embedded-Surreal authority, canonical kernel EventLedger, exact scoped access, coherent restart behavior, and live native operator proof.",
+    "origin": "V6 authority correction after direct inspection of MT-017 authority, all named current source/tests, new Surreal providers, owner boundaries, and the integrated working tree.",
+    "allowed_paths": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json"
+    ],
+    "forbidden_paths": [
+      "Parfit-owned ModelLane, routing, outbox, composition, diagnostics, and linked tests",
+      "Banach-owned registry, boot, local-router, embedding, Loom, and linked tests",
+      "Halley-owned ProcessLedger and broad migrated test callers",
+      "relational compatibility, fixtures, active proof, or fallbacks",
+      "disabled-code proof, vacuous targets, and fail-loud placeholders",
+      "broad taskboard projection"
+    ],
+    "acceptance_criteria": [
+      "AC-1: SingleRun cloud consent is real run-scoped authority, not dead metadata: the plan and receipt bind the canonical target set, each covered lane preflights under the same run and exact resource scope, revocation cancels every covered lane with per-lane CX-MM-007 canonical-event evidence, and replay/revocation are idempotent without broadening SingleLane.",
+      "AC-2: CRDT snapshot compaction preserves update hashes, state vectors, replay metadata, promotion evidence, canonical-event links, and bounded replay across restart.",
+      "AC-3: CRDT state vectors are derived from real update bytes and converge across permitted replay order and duplicate delivery; no hardcoded vector can satisfy proof.",
+      "AC-4: Real mid-stream cancellation at chunk and tool-call boundaries preserves the committed prefix, terminalizes the lane once, rejects late messages/tools/artifacts/telemetry, and records durable canonical evidence.",
+      "AC-5: The backend diagnostics producer and native deserializer share a pinned serialized contract proven through a generated artifact and live route; renamed, missing, extra-critical, stale, or malformed fields fail honestly rather than passing separate fixture suites.",
+      "AC-6: UserManual self-consistency computes real page, tool, schema, route, compiled-symbol, event, and diagnostic checks and returns structured consistent/inconsistent evidence rather than a constant label.",
+      "AC-7: Every internal runtime_surface_id resolves to a compile-anchored symbol and every route resolves to the canonical router; deleted or renamed surfaces fail coverage.",
+      "AC-8: ModelLane, operator-chat, cloud-access, embedded-model, and dedicated-embedding matrices are registry-derived or explicitly disclose non-authoritative gaps; self-referential expected sets cannot prove coverage.",
+      "AC-9: All six routing policies drive distinct authorized executable waves with durable lineage, bounded retries, cancellation, fencing, idempotency, outbox delivery, crash recovery, and content-sensitive adjudication.",
+      "AC-10: Recovery defines and proves post-checkpoint lease semantics: current leases are surfaced or reconciled without moving the replay bound, and stale owners cannot renew, release, or mutate current claims.",
+      "AC-11: A cross-platform in-memory-vault canary proof and the platform vault proof establish no secret disclosure; unsupported platforms cannot produce a zero-test success.",
+      "AC-12: The frontend key-entry buffer and client transport retain zeroizing secret ownership through submit, error, clear, and drop without logging or serializing the canary outside the request body.",
+      "AC-13: Unready local models and unavailable governed sessions are visible but disabled; launch requires canonical owner/parent lineage; no hardcoded session identity or duplicate inventory implementation remains.",
+      "AC-14: The production embedded-model boot path cannot access an artifact without a durable ProcessOwnershipLedger; start/stop, shutdown drain, reclaim, exact scope, and restart use the same cloned SurrealStorage.",
+      "AC-15: UserManual page detail and same-slug legacy bridge expose the canonical manual_version consistently. UserManual remains product-global and HBR-PRIV NOT_APPLICABLE.",
+      "AC-16: The production operator-chat factory wires runtime activity recording while suppressing duplicate agent activity, proving exactly one canonical event and one Flight Recorder event per activity under replay, restart, cancellation, and failure."
+    ],
+    "proof_commands": [
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test model_lane_cloud_consent_scope_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test kernel_crdt_snapshot_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test mixed_model_lane_integration_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test swarm_lane_diagnostics_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test embedded_model_surreal_ledger_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test operator_chat_capture_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test user_manual_behavior_coverage_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils --test cloud_byok_access_config_leak_tests byok_canary_key_never_leaks_cross_platform_in_memory_vault -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-native-cargo-target'; cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --locked -j 1 --test test_cloud_access_client_zeroizing -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-native-cargo-target'; cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --locked -j 1 --test test_operator_chat_selection_and_transcript_argus -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-native-cargo-target'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-argus'; $env:HANDSHAKE_DIAGNOSTICS_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-diagnostics'; cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --locked -j 1 --test test_argus_production_socket_live_surfaces -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-native-cargo-target'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-argus'; $env:HANDSHAKE_DIAGNOSTICS_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-diagnostics'; $env:HANDSHAKE_MT008_ARGUS_PROOF_NONCE=[guid]::NewGuid().ToString(); cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --locked -j 1 --test test_argus_production_socket_live mt008_production_socket_diagnostics_scope_and_detached_capture -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-native-cargo-target'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-argus'; $env:HANDSHAKE_DIAGNOSTICS_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-diagnostics'; cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --locked -j 1 --test test_argus_production_socket_live_surfaces production_socket_user_manual_search_navigation_resync_and_detached_window -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt017-cargo-target'; cargo check --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features app-runtime"
+    ],
+    "risk_if_missed": "The capstone can become false-green while routing and snapshots retain obsolete authority, scope denial leaks metadata, run consent revokes only part of its target set, runtime events duplicate or disappear, restart opens a different database, or native controls display state not backed by durable truth.",
+    "reference_only_paths": [
+      "src/backend/handshake_core/src/storage/surreal/",
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/kernel/crdt/",
+      "src/backend/handshake_core/src/llm/boot.rs",
+      "src/backend/handshake_core/src/process_ledger/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/",
+      "src/frontend/handshake_native/"
+    ]
+  },
+  "implementation_notes": [
+    "This pass is contract-only because all capstone production dependencies intersect active owners or concurrent diffs.",
+    "Scoped ModelLane, routing, registry, diagnostics, outbox, and ProcessLedger rows use exact owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id predicates on both resource and linked event rows.",
+    "UserManual is product-global. Its content, routes, versions, and behavior matrices are not assigned a fabricated ResourceScope.",
+    "A second database, implicit default namespace, domain-local audit island, partial green suite, static fixture, or ignored pixel cannot satisfy capstone proof."
   ],
   "required_build_rules": [
     "HBR-INT-003",
@@ -269,8 +376,182 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V5",
-  "remediation_v3": {
+  "v6_surreal_only_audit_2026_09_01": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "risk": "HIGH",
+    "authority_correction": "Embedded SurrealDB is the only active durable authority. All earlier relational, mixed-storage, non-_Artifacts, older-revision, ignored-pixel, and headless-proxy evidence is superseded provenance and cannot establish V6 readiness.",
+    "write_set": {
+      "edited": [
+        ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json"
+      ],
+      "not_edited": [
+        "product source",
+        "product tests",
+        "Cargo targets",
+        "packet.json",
+        "mt_index.json"
+      ]
+    },
+    "inspected_authority": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/mt_index.json"
+    ],
+    "inspected_source_hashes_sha256": {
+      "src/backend/handshake_core/src/storage/surreal.rs": "373A52E858DBB51F7AF82D8A65D61DD3175B1D0245B7737C91204ABEB45F2DE7",
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs": "7310CBAC97C6B5707E7860F4587118CC927B5AB1D7F534C64A24564DC24C38EC",
+      "src/backend/handshake_core/src/storage/surreal/swarm_outbox.rs": "15ECB77F0D0FFFC54A8444D192D3FC1FE9480D60FF19A69DB0D62C9C15B60478",
+      "src/backend/handshake_core/src/storage/surreal/swarm_outbox_schema.surql": "1436A9B91A2CCB6907D4F8C8742090D227708392AA969212F840FF9986F1042F",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs": "15F1350436AF5D1A0D13CB1AC4E24E111DDAF54C3F33541DFE4C07BAF4025302",
+      "src/backend/handshake_core/src/swarm_orchestration/routing_execution.rs": "225F5ABF19ACF8FF999968762F156796E127FE97D36DFE5A9180B58E434E922A",
+      "src/backend/handshake_core/src/kernel/crdt/snapshot.rs": "B097E4CAB06E610ED4374054E88618E97BB719D3E19E5EB655A33D6B9AEA9B03",
+      "src/backend/handshake_core/tests/embedded_model_surreal_ledger_tests.rs": "E38ED1E411A81CF8582531D14C6BB92C0D399695CEB864FCA8B7B59767A59964",
+      "src/frontend/handshake_native/src/backend_client.rs": "A725D1BD1CE78CF6EA29C6F0D58F07AD88187EBDE0EAFB2788BF25C42B9A8841",
+      "src/frontend/handshake_native/src/operator_chat_pane.rs": "2FE36D8DB4CA447E4AA27C4FC92F7631391E015146BBB2B325968A03CA21647E",
+      "src/frontend/handshake_native/tests/test_argus_production_socket_live.rs": "C0E803C11F92CA610B11F0B0729E45D4B98BB9C78AF70FBEB38374AE07C8297D",
+      "src/frontend/handshake_native/tests/test_argus_production_socket_live_surfaces.rs": "2D35E5D9737394FA09209C0C4E5B1ADBA9918B7B30301672B2FE970B37ADB4EB"
+    },
+    "provider_and_composition_inventory": [
+      "A Surreal ModelLane provider exists and the facade lazily initializes it from a cloned SurrealStorage; its integration and caller migration remain Parfit-owned concurrent work.",
+      "A Surreal swarm-outbox provider and dedicated schema are exported and atomically bind outbox rows to the canonical kernel EventLedger with all five scoped fields, but routing execution does not consume it.",
+      "Routing execution still uses the superseded durable authority and therefore cannot satisfy AC-9 or restart/outbox recovery.",
+      "Surreal ProcessLedger and stale-session providers exist; production caller migration, drain-before-shutdown, and broad test migration remain Halley-owned.",
+      "Loom search provider/schema files exist but are not exported from the root module; registry, boot, local-router, embedding, and Loom integration remain Banach-owned.",
+      "UserManual and workspace-settings providers are exported. UserManual is product-global; workspace settings are scoped.",
+      "AppState exposes SurrealStorage, but a single-clone composition proof across every linked provider, restart, and shutdown is not present."
+    ],
+    "superseded_test_provenance": [
+      "src/backend/handshake_core/tests/kernel_crdt_snapshot_tests.rs",
+      "src/backend/handshake_core/tests/mixed_model_lane_integration_pg_tests.rs",
+      "src/backend/handshake_core/tests/swarm_lane_diagnostics_pg_tests.rs",
+      "src/backend/handshake_core/tests/operator_chat_capture_tests.rs"
+    ],
+    "missing_coherent_surreal_test_targets": [
+      "kernel_crdt_snapshot_surreal_tests",
+      "mixed_model_lane_integration_surreal_tests",
+      "swarm_lane_diagnostics_surreal_tests",
+      "operator_chat_capture_surreal_tests"
+    ],
+    "blockers_by_owner": {
+      "Parfit": [
+        "AC-1: prove real multi-lane SingleRun consent, canonical target-set binding, all five one-field scope denials, fan-out revocation, and unchanged SingleLane isolation. Current inspected proof revokes one lane and the target-bindings hash is absent.",
+        "AC-2 and AC-3: finish CRDT snapshot/compaction persistence, real state-vector derivation, replay-order and duplicate convergence, canonical-event linkage, and same-storage restart proof.",
+        "AC-4: migrate real chunk/tool-boundary cancellation and late-write denial to the coherent Surreal suite.",
+        "AC-5: land a generated backend-to-native diagnostics contract and live-route consumer proof without a hand-authored surrogate.",
+        "AC-9 and AC-10: land six executable routing policies, Surreal outbox integration, crash recovery, and explicit post-checkpoint lease semantics.",
+        "AC-16: compose the production operator-chat factory and prove exactly one canonical and one Flight Recorder agent-activity event."
+      ],
+      "Banach": [
+        "Complete registry and active-selection authority, production boot and local-router integration, and embedding/Loom search over the same cloned SurrealStorage.",
+        "Prove canonical owner/parent session lineage, unavailable-row disablement, restart continuity, and no duplicate inventory authority."
+      ],
+      "Halley": [
+        "Complete ProcessLedger production caller migration and broad stale test-caller migration without compatibility fallback.",
+        "Prove boot ownership records, exact scoped access where ProcessLedger resources are scoped, stale-session cleanup, drain-before-shutdown, restart continuity, and projection linkage."
+      ]
+    },
+    "source_prerequisites_observed": [
+      "AC-6 has a real computed UserManual consistency path rather than a constant success string.",
+      "AC-7 has compile anchors for internal runtime surfaces.",
+      "AC-11 has a cross-platform in-memory-vault canary test in addition to the platform-vault boundary.",
+      "AC-12 carries Zeroizing<String> through the frontend store-key call surface.",
+      "AC-13 disables unready local rows and requires canonical session lineage at launch.",
+      "AC-14 has a production missing-ledger guard before artifact access.",
+      "AC-15 surfaces manual_version through the current UserManual API contract."
+    ],
+    "unowned_disjoint_product_lane": {
+      "name": "MT-017 client-safety-and-picker closure",
+      "assignable": true,
+      "purpose": "Run the focused AC-11 through AC-13 proof after shared composition stabilizes, then patch only a demonstrated client-safety or picker defect.",
+      "write_set": [
+        "src/backend/handshake_core/src/api/operator_chat.rs",
+        "src/backend/handshake_core/tests/cloud_byok_access_config_leak_tests.rs",
+        "src/frontend/handshake_native/src/backend_client.rs",
+        "src/frontend/handshake_native/src/operator_chat_pane.rs",
+        "src/frontend/handshake_native/tests/test_cloud_access_client_zeroizing.rs",
+        "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs"
+      ],
+      "current_observation": "The inspected source contains the intended protections; this lane should begin with focused proof and edit only on a reproduced defect."
+    },
+    "production_socket_argus_native_proof_required": {
+      "existing_functions_to_rerun": [
+        "mt008_production_socket_diagnostics_scope_and_detached_capture",
+        "production_socket_model_runtime_rows_refresh_receipt_negative_states_and_detached_window",
+        "production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_and_detached_window",
+        "production_socket_settings_cloud_access_login_states_and_no_secret_disclosure",
+        "mt021_production_settings_consent_concurrency_and_console_main_detached"
+      ],
+      "missing_function_to_land": "production_socket_user_manual_search_navigation_resync_and_detached_window",
+      "required_observations": [
+        "decoded production-socket pixels rather than a headless surrogate",
+        "stable native control identifiers and attributable receipts",
+        "loading, empty, stale, revoked, denied, malformed, and recovery states",
+        "no secret or cross-scope metadata disclosure",
+        "detached production main window and no focus stealing",
+        "fresh artifact provenance rooted under the operator-required _Artifacts directory"
+      ]
+    },
+    "DIFF_ATTACK_SURFACES": [
+      "consent target-set binding and revocation fan-out",
+      "CRDT update, snapshot, compaction, replay, and promotion linkage",
+      "stream cancellation and rejected late durable writes",
+      "diagnostics producer/native-consumer schema drift",
+      "routing policy execution, outbox delivery, fencing, and restart",
+      "registry, boot, ProcessLedger, shutdown drain, and stale cleanup",
+      "secret handling, model-picker availability, and session lineage",
+      "production-socket native state and UserManual truthfulness"
+    ],
+    "INDEPENDENT_CHECKS_RUN": [
+      "Compared MT-017 lifecycle, dependencies, acceptance criteria, proof commands, and historical receipts against packet and taskboard authority.",
+      "Inspected the current Surreal root module, ModelLane facade/provider, outbox provider/schema, routing execution, CRDT snapshot, ProcessLedger, boot, UserManual, and frontend client/picker surfaces.",
+      "Inspected exact current backend and native tests named by the contract, including Surreal policy/ledger tests and production-socket Argus surfaces.",
+      "Compared owner boundaries and the integrated working-tree diff before limiting this pass to the MT-017 contract."
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      "If SingleRun merely drops lane equality without binding the canonical target set, a sibling lane can gain unintended authority; require target-set and SingleLane negative proof.",
+      "If each provider opens an implicit default database, isolated suites may pass while restart and cross-provider canonical-event joins fail; require the same injected clone.",
+      "If diagnostics tests use separately authored fixtures, backend and native field drift remains green; require a generated artifact plus live route.",
+      "If denied queries filter only four scope fields, identifiers and linked event metadata can cross the omitted boundary; require five independent mismatch denials and zero mutation.",
+      "If old pixels are accepted after source changes, visual state can regress while evidence remains green; require fresh production-socket capture and direct inspection."
+    ],
+    "BOUNDARY_PROBES": [
+      "minimum and maximum consent target-set cardinality with duplicate lane IDs",
+      "snapshot before, at, and after the compaction/replay boundary",
+      "cancellation immediately before and after chunk/tool commit",
+      "lease created after checkpoint with current, stale, and revoked owner",
+      "shutdown with empty, partially full, and concurrently appending retained batches",
+      "native production socket disconnected, reconnecting, stale, and resynchronized"
+    ],
+    "NEGATIVE_PATH_CHECKS": [
+      "each one-field ResourceScope mismatch denies scoped reads and mutations",
+      "mixed-source scope and legacy or incomplete scoped rows fail closed without identifier leakage",
+      "stale or revoked context cannot launch, renew, release, replay, or append",
+      "duplicate consent revocation and duplicate event delivery remain idempotent",
+      "late chunks, tools, artifacts, and telemetry cannot mutate a cancelled lane",
+      "outbox crash/restart cannot duplicate or orphan canonical events",
+      "unavailable model rows cannot launch and no hardcoded session identity is accepted",
+      "malformed diagnostics/manual responses display truthful errors and cannot steal focus"
+    ],
+    "INDEPENDENT_FINDINGS": [
+      "The prior ready state is invalid because its active proof belongs to obsolete authority and older source.",
+      "Surreal ModelLane code exists, but capstone composition and coherent test migration are incomplete.",
+      "The Surreal outbox implementation is exported but not consumed by current routing execution.",
+      "Current routing execution retains the superseded durable authority.",
+      "The inspected SingleRun proof covers one-lane revocation and lacks canonical target-set hashing.",
+      "CRDT snapshot/replay still contains superseded authority posture and lacks a coherent Surreal capstone suite.",
+      "Current production-socket tests do not include the required live UserManual search/navigation/resync function.",
+      "AC-11 through AC-15 source prerequisites appear present, but no fresh focused or production-boundary proof was authorized."
+    ],
+    "RESIDUAL_UNCERTAINTY": [
+      "Concurrent owner files are still changing, so recorded source hashes are inspection anchors rather than final validation inputs.",
+      "Several future Surreal test target names are required seams and may not exist until owner migrations land.",
+      "No compile, test, runtime, database, or visual proof ran in this contract-only pass.",
+      "The one-clone composition and shutdown drain cannot be established by static inspection alone.",
+      "Fresh Argus artifacts and direct pixel inspection remain mandatory before V6 readiness."
+    ]
+  },
+  "historical_validator_verdict_v5_superseded": "FAIL_V5",
+  "historical_remediation_v3_superseded": {
     "status": "READY_FOR_VALIDATION_V3",
     "prepared_by": "KERNEL_BUILDER-20260717-072123",
     "prepared_at_utc": "2026-07-20T01:19:00Z",
@@ -290,7 +571,7 @@
     "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-20T01:18:29.891Z",
     "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
   },
-  "validation_v2": {
+  "historical_validation_v2_superseded": {
     "verdict": "FAIL_V2",
     "validated_by": "INTEGRATION_VALIDATOR-20260718-230746",
     "validated_at_utc": "2026-07-18T23:40:04.194Z",
@@ -313,7 +594,7 @@
       "FAIL candidate stability: product worktree remains dirty, so historical final-source receipts do not bind a frozen candidate."
     ]
   },
-  "validation_v4": {
+  "historical_validation_v4_superseded": {
     "verdict": "FAIL_V4",
     "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
     "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
@@ -335,7 +616,7 @@
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   },
-  "full_suite_run_2026_07_30": {
+  "historical_full_suite_run_2026_07_30_superseded": {
     "run_by": "KERNEL_BUILDER-20260729-225554",
     "head": "d154833b",
     "worktree_dirty": 0,
@@ -364,7 +645,7 @@
     "next_action": "Proofs 8, 9 and 10 re-run in ISOLATION at head 45d24a6a with nothing else touching cargo. MT-017 flips only if that rerun is genuinely green.",
     "explicitly_not_done": "The 3 failures were NOT re-labelled environmental-and-therefore-passing. MT-017 already carries a V4 failure for accepting unproven claims; treating a diagnosis as a pass would repeat exactly that."
   },
-  "isolated_rerun_8_9_10_2026_07_31": {
+  "historical_isolated_rerun_8_9_10_2026_07_31_superseded": {
     "head": "45d24a6a",
     "result": "[08] FAIL (real defect)  [09] PASS  [10] FAIL (contract defect)",
     "step_09": "PASS - 2 executed, 0 failed, 1402s. Confirms the original failure was purely cargo build-lock starvation caused by the parent running concurrent --all-targets verification builds against the shared CARGO_TARGET_DIR. No product issue.",
@@ -384,7 +665,7 @@
       "proposed_fix": "Add the HANDSHAKE_ARTIFACTS_DIR export to proof_commands[10], matching proof [8]. This is a proof-command repair, not a weakening of any assertion."
     }
   },
-  "proof_command_repair_2026_07_31": {
+  "historical_proof_command_repair_2026_07_31_superseded": {
     "repaired_by": "KERNEL_BUILDER-20260729-225554",
     "index": 10,
     "defect": "The declared command computed $artifactRoot but never exported HANDSHAKE_ARTIFACTS_DIR, which user_manual_api_tests.rs:257 requires; the proof aborted before running anything (rc=101, 0 executed). Proof [8] in the same contract already exports it.",
@@ -392,7 +673,7 @@
     "correction_note": "A first attempt at this repair (commit 25bca824) CORRUPTED the command to ':HANDSHAKE_ARTIFACTS_DIR=;' because the patch was applied through a shell-quoted node -e string and bash expanded $env and $artifactRoot before node saw them. This entry supersedes that attempt; the command was rebuilt from a known-good prefix and gated on a well-formedness check before writing.",
     "operator_disclosure_required": true
   },
-  "final_suite_2026_08_01": {
+  "historical_final_suite_2026_08_01_superseded": {
     "verdict": "GREEN",
     "head": "efea010a",
     "worktree_dirty": 0,
@@ -407,12 +688,12 @@
     ],
     "execution_note_for_future_runs": "Declared proof [8] chains a backend producer to a frontend consumer that asserts the artifact is under 30 MINUTES old (test_swarm_lane_diagnostics_argus.rs:583). A cold frontend build takes ~37 minutes, so running the chain from cold fails on STALENESS even when the code is correct - that false negative masked the real defect above for two runs. Pre-build BOTH test binaries with --no-run first; the producer and consumer then complete in seconds."
   },
-  "v4_remediation_plan_status": {
+  "historical_v4_remediation_plan_status_superseded": {
     "item_1_dependency_remediation_and_frozen_revision": "MET. All declared dependencies (MT-003/004/006/007/008/009/010/011/012/013/014/015) are READY_FOR_VALIDATION_V5, and the full suite ran green at the single frozen revision efea010a with dirty=0.",
     "item_2_internal_diagnostics_and_palmistry": "NEEDS VALIDATOR RULING - NOT claimed as met by this handoff. The V4 fail_report cited internal_diagnostics and Palmistry being 'explicitly deferred' as an INDEPENDENT reason beyond the proof suite, and stated that deferred labels do not satisfy it. Per Codex CX-981-005 those two tiers are BUILT by WP-KERNEL-012 and retrofitted by WP-KERNEL-016, so shipping them is outside WP-1's scope. WP-1 records the honest run-level HBR-INT-009 posture (Flight Recorder WIRED; internal_diagnostics and Palmistry DeferredWithReason at launch, superseded to Wired by the authenticated observation/readback boundary in api/palmistry.rs). The validator must decide whether that satisfies the V4 requirement or whether MT-017 remains blocked on WP-KERNEL-012/016.",
     "item_3_argus_coverage_and_serial_rerun": "PARTIALLY MET / validator to rule. All MT-017 PostgreSQL, Yjs, cancellation, routing, diagnostics, UserManual and native proof commands were rerun SERIALLY with fresh nonce-bound artifacts at one frozen revision (the green suite above). Whether 'production Argus coverage for every WP panel/window' is fully satisfied is a validator judgement; MT-021 added swarm-dispatchable console reachability and settings author_id pins, but its frontend lib-unit suite still shows 9 failures needing a quiet-machine rerun (8 of them in files MT-021 never touched)."
   },
-  "mixed_suite_contention_cascade_2026_08_05": {
+  "historical_mixed_suite_contention_cascade_2026_08_05_superseded": {
     "headline": "The mixed-suite failures CASCADE. Which tests fail or hang depends on scheduling, because one test holding a transaction across generation blocks unrelated tests that touch the same rows. This suite cannot be validated at default parallelism until the transaction boundary is fixed.",
     "evidence_failure_set_is_UNSTABLE": {
       "run_A_4_threads": "failed = ac9_authority_retry..., ac9_reassignment..., ac9_redispatch..., ac9_replay_rejects_message_and_artifact_projection_drift, mixed_model_lane_recovery_rejects_eventledger_aggregate_mismatch, mixed_model_lane_recovery_replays_post_checkpoint..., mt009_kernel_crdt_authority_rejects_truncate. HUNG = ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create, ac9_cancel_terminalizes_parallel_siblings_and_live_sessions.",
@@ -429,7 +710,7 @@
     "recorded_by": "KERNEL_BUILDER-20260801-214802",
     "recorded_at_utc": "2026-08-05T06:15:00Z"
   },
-  "advisory_lock_database_scope_cascade_2026_08_05": {
+  "historical_advisory_lock_database_scope_cascade_2026_08_05_superseded": {
     "headline": "DEFINITIVE EXPLANATION OF THE MIXED-SUITE CASCADE: PostgreSQL advisory locks are DATABASE-scoped, but this harness isolates tests by SCHEMA inside one shared database. Per-schema isolation therefore does NOT isolate the locks these code paths take, so parallel tests serialize and deadlock across schema boundaries.",
     "the_two_facts_that_combine": {
       "1_locks_are_database_wide": "pg_advisory_xact_lock keys live in a single per-DATABASE namespace. Two sessions in different schemas of the same database contend on the same key.",
@@ -452,7 +733,7 @@
     "recorded_by": "KERNEL_BUILDER-20260801-214802",
     "recorded_at_utc": "2026-08-05T06:45:00Z"
   },
-  "capstone_readiness_UPDATE_2026_08_05": {
+  "historical_capstone_readiness_UPDATE_2026_08_05_superseded": {
     "headline": "This MT's capstone declares mixed_model_lane_integration_pg_tests. That binary is still NOT capstone-ready, but for a corrected reason, and one of its blocking defects is now fixed.",
     "fixed": "ac9_replay_rejects_message_and_artifact_projection_drift is FIXED and verified GREEN (117.35s). Root cause was that validate_diagnostics_row_eventledger_authority never covered model_lane_context_bundle_artifacts. See MT-009 artifact_projection_drift_FIXED_2026_08_05.",
     "still_blocking": "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions remains broken and is now measured as flaky across THREE outcomes with no code change: over 11 isolated --exact --test-threads=1 runs, 7 hung at the 60s cancel bound, 3 failed on teardowns==1 (expected 2), 1 passed. Durations 8.4s-318.1s.",
@@ -462,7 +743,7 @@
     "recorded_by": "KERNEL_BUILDER-20260805-053606",
     "recorded_at_utc": "2026-08-05T08:40:00Z"
   },
-  "integration_validation_v5_2026_08_14": {
+  "historical_integration_validation_v5_2026_08_14_superseded": {
     "verdict": "FAIL_V5",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",

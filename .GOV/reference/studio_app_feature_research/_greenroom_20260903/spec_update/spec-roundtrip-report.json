@@ -1,0 +1,815 @@
+{
+ "schema_id": "handshake.reference.studio_spec_roundtrip@1",
+ "generated_at": "2026-09-04T06:34:16+00:00",
+ "purpose": "Proves the operator's acceptance test: the Master Spec must be complete enough that the same microtask set falls out of it, and no microtask may cite a clause that does not exist.",
+ "modules": {
+  "count": 19,
+  "per_module": [
+   {
+    "module": "14-04-raster-and-raw.md",
+    "bytes": 189569,
+    "lines": 2362,
+    "clauses": 176,
+    "normative_clauses": 159,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-05-vector.md",
+    "bytes": 140097,
+    "lines": 2099,
+    "clauses": 156,
+    "normative_clauses": 148,
+    "has_frontmatter": true,
+    "heading_level": 1
+   },
+   {
+    "module": "14-06-layout.md",
+    "bytes": 152450,
+    "lines": 2156,
+    "clauses": 137,
+    "normative_clauses": 126,
+    "has_frontmatter": true,
+    "heading_level": 1
+   },
+   {
+    "module": "14-07-typography.md",
+    "bytes": 94404,
+    "lines": 1428,
+    "clauses": 128,
+    "normative_clauses": 72,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-08-color.md",
+    "bytes": 102151,
+    "lines": 1566,
+    "clauses": 143,
+    "normative_clauses": 82,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-09-effects.md",
+    "bytes": 435718,
+    "lines": 5924,
+    "clauses": 61,
+    "normative_clauses": 22,
+    "has_frontmatter": true,
+    "heading_level": 1
+   },
+   {
+    "module": "14-10-design-systems.md",
+    "bytes": 44445,
+    "lines": 401,
+    "clauses": 73,
+    "normative_clauses": 51,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-11-prototyping.md",
+    "bytes": 32715,
+    "lines": 308,
+    "clauses": 51,
+    "normative_clauses": 24,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-13-interop.md",
+    "bytes": 40488,
+    "lines": 373,
+    "clauses": 60,
+    "normative_clauses": 40,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-14-automation.md",
+    "bytes": 50916,
+    "lines": 370,
+    "clauses": 81,
+    "normative_clauses": 44,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-15-whiteboard.md",
+    "bytes": 24998,
+    "lines": 181,
+    "clauses": 42,
+    "normative_clauses": 19,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-25-video-timeline.md",
+    "bytes": 232670,
+    "lines": 2667,
+    "clauses": 69,
+    "normative_clauses": 14,
+    "has_frontmatter": true,
+    "heading_level": 1
+   },
+   {
+    "module": "14-26-motion-keyframing.md",
+    "bytes": 251549,
+    "lines": 3320,
+    "clauses": 94,
+    "normative_clauses": 15,
+    "has_frontmatter": true,
+    "heading_level": 1
+   },
+   {
+    "module": "14-27-compositing.md",
+    "bytes": 50638,
+    "lines": 715,
+    "clauses": 65,
+    "normative_clauses": 15,
+    "has_frontmatter": true,
+    "heading_level": 1
+   },
+   {
+    "module": "14-28-web-authoring.md",
+    "bytes": 95975,
+    "lines": 734,
+    "clauses": 145,
+    "normative_clauses": 95,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-29-asset-library-binding.md",
+    "bytes": 26502,
+    "lines": 188,
+    "clauses": 33,
+    "normative_clauses": 27,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-30-operator-shell.md",
+    "bytes": 138423,
+    "lines": 995,
+    "clauses": 137,
+    "normative_clauses": 71,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-31-tools-and-controls.md",
+    "bytes": 47356,
+    "lines": 397,
+    "clauses": 68,
+    "normative_clauses": 26,
+    "has_frontmatter": true,
+    "heading_level": 2
+   },
+   {
+    "module": "14-32-tooltips-and-manual.md",
+    "bytes": 30918,
+    "lines": 265,
+    "clauses": 44,
+    "normative_clauses": 16,
+    "has_frontmatter": true,
+    "heading_level": 2
+   }
+  ],
+  "missing_frontmatter": [],
+  "heading_level_histogram": {
+   "2": 13,
+   "1": 6
+  },
+  "heading_drift": true,
+  "definition_rule": "An anchor at line start whose preceding line is blank. Style-independent, so a wrapped prose line beginning with an anchor reference is not a definition."
+ },
+ "anchors": {
+  "total_in_staged_spec": 1763,
+  "normative": 1066,
+  "collisions_across_modules": [],
+  "dropped_from_v02_205_without_a_home": [
+   "STU-ARC-001",
+   "STU-ARC-002",
+   "STU-ARC-003",
+   "STU-ARC-004",
+   "STU-ARC-005",
+   "STU-ARC-006",
+   "STU-AUT-001",
+   "STU-AUT-002",
+   "STU-AUT-003",
+   "STU-AUT-004",
+   "STU-AUT-005",
+   "STU-AUT-006",
+   "STU-AUT-007",
+   "STU-AUT-008",
+   "STU-AUT-009",
+   "STU-AUT-010",
+   "STU-AUT-011",
+   "STU-AUT-012",
+   "STU-AUT-013",
+   "STU-AUT-014",
+   "STU-AUT-015",
+   "STU-AUT-016",
+   "STU-AUT-017",
+   "STU-AUT-018",
+   "STU-AUT-019",
+   "STU-AUT-020",
+   "STU-AUT-021",
+   "STU-AUT-022",
+   "STU-AUT-023",
+   "STU-AUT-024",
+   "STU-AUT-025",
+   "STU-AUT-026",
+   "STU-AUT-027",
+   "STU-COL-001",
+   "STU-COL-002",
+   "STU-COL-003",
+   "STU-COL-004",
+   "STU-COL-005",
+   "STU-COL-006",
+   "STU-COL-007",
+   "STU-COL-008",
+   "STU-COL-009",
+   "STU-COL-010",
+   "STU-COL-011",
+   "STU-COL-012",
+   "STU-COL-013",
+   "STU-COL-014",
+   "STU-COL-015",
+   "STU-COL-016",
+   "STU-COL-017",
+   "STU-COL-018",
+   "STU-COL-019",
+   "STU-COL-020",
+   "STU-COL-021",
+   "STU-COL-022",
+   "STU-COL-023",
+   "STU-COL-024",
+   "STU-COL-025",
+   "STU-COL-026",
+   "STU-COL-027",
+   "STU-COL-028",
+   "STU-COL-029",
+   "STU-COL-030",
+   "STU-COL-031",
+   "STU-COL-032",
+   "STU-COL-033",
+   "STU-COL-034",
+   "STU-COL-035",
+   "STU-COL-036",
+   "STU-CON-001",
+   "STU-CON-002",
+   "STU-CON-003",
+   "STU-CON-004",
+   "STU-CON-005",
+   "STU-CON-006",
+   "STU-CON-007",
+   "STU-DOC-001",
+   "STU-DOC-002",
+   "STU-DOC-003",
+   "STU-DOC-004",
+   "STU-DS-001",
+   "STU-DS-002",
+   "STU-DS-002a",
+   "STU-DS-003",
+   "STU-DS-003a",
+   "STU-DS-004",
+   "STU-DS-005",
+   "STU-DS-005a",
+   "STU-DS-006",
+   "STU-DS-006a",
+   "STU-DS-007",
+   "STU-DS-008",
+   "STU-DS-009",
+   "STU-DS-010",
+   "STU-DS-011",
+   "STU-DS-012",
+   "STU-DS-013",
+   "STU-DS-014",
+   "STU-DS-015",
+   "STU-DS-016",
+   "STU-DS-017",
+   "STU-DS-018",
+   "STU-DS-019",
+   "STU-DS-019a",
+   "STU-DS-019b",
+   "STU-DS-020",
+   "STU-DS-021",
+   "STU-DS-022",
+   "STU-DS-022a",
+   "STU-DS-022b",
+   "STU-DS-022c",
+   "STU-DS-022d",
+   "STU-DS-023",
+   "STU-DS-024",
+   "STU-DS-024a",
+   "STU-DS-025",
+   "STU-DS-026",
+   "STU-DS-027",
+   "STU-DS-028",
+   "STU-DS-029",
+   "STU-DS-030",
+   "STU-DS-031",
+   "STU-DS-032",
+   "STU-DS-033",
+   "STU-DS-034",
+   "STU-DS-034a",
+   "STU-DS-034b",
+   "STU-DS-035",
+   "STU-DS-036",
+   "STU-DS-037",
+   "STU-DS-038",
+   "STU-DS-039",
+   "STU-DS-040",
+   "STU-DS-041",
+   "STU-DS-041a",
+   "STU-DS-042",
+   "STU-DS-043",
+   "STU-DS-044",
+   "STU-DS-045",
+   "STU-DS-046",
+   "STU-DS-046a",
+   "STU-DS-046b",
+   "STU-DS-046c",
+   "STU-DS-046d",
+   "STU-DS-047",
+   "STU-DS-047a",
+   "STU-DS-047b",
+   "STU-DS-047c",
+   "STU-DS-047d",
+   "STU-DS-047e",
+   "STU-DS-048",
+   "STU-DS-049",
+   "STU-DS-050",
+   "STU-DS-051",
+   "STU-FX-001",
+   "STU-FX-002",
+   "STU-FX-003",
+   "STU-FX-004",
+   "STU-FX-005",
+   "STU-FX-006",
+   "STU-FX-006a",
+   "STU-FX-006b",
+   "STU-FX-007",
+   "STU-FX-008",
+   "STU-FX-009",
+   "STU-FX-010",
+   "STU-FX-011",
+   "STU-FX-011a",
+   "STU-FX-011b",
+   "STU-FX-012",
+   "STU-FX-012a",
+   "STU-FX-012b",
+   "STU-FX-012c",
+   "STU-FX-013",
+   "STU-FX-014",
+   "STU-FX-015",
+   "STU-FX-015a",
+   "STU-FX-016",
+   "STU-FX-016a",
+   "STU-FX-017",
+   "STU-FX-018",
+   "STU-FX-019",
+   "STU-FX-019a",
+   "STU-FX-020",
+   "STU-FX-020a",
+   "STU-FX-021",
+   "STU-FX-022",
+   "STU-FX-023",
+   "STU-FX-024",
+   "STU-FX-025",
+   "STU-FX-026",
+   "STU-FX-027",
+   "STU-FX-028",
+   "STU-FX-029",
+   "STU-FX-030",
+   "STU-FX-031",
+   "STU-FX-032",
+   "STU-FX-033",
+   "STU-FX-034",
+   "STU-FX-035"
+  ],
+  "dropped_count": 427
+ },
+ "microtasks": {
+  "count": 2824,
+  "still_provisional_anchor_status": 0,
+  "distinct_anchors_referenced": 1354
+ },
+ "roundtrip": {
+  "forward_spec_clauses_with_no_microtask": [
+   "STU-ASSET-017",
+   "STU-ASSET-020",
+   "STU-ASSET-021",
+   "STU-ASSET-023",
+   "STU-ASSET-024",
+   "STU-ASSET-030",
+   "STU-ASSET-031",
+   "STU-ASSET-033",
+   "STU-AUT-177",
+   "STU-AUT-178",
+   "STU-AUT-180",
+   "STU-COL-271",
+   "STU-COL-273",
+   "STU-DS-169",
+   "STU-DS-170",
+   "STU-DS-172",
+   "STU-IO-169",
+   "STU-IO-170",
+   "STU-IO-172",
+   "STU-PRO-147",
+   "STU-PRO-148",
+   "STU-PRO-150",
+   "STU-RAS-101",
+   "STU-RAS-173",
+   "STU-RAS-174",
+   "STU-SHL-119",
+   "STU-TYP-100",
+   "STU-TYP-241",
+   "STU-TYP-243",
+   "STU-WB-138",
+   "STU-WB-139",
+   "STU-WB-141",
+   "STU-WEB-142",
+   "STU-WEB-143",
+   "STU-WEB-145"
+  ],
+  "forward_uncovered_count": 35,
+  "backward_microtask_anchors_not_in_spec": [
+   "STU-ARC-002",
+   "STU-ARC-003",
+   "STU-ARC-004",
+   "STU-ARC-005",
+   "STU-AUT-001",
+   "STU-AUT-002",
+   "STU-AUT-004",
+   "STU-AUT-005",
+   "STU-AUT-008",
+   "STU-AUT-012",
+   "STU-AUT-013",
+   "STU-AUT-018",
+   "STU-AUT-024",
+   "STU-AUT-027",
+   "STU-CMP-095a",
+   "STU-COL-006",
+   "STU-COL-021",
+   "STU-CON-005",
+   "STU-CON-007",
+   "STU-CON-007c",
+   "STU-DOC-001",
+   "STU-DOC-002",
+   "STU-DOC-003",
+   "STU-DOC-004",
+   "STU-DS-003a",
+   "STU-DS-004",
+   "STU-DS-005",
+   "STU-DS-005a",
+   "STU-DS-007",
+   "STU-DS-015",
+   "STU-DS-018",
+   "STU-DS-019",
+   "STU-DS-019b",
+   "STU-DS-023",
+   "STU-DS-024",
+   "STU-DS-025",
+   "STU-DS-026",
+   "STU-DS-027",
+   "STU-DS-034a",
+   "STU-DS-038",
+   "STU-DS-041",
+   "STU-DS-046b",
+   "STU-DS-047c",
+   "STU-DS-050",
+   "STU-DS-051",
+   "STU-FX-003",
+   "STU-FX-011",
+   "STU-FX-012b",
+   "STU-FX-018",
+   "STU-FX-038",
+   "STU-FX-039",
+   "STU-FX-039a",
+   "STU-FX-040",
+   "STU-FX-133a",
+   "STU-IO-004",
+   "STU-IO-012",
+   "STU-IO-013",
+   "STU-IO-014",
+   "STU-MAN-001",
+   "STU-MAN-004",
+   "STU-MDL-002",
+   "STU-MDL-004",
+   "STU-MDL-006",
+   "STU-MOT-021",
+   "STU-MOT-074",
+   "STU-OVR-002",
+   "STU-OVR-003",
+   "STU-PRO-002a",
+   "STU-PRO-003",
+   "STU-PRO-003a",
+   "STU-PRO-019",
+   "STU-PRO-022",
+   "STU-PRO-026",
+   "STU-PRO-027",
+   "STU-PRO-028",
+   "STU-PRO-029",
+   "STU-PRO-032",
+   "STU-PRO-034a",
+   "STU-PRO-034c",
+   "STU-PRO-041",
+   "STU-PRO-044",
+   "STU-PRO-044a",
+   "STU-PRO-044b",
+   "STU-PRO-045",
+   "STU-QUIET-001",
+   "STU-QUIET-002",
+   "STU-QUIET-005",
+   "STU-RAS-001c",
+   "STU-SDB-002",
+   "STU-SDB-003",
+   "STU-SDB-004",
+   "STU-SDB-005",
+   "STU-SECTION-002",
+   "STU-SECTION-003",
+   "STU-TYP-003",
+   "STU-TYP-008",
+   "STU-TYP-010",
+   "STU-TYP-011",
+   "STU-TYP-050",
+   "STU-UNI-002",
+   "STU-VAL-004",
+   "STU-WB-003",
+   "STU-WB-007",
+   "STU-WB-008",
+   "STU-WB-009",
+   "STU-WB-011"
+  ],
+  "backward_dangling_count": 106,
+  "verdict": "FAIL"
+ },
+ "parameter_contract": {
+  "clauses_carrying_bounds": 192,
+  "complete": 159,
+  "stated_unknown": 9,
+  "incomplete_without_stating_unknown": [
+   {
+    "anchor": "STU-VEC-102",
+    "module": "14-05-vector.md",
+    "missing": [
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-TYP-107",
+    "module": "14-07-typography.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "default",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-COL-108",
+    "module": "14-08-color.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "default",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-FX-105a",
+    "module": "14-09-effects.md",
+    "missing": [
+     "unit"
+    ]
+   },
+   {
+    "anchor": "STU-FX-110a",
+    "module": "14-09-effects.md",
+    "missing": [
+     "default",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-FX-133",
+    "module": "14-09-effects.md",
+    "missing": [
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-FX-136a",
+    "module": "14-09-effects.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-FX-145",
+    "module": "14-09-effects.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "default",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-DS-146",
+    "module": "14-10-design-systems.md",
+    "missing": [
+     "soft_min",
+     "default",
+     "unit"
+    ]
+   },
+   {
+    "anchor": "STU-DS-147",
+    "module": "14-10-design-systems.md",
+    "missing": [
+     "hard_max",
+     "soft_min",
+     "soft_max"
+    ]
+   },
+   {
+    "anchor": "STU-DS-148",
+    "module": "14-10-design-systems.md",
+    "missing": [
+     "soft_min",
+     "soft_max"
+    ]
+   },
+   {
+    "anchor": "STU-DS-150",
+    "module": "14-10-design-systems.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "default",
+     "unit"
+    ]
+   },
+   {
+    "anchor": "STU-DS-155",
+    "module": "14-10-design-systems.md",
+    "missing": [
+     "soft_min",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-PRO-119",
+    "module": "14-11-prototyping.md",
+    "missing": [
+     "soft_min",
+     "soft_max"
+    ]
+   },
+   {
+    "anchor": "STU-IO-115",
+    "module": "14-13-interop.md",
+    "missing": [
+     "soft_min",
+     "soft_max"
+    ]
+   },
+   {
+    "anchor": "STU-VID-013a",
+    "module": "14-25-video-timeline.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "default",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-MOT-004",
+    "module": "14-26-motion-keyframing.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-MOT-010a",
+    "module": "14-26-motion-keyframing.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "default",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-MOT-020c",
+    "module": "14-26-motion-keyframing.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "default",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-MOT-122",
+    "module": "14-26-motion-keyframing.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "default",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-CMP-060",
+    "module": "14-27-compositing.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "default",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-MDL-105",
+    "module": "14-30-operator-shell.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-SHL-192",
+    "module": "14-31-tools-and-controls.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "default",
+     "unit",
+     "precision"
+    ]
+   },
+   {
+    "anchor": "STU-MDL-111",
+    "module": "14-31-tools-and-controls.md",
+    "missing": [
+     "soft_min",
+     "soft_max",
+     "precision"
+    ]
+   }
+  ],
+  "collapsed_hard_and_soft": [
+   "STU-TYP-107",
+   "STU-COL-108",
+   "STU-FX-136a",
+   "STU-FX-145",
+   "STU-DS-146",
+   "STU-DS-147",
+   "STU-DS-148",
+   "STU-DS-150",
+   "STU-DS-155",
+   "STU-PRO-119",
+   "STU-IO-115",
+   "STU-VID-013a",
+   "STU-MOT-004",
+   "STU-MOT-010a",
+   "STU-MOT-020c",
+   "STU-MOT-122",
+   "STU-CMP-060",
+   "STU-MDL-105",
+   "STU-SHL-192",
+   "STU-MDL-111"
+  ],
+  "collapsed_count": 20
+ },
+ "naming_discipline": {
+  "vendor_names_inside_normative_sentences": [],
+  "count": 0,
+  "rule": "[STU-SECTION-003]: a source product name is never a Studio tool, command, panel or manual name. Provenance mentions are legitimate; obligations must not name a vendor product."
+ }
+}

@@ -1,0 +1,451 @@
+{
+ "schema_id": "handshake.spec.module_provenance@1",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "authority_note": "This sidecar is PROVENANCE ONLY. It is not authority and MUST NOT be cited as the source of any Studio contract. Per [STU-SECTION-002] the Master Spec module is the single source of truth; this file records HOW each clause was derived so a reviewer can check the derivation, and so a later capture can supersede a studio_declared value without ambiguity. A disagreement between this file and the module is a defect in this file.",
+ "module_file": "14-29-asset-library-binding.md",
+ "module_title": "14.29 Asset Library Binding (CKC)",
+ "module_body_sha256": "2f467dda8faf0c3416e36218bbdd7ce2304af4921d30505c2aa6a3fca9f4c064",
+ "spec_target_bundle": "master-spec-v02.206",
+ "spec_baseline_bundle": "master-spec-v02.205",
+ "green_room": ".GOV/reference/studio_app_feature_research/_greenroom_20260903",
+ "derivation_legend": {
+  "parsed": "the value, field, enumeration or count is read literally from the named record in the named capture file",
+  "derived": "the clause is computed or reasoned from parsed records; the reasoning is stated in the note and is NOT itself in any capture",
+  "studio_declared": "no source declares this value; the Master Spec declares it as Studio's own contract and the clause labels it as such",
+  "spec_internal": "the source is another Master Spec clause, not a green-room capture",
+  "operator_decision": "the source is a recorded operator decision or a shipped work-packet contract, not a capture",
+  "declared_gap": "the clause declares an absence: something the captures do not contain and which this module deliberately does not invent"
+ },
+ "clause_count": 33,
+ "derivable_microtask_count": 29,
+ "derivation_rule_anchor": "STU-ASSET-029",
+ "source_reference_count": 51,
+ "derivation_census": {
+  "parsed": 14,
+  "derived": 3,
+  "studio_declared": 0,
+  "spec_internal": 26,
+  "operator_decision": 5,
+  "declared_gap": 3
+ },
+ "capture_files_referenced": {
+  ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md": 16,
+  ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md": 16,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json": 7,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-29-asset-library-binding.md": 5,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md": 5,
+  ".GOV/task_packets/WP-KERNEL-005/packet.json": 1,
+  ".GOV/spec/master-spec-v02.205/spec-modules/12-end-of-file-appendices.md": 1
+ },
+ "clauses": {
+  "STU-ASSET-001": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008].what_the_spec_rewrite_must_cover",
+     "derivation": "operator_decision",
+     "note": "bind CKC as the asset library and file manager for Studio, Tailor and the future cui-studio"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-RAS-045] line 471 'the Studio asset library' (no owner, no anchor)",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SECTION-003] no-double-features",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-ASSET-002": {
+   "sources": [
+    {
+     "capture_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+     "record": "$.scope.summary, $.scope.why, $.scope.allowed_paths, $.lifecycle.status = PASSED_INTEGRATION_VALIDATION_V3, $.lifecycle.main_containment_status = CONTAINED_IN_MAIN",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-003].existing_layers_verified_in_012[module_switcher.rs]",
+     "derivation": "parsed",
+     "note": "CKC is already a module in the shell module rail alongside STUDIO"
+    }
+   ]
+  },
+  "STU-ASSET-003": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.16 Media Annotation Overlays: PRIM-Asset, PRIM-ArtifactService, PRIM-ArtifactManifest, PRIM-AiJob",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/12-end-of-file-appendices.md",
+     "record": "$.primitives[PRIM-Asset, PRIM-AssetKind]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-ASSET-004": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SECTION-003]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.10.4.5 Library/DAM Functions (19 rows)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-ASSET-005": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-DOC-001] placed_asset layer kind, [STU-RAS-045] line 471",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.16 asset_id contract: 'the overlay binds to this asset and MUST NOT embed asset bytes'",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-ASSET-006": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-009] linked/placed assets",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.10.4.5 Import (Copy) / Import (Add) rows",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-ASSET-007": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-009] modified/missing status with update-all",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.16 privacy note",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-ASSET-008": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-002].bulk_binary_position",
+     "derivation": "operator_decision",
+     "note": "bulk binary belongs in content-addressed artifact storage with SurrealDB holding records and references"
+    }
+   ]
+  },
+  "STU-ASSET-009": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.16 export rule: exported overlays MUST materialize through the shared ArtifactStore with a manifest",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-012] fail closed",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-ASSET-010": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-001] one typed command contract",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.19 LAW-CORPUS-PARITY-001 single canonical command corpus",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-ASSET-011": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-DS-019] library publish/subscribe versus the asset catalog",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.16: composes with Photo Studio Library/DAM functions without owning catalog identity",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-ASSET-012": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.16 EXPORT rule and Section 10.17 SET-STORE-001: any externalized snapshot/export MUST materialize through the ArtifactStore with a PRIM-ArtifactManifest",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-ASSET-013": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.19 EVIDENCE-001: EventLedger event, Flight Recorder span, recoverable typed receipt",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-ARC-003] KernelActor",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-ASSET-014": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.10.4.5 Virtual Copies and Stacking rows",
+     "derivation": "derived",
+     "note": "the derivation edge is declared here"
+    }
+   ]
+  },
+  "STU-ASSET-015": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.16: the export MUST NOT write product output into .GOV",
+     "derivation": "derived",
+     "note": "operator-directed destinations do not exempt an export from catalog registration"
+    }
+   ]
+  },
+  "STU-ASSET-016": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.10.4.5 Duplicate Detection row",
+     "derivation": "derived",
+     "note": "the uncataloged-content report is declared here"
+    }
+   ]
+  },
+  "STU-ASSET-017": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-025] native asset browser",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008].what_the_spec_rewrite_must_cover",
+     "derivation": "operator_decision"
+    }
+   ]
+  },
+  "STU-ASSET-018": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-RAS-045] matrix row at line 471",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-ASSET-019": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.10.4.5 Library/DAM Functions, all 19 rows",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-ASSET-020": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008].what_the_spec_rewrite_must_cover",
+     "derivation": "operator_decision",
+     "note": "Studio, Tailor and the future cui-studio share the binding"
+    }
+   ]
+  },
+  "STU-ASSET-021": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SDB-005] ResourceBroker and record-level permissions",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-ASSET-022": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-MDL-006] no operator-only by default, [STU-ARC-003] KernelActor",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-ASSET-023": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SDB-004] expected-revision precondition",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-ASSET-024": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-004].spec_specifics",
+     "derivation": "operator_decision",
+     "note": "promotion equivalence requires byte-identical resolution across hosts"
+    }
+   ]
+  },
+  "STU-ASSET-025": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-002].open_item",
+     "derivation": "declared_gap",
+     "note": "'Confirm which artifact/blob tier exists in 012 and bind Studio to it rather than inventing one. Not yet verified in the 012 tree.'"
+    }
+   ]
+  },
+  "STU-ASSET-026": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.19 KernelActionCatalogV1",
+     "derivation": "declared_gap",
+     "note": "CKC-side action_ids not enumerated in this module"
+    }
+   ]
+  },
+  "STU-ASSET-027": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/10-product-surfaces.md",
+     "record": "Section 10.10.4.5",
+     "derivation": "declared_gap",
+     "note": "capability list only; no performance or scale contract exists in the spec"
+    }
+   ]
+  },
+  "STU-ASSET-028": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-RAS-047]-class GUI/Argus/UserManual obligation pattern; 14.16, 14.20, 14.22",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-ASSET-029": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-29-asset-library-binding.md",
+     "record": "this module's own clause set [STU-ASSET-001]-[STU-ASSET-028]",
+     "derivation": "spec_internal",
+     "note": "Derivation rule (NORMATIVE): the closed unit list is enumerated from the clause kinds actually present in [STU-ASSET-001]-[STU-ASSET-028]; the rule form follows the precedent set by 14.7.21 [STU-TYP-240]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-ASSET-030": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-29-asset-library-binding.md",
+     "record": "this module's own clause set [STU-ASSET-001]-[STU-ASSET-028]",
+     "derivation": "spec_internal",
+     "note": "Open items and blocked dependencies: derived from the declared-gap clauses of this module ([STU-ASSET-025], [STU-ASSET-026], [STU-ASSET-027]); the rule that a gap still yields a microtask whose first acceptance criterion resolves the dependency is stated here"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-ASSET-031": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-29-asset-library-binding.md",
+     "record": "this module's own clause set [STU-ASSET-001]-[STU-ASSET-028]",
+     "derivation": "spec_internal",
+     "note": "Microtask content obligation: derived from the enumerations, parameter contracts and record shapes stated in [STU-ASSET-001]-[STU-ASSET-028]; form follows 14.7.21 [STU-TYP-241]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-ASSET-032": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-29-asset-library-binding.md",
+     "record": "this module's own clause set [STU-ASSET-001]-[STU-ASSET-028]",
+     "derivation": "spec_internal",
+     "note": "Yields index (NORMATIVE): counted mechanically over the clause anchors of [STU-ASSET-001]-[STU-ASSET-028], excluding the non-yielding classes named in the derivation rule and adding the individually named validation descriptors of none (this module names no descriptor set of its own); verified by three independent counts (recount from the non-yielding set, sum of the table Yields column, stated module total)"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-ASSET-033": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-29-asset-library-binding.md",
+     "record": "this module's own clause set [STU-ASSET-001]-[STU-ASSET-028]",
+     "derivation": "spec_internal",
+     "note": "Anchor binding: derived from the provisional-anchor rule recorded in the green-room architecture decisions and the precedent of 14.7.21 [STU-TYP-243]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  }
+ }
+}

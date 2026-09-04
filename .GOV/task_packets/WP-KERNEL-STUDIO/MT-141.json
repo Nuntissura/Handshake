@@ -1,133 +1,218 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-141",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-141.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-141.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-002",
-      "MT-020"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Page/spread container model + multi-page island spreads [STU-LAY-001,STU-LAY-002]",
-  "spec_anchor": [
-    "STU-LAY-001",
-    "STU-LAY-002",
-    "STU-LAY-067",
-    "STU-CON-001"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-141",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-141.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-141.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-002",
+   "MT-020"
   ],
-  "scope": {
-    "summary": "Implement the layout page/spread model over the canonical StudioPageSpread primitive (never fork): a layout StudioDocument holds an ordered set of StudioPageSpread containers; facing-pages documents pair pages across a binding spine and non-facing hold single-page spreads; the spread is the unit of parent-page application, spanning-object placement, and imposition. Multi-page (island) spreads MUST hold >2 pages up to a document-configured max of at least ten (gatefold/trifold/accordion), with per-document and per-spread allow-shuffle flags controlling whether repagination reflows pages into/out of a spread; disabling shuffle preserves the island during page insert/delete. Applied through studio-engine LayoutEngine; typed command + studio.layout events.",
-    "allowed_paths": [
-      "src/studio/layout/**",
-      "studio-engine/**",
-      "src/api/studio.rs",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "StudioPageSpread ordered set with facing/non-facing + island >2 pages (max>=10) + per-doc/per-spread allow-shuffle; no forked layout doc model"
-    ],
-    "proof_targets": [
-      "Argus pages-navigator inspect; island-spread + allow-shuffle runtime test"
-    ],
-    "code_surfaces": [
-      "src/studio/layout/spread_model.rs",
-      "studio-engine/src/layout/spread.rs",
-      "src/api/studio.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::layout::spread_model",
-      "live: island spread holds >2 pages up to configured max; allow-shuffle=false preserves island on page insert/delete",
-      "test: facing vs non-facing spread pairing round-trips on StudioPageSpread"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "pages navigator"
-    ],
-    "argus_targets": [
-      "studio.layout.pages_navigator",
-      "studio.layout.spread"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Page Layout / Pages, spreads & island spreads"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Page/spread container model + multi-page island spreads [STU-LAY-001,STU-LAY-002]",
+ "spec_anchor": [
+  "STU-LAY-001",
+  "STU-LAY-002",
+  "STU-LAY-067",
+  "STU-CON-001"
+ ],
+ "scope": {
+  "summary": "Implement the layout page/spread model over the canonical StudioPageSpread primitive (never fork): a layout StudioDocument holds an ordered set of StudioPageSpread containers; facing-pages documents pair pages across a binding spine and non-facing hold single-page spreads; the spread is the unit of parent-page application, spanning-object placement, and imposition. Multi-page (island) spreads MUST hold >2 pages up to a document-configured max of at least ten (gatefold/trifold/accordion), with per-document and per-spread allow-shuffle flags controlling whether repagination reflows pages into/out of a spread; disabling shuffle preserves the island during page insert/delete. Applied through studio-engine LayoutEngine; typed command + studio.layout events.",
+  "allowed_paths": [
+   "src/studio/layout/**",
+   "studio-engine/**",
+   "src/api/studio.rs",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No spread container model; all page-layout MTs blocked; island/fold formats impossible.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "StudioPageSpread ordered set with facing/non-facing",
+   "Island >2 pages (max>=10)",
+   "Per-doc/per-spread allow-shuffle",
+   "No forked layout doc model"
+  ],
+  "proof_targets": [
+   "Argus pages-navigator inspect; island-spread + allow-shuffle runtime test"
+  ],
+  "code_surfaces": [
+   "src/studio/layout/spread_model.rs",
+   "studio-engine/src/layout/spread.rs",
+   "src/api/studio.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::layout::spread_model",
+   "live: island spread holds >2 pages up to configured max; allow-shuffle=false preserves island on page insert/delete",
+   "test: facing vs non-facing spread pairing round-trips on StudioPageSpread"
+  ],
+  "acceptance_criteria_original": [
+   "StudioPageSpread ordered set with facing/non-facing + island >2 pages (max>=10) + per-doc/per-spread allow-shuffle; no forked layout doc model"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "pages navigator"
+  ],
+  "argus_targets": [
+   "studio.layout.pages_navigator",
+   "studio.layout.spread"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Page Layout / Pages, spreads & island spreads"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No spread container model; all page-layout MTs blocked; island/fold formats impossible.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "StudioPageSpread ordered set with facing/non-facing",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "Argus pages-navigator inspect; island-spread + allow-shuffle runtime test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Island >2 pages (max>=10)",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Per-doc/per-spread allow-shuffle",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "No forked layout doc model",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-LAY-001",
+    "spec_clause_text": "**[STU-LAY-001]** A layout `StudioDocument` MUST hold an ordered set of `StudioPageSpread` containers. A `StudioPageSpread` holds one or more pages; a facing-pages document pairs pages across a binding spine, and a non-facing document holds single-page spreads. The spread is the unit of parent-page application, spanning-object placement and print imposition."
+   },
+   {
+    "anchor": "STU-LAY-002",
+    "spec_clause_text": "**[STU-LAY-002]** Multi-page (island) spreads are normative: a `StudioPageSpread` MUST support holding more than two pages to model gatefold, trifold, accordion and other fold formats, and a per-document and per-spread allow-shuffle flag MUST control whether repagination may reflow pages into or out of a spread; disabling shuffle preserves an island spread during page insertion and deletion. SUPERSEDED IN PART by [STU-LAY-106]: the v02.205 wording \"up to a document-configured maximum of at least ten\" is withdrawn, because no such number exists in the capture and the limit is a configured value surfaced through a typed error."
+   },
+   {
+    "anchor": "STU-LAY-067",
+    "spec_clause_text": "**[STU-LAY-067]** Every capability in this catalog MUST be exposed through BOTH the operator UI and the typed model-steerable command/MCP surface as two projections of one primitive per [STU-DOC-004], MUST satisfy the model-visibility/steerability and parallel-workflow requirements (14.16, 14.17), MUST obey the headless/quiet output law so preflight, package, print, PDF and merge never steal focus or block on a foreground window (14.20), and MUST be represented in the dual-audience UserManual and the GUI/diagnostic and accessibility surfaces (14.22, 14.16). Model-authored layout mutations MUST pass the sandbox -> validation -> `PromotionGate` lifecycle ([STU-ARC-005]) via the propose-work system (14.18) before layout authority rows change. All durable layout authority persists through the canonical Studio SurrealDB tables and `studio.layout` EventLedger events (14.23) under the SurrealDB-only authority guard ([STU-SDB-002]); live collaborative editing is CRDT-backed. This obligation is stated once and is not restated per clause."
+   },
+   {
+    "anchor": "STU-CON-001",
+    "spec_clause_text": "[STU-CON-001] CANONICAL PRIMITIVES. The canonical Studio primitive set is defined in 14.3 [STU-DOC-002]. Each primitive's field-level struct is authored here as implementation lands; the per-domain catalogs (14.4-14.15) reference these primitives and MUST NOT fork them. Newly discovered primitives MUST be added here (not invented locally in a domain catalog) via governed spec enrichment."
+   }
+  ],
+  "spec_clause_count": 4,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

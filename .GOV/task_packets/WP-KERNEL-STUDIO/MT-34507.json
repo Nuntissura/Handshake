@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34507",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-072#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "4.2 Density",
+  "spec_line": 30260,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Panel density model (normative)",
+ "spec_anchor": [
+  "STU-SHL-072"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "Panel density model (normative).** Derived from measured vendor declarations, not estimated. | Quantity | Value | Basis | |---|---|---| | dense parameter panel floor | 240px wide | the field-tested floor: 49 captured surfaces declare a preferred docked size with median and mode both 240 | | ScrubValue field body minimum | 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably | | scrub allowance | +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field | | Inspect Dock default | 300px | 240 floor + 32 scrub allowance = 272, rounded for a scrollbar gutter and the 10px scroll lane | | Inspect Dock hard minimum | 260px | below this the panel switches to the compact form | | row pitch | 24 + 4 = 28px | — | | row budget at 300px | 266px usable: one labelled scalar (label 96 + gap 8 + field 72) or one label plus two linked scalars (24 + 72 + 8 + 72) | THREE fields on one row does not fit at 300px and MUST NOT be attempted |",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Panel density model (normative).** Derived from measured vendor declarations, not estimated. | Quantity | Value | Basis | |---|---|---| | dense parameter panel floor | 240px wide | the field-tested floor: 49 captured surfaces declare a preferred docked size with median and mode both 240 | | ScrubValue field body minimum | 72 × 24px | 24px is the practical minimum pointer target for a press-and-drag grab; a 20px row is fine for click-to-type and too thin to grab reliably | | scrub allowance | +32px per two-field row | vendor field body ≈ 56px; the grab minimum adds ≈16px per field | | Inspect D [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-072"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

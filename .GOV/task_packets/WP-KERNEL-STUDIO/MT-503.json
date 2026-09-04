@@ -1,126 +1,199 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-503",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-503.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-503.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-501"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Conditional macros, mode change, event triggers, library [STU-AUT-011]",
-  "spec_anchor": [
-    "STU-AUT-011"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-503",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:27+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-503.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-503.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-501"
   ],
-  "scope": {
-    "summary": "Implement conditional macro steps (branch to another macro on a document condition: orientation/color-mode/layer-state), conditional mode change (convert color mode only when the document matches a source-mode set, for batch safety), event-bound triggers (bind a macro to open/new/save/export document/application events), and the macro library (named categories with import/export for reuse).",
-    "allowed_paths": [
-      "src/studio/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "conditional steps + conditional mode change + event triggers + macro library with import/export"
-    ],
-    "proof_targets": [
-      "conditional-branch + event-trigger runtime test"
-    ],
-    "code_surfaces": [
-      "src/studio/automation/macro_conditional.rs",
-      "src/studio/automation/macro_library.rs"
-    ],
-    "expected_tests": [
-      "live: conditional step branches on document condition",
-      "test: event-bound macro fires on document save event",
-      "argus: macro library import/export"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "macro library panel"
-    ],
-    "argus_targets": [
-      "studio.macro_library",
-      "studio.macro.event_bind"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Automation / Conditional macros, triggers & library"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Conditional macros, mode change, event triggers, library [STU-AUT-011]",
+ "spec_anchor": [
+  "STU-AUT-011"
+ ],
+ "scope": {
+  "summary": "Implement conditional macro steps (branch to another macro on a document condition: orientation/color-mode/layer-state), conditional mode change (convert color mode only when the document matches a source-mode set, for batch safety), event-bound triggers (bind a macro to open/new/save/export document/application events), and the macro library (named categories with import/export for reuse).",
+  "allowed_paths": [
+   "src/studio/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No conditional/event automation; batch-safety + reuse parity gap.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Conditional steps",
+   "Conditional mode change",
+   "Event triggers",
+   "Macro library with import/export"
+  ],
+  "proof_targets": [
+   "conditional-branch + event-trigger runtime test"
+  ],
+  "code_surfaces": [
+   "src/studio/automation/macro_conditional.rs",
+   "src/studio/automation/macro_library.rs"
+  ],
+  "expected_tests": [
+   "live: conditional step branches on document condition",
+   "test: event-bound macro fires on document save event",
+   "argus: macro library import/export"
+  ],
+  "acceptance_criteria_original": [
+   "conditional steps + conditional mode change + event triggers + macro library with import/export"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "macro library panel"
+  ],
+  "argus_targets": [
+   "studio.macro_library",
+   "studio.macro.event_bind"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Automation / Conditional macros, triggers & library"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No conditional/event automation; batch-safety + reuse parity gap.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Conditional steps",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "conditional-branch + event-trigger runtime test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Conditional mode change",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Event triggers",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Macro library with import/export",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-AUT-011",
+    "spec_clause_text": "[STU-AUT-011] The macro system MUST support the deduped control surface below and MUST NOT require the operator to write code to use it. Macro steps are individually parameter-adjustable after recording, so a captured operation can be re-parameterized (the deduped equivalent of adjustable macro step parameters and change-settings-on-playback). | Macro control | Behavior | Deduped source provenance | |---|---|---| | Record / stop / play | Capture the live command stream into a named macro; replay over the active document | actions panel record/play; macro record/replay | | Per-step modal pause | Mark a step to pause playback and surface its parameter dialog for operator input | action modal controls; macro step parameters | | Step enable / exclude / reorder | Toggle, drop, or reorder recorded steps without re-recording | per-step toggles, command exclusion, reordering | | Insert message stop | Pause playback with an operator message and optional continue | Insert Stop | | Insert command step | Embed an otherwise non-interactively-captured command by explicit selection | Insert Menu Item (non-recordable commands) | | Insert path step | Record exact vector-path geometry into the macro so playback recreates it | Insert Path / record a path | | Record tool strokes | Optionally capture brush/painting tool strokes for replay | record painting tools in actions | | Conditional step | Branch to another macro based on a document condition (orientation, color mode, layer state) | conditional actions | | Conditional mode change | Convert color mode only when the document matches a source-mode set, for batch safety | conditional mode change | | Event-bound trigger | Bind a macro to a document/application event (open, new, save, export) | Script Events Manager; startup scripts; plugin events | | Macro library | Store macros in named categories with import/export for reuse | macro library panel; action sets | ### 4. Batch processing (droplet / image-processor / batch-job equivalents)"
+   }
+  ],
+  "spec_clause_count": 1,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:27+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

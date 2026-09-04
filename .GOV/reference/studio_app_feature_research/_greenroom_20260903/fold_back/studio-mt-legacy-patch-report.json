@@ -1,0 +1,54 @@
+{
+ "schema_id": "handshake.reference.studio_mt_legacy_patch@1",
+ "generated_at": "2026-09-04T13:36:27+00:00",
+ "packet": "..\\..\\task_packets\\WP-KERNEL-STUDIO",
+ "written_to": "_greenroom_20260903\\fold_back\\patched_legacy_mts",
+ "in_place": false,
+ "counts": {
+  "entries_split": 483,
+  "rows_before": 556,
+  "rows_after": 1807,
+  "contracts_patched": 509,
+  "tier_internal_diagnostics_corrected": 501,
+  "tier_palmistry_corrected": 501,
+  "contracts_with_unresolved_anchor": 5
+ },
+ "acceptance_rows": {
+  "before": 556,
+  "after": 1807
+ },
+ "contracts_with_unresolved_anchor": [
+  {
+   "mt_id": "MT-249",
+   "anchors": [
+    "STU-COL-OBLIG-001"
+   ]
+  },
+  {
+   "mt_id": "MT-428",
+   "anchors": [
+    "STU-RAW-014c"
+   ]
+  },
+  {
+   "mt_id": "MT-431",
+   "anchors": [
+    "STU-SOT"
+   ]
+  },
+  {
+   "mt_id": "MT-477",
+   "anchors": [
+    "STU-SOT"
+   ]
+  },
+  {
+   "mt_id": "MT-478",
+   "anchors": [
+    "STU-SOT"
+   ]
+  }
+ ],
+ "unresolved_anchor_count": 5,
+ "note": "An unresolved anchor means the contract cites a clause the assembled spec does not define. That is a spec defect or a stale citation and must be resolved before the microtask activates; it is reported, never silently dropped."
+}

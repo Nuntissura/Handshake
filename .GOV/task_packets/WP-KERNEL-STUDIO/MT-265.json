@@ -1,128 +1,226 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-265",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-265.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-265.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-008",
-      "MT-017",
-      "MT-261",
-      "MT-264"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "GPU render-path wiring for effects: RenderEngine binding, EFFECT_GPU_UNAVAILABLE, CPU fallback promotion-equivalence, headless/quiet [STU-FX-036,STU-FX-038,STU-FX-018]",
-  "spec_anchor": [
-    "STU-FX-036",
-    "STU-FX-038",
-    "STU-FX-018",
-    "STU-ARC-002",
-    "STU-QUIET-001"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-265",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-265.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-265.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-008",
+   "MT-017",
+   "MT-261",
+   "MT-264"
   ],
-  "scope": {
-    "summary": "Wire every filter/effect through the studio-engine RenderEngine (wgpu/WGSL) driven by StudioRenderHarness: GPU-Req rows run on a supported backend or return a determinate EFFECT_GPU_UNAVAILABLE state (harness records shortfall, never silent empty output); Opt rows carry a CPU fallback producing promotion-equivalent output; GPU deps stay isolated in studio-engine (never in handshake_core Cargo.toml). Batch/model-driven application runs headless and quiet (14.20): no foreground window, no focus/input steal; interactive group-12 workspaces expose an equivalent headless typed-data path.",
-    "allowed_paths": [
-      "src/studio/effects/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "RenderEngine/StudioRenderHarness binding; GPU-Req -> determinate unavailable state; Opt CPU fallback equivalent; GPU dep isolated; headless+quiet"
-    ],
-    "proof_targets": [
-      "real-GPU render + headless EFFECT_GPU_UNAVAILABLE fallback + quiet negative test"
-    ],
-    "code_surfaces": [
-      "studio-engine/src/render/mod.rs",
-      "studio-engine/src/render/gpu_path.rs",
-      "src/studio/effects/harness_glue.rs"
-    ],
-    "expected_tests": [
-      "real-GPU: GPU-Req effect renders through RenderEngine; headless fallback: no-GPU returns EFFECT_GPU_UNAVAILABLE (AccessKit-tree assert, not empty)",
-      "test: Opt effect CPU fallback promotion-equivalent to GPU within tolerance",
-      "negative: batch effect run pops no window / steals no focus; handshake_core Cargo.toml has no wgpu/wgsl"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-VIS-001",
-    "HBR-QUIET-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "GPU render-path wiring for effects: RenderEngine binding, EFFECT_GPU_UNAVAILABLE, CPU fallback promotion-equivalence, headless/quiet [STU-FX-036,STU-FX-038,STU-FX-018]",
+ "spec_anchor": [
+  "STU-FX-036",
+  "STU-FX-038",
+  "STU-FX-018",
+  "STU-ARC-002",
+  "STU-QUIET-001"
+ ],
+ "scope": {
+  "summary": "Wire every filter/effect through the studio-engine RenderEngine (wgpu/WGSL) driven by StudioRenderHarness: GPU-Req rows run on a supported backend or return a determinate EFFECT_GPU_UNAVAILABLE state (harness records shortfall, never silent empty output); Opt rows carry a CPU fallback producing promotion-equivalent output; GPU deps stay isolated in studio-engine (never in handshake_core Cargo.toml). Batch/model-driven application runs headless and quiet (14.20): no foreground window, no focus/input steal; interactive group-12 workspaces expose an equivalent headless typed-data path.",
+  "allowed_paths": [
+   "src/studio/effects/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "GPU effects silently empty or leak GPU dep into core; agent runs steal focus.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "RenderEngine/StudioRenderHarness binding",
+   "GPU-Req -> determinate unavailable state",
+   "Opt CPU fallback equivalent",
+   "GPU dep isolated",
+   "Headless+quiet"
+  ],
+  "proof_targets": [
+   "real-GPU render + headless EFFECT_GPU_UNAVAILABLE fallback + quiet negative test"
+  ],
+  "code_surfaces": [
+   "studio-engine/src/render/mod.rs",
+   "studio-engine/src/render/gpu_path.rs",
+   "src/studio/effects/harness_glue.rs"
+  ],
+  "expected_tests": [
+   "real-GPU: GPU-Req effect renders through RenderEngine; headless fallback: no-GPU returns EFFECT_GPU_UNAVAILABLE (AccessKit-tree assert, not empty)",
+   "test: Opt effect CPU fallback promotion-equivalent to GPU within tolerance",
+   "negative: batch effect run pops no window / steals no focus; handshake_core Cargo.toml has no wgpu/wgsl"
+  ],
+  "acceptance_criteria_original": [
+   "RenderEngine/StudioRenderHarness binding; GPU-Req -> determinate unavailable state; Opt CPU fallback equivalent; GPU dep isolated; headless+quiet"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-VIS-001",
+  "HBR-QUIET-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "GPU effects silently empty or leak GPU dep into core; agent runs steal focus.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "RenderEngine/StudioRenderHarness binding",
+   "evidence_kind": "gui_proof",
+   "proof_target": "real-GPU render + headless EFFECT_GPU_UNAVAILABLE fallback + quiet negative test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "GPU-Req -> determinate unavailable state",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Opt CPU fallback equivalent",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "GPU dep isolated",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Headless+quiet",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-FX-036",
+    "spec_clause_text": "[STU-FX-036] Every filter/effect evaluates through the `studio-engine` `RenderEngine` (wgpu/WGSL), driven by the `StudioRenderHarness` primitive. Rows marked GPU `Req` MUST run on a supported GPU backend; when none is available the effect returns a determinate `EFFECT_GPU_UNAVAILABLE` state ([STU-FX-018]) rather than a silent empty result, and the harness records the shortfall. Rows marked `Opt` have a CPU fallback path in `studio-engine` that produces promotion-equivalent output. GPU dependencies stay isolated in `studio-engine` and never enter `handshake_core`'s `Cargo.toml` ([STU-ARC-002])."
+   },
+   {
+    "anchor": "STU-FX-038",
+    "spec_clause_text": "[STU-FX-038] The effect engine runs headless and quiet (14.20): batch/model-driven effect application MUST NOT pop a foreground window, steal focus, or require an interactive workspace to complete; the interactive workspaces of group 12 expose an equivalent headless parameter path (constraint lines, planes, mesh points as typed data) so a model can apply them without the on-canvas UI. --- ### 19. Effect Styles, Presets & Reuse"
+   },
+   {
+    "anchor": "STU-FX-018",
+    "spec_clause_text": "[STU-FX-018] GPU-required render effects MUST declare their GPU dependency in the `StudioLiveFilter` descriptor so a headless/quiet run (14.20) and a no-GPU environment surface a determinate `EFFECT_GPU_UNAVAILABLE` result rather than silently producing empty output. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Clouds | R | Opt | Random cloud pattern between two colors, replacing layer data (seeded). | | Difference Clouds | R | Opt | Blends generated clouds with existing pixels in Difference mode; marble-like on repeat (seeded). | | Fibers | R | Opt | Woven-fiber texture from two colors with variance, strength, randomize. | | Lens Flare | R | Opt | Simulated lens-refraction flare with placeable center and lens-type presets. | | Lighting Effects | R | Req | GPU lighting workspace: point/spot/infinite lights, per-light properties, and grayscale texture channels as bump maps. Dedup of the lighting render filter and the 3D-style lighting live filter. | | Flame | R | Req | Parameterized realistic flames rendered along a selected path onto a pixel layer; requires GPU + an active work path. | | Picture Frame | R | Req | Scripted decorative frame designs drawn around the canvas; requires GPU + a pixel layer. | | Tree | R | Req | Parameterized tree species with leaf/branch/light settings; requires GPU + a pixel layer. | | Procedural Texture (formula) | R | Opt | User-authored mathematical pixel-math formulas generate/transform pixels (scriptable generator surface, deterministic per inputs). | --- ### 8. Sharpen & Detail Family"
+   },
+   {
+    "anchor": "STU-ARC-002",
+    "spec_clause_text": "[STU-ARC-002] `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `RasterEngine`/`VectorEngine`/`LayoutEngine`/`TextEngine`/`ColorEngine`/`RenderEngine: Send + Sync` trait boundaries defined in `studio-engine/src/lib.rs` (mirrors [TAI-OVR-009])."
+   },
+   {
+    "anchor": "STU-QUIET-001",
+    "spec_clause_text": "[STU-QUIET-001] HEADLESS BY LAW. Agent-driven Studio work MUST run headless (no visible window brought to foreground). It MUST NOT steal keyboard focus, hijack keyboard input, move or click the OS mouse/cursor, capture focus, or use attention-stealing desktop APIs (HBR-QUIET-001)."
+   }
+  ],
+  "spec_clause_count": 5,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

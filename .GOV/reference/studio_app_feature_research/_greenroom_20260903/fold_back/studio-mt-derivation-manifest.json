@@ -1,0 +1,663 @@
+{
+ "schema_id": "handshake.reference.studio_mt_derivation@1",
+ "generated_at": "2026-09-04T13:36:25+00:00",
+ "input": "_greenroom_20260903\\spec_update\\proposed-bundle\\section14",
+ "unit_counts": {
+  "clause": 2079,
+  "catalogue_row": 2063,
+  "parameter_table": 409,
+  "enumeration": 102,
+  "validator": 115,
+  "no_microtask": 106,
+  "command_table": 59,
+  "anchor_row": 45
+ },
+ "microtasks_written": 4872,
+ "per_module_yields": {
+  "14-studio-creative-suite.md": 4872
+ },
+ "markers_matching_no_class": [],
+ "markers_matching_no_class_count": 0,
+ "marker_count_mismatches": [],
+ "marker_mismatch_count": 0,
+ "clauses_yielding_no_microtask": [
+  {
+   "anchor": "STU-VEC-100",
+   "module": "14-studio-creative-suite.md",
+   "title": "The seven-field numeric parameter contract",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VEC-102",
+   "module": "14-studio-creative-suite.md",
+   "title": "Soft bounds are UI presentation only",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VEC-103",
+   "module": "14-studio-creative-suite.md",
+   "title": "Step contract",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VEC-101",
+   "module": "14-studio-creative-suite.md",
+   "title": "Unit vocabulary",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VEC-104",
+   "module": "14-studio-creative-suite.md",
+   "title": "Enumeration contract",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VEC-105",
+   "module": "14-studio-creative-suite.md",
+   "title": "Capture-conflict rule",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VEC-106",
+   "module": "14-studio-creative-suite.md",
+   "title": "Observed-value rule",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VEC-107",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask derivation rule",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VEC-041",
+   "module": "14-studio-creative-suite.md",
+   "title": "Every vector tool, shape, geometry operation, fill/stroke attribute, appearance row,",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VEC-199",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask derivation index",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-LAY-100",
+   "module": "14-studio-creative-suite.md",
+   "title": "The seven-field numeric parameter contract",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-LAY-101",
+   "module": "14-studio-creative-suite.md",
+   "title": "Measurement systems and unit vocabulary",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-LAY-102",
+   "module": "14-studio-creative-suite.md",
+   "title": "Enumeration contract",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-LAY-103",
+   "module": "14-studio-creative-suite.md",
+   "title": "Capture-conflict rule",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-LAY-104",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask derivation rule",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-LAY-023",
+   "module": "14-studio-creative-suite.md",
+   "title": "Text on a path MUST bind a `StudioTextStory` to a `StudioVectorPath` (geometry owned",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-LAY-041",
+   "module": "14-studio-creative-suite.md",
+   "title": "Export tag mapping is stored on the style record in `StudioStyleRegistry`",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-LAY-067",
+   "module": "14-studio-creative-suite.md",
+   "title": "Every capability in this catalog MUST be exposed through BOTH the operator UI and the",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-LAY-199",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask derivation index",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-100",
+   "module": "14-studio-creative-suite.md",
+   "title": "Derivation basis",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-101",
+   "module": "14-studio-creative-suite.md",
+   "title": "Anchor continuity",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-102",
+   "module": "14-studio-creative-suite.md",
+   "title": "Disposition of the pre-existing 14.7 anchors",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-103",
+   "module": "14-studio-creative-suite.md",
+   "title": "Capture-versus-spec contradictions of record",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-104",
+   "module": "14-studio-creative-suite.md",
+   "title": "Non-derivation rule",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-220",
+   "module": "14-studio-creative-suite.md",
+   "title": "GUI / Argus / UserManual obligation (stated once for 14.7)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-235",
+   "module": "14-studio-creative-suite.md",
+   "title": "Owned here",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-236",
+   "module": "14-studio-creative-suite.md",
+   "title": "Not owned here (referenced)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-237",
+   "module": "14-studio-creative-suite.md",
+   "title": "Typography capability provenance scale",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-238",
+   "module": "14-studio-creative-suite.md",
+   "title": "Bound-coverage honesty (SELF-AUDIT)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-240",
+   "module": "14-studio-creative-suite.md",
+   "title": "Derivation rule (NORMATIVE)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-241",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask content obligation",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-242",
+   "module": "14-studio-creative-suite.md",
+   "title": "Yields index (NORMATIVE LEDGER)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-243",
+   "module": "14-studio-creative-suite.md",
+   "title": "Anchor binding",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-244",
+   "module": "14-studio-creative-suite.md",
+   "title": "Table spawn declarations (NORMATIVE)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-TYP-245",
+   "module": "14-studio-creative-suite.md",
+   "title": "Reconciliation of record",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-100",
+   "module": "14-studio-creative-suite.md",
+   "title": "Derivation basis and the missing-menu problem",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-101",
+   "module": "14-studio-creative-suite.md",
+   "title": "Anchor continuity",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-102",
+   "module": "14-studio-creative-suite.md",
+   "title": "Disposition of the pre-existing 14.8 anchors",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-103",
+   "module": "14-studio-creative-suite.md",
+   "title": "Capture-versus-spec contradiction of record: branded colour libraries",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-104",
+   "module": "14-studio-creative-suite.md",
+   "title": "Two further contradictions of record",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-250",
+   "module": "14-studio-creative-suite.md",
+   "title": "GUI / Argus / UserManual obligation (stated once for 14.8)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-265",
+   "module": "14-studio-creative-suite.md",
+   "title": "Owned here",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-266",
+   "module": "14-studio-creative-suite.md",
+   "title": "Not owned here (referenced)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-267",
+   "module": "14-studio-creative-suite.md",
+   "title": "Colour capability provenance scale",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-268",
+   "module": "14-studio-creative-suite.md",
+   "title": "Preset names are evidence, contracts are normative",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-270",
+   "module": "14-studio-creative-suite.md",
+   "title": "Derivation rule (NORMATIVE)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-271",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask content obligation",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-272",
+   "module": "14-studio-creative-suite.md",
+   "title": "Yields index (NORMATIVE LEDGER)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-273",
+   "module": "14-studio-creative-suite.md",
+   "title": "Anchor binding",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-274",
+   "module": "14-studio-creative-suite.md",
+   "title": "Table spawn declarations (NORMATIVE)",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-COL-275",
+   "module": "14-studio-creative-suite.md",
+   "title": "Reconciliation of record",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-FX-100",
+   "module": "14-studio-creative-suite.md",
+   "title": "REPLACEMENT SCOPE",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-FX-101",
+   "module": "14-studio-creative-suite.md",
+   "title": "CLAUSE-LEVEL AMENDMENTS TO 14.9 AS IT STOOD",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-FX-102",
+   "module": "14-studio-creative-suite.md",
+   "title": "NO SIDECAR AUTHORITY",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-FX-160",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask derivation index",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-FX-160a",
+   "module": "14-studio-creative-suite.md",
+   "title": "The no-yield set: 10 clauses",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-FX-161",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask content obligation",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-FX-162",
+   "module": "14-studio-creative-suite.md",
+   "title": "Ledger",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-FX-162a",
+   "module": "14-studio-creative-suite.md",
+   "title": "Catalogue arithmetic, stated because it is the largest number in the ledger and the",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-FX-163",
+   "module": "14-studio-creative-suite.md",
+   "title": "An open item or a blocked dependency does NOT remove a microtask",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-FX-164",
+   "module": "14-studio-creative-suite.md",
+   "title": "Anchor binding",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-001",
+   "module": "14-studio-creative-suite.md",
+   "title": "[STU-OVR-015] IS SUPERSEDED AND INVERTED",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-001a",
+   "module": "14-studio-creative-suite.md",
+   "title": "The consequences of the supersession, stated so nothing is left dangling:",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-001b",
+   "module": "14-studio-creative-suite.md",
+   "title": "The domain list in 14.1 section 2 is amended: the row reading \"Prototyping, motion &",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-002",
+   "module": "14-studio-creative-suite.md",
+   "title": "Ownership boundaries",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-003",
+   "module": "14-studio-creative-suite.md",
+   "title": "No sidecar authority",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-040",
+   "module": "14-studio-creative-suite.md",
+   "title": "Every operation in this sub-section is one reversible `StudioHistoryEntry`",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-080",
+   "module": "14-studio-creative-suite.md",
+   "title": "GAP -- editing-mode constraint lists",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-081",
+   "module": "14-studio-creative-suite.md",
+   "title": "GAP -- time-display code 113",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-100",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask derivation index",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-100a",
+   "module": "14-studio-creative-suite.md",
+   "title": "The no-yield set: 14 clauses",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-101",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask content obligation",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-102",
+   "module": "14-studio-creative-suite.md",
+   "title": "Ledger",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-103",
+   "module": "14-studio-creative-suite.md",
+   "title": "An open item or a blocked dependency does NOT remove a microtask",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-VID-104",
+   "module": "14-studio-creative-suite.md",
+   "title": "Anchor binding",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-000",
+   "module": "14-studio-creative-suite.md",
+   "title": "Section 14 at v02.205 offered \"prototyping/motion\" as one domain, specified in 14.11",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-002",
+   "module": "14-studio-creative-suite.md",
+   "title": "Ownership boundaries",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-002a",
+   "module": "14-studio-creative-suite.md",
+   "title": "Relationship to [STU-PRO-028] and the prototyping motion timeline",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-003",
+   "module": "14-studio-creative-suite.md",
+   "title": "No sidecar authority",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-141",
+   "module": "14-studio-creative-suite.md",
+   "title": "GAP -- spatial tangent on-disk layout",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-142",
+   "module": "14-studio-creative-suite.md",
+   "title": "OPEN DECISION -- the expression language implementation",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-144",
+   "module": "14-studio-creative-suite.md",
+   "title": "OPEN DECISION -- canonical identifier spelling",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-145",
+   "module": "14-studio-creative-suite.md",
+   "title": "GAP -- categorisation of 206 expression identifiers",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-250",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask derivation index",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-250a",
+   "module": "14-studio-creative-suite.md",
+   "title": "The no-yield set: 14 clauses",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-251",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask content obligation",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-252",
+   "module": "14-studio-creative-suite.md",
+   "title": "Ledger",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-253",
+   "module": "14-studio-creative-suite.md",
+   "title": "An open item or a blocked dependency does NOT remove a microtask",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-MOT-254",
+   "module": "14-studio-creative-suite.md",
+   "title": "Anchor binding",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-001",
+   "module": "14-studio-creative-suite.md",
+   "title": "Compositing is in scope at professional depth",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-002",
+   "module": "14-studio-creative-suite.md",
+   "title": "Ownership boundaries",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-003",
+   "module": "14-studio-creative-suite.md",
+   "title": "No sidecar authority",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-090",
+   "module": "14-studio-creative-suite.md",
+   "title": "The layer model specified in 14.27.1 through 14.27.7 is NORMATIVE and is fully",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-091",
+   "module": "14-studio-creative-suite.md",
+   "title": "The node question is DECLARED SPEC DEBT, and here is the question",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-094",
+   "module": "14-studio-creative-suite.md",
+   "title": "Decision criteria, recorded so the decision can be made rather than re-litigated",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-100",
+   "module": "14-studio-creative-suite.md",
+   "title": "GAP -- assisted rotoscoping",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-101",
+   "module": "14-studio-creative-suite.md",
+   "title": "OPEN DECISION -- layer versus node compositing model",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-102",
+   "module": "14-studio-creative-suite.md",
+   "title": "GAP -- renderer inventory and capability sets",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-103",
+   "module": "14-studio-creative-suite.md",
+   "title": "GAP -- tracker parameter records",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-104",
+   "module": "14-studio-creative-suite.md",
+   "title": "GAP -- parameter records for most keying, matte, 3D-channel, immersive and",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-120",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask derivation index",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-120a",
+   "module": "14-studio-creative-suite.md",
+   "title": "The no-yield set: 17 clauses",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-121",
+   "module": "14-studio-creative-suite.md",
+   "title": "Microtask content obligation",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-122",
+   "module": "14-studio-creative-suite.md",
+   "title": "Ledger",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-123",
+   "module": "14-studio-creative-suite.md",
+   "title": "An open item or a blocked dependency does NOT remove a microtask",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  },
+  {
+   "anchor": "STU-CMP-124",
+   "module": "14-studio-creative-suite.md",
+   "title": "Anchor binding",
+   "reason": "declared non-yielding by the module's own normative list, which overrides inference"
+  }
+ ],
+ "no_microtask_count": 106,
+ "determinism": "mt_id is bound to derivation_key in the id-map, which is append-only. Adding a spec clause allocates a new id and renumbers nothing."
+}

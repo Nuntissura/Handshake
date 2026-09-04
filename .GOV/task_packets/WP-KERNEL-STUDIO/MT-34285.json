@@ -1,0 +1,166 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34285",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-WEB-065#enumeration#0",
+  "unit_kind": "enumeration",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.28.4 The CSS property surface",
+  "spec_line": 29076,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Layout-category property contracts (normative) - enumeration",
+ "spec_anchor": [
+  "STU-WEB-065"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "web_authoring",
+ "scope": {
+  "summary": "Layout-category property contracts (normative).** | Property | control_type | default | negative | Options / notes | |---|---|---|---|---| | `width`, `height` | MenuAndHotText | `auto` | no | `auto` plus the fifteen units | | `min-width`, `min-height` | MenuAndHotText | `0px` | no | fifteen units, no keyword | | `max-width`, `max-height` | MenuAndHotText | `none` | no | `none` plus fifteen units | | `display` | Menu | `inline` | — | `inherit`, `none`, `block`, `list-item`, `inline`, `inline-block`, `inline-table`, `table`, `table-caption`, `table-cell`, `table-column`, `table-column-group`, `table-footer-group`, `table-header-group`, `table-row`, `table-row-group`, `run-in`, `compact`, `marker` (19) | | `box-sizing` | Menu | `content-box` | no | `content-box`, `border-box`, `inherit` | | `visibility` | Menu | `visible` | — | `inherit`, `visible`, `hidden`, `collapse` | | `float` | GroupedPictureButton | unset | — | `left`, `right`, `none` | | `clear` | GroupedPictureButton | unset | — | `left`, `right`, `both`, `none` | | `overflow-x`, `overflow-y` | Menu | `visible` | — | `visible`, `hidden`, `scroll`, `auto`, `no-content`, `no-display` | | `position` | Menu | `static` | — | `static`, `absolute`, `fixed`, `relative` | | `z-index` | HotTextValue | `auto` | — | `auto` or an integer | | `opacity` | RangeHotText | `1` | — | see [STU-WEB-066] | | `margin` | GroupedBoxControls | uns [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The enumeration accepts the member `width`, `height` with the exact meaning the spec states: MenuAndHotText | `auto` | no | `auto` plus the fifteen units. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The enumeration accepts the member `min-width`, `min-height` with the exact meaning the spec states: MenuAndHotText | `0px` | no | fifteen units, no keyword. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The enumeration accepts the member `max-width`, `max-height` with the exact meaning the spec states: MenuAndHotText | `none` | no | `none` plus fifteen units. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The enumeration accepts the member `display` with the exact meaning the spec states: Menu | `inline` | — | `inherit`, `none`, `block`, `list-item`, `inline`, `inline-block`, `inline-table`, `table`, `table-caption`, `table-cell`, `table-column`, `table-column-group`, `table-footer-group`, `table-header-group`, `table-row`, `table-row-group`, `run-in`, `compact`, `marker` (19). No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The enumeration accepts the member `box-sizing` with the exact meaning the spec states: Menu | `content-box` | no | `content-box`, `border-box`, `inherit`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The enumeration accepts the member `visibility` with the exact meaning the spec states: Menu | `visible` | — | `inherit`, `visible`, `hidden`, `collapse`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The enumeration accepts the member `float` with the exact meaning the spec states: GroupedPictureButton | unset | — | `left`, `right`, `none`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The enumeration accepts the member `clear` with the exact meaning the spec states: GroupedPictureButton | unset | — | `left`, `right`, `both`, `none`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The enumeration accepts the member `overflow-x`, `overflow-y` with the exact meaning the spec states: Menu | `visible` | — | `visible`, `hidden`, `scroll`, `auto`, `no-content`, `no-display`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The enumeration accepts the member `position` with the exact meaning the spec states: Menu | `static` | — | `static`, `absolute`, `fixed`, `relative`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The enumeration accepts the member `z-index` with the exact meaning the spec states: HotTextValue | `auto` | — | `auto` or an integer. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The enumeration accepts the member `opacity` with the exact meaning the spec states: RangeHotText | `1` | — | see [STU-WEB-066]. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 12"
+  },
+  {
+   "id": "AC-013",
+   "criterion": "The enumeration accepts the member `margin` with the exact meaning the spec states: GroupedBoxControls | unset | yes | `auto` plus fifteen units, per side. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 13"
+  },
+  {
+   "id": "AC-014",
+   "criterion": "The enumeration accepts the member `padding` with the exact meaning the spec states: GroupedBoxControls | unset | no | `auto` plus fifteen units, per side. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 14"
+  },
+  {
+   "id": "AC-015",
+   "criterion": "The enumeration accepts the member `top`, `right`, `bottom`, `left` with the exact meaning the spec states: GroupedBoxControls | unset | yes | `auto` plus fifteen units, per side. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-065 enumeration row 15"
+  }
+ ],
+ "acceptance_criteria_count": 15,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

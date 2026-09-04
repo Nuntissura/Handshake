@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34446",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-025#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "1.3 The full menu tree",
+  "spec_line": 29842,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "VIEW (extends the shell VIEW menu)",
+ "spec_anchor": [
+  "STU-SHL-025"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "VIEW (extends the shell VIEW menu).** - `Zoom In` / `Zoom Out` | items - `Zoom To` | submenu | `studio.view.zoom_to` → Fit Page in Window, Fit Spread in Window, Fit Artboard in Window, Fit All Artboards, Fit Selection in Window, Actual Size, 200%, 400%, Zoom To…, Zoom to Pixel Grid - `Screen Mode` | submenu | `studio.view.screen_mode` → Normal, Preview, Bleed, Slug, Presentation, Full Screen, Trim View - `Display Quality` | submenu | `studio.view.display` → Fast, Typical, High Quality, Pixel Preview, Outline / Wireframe, Overprint Preview, GPU Preview, Allow Object-Level Display Settings, Clear Object-Level Display Settings. For documents carrying a `timeline` container this submenu additionally exposes the six-member layer-quality enumeration. - `View Layout` | submenu | `studio.view.view_layout` → 1 View, 2 Views, 4 Views, Share View Options. This is a VIEWER-INTERNAL split of ONE document at ONE time sharing one playhead. It is NOT the centre editor tree of [STU-SHL-063] and MUST NOT be implemented as one. - `Proof` | submenu | `studio.color.proof` → Proof Setup…, Proof Colours, Gamut Warning, Colour-Vision Proof… - `Rulers & Measurement` | submenu | `studio.view.rulers` → Show Rulers, Ruler Units…, Change Ruler Origin, Reset Ruler Origin, Video Ruler, Measurement Tool Overlay - `Guides` | submenu | `studio.view.guides` → Show Guides, Lock Guides, Clear Guides, New Guide…, N [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "It is NOT the centre editor tree of [STU-SHL-063] and MUST NOT be implemented as one. - `Proof` | submenu | `studio.color.proof` → Proof Setup…, Proof Colours, Gamut Warning, Colour-Vision Proof… - `Rulers & Measurement` | submenu | `studio.view.rulers` → Show Rulers, Ruler Units…, Change Ruler Origin, Reset Ruler Origin, Video Ruler, Measurement Tool Overlay - `Guides` | submenu | `studio.view.guides` → Show Guides, Lock Guides, Clear Guides, New Guide…, New Guides from Selection, Guides in Back, Smart Guides, Guide Templates, Manage Guides… - `Grids` | submenu | `studio.view.grids` → Show Do [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-025"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

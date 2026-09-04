@@ -1,0 +1,118 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-32283",
+ "created_at_utc": "2026-09-04T13:36:10+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-FX-133#catalogue_row#0_d_ei",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.9.6 Catalogue: the video-editing effect set",
+  "spec_line": 16137,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "D EI",
+ "spec_anchor": [
+  "STU-FX-133"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "effects",
+ "scope": {
+  "summary": "**The tables in this group are the normative Studio effect set contributed by the video-editing domain.** 371 video effects and 107 preset-defined pseudo-effects. Where a row's engine column says the effect is the compositing application's engine, it is the SAME Studio `filter_kind` as the corresponding row in 14.9.3 and dedups to it ([STU-FX-127]); such rows are listed in their own table below, per [STU-FX-127b], so that no capability is lost, the editing-side parameter surface is recorded, and the dedup is machine-readable rather than implied. The `Params` column counts recovered parameter rows; per [STU-FX-106a] only 6.5 percent of those rows carry any bound, and the bounded subset is reproduced in full in [STU-FX-133a]. **(uncategorised)** (371) *Derivation: catalogue table, splits per row; yields 34 microtasks, one per new Studio `filter_kind`; the other 337 rows dedup onto 14.9.3 under [STU-FX-127] and yield 0.* **New Studio effect kinds contributed by the editing application** (179 rows) *Derivation: catalogue table, splits per row; yields 173 microtasks, one per new Studio `filter_kind`.* | Studio effect | Engine | Params | Presets | Description (from capture) | Import key (provenance) | |---|---|---|---|---|---| | Active | mediacore | 1 | 0 | _no vendor description recovered_ | `MediaCore:Active` | | Legacy Matte Entry (unidentified) | ae_native | 10 | 0 | _no vendor d [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`D EI` satisfies the spec's stated studio effect: D EI",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-133 catalogue row `D EI`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`D EI` satisfies the spec's stated engine: ae_native",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-133 catalogue row `D EI`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`D EI` satisfies the spec's stated params: 16",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-133 catalogue row `D EI`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`D EI` satisfies the spec's stated presets: 0",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-133 catalogue row `D EI`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`D EI` satisfies the spec's stated description (from capture): _no vendor description recovered_",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-133 catalogue row `D EI`"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "`D EI` satisfies the spec's stated import key (provenance): `AE_LStr:D_EI`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-133 catalogue row `D EI`"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "`D EI` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-FX-133"
+  }
+ ],
+ "acceptance_criteria_count": 7,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

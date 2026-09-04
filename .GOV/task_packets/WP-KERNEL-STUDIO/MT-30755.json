@@ -1,0 +1,196 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30755",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-LAY-141#enumeration#0",
+  "unit_kind": "enumeration",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.6.5 Tables",
+  "spec_line": 6329,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Cell contract - [STU-LAY-141] Cell contract. Studio MUST carry these behaviour-bearing cell fields enumeration",
+ "spec_anchor": [
+  "STU-LAY-141"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "layout",
+ "scope": {
+  "summary": "Cell contract.** Studio MUST carry these behaviour-bearing cell fields: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Field | Kind | Members / bounds | |---|---|---| | `cell_type` | enumeration | `cell.text`, `cell.graphic` | | `top_inset`, `left_inset`, `bottom_inset`, `right_inset` | numeric, `pt` | text-cell insets | | `text_top_inset`, `text_bottom_inset`, `text_left_inset`, `text_right_inset` | numeric, `pt` | a SECOND inset group, distinct from the first; both are captured and both are required | | `graphic_top_inset`, `graphic_bottom_inset`, `graphic_left_inset`, `graphic_right_inset` | numeric, `pt` | graphic-cell insets | | `clip_content_to_cell`, `clip_content_to_text_cell`, `clip_content_to_graphic_cell` | booleans | three independent clips, one general and two per cell type | | `vertical_justification` | enumeration | [STU-LAY-121] | | `first_baseline_offset`, `minimum_first_baseline_offset` | enumeration + numeric | [STU-LAY-120] | | `rotation_angle` | numeric, `deg` | the captured value domain is the four quarter turns for cell text | | `text_cell_rotation_follows_story_direction` | boolean | | | `row_span`, `column_sp [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The enumeration accepts the member `cell_type` with the exact meaning the spec states: enumeration | `cell.text`, `cell.graphic`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The enumeration accepts the member `top_inset`, `left_inset`, `bottom_inset`, `right_inset` with the exact meaning the spec states: numeric, `pt` | text-cell insets. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The enumeration accepts the member `text_top_inset`, `text_bottom_inset`, `text_left_inset`, `text_right_inset` with the exact meaning the spec states: numeric, `pt` | a SECOND inset group, distinct from the first; both are captured and both are required. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The enumeration accepts the member `graphic_top_inset`, `graphic_bottom_inset`, `graphic_left_inset`, `graphic_right_inset` with the exact meaning the spec states: numeric, `pt` | graphic-cell insets. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The enumeration accepts the member `clip_content_to_cell`, `clip_content_to_text_cell`, `clip_content_to_graphic_cell` with the exact meaning the spec states: booleans | three independent clips, one general and two per cell type. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The enumeration accepts the member `vertical_justification` with the exact meaning the spec states: enumeration | [STU-LAY-121]. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The enumeration accepts the member `first_baseline_offset`, `minimum_first_baseline_offset` with the exact meaning the spec states: enumeration + numeric | [STU-LAY-120]. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The enumeration accepts the member `rotation_angle` with the exact meaning the spec states: numeric, `deg` | the captured value domain is the four quarter turns for cell text. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The enumeration accepts the member `text_cell_rotation_follows_story_direction` with the exact meaning the spec states: boolean. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The enumeration accepts the member `row_span`, `column_span` with the exact meaning the spec states: integers, `count`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The enumeration accepts the member `minimum_height`, `maximum_height` with the exact meaning the spec states: numeric, `pt` | the row-height at-least/exactly behaviour is expressed as this pair. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The enumeration accepts the member `keep_with_next_row` with the exact meaning the spec states: boolean. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 12"
+  },
+  {
+   "id": "AC-013",
+   "criterion": "The enumeration accepts the member `start_row` with the exact meaning the spec states: enumeration | start this row on the next frame, page, odd page or even page. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 13"
+  },
+  {
+   "id": "AC-014",
+   "criterion": "The enumeration accepts the member `auto_grow` with the exact meaning the spec states: boolean. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 14"
+  },
+  {
+   "id": "AC-015",
+   "criterion": "The enumeration accepts the member `paragraph_spacing_limit` with the exact meaning the spec states: numeric, `pt`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 15"
+  },
+  {
+   "id": "AC-016",
+   "criterion": "The enumeration accepts the member `diagonal_line_in_front` with the exact meaning the spec states: boolean | draw the diagonal above or below the cell content. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 16"
+  },
+  {
+   "id": "AC-017",
+   "criterion": "The enumeration accepts the member `top_left_diagonal_line`, `top_right_diagonal_line` with the exact meaning the spec states: booleans | the two diagonals are independent; both true gives the crossed form. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 17"
+  },
+  {
+   "id": "AC-018",
+   "criterion": "The enumeration accepts the member `fill_colour`, `fill_tint`, `overprint_fill` with the exact meaning the spec states: -- | plus `gradient_fill_length`, `gradient_fill_angle` (hard -180..180 `deg`), `gradient_fill_start`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 18"
+  },
+  {
+   "id": "AC-019",
+   "criterion": "The enumeration accepts the member `applied_cell_style_priority` with the exact meaning the spec states: integer | the precedence used to resolve conflicting styles at a shared edge. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 19"
+  },
+  {
+   "id": "AC-020",
+   "criterion": "The enumeration accepts the member `top_edge_stroke_priority` and the three siblings` with the exact meaning the spec states: integers | edge-conflict resolution between adjacent cells. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-141 enumeration row 20"
+  }
+ ],
+ "acceptance_criteria_count": 20,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

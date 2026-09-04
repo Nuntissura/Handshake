@@ -1,0 +1,75 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35326",
+ "created_at_utc": "2026-09-04T13:36:11+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-DS-168#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "13. Microtask Derivation",
+  "spec_line": 18897,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Derivation rule (NORMATIVE)",
+ "spec_anchor": [
+  "STU-DS-168"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "design_systems",
+ "scope": {
+  "summary": "Derivation rule (NORMATIVE).** The design-system microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. Each numbered clause that states a **stored record contract** ([STU-DS-103], [STU-DS-104], [STU-DS-105], [STU-DS-111], [STU-DS-117], [STU-DS-121], [STU-DS-122], [STU-DS-127], [STU-DS-135], [STU-DS-147], [STU-DS-152], [STU-DS-154], [STU-DS-155], [STU-DS-158]), a **closed enumeration** ([STU-DS-110], [STU-DS-115], [STU-DS-125], [STU-DS-126], [STU-DS-128], [STU-DS-129], [STU-DS-130], [STU-DS-131], [STU-DS-134], [STU-DS-136], [STU-DS-137], [STU-DS-140], [STU-DS-142], [STU-DS-144], [STU-DS-148], [STU-DS-151], [STU-DS-153], [STU-DS-157], [STU-DS-159]), a **parameter contract table** ([STU-DS-106], [STU-DS-123], [STU-DS-145], [STU-DS-146], [STU-DS-149], [STU-DS-150]), a **resolution algorithm** ([STU-DS-109], [STU-DS-116], [STU-DS-119], [STU-DS-132], [STU-DS-143], [STU-DS-163], [STU-DS-164]), or a **required command set** ([STU-DS-107], [STU-DS-112], [STU-DS-133], [STU-DS-138]), where that clause can be implemented and proven independently of its siblings. 2. Each **validation-descriptor clause** in sub-section 14, [STU-DS-173] through [STU-DS-187]. Each of the 15 descriptors named in [STU-DS-165] is stated as its own clause precisely so it yields its own microtask: a check is a unit o [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [],
+ "acceptance_criteria_count": 0,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

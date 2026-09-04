@@ -1,0 +1,780 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33055",
+ "created_at_utc": "2026-09-04T13:36:11+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-FX-040#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "20. Model Steerability, GUI, Diagnostics & Manual Obligation",
+  "spec_line": 18544,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Every effect/filter capability in 14.9 is a single primitive with two projections — the operator effect UI and the typed model/MCP command surface ([STU-DOC-004]) — and MUST satisfy the cross-cutting [...]",
+ "spec_anchor": [
+  "STU-FX-040"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "effects",
+ "scope": {
+  "summary": "Every effect/filter capability in 14.9 is a single primitive with two projections — the operator effect UI and the typed model/MCP command surface ([STU-DOC-004]) — and MUST satisfy the cross-cutting obligations once, without re-statement per row: full model visibility and steerability of the effect stack, its entries, parameters, masks, order, and results per 14.16; parallel-safe, attributable, recoverable effect authorship per 14.17-14.19; the headless/quiet law per 14.20 ([STU-FX-038]); Argus visual-diagnostic coverage of effect rendering, GPU-fallback state, and cross-backend equivalence per 14.16/14.24; and dual-audience UserManual documentation of the effect model, every catalog family, GPU/adapter requirements, and failure/recovery states per 14.22. No effect row is complete until its model command, its GUI surface, its Argus diagnostic hook, and its UserManual entry exist. --- ## 14.10 Design Systems, Components & Variables ## 14.10 Design Systems, Components & Variables This sub-section is the normative Studio feature set for design systems: reusable component definitions, variant sets, component properties, the instance override model, the design-token variable system with its collections and modes, the multi-property style registry, and the responsive layout contract (auto layout, constraints, layout grids). It is the deduped union of the source suites' design-system [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Every effect/filter capability in 14.9 is a single primitive with two projections — the operator effect UI and the typed model/MCP command surface ([STU-DOC-004]) — and MUST satisfy the cross-cutting obligations once, without re-statement per row: full model visibility and steerability of the effect stack, its entries, parameters, masks, order, and results per 14.16; parallel-safe, attributable, recoverable effect authorship per 14.17-14.19; the headless/quiet law per 14.20 ([STU-FX-038]);",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-040"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [
+   {
+    "app": "indesign",
+    "file": "indesign_dom_full.json",
+    "path": "properties[]",
+    "param": {
+     "script_id": 78498,
+     "tag": "Dvsp",
+     "name": "display performance preferences",
+     "description": "Display performance settings. ",
+     "plugin": "Performance UI",
+     "source_file": "Plug-Ins/UI/(Performance UI Resources)/idrc_SCE2/10.idrc",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     },
+     "type_id": 78376,
+     "type": {
+      "name": "display performance preference",
+      "kind": "class",
+      "tag": "cDvs",
+      "resolution": "parsed"
+     },
+     "flags": 1,
+     "value_block": "00000000000000000000000000000000",
+     "related_id": 0,
+     "declared_on": [
+      {
+       "owner_id": 78376,
+       "owner_name": "display performance preference",
+       "owner_kind": "class"
+      }
+     ]
+    }
+   },
+   {
+    "app": "photoshop",
+    "file": "photoshop_dialogs.json",
+    "path": "eve_schema.widget_definitions[].attributes[]",
+    "param": {
+     "name": "digits",
+     "type": "number"
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "param_index": 2,
+     "record_bytes": 148,
+     "param_type_code": 10,
+     "param_type": "FLOAT_SLIDER",
+     "name": "Gain",
+     "param_flags_raw": 0,
+     "param_flags": [],
+     "value_kind": "float",
+     "valid_min": 0.001,
+     "valid_max": 100.0,
+     "slider_min": 0.001,
+     "slider_max": 20.0,
+     "default": 1.0,
+     "precision": 2,
+     "display_flags": []
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_presets.json",
+    "path": "presets[].effects_applied[].parameter_definitions[]",
+    "param": {
+     "match_name": "ADBE Compander-0002",
+     "param_type": "FLOAT_SLIDER",
+     "name": "Gain",
+     "default": 1.0,
+     "valid_min": 0.001,
+     "valid_max": 100.0,
+     "slider_min": 0.001,
+     "slider_max": 20.0
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "gain",
+     "normalised_input_slot": "in1",
+     "type": "linear scalar",
+     "min": -64,
+     "max": 64,
+     "unit_family": "gain",
+     "default_normalised": 0.5,
+     "normalised_to_value_mapping": "value = normalised * (gain_max - gain_min) + gain_min",
+     "declared_expression": "(in1 * gain_range) + gain_min",
+     "source": "S6_adm",
+     "confidence": "parsed",
+     "default": 0.0
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "gain",
+     "normalised_input_slot": "in1",
+     "type": "linear scalar",
+     "min": -64,
+     "max": 64,
+     "unit_family": "gain",
+     "default_normalised": 0.5,
+     "normalised_to_value_mapping": "value = normalised * (gain_max - gain_min) + gain_min",
+     "declared_expression": "(in1 * gain_range) + gain_min",
+     "source": "S6_adm",
+     "confidence": "parsed",
+     "default": 0.0
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "gain",
+     "normalised_input_slot": "in1",
+     "type": "linear scalar",
+     "min": -64,
+     "max": 64,
+     "unit_family": "gain",
+     "default_normalised": 0.5,
+     "normalised_to_value_mapping": "value = normalised * (gain_max - gain_min) + gain_min",
+     "declared_expression": "(in1 * gain_range) + gain_min",
+     "source": "S6_adm",
+     "confidence": "parsed",
+     "default": 0.0
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "gain",
+     "normalised_input_slot": "in24",
+     "type": "linear scalar",
+     "min": -96,
+     "max": 48,
+     "unit_family": "gain",
+     "default_normalised": 0,
+     "normalised_to_value_mapping": "value = normalised * (gain_max - gain_min) + gain_min",
+     "declared_expression": "(in24 * gain_range) + gain_min",
+     "source": "S6_adm",
+     "confidence": "parsed",
+     "default": -96
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "lfe_input_gain",
+     "normalised_input_slot": "in1",
+     "type": "scaled scalar",
+     "default_normalised": 0,
+     "normalised_to_value_mapping": "value = normalised * 100",
+     "declared_expression": "in1 * 100",
+     "source": "S6_adm",
+     "confidence": "parsed"
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "param_index": 2,
+     "record_bytes": 148,
+     "param_type_code": 10,
+     "param_type": "FLOAT_SLIDER",
+     "name": "Gain",
+     "param_flags_raw": 0,
+     "param_flags": [],
+     "value_kind": "float",
+     "valid_min": 0.001,
+     "valid_max": 100.0,
+     "slider_min": 0.001,
+     "slider_max": 20.0,
+     "default": 1.0,
+     "precision": 2,
+     "display_flags": []
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_presets.json",
+    "path": "presets[].effects_applied[].parameter_definitions[]",
+    "param": {
+     "match_name": "ADBE Compander-0002",
+     "param_type": "FLOAT_SLIDER",
+     "name": "Gain",
+     "default": 1.0,
+     "valid_min": 0.001,
+     "valid_max": 100.0,
+     "slider_min": 0.001,
+     "slider_max": 20.0
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "gain",
+     "normalised_input_slot": "in1",
+     "type": "linear scalar",
+     "min": -64,
+     "max": 64,
+     "unit_family": "gain",
+     "default_normalised": 0.5,
+     "normalised_to_value_mapping": "value = normalised * (gain_max - gain_min) + gain_min",
+     "declared_expression": "(in1 * gain_range) + gain_min",
+     "source": "S6_adm",
+     "confidence": "parsed",
+     "default": 0.0
+    }
+   },
+   {
+    "app": "indesign",
+    "file": "indesign_dom_full.json",
+    "path": "properties[]",
+    "param": {
+     "script_id": 148795,
+     "tag": "pGIi",
+     "name": "gen image info",
+     "description": "Optional image metadata string",
+     "plugin": "GenAI",
+     "source_file": "Plug-Ins/GenAI/(GenAI Resources)/idrc_SCE2/21400.idrc",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     },
+     "type_id": 30469,
+     "type": {
+      "name": "string",
+      "kind": "primitive",
+      "tag": null,
+      "resolution": "heuristic_primitive"
+     },
+     "flags": 1,
+     "value_block": "00000000000000000000000000000000",
+     "related_id": 0,
+     "declared_on": [
+      {
+       "owner_id": 148788,
+       "owner_name": "GenAI image",
+       "owner_kind": "class"
+      }
+     ]
+    }
+   },
+   {
+    "app": "indesign",
+    "file": "indesign_dom_full.json",
+    "path": "properties[]",
+    "param": {
+     "script_id": 148794,
+     "tag": "pGIr",
+     "name": "gen image rendition",
+     "description": "Low proxy image as base64.",
+     "plugin": "GenAI",
+     "source_file": "Plug-Ins/GenAI/(GenAI Resources)/idrc_SCE2/21400.idrc",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     },
+     "type_id": 30469,
+     "type": {
+      "name": "string",
+      "kind": "primitive",
+      "tag": null,
+      "resolution": "heuristic_primitive"
+     },
+     "flags": 1,
+     "value_block": "00000000000000000000000000000000",
+     "related_id": 0,
+     "declared_on": [
+      {
+       "owner_id": 148788,
+       "owner_name": "GenAI image",
+       "owner_kind": "class"
+      }
+     ]
+    }
+   },
+   {
+    "app": "indesign",
+    "file": "indesign_dom_full.json",
+    "path": "properties[]",
+    "param": {
+     "script_id": 148793,
+     "tag": "pGIu",
+     "name": "gen image uri",
+     "description": "generated image uri",
+     "plugin": "GenAI",
+     "source_file": "Plug-Ins/GenAI/(GenAI Resources)/idrc_SCE2/21400.idrc",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     },
+     "type_id": 30469,
+     "type": {
+      "name": "string",
+      "kind": "primitive",
+      "tag": null,
+      "resolution": "heuristic_primitive"
+     },
+     "flags": 1,
+     "value_block": "00000000000000000000000000000000",
+     "related_id": 0,
+     "declared_on": [
+      {
+       "owner_id": 148788,
+       "owner_name": "GenAI image",
+       "owner_kind": "class"
+      }
+     ]
+    }
+   },
+   {
+    "app": "photoshop",
+    "file": "photoshop_parameter_surface.json",
+    "path": "classes.LayerComps.methods[].parameters[]",
+    "param": {
+     "name": "Comment",
+     "type": {
+      "vartype": "VT_VARIANT",
+      "rust_hint": "Value (dynamic)"
+     },
+     "optional": true,
+     "direction": "in"
+    }
+   },
+   {
+    "app": "photoshop",
+    "file": "photoshop_parameter_surface.json",
+    "path": "classes.LayerComp.properties[]",
+    "param": {
+     "name": "Comment",
+     "doc": "the description of the layer comp",
+     "readable": true,
+     "writable": true,
+     "type": {
+      "vartype": "VT_VARIANT",
+      "rust_hint": "Value (dynamic)"
+     }
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "COMMENT",
+     "type": "TEXT"
+    }
+   },
+   {
+    "app": "photoshop",
+    "file": "photoshop_parameter_surface.json",
+    "path": "classes.LayerComps.methods[].parameters[]",
+    "param": {
+     "name": "Comment",
+     "type": {
+      "vartype": "VT_VARIANT",
+      "rust_hint": "Value (dynamic)"
+     },
+     "optional": true,
+     "direction": "in"
+    }
+   },
+   {
+    "app": "photoshop",
+    "file": "photoshop_parameter_surface.json",
+    "path": "classes.LayerComp.properties[]",
+    "param": {
+     "name": "Comment",
+     "doc": "the description of the layer comp",
+     "readable": true,
+     "writable": true,
+     "type": {
+      "vartype": "VT_VARIANT",
+      "rust_hint": "Value (dynamic)"
+     }
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "COMMENT",
+     "type": "TEXT"
+    }
+   },
+   {
+    "app": "photoshop",
+    "file": "photoshop_parameter_surface.json",
+    "path": "classes.LayerComps.methods[].parameters[]",
+    "param": {
+     "name": "Comment",
+     "type": {
+      "vartype": "VT_VARIANT",
+      "rust_hint": "Value (dynamic)"
+     },
+     "optional": true,
+     "direction": "in"
+    }
+   },
+   {
+    "app": "photoshop",
+    "file": "photoshop_parameter_surface.json",
+    "path": "classes.LayerComp.properties[]",
+    "param": {
+     "name": "Comment",
+     "doc": "the description of the layer comp",
+     "readable": true,
+     "writable": true,
+     "type": {
+      "vartype": "VT_VARIANT",
+      "rust_hint": "Value (dynamic)"
+     }
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "COMMENT",
+     "type": "TEXT"
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Use Currency Code",
+     "name_key": "AE/Preset/UseCurrencyCode",
+     "param_type": "CHECKBOX",
+     "depth": 0,
+     "default": false
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_presets.json",
+    "path": "presets[].effects_applied[].parameter_definitions[]",
+    "param": {
+     "match_name": "Pseudo/ADBE Currency Controls-0009",
+     "param_type": "CHECKBOX",
+     "name": "Use Currency Code",
+     "default": false
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Use Currency Code",
+     "name_string_key": "AE/Preset/UseCurrencyCode",
+     "type": "boolean",
+     "group_path": [],
+     "keyframable": true,
+     "source": "S1_PresetEffects.xml",
+     "confidence": "parsed",
+     "default": false
+    }
+   },
+   {
+    "app": "indesign",
+    "file": "indesign_text_model.json",
+    "path": "classes[].properties[]",
+    "param": {
+     "name": "show simp chinese default",
+     "tag": "jm16",
+     "script_id": 17132,
+     "description": "If true, displays table for mojikumi tsume and aki optimized for Simplified Chinese punctuation glyphs.",
+     "type_id": 30468,
+     "type": {
+      "name": "boolean",
+      "kind": "primitive",
+      "tag": null,
+      "resolution": "heuristic_primitive"
+     },
+     "flags": 1,
+     "plugin": "CJK Text Attributes",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     }
+    }
+   },
+   {
+    "app": "indesign",
+    "file": "indesign_text_model.json",
+    "path": "attributes[]",
+    "param": {
+     "name": "show simp chinese default",
+     "tag": "jm16",
+     "script_id": 17132,
+     "description": "If true, displays table for mojikumi tsume and aki optimized for Simplified Chinese punctuation glyphs.",
+     "type_id": 30468,
+     "type": {
+      "name": "boolean",
+      "kind": "primitive",
+      "tag": null,
+      "resolution": "heuristic_primitive"
+     },
+     "flags": 1,
+     "plugin": "CJK Text Attributes",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     },
+     "owning_classes": [
+      "mojikumi ui preference"
+     ]
+    }
+   },
+   {
+    "app": "indesign",
+    "file": "indesign_text_model.json",
+    "path": "classes[].properties[]",
+    "param": {
+     "name": "show trad chinese default",
+     "tag": "jm15",
+     "script_id": 17131,
+     "description": "If true, displays table for mojikumi tsume and aki optimized for Traditional Chinese centered punctuation glyphs.",
+     "type_id": 30468,
+     "type": {
+      "name": "boolean",
+      "kind": "primitive",
+      "tag": null,
+      "resolution": "heuristic_primitive"
+     },
+     "flags": 1,
+     "plugin": "CJK Text Attributes",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     }
+    }
+   },
+   {
+    "app": "indesign",
+    "file": "indesign_text_model.json",
+    "path": "attributes[]",
+    "param": {
+     "name": "show trad chinese default",
+     "tag": "jm15",
+     "script_id": 17131,
+     "description": "If true, displays table for mojikumi tsume and aki optimized for Traditional Chinese centered punctuation glyphs.",
+     "type_id": 30468,
+     "type": {
+      "name": "boolean",
+      "kind": "primitive",
+      "tag": null,
+      "resolution": "heuristic_primitive"
+     },
+     "flags": 1,
+     "plugin": "CJK Text Attributes",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     },
+     "owning_classes": [
+      "mojikumi ui preference"
+     ]
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "Debug",
+     "type": "ENUMERATED",
+     "casesensitive": "yes"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "Debug",
+     "type": "ENUMERATED",
+     "casesensitive": "yes"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "Debug",
+     "type": "ENUMERATED",
+     "casesensitive": "yes"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "Debug",
+     "type": "ENUMERATED",
+     "casesensitive": "yes"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "DEBUG",
+     "type": "ENUMERATED"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "DEBUG",
+     "type": "TEXT"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "Debug",
+     "type": "ENUMERATED",
+     "casesensitive": "yes"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "Debug",
+     "type": "ENUMERATED",
+     "casesensitive": "yes"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "Debug",
+     "type": "ENUMERATED",
+     "casesensitive": "yes"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "Debug",
+     "type": "ENUMERATED",
+     "casesensitive": "yes"
+    }
+   }
+  ],
+  "behaviour_record_count": 41,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-010",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-09-01T15:57:35.3809792Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,33 +15,33 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-007",
       "MT-008",
       "MT-009"
     ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T09:36:59Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
-    "ready_for_validation_at_utc": "2026-08-04T22:15:00Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": null,
-    "proof_status": "FAIL_V5: No fresh exact proof completed, and the authoritative HBR record still leaves search/index and preview/export privacy boundaries unexercised. A PASS cannot be issued from historical results or source inspection alone. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_INT_MAN_FOR_MT010_NAV_API_AND_MANUAL_GREEN; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_read_each_others_lane_rows covers replay_run AND all eight navigation routes (navigation_by_run/_lane/_message/_recovery/...); a_cross_account_denial_leaks_no_identifiers_or_row_contents proves the denial itself is not a metadata side channel. api/account_scope.rs makes a missing or malformed scope a 403 with a stable reason code - never a fallback to returning everything. STILL OWED: Search/index and preview/export boundaries named by HBR-PRIV-002 are not exercised by this MT's routes.",
+    "blocker": "A coherent V6 navigation/diagnostics suite cannot be produced from the owned files. Current generic ModelLane navigation validates durable records against a domain-local ModelLane ledger rather than the canonical kernel EventLedger; the legacy navigation suite requires direct relational setup and tampering; only three of five exact-scope one-field mismatches are asserted; search/index and preview/export privacy boundaries remain unexercised; and no MT-010 production-socket native Argus target proves the operator-facing path.",
+    "missing_resource": "Parfit-owned predecessors: bind all generic ModelLane navigation/diagnostics/recovery records atomically to canonical kernel EventLedger in the same embedded-Surreal transaction; expose scoped corruption/count/event-link inspectors; complete exact-five-field search/index and preview/export navigation seams; provide stale/revoked context denial seams; and add a real production-socket native Argus navigation target with reproducible visual evidence.",
+    "proof_status": "BLOCKED_ON_DEPENDENCY_V6_SURREAL_ONLY: the legacy navigation and privacy results are superseded provenance, no complete embedded-Surreal MT-010 suite exists, and no current production-socket native Argus evidence exists. No Cargo, build, runtime, GUI, or visual proof was run during this correction.",
+    "hbr_status": "REVALIDATION_REQUIRED_V6: HBR-MAN, HBR-INT-009, and HBR-PRIV must be re-proven through the coherent embedded-Surreal suite and required real operator-facing boundary.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
+    "last_runtime_status_ref": "No V6 runtime result; see surreal_only_authority_correction_2026_09_01",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "DONE_20260729_MANUAL_OPERATIONALLY_CORRECT_RECLAIM_WIRED_DIAGNOSTICS_MODELRUNTIME_PRESENT",
-    "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; V4_MANUAL_CORRECTNESS_AND_COMPLETENESS_BLOCKERS_REMEDIATED_VIA_MT007_MT008_MT011_MT014",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
+    "post_implementation_adversarial_review_status": "V6_REVIEW_BLOCKED_ON_DEPENDENCY_2026-09-01",
+    "adversarial_findings_status": "OPEN_HIGH_RISK_STORAGE_SCOPE_AND_LIVE_UI_BOUNDARIES",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Update no-context model manual and backend navigation for lane launch, exchange, diagnostics, and recovery.",
@@ -83,9 +83,9 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact"
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt010-cargo-target'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test model_lane_navigation_surreal_tests -- --test-threads=1 --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt010-cargo-target'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact --test-threads=1 --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt010-native-cargo-target'; $env:HANDSHAKE_ARTIFACTS_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt010-live-argus'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt010_model_lane_navigation_is_operable_through_live_argus -- --exact --test-threads=1 --nocapture"
     ],
     "risk_if_missed": "The feature remains usable only by models that remember this chat, which defeats recovery and parallel-agent operation.",
     "reference_only_paths": [
@@ -102,13 +102,13 @@
     "Backend navigation must support deterministic lookup by run_id, lane_id, message_id, session_id/model_session_id, wp_id, mt_id, artifact_ref, and error code.",
     "Manual entries must point at actual commands, IPC, routes, or backend functions; aspirational docs fail HBR-MAN-003.",
     "If the project uses the legacy ModelManual name in code, update the existing in-product manual surface rather than creating a parallel documentation island.",
-    "Do not satisfy this MT by writing Markdown only; docs/model-manual may be a projection, but PostgreSQL/UserManual rows and API/navigation truth are the product surface.",
-    "Manual text must teach the layered pattern: models propose edits, Handshake validates/promotes deterministically, EventLedger/PostgreSQL stores authority, Flight Recorder records evidence, Loom/FEMS/ContextBundle provide retrievable context.",
+    "Do not satisfy this MT by writing Markdown only; docs/model-manual may be a projection, but embedded-Surreal UserManual rows and API/navigation truth are the product surface.",
+    "Manual text must teach the layered pattern: models propose edits, Handshake validates/promotes deterministically, embedded SurrealStorage plus canonical kernel EventLedger stores authority, Flight Recorder records evidence, and Loom/FEMS/ContextBundle provide retrievable context.",
     "Manual entries for cloud/local/subagent/tool use must include consent/capability boundaries, expected inputs/outputs, common failure codes, and recovery steps.",
     "Use Flight Recorder/EventLedger payloads as bounded events plus artifact refs; do not put unbounded model output, raw secrets, or prompt-only state in event payloads.",
     "If this MT changes any product behavior, storage/event contract, command, IPC/API path, diagnostic surface, model lane, or navigation path, update the in-product UserManual in the same implementation change per HBR-MAN-004.",
     "Product implementation for this MT must be Rust-only: Rust backend plus Rust native egui/Argus surfaces where UI is touched. Legacy app/src, app/src-tauri, React, Tauri/WebView, TypeScript, JavaScript, docs/model-manual, and npm proof targets are reference-only or forbidden and MUST NOT satisfy implementation/proof authority.",
-    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources or an explicit real PostgreSQL URL.",
+    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but injected embedded SurrealStorage/canonical EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources.",
     "Each behavior-changing MT must include same-change UserManual coverage for the changed behavior; MT-011 audits coverage and cannot substitute for same-change HBR-MAN-004 proof.",
     "This pre-implementation contract review does not replace post-implementation review. After coding, run adversarial review against the actual diff through the listed lenses and update MT status signaling before handoff."
   ],
@@ -138,7 +138,7 @@
     "post_implementation_adversarial_review_required": true,
     "post_implementation_review_lenses": [
       "runtime_launch_and_model_lane_authority",
-      "postgres_eventledger_crdt_state_recovery",
+      "surreal_canonical_eventledger_navigation_recovery",
       "rust_native_argus_operator_surface_and_usermanual",
       "spec_realism_negative_guards_and_mt_status_signaling"
     ]
@@ -167,7 +167,7 @@
     "product_code_evidence": [
       "src/backend/handshake_core/src/api/user_manual.rs exposes UserManual routes and legacy ModelManual alias mapping",
       "src/backend/handshake_core/src/user_manual/ contains UserManual store/registry/seed modules",
-      "migration 0310_user_manual.sql defines UserManual storage tables",
+      "src/backend/handshake_core/src/user_manual/store.rs defines embedded-Surreal UserManual storage",
       "src/backend/handshake_core/tests/user_manual_api_tests.rs, user_manual_content_tests.rs, user_manual_storage_tests.rs, and user_manual_freshness_fixture_tests.rs exist"
     ],
     "external_sources_checked": [
@@ -192,11 +192,6 @@
         "url": "https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/overview.md"
       },
       {
-        "id": "pgvector",
-        "name": "pgvector Postgres vector search",
-        "url": "https://github.com/pgvector/pgvector"
-      },
-      {
         "id": "localFirst",
         "name": "Local-first software paper",
         "url": "https://www.inkandswitch.com/essay/local-first/"
@@ -214,7 +209,7 @@
     ],
     "patterns_applied": [
       "Typed multi-agent orchestration becomes ModelLaneRun/ModelLane/ModelLaneMessage records, never peer-to-peer chat authority.",
-      "Durable workflow/replay patterns become PostgreSQL/EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
+      "Durable workflow/replay patterns become embedded-Surreal canonical EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
       "CRDT research becomes explicit draft/proposal/update/state-vector/snapshot/stale-base records before promotion.",
       "Trace/span research becomes propagated trace_id/span_id/model_session_id/lane_id correlation across lanes, tools, providers, artifacts, and diagnostics.",
       "Tool protocol research becomes Handshake capability check, consent/projection, Flight Recorder/EventLedger logging, execution, result capture, and recovery."
@@ -223,8 +218,8 @@
       "peer-to-peer model channels outside coordinator-owned ModelLaneMessage records",
       "prompt-only or chat-history-only state transfer",
       "legacy app/src React/Tauri code as runtime authority",
-      "SQLite runtime/test/fixture/cache/fallback authority for this WP",
-      "Flight Recorder-only replay without PostgreSQL/EventLedger authority rows",
+      "Any relational runtime/test/fixture/cache/fallback authority for this WP",
+      "Flight Recorder-only replay without canonical EventLedger authority rows",
       "manual or markdown prose as product runtime authority"
     ],
     "selected_handshake_translation": "No-context manual/navigation must be backed by canonical UserManual rows and backend lookup APIs, with lane/run/message/ContextBundle/Loom/FEMS/Flight Recorder recovery paths verified against code truth."
@@ -234,8 +229,8 @@
     "product_reference_file_posture": "reference/navigation only; do not override SPEC_CURRENT, master spec, build rules, or product code evidence",
     "proposal_promotion_model": "Models may propose, critique, summarize, and produce artifacts; Handshake validates/promotes deterministically through Rust backend authority surfaces before state becomes authoritative.",
     "durable_authority": [
-      "PostgreSQL",
-      "EventLedger",
+      "Injected embedded SurrealStorage",
+      "Canonical kernel EventLedger",
       "ArtifactStore",
       "ContextBundle",
       "CRDT/write-box when shared editable state is touched"
@@ -387,5 +382,151 @@
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
+  },
+  "surreal_only_authority_correction_2026_09_01": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "recorded_at_utc": "2026-09-01T15:57:35.3809792Z",
+    "recorded_by": "KERNEL_BUILDER_DELEGATED_MT010_V6",
+    "risk_tier": "HIGH",
+    "operator_correction": "Active V6 proof uses injected embedded SurrealStorage only. Every durable navigation, diagnostics, recovery, search/index, preview, and export read or mutation must predicate owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id. Authoritative mutations must append canonical kernel EventLedger atomically in the same Surreal transaction and namespace/database.",
+    "migration_decision": "WHOLE_SUITE_BLOCKED_NO_PARTIAL_HEADLESS_OR_BACKEND_SURROGATE",
+    "legacy_provenance": [
+      {
+        "path": "src/backend/handshake_core/tests/model_lane_navigation_api_tests.rs",
+        "cargo_target": "model_lane_navigation_api_tests",
+        "disposition": "UNCHANGED_SUPERSEDED_PROVENANCE_ONLY",
+        "reason": "The fixture and corruption probes require direct relational setup and no longer match the SurrealStorage ModelLaneStore constructor. It also lacks owner-account and workspace one-field mismatch coverage, stale/revoked context coverage, search/index and preview/export privacy coverage, same-store restart proof, and canonical kernel EventLedger authority."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/user_manual_api_tests.rs",
+        "owned_test": "model_lane_navigation_user_manual_entries_are_current",
+        "disposition": "CURRENTLY_CONCURRENTLY_MODIFIED_NOT_TOUCHED_NOT_ACTIVE_V6_PROOF",
+        "reason": "The test now names embedded SurrealDB but was not run, was concurrently modified by another lane, and cannot replace the missing navigation, scope, restart, or live operator-facing proof."
+      },
+      {
+        "path": "historical native screenshots and Argus artifacts referenced by V1-V5 records",
+        "disposition": "SUPERSEDED_VISUAL_PROVENANCE_ONLY",
+        "reason": "Old pixels and headless harness output do not prove the current production-socket operator path."
+      }
+    ],
+    "readiness_withdrawal": {
+      "ready_actor_cleared": true,
+      "ready_time_cleared": true,
+      "ready_receipt": "ABSENT",
+      "validator_actor_cleared": true,
+      "validator_time_cleared": true,
+      "prior_v1_v4_v5_results": "SUPERSEDED_PROVENANCE_ONLY"
+    },
+    "operator_facing_no_context_assertion_inventory": {
+      "purpose_and_operability": [
+        "A model with no chat history can identify the ModelLane purpose, launch/startup inputs and outputs, navigation routes, diagnostics, failure modes, recovery steps, consent/capability boundaries, and exact proof commands from canonical in-product UserManual state.",
+        "Canonical UserManual page, tool entry, surface registry, legacy projection alias, route ids, schemas, error codes, and implementation symbols agree on one current version; roadmap or deferred surfaces are labelled explicitly rather than fabricated as wired.",
+        "Flight Recorder, internal_diagnostics, and Palmistry posture is explicit for each observable behavior; unavailable tiers are DEFERRED-with-reason and include a follow-up reference."
+      ],
+      "eight_navigation_surfaces": [
+        "model_lane.navigation.run resolves one exact-scoped run projection.",
+        "model_lane.navigation.lane resolves the lane and only related messages, recovery rows, and leases.",
+        "model_lane.navigation.message resolves the message, related lanes, payload/artifact binding, and ContextBundle handoff.",
+        "model_lane.navigation.artifact_context resolves artifact or ContextBundle selectors without cross-scope ambiguity.",
+        "model_lane.navigation.trace_span resolves trace, message span, parent span, linked spans, handoff spans, and recovery spans.",
+        "model_lane.navigation.diagnostic_tier filters behavior_id, tier, and mt_id while retaining exact diagnostic posture.",
+        "model_lane.navigation.recovery returns recovery events, checkpoints, leases, orphan/reclaim state, and recovery routes.",
+        "model_lane.navigation.lookup provides deterministic no-context lookup across all supported selectors and uses hsk.model_lane_navigation@1 input/output semantics."
+      ],
+      "projection_inventory": [
+        "Run projection contains the one run, lane, message, artifact binding, recovery event, checkpoint, lease, three diagnostic tiers, MT runtime status, manual references, canonical EventLedger references, Flight Recorder/Locus/Loom/FEMS/Palmistry references, and recovery route.",
+        "Lane and message drilldowns retain only causally related records and preserve trace/span, model/session, payload, promotion, capability, consent, recovery, and EventLedger linkage.",
+        "Artifact selectors cover artifact_ref, artifact_binding_id, artifact_manifest_ref, artifact_payload_ref, artifact_sha256, and content_hash; conflicting selectors are bad_request, missing selectors are not_found, and cross-run collisions are ambiguous_lookup without foreign metadata.",
+        "ContextBundle lookup resolves the owning run and related handoffs; foreign LoomBlock collisions are removed before ambiguity calculation."
+      ],
+      "lookup_inventory": [
+        "run_id, lane_id, message_id, model_session_id, session_id, wp_id/work_packet_id, mt_id/micro_task_id, task_board_id, artifact_ref, context_bundle_id, Locus ref, Loom ref, LoomBlock id, FEMS ref, MemoryPack ref/hash, canonical EventLedger event id/sequence, trace_id, span_id, and error code/reason code.",
+        "Empty lookup is bad_request; unknown lookup is not_found; selectors resolving to more than one same-scope run are ambiguous_lookup."
+      ],
+      "registry_and_manual_truth": [
+        "Exactly eight ModelLaneNavigation registry rows exist and every registered route succeeds against seeded authoritative rows with matching schema_id and route_id.",
+        "The canonical model-lane-navigation UserManual page names every route, ModelLaneStore navigation method, projection schema, selector family, embedded-Surreal/canonical EventLedger authority, diagnostics tier, recovery path, exact owned proof, and stable error behavior.",
+        "UserManual tool queries expose all eight wp009_surface entries and one wired model_lane_navigation_api_tests tool entry with schemas, evidence fields, diagnostics tiers, context systems, errors, and recovery steps.",
+        "Legacy ModelManual projection resolves to the same canonical page/content/version and cannot form a parallel documentation island."
+      ],
+      "scope_privacy_and_negative_paths": [
+        "Same-scope positives use one exact ResourceScope containing owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id.",
+        "Five independent one-field mismatch readers are denied for every durable navigation and diagnostics route; mixed-source attribution, missing scope, malformed scope, stale context, revoked context, and incomplete legacy rows fail closed.",
+        "Absent, foreign, forged-scope, corrupt-record, and corrupt-EventLedger origins share one public not_found response shape with no identifier, existence, count, row content, scope value, integrity state, or timing oracle.",
+        "Denied search/index, preview, export, artifact, ContextBundle, Loom, FEMS, trace, diagnostics, and recovery requests do not mutate rows, append events, advance stream watermarks, or widen derived scope."
+      ],
+      "restart_and_canonical_authority": [
+        "Pre-restart writes, post-restart reads, UserManual state, diagnostics projections, search/index results, and recovery navigation use the same cloned/injected SurrealStorage namespace/database.",
+        "Every exposed durable record resolves to canonical kernel EventLedger under the same exact five-field scope; a domain-local audit ledger or Flight Recorder-only reference is insufficient.",
+        "Missing or corrupt canonical EventLedger linkage fails closed before projection, preview, export, search indexing, UI rendering, or recovery navigation."
+      ],
+      "real_native_argus_boundary": [
+        "Where the contract requires native navigation/Argus proof, the production-socket LiveApp path—not an egui_kittest, RecordingBackend, fixture-only pane, or static JSON surrogate—must display and operate the current no-context navigation surface.",
+        "Evidence must include current screenshots, stable unique author ids, readable controls, route/filter discoverability, drilldown behavior, error/empty/stale state visibility, backend/UI count parity, non-focus-stealing behavior, and reproducible commands/receipts under the required artifact root.",
+        "Historical pixels may establish provenance only and cannot satisfy current V6 visual proof."
+      ]
+    },
+    "verified_current_boundaries": [
+      "api/model_lane_navigation.rs now constructs ModelLaneStore from AppState.surreal_storage and the request ResourceScope, and exposes all eight declared routes.",
+      "ModelLaneStore replay_run, diagnostics_projection, latest_diagnostics_projection, navigation_by_run, navigation_by_lane, navigation_by_message, navigation_by_artifact_or_context, navigation_by_trace, navigation_by_diagnostics, navigation_by_recovery, and navigation_by_lookup now read through SurrealModelLaneStore exact-scope methods.",
+      "The generic Surreal ModelLane provider still creates and validates model_lane_event_ledger records; only CRDT-specific operations append canonical kernel EventLedger. This violates MT-010 canonical-authority acceptance.",
+      "The legacy navigation test constructs ModelLaneStore from a relational pool, uses direct relational queries for stream counts and corruption, and therefore does not match the current constructor or V6 authority.",
+      "The legacy exact-attribution test changes actor_principal_id, authenticated_session_id, and access_space_id only; it does not independently mismatch owner_account_id and workspace_id.",
+      "Current MT-010-specific source search found no production-socket native Argus test for model-lane navigation."
+    ],
+    "exact_missing_apis_or_test_seams_for_parfit": [
+      "Change generic ModelLane append/update/recovery transactions and SurrealModelLaneStore::validate_event_link/high_watermark/event-sequence lookup to canonical kernel EventLedger while preserving all five ResourceScope predicates and atomicity.",
+      "Expose scoped test inspectors for record/event existence and counts, stream high-watermark, event payload/hash/scope, deliberate record-scope corruption, deliberate canonical-event corruption, and zero-mutation snapshots without bypassing production authorization.",
+      "Expose exact-scope search/index, preview, and export production methods/routes for ModelLane/UserManual navigation resources, including derived-scope non-widening and canonical EventLedger references.",
+      "Provide stale and revoked ResourceAccessContext request/test constructors whose denial is absent-shaped across all eight navigation routes, diagnostics, search/index, preview, and export.",
+      "Provide a test AppState/router constructor accepting one cloned SurrealStorage plus exact ResourceScope, and a reopen path that reuses the same namespace/database across pre/post restart.",
+      "Add a production-socket LiveApp/Argus test seam for model-lane no-context navigation, with backend projection injection through the real API/socket and artifact capture under the operator-required root."
+    ],
+    "DIFF_ATTACK_SURFACES": [
+      "Lifecycle/readiness truth and active proof target replacement.",
+      "UserManual page/tool/registry/version truth versus runtime route and schema drift.",
+      "Surreal navigation reader versus canonical EventLedger writer/validator split.",
+      "Five-field scope, denial-shape non-disclosure, search/index, preview/export, and derived-resource non-widening.",
+      "Same-store restart/recovery and production-socket native visual proof versus headless surrogates."
+    ],
+    "INDEPENDENT_CHECKS_RUN": [
+      "MT-010 contract, lifecycle, proof targets, V1/V4/V5 records, and taskboard row were read independently.",
+      "The complete MT-010 navigation test function inventory, route assertions, lookup selectors, registry checks, scope negatives, corruption probes, and Cargo target were inspected independently.",
+      "Current API route composition, ModelLane navigation/diagnostics/replay methods, Surreal provider ledger tables, UserManual Surreal store, and native test inventory were inspected independently.",
+      "JSON parse, active-V6 relational-symbol scan, focused git diff --check, focused diff review, and SHA-256 re-reads passed after this patch."
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      "If SurrealModelLaneStore::validate_event_link continues reading model_lane_event_ledger, a navigation projection can appear internally consistent while remaining detached from canonical kernel EventLedger authority.",
+      "If ModelLaneStore::resolve_navigation_lookup omits the exact-scope predicate before ambiguity calculation, a foreign artifact, LoomBlock, or search-index collision can disclose another scope through ambiguous_lookup.",
+      "If api/model_lane_navigation.rs maps integrity and foreign-origin failures differently from absent resources, the route becomes a metadata oracle even when row bodies are hidden.",
+      "If a headless fixture replaces the production-socket LiveApp path, stable author ids and backend assertions cannot prove current pixels, discoverability, focus behavior, or operator drilldown."
+    ],
+    "BOUNDARY_PROBES": [
+      "Canonical EventLedger writer versus ModelLane navigation validator and stream-high-watermark reader.",
+      "RequestAccountScope/AppState route composition versus ModelLaneStore exact-scope provider queries.",
+      "Every lookup producer field versus resolve_navigation_lookup and navigation projection filtering.",
+      "UserManual page/tool/registry producers versus all eight runtime routes and projection schema consumers.",
+      "Pre-restart writer versus post-restart reader using the same SurrealStorage namespace/database.",
+      "Backend projection/socket transport versus production LiveApp/Argus rendering and artifact capture."
+    ],
+    "NEGATIVE_PATH_CHECKS": [
+      "Five one-field mismatches, mixed-source scope, missing/malformed scope, stale/revoked context, incomplete legacy row, absent record, foreign record, forged record scope, corrupt canonical event, and cross-scope collision.",
+      "Empty selector, conflicting artifact selectors, missing selector, ambiguous same-scope selector, foreign-only selector, missing diagnostic tier, corrupt recovery linkage, denied preview/export, and failed search/index.",
+      "No denial may reveal identifiers, existence, counts, contents, scope, integrity state, ordering, or timing differences; no denial may mutate or append authority."
+    ],
+    "INDEPENDENT_FINDINGS": [
+      "HIGH: generic ModelLane navigation and diagnostics currently validate against a domain-local ledger rather than canonical kernel EventLedger.",
+      "HIGH: the legacy MT-010 suite is constructor-incompatible with current ModelLaneStore and depends on direct relational setup/tampering.",
+      "HIGH: exact five-field privacy proof is incomplete; owner-account and workspace one-field mismatches, stale/revoked contexts, and search/index plus preview/export boundaries are missing.",
+      "HIGH: no MT-010 production-socket native Argus navigation target exists, so historical/headless visual evidence cannot prove the current operator-facing boundary.",
+      "MEDIUM: user_manual_api_tests.rs and Cargo.toml have concurrent modifications from other lanes and were deliberately not edited."
+    ],
+    "RESIDUAL_UNCERTAINTY": "No compile, runtime, socket, GUI, or pixel evidence was produced by instruction. Concurrent changes in UserManual and Cargo may advance or invalidate parts of this audit; Parfit must re-read exact signatures and hashes before implementation. Future targets named here do not exist or are not yet proven and must not be counted as V6 evidence until complete.",
+    "future_commands": [
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt010-cargo-target'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test model_lane_navigation_surreal_tests -- --test-threads=1 --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt010-cargo-target'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact --test-threads=1 --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt010-native-cargo-target'; $env:HANDSHAKE_ARTIFACTS_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt010-live-argus'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt010_model_lane_navigation_is_operable_through_live_argus -- --exact --test-threads=1 --nocapture"
+    ],
+    "future_cleanup": "After the parent captures all required proof and confirms no other lane owns the paths, remove only the MT-010 cargo-target and live-argus subdirectories under D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts."
   }
 }

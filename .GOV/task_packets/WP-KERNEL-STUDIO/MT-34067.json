@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34067",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-MOT-150#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.26.13 Model steerability, GUI, diagnostics and manual obligation",
+  "spec_line": 27679,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Every panel, control, property row, keyframe, curve, tangent handle and visible state",
+ "spec_anchor": [
+  "STU-MOT-150"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "motion",
+ "scope": {
+  "summary": "Every panel, control, property row, keyframe, curve, tangent handle and visible state in this sub-section MUST be model-visible and typed-steerable through the Studio command surface (14.16); MUST be headlessly inspectable, steerable and screenshot-capturable through Argus with no foreground focus steal (14.20); and MUST ship dual-audience UserManual entries kept same-change current (14.22). Four obligations are specific to this sub-section: 1. **The property tree MUST be enumerable and addressable in full by a model**, at every depth, through stable paths ([STU-MOT-011]). A model that cannot list a layer's properties cannot animate anything, and a partial enumeration is worse than none because it hides capability. 2. **Every tangent MUST be settable numerically** ([STU-MOT-055]). A curve that only a mouse can shape is not model-steerable, and the graph editor is otherwise operator-only in a product whose defining constraint is that it is not. 3. **The Argus diagnostic for a property MUST report its `state`, its evaluated value at the current time, its keyframe count, whether an expression is present and enabled, and whether that expression is in an error state.** [STU-MOT-072]'s expression-driven control state is exactly the kind of thing a screenshot cannot disambiguate, so it must be in the structured diagnostic. 4. **The UserManual entry for any keyframable property MUST do [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Every panel, control, property row, keyframe, curve, tangent handle and visible state in this sub-section MUST be model-visible and typed-steerable through the Studio command surface (14.16);",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-150"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "MUST be headlessly inspectable, steerable and screenshot-capturable through Argus with no foreground focus steal (14.20); and MUST ship dual-audience UserManual entries kept same-change current (14.22).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-150"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Four obligations are specific to this sub-section: 1. **The property tree MUST be enumerable and addressable in full by a model**, at every depth, through stable paths ([STU-MOT-011]).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-150"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "A model that cannot list a layer's properties cannot animate anything, and a partial enumeration is worse than none because it hides capability. 2. **Every tangent MUST be settable numerically** ([STU-MOT-055]).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-150"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "A curve that only a mouse can shape is not model-steerable, and the graph editor is otherwise operator-only in a product whose defining constraint is that it is not. 3. **The Argus diagnostic for a property MUST report its `state`, its evaluated value at the current time, its keyframe count, whether an expression is present and enabled, and whether that expression is in an error state.** [STU-MOT-072]'s expression-driven control state is exactly the kind of thing a screenshot cannot disambiguate, so it must be in the structured diagnostic. 4. **The UserManual entry for any keyframable property [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-150"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

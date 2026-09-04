@@ -1,0 +1,1047 @@
+{
+ "schema_id": "handshake.spec.module_provenance@1",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "module_file": "14-25-video-timeline.md",
+ "module_section_id": "14.25",
+ "module_title": "Video Editing, Sequences & the Clip Timeline",
+ "module_sha256": "3f6c9ad4a295602673509e2592ee320f1ffc4836ff656a1a8683e0d458962db2",
+ "module_bytes": 222874,
+ "spec_version_target": "v02.206",
+ "authority_note": "The Master Spec module is the sole authority. This file records HOW each clause was derived so a reviewer can re-check it against the green-room captures. It is NOT co-authority and MUST NOT be cited as the source of any contract (SAD-008.operator_reinforcement_20260904; [STU-SECTION-002] as amended). A capable model with no access to these captures must be able to implement the module from the module alone.",
+ "capture_files": [
+  {
+   "capture_id": "AE_LAYER_PROPS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+   "bytes": 480800,
+   "sha256": "ee7e8531aa844d6fcbc71a73db7d84f9960b03b50b8f175d6bf6e81d0faa87fe"
+  },
+  {
+   "capture_id": "AE_RENDER_OUTPUT",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+   "bytes": 712607,
+   "sha256": "fec6683b75d0c976c64a116fcd32100b3f07f538ed4f2c4eb2abd5efaefc16ac"
+  },
+  {
+   "capture_id": "DECISIONS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+   "bytes": 32133,
+   "sha256": "32bf460f02f9a15e9c111ed37c2a80265b70f08855a33e4db7730cdb9bfeeea2"
+  },
+  {
+   "capture_id": "PR_COMMANDS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+   "bytes": 8705835,
+   "sha256": "954582266870f32aee5a4681ba2b627b87d62ba425e4b99a3389525d93d2cf93"
+  },
+  {
+   "capture_id": "PR_EFFECTS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+   "bytes": 4910634,
+   "sha256": "5fa35640eddc62b997b47690b8ab7573cb8cda99c708806ab776b77f0a0873f3"
+  },
+  {
+   "capture_id": "PR_EXPORT",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+   "bytes": 15659786,
+   "sha256": "0240af4441e548162b37ba331dfc2fd1a00cc0c68836e54e397fce72fa3ced29"
+  },
+  {
+   "capture_id": "PR_GRAPHICS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_graphics_text.json",
+   "bytes": 893522,
+   "sha256": "0aaf8207b5f5f0214603dba1accaee50aea7b6b9ad1075bc7e8e254552aa4b31"
+  },
+  {
+   "capture_id": "PR_MEDIA_IO",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_media_io.json",
+   "bytes": 177121,
+   "sha256": "5ea99a52da75fa515ea8e2c265a6f101fa60f5f399c8834ddb7a3ccad95b524b"
+  },
+  {
+   "capture_id": "PR_SEQUENCE",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+   "bytes": 2609000,
+   "sha256": "2dd4de982a25d2e6189fdee126c43fd6be43009240bc9b965129eb0698478d2c"
+  },
+  {
+   "capture_id": "SPEC_14",
+   "path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+   "bytes": 413204,
+   "sha256": "bd661bb6f2453ac4167a668e68aa256d80a969ab88bc1084b25c4ad2f5dfd4ec"
+  }
+ ],
+ "clause_count": 74,
+ "clauses": [
+  {
+   "anchor": "STU-VID-001",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-007] -- operator_statement, supersedes, spec_amendment_required"
+    },
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-OVR-015] at source line 136"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-001a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-OVR-015] full text"
+    },
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-007].spec_amendment_required.consequential"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-001b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.1 section 2 domain-catalog table, source lines 144-158"
+    },
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-008].what_the_spec_rewrite_must_cover[1]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-002",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-007].spec_amendment_required.consequential"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-003",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-008].operator_reinforcement_20260904"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-010",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[] record shape; project_property_schema"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-011",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[].video / .preview / .audio / .colour / .immersive_video field sets; population_rollups.frame_sizes (37), .pixel_aspect_ratios (8), .audio_sample_rates_hz, .working_colour_spaces; enum_evidence.video_field_type observed {0:346, 1:34, 2:12}"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-012",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EXPORT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "frame_rate_tick_decode.ticks_per_second=254016000000"
+    },
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[].video.frame_rate_ticks_per_frame; .audio.sample_rate_ticks_per_sample"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-013",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EXPORT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "frame_rate_tick_decode.values (15 tick->fps entries)"
+    },
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "population_rollups.frame_rates_fps counts"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-013a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EXPORT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "frame_rate_tick_decode.values entries 10594594594 and 8475675675"
+    },
+    {
+     "capture_id": "AE_RENDER_OUTPUT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+     "record": "render_and_output_dialogs[surface_title='Composition Settings'] frameRateNumEdit min 1 max 999 value 29.97; frameratePop items 8,12,15,23.976,24,25,29.97,30,50,59.94,60,120"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-012a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "enum_evidence.time_display.values (15 members) and observed_video/observed_audio distributions"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-012b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "enum_evidence.time_display.observed_video['113']=5 with no member in .values"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-012c",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_RENDER_OUTPUT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+     "record": "render_and_output_dialogs[surface_title='Composition Settings'].controls popup 'dropness' with items 'Drop Frame' / 'Non-Drop Frame'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-016",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[] (392 entries), extraction_summary.sequence_preset_groups=82"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-016a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface[command='cmd.timeline.sequence.createpreset'] 'Create Preset from Sequence...'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-017",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "editing_modes[] (53), extraction_summary.distinct_editing_modes_referenced=40, sequence_presets_bound_to_a_named_editing_mode=166"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-017a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "editing_modes[].allowed_frame_rates_ticks (188 slots, 0 non-null), .allowed_frame_rects (52 slots, 0 non-null), .allowed_pixel_aspect_ratios, .allowed_field_types -- all decoded empty"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-018",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[].immersive_video field set (9 fields); projectionType/stereoscopicType member lists absent"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-019",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[].preview; population_rollups.preview_codecs"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-022",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface namespaces 'timeline'/'trim'/'tlnav' versus 'effectcontrols' keyframe commands"
+    },
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "property_containment_edges -- the keyframe-timeline model this contrasts with"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-022a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface[command='cmd.clip.nestify'], [command='cmd.tlnav.reveal.nested.sequence']"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-022b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "shortcut_contexts -- 'timeline' and 'effectcontrols' are separate contexts in one application"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-021",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[].audio.declared_audio_tracks[] field set; .video.initial_video_track_count"
+    },
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface namespace 'timeline' track commands"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-020",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface namespace 'clip' (77 commands); cmd.sequence.edit.label.0-15 for the 16 label colours"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-020a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-FX-001] non-destructive guarantee applied to clip trimming"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-023",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface namespace 'monitor' (110 commands): output.zoom.*, paused.resolution.*, playback.resolution.*, output.composite/alpha/red/green/blue, gang.source.and.program, togglesafearea, toggletransparencygrid, ruler.*"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-024",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface[command='cmd.clip.insert'] ',' and [command='cmd.clip.overlay'] 'Overwrite' '.'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-025",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface namespace 'tlnav': toggle.target.video.1-8, toggle.target.audio.1-8, toggle.all.source.*, move.all.source.*, move.all.target.*, assign.black, add.tracks.to.match.source, targets.snap.to.edits; namespace 'timeline' source.assignment.preset.0-9"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-026",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.timeline.editpoint.trimin/trimout/rippletrimin/rippletrimout/rolledit; cmd.timeline.slip.left/right.one/several; cmd.timeline.slide.left/right.one/several; cmd.sequence.extendselectededittoplayhead; cmd.tools.05ratestretch; cmd.sequence.trimforward/trimbackward(many)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-026a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface namespace 'trim' (17 commands): focusin, focusout, focusinandout, minus.major, minus.minor, plus.major, plus.minor, monitor resolutions; cmd.sequence.toggletrimtype; cmd.monitor.view.trimsession.rollback; cmd.timeline.composite.preview.during.trim"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-026b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.tlnav.select.nearest.edit.as.ripple.in/.ripple.out/.roll/.trim.in/.trim.out"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-027",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.sequence.razorateditline 'Add Edit' Ctrl+K, .all Ctrl+Shift+K; cmd.sequence.jointhroughedits, .joinallthroughedits; cmd.sequence.showthroughedits; cmd.tools.06razor 'C'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-028",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.sequence.lift ';', cmd.sequence.extract \"'\", cmd.timeline.ripple.delete Alt+Backspace, cmd.sequence.close.gaps, cmd.sequence.findnext/previous sequence/track gap"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-029",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.clip.linkaudioandvideo Ctrl+L, cmd.clip.group Ctrl+G, cmd.clip.ungroup, cmd.sequence.linkedselection; sync-lock via track model"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-029a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.clip.merge 'Merge Clips...', cmd.clip.synchronizeclips 'Synchronize'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-030",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.clip.nestify 'Nest...', cmd.sequence.makesubsequence Shift+U, cmd.sequence.makesubsequencefromintoout, cmd.sequence.nestsourcesequence, cmd.tlnav.reveal.nested.sequence Ctrl+Alt+F"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-030a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[].video.* preserve-on-nest semantics"
+    },
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.multicam.follows.nest.setting"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-031",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.clip.speed 'Speed/Duration...' Ctrl+R, cmd.clip.frameblend 'Frame Blending', cmd.clip.framesample 'Frame Sampling', cmd.clip.opticalflow 'Optical Flow'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-031a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.clip.videooptions.addframehold, .frameholdoptions, .insertframeholdsegment"
+    },
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "property_group_topics.time_remap root 'ADBE Time Remapping'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-032",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.timeline.setttransitionduration, cmd.sequence.applydefaultvideotransition Ctrl+D, .applydefaultaudiotransition Ctrl+Shift+D, .applydefaulttransitions Shift+D, cmd.timeline.transition.apply.* (8 commands)"
+    },
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "effect_categories entries Transition, Dissolve, Slide, Wipe"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-032a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.timeline.transition.apply.video.crossfade, .apply.audio.crossfade, .apply.video.diptowhite, .apply.video.wipe, .apply.default.video.from/to.playhead, .apply.default.audio.from/to.playhead"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-033",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface namespace 'multicam' (53 commands): choose.camera.1-16, choosenocut.camera1-16, toggle.record '0', toggle.multicam.view Shift+0, next/previous.camera, next/prev.edit, page.first/last/next/previous, audio.follows.video, switch.camera.audio, selection.top.down, enable.auto.decimation, show.program, follows.nest.setting; cmd.clip.multicam.flatten, cmd.clip.create.multicam"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-034",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface namespace 'marker' (62 commands)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-035",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.sequence.snap 'S', cmd.tlnav.next.edit/prev.edit (Down/Up Arrow), .next.edit.any.track/.prev.edit.any.track (Shift+Down/Up), .go.to.next/prev.selected.edit, cmd.timeline.workbar.set.in Alt+[, .set.out Alt+], cmd.timeline.sequence.showworkarea"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-035a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.timeline.nudge.left/right.one and .several, .nudge.up/.down; cmd.timeline.slip/slide .one and .several"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-036",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface namespace 'timeline' display switches: video.style.frames/head/headandtail, video.show.thumbnails/names/keyframes/fadehandles, audio.show.waveform/names/channel.labels/esp.badges/fadehandles/keyframes/audioheaderonsmalltracks, sequence.showfxbadges, show.proxy.badges, show.content.credentials.badges, show.duplicate.frames, show.sourceclip.name.label, sequence.logwaveformscaling/volumewaveformscaling/rectifiedwaveforms/waveformsuselabel, customize.video.header/audio.header, track.height.preset.0-9, save/manage.track.height.presets, expand.all.tracks Shift+=, minimize.all.tracks Shift+-"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-037",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface caption commands: cmd.timeline.activate.next/prev.caption.track, .show.all/hide.all/show.active.caption.tracks, .caption.show.warning, .goto.next/prev.caption.trackitem, cmd.sequence.captiontracksettings"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-038",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.clip.attachproxy, .detachproxy, .createproxies, .attachhires, cmd.timeline.trackitem.linkmedia 'Link Media...', .unlinkmedia 'Make Offline...', cmd.timeline.show.proxy.badges"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-039",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.sequence.preview 'Render Effects in Work Area' Return, .previewyellow 'Render Entire Work Area', .previewselection, .previewaudio, .deletevideopreviews, .deleteworkareavideopreviews, cmd.clip.renderandreplace, cmd.clip.restoreunrendered"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-040",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.19 per-file history/undo"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-041",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface (1491 commands); extraction_summary.commands_with_a_menu_label=826, commands_with_a_default_en_binding=410, commands_only_in_the_executable=340 -- the generated tables in 14.25.2"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-042",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "key_encoding {bit_31_set: unicode code point of unshifted character; bit_30_set_with_bit_31: numeric keypad variant; bit_31_clear: special-key enum}; shortcut_contexts (31); shortcut_sets (62 files); extraction_summary.binding_rows_all_sets=20279; physical_keyboard_layouts (10)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-050",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_MEDIA_IO",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_media_io.json",
+     "record": "importers[] (39 modules), extraction_summary.importer_namespace_strings=404"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-051",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_MEDIA_IO",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_media_io.json",
+     "record": "codec_and_container_modules (58), extraction_summary.modules_by_vendor (17 vendors), modules_by_role"
+    },
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-ARC-002]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-052",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_MEDIA_IO",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_media_io.json",
+     "record": "camera_raw_source_settings (21 SourceSettings effects with parameter_strings)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-053",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "command_surface: cmd.clip.generatepeakfile 'Generate Audio Waveform', cmd.conform.*"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-060",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-PRO-043]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-061",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EXPORT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "exporter_parameter_dictionary (453 identifiers), extraction_summary.identifiers_by_facet (14 facets), parameter_rows_total=62670"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-061a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EXPORT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "extraction_summary.identifiers_with_a_shipped_label=44 of 453"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-062",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_MEDIA_IO",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_media_io.json",
+     "record": "export_container_formats (39 entries)"
+    },
+    {
+     "capture_id": "PR_EXPORT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "extraction_summary.distinct_container_formats=40"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-063",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EXPORT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "extraction_summary.export_presets_parsed=1541, distinct_preset_guids=704, presets_by_install {premiere:1003, media_encoder:538}; presets[] field set (does_video, does_audio, export_xmp_option, standard_filters, parameter_count)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-064",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.20 headless/quiet law"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-070",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_GRAPHICS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_graphics_text.json",
+     "record": "motion_graphics_templates (77), extraction_summary.exposed_controls_total=461, templates_by_category (10 categories)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-070a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_GRAPHICS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_graphics_text.json",
+     "record": "client_control_type_enum.values {1 checkbox, 2 numeric slider, 4 colour, 6 source text, 8 group}; exposed_controls[] tabulated: 144 source_text, 144 group, 93 colour, 51 checkbox, 29 numeric_slider; source_text controls carry font_editing {font_family_editable, faux_style_editable, font_size_editable, font, font_size, all_caps, small_caps, bold, italic}"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-070b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_GRAPHICS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_graphics_text.json",
+     "record": "motion_graphics_templates[].exposed_controls[].can_animate"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-070c",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_GRAPHICS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_graphics_text.json",
+     "record": "motion_graphics_templates[].used_fonts, .used_effects, .used_comp_renderers, .used_file_types"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-080",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "editing_modes[] constraint arrays all null"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-081",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "enum_evidence.time_display -- code 113 observed, not declared"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-082",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[].immersive_video.projectionType / .stereoscopicType -- integers with no recovered member list"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-083",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EXPORT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "extraction_summary.identifiers_by_facet.other=178; identifiers_with_a_shipped_label=44"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-084",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_MEDIA_IO",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_media_io.json",
+     "record": "codec_and_container_modules -- inventory only; no licensing decision in the capture"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-085",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "caption commands present; no caption format model recovered"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-086",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-OVR-015] reference to engine.director, Spec 11.8"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-VID-090",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.16, 14.20, 14.22 cross-cutting obligations"
+    }
+   ]
+  }
+ ],
+ "cross_referenced_anchors_defined_elsewhere": [
+  "STU-ARC-002",
+  "STU-ARC-003",
+  "STU-ARC-005",
+  "STU-CMP-004",
+  "STU-CMP-010",
+  "STU-CMP-020",
+  "STU-CON-007",
+  "STU-DOC-001",
+  "STU-DOC-003",
+  "STU-DOC-004",
+  "STU-FX-001",
+  "STU-FX-002",
+  "STU-FX-003",
+  "STU-FX-032",
+  "STU-FX-038",
+  "STU-FX-039a",
+  "STU-FX-105",
+  "STU-FX-117",
+  "STU-FX-118",
+  "STU-FX-126",
+  "STU-FX-127",
+  "STU-FX-137",
+  "STU-FX-143",
+  "STU-FX-150",
+  "STU-MOT-001",
+  "STU-MOT-020",
+  "STU-MOT-045",
+  "STU-OVR-002",
+  "STU-OVR-015",
+  "STU-PRO-043",
+  "STU-SECTION-002"
+ ],
+ "generated_tables": [
+  {
+   "fragment": "frag_prem_sequence_presets.md",
+   "capture_id": "PR_SEQUENCE",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+   "record_selector": "sequence_presets[] (392) -- name, preset_group, video.frame_size, video.pixel_aspect_ratio, video.frame_rate_fps, video.field_type, video.time_display, audio.sample_rate_hz, audio.master_channel_type, video.initial_video_track_count, colour.sequence_working_colour_space.workingSpaceID",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_editing_modes.md",
+   "capture_id": "PR_SEQUENCE",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+   "record_selector": "editing_modes[] (53) -- name, guid_windows, supported_platforms and the SLOT COUNTS of the four constraint arrays (all values null)",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_commands.md",
+   "capture_id": "PR_COMMANDS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+   "record_selector": "command_surface[] filtered to the timeline, trim, tlnav, sequence, clip, multicam, tools, monitor, transport, marker, track, capture, posterframe, roughcut and clipgrid namespaces, with default_bindings_en",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_importers.md",
+   "capture_id": "PR_MEDIA_IO",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_media_io.json",
+   "record_selector": "importers[] (39) and camera_raw_source_settings (21)",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_codec_modules.md",
+   "capture_id": "PR_MEDIA_IO",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_media_io.json",
+   "record_selector": "codec_and_container_modules (58) -- name, vendor, role",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_export_params.md",
+   "capture_id": "PR_EXPORT",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+   "record_selector": "exporter_parameter_dictionary[] (453) grouped by facet, with declared_min, declared_max, decimal_places, is_slider_in_any_preset, used_by_preset_count, used_by_formats",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_containers.md",
+   "capture_id": "PR_MEDIA_IO",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_media_io.json",
+   "record_selector": "export_container_formats[] (39)",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_mogrt.md",
+   "capture_id": "PR_GRAPHICS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_graphics_text.json",
+   "record_selector": "motion_graphics_templates[] (77) -- template_name, category, exposed_control_count, used_fonts, used_effects",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  }
+ ]
+}

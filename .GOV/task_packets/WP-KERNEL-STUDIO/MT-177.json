@@ -1,128 +1,195 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-177",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-177.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-177.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-018"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Text variables [STU-LAY-048]",
-  "spec_anchor": [
-    "STU-LAY-048",
-    "STU-LAY-015",
-    "STU-LAY-016",
-    "STU-LAY-067"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-177",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-177.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-177.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-018"
   ],
-  "scope": {
-    "summary": "Implement text variables as resolvable placeholders whose single edit updates every instance. The variable set is enumerable and normative: Chapter Number (with before/after text + numbering style), Creation Date, Modification Date, Output Date (of current print/export/package), Custom Text (reusable placeholder), File Name (include-path + include-extension options), Image Name / Metadata Caption (metadata pulled from a nearby placed image driving live captions), Last Page Number (section or document, for page-x-of-y — shared with MT-151), Running Header (first/last on-page styled text — shared with MT-151), Document Fields (author + other metadata + user-defined custom variables). Resolved at composition; participates in book synchronization (MT-172).",
-    "allowed_paths": [
-      "src/studio/layout/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "full enumerated text-variable set resolves at composition; single edit updates all instances"
-    ],
-    "proof_targets": [
-      "single-edit-updates-all runtime; per-variable resolution test"
-    ],
-    "code_surfaces": [
-      "src/studio/layout/longdoc/text_variables.rs",
-      "studio-engine/src/layout/variable_resolve.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::layout::longdoc::text_variables",
-      "live: editing a variable updates every instance at composition",
-      "test: each enumerated variable resolves (chapter/dates/custom/filename/image-metadata/last-page/running-header/document-fields)"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "text variables dialog"
-    ],
-    "argus_targets": [
-      "studio.layout.text_variables"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Page Layout / Text variables"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Text variables [STU-LAY-048]",
+ "spec_anchor": [
+  "STU-LAY-048",
+  "STU-LAY-015",
+  "STU-LAY-016",
+  "STU-LAY-067"
+ ],
+ "scope": {
+  "summary": "Implement text variables as resolvable placeholders whose single edit updates every instance. The variable set is enumerable and normative: Chapter Number (with before/after text + numbering style), Creation Date, Modification Date, Output Date (of current print/export/package), Custom Text (reusable placeholder), File Name (include-path + include-extension options), Image Name / Metadata Caption (metadata pulled from a nearby placed image driving live captions), Last Page Number (section or document, for page-x-of-y — shared with MT-151), Running Header (first/last on-page styled text — shared with MT-151), Document Fields (author + other metadata + user-defined custom variables). Resolved at composition; participates in book synchronization (MT-172).",
+  "allowed_paths": [
+   "src/studio/layout/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No live placeholders; captions, dates, and file-name fields require manual maintenance.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Full enumerated text-variable set resolves at composition",
+   "Single edit updates all instances"
+  ],
+  "proof_targets": [
+   "single-edit-updates-all runtime; per-variable resolution test"
+  ],
+  "code_surfaces": [
+   "src/studio/layout/longdoc/text_variables.rs",
+   "studio-engine/src/layout/variable_resolve.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::layout::longdoc::text_variables",
+   "live: editing a variable updates every instance at composition",
+   "test: each enumerated variable resolves (chapter/dates/custom/filename/image-metadata/last-page/running-header/document-fields)"
+  ],
+  "acceptance_criteria_original": [
+   "full enumerated text-variable set resolves at composition; single edit updates all instances"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "text variables dialog"
+  ],
+  "argus_targets": [
+   "studio.layout.text_variables"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Page Layout / Text variables"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No live placeholders; captions, dates, and file-name fields require manual maintenance.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Full enumerated text-variable set resolves at composition",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "single-edit-updates-all runtime; per-variable resolution test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Single edit updates all instances",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-LAY-048",
+    "spec_clause_text": "**[STU-LAY-048]** Text variables MUST be resolvable placeholders whose single edit updates every instance. The captured variable-type enumeration has TWELVE members and Studio MUST carry all twelve: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Studio member | Resolves to | |---|---| | `variable.custom_text` | A reusable text placeholder. | | `variable.file_name` | The document file name, with include-path and include-extension options. | | `variable.last_page_number` | Section or document last page number, for page-x-of-y. | | `variable.chapter_number` | The document chapter number, with before/after text and a numbering style. | | `variable.output_date` | The date and time of the current print, export or package operation. | | `variable.creation_date` | The date and time the document was first saved. | | `variable.modification_date` | The date and time last saved to disk. | | `variable.match_character_style` | Running header derived from the first or last on-page text carrying a character style. | | `variable.match_paragraph_style` | Running header derived from the first or last on-page text carrying a paragraph style. | | `variable.xref_page_number` | The page number of a cross-reference target. | | `variable.xref_chapter_number` | The chapter number of a cross-reference target. | | `variable.live_caption` | Metadata pulled from a nearby placed image, driving live captions. | The v02.205 [STU-LAY-048] table listed ten variables and merged the two running-header variants into one; that merge is superseded. A page-number variable additionally carries its own preference object, and a variable's numbering style draws from the twelve-member variable numbering enumeration of [STU-LAY-108] including `number_style.current`. A `convert_to_text` command MUST be available to flatten every instance of one variable."
+   },
+   {
+    "anchor": "STU-LAY-015",
+    "spec_clause_text": "**[STU-LAY-015]** Automatic page-number markers MUST resolve to the current page's section number wherever placed (parent page, running header, TOC). A last-page-number marker with selectable section or document scope MUST resolve for \"page X of Y\" constructs. Numbering markers are text-variable records ([STU-LAY-151]) resolved at composition time. The captured variable scope enumeration is `{variable_scope.document, variable_scope.section}`."
+   },
+   {
+    "anchor": "STU-LAY-016",
+    "spec_clause_text": "**[STU-LAY-016]** Running headers and footers MUST be content-derived: a header/footer field pulls the first or last on-page text carrying a chosen paragraph or character style, with delete-trailing-punctuation and change-case options. Running headers resolve per page against the composed `StudioTextStory` and MUST update as content reflows. The captured variable types confirm TWO distinct running-header variables -- one matching a character style and one matching a paragraph style -- and Studio MUST carry them as two variable types, not one with a mode flag, because the captured type enumeration distinguishes them. The captured change-case enumeration is `{case.none, case.uppercase, case.lowercase, case.titlecase, case.sentencecase}`. --- ## 14.6.3 Text Frames and Story Threading"
+   },
+   {
+    "anchor": "STU-LAY-067",
+    "spec_clause_text": "**[STU-LAY-067]** Every capability in this catalog MUST be exposed through BOTH the operator UI and the typed model-steerable command/MCP surface as two projections of one primitive per [STU-DOC-004], MUST satisfy the model-visibility/steerability and parallel-workflow requirements (14.16, 14.17), MUST obey the headless/quiet output law so preflight, package, print, PDF and merge never steal focus or block on a foreground window (14.20), and MUST be represented in the dual-audience UserManual and the GUI/diagnostic and accessibility surfaces (14.22, 14.16). Model-authored layout mutations MUST pass the sandbox -> validation -> `PromotionGate` lifecycle ([STU-ARC-005]) via the propose-work system (14.18) before layout authority rows change. All durable layout authority persists through the canonical Studio SurrealDB tables and `studio.layout` EventLedger events (14.23) under the SurrealDB-only authority guard ([STU-SDB-002]); live collaborative editing is CRDT-backed. This obligation is stated once and is not restated per clause."
+   }
+  ],
+  "spec_clause_count": 4,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

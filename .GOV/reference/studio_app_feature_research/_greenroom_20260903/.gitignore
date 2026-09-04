@@ -1,0 +1,26 @@
+# Green-room bulk. Kept in the working tree, deliberately out of git history.
+#
+# The raw teardown captures are the EVIDENCE the Studio spec was derived from: 289 MB across 118
+# files. They are recorded in installed_exports_manifest.json with a sha256 per file, so any
+# provenance claim stays verifiable without carrying the payloads in every clone forever. Captures
+# are evidence and never authority; the Master Spec carries the contract.
+installed_exports/
+
+# Microtask staging. The authoritative copies live in .GOV/task_packets/WP-KERNEL-STUDIO, so these
+# are duplicates that would double the repository for nothing.
+fold_back/spec_mts/
+fold_back/derived_mts/
+fold_back/new_mts/
+fold_back/patched_legacy_mts/
+fold_back/mt_patches/
+
+# Large intermediate indexes, regenerable from the captures by the tools in _tools/greenroom.
+fold_back/studio-capability-registry.json
+fold_back/studio-mt-coverage-plan.json
+fold_back/studio-coverage-gaps.json
+
+# Transient working copies made during assembly and verification.
+spec_update/_snapshot_modules/
+spec_update/_promoted_section14/
+spec_update/_prestyle_backups/
+spec_update/proposed-bundle/

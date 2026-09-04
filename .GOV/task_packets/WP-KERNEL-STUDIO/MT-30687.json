@@ -1,0 +1,292 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30687",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-LAY-118#enumeration#0",
+  "unit_kind": "enumeration",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.6.3 Text Frames and Story Threading",
+  "spec_line": 5670,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Text-frame preference contract - enumeration",
+ "spec_anchor": [
+  "STU-LAY-118"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "layout",
+ "scope": {
+  "summary": "Text-frame preference contract.** The captured text-frame preference object is the complete frame-behaviour surface. Studio MUST carry every field; the v02.205 [STU-LAY-017] list omitted the flexible-column-width family, the footnote overrides and the column-rule inset chain. *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Field | Kind | Bounds / members | default | |---|---|---|---| | `text_column_count` | integer, `count` | unknown | unknown | | `text_column_gutter` | numeric, `pt` | unknown | unknown | | `text_column_fixed_width` | numeric, `pt` | unknown | unknown | | `use_fixed_column_width` | boolean | when `true`, resizing the frame changes the NUMBER of columns rather than their width | unknown | | `use_flexible_column_width` | boolean | when `true`, column width floats between a minimum and `text_column_max_width`; resizing may change the column count | unknown | | `text_column_max_width` | numeric, `pt` | `0` means \"no upper limit\" -- a sentinel, not a zero width | unknown | | `inset_spacing` | one value or four values `[top, left, bottom, right]`, `pt` | a scalar applies uniformly | unknown | | `first_baseline_offset` | enu [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The enumeration accepts the member `text_column_count` with the exact meaning the spec states: integer, `count` | unknown | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The enumeration accepts the member `text_column_gutter` with the exact meaning the spec states: numeric, `pt` | unknown | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The enumeration accepts the member `text_column_fixed_width` with the exact meaning the spec states: numeric, `pt` | unknown | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The enumeration accepts the member `use_fixed_column_width` with the exact meaning the spec states: boolean | when `true`, resizing the frame changes the NUMBER of columns rather than their width | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The enumeration accepts the member `use_flexible_column_width` with the exact meaning the spec states: boolean | when `true`, column width floats between a minimum and `text_column_max_width`; resizing may change the column count | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The enumeration accepts the member `text_column_max_width` with the exact meaning the spec states: numeric, `pt` | `0` means \"no upper limit\" -- a sentinel, not a zero width | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The enumeration accepts the member `inset_spacing` with the exact meaning the spec states: one value or four values `[top, left, bottom, right]`, `pt` | a scalar applies uniformly | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The enumeration accepts the member `first_baseline_offset` with the exact meaning the spec states: enumeration | [STU-LAY-120] | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The enumeration accepts the member `minimum_first_baseline_offset` with the exact meaning the spec states: numeric, `pt` | unknown | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The enumeration accepts the member `vertical_justification` with the exact meaning the spec states: enumeration | [STU-LAY-121] | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The enumeration accepts the member `vertical_threshold` with the exact meaning the spec states: numeric, `pt` | maximum vertical space inserted between two paragraphs; valid only when vertical justification is `vjust.justify`; ADDS to the paragraph's own space-before/space-after rather than replacing it | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The enumeration accepts the member `vertical_balance_columns` with the exact meaning the spec states: boolean | vertically justify balanced across all columns | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 12"
+  },
+  {
+   "id": "AC-013",
+   "criterion": "The enumeration accepts the member `ignore_text_wrap` with the exact meaning the spec states: boolean | this frame ignores wrap from objects above it | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 13"
+  },
+  {
+   "id": "AC-014",
+   "criterion": "The enumeration accepts the member `auto_sizing_type` with the exact meaning the spec states: enumeration | [STU-LAY-119] | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 14"
+  },
+  {
+   "id": "AC-015",
+   "criterion": "The enumeration accepts the member `auto_sizing_reference_point` with the exact meaning the spec states: enumeration | nine-position anchor; the capture states the reference point is AUTOMATICALLY adjusted to a compatible value when the type changes (for example top-left becomes top-centre for a height-only type) | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 15"
+  },
+  {
+   "id": "AC-016",
+   "criterion": "The enumeration accepts the member `use_minimum_height_for_auto_sizing` with the exact meaning the spec states: boolean | gate | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 16"
+  },
+  {
+   "id": "AC-017",
+   "criterion": "The enumeration accepts the member `minimum_height_for_auto_sizing` with the exact meaning the spec states: numeric, `pt` | unknown | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 17"
+  },
+  {
+   "id": "AC-018",
+   "criterion": "The enumeration accepts the member `use_minimum_width_for_auto_sizing` with the exact meaning the spec states: boolean | gate | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 18"
+  },
+  {
+   "id": "AC-019",
+   "criterion": "The enumeration accepts the member `minimum_width_for_auto_sizing` with the exact meaning the spec states: numeric, `pt` | unknown | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 19"
+  },
+  {
+   "id": "AC-020",
+   "criterion": "The enumeration accepts the member `use_no_line_breaks_for_auto_sizing` with the exact meaning the spec states: boolean | suppress line breaks introduced by auto-sizing | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 20"
+  },
+  {
+   "id": "AC-021",
+   "criterion": "The enumeration accepts the member `column_rule_override` with the exact meaning the spec states: boolean | gate for the whole column-rule group | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 21"
+  },
+  {
+   "id": "AC-022",
+   "criterion": "The enumeration accepts the member `column_rule_stroke_width` with the exact meaning the spec states: numeric | unknown | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 22"
+  },
+  {
+   "id": "AC-023",
+   "criterion": "The enumeration accepts the member `column_rule_stroke_colour` with the exact meaning the spec states: swatch reference | -- | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 23"
+  },
+  {
+   "id": "AC-024",
+   "criterion": "The enumeration accepts the member `column_rule_stroke_type` with the exact meaning the spec states: stroke-style reference | -- | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 24"
+  },
+  {
+   "id": "AC-025",
+   "criterion": "The enumeration accepts the member `column_rule_stroke_tint` with the exact meaning the spec states: numeric, `percent` | hard 0..100 by the shared tint bound of [STU-LAY-140] | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 25"
+  },
+  {
+   "id": "AC-026",
+   "criterion": "The enumeration accepts the member `column_rule_offset` with the exact meaning the spec states: numeric | unknown | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 26"
+  },
+  {
+   "id": "AC-027",
+   "criterion": "The enumeration accepts the member `column_rule_top_inset` with the exact meaning the spec states: numeric | unknown | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 27"
+  },
+  {
+   "id": "AC-028",
+   "criterion": "The enumeration accepts the member `column_rule_bottom_inset` with the exact meaning the spec states: numeric | unknown | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 28"
+  },
+  {
+   "id": "AC-029",
+   "criterion": "The enumeration accepts the member `column_rule_inset_chain_override` with the exact meaning the spec states: boolean | links the two insets | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 29"
+  },
+  {
+   "id": "AC-030",
+   "criterion": "The enumeration accepts the member `column_rule_overprint_override` with the exact meaning the spec states: boolean | -- | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 30"
+  },
+  {
+   "id": "AC-031",
+   "criterion": "The enumeration accepts the member `footnotes_enable_overrides` with the exact meaning the spec states: boolean | gate for per-frame footnote options | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 31"
+  },
+  {
+   "id": "AC-032",
+   "criterion": "The enumeration accepts the member `footnotes_span_across_columns` with the exact meaning the spec states: boolean | straddling footnotes | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 32"
+  },
+  {
+   "id": "AC-033",
+   "criterion": "The enumeration accepts the member `footnotes_minimum_spacing` with the exact meaning the spec states: numeric, `pt` | minimum space before the first footnote | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 33"
+  },
+  {
+   "id": "AC-034",
+   "criterion": "The enumeration accepts the member `footnotes_space_between` with the exact meaning the spec states: numeric, `pt` | space between footnotes | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 34"
+  },
+  {
+   "id": "AC-035",
+   "criterion": "The enumeration accepts the member `frame_type` with the exact meaning the spec states: enumeration | `frame.text`, `frame.grid`, `frame.unknown` -- a frame may be an ordinary text frame or a character-grid frame ([STU-LAY-117]) | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 35"
+  },
+  {
+   "id": "AC-036",
+   "criterion": "The enumeration accepts the member `story_orientation` with the exact meaning the spec states: enumeration | `{orientation.horizontal, orientation.vertical, orientation.unknown}` | unknown. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-118 enumeration row 36"
+  }
+ ],
+ "acceptance_criteria_count": 36,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

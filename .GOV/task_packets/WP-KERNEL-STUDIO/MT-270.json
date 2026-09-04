@@ -1,121 +1,193 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-270",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-270.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-270.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-261",
-      "MT-264"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Noise family [STU-FX-015,STU-FX-015a]",
-  "spec_anchor": [
-    "STU-FX-015",
-    "STU-FX-015a",
-    "STU-FX-011"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-270",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-270.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-270.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-261",
+   "MT-264"
   ],
-  "scope": {
-    "summary": "Implement noise add/remove StudioLiveFilter kinds; additive kinds carry integer seed + color-mode (mono/duo/multi): Add Noise (uniform/gaussian, x/y size, density, monochromatic), Despeckle (blur except edges), Dust & Scratches (radius/threshold defect removal), Reduce Noise / Denoise (overall + per-channel luminance/color, edge preservation, JPEG-artifact-removal option; native-first alternative to adapter ML denoise), Defringe (chromatic-fringe removal), Diffuse pixel-scatter (normal/darken-only/lighten-only/anisotropic).",
-    "allowed_paths": [
-      "src/studio/effects/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "Add Noise, Despeckle, Dust & Scratches, Reduce Noise/Denoise, Defringe, Diffuse implemented; seeded + native-first denoise"
-    ],
-    "proof_targets": [
-      "noise add/reduce correctness + seed reproducibility"
-    ],
-    "code_surfaces": [
-      "studio-engine/src/render/noise/mod.rs",
-      "src/studio/effects/families/noise.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio_engine::render::noise",
-      "test: seeded Add Noise reproducible + color-mode; Reduce Noise edge-preserving + JPEG-artifact option; Dust&Scratches radius/threshold; Diffuse modes"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-VIS-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Noise family [STU-FX-015,STU-FX-015a]",
+ "spec_anchor": [
+  "STU-FX-015",
+  "STU-FX-015a",
+  "STU-FX-011"
+ ],
+ "scope": {
+  "summary": "Implement noise add/remove StudioLiveFilter kinds; additive kinds carry integer seed + color-mode (mono/duo/multi): Add Noise (uniform/gaussian, x/y size, density, monochromatic), Despeckle (blur except edges), Dust & Scratches (radius/threshold defect removal), Reduce Noise / Denoise (overall + per-channel luminance/color, edge preservation, JPEG-artifact-removal option; native-first alternative to adapter ML denoise), Defringe (chromatic-fringe removal), Diffuse pixel-scatter (normal/darken-only/lighten-only/anisotropic).",
+  "allowed_paths": [
+   "src/studio/effects/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Native denoise/noise set missing; forces ML adapter for parity work.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Add Noise, Despeckle, Dust & Scratches, Reduce Noise/Denoise, Defringe, Diffuse implemented",
+   "Seeded",
+   "Native-first denoise"
+  ],
+  "proof_targets": [
+   "noise add/reduce correctness + seed reproducibility"
+  ],
+  "code_surfaces": [
+   "studio-engine/src/render/noise/mod.rs",
+   "src/studio/effects/families/noise.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio_engine::render::noise",
+   "test: seeded Add Noise reproducible + color-mode; Reduce Noise edge-preserving + JPEG-artifact option; Dust&Scratches radius/threshold; Diffuse modes"
+  ],
+  "acceptance_criteria_original": [
+   "Add Noise, Despeckle, Dust & Scratches, Reduce Noise/Denoise, Defringe, Diffuse implemented; seeded + native-first denoise"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-VIS-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Native denoise/noise set missing; forces ML adapter for parity work.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Add Noise, Despeckle, Dust & Scratches, Reduce Noise/Denoise, Defringe, Diffuse implemented",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "noise add/reduce correctness + seed reproducibility",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Seeded",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Native-first denoise",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-FX-015",
+    "spec_clause_text": "[STU-FX-015] Noise effects add or remove stochastic detail. Additive-noise kinds carry a `seed` for reproducibility ([STU-FX-011]) and a color-mode (mono/duo/multi). Noise reduction and artifact-removal kinds are detail-preserving."
+   },
+   {
+    "anchor": "STU-FX-015a",
+    "spec_clause_text": "[STU-FX-015a] The deterministic denoise kind (Reduce Noise / Denoise) is the native-first alternative to the adapter-backed ML denoise ([STU-FX-034]); Studio prefers the native pass when parity is achievable and reaches for the adapter lane only when the operator/model explicitly selects the ML variant. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Add Noise | R,V,G | Opt | Adds uniform or gaussian random pixels; mono/duo/multi color mode, x/y noise size, density; monochromatic option. Dedup of the additive-noise filter and the layer noise effect. | | Despeckle | R | Opt | Blurs everything except detected edges to remove noise while keeping detail. | | Dust & Scratches | R | Opt | Removes small defects by replacing dissimilar pixels within radius/threshold bounds. | | Reduce Noise / Denoise | R | Opt | Overall and per-channel luminance/color noise reduction with edge preservation and JPEG-artifact-removal option. | | Defringe | R | Opt | Removes chromatic fringing along high-contrast edges. | | Diffuse (pixel scatter) | R | Opt | Shuffles/scatters pixels with normal, darken-only, lighten-only, or anisotropic modes. | --- ### 6. Pixelate Family"
+   },
+   {
+    "anchor": "STU-FX-011",
+    "spec_clause_text": "[STU-FX-011] Effect evaluation is deterministic: given the same source data, parameters, mask, seed, and `StudioColorProfile`, the `RenderEngine` MUST produce byte-stable output for a given backend and promotion-equivalent output across backends (group 18, 14.24). Filters with a random component (noise, clouds, spatter, and the like) carry an explicit integer `seed` parameter so their output is reproducible."
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

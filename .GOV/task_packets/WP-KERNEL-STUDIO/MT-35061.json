@@ -1,0 +1,94 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35061",
+ "created_at_utc": "2026-09-04T13:36:25+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-176#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "4. ParamSpec — the generated numeric contract",
+  "spec_line": 31433,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Field-to-capture mapping (normative)",
+ "spec_anchor": [
+  "STU-SHL-176"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "Field-to-capture mapping (normative).** The generator MUST read these fields from these sources. Four corrections are called out because two earlier deliberation documents got them wrong and a generator built from those documents would read the wrong field. | ParamSpec field | Read from | |---|---| | `hard_min` / `hard_max` | valid-min/valid-max (833); grading min/max (84); slider range (118); type-library constraints (35); video effect min/max (615) | | `soft_min` / `soft_max` | slider-min/slider-max (**606**, corrected from an earlier figure of 618); grading UI min/max (14); edit range versus slider range (11, of which 9 differ) | | `default` | 980 + 1,177 + 741 + 84 + 140 across the five sources | | `precision` | precision (499); decimal places (194) and digits (261) | | `unit` / `display_unit` | units (72) and display units (54); unit (166); unit family (135); help-string units (43) | | `display_flags` | display-flag bits: `PERCENT` 73, `PIXEL` 8, plus `REVERSE` and a reserved bit declared in the bit table | | `options[]` | **157 parameters carry an option list**, totalling 1,047 option strings. 422 option lists were recovered across the string pools. These are THREE different figures and MUST NOT be conflated; `options[]` is fed by the 157. The figure 2,001 cited in two earlier deliberation documents is wrong. | | `group_path` | group-start / group-end, which are **paramet [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Field-to-capture mapping (normative).** The generator MUST read these fields from these sources.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-176"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "These are THREE different figures and MUST NOT be conflated;",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-176"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The figure 2,001 cited in two earlier deliberation documents is wrong. | | `group_path` | group-start / group-end, which are **parameter TYPES (codes 13 and 14), not flags** — 74 pairs; plus 18 grading sections with 15 group headers, and 21 develop panels | | `collapsed_by_default` | the collapse-twirly flag, which **IS a flag (bit 0x20)** — 294 occurrences | | `keyframable` | the INVERSE of the cannot-time-vary flag (bit 0x2), 327 occurrences | | `summary` | see 14.32 [STU-MAN-105] | The generator MUST read two DIFFERENT mechanisms here: group boundaries are parameter types and the collapse a [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-176"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -1,0 +1,75 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34669",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-141#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "1. The tool registry",
+  "spec_line": 30790,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "The 22 families (normative, closed)",
+ "spec_anchor": [
+  "STU-SHL-141"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "The 22 families (normative, closed).** Family is the TAXONOMIC axis and is closed. Every tool belongs to exactly one family. The family level is what makes 362 tools browsable and it is MANDATORY in the menu ([STU-SHL-039]). | family_id | Display name | Definition | Members | |---|---|---|---| | `select_object` | Selection — object | Pick, sub-pick and group-pick whole objects, nodes and clips. | 11 | | `select_region` | Selection — region | Produce or refine a pixel, range or colour selection rather than picking an object. | 22 | | `navigate` | Navigation | Move the viewport. NEVER mutates the document. | 4 | | `camera_3d` | Camera and 3D scene | Move and frame a camera layer, and manipulate 3D scene geometry. Distinct from `navigate` precisely because it MUTATES a camera layer's transform. | 4 | | `paint_raster` | Paint | Deposit colour with a stroke, raster or vector. | 6 | | `erase` | Erase | Remove coverage with a stroke. | 4 | | `retouch` | Retouch and repair | Replace image content from elsewhere, from a model, or from a computed reconstruction. | 21 | | `tone_brush` | Tone and local adjustment brushes | Modify tone, colour, focus or a live adjustment by painting a mask. | 12 | | `draw_path` | Draw and edit paths | Construct and manipulate curve geometry and its nodes, handles and topology. | 21 | | `shape` | Shapes | Parametric primitive construction. | 37 | | `type` | [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [],
+ "acceptance_criteria_count": 0,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

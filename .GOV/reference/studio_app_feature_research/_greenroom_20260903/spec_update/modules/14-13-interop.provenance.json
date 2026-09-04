@@ -1,0 +1,844 @@
+{
+ "schema_id": "handshake.spec.module_provenance@1",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "authority_note": "This sidecar is PROVENANCE ONLY. It is not authority and MUST NOT be cited as the source of any Studio contract. Per [STU-SECTION-002] the Master Spec module is the single source of truth; this file records HOW each clause was derived so a reviewer can check the derivation, and so a later capture can supersede a studio_declared value without ambiguity. A disagreement between this file and the module is a defect in this file.",
+ "module_file": "14-13-interop.md",
+ "module_title": "14.13 Import/Export & File-Format Compatibility",
+ "module_body_sha256": "c3f2bad6b73462dfc0e47e108cdb45840ca5bc1999a5d280dde47549af00fe4c",
+ "spec_target_bundle": "master-spec-v02.206",
+ "spec_baseline_bundle": "master-spec-v02.205",
+ "green_room": ".GOV/reference/studio_app_feature_research/_greenroom_20260903",
+ "derivation_legend": {
+  "parsed": "the value, field, enumeration or count is read literally from the named record in the named capture file",
+  "derived": "the clause is computed or reasoned from parsed records; the reasoning is stated in the note and is NOT itself in any capture",
+  "studio_declared": "no source declares this value; the Master Spec declares it as Studio's own contract and the clause labels it as such",
+  "spec_internal": "the source is another Master Spec clause, not a green-room capture",
+  "operator_decision": "the source is a recorded operator decision or a shipped work-packet contract, not a capture",
+  "declared_gap": "the clause declares an absence: something the captures do not contain and which this module deliberately does not invent"
+ },
+ "clause_count": 73,
+ "derivable_microtask_count": 71,
+ "derivation_rule_anchor": "STU-IO-168",
+ "source_reference_count": 93,
+ "derivation_census": {
+  "parsed": 47,
+  "derived": 5,
+  "studio_declared": 3,
+  "spec_internal": 33,
+  "operator_decision": 5,
+  "declared_gap": 0
+ },
+ "capture_files_referenced": {
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json": 19,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md": 18,
+  ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md": 10,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json": 10,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json": 7,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json": 7,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json": 7,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json": 5,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md": 5,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json": 3,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json": 1,
+  ".GOV/task_packets/WP-KERNEL-005/packet.json": 1
+ },
+ "clauses": {
+  "STU-IO-100": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.13 clauses [STU-IO-001]..[STU-IO-014], lines 2724-2888",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.exporter_parameter_dictionary",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.pdf_export_presets",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "$.still_image_export",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-101": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-010]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.presets[*] (1541 presets, each a complete parameter set)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-102": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.exporter_parameter_dictionary[*] fields: identifier, label, description, type_codes, facet, group_paths, declared_min, declared_max, decimal_places, is_slider_in_any_preset, is_hidden_in_any_preset, observed_values, used_by_formats, used_by_preset_count",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-103": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.the_parameter_contract.required_fields; $.the_parameter_contract.irreversible_mistake; $.the_parameter_contract.where_bounds_are_absent",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.exporter_parameter_dictionary[*].declared_min/declared_max versus observed_values",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-104": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.param_type_enum.values (12 codes) and $.param_type_evidence (per-code tabulation)",
+     "derivation": "parsed",
+     "note": "the code-to-meaning mapping is labelled heuristic in the capture; carried here as the normative Studio type system"
+    }
+   ]
+  },
+  "STU-IO-105": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.extraction_summary.identifiers_by_facet (14 facets with counts)",
+     "derivation": "parsed",
+     "note": "facet classification labelled heuristic in the capture"
+    }
+   ]
+  },
+  "STU-IO-106": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.extraction_summary.identifiers_with_a_shipped_label = 44 of 453",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-107": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.method.known_gaps[0]",
+     "derivation": "parsed",
+     "note": "enumerated option names are supplied by the exporter plug-in at runtime and are not serialised into presets"
+    }
+   ]
+  },
+  "STU-IO-108": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.method.known_gaps[1]",
+     "derivation": "parsed",
+     "note": "ADBEVideoCodec values are exporter-local integers, not a global codec enum"
+    }
+   ]
+  },
+  "STU-IO-109": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.exporter_parameter_dictionary[*].group_paths",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-110": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-013]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008].what_the_spec_rewrite_must_cover",
+     "derivation": "operator_decision",
+     "note": "CKC registration of portable artifacts"
+    }
+   ]
+  },
+  "STU-IO-111": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.interfaces[ExportSettingsImage, ExportSettingsSVG, ExportSettingsSVGString, ExportSettingsPDF, ExportSettingsGIF, ExportSettingsMP4, ExportSettingsWEBM, ExportSettingsREST]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-112": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.interfaces[ExportSettingsImage].members",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-113": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.interfaces[ExportSettingsSVGBase].members; $.interfaces[ExportSettingsSVG].members; $.interfaces[ExportSettingsSVGString].members; $.interfaces[ExportSettingsPDF].members; $.interfaces[ExportSettingsREST].members",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-114": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.interfaces[ExportSettingsConstraints].members; $.enums[VideoExportConstraint].values",
+     "derivation": "parsed",
+     "note": "type domain declared; value bounds NOT declared"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.the_parameter_contract.where_bounds_are_absent",
+     "derivation": "studio_declared"
+    }
+   ]
+  },
+  "STU-IO-115": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.interfaces[ExportSettingsGIF].members (fps literal union 8|12|15|24|30)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-116": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.interfaces[ExportSettingsMP4].members; $.interfaces[ExportSettingsWEBM].members (fps literal union 12|24|30|60; quality LOW|MEDIUM|HIGH)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-117": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.interfaces[ExportSettingsImage].members[suffix]",
+     "derivation": "derived",
+     "note": "collision rule derived; not stated in source"
+    }
+   ]
+  },
+  "STU-IO-125": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.pdf_export_presets.count = 13; $.pdf_export_presets.distinct_settings = 149; $.pdf_export_presets.presets[*].setting_count (145-148)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-126": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.pdf_export_presets.setting_frequency (149 keys)",
+     "derivation": "derived",
+     "note": "grouping derived from key naming; the source is a flat dictionary"
+    }
+   ]
+  },
+  "STU-IO-127": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.pdf_export_presets.presets[*].settings[Color*/Gray*/Mono* families]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-128": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.pdf_export_presets.presets[*].settings value spread across the 13 presets",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-129": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.pdf_export_presets.presets[*].settings numeric values",
+     "derivation": "parsed",
+     "note": "values observed; NO BOUNDS DECLARED anywhere in the source"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.the_parameter_contract.where_bounds_are_absent",
+     "derivation": "studio_declared",
+     "note": "soft bounds Studio-declared; hard bounds left unknown"
+    }
+   ]
+  },
+  "STU-IO-130": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.pdf_export_presets.presets[*].settings[PDFX1aCheck, PDFX3Check, PDFXCompliantPDFOnly, PDFXOutputIntentProfile]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-131": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.pdf_export_presets.presets[*].settings[EmbedAllFonts, SubsetFonts, MaxSubsetPct, EmbedOpenType, AlwaysEmbed, NeverEmbed, CannotEmbedFontPolicy]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-132": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.pdf_preset_localised_names.locales = 25; $.pdf_export_presets.presets[*].settings[Description]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-133": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.pdf_export_presets.presets[*].locale_dir",
+     "derivation": "derived",
+     "note": "shipped versus operator provenance derived"
+    }
+   ]
+  },
+  "STU-IO-134": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "$.counts.still_export_settings_keys = 152; $.counts.still_export_keys_confirmed_export_settings = 117; $.counts.still_export_keys_probable_ui_fields = 35; $.counts.still_export_keys_with_observed_values = 64; $.counts.still_export_keys_module_constant_only = 88",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-135": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "$.counts.still_export_keys_by_group_heuristic (13 groups)",
+     "derivation": "parsed",
+     "note": "group assignment labelled heuristic in the capture"
+    }
+   ]
+  },
+  "STU-IO-136": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "$.still_image_export.value_domains_from_ui_labels.families (50 families; AgExport/Menu, AgExport/PopupMenu, AgExport/Menu/Compression, AgExport/ResizeType/PopupMenu, AgExport/CollisionHandling, AgExport/DestinationFolder, AgExport/Metadata/EmbeddedMetadataOption, AgExport/PostProcess, AgExport/DPUnits/PopupMenu, AgExport/PopupMenu/MediaType, AgExport/Sharpening, AgExport/VideoFileHandling, AgExport/ContentCredentials/PopupMenu)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-137": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "$.still_image_export.settings[*].observed_values",
+     "derivation": "parsed",
+     "note": "values observed across 13 presets; NO BOUNDS DECLARED"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.the_parameter_contract.where_bounds_are_absent",
+     "derivation": "studio_declared"
+    }
+   ]
+  },
+  "STU-IO-138": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "$.still_image_export.settings[*].observed_values for boolean keys",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-139": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "$.still_image_export.value_domains_from_ui_labels.families[AgExportDialog/TokenGroup]; $.still_image_export.settings[tokens, tokenCustomString, initialSequenceNumber, renamingTokensOn]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-140": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.extraction_summary (1541 presets, 704 preset guids, 40 containers, 453 identifiers, 62670 parameter rows)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-141": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.method.how_to_read.format_matrix; $.exporter_parameter_dictionary[*].used_by_formats",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-142": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.frame_rate_tick_decode.ticks_per_second = 254016000000; $.frame_rate_tick_decode.values (15 entries)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-143": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.exporter_parameter_dictionary[ADBEVideoMinBitrate, ADBEVideoTargetBitrate, ADBEVideoMaxBitrate, ADBEVideoBitrate]; $.extraction_summary.identifiers_by_facet[rate_control] = 34",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-144": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.exporter_parameter_dictionary[*].declared_min, declared_max, decimal_places versus observed_values",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.the_parameter_contract.irreversible_mistake",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-145": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.exporter_parameter_dictionary[*].is_hidden_in_any_preset, is_slider_in_any_preset",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-146": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.exporter_parameter_dictionary facet=colour (22 identifiers) incl. luminance min/max in cd/m^2, colour primaries, black/white point, gamma",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-147": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.extraction_summary.identifiers_by_facet[publishing_destination] = 86",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-013]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-IO-148": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_export_pipeline.json",
+     "record": "$.exporter_parameter_dictionary[ADBEExportAsSequence] label and description",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-150": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.formats_implemented (24 extension-to-family rows)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-151": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.parse_status_legend; $.totals.containers_fully_parsed = 121; $.totals.containers_partial = 165; $.totals.containers_failed = 0",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-152": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.totals.preset_entries_recovered = 16994; $.totals.container_files_scanned = 286; $.by_family (22 families)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-153": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "$.totals.library_files_scanned = 183; $.totals.primary_entries_total = 15987; $.totals.all_definitions_in_files_total = 18424; $.totals._definition_of_terms",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-154": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.output_discipline[3]",
+     "derivation": "operator_decision",
+     "note": "never report a file count as an entry count"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.corrections",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-IO-160": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-003], [STU-DOC-003]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-IO-161": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008].what_the_spec_rewrite_must_cover",
+     "derivation": "operator_decision"
+    },
+    {
+     "capture_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+     "record": "$.scope",
+     "derivation": "operator_decision"
+    }
+   ]
+  },
+  "STU-IO-162": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SDB-004]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-IO-163": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-011] round-trip envelope",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-004].spec_specifics",
+     "derivation": "operator_decision",
+     "note": "promotion-equivalence determinism"
+    }
+   ]
+  },
+  "STU-IO-164": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-014], 14.20 headless/quiet law",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-IO-165": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.the_parameter_contract",
+     "derivation": "derived",
+     "note": "descriptor set derived from the parameter-contract failure modes"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.parse_status_legend",
+     "derivation": "derived"
+    }
+   ]
+  },
+  "STU-IO-166": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-OVR-003], [STU-SDB-002]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-IO-167": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-IO-014]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-IO-168": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's own clause set [STU-IO-100]-[STU-IO-167]",
+     "derivation": "spec_internal",
+     "note": "Derivation rule (NORMATIVE): the closed unit list is enumerated from the clause kinds actually present in [STU-IO-100]-[STU-IO-167]; the rule form follows the precedent set by 14.7.21 [STU-TYP-240]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-IO-169": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's own clause set [STU-IO-100]-[STU-IO-167]",
+     "derivation": "spec_internal",
+     "note": "Open items and blocked dependencies: derived from the declared-gap clauses of this module (none declared in this module); the rule that a gap still yields a microtask whose first acceptance criterion resolves the dependency is stated here"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-IO-170": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's own clause set [STU-IO-100]-[STU-IO-167]",
+     "derivation": "spec_internal",
+     "note": "Microtask content obligation: derived from the enumerations, parameter contracts and record shapes stated in [STU-IO-100]-[STU-IO-167]; form follows 14.7.21 [STU-TYP-241]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-IO-171": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's own clause set [STU-IO-100]-[STU-IO-167]",
+     "derivation": "spec_internal",
+     "note": "Yields index (NORMATIVE): counted mechanically over the clause anchors of [STU-IO-100]-[STU-IO-167], excluding the non-yielding classes named in the derivation rule and adding the individually named validation descriptors of [STU-IO-165]; verified by three independent counts (recount from the non-yielding set, sum of the table Yields column, stated module total)"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-IO-172": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's own clause set [STU-IO-100]-[STU-IO-167]",
+     "derivation": "spec_internal",
+     "note": "Anchor binding: derived from the provisional-anchor rule recorded in the green-room architecture decisions and the precedent of 14.7.21 [STU-TYP-243]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-IO-173": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-103], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_parameter_bounds_collapsed` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-174": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-103], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_parameter_bound_invented` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-175": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-160], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_parameter_missing_unit` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-176": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-128], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_enumerated_domain_presented_as_complete` (severity warning); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-177": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-108], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_codec_integer_without_exporter` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-178": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-142], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_frame_rate_stored_as_float` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-179": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-125], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_preset_incomplete` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-180": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-117], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_output_filename_collision` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-181": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-161], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_placed_asset_unresolved` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-182": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-163], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_writer_nondeterministic_field_undeclared` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-183": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-151], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `preset_import_partial_reported_as_complete` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-184": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-153], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `library_definition_count_reported_as_entry_count` (severity warning); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-IO-185": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-13-interop.md",
+     "record": "this module's clause [STU-IO-147], whose contract this descriptor enforces; the descriptor set is named in [STU-IO-165]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `export_credential_in_recipe_record` (severity error); promoted from a prose list inside [STU-IO-165] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  }
+ }
+}

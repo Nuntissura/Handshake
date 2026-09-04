@@ -1,0 +1,88 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30350",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAW-125#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "13. Camera Profiles, Creative Profiles, and Presets",
+  "spec_line": 2370,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "CAMERA PROFILE MODEL",
+ "spec_anchor": [
+  "STU-RAW-125"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "CAMERA PROFILE MODEL.** A camera profile is a **colour-rendering** model, not a geometric one, and Studio MUST implement it as this exact structure — a profile reduced to a single matrix cannot render the shipped corpus: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Component | Presence in the captured corpus | Contract | |---|---|---| | `unique_camera_model` | 100 % of 4,373 profiles | the key the profile is matched on; 1,429 distinct camera models are covered | | `colour_matrix_1`, `colour_matrix_2` | 100 % | two illuminant-referenced 3×3 matrices, XYZ → camera | | `calibration_illuminant_1`, `_2` | 100 % | the illuminants those two matrices are referenced to; the dominant shipped pair is standard-illuminant-A with D65 (4,365 of 4,373), with a handful of A+flash, D65+A, D55+D75 and flash+tungsten pairs, so the pair MUST be data, not a constant | | `forward_matrix_1`, `_2` | 99.68 % | camera → XYZ at D50; optional | | `camera_calibration_1`, `_2` | optional | per-unit calibration matrices applied before the colour matrix | | `hue_sat_map` | optional | a 3-D deformation lattice over (hue, saturation, value). Shipped lattice dimensions are **not** uniform: [90, 30, 1] on 1,116 profiles, [8, 2, 1] on 22, [90, 25, 1] on 7, [36, 10, 1] on 7, [180, 8, 1] on 3, [18, 6, 1] on 2, and [36, 20, 20] on 1. St [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "CAMERA PROFILE MODEL.** A camera profile is a **colour-rendering** model, not a geometric one, and Studio MUST implement it as this exact structure — a profile reduced to a single matrix cannot render the shipped corpus: *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Component | Presence in the captured corpus | Contract | |---|---|---| | `unique_camera_model` | 100 % of 4,373 profiles | the key the profile is matched on; 1,429 distinct camera models are covered | | `colour_matrix_1`, `colour_matrix_2` | 100 % | t [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAW-125"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Studio MUST read the dimensions from the profile and MUST NOT assume a fixed lattice | | `profile_look_table` | 99.89 % | a second lattice of the same shape applied **after** the hue/sat map.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAW-125"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

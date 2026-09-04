@@ -1,0 +1,109 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30997",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-TYP-199#parameter_table#0",
+  "unit_kind": "parameter_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.7.14 Paragraph Decoration, Lists, Tabs and Auto-Styling",
+  "spec_line": 8646,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Auto-styling inside paragraphs - parameter bounds",
+ "spec_anchor": [
+  "STU-TYP-199"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "typography",
+ "scope": {
+  "summary": "Auto-styling inside paragraphs.** Three independent mechanisms, evaluated in this order: nested styles, then nested line styles, then GREP styles. A NESTED STYLE carries `applied_character_style`, `delimiter` (a character, a word boundary, a tab, an end-nested-style marker, or a sentence/paragraph token), `repetition` (how many delimiter instances) and `inclusive` (apply THROUGH the last delimiter, or UP TO it). A NESTED LINE STYLE carries `applied_character_style`, `line_count`, and `repeat_last` (how many rules to back up and repeat). A GREP STYLE carries `applied_character_style` and `grep_expression`. *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `nested_style_repetition` | 1 | UNKNOWN | UNKNOWN | UNKNOWN | 1 | count | 0 | | `nested_line_style_line_count` | 1 | UNKNOWN | UNKNOWN | UNKNOWN | 1 | count | 0 | | `nested_line_style_repeat_last` | 0 | UNKNOWN | UNKNOWN | UNKNOWN | 0 | count | 0 | GREP-style evaluation MUST be bounded: the regex engine MUST have no catastrophic backtracking and MUST enforce a declared step budget per paragraph, because auto-styling runs inside composition and composition must terminate deterministically ([STU-TYP-128]). --- ### 14.7.15 Type-Style B [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The parameter `nested_style_repetition` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=1, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max",
+    "soft_min",
+    "soft_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-199 parameter table row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The parameter `nested_line_style_line_count` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=1, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max",
+    "soft_min",
+    "soft_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-199 parameter table row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The parameter `nested_line_style_repeat_last` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=0, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max",
+    "soft_min",
+    "soft_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-199 parameter table row 3"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

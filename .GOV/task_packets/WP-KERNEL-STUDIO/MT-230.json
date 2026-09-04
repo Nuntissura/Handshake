@@ -1,122 +1,186 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-230",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-230.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-230.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-191",
-      "MT-198",
-      "MT-556",
-      "MT-557",
-      "MT-558",
-      "MT-559",
-      "MT-560"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Warp / envelope text touchpoint [STU-TYP-033]",
-  "spec_anchor": [
-    "STU-TYP-033"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-230",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-230.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-230.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-191",
+   "MT-198",
+   "MT-556",
+   "MT-557",
+   "MT-558",
+   "MT-559",
+   "MT-560"
   ],
-  "scope": {
-    "summary": "Warping/enveloping a StudioTextStory (arc, arch, bulge, wave, flag, fish, rise, and free-form envelope distortions, with orientation, bend, and horizontal/vertical distortion) is a StudioEffectStack operation owned by 14.5 (envelope/warp mesh) and 14.9 (live effects), applied non-destructively over a still-editable story. 14.7's contract is ONLY that the story remains a live, editable, re-shapeable StudioTextStory under the warp and that the shaping engine re-runs on edit; 14.7 does NOT define warp styles or the distortion mesh. Implement the type-side re-shape-on-edit contract + StudioEffectStack touchpoint.",
-    "allowed_paths": [
-      "src/studio/typography/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "story stays live/editable under StudioEffectStack warp; shaping re-runs on edit; warp mesh owned by 14.5/14.9"
-    ],
-    "proof_targets": [
-      "editable-under-warp + re-shape-on-edit test"
-    ],
-    "code_surfaces": [
-      "src/studio/typography/warp_touchpoint.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::typography::warp_touchpoint",
-      "live: story stays editable under a StudioEffectStack warp; editing text re-runs shaping under the distortion",
-      "test: 14.7 does not define warp styles/mesh (owned by 14.5/14.9), only the type-side re-shape contract"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Warp / envelope text touchpoint [STU-TYP-033]",
+ "spec_anchor": [
+  "STU-TYP-033"
+ ],
+ "scope": {
+  "summary": "Warping/enveloping a StudioTextStory (arc, arch, bulge, wave, flag, fish, rise, and free-form envelope distortions, with orientation, bend, and horizontal/vertical distortion) is a StudioEffectStack operation owned by 14.5 (envelope/warp mesh) and 14.9 (live effects), applied non-destructively over a still-editable story. 14.7's contract is ONLY that the story remains a live, editable, re-shapeable StudioTextStory under the warp and that the shaping engine re-runs on edit; 14.7 does NOT define warp styles or the distortion mesh. Implement the type-side re-shape-on-edit contract + StudioEffectStack touchpoint.",
+  "allowed_paths": [
+   "src/studio/typography/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Warped text bakes/loses editability; effect-engine ownership blurred.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Story stays live/editable under StudioEffectStack warp",
+   "Shaping re-runs on edit",
+   "Warp mesh owned by 14.5/14.9"
+  ],
+  "proof_targets": [
+   "editable-under-warp + re-shape-on-edit test"
+  ],
+  "code_surfaces": [
+   "src/studio/typography/warp_touchpoint.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::typography::warp_touchpoint",
+   "live: story stays editable under a StudioEffectStack warp; editing text re-runs shaping under the distortion",
+   "test: 14.7 does not define warp styles/mesh (owned by 14.5/14.9), only the type-side re-shape contract"
+  ],
+  "acceptance_criteria_original": [
+   "story stays live/editable under StudioEffectStack warp; shaping re-runs on edit; warp mesh owned by 14.5/14.9"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Warped text bakes/loses editability; effect-engine ownership blurred.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Story stays live/editable under StudioEffectStack warp",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "editable-under-warp + re-shape-on-edit test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Shaping re-runs on edit",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Warp mesh owned by 14.5/14.9",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-TYP-033",
+    "spec_clause_text": "[STU-TYP-033] Warping or enveloping a `StudioTextStory` (arc, arch, bulge, wave, flag, fish, rise, and free-form envelope distortions, with orientation, bend, and horizontal/vertical distortion) is a `StudioEffectStack` operation owned by 14.5 (envelope/warp mesh) and 14.9 (live effects), applied non-destructively over a still-editable story (provenance: Photoshop Warp Text; Illustrator envelope distort). 14.7's contract is only that the story remains a live, editable, re-shapeable `StudioTextStory` under the warp and that the shaping engine re-runs on edit; 14.7 does NOT define warp styles or the distortion mesh. --- --- ## 14.8 Color Management & Pipeline <a id=\"148-color-management-and-pipeline\"></a> ## 14.8 Color Management and Pipeline Colour is a shared Studio PIPELINE, not a per-domain feature. Every fill, stroke, swatch, gradient, pattern, text colour, adjustment, grade, LUT, proof and separation across raster, vector, layout, video, motion and compositing resolves through ONE colour value model, ONE profile primitive (`StudioColorProfile`), ONE swatch primitive (`StudioSwatch`), ONE gradient primitive (`StudioGradient`), ONE pattern primitive (`StudioPattern`), and ONE engine (`ColorEngine: Send + Sync`). A source suite's colour panel or command name is never a Studio name. This module is SELF-CONTAINED. A capable implementer with no chat context and no access to the Studio research corpus MUST be able to implement the colour pipeline, and to derive the colour microtask set (14.8.22), from this module plus the shared contracts it names (14.0 storage, 14.2 architecture, 14.3 primitives, 14.7 typography, 14.23 canonical field contracts, 14.24 validation). Where this module and 14.23 disagree on a FIELD NAME, TYPE or SCHEMA ID, 14.23 wins; where they disagree on BEHAVIOUR, RANGE, DEFAULT, UNIT or ENUMERATED VALUE, this module wins and the divergence is a defect in 14.23 to be repaired. --- ### 14.8.0 Authority, Derivation and Supersession"
+   }
+  ],
+  "spec_clause_count": 1,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

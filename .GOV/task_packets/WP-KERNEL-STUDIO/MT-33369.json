@@ -1,0 +1,75 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33369",
+ "created_at_utc": "2026-09-04T13:36:11+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-IO-102#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "1. The export parameter model",
+  "spec_line": 19773,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Export parameter record (normative shape)",
+ "spec_anchor": [
+  "STU-IO-102"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "interop",
+ "scope": {
+  "summary": "Export parameter record (normative shape).** Every export parameter Studio exposes carries: | Field | Required | Semantics | |---|---|---| | `identifier` | yes | stable machine identifier, never reused | | `label` | yes | human label | | `description` | no | tooltip text | | `type_code` | yes | a member of [STU-IO-103] | | `facet` | yes | a member of [STU-IO-104] | | `group_path` | yes | ordered path of container identifiers naming where this parameter sits in its surface | | `hard_min` | yes or explicitly `unknown` | the value the encoder will accept | | `hard_max` | yes or explicitly `unknown` | | | `soft_min` | yes or explicitly `absent` | the range the control presents | | `soft_max` | yes or explicitly `absent` | | | `default` | yes | | | `unit` | yes or explicitly `dimensionless` | the real unit token, never a guess | | `precision` | yes | declared decimal places | | `step` / `coarse_step` / `fine_step` | yes | scrub increments | | `enumerated_values` | when `type_code` is enumerated | ordered value list | | `is_slider` | yes | whether the control presents as a slider | | `is_hidden` | yes | whether the parameter is hidden in the default surface | | `used_by_formats` | yes | the container formats that carry it |",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [],
+ "acceptance_criteria_count": 0,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

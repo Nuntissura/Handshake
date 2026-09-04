@@ -1,0 +1,307 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Handshake-Stage-MVP-v1",
+  "mt_id": "MT-125",
+  "created_at_utc": "2026-09-01T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-125.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-125.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-125.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-004",
+      "MT-006",
+      "MT-007"
+    ],
+    "blocks": [
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019",
+      "MT-020",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-029",
+      "MT-030",
+      "MT-031",
+      "MT-032",
+      "MT-033",
+      "MT-034",
+      "MT-035",
+      "MT-036",
+      "MT-037",
+      "MT-038",
+      "MT-039",
+      "MT-040",
+      "MT-041",
+      "MT-042",
+      "MT-043",
+      "MT-044",
+      "MT-045",
+      "MT-046",
+      "MT-047",
+      "MT-048",
+      "MT-049",
+      "MT-050",
+      "MT-051",
+      "MT-052",
+      "MT-053",
+      "MT-054",
+      "MT-055",
+      "MT-056",
+      "MT-057",
+      "MT-058",
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-065",
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-069",
+      "MT-070",
+      "MT-071",
+      "MT-072",
+      "MT-073",
+      "MT-074",
+      "MT-075",
+      "MT-076",
+      "MT-077",
+      "MT-078",
+      "MT-079",
+      "MT-080",
+      "MT-081",
+      "MT-082",
+      "MT-083",
+      "MT-084",
+      "MT-085",
+      "MT-086",
+      "MT-087",
+      "MT-088",
+      "MT-089",
+      "MT-090",
+      "MT-091",
+      "MT-092",
+      "MT-093",
+      "MT-094",
+      "MT-095",
+      "MT-096",
+      "MT-097",
+      "MT-098",
+      "MT-099",
+      "MT-100",
+      "MT-101",
+      "MT-102",
+      "MT-103",
+      "MT-104",
+      "MT-105",
+      "MT-106",
+      "MT-107",
+      "MT-108",
+      "MT-109",
+      "MT-110",
+      "MT-111",
+      "MT-112",
+      "MT-113",
+      "MT-114",
+      "MT-115",
+      "MT-116",
+      "MT-117",
+      "MT-118",
+      "MT-119",
+      "MT-120",
+      "MT-121",
+      "MT-122",
+      "MT-123",
+      "MT-124"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Establish Stage's typed SurrealDB storage foundation, shared application-bootstrap handle, SCHEMAFULL SurrealKit rollouts, EventLedger boundary, ArtifactStore references, browser-profile materialization boundary, and real-database proof harness before feature lanes persist state.",
+    "allowed_paths": [
+      "BIND_AT_L00_BASELINE"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "another WP's private tables/routes/profiles",
+      "Turso/libSQL/SQLite/PostgreSQL product, runtime, test, fixture, cache, fallback, compatibility, migration, import, reconciliation, or proof paths"
+    ],
+    "acceptance_criteria": [
+      "A single application-bootstrap embedded SurrealStorage handle is injected into a typed StageRepository; no production Stage feature opens a private database or calls feature-local open_default().",
+      "Stage-owned durable records use typed SCHEMAFULL SurrealDB tables with assertions, indexes, authenticated record-user permissions, and ordered SurrealKit rollouts; EventLedger records attributable durable transitions.",
+      "ArtifactStore remains authoritative for bytes/manifests/hashes/retention/materialization, while browser-engine profile files remain isolated non-canonical runtime materialization; Stage backup restores SurrealDB records and ArtifactHandles before profiles.",
+      "Real WP-scoped embedded SurrealDB tests prove clean bootstrap, reopen/restart, parallel writers, idempotency/conflict behavior, permission isolation, interrupted rollout recovery, and database-outage behavior.",
+      "Fresh zero-match guards prove Stage has no Turso, libSQL, SQLite, PostgreSQL, feature-private database, fallback, dual-write, mock-only, or in-memory-only authority path."
+    ],
+    "proof_targets": [
+      "stage-surrealdb-foundation"
+    ]
+  },
+  "storage_obligation": {
+    "contract_ref": ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json#storage_contract",
+    "posture": "SURREALDB_EXCLUSIVE_AUTHORITY",
+    "applicability": "ALWAYS_FOUNDATIONAL",
+    "requirements": [
+      "Open the canonical Handshake-managed embedded SurrealDB once at application bootstrap and inject a typed StageRepository; production Stage code must not use feature-local open_default().",
+      "Define Stage-owned SCHEMAFULL tables, indexes, assertions, authenticated record-user permissions, and SurrealKit rollouts without reading or mutating another subsystem's private tables.",
+      "Use EventLedger for attributable durable transitions; keep ArtifactStore authoritative for bytes/manifests/hashes/retention/materialization and retain only opaque ArtifactHandles plus Stage lineage.",
+      "Keep cookies, cache, local storage, IndexedDB, service workers, DRM state, and similar browser-engine profile materialization isolated on disk and non-canonical for product backup/restore.",
+      "Reject Turso, libSQL, SQLite, PostgreSQL, private database engines, fallback/dual-write paths, mock-only proof, and in-memory-only proof."
+    ],
+    "proof_when_applicable": [
+      "real WP-scoped embedded SurrealDB bootstrap and reopen test",
+      "SurrealKit SCHEMAFULL rollout, assertion, index, and authenticated record-user permission proof",
+      "parallel StageRepository writer and deterministic conflict/idempotency proof",
+      "database outage and interrupted rollout recovery proof",
+      "zero-match guard for forbidden database dependencies, drivers, URLs, migrations, fixtures, caches, fallbacks, and compatibility paths"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "CONDITIONAL",
+    "gui_creation_required": "CONDITIONAL",
+    "argus_required": "CONDITIONAL",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Stage storage health and schema identity projection when operator-visible"
+    ],
+    "argus_targets": [
+      "stage_storage_health"
+    ],
+    "expected_evidence": [
+      "typed_storage_health_state",
+      "argus_inspect_or_accesskit_tree_when_operator_visible",
+      "redacted_namespace_database_rollout_identity",
+      "database_outage_and_recovery_trace"
+    ],
+    "not_applicable_reason": "The storage foundation is backend-first; if no operator-visible health surface changes in this MT, record typed NOT_APPLICABLE evidence and bind the later diagnostics projection MT."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [
+      "Stage storage location and portability",
+      "Stage backup/restore boundary",
+      "Stage database diagnostics and recovery"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-PRIV authenticated record-user permission proof for every Stage table",
+    "HBR portability: runtime roots are config-derived and disk-agnostic"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "Tier-1 structured storage health, rollout identity, outage diagnostics, and reproduction steps"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "A Stage-private database would fork product authority and create cross-store capture/job recovery gaps.",
+      "Multiple feature-local SurrealStorage opens could diverge configuration, rollout state, or connection lifecycle even when they point at the same path.",
+      "Browser profile files could be mistaken for canonical product records or backup authority.",
+      "Mock-only storage tests could pass while embedded SurrealDB permissions, rollouts, restart behavior, or concurrency fail.",
+      "Parallel remediation branches may expose incompatible storage modules or schema registries at the activation baseline."
+    ],
+    "minimum_controls": [
+      "One application-owned injected storage handle and typed StageRepository boundary.",
+      "SCHEMAFULL SurrealKit rollouts with authenticated record-user permissions and real embedded database proof.",
+      "ArtifactStore and browser-profile boundaries are explicit and fault-injected.",
+      "L00 binds the reconciled WP-KERNEL-012 and WP-1 Multi-Model Orchestration SurrealDB baseline before implementation.",
+      "Forbidden-database and feature-private-open zero-match guards are release-blocking."
+    ]
+  },
+  "planning_metadata": {
+    "lane": "L03",
+    "kind": "foundational",
+    "requirement_id": null,
+    "requirement_priority": "P0",
+    "acceptance_id": null,
+    "release_ids": [
+      "STAGE-WIN-BOOTSTRAP-PROD",
+      "STAGE-WP-COMPLETE"
+    ],
+    "production_gate_ids": [
+      "STAGE-GATE-014-BACKUP-RESTORE"
+    ],
+    "dependency_gate_ids": [],
+    "fixture_ids": [],
+    "corpus_refs": [
+      ".GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/reference/stage_mvp_planning/06-backend-and-data-contracts.md",
+      ".GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md",
+      ".GOV/reference/stage_mvp_planning/17-production-data-events-recovery-and-portability.md"
+    ],
+    "implementation_note": "Planning-stage foundational MT created by STAGE-DEC-023. Exact owned files, storage-module anchors, rollout IDs, and proof commands bind at the L00 reconciled integration baseline. This MT must validate before feature MTs MT-008..MT-124 may complete.",
+    "no_context_read_order": [
+      ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json",
+      ".GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/reference/stage_mvp_planning/02-decision-register.md",
+      ".GOV/reference/stage_mvp_planning/06-backend-and-data-contracts.md",
+      ".GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md",
+      ".GOV/reference/stage_mvp_planning/17-production-data-events-recovery-and-portability.md"
+    ]
+  }
+}

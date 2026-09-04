@@ -1,130 +1,202 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-521",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-521.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-521.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-002",
-      "MT-010"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Whiteboard mode of StudioDocument (StudioBoard) [STU-WB-001]",
-  "spec_anchor": [
-    "STU-WB-001",
-    "STU-DOC-001",
-    "STU-UNI-002"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-521",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:27+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-521.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-521.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-002",
+   "MT-010"
   ],
-  "scope": {
-    "summary": "Implement a whiteboard mode of StudioDocument: an unbounded freeform board surface (StudioBoard container) holding board objects as StudioLayer nodes, distinct from fixed-canvas/artboard and page-spread modes but sharing the SAME document, selection, history/undo (14.19), color, collaboration (14.17), command, and export machinery. A whiteboard document MUST NOT be a separate document type with its own siloed model; it is a mode of the one StudioDocument.",
-    "allowed_paths": [
-      "src/studio/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "whiteboard mode as StudioBoard over one StudioDocument; shared machinery; no siloed type"
-    ],
-    "proof_targets": [
-      "board mode over one document; Argus canvas"
-    ],
-    "code_surfaces": [
-      "src/studio/whiteboard/board.rs",
-      "src/frontend/handshake_native/src/studio/board_canvas.rs"
-    ],
-    "expected_tests": [
-      "live: board mode operates over one StudioDocument (shared selection/history/export)",
-      "negative: no separate whiteboard document type/model",
-      "argus: board canvas reachable by author_id"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "board canvas",
-      "board mode switch"
-    ],
-    "argus_targets": [
-      "studio.board_canvas",
-      "studio.mode_switch.whiteboard"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Whiteboard / Board mode"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Whiteboard mode of StudioDocument (StudioBoard) [STU-WB-001]",
+ "spec_anchor": [
+  "STU-WB-001",
+  "STU-DOC-001",
+  "STU-UNI-002"
+ ],
+ "scope": {
+  "summary": "Implement a whiteboard mode of StudioDocument: an unbounded freeform board surface (StudioBoard container) holding board objects as StudioLayer nodes, distinct from fixed-canvas/artboard and page-spread modes but sharing the SAME document, selection, history/undo (14.19), color, collaboration (14.17), command, and export machinery. A whiteboard document MUST NOT be a separate document type with its own siloed model; it is a mode of the one StudioDocument.",
+  "allowed_paths": [
+   "src/studio/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Whiteboard silos into a separate document model; unification broken.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Whiteboard mode as StudioBoard over one StudioDocument",
+   "Shared machinery",
+   "No siloed type"
+  ],
+  "proof_targets": [
+   "board mode over one document; Argus canvas"
+  ],
+  "code_surfaces": [
+   "src/studio/whiteboard/board.rs",
+   "src/frontend/handshake_native/src/studio/board_canvas.rs"
+  ],
+  "expected_tests": [
+   "live: board mode operates over one StudioDocument (shared selection/history/export)",
+   "negative: no separate whiteboard document type/model",
+   "argus: board canvas reachable by author_id"
+  ],
+  "acceptance_criteria_original": [
+   "whiteboard mode as StudioBoard over one StudioDocument; shared machinery; no siloed type"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "board canvas",
+   "board mode switch"
+  ],
+  "argus_targets": [
+   "studio.board_canvas",
+   "studio.mode_switch.whiteboard"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Whiteboard / Board mode"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Whiteboard silos into a separate document model; unification broken.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Whiteboard mode as StudioBoard over one StudioDocument",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "board mode over one document; Argus canvas",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Shared machinery",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "No siloed type",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-WB-001",
+    "spec_clause_text": "[STU-WB-001] Studio MUST support a **whiteboard mode** of `StudioDocument`: an unbounded freeform board surface (`StudioBoard`) holding board objects as `StudioLayer` nodes, distinct from the fixed-canvas/artboard and page-spread modes but sharing the same document, selection, history, color, collaboration, command, and export machinery. A whiteboard document MUST NOT be a separate document type with its own siloed model; it is a mode of the one `StudioDocument` ([STU-DOC-001]), so board content can be selected, styled, versioned, exported, and model-steered through the identical primitives and commands as any other Studio content."
+   },
+   {
+    "anchor": "STU-DOC-001",
+    "spec_clause_text": "[STU-DOC-001] `StudioDocument` (schema id `hsk.studio.document@1`) is the single unified document type spanning all Studio domains. One document holds a tree of `StudioLayer` nodes over one or more `StudioArtboard`/`StudioPageSpread` containers; a layer's `kind` selects its domain payload (`raster`, `vector`, `text`, `group`, `adjustment`, `live_filter`, `mask`, `fill`, `component_instance`, `frame`, `placed_asset`). There is no per-source-app document silo: a raster edit, a vector edit, and a layout edit operate on layers in the same `StudioDocument` through the same selection, history, color, and export surfaces. `StudioDocument` MUST derive `schemars::JsonSchema` so its MCP `inputSchema` is auto-generated, and it is the single type shared between the model's output surface, the engines' input surface, and the typed SurrealDB object field (`studio_documents.doc_json`)."
+   },
+   {
+    "anchor": "STU-UNI-002",
+    "spec_clause_text": "[STU-UNI-002] TASK MODES OVER ONE DOCUMENT. Operator workflows are organized as workspace/persona-style TASK MODES over the SAME document and primitives — a photo/pixel mode, a vector/design mode, a page-layout mode, a design-system/prototyping mode, and a whiteboard mode — never separate applications or separate document states. Switching mode changes tool prominence and panel layout only; document state, selection, color, and history are untouched. (Field precedent: Affinity v3's Vector/Pixel/Layout studios over one `.af` document; Studio adopts the shared-primitive architecture, not an app-switching shell, and stays fully local-first.)"
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:27+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

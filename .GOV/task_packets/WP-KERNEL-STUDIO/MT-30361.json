@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30361",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAW-121#catalogue_row#0_range_colour_luminance_depth",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14. Masking and Local Adjustment",
+  "spec_line": 2465,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Range (colour, luminance, depth)",
+ "spec_anchor": [
+  "STU-RAW-121"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "CORRECTION AND MASK RECORD STRUCTURE.** A local adjustment is a **correction** holding a list of **masks** plus its own develop slider stack. Both levels carry identity and sync fields that MUST round-trip. Correction fields: `correction_id` (stable UUID), `correction_name`, `correction_active` (default true), `correction_amount` (`normalized_0_1`, `observed` 0.69 .. 1.38 — note it exceeds 1.0, so it is a gain, not a fraction; `derived` default 1.0), `correction_sync_id`, `correction_reference_x` / `correction_reference_y` (normalized image coordinates), `correction_masks` (the list), and the local slider stack of [STU-RAW-122]. Mask fields: `mask_id`, `mask_name`, `mask_active` (default true), `mask_inverted` (default false), `mask_value` (`normalized_0_1`, default 1.0), `mask_blend_mode` (`observed` 0 and 1), `mask_sub_type` (`observed` 0..3), `mask_sub_category_id` (see [STU-RAW-101]: this key's scale differs between the two serializations and MUST be converted), `mask_version`, `mask_sync_id`, `mask_digest`, `input_digest` + `input_digest_version`, `local_input_digest` + `local_input_digest_version`, `model_version`, `full_mask_size` (a `\"width,height\"` pair), `whole_image_area`, `origin`, `reference_point`, `error_reason`, and a `what` discriminator naming the source kind. The four digest fields are normative and are not incidental: a model-generated mask is only valid for [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Range (colour, luminance, depth)` satisfies the spec's stated mask source: Range (colour, luminance, depth)",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAW-121 catalogue row `Range (colour, luminance, depth)`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`Range (colour, luminance, depth)` satisfies the spec's stated fields: a sample set plus a refine/breadth control, and a map-view toggle",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAW-121 catalogue row `Range (colour, luminance, depth)`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`Range (colour, luminance, depth)` satisfies the spec's stated unit and bounds: normalized_0_1",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAW-121 catalogue row `Range (colour, luminance, depth)`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`Range (colour, luminance, depth)` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-RAW-121"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

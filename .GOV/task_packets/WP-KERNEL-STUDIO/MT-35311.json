@@ -1,0 +1,94 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35311",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-175#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "19. Microtask Derivation Rule (normative for 14.4 and 14.12)",
+  "spec_line": 2705,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "DERIVATION RULE (NORMATIVE; supersedes cut rules 1 and 2 of [STU-RAS-173])",
+ "spec_anchor": [
+  "STU-RAS-175"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "DERIVATION RULE (NORMATIVE; supersedes cut rules 1 and 2 of [STU-RAS-173]).** The 14.4 and 14.12 microtask set is derived from this module mechanically, not editorially. ONE microtask corresponds to ONE of the following units, and to nothing else: 1. **Each clause definition** in this module that states a stored contract, an enumeration, or an engine behaviour a reviewer can attack independently of its siblings. One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria. A parameter table is one unit however many primitives its rows span; it does not split. 3. **Each CATALOGUE ROW** — one row of a table whose first column names a separate implementable subject. The closed list of catalogued subject kinds in this module is: each raster layer kind (§3), each mask form (§4), each selection tool or operation (§5), each painting tool and each retouching tool (§7), each preset-family registry (§8), each `StudioAdjustment` kind (§9), each transform primitive (§11), each blend mode (§12), each layer-effect kind (§13), and each develop mask geometry source (14.12 §14). No other kind of row splits. 4. **Each ENUMERATION TABLE, taken w [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "One microtask per clause anchor — never one per sentence, and never gated on the clause containing a MUST, because a clause may state a stored contract in the indicative mood. 2. **Each PARAMETER TABLE, taken whole.** The table is the acceptance surface and every row's seven bound fields are its acceptance criteria.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-175"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Those unit kinds are therefore not members of its closed list and MUST NOT be imported into it by a tool that recognises them in other modules.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-175"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "A derivation tool that classifies a table differently from its marker, or that produces a different count for it, has diverged from this sub-section and MUST be reconciled against it, not the reverse.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAS-175"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-32954",
+ "created_at_utc": "2026-09-04T13:36:11+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-FX-024#catalogue_row#0_develop_as_filter",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "12. Interactive Filter Workspaces",
+  "spec_line": 18343,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Develop-as-Filter",
+ "spec_anchor": [
+  "STU-FX-024"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "effects",
+ "scope": {
+  "summary": "The mesh-push (Liquify) workspace hosts sub-tools as one effect kind: forward-warp (push pixels in drag direction), pucker (contract toward center), bloat (expand outward), twirl (rotate cw/ccw), plus freeze-mask (protect regions), thaw-mask (release), and reconstruct/smooth (revert or relax distortion). A face-aware mode detects faces and exposes parametric eye/nose/mouth/face-shape sliders. Brush size/pressure/density and a preview toggle are shared workspace parameters. Its distortion is stored as a re-editable mesh on the stack entry (dedup of the destructive workspace and the live-filter mesh warp). | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Mesh-Push (Liquify) workspace | R | Req | Interactive push/pucker/bloat/twirl warping with freeze/thaw masking, reconstruct/smooth, face-aware sliders, and re-editable mesh; brush size/pressure/density + preview. | | Perspective-Plane workspace | R | Req | Perspective-plane workspace where clone/paint/paste/transform operations conform to user-defined perspective planes. | | Lens Correction workspace | R | Opt | Fixes barrel/pincushion distortion, chromatic aberration, and vignetting via lens-profile auto-correction or a manual custom tab. | | Adaptive Wide-Angle workspace | R | Req | Corrects panoramic/wide-angle/fisheye distortion by drawing constraint lines that straighten curved geometry. | | Devel [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Develop-as-Filter` satisfies the spec's stated studio effect: Develop-as-Filter",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-024 catalogue row `Develop-as-Filter`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`Develop-as-Filter` satisfies the spec's stated targets: R",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-024 catalogue row `Develop-as-Filter`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`Develop-as-Filter` satisfies the spec's stated gpu: Opt",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-024 catalogue row `Develop-as-Filter`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`Develop-as-Filter` satisfies the spec's stated behavior (normative): Applies the full Camera Raw / Develop edit stack (14.12) as a non-destructive filter entry on any layer. Engine owned by 14.12; hosted here as a `StudioLiveFilter`.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-024 catalogue row `Develop-as-Filter`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`Develop-as-Filter` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-FX-024"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

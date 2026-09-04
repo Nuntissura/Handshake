@@ -1,0 +1,94 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34017",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-MOT-112#catalogue_row#0_view",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.26.9 Motion presets and the scripting surface",
+  "spec_line": 26581,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "View",
+ "spec_anchor": [
+  "STU-MOT-112"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "motion",
+ "scope": {
+  "summary": "The automation/scripting surface for motion is enumerated, and 14.14 owns it.** 44 scripting classes with 1,708 members are recovered as the object-model shape a Studio automation API must cover: project, item collections, compositions, layers, layer collections, property groups, properties, keyframes, render queue items, output modules, viewers, footage sources and the text document. This sub-section requires only that the automation surface be a projection of the same primitives specified here -- one property model, not a parallel scripting model ([STU-DOC-004]). *Derivation: catalogue table, splits per row; yields 44 microtasks, one per scripting class.* | Class | Members | |---|---| | `AVLayer` | 118 | | `CameraLayer` | 9 | | `CharacterRange` | 0 | | `CompItem` | 67 | | `ComposedLineRange` | 7 | | `DeferredCall` | 490 | | `File` | 61 | | `FileSource` | 114 | | `Folder` | 13 | | `FolderItem` | 1 | | `Font` | 59 | | `FootageItem` | 5 | | `GuideOptions` | 3 | | `ImportOptions` | 9 | | `ItemCollection` | 5 | | `KeyframeEase` | 3 | | `Layer` | 2 | | `LayerCollection` | 21 | | `LightLayer` | 2 | | `MarkerValue` | 10 | | `MaskPropertyGroup` | 6 | | `MaterialPropertyGroup` | 188 | | `OMCollection` | 1 | | `OutputModule` | 14 | | `ParagraphRange` | 0 | | `ParametricMeshLayer` | 20 | | `PlaceholderSource` | 0 | | `PreviewOptions` | 8 | | `Project` | 56 | | `Property` | 90 | | `Proper [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`View` satisfies the spec's stated class: `View`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-112 catalogue row `View`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`View` satisfies the spec's stated members: 3",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-112 catalogue row `View`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`View` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-MOT-112"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

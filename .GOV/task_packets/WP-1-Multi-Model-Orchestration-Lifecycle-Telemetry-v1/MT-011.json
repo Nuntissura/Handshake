@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-011",
   "created_at_utc": "2026-06-28T18:06:24.222Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-09-01T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -38,33 +38,168 @@
       "The machine-readable per-behavior coverage matrix must be confirmed to FAIL when a behavior lacks a UserManual entry, EventLedger/FR evidence, a per-tier posture, a runtime route/schema, or a self-consistency result - the falsifiability of the matrix itself, not just of the substitution negatives."
     ]
   },
+  "v6_surreal_only_correction_2026_09_01": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "authority_resolution": {
+      "canonical_user_manual": "PRODUCT_GLOBAL_HBR_PRIV_NOT_APPLICABLE",
+      "canonical_user_manual_anchor": "WP-1 MT-022 lifecycle.hbr_status and scope.acceptance_criteria AC-7 establish product-global user_manual_* authority; AC-8 applies exact five-dimensional scope only to the separately derived workspace KnowledgeEntity bundle bridge.",
+      "mt011_scoped_resources": "ModelLane run-level diagnostic tier records, their canonical kernel EventLedger evidence, and any scoped runtime projection derived from them.",
+      "retracted_finding": "The earlier proposal to require a scoped UserManual provider/schema was an unsupported scope invention and is withdrawn. No such dependency remains."
+    },
+    "historical_provenance": {
+      "v5_proofs": "SUPERSEDED_PROVENANCE_ONLY",
+      "visual_evidence": "SUPERSEDED_PROVENANCE_ONLY",
+      "active_v6_credit": "NONE_WITHOUT_FRESH_SERIALIZED_RUNTIME_AND_NATIVE_PROOF"
+    },
+    "inspected_artifacts": [
+      {
+        "path": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+        "sha256_before_v6_correction": "86C73AD1B2C30CE3F058EDC57549B3B207FB58F0FFEAAF3D40EFE04B4DF74F81"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs",
+        "sha256_inspected": "0CC875ACE60F1A6DE35EC82AB41925B7BDFA62E6B665A6C8F8426169D697E703"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/user_manual_api_tests.rs",
+        "sha256_inspected": "667D1EB7F039AF74CB210DAD287DE4E33A36DAE1003EBC0768FF77D83960E223"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/user_manual_storage_tests.rs",
+        "sha256_inspected": "1C98FEA70D351D478B52064F305335BF4948077CE5A8936FB676905F530034F7"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/user_manual_freshness_fixture_tests.rs",
+        "sha256_inspected": "417CEBCF06CC488AD33A9DCC56EF4BF7CF0C310D1B5C7ACCD8F138DD6161BE54"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/user_manual_content_tests.rs",
+        "sha256_inspected": "F7C4E8D6C740EE5AA3AC22C4078FA73BCAAFB48684B7319BBE91525D9480796A"
+      },
+      {
+        "path": "src/backend/handshake_core/Cargo.toml",
+        "sha256_inspected": "58BC590BECFFFB94EE21DE13865779A3E40EAEBB7CEBFF8ECA28ED9656C2DB8A"
+      }
+    ],
+    "assertion_inventory": {
+      "product_global_manual": [
+        "One canonical in-product UserManual with legacy ModelManual aliases and no documentation island.",
+        "Coverage for ModelLaneRun, ModelLane, ModelLaneMessage, launch variants, ContextBundle handoff and artifact refs, cloud projection and consent, promotion, recovery/orphan/replay, diagnostics, navigation, validation harnesses, mixed runs, and worktree/microVM operation.",
+        "Each behavior entry states purpose, usage and invocation path, inputs and outputs, affected primitives, durable authority, failure modes, recovery steps, and exact proof.",
+        "Deterministic product-global seed/resync, stable IDs, bounded reads/search, current version, ordered sections/anchors, alias resolution, tamper detection/healing, idempotent retries, and canonical kernel EventLedger receipts.",
+        "Compiled-source and route self-consistency rejects missing, renamed, stale, fabricated, or uncovered surfaces."
+      ],
+      "machine_readable_matrix": [
+        "Schema hsk.user_manual_behavior_coverage@1 is keyed by behavior_id and retains schema or event family, runtime surface, UserManual slug/version, proof tool, canonical EventLedger/Flight Recorder path, internal_diagnostics posture, Palmistry posture, self-consistency result, reason, and follow-up reference.",
+        "Exact ModelLane behavior set: run, launch, official CLI spawn, attached sandbox, message, terminal, promotion, ContextBundle artifact, ContextBundle handoff, cloud projection plan v1/v2, cloud consent v1/v2, cloud consent denial, recovery, recovery event v1/v2, lease, diagnostics, mixed validation, routing execution, routing outbox, routing stage attempt, and run extension.",
+        "Every compiled ModelLane schema registry row has coverage; duplicate behavior IDs and an empty matrix fail.",
+        "Each required matrix column has an independent missing/tampered negative and inconsistent rows cannot be projected as green."
+      ],
+      "diagnostic_and_event_evidence": [
+        "One run-level HBR-INT-009 envelope carries Flight Recorder, internal_diagnostics, and Palmistry tier records backed by the same scoped run.",
+        "Exact evidence bindings are eventledger://kernel/, internal-diagnostics://session/, and palmistry-observation://session/; all six cross-tier substitutions, unbound schemes, wrong roots, absent evidence, incomplete tiers, deferred tiers, and per-behavior wired-literal gaming fail closed.",
+        "Scoped diagnostic rows and their canonical kernel EventLedger records use the same exact five-field attribution and cannot be substituted with detached evidence."
+      ],
+      "scope_privacy_and_restart": [
+        "Same-scope positive reads remain available.",
+        "Five independent one-field mismatches deny owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id without identifier, URI, reason, payload, count, or existence leakage.",
+        "Legacy or incomplete scoped diagnostic/runtime rows fail closed.",
+        "Stale and revoked access contexts deny reads and mutations without changing diagnostic rows or canonical ledger state.",
+        "The same cloned/injected SurrealStorage namespace and database are reopened after shutdown and preserve scoped diagnostic evidence, matrix truth, ordering, and idempotency."
+      ],
+      "native_operator_proof": [
+        "Rust-native Argus displays the real mixed-run diagnostic projection, exact counts, tier posture, privacy denial, and recovery navigation without stealing focus.",
+        "Old pixels remain historical only; fresh production evidence is required for the current V6 source state."
+      ]
+    },
+    "current_source_findings": {
+      "complete_embedded_parts": [
+        "The owned UserManual tests now use injected embedded SurrealStorage and contain no active relational symbols.",
+        "UserManual mutations atomically link product-global records to canonical kernel EventLedger receipts.",
+        "ModelLane Surreal authority records link to canonical kernel EventLedger and carry all five scope fields.",
+        "The matrix, diagnostic-tier URI binding, run-level positive/absent/incomplete/deferred guards, and owner/workspace privacy negatives exist in current source."
+      ],
+      "blocking_gaps": [
+        "The MT-011 privacy test changes multiple fields together for the account case and separately changes workspace; it does not isolate all five one-field mismatches.",
+        "No MT-011 test injects a legacy/incomplete scoped diagnostic row and proves fail-closed behavior.",
+        "ResourceAccessContext has exact-attribution checks but no authoritative stale/revoked lifecycle seam that MT-011 can exercise without shared-provider work.",
+        "No denied-path test snapshots diagnostic and canonical ledger state before and after denial to prove zero mutation.",
+        "No MT-011 test closes and reopens the same allocator-owned namespace/database before re-reading diagnostic evidence.",
+        "Fresh Rust-native Argus production evidence is absent for the current source state."
+      ]
+    },
+    "missing_provider_apis_and_test_seams": [
+      "Shared authority owner: expose an authoritative stale/revoked state on ResourceAccessContext, or a narrow production-equivalent validator consumed by ModelLaneStore diagnostic reads and writes.",
+      "MT-011 test seam: allow bounded test injection of an incomplete ModelLane diagnostic/runtime authority row and canonical ledger row without bypassing production read authorization.",
+      "Existing reusable seam: EmbeddedSurrealTestScope::shutdown_storage_for_reopen, reopen, and activate_storage can prove same-namespace restart once the scoped diagnostic assertions are completed.",
+      "No UserManual provider/schema dependency is missing; product-global UserManual semantics are authoritative under MT-022."
+    ],
+    "DIFF_ATTACK_SURFACES": [
+      "Concurrent migration of UserManual store, API, seed corpus, behavior matrix, freshness, and five owned test targets.",
+      "Scoped ModelLane diagnostic records and canonical kernel EventLedger linkage used by run-level HBR-INT-009 verification.",
+      "Rust-native Argus projection and its current-source evidence boundary.",
+      "Contract lifecycle and proof commands after the embedded-only operator correction."
+    ],
+    "INDEPENDENT_CHECKS_RUN": [
+      "Parsed MT-011 and the taskboard row independently; the taskboard still reports FAIL_V5 while this owned contract is demoted to BLOCKED_ON_DEPENDENCY.",
+      "Read the current UserManual store/schema and verified product-global canonical EventLedger transactions separately from scoped ModelLane diagnostic authority.",
+      "Read the exact MT-011 behavior/privacy tests and counted only owner and workspace mismatch coverage, not five isolated field mismatches.",
+      "Ran focused diff whitespace checks and current-source symbol scans only; no build or test command was run."
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      "A product-global UserManual row without ResourceScope is not a privacy defect because MT-022 explicitly makes HBR-PRIV not applicable to that surface; only derived workspace knowledge and MT-011 scoped diagnostics are narrowed.",
+      "An owner mismatch plus a workspace mismatch cannot prove actor, authenticated-session, or access-space predicates; each field must be the sole changed dimension.",
+      "A test name, compiled matrix, or static source guard cannot replace same-namespace restart or fresh native runtime evidence.",
+      "Historical pixels and V5 runs do not prove the materially changed current source."
+    ],
+    "BOUNDARY_PROBES": [
+      "Separated product-global UserManual content/route authority from scoped ModelLane diagnostics and the separately derived workspace KnowledgeEntity bridge.",
+      "Separated canonical kernel EventLedger linkage from diagnostic URI strings and Flight Recorder projection.",
+      "Separated a cloned handle in one process from close/reopen of the same exact namespace/database.",
+      "Separated headless matrix/API proof from production Rust-native Argus proof."
+    ],
+    "NEGATIVE_PATH_CHECKS": [
+      "Missing manual page, diagnostic posture, runtime surface, proof tool, matrix column, duplicate behavior, and empty matrix are preserved as negative inventory.",
+      "All six cross-tier substitutions, unbound scheme, wrong authority root, absent/incomplete/deferred tier envelope, and wired-literal gaming are preserved.",
+      "All five isolated scope mismatches, incomplete legacy row, stale/revoked context, no-leakage, and zero denied mutation remain mandatory but unproven."
+    ],
+    "INDEPENDENT_FINDINGS": [
+      "HIGH: current MT-011 scoped privacy proof does not independently exercise actor_principal_id, authenticated_session_id, or access_space_id mismatch and therefore cannot establish all-five predicates.",
+      "HIGH: stale/revoked access-context denial and denied-state immutability have no current MT-011 production-equivalent seam.",
+      "HIGH: the current embedded suite does not prove diagnostic evidence survives close/reopen of the same namespace/database.",
+      "HIGH: current-source Rust-native Argus production evidence is absent; historical pixels are not V6 proof.",
+      "CORRECTED: product-global UserManual tables are intentionally unscoped under authoritative MT-022 and are not a blocker."
+    ],
+    "RESIDUAL_UNCERTAINTY": "No Cargo, runtime, or GUI command was authorized in this lane. Product tests and shared providers have large concurrent diffs, so hashes record only the inspected snapshot and no compile or runtime verdict is claimed.",
+    "handoff": "Parfit should route only the stale/revoked ResourceAccessContext seam to its shared authority owner, then return MT-011 for the complete scoped diagnostic test and serialized parent proof. Do not create a scoped UserManual provider."
+  },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-009",
       "MT-010"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T12:53:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
-    "ready_for_validation_at_utc": "2026-08-04T12:00:00Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": null,
-    "proof_status": "FAIL_V5: No fresh exact proof completed, and required derived-resource non-widening and authorization-provenance privacy gates remain unproven. Existing fail-closed source structure is not runtime proof. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_MAN_001_002_003_004_AND_INT_009_FOR_MT011_TIER_SCHEME_BINDING_GREEN; HBR-PRIV-004/005 DECLARED_NOT_YET_PROVEN - shared scope substrate proven (0363+0364, resource_scope.rs, model_lane_resource_scope_pg_tests 7/0) but MT-011-specific diagnostic-surface scope-filtering evidence is not yet attached.",
+    "blocker": "V6 embedded-only closure is blocked on MT-011's scoped ModelLane diagnostic/runtime evidence: the current suite lacks five independent one-field mismatch denials, legacy/incomplete diagnostic-row denial, stale/revoked access-context denial, zero-denied-mutation proof, and same-namespace restart proof; current Rust-native Argus evidence is not fresh production proof. Canonical UserManual content and routes are product-global and are not part of this privacy blocker.",
+    "missing_resource": "An authoritative stale/revoked ResourceAccessContext test seam for scoped ModelLane diagnostics/runtime records plus a fresh serialized runtime/Argus validation slot. No scoped UserManual provider or schema is required.",
+    "proof_status": "BLOCKED_ON_DEPENDENCY_V6: concurrent embedded migration was inspected but is not credited as a coherent complete suite. Historical V5 runs and pixels are superseded provenance only. No build or test was run in this correction.",
+    "hbr_status": "V6_UNPROVEN: HBR-MAN matrix and diagnostic URI guards remain in the assertion inventory. Per authoritative WP-1 MT-022, HBR-PRIV is NOT_APPLICABLE to the product-global UserManual itself; exact five-field scope applies only to MT-011's scoped ModelLane diagnostic/runtime records. Their stale/revoked denial, no-leakage/no-mutation, restart durability, and fresh native evidence remain owed.",
     "kb_ready_checklist_receipt_id": null,
-    "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
+    "product_worktree_root_resolution": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
+    "last_runtime_status_ref": null,
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "COMPLETED_20260729_HONEST_RUNLEVEL_DOWNGRADE_TAUTOLOGY_KILLED_EVIDENCE_GATE_WIRED",
-    "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; VACUOUS_WIRED_FLIP_REMEDIATED_PER_OPERATOR_DECISION_RUNLEVEL_ENCODING; RESIDUAL_BY_DESIGN: static matrix check is structural-only, liveness proven by run-level evidence gate + its two PG tests",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
+    "post_implementation_adversarial_review_status": "V6_REVIEW_20260901_BLOCKED_ON_DEPENDENCY",
+    "adversarial_findings_status": "OPEN_V6_BLOCKERS: all five one-field diagnostic/runtime denials, legacy/incomplete scoped-row denial, stale/revoked context, denied-state immutability, same-namespace restart, and fresh native Argus proof. Product-global UserManual scope is explicitly not a blocker.",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Make the in-product internal UserManual reflect every ModelLane/cloud/local/subagent orchestration behavior this WP introduces, including Flight Recorder/EventLedger linkage and Palmistry/internal_diagnostics posture.",
@@ -113,10 +248,12 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_postgres -- --exact"
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests mt011_exact_five_field_scope_restart_and_context_denial -- --exact --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_embedded_store -- --exact --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-native-cargo-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\frontend\\handshake_native\\Cargo.toml' --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact --test-threads=1"
     ],
     "risk_if_missed": "Future models and the operator will only understand the new orchestration system through this chat or stale packets, causing parallel work, recovery, diagnostics, and cloud/local handoff to drift.",
     "reference_only_paths": [
@@ -133,14 +270,14 @@
     "Do not own or rename the internal visual/debug tool in this MT. Use the project-approved name from the separate viewing-tool worktree/session when it exists; otherwise describe the backend navigation equivalent and mark naming as out-of-scope dependency.",
     "Do not build Palmistry or internal_diagnostics here if those surfaces are not in this worktree. Record DEFERRED-with-reason and the follow-up integration hook required by HBR-INT-009/HBR-MAN-004.",
     "Manual entries must cite implemented code truth. If a behavior is deferred, roadmap, or blocked by another worktree, label it that way with reason instead of presenting it as live.",
-    "Keep durable state authority clear: PostgreSQL/EventLedger/ArtifactStore/ContextBundle/CRDT/Flight Recorder are product authority or evidence surfaces; Markdown/chat/manual prose is a projection and operating guide, not runtime authority.",
+    "Keep durable state authority clear: injected embedded SurrealStorage with canonical kernel EventLedger, ArtifactStore, ContextBundle, CRDT, and Flight Recorder are product authority or evidence surfaces; Markdown/chat/manual prose is a projection and operating guide, not runtime authority.",
     "Treat UserManual as part of product operation, not repo-governance prose. It must be available to future no-context models and operators through product APIs/navigation.",
     "Loom/FEMS/ContextBundle references in manual entries must point to actual backend storage/API surfaces or be explicitly deferred; do not invent visible names from this session.",
     "Manual entries should include enough exact primitives, IDs, commands/routes, expected I/O, failure modes, and recovery steps for a model with no conversation history to use the feature.",
     "Use Flight Recorder/EventLedger payloads as bounded events plus artifact refs; do not put unbounded model output, raw secrets, or prompt-only state in event payloads.",
     "If this MT changes any product behavior, storage/event contract, command, IPC/API path, diagnostic surface, model lane, or navigation path, update the in-product UserManual in the same implementation change per HBR-MAN-004.",
     "Product implementation for this MT must be Rust-only: Rust backend plus Rust native egui/Argus surfaces where UI is touched. Legacy app/src, app/src-tauri, React, Tauri/WebView, TypeScript, JavaScript, docs/model-manual, and npm proof targets are reference-only or forbidden and MUST NOT satisfy implementation/proof authority.",
-    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources or an explicit real PostgreSQL URL.",
+    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but embedded SurrealStorage, canonical kernel EventLedger, ArtifactStore, CRDT, UserManual, and Argus authority must touch real Handshake-owned Rust resources.",
     "Each behavior-changing MT must include same-change UserManual coverage for the changed behavior; MT-011 audits coverage and cannot substitute for same-change HBR-MAN-004 proof.",
     "This pre-implementation contract review does not replace post-implementation review. After coding, run adversarial review against the actual diff through the listed lenses and update MT status signaling before handoff."
   ],
@@ -168,7 +305,7 @@
     "post_implementation_adversarial_review_required": true,
     "post_implementation_review_lenses": [
       "runtime_launch_and_model_lane_authority",
-      "postgres_eventledger_crdt_state_recovery",
+      "embedded_surreal_kernel_eventledger_crdt_state_recovery",
       "rust_native_argus_operator_surface_and_usermanual",
       "spec_realism_negative_guards_and_mt_status_signaling"
     ]
@@ -202,7 +339,7 @@
       "HBR-MAN-004 requires same-change UserManual updates and diagnostic linkage",
       "src/backend/handshake_core/src/api/user_manual.rs exposes canonical UserManual APIs and legacy alias plan",
       "src/backend/handshake_core/src/flight_recorder/mod.rs includes MemoryPack and Loom event types",
-      "src/backend/handshake_core/tests/user_manual_storage_tests.rs states UserManual proof requires live PostgreSQL/EventLedger"
+      "src/backend/handshake_core/tests/user_manual_storage_tests.rs currently exercises the canonical UserManual through embedded SurrealStorage and canonical kernel EventLedger receipts"
     ],
     "external_sources_checked": [
       {
@@ -226,19 +363,14 @@
         "url": "https://research.google/pubs/dapper-a-large-scale-distributed-systems-tracing-infrastructure/"
       },
       {
-        "id": "pgEvent",
-        "name": "PostgreSQL event sourcing reference",
-        "url": "https://github.com/eugene-khyst/postgresql-event-sourcing"
-      },
-      {
-        "id": "pgvector",
-        "name": "pgvector Postgres vector search",
-        "url": "https://github.com/pgvector/pgvector"
+        "id": "surrealdb",
+        "name": "SurrealDB documentation",
+        "url": "https://surrealdb.com/docs/surrealdb"
       }
     ],
     "patterns_applied": [
       "Typed multi-agent orchestration becomes ModelLaneRun/ModelLane/ModelLaneMessage records, never peer-to-peer chat authority.",
-      "Durable workflow/replay patterns become PostgreSQL/EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
+      "Durable workflow/replay patterns become embedded SurrealStorage plus canonical kernel EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
       "CRDT research becomes explicit draft/proposal/update/state-vector/snapshot/stale-base records before promotion.",
       "Trace/span research becomes propagated trace_id/span_id/model_session_id/lane_id correlation across lanes, tools, providers, artifacts, and diagnostics.",
       "Tool protocol research becomes Handshake capability check, consent/projection, Flight Recorder/EventLedger logging, execution, result capture, and recovery."
@@ -247,8 +379,8 @@
       "peer-to-peer model channels outside coordinator-owned ModelLaneMessage records",
       "prompt-only or chat-history-only state transfer",
       "legacy app/src React/Tauri code as runtime authority",
-      "SQLite runtime/test/fixture/cache/fallback authority for this WP",
-      "Flight Recorder-only replay without PostgreSQL/EventLedger authority rows",
+      "any relational runtime, test, fixture, cache, or fallback authority for this WP",
+      "Flight Recorder-only replay without embedded SurrealStorage and canonical kernel EventLedger authority rows",
       "manual or markdown prose as product runtime authority"
     ],
     "selected_handshake_translation": "Manual currency is a WP-wide acceptance gate: every implemented behavior has a UserManual entry with exact usage, code-truth refs, Flight Recorder/EventLedger evidence, and internal_diagnostics/Palmistry status."
@@ -258,8 +390,8 @@
     "product_reference_file_posture": "reference/navigation only; do not override SPEC_CURRENT, master spec, build rules, or product code evidence",
     "proposal_promotion_model": "Models may propose, critique, summarize, and produce artifacts; Handshake validates/promotes deterministically through Rust backend authority surfaces before state becomes authoritative.",
     "durable_authority": [
-      "PostgreSQL",
-      "EventLedger",
+      "embedded SurrealStorage",
+      "canonical kernel EventLedger",
       "ArtifactStore",
       "ContextBundle",
       "CRDT/write-box when shared editable state is touched"
@@ -281,7 +413,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V5",
+  "validator_verdict": null,
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",

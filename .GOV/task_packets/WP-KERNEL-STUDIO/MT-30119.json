@@ -1,0 +1,135 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30119",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-136#parameter_table#0",
+  "unit_kind": "parameter_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "6. The Brush Engine",
+  "spec_line": 1011,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "STROKE SMOOTHING (supersedes the \"0–100\" claim in [STU-RAS-023]) - distinct smoothing serializations in the captured data whose ranges do not agree parameter bounds",
+ "spec_anchor": [
+  "STU-RAS-136"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "STROKE SMOOTHING (supersedes the \"0–100\" claim in [STU-RAS-023]).** Stroke smoothing is not one 0..100 slider. It is one numeric strength plus five independent booleans, and there are two distinct smoothing serializations in the captured data whose ranges do not agree: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | observed | classification | |---|---|---|---|---|---|---|---|---|---| | `smoothing_enabled` | — | — | — | — | false | none | — | true in 112 of 138 | boolean | | `smoothing_strength` | 0 | 100 | 0 | 100 | 0 | percent | 0 | 0 .. 23 | soft/hard 0..100 `derived` from the percentage domain; the observed spread across shipped presets is 0..23 and is NOT the limit | | `smoothing_legacy_strength` | unknown | unknown | 0 | 10 | 0 | count | 0 | 0 .. 10 | a second, coarser smoothing field on a different serialization; retained for round-trip, not exposed as a second operator control | | `pulled_string_mode` | — | — | — | — | false | none | — | false in all observed | boolean; the stroke follows only when the leash is taut | | `stroke_catch_up` | — | — | — | — | true | none | — | true in all observed | boolean | | `catch_up_on_stroke_end` | — | — | — | — | false | none | — | false in all observed | boolean | | `zoo [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The parameter `smoothing_enabled` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-136 parameter table row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The parameter `smoothing_strength` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=percent, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-136 parameter table row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The parameter `smoothing_legacy_strength` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=0, soft_max=10, default=0, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-RAS-136 parameter table row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The parameter `pulled_string_mode` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-136 parameter table row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The parameter `stroke_catch_up` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=true, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-136 parameter table row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The parameter `catch_up_on_stroke_end` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-136 parameter table row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The parameter `zoom_compensation` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=true, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-136 parameter table row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The parameter `pressure_smoothing` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-136 parameter table row 8"
+  }
+ ],
+ "acceptance_criteria_count": 8,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

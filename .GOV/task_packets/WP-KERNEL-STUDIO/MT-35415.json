@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35415",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-119#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "11. Microtask Derivation",
+  "spec_line": 30745,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Yields index (2)",
+ "spec_anchor": [
+  "STU-SHL-119"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "Yields index.** Applying [STU-SHL-116] through [STU-SHL-118] to this sub-section yields the counts below. Every count is enumerated from the module text, not estimated, and the groups partition the sub-section with no clause counted twice and none omitted. | Unit group | Clauses | Yields | |---|---|---| | Shell composition and module contract | [STU-SHL-001]-[STU-SHL-009] | 10 | | Menu position, index promise, one registry and the seven invariants | [STU-SHL-010]-[STU-SHL-021] | 12 | | The full menu tree, one unit per top-level menu | [STU-SHL-022]-[STU-SHL-037] | 16 | | Expansion-node register, tool submenu shape, menu-only nodes, palette index | [STU-SHL-038]-[STU-SHL-041] | 17 | | Shortcut policy, ranks, shipped sets and the conflict report | [STU-SHL-042]-[STU-SHL-045] | 4 | | The availability predicate | [STU-SHL-046]-[STU-SHL-055] | 11 | | The slot resolver | [STU-SHL-056]-[STU-SHL-062] | 7 | | Dock structure, regions, viewer kinds, panel states, constraints, registry | [STU-SHL-063]-[STU-SHL-071] | 9 | | Panel density | [STU-SHL-072]-[STU-SHL-074] | 4 | | Panel inventory, classes, merge law, the shipping spine | [STU-SHL-075]-[STU-SHL-080] | 6 | | Layout persistence cascade | [STU-SHL-081]-[STU-SHL-083] | 7 | | Default Layout Presets per profile, and the two time surfaces | [STU-SHL-084]-[STU-SHL-092] | 9 | | Layout Presets, Task Scope boundary, document tabs, the two en [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "A microtask that cannot cite an anchor in this sub-section, in 14.31 or in 14.32 is out of scope for the operator shell and MUST be re-derived or retired, not activated. --- ## 14.31 ## 14.31 Tools, the Options Surface, and the Scrubbable Numeric Control This sub-section specifies what lives inside the operator shell of 14.30: the tool registry and its families, the Tool Rail, the two-zone Context Bar, Task Scopes, the generated numeric parameter contract, and the one scrubbable numeric widget every value in Studio is edited through.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-119"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

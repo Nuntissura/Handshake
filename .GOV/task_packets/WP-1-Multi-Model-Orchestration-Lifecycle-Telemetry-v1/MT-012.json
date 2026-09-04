@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-012",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
-  "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-04",
+  "updated_at_utc": "2026-09-01T00:00:00Z",
+  "scope_status": "V6_BLOCKED_ON_DEPENDENCY_2026-09-01",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -16,7 +16,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-003",
       "MT-008",
@@ -26,22 +26,22 @@
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260704-030347",
     "claimed_at_utc": "2026-07-04T03:03:47Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
-    "ready_for_validation_at_utc": "2026-08-04T12:20:00Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": "Validator-gated: live-GPU pixel grab of a real pop-out operator-chat window (GUI host).",
-    "proof_status": "FAIL_V5: A declared acceptance command fails now: git diff --check main...HEAD exits 2 because pidless_cloud_lifecycle_harness/Cargo.toml has a new blank line at EOF. The UI proof also uses egui_kittest/RecordingBackend rather than production-socket Argus. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_VIS_INT_SWARM_QUIET_MAN_FOR_MT012_OPERATOR_CHAT_SURFACE: native egui/Argus surface, LOCAL/CLOUD/CLI/SUBAGENT inventory rows, SwarmCoordinator Dexterity launch route fail-closed, SUBAGENT no-OS launch records RuntimeBinding::Subagent and LaunchAuthority::SubagentManager without process ownership, ModelLaneMessage capture + Flight Recorder/EventLedger evidence for process-backed lanes, UserManual coverage, stable author_id controls, official-CLI runtime duplicate FR-EVT-AGENT producer suppressed for replay-captured Operator Chat while LLM infer telemetry remains wired.; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
+    "blocker": "V6 Surreal-only closure is blocked: the retained backend target is relational and the shared coordinator routing-execution composition is not yet backed by the same injected embedded SurrealStorage. Provider-neutral cancellation fault hooks, scoped stale/revoked denial seams, canonical ledger/process inspection seams, and live production-socket Argus proof are also absent.",
+    "missing_resource": "Shared predecessors: Surreal routing-execution provider plus coordinator composition on the same cloned storage and exact ResourceScope; provider-neutral pause/fail-once terminal-commit hooks; bounded canonical EventLedger, ArtifactStore, ProcessLedger, and cleanup-receipt inspection APIs; stale/revoked ResourceAccessContext seam; production-socket Argus drive/capture for docked and detached Operator Chat.",
+    "proof_status": "V6 NOT RUN and NOT READY. The unchanged relational backend suite and in-process egui_kittest RecordingBackend suite are superseded historical provenance only. No partial Surreal surrogate was created; no Cargo, build, test, clean, native GUI, or Argus proof was run during the 2026-09-01 authority correction.",
+    "hbr_status": "V6 UNPROVEN. Scoped Operator Chat ModelLane/runtime resources require exact owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id enforcement. Product-global UserManual content and route coverage remain HBR-PRIV NOT_APPLICABLE and are not a scoped-provider dependency. Historical visual evidence is superseded provenance, not current HBR-VIS proof.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review_BUILD_AFTER_MT014_MT015",
-    "post_implementation_adversarial_review_status": "COMPLETED_20260729",
-    "adversarial_findings_status": "POST_REVIEW_BLOCKER_APPLIED: production Operator Chat official-CLI providers use replay-captured builder; runtime-level FR-EVT-AGENT emission can be suppressed independently from FR-EVT-LLM-INFER telemetry; local/cloud picker selection audit and unavailable-row disable behavior proven.",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
+    "post_implementation_adversarial_review_status": "V6_REVIEW_BLOCKED_ON_DEPENDENCY_2026-09-01",
+    "adversarial_findings_status": "OPEN_V6: retained relational proof is invalid under the embedded-Surreal-only correction; shared composition, fault-injection, authorization-lifecycle, canonical-inspection, and production Argus predecessors remain.",
+    "validated_by": null,
+    "validated_at_utc": null,
+    "last_runtime_status_ref": null
   },
   "scope": {
     "summary": "Operator work-surface: an interactive native chat/launch pane where the operator selects a local or cloud model lane and a folder/worktree, launches a session through the Dexterity SwarmCoordinator contract, and sees the CLI-wrapper conversation, model-exposed reasoning/thought, and tool calls captured as typed ModelLaneMessage records wired to Flight Recorder.",
@@ -63,25 +63,26 @@
       "new TypeScript/React/app/src implementation",
       "direct model endpoint calls outside LlmClient/ModelRuntime/CloudLane",
       "peer-to-peer hidden model channels",
-      "SQLite runtime/test/fixture additions"
+      "relational runtime/test/fixture/cache/fallback additions"
     ],
     "acceptance_criteria": [
       "A native egui operator pane (registered PaneType in pane_registry.rs, reachable from the RUN menu and/or module switcher) presents an interactive chat/session surface: prompt input, streamed response, and per-turn model-exposed reasoning/thought and tool-call rows.",
       "The pane lets the operator select a model lane kind and concrete model for LOCAL and CLOUD via the spec model-selection mechanism / Work Profiles (spec 4.3.9.4.4; the operator-visible selection UI is built here), and select a folder/worktree/project as the session working location by reusing existing workspace surfaces (project_tree/project_tabs), not a bespoke picker.",
-      "Launch resolves through the backend SwarmCoordinator::spawn_session Dexterity launch contract (never a frontend, app/src, direct-endpoint, or terminal launch authority) and produces ModelLaneRun/ModelLane records; missing ModelLaneStore/PostgreSQL authority fails closed.",
+      "Launch resolves through the backend SwarmCoordinator::spawn_session Dexterity launch contract (never a frontend, app/src, direct-endpoint, or terminal launch authority) and produces ModelLaneRun/ModelLane records in the same injected embedded SurrealStorage namespace; missing scoped storage authority fails closed.",
       "The CLI-wrapper capture (conversation text, model-exposed reasoning/thought, tool calls) is recorded as typed ModelLaneMessage records under the launched ModelLaneRun, re-homing the WP-KERNEL-004 AgentActivity capture onto the native path (not the legacy app/src-tauri transcript seam), with payload_ref/payload_sha256 to ArtifactStore for non-status bytes.",
-      "Every captured conversation/thought/tool-call and launch/status transition emits Flight Recorder/EventLedger evidence and records the HBR-INT-009 three-tier posture (Flight Recorder WIRED where the behavior is a business event; internal_diagnostics and Palmistry DEFERRED-with-reason until WP-KERNEL-012/016 ship).",
+      "Every captured conversation/thought/tool-call and launch/status transition appends the canonical kernel EventLedger atomically with the governed mutation and records the HBR-INT-009 three-tier posture (Flight Recorder WIRED where the behavior is a business event; internal_diagnostics and Palmistry DEFERRED-with-reason until WP-KERNEL-012/016 ship).",
       "Argus proof drives the pane headlessly (stable author_id targets for the chat input, model picker, worktree picker, launch control, and transcript rows) and inspects rendered state; negative proof fails on unseen controls or a launch-authority bypass.",
       "Same-change in-product UserManual coverage for the operator chat/launch surface (purpose, model+worktree selection, launch, capture, recovery, Flight Recorder linkage).",
       "Pre- and post-implementation adversarial review through multiple lenses before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
     ],
     "proof_commands": [
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_subagent_selection_launches_no_os_subagent_lane -- --exact",
-      "cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_operator_chat_selection_and_transcript_argus operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript -- --exact",
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_route_performs_real_launch_when_wired -- --exact",
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests operator_chat_launch_behaviors_have_manual_coverage -- --exact",
-      "rustfmt --edition 2021 --check src/backend/handshake_core/src/swarm_orchestration/coordinator.rs src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs src/backend/handshake_core/src/swarm_orchestration/mod.rs src/backend/handshake_core/src/api/operator_chat.rs src/backend/handshake_core/src/user_manual/seed.rs src/backend/handshake_core/tests/operator_chat_capture_tests.rs src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs src/frontend/handshake_native/src/operator_chat_pane.rs src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
-      "git diff --check"
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt012-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt012-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test operator_chat_surreal_tests operator_chat_surreal_launch_capture_scope_restart_and_eventledger -- --exact --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt012-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt012-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test operator_chat_surreal_tests operator_chat_surreal_cancellation_failure_retry_and_cleanup_recovery -- --exact --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt012-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt012-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test operator_chat_surreal_tests operator_chat_surreal_five_field_stale_revoked_denials_are_non_mutating -- --exact --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt012-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt012-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test operator_chat_surreal_tests operator_chat_surreal_route_local_cloud_cli_subagent_end_to_end -- --exact --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt012-native-cargo-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\frontend\\handshake_native\\Cargo.toml' --test test_operator_chat_selection_and_transcript_live_argus operator_chat_live_argus_docked_and_detached_launch_transcript -- --exact --test-threads=1",
+      "rustfmt --edition 2021 --check 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\tests\\operator_chat_surreal_tests.rs' 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\frontend\\handshake_native\\tests\\test_operator_chat_selection_and_transcript_live_argus.rs'",
+      "git diff --check -- '.GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json'"
     ],
     "risk_if_missed": "Operator cannot drive local/cloud model sessions from inside Handshake with a folder/worktree choice; the CLI-wrapper conversation, thought, and tool calls stay siloed in the legacy app/src-tauri path and never become typed ModelLane authority. The operator work-surface that the WP's lane telemetry exists to serve is missing.",
     "reference_only_paths": [
@@ -179,7 +180,149 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only. TypeScript/React/app-src/app-src-tauri/npm are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V5",
+  "v6_surreal_only_correction_2026_09_01": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "authority_correction": "Embedded SurrealDB is the only durable application database. Legacy relational proof and readiness are withdrawn. Exact five-field ResourceScope applies only to scoped Operator Chat ModelLane, runtime, artifact, process-lifecycle, and diagnostic resources. Product-global UserManual tables, content, and route coverage remain HBR-PRIV NOT_APPLICABLE; no scoped UserManual provider or schema is required.",
+    "owned_change_posture": "Contract-only correction by this lane. No MT-012 test or Cargo target was edited here. A concurrent owner changed the backend test during this audit to move ProcessLedger assertions toward embedded SurrealDB; the suite still retains relational ModelLane, artifact, event, routing, and fault-injection dependencies and therefore remains superseded provenance rather than a coherent V6 replacement.",
+    "inspected_artifacts": [
+      {
+        "path": "src/backend/handshake_core/tests/operator_chat_capture_tests.rs",
+        "sha256_at_last_recorded_check": "5E35689F124F029060B770692C371816CAFCD1C9616D876362C0924DEE29698B",
+        "observed_sha256_sequence": [
+          "241B4ABD27E3D162484E37D234F324BA5A7A40E4F8F9F23C2F3D156BC7E5500E",
+          "42C8B0B5B4CE5852A04C88499FA4EE5DFBFF77E34AF94922AD1F99E63901EA82",
+          "5E35689F124F029060B770692C371816CAFCD1C9616D876362C0924DEE29698B"
+        ],
+        "hash_stable_during_audit": false,
+        "disposition": "CONCURRENTLY_CHANGING_SUPERSEDED_PROVENANCE"
+      },
+      {
+        "path": "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
+        "sha256": "384DED52E321442E1522010D591BAF2276C56E75BA30AD4D0DB0A29A9DF3B11C",
+        "disposition": "UNCHANGED_HEADLESS_PROXY_PROVENANCE"
+      },
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs",
+        "sha256": "5E362A59F84E0246B65DA75C05D4CAB015CE915BA99FA6EBB4A08C22EDAB36D7",
+        "disposition": "READ_ONLY_SHARED_SOURCE"
+      },
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+        "sha256": "94B7B5DAC512D2DC7C677784961177589B8C25EB1664F78362FBDD30FEA4000D",
+        "disposition": "READ_ONLY_SHARED_PREDECESSOR"
+      },
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/routing_execution.rs",
+        "sha256": "225F5ABF19ACF8FF999968762F156796E127FE97D36DFE5A9180B58E434E922A",
+        "disposition": "READ_ONLY_SHARED_PREDECESSOR"
+      }
+    ],
+    "complete_backend_assertion_inventory": [
+      "LOCAL and BYOK CLOUD launch capture, with scoped cloud authorization and process-lifecycle linkage.",
+      "One typed ModelLaneMessage per completed activity block with exact text, thought, tool-request, tool-result, status classification, and ordering.",
+      "The operator prompt persists once on a HUMAN_OPERATOR lane and captured model bytes originate from launched runtime stdout.",
+      "Non-status payload bytes bind to ArtifactStore references and hashes; canonical kernel EventLedger and Flight Recorder evidence are unique and ordered.",
+      "Stream failure preserves the accepted prefix, records terminal state, reclaims the session, and rejects all late message, tool, artifact, and recorder mutations.",
+      "Coordinator cancellation preserves the accepted prefix, fences every durable write, rejects late generation, and retains exactly-once terminal semantics when terminal commit pauses or fails once.",
+      "Restart adopts cleanup-pending only after the exact durable STOP identity and leaves cleanup pending when that STOP is absent.",
+      "Subagent selection records Subagent runtime binding and SubagentManager launch authority without creating an operating-system process.",
+      "Missing scoped ModelLane storage fails before runtime factory invocation; selection-decision audit is distinct from launch audit.",
+      "The backend route performs a real coordinator launch when fully composed and otherwise fails closed.",
+      "Official CLI launch forces stream-json and starts in the operator-selected working directory.",
+      "Concurrent cancellation, terminal retry, cleanup recovery, replay, and launch paths remain non-duplicating and idempotent."
+    ],
+    "complete_native_assertion_inventory": [
+      "Operator Chat opens from the native MODELS/RUN surface and exposes stable AccessKit author IDs for model, owner-session, folder, prompt, launch, status, and transcript controls.",
+      "LOCAL, CLOUD, CLI, and SUBAGENT inventory rows render; unavailable rows stay visible but disabled.",
+      "Launch remains disabled until owner session and model selection are valid.",
+      "Selection audit includes local, cloud, CLI, and subagent context; audit persistence failure keeps launch disabled and emits no launch request.",
+      "Folder and prompt input are driven through attributed controls and launch sends governed owner, selected model, working directory, and prompt.",
+      "Thought and text transcript rows render using backend message author IDs, while launch status remains distinct from transcript content.",
+      "Inventory refresh invalidates stale owner/model selection and does not resurrect it when availability returns.",
+      "Automated interaction remains in-app and does not open or focus an operating-system window."
+    ],
+    "five_field_scope_matrix_required": {
+      "same_scope_positive": "All governed writes and reads use one exact owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id tuple.",
+      "single_field_mismatch_denials": [
+        "owner_account_id mismatch",
+        "actor_principal_id mismatch",
+        "authenticated_session_id mismatch",
+        "access_space_id mismatch",
+        "workspace_id mismatch"
+      ],
+      "additional_denials": [
+        "stale access context",
+        "revoked access context",
+        "mixed-source scope",
+        "legacy or incomplete scoped row"
+      ],
+      "denial_invariants": "Every denial is fail-closed, returns no cross-scope identifier or metadata, appends no business event, creates no artifact or process row, and leaves all governed state unchanged."
+    },
+    "restart_and_event_authority": "The pre-restart and post-restart services must reopen clones of the same injected SurrealStorage namespace and database. Every governed mutation must append the canonical kernel EventLedger in the same Surreal transaction; a parallel domain-local audit table is not acceptable proof.",
+    "superseded_historical_test_inventory": [
+      "operator_chat_launch_drives_runtime_and_captures_one_message_per_completed_block",
+      "operator_chat_local_and_byok_cloud_launches_capture_and_link_process_ledger",
+      "operator_chat_launch_stream_error_preserves_partial_capture_and_reclaims_session",
+      "operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity",
+      "coordinator_cancellation_fence_rejects_generation_during_terminal_write",
+      "coordinator_cancellation_fence_retries_after_terminal_write_failure",
+      "coordinator_restart_adopts_cleanup_pending_after_exact_durable_stop",
+      "coordinator_restart_keeps_cleanup_pending_without_exact_durable_stop",
+      "operator_chat_launch_captured_messages_originate_from_launched_runtime_stdout",
+      "operator_chat_persists_operator_prompt_as_human_operator_message",
+      "operator_chat_subagent_selection_launches_no_os_subagent_lane",
+      "operator_chat_launch_without_model_lane_store_fails_closed",
+      "operator_chat_selection_emits_auditable_decision_event",
+      "operator_chat_launch_route_performs_real_launch_when_wired",
+      "operator_chat_launch_config_forces_stream_json",
+      "operator_chat_cli_lane_runs_in_operator_selected_cwd",
+      "operator_chat_rejects_model_selection_when_audit_persistence_fails",
+      "operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript"
+    ],
+    "exact_missing_shared_apis_and_test_seams": [
+      "A Surreal-backed routing-execution store and coordinator constructor that receive the same cloned SurrealStorage and ResourceAccessContext as ModelLaneStore; current coordinator construction at coordinator.rs:1177-1182 extracts a relational pool and routing_execution.rs:283-329 stores it directly.",
+      "Provider-neutral deterministic pause-before-terminal-commit and fail-terminal-commit-once hooks preserving the two cancellation-fence proofs without database-specific triggers.",
+      "Bounded read-only test APIs for canonical kernel EventLedger sequence and payload, ArtifactStore binding, ProcessLedger START/STOP identity, and restart cleanup receipts, all filtered by exact governed scope.",
+      "A stale/revoked ResourceAccessContext lifecycle seam in addition to exact tuple comparison, enabling non-mutating denial proof for expired authority.",
+      "A production-socket Argus driver and attributed before/after receipt plus pixel capture for both docked and detached Operator Chat, without substituting RecordingBackend or egui_kittest state.",
+      "A complete replacement target operator_chat_surreal_tests and live target test_operator_chat_selection_and_transcript_live_argus only after the shared predecessors land; until then the planned proof-command target names are intentionally absent and must not be interpreted as runnable."
+    ],
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Operator selection and exact scope cross API, coordinator, ModelLane, routing execution, ArtifactStore, ProcessLedger, canonical EventLedger, and native transcript boundaries.",
+        "Cancellation and restart cross asynchronous generation, terminal commit, durable STOP identity, cleanup adoption, replay, and late-write fencing.",
+        "The native surface crosses attributed selection, audit failure, inventory invalidation, launch dispatch, transcript projection, docked/detached rendering, focus, and pixel evidence."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "Direct contract/taskboard comparison found READY-era contract fields while the taskboard retained FAIL_V5.",
+        "Direct source trace found exact cloud-scope comparison in operator_chat.rs:1366-1389 but shared routing composition still leaves the embedded-only boundary incomplete.",
+        "Exact test enumeration and source inspection showed the retained backend target is relational and the native target is an in-process RecordingBackend harness, so neither can be promoted as current V6 proof."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "A passing replacement that proves only ModelLane message persistence would still fail MT-012 because cancellation fencing, process cleanup, route composition, canonical events, and native visual behavior remain unproved.",
+        "A same-scope positive alone would false-green an implementation that omits one ownership predicate; five independent one-field mismatches plus stale, revoked, mixed-source, and incomplete-row denials are required.",
+        "Historical GUI pixels or AccessKit state would false-green a broken production-socket or detached-window path and therefore remain provenance only."
+      ],
+      "BOUNDARY_PROBES": [
+        "Probe exact scope at selection audit, launch admission, message replay, artifact resolution, process lifecycle, routing stage, diagnostics, and restart cleanup boundaries.",
+        "Probe restart with a clone of the same namespace/database and with a deliberately different namespace; only the former may recover prior state.",
+        "Probe docked and detached native panes with attributed before/after receipts, transcript rows, status separation, focus preservation, and inspected pixels."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Deny each one-field scope mismatch, stale context, revoked context, mixed-source scope, incomplete row, missing store, audit persistence failure, unavailable model, stream failure, cancellation, late output, failed terminal commit, and absent durable STOP.",
+        "For every authorization denial, prove zero mutation, zero canonical business-event append, zero artifact/process side effect, and no identifier or metadata leakage.",
+        "For cancellation and restart failures, prove the accepted prefix remains replayable, terminal operations are idempotent, and cleanup is neither lost nor adopted without exact durable authority."
+      ],
+      "INDEPENDENT_FINDINGS": [
+        "P0: shared routing execution is not composed from the injected embedded store, so a complete Surreal-only launch proof cannot compile or exercise production-equivalent behavior in the owned lane.",
+        "P0: the retained cancellation tests depend on provider-specific fault injection and direct persistence inspection; replacing them without neutral hooks would weaken the acceptance surface.",
+        "P1: current owned tests do not independently deny all five one-field scope mismatches or stale/revoked contexts with zero-mutation and no-leakage assertions.",
+        "P1: current native proof is an in-process harness and does not satisfy production-socket Argus, detached-window, or inspected-pixel requirements."
+      ],
+      "RESIDUAL_UNCERTAINTY": "No Cargo, runtime, native GUI, Argus, or live model proof was permitted. The backend test changed repeatedly during this audit; its exact observed hash sequence is recorded rather than claiming a frozen final hash. V6 behavior must be re-inspected and proven at one frozen source state after the predecessors land."
+    }
+  },
+  "validator_verdict": null,
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",

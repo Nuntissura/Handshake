@@ -1,143 +1,273 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-398",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-398.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-398.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-371",
-      "MT-011",
-      "MT-009"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Interactive-document objects model + buttons + form fields + MSO [STU-PRO-033,STU-PRO-034,STU-PRO-034a,STU-PRO-034b,STU-PRO-034c,STU-PRO-034d,STU-PRO-034e,STU-PRO-035,STU-PRO-036,STU-PRO-037,STU-PRO-038,STU-PRO-038a,STU-PRO-039]",
-  "spec_anchor": [
-    "STU-PRO-033",
-    "STU-PRO-034",
-    "STU-PRO-034a",
-    "STU-PRO-034b",
-    "STU-PRO-034c",
-    "STU-PRO-034d",
-    "STU-PRO-034e",
-    "STU-PRO-035",
-    "STU-PRO-036",
-    "STU-PRO-037",
-    "STU-PRO-038",
-    "STU-PRO-038a",
-    "STU-PRO-039"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-398",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-398.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-398.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-371",
+   "MT-011",
+   "MT-009"
   ],
-  "scope": {
-    "summary": "Implement InDesign-class interactive-document objects as interactive roles on StudioLayer nodes (not a separate document silo) for interactive PDF, fixed/reflowable EPUB, and HTML, authored with the same selection/override/history surfaces: buttons with the event set (on release/tap, on click; on roll over/off; on focus/blur), the action set (navigation/PDF: go to destination/first/last/next/previous page, URL, next/previous view, open file, view zoom; show/hide & forms: show/hide buttons+forms, clear/print/submit form; media & state: animation, go to page, go to/next/previous state, sound, video), Normal/Rollover/Click appearance states + hidden-until-triggered, per-page tab order, and a sample library of preconfigured buttons/form elements; PDF form fields (check box, combo box, list box, radio button, signature, text) with the option set (description, required, printable, multiline, password, read-only, sort-items, export values); and multi-state objects (convert a selection into ordered states that add/reorder/delete, add-objects-to-state, paste-into-state, reset-all, hidden-until-triggered), driven by the button state actions.",
-    "allowed_paths": [
-      "src/frontend/handshake_native/src/studio/**",
-      "src/studio/prototype/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "interactive roles on layers: buttons (events/actions/states/tab-order) + PDF form fields + MSO; author_ids + manual entry"
-    ],
-    "proof_targets": [
-      "Argus button/form/MSO authoring + action test"
-    ],
-    "code_surfaces": [
-      "src/frontend/handshake_native/src/studio/prototype/interactive_doc.rs",
-      "src/studio/prototype/interactive_doc.rs"
-    ],
-    "expected_tests": [
-      "argus: button editor + form-field editor + MSO panel reachable via author_ids",
-      "live: button events + action groups fire; Normal/Rollover/Click states + hidden-until-triggered; tab order; PDF form fields + options; MSO ordered states add/reorder/delete/paste-into/reset-all driven by state actions"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "button editor",
-      "form-field editor",
-      "multi-state object panel"
-    ],
-    "argus_targets": [
-      "studio.prototype.button_editor",
-      "studio.prototype.form_field",
-      "studio.prototype.mso_panel"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Interactive Documents / Buttons, forms and multi-state objects"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Interactive-document objects model + buttons + form fields + MSO [STU-PRO-033,STU-PRO-034,STU-PRO-034a,STU-PRO-034b,STU-PRO-034c,STU-PRO-034d,STU-PRO-034e,STU-PRO-035,STU-PRO-036,STU-PRO-037,STU-PRO-038,STU-PRO-038a,STU-PRO-039]",
+ "spec_anchor": [
+  "STU-PRO-033",
+  "STU-PRO-034",
+  "STU-PRO-034a",
+  "STU-PRO-034b",
+  "STU-PRO-034c",
+  "STU-PRO-034d",
+  "STU-PRO-034e",
+  "STU-PRO-035",
+  "STU-PRO-036",
+  "STU-PRO-037",
+  "STU-PRO-038",
+  "STU-PRO-038a",
+  "STU-PRO-039"
+ ],
+ "scope": {
+  "summary": "Implement InDesign-class interactive-document objects as interactive roles on StudioLayer nodes (not a separate document silo) for interactive PDF, fixed/reflowable EPUB, and HTML, authored with the same selection/override/history surfaces: buttons with the event set (on release/tap, on click; on roll over/off; on focus/blur), the action set (navigation/PDF: go to destination/first/last/next/previous page, URL, next/previous view, open file, view zoom; show/hide & forms: show/hide buttons+forms, clear/print/submit form; media & state: animation, go to page, go to/next/previous state, sound, video), Normal/Rollover/Click appearance states + hidden-until-triggered, per-page tab order, and a sample library of preconfigured buttons/form elements; PDF form fields (check box, combo box, list box, radio button, signature, text) with the option set (description, required, printable, multiline, password, read-only, sort-items, export values); and multi-state objects (convert a selection into ordered states that add/reorder/delete, add-objects-to-state, paste-into-state, reset-all, hidden-until-triggered), driven by the button state actions.",
+  "allowed_paths": [
+   "src/frontend/handshake_native/src/studio/**",
+   "src/studio/prototype/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No interactive-document objects; interactive PDF/EPUB/HTML authoring impossible.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Interactive roles on layers: buttons (events/actions/states/tab-order)",
+   "PDF form fields",
+   "MSO",
+   "Author_ids",
+   "Manual entry"
+  ],
+  "proof_targets": [
+   "Argus button/form/MSO authoring + action test"
+  ],
+  "code_surfaces": [
+   "src/frontend/handshake_native/src/studio/prototype/interactive_doc.rs",
+   "src/studio/prototype/interactive_doc.rs"
+  ],
+  "expected_tests": [
+   "argus: button editor + form-field editor + MSO panel reachable via author_ids",
+   "live: button events + action groups fire; Normal/Rollover/Click states + hidden-until-triggered; tab order; PDF form fields + options; MSO ordered states add/reorder/delete/paste-into/reset-all driven by state actions"
+  ],
+  "acceptance_criteria_original": [
+   "interactive roles on layers: buttons (events/actions/states/tab-order) + PDF form fields + MSO; author_ids + manual entry"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "button editor",
+   "form-field editor",
+   "multi-state object panel"
+  ],
+  "argus_targets": [
+   "studio.prototype.button_editor",
+   "studio.prototype.form_field",
+   "studio.prototype.mso_panel"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Interactive Documents / Buttons, forms and multi-state objects"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No interactive-document objects; interactive PDF/EPUB/HTML authoring impossible.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Interactive roles on layers: buttons (events/actions/states/tab-order)",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "Argus button/form/MSO authoring + action test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "PDF form fields",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "MSO",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Author_ids",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Manual entry",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-PRO-033",
+    "spec_clause_text": "**[STU-PRO-033] Interactive-document objects.** Studio MUST support, on `StudioLayer` nodes, the interactive-document object class that a professional page-layout and publishing tool exposes, for interactive PDF, fixed-layout EPUB, reflowable EPUB, and HTML output. These objects are authored with the same selection, override, and history surfaces as all other Studio primitives; buttons, form fields, and multi-state objects are interactive ROLES on layers, not a separate document silo and not a parallel document model. The class is exactly the eight object kinds enumerated in [STU-PRO-166], each already obliged in detail by its own sibling clause in this group; that enumeration adds no object kind this clause did not already require, and narrows nothing it requires. This clause is REDEFINED at its own anchor in the v02.206 bundle. The v02.205 text stated the identical obligation but named the object class after a source application, which [STU-SECTION-003] forbids: a source product name is never a Studio tool, command, panel or manual name. Redefining the clause here, rather than correcting it from a neighbouring clause, is what removes that name from the assembled document, because the assembler carries forward verbatim any anchor no staged module redefines. The product whose interactive-document surface is the provenance for this class is recorded in this module's provenance sidecar under this anchor and appears nowhere in any obligation."
+   },
+   {
+    "anchor": "STU-PRO-034",
+    "spec_clause_text": "[STU-PRO-034] Buttons MUST support the event set ([STU-PRO-034a] through [STU-PRO-034c]) and the action set ([STU-PRO-035] through [STU-PRO-037]) enumerated below."
+   },
+   {
+    "anchor": "STU-PRO-034a",
+    "spec_clause_text": "| On release/tap, On click | [STU-PRO-034a] |"
+   },
+   {
+    "anchor": "STU-PRO-034b",
+    "spec_clause_text": "| On roll over, On roll off | [STU-PRO-034b] |"
+   },
+   {
+    "anchor": "STU-PRO-034c",
+    "spec_clause_text": "| On focus, On blur | [STU-PRO-034c] |"
+   },
+   {
+    "anchor": "STU-PRO-034d",
+    "spec_clause_text": "[STU-PRO-034d] Buttons MUST support Normal, Rollover, and Click appearance states, each holding distinct artwork, plus hidden-until-triggered behavior for popup patterns."
+   },
+   {
+    "anchor": "STU-PRO-034e",
+    "spec_clause_text": "[STU-PRO-034e] A per-page tab order MUST sequence keyboard focus across buttons and form fields. A sample library of preconfigured buttons and form elements (e.g. navigation arrows preset to next/previous page) SHOULD be available for insertion. | Button event | Anchor | |---|---| | On release/tap, On click | [STU-PRO-034a] | | On roll over, On roll off | [STU-PRO-034b] | | On focus, On blur | [STU-PRO-034c] | | Button action group | Anchor | Actions | |---|---|---| | Navigation/PDF | [STU-PRO-035] | go to destination; first/last/next/previous page; go to URL; go to next/previous view; open file; view zoom | | Show/hide & forms | [STU-PRO-036] | show/hide buttons and forms; clear form; print form; submit form | | Media & state (EPUB/interactive) | [STU-PRO-037] | animation; go to page; go to state / next state / previous state; sound; video |"
+   },
+   {
+    "anchor": "STU-PRO-035",
+    "spec_clause_text": "| Navigation/PDF | [STU-PRO-035] | go to destination; first/last/next/previous page; go to URL; go to next/previous view; open file; view zoom |"
+   },
+   {
+    "anchor": "STU-PRO-036",
+    "spec_clause_text": "| Show/hide & forms | [STU-PRO-036] | show/hide buttons and forms; clear form; print form; submit form |"
+   },
+   {
+    "anchor": "STU-PRO-037",
+    "spec_clause_text": "| Media & state (EPUB/interactive) | [STU-PRO-037] | animation; go to page; go to state / next state / previous state; sound; video |"
+   },
+   {
+    "anchor": "STU-PRO-038",
+    "spec_clause_text": "[STU-PRO-038] PDF form fields MUST include check box, combo box, list box, radio button, signature field, and text field."
+   },
+   {
+    "anchor": "STU-PRO-038a",
+    "spec_clause_text": "[STU-PRO-038a] Form fields MUST support the option set: description, required, printable, multiline, password, read-only, sort-items, and export values, applied per field type as relevant."
+   },
+   {
+    "anchor": "STU-PRO-039",
+    "spec_clause_text": "[STU-PRO-039] Multi-state objects (MSOs) MUST convert a selection into an object with ordered states that add/reorder/delete, add objects to the visible state, paste-into-state, reset-all, and support hidden-until-triggered; MSO state changes are driven by the button state actions ([STU-PRO-037])."
+   }
+  ],
+  "spec_clause_count": 13,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

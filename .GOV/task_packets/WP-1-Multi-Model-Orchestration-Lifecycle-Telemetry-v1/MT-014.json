@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-014",
   "created_at_utc": "2026-07-01T21:15:18Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
-  "scope_status": "READY_FOR_VALIDATION_V3",
+  "updated_at_utc": "2026-09-01T00:00:00Z",
+  "scope_status": "V6_BLOCKED_ON_DEPENDENCY_2026-09-01",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,8 @@
     "path": "",
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
-  "owned_files": [
+  "owned_files": [],
+  "historical_owned_files_v5_superseded": [
     "src/backend/handshake_core/migrations/0348_model_runtime_registry.sql",
     "src/backend/handshake_core/migrations/0348_model_runtime_registry.down.sql",
     "src/backend/handshake_core/src/main.rs",
@@ -41,7 +42,7 @@
     "src/frontend/handshake_native/src/lib.rs",
     "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs"
   ],
-  "lifecycle": {
+  "historical_lifecycle_v5_superseded": {
     "status": "FAIL_V5",
     "depends_on": [
       "MT-003"
@@ -67,7 +68,7 @@
     "missing_resource_prior_2026_08_04": "Authenticated Palmistry provenance / Palmistry binary (WP-KERNEL-012)",
     "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
   },
-  "scope": {
+  "historical_scope_v5_superseded": {
     "summary": "Make the default LlmClient's embedded model registry shared, enumerable, and labeled (UUIDv7 -> display_name/base_model_tag) so downstream pillars can name and list the local model, and give LoomSearchV2 a real embedding-model contract that degrades (not hard-errors) on dimension mismatch.",
     "origin": "Deferred from MT-003 (2026-07-01) interconnectivity post-review. MT-003 wires the default LlmClient to the embedded ModelRuntime, but constructs a THROWAWAY single-entry ModelRegistry buried inside LocalRouter (llm/boot.rs) that is not shared, enumerable, or persisted, and whose UUIDv7 has no exposed display_name join. This blocks: MT-008 TraceProjection labeling the local model (groups by opaque UUIDv7), MT-012 operator model-picker enumeration, and Work Profiles provider_ref resolution (provider_id changed ollama->local_runtime). Separately, LoomSearchV2 hard-requires 768-dim embeddings (loom_search/mod.rs LOOM_SEARCH_EMBEDDING_DIM=768) and returns a HARD StorageError::Validation on mismatch, so configuring a normal chat model as the local default makes Loom reindex/search hard-error instead of degrade.",
     "allowed_paths": [
@@ -114,12 +115,88 @@
       "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs (separate model_runtime registry world)"
     ]
   },
-  "implementation_notes": [
+  "historical_implementation_notes_v5_superseded": [
     "MT-003 boot.rs build_default_local_client constructs ModelRegistry::default() with one entry inside LocalRouter; this MT makes that a shared/enumerable/labeled surface. Reconcile with the swarm's separate model_runtime registry usage (production_factory.rs) rather than creating a third disjoint registry.",
     "LoomSearchV2 (loom_search/mod.rs, api/loom.rs refresh_loom_block_embedding) is the ONLY production caller of LlmClient::embedding(); FEMS/memory does not consume it. The 768-dim requirement + hard StorageError on mismatch is the crash surface.",
     "Do NOT re-introduce Ollama as the embedding provider; the embedding model is another embedded ModelRuntime registration.",
     "Rust-only; Rust backend + native egui/Argus where UI is touched.",
     "This MT bridges MT-003 (default local client) to MT-008 (diagnostics labeling), MT-012 (picker enumeration), and Work Profiles."
+  ],
+  "lifecycle": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "depends_on": [
+      "MT-003",
+      "MT-016"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "WP1-V6-AUDIT-20260901",
+    "claimed_at_utc": "2026-09-01T00:00:00Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": "V6 embedded-Surreal-only closure overlaps active owners: Parfit owns the ModelLane/provider/composition/routing/main/lib/API and model-lane test boundary, while Banach owns MT-016 embedding and Loom search. This audit therefore authorizes no product edits in the MT-014 lane.",
+    "missing_resource": "A complete injected embedded-Surreal model-runtime registry and active-selection authority is missing from the shared composition root and production API. Required closure also includes coherent restart/concurrency/scope/API tests against that provider, Banach-owned MT-016 typed Loom dimension fallback and embedding-role contract, and live production-socket Argus/native-pixel proof. The existing pure catalog and Work Profile resolver assertions remain useful but are insufficient on their own.",
+    "proof_status": "V6_NOT_RUN_BLOCKED. All earlier relational, mixed-storage, headless proxy, ignored-pixel, and non-_Artifacts receipts are explicitly superseded historical provenance and are not active V6 proof.",
+    "hbr_status": "HBR-PRIV BLOCKED for scoped model-runtime registry and selection resources pending a complete five-field matrix. UserManual content and routes are product-global; HBR-PRIV is NOT_APPLICABLE to UserManual. HBR-VIS remains unproven by a live production-socket Argus/native-pixel run.",
+    "pre_implementation_adversarial_review_status": "V6_COMPLETED_BLOCKED_ON_DEPENDENCY",
+    "post_implementation_adversarial_review_status": "NOT_STARTED_NO_DISJOINT_PRODUCT_WRITE_SET",
+    "adversarial_findings_status": "OPEN_V6_DEPENDENCIES_RECORDED",
+    "kb_ready_checklist_receipt_id": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "last_runtime_status_ref": null
+  },
+  "scope": {
+    "summary": "Expose one durable, shared, enumerable, labeled embedded-model registry and active-selection authority through injected embedded SurrealStorage; preserve deterministic Work Profile provider-reference behavior; consume the Banach-owned MT-016 embedding/Loom contract; and prove the native operator surface without substituting headless proxies.",
+    "origin": "V6 authority correction after inspection of the authoritative MT-014 packet, contract, named production files, named tests, and current owner boundaries.",
+    "allowed_paths": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json"
+    ],
+    "forbidden_paths": [
+      "Parfit-owned ModelLane, provider, composition, routing, main, lib, API, palmistry, and model-lane tests",
+      "Halley-owned ProcessLedger and broad stale ProcessLedger test callers",
+      "Banach-owned MT-016 embedding and Loom search",
+      "relational compatibility, fixtures, active proof, or fallbacks",
+      "disabled-code proof and fail-loud placeholders",
+      "broad taskboard projection"
+    ],
+    "acceptance_criteria": [
+      "The default embedded-model registration is exposed through one injected durable registry surface that enumerates UUIDv7, display_name, base_model_tag, artifact identity, capabilities, runtime binding, lifecycle state, and current active selection without creating a duplicate authority island.",
+      "Diagnostics can resolve a durable model identity to a human label, and the operator picker can enumerate only same-scope authorized rows without identifier or metadata leakage.",
+      "Work Profile provider_ref resolution preserves canonical IDs, deterministically surfaces the legacy-provider migration event, rejects unknown references, and performs no silent rewrite.",
+      "MT-014 consumes the Banach-owned MT-016 contract: completion and embedding roles remain distinct, embedding-only rows cannot become completion defaults, and Loom dimension mismatch is a typed non-fatal fallback. MT-014 does not implement Loom or embedding-provider internals.",
+      "Every durable registry and active-selection read or mutation predicates owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id. Same-scope access succeeds; each one-field mismatch, mixed-source scope, stale or revoked context, and incomplete legacy row fails closed with zero mutation, zero canonical-event append, and no identifier leakage.",
+      "Registration, selection, compare-and-swap, rebind, quiesce, unload, recovery, and projection updates are atomic and idempotent where specified, append the canonical kernel EventLedger in the same Surreal transaction, and recover from the same cloned SurrealStorage namespace after restart.",
+      "The existing catalog, provider-reference, registry integrity, API, runtime telemetry, concurrency, restart, negative-path, and native operator-surface assertion inventories are preserved in one coherent V6 suite rather than replaced by a partial green surrogate.",
+      "UserManual coverage documents registry enumeration, selection, recovery, role restrictions, Work Profile migration, Loom fallback, and failure recovery. UserManual remains product-global and HBR-PRIV NOT_APPLICABLE.",
+      "Live production-socket Argus and native pixels prove registry rows, role/capability labels, active selection, actions, telemetry, stale/error states, stable unique author IDs, detached/main-pane behavior, non-focus-stealing operation, and truthful backend receipts.",
+      "Pre- and post-implementation adversarial review complete before READY_FOR_VALIDATION; the implementer does not self-certify completion."
+    ],
+    "proof_targets": [
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt014-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt014-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test model_registry_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt014-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt014-surreal-stores'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils,surreal-test-support --test model_runtime_registry_surreal_api_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt014-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils --test model_catalog_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt014-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features test-utils --test work_profile_provider_ref_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt014-native-cargo-target'; $env:HANDSHAKE_ARTIFACTS_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts'; cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --locked -j 1 --test test_model_runtime_panel_live_argus mt014_live_argus_registry_selection_controls_and_detached_pixels -- --exact --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt014-cargo-target'; cargo check --manifest-path src/backend/handshake_core/Cargo.toml --locked -j 1 --features app-runtime"
+    ],
+    "risk_if_missed": "A duplicate or weakly scoped registry can leak model identities, diverge active selection across restarts, append unaudited mutations, silently rewrite operator intent, or expose controls that do not reflect durable runtime truth.",
+    "reference_only_paths": [
+      "src/backend/handshake_core/src/model_runtime/registry_persistence.rs",
+      "src/backend/handshake_core/src/api/model_runtime_registry.rs",
+      "src/backend/handshake_core/src/main.rs",
+      "src/backend/handshake_core/src/loom_search/mod.rs",
+      "src/frontend/handshake_native/src/model_runtime_panel.rs",
+      "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs"
+    ]
+  },
+  "implementation_notes": [
+    "No product edit was authorized because every missing production predecessor intersects an active owner.",
+    "The future registry provider must receive the already-composed SurrealStorage; opening an implicit default or a second namespace does not satisfy restart or canonical-event proof.",
+    "The future suite must preserve semantic integrity, concurrency, bounded-resource, and negative-path behavior; storage-engine-specific hooks are translated to equivalent Surreal invariants rather than copied literally.",
+    "Existing pure catalog and Work Profile resolver tests remain reusable, but they cannot establish durable registry, scope, restart, canonical-event, or native-visual closure."
   ],
   "required_build_rules": [
     "HBR-INT-001",
@@ -131,11 +208,14 @@
     "HBR-PRIV-002",
     "HBR-PRIV-004",
     "HBR-PRIV-005",
-    "HBR-PRIV-008"
+    "HBR-PRIV-008",
+    "HBR-VIS-001"
   ],
   "hbr_obligations": [
     "INT",
-    "MAN"
+    "MAN",
+    "PRIV",
+    "VIS"
   ],
   "handoff": {
     "coder_session": null,
@@ -150,7 +230,7 @@
       "interconnectivity_no_duplicate_registry_world"
     ]
   },
-  "pre_implementation_review": {
+  "historical_pre_implementation_review_v5_superseded": {
     "reviewed_at_utc": "2026-07-02T03:00:00Z",
     "verdict": "PARTIALLY_IMPLEMENTABLE_CONTRACT_EDITS_REQUIRED",
     "full_review_ref": "session task aa63db63808f7a7b3 output (read-only adversarial, file:line evidence)",
@@ -167,7 +247,7 @@
       "LOW (F11): enumeration keyed on model_id/sha256 (display_name is a non-unique label)."
     ]
   },
-  "red_team": {
+  "historical_red_team_v5_superseded": {
     "required": true,
     "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
     "risks": [
@@ -181,7 +261,7 @@
       "Work Profiles migration is deterministic and surfaced."
     ]
   },
-  "research_basis": {
+  "historical_research_basis_v5_superseded": {
     "authority_posture": "Master spec/SPEC_CURRENT/product code are authority.",
     "local_authority_checked": [
       ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md (4.6 ModelRuntime/registry)",
@@ -199,7 +279,120 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real proofs; COMPLETED is validator-only."
   },
-  "remediation_v2": {
+  "v6_surreal_only_audit_2026_09_01": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "risk_class": "HIGH",
+    "authority_correction": "Embedded SurrealDB is the only active durable product authority. Every earlier receipt under historical_* fields is explicitly superseded and non-authoritative for V6.",
+    "write_set": {
+      "changed": [
+        ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json"
+      ],
+      "product_changes": [],
+      "collision_result": "Registry persistence, composition, production API, and app entrypoints overlap Parfit; embedding and Loom search overlap Banach. ProcessLedger linkage remains Halley-owned and read-only to MT-014."
+    },
+    "inspected_authority": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/mt_index.json"
+    ],
+    "inspection_hashes_sha256": {
+      "contract_before": "D73C4EDEB67DF5C2BD436129FF1AE85DD7CB14DA1731747BFE58ACD36BE4A1D0",
+      "packet_unchanged_baseline": "78F6FE15F2220B3563B252C22DBAF7A465B374C4F2817FA7B1CA350D2743A98A",
+      "taskboard_projection_unchanged_baseline": "06B3406487C3B9A02A1B69DF83F9FF330C754BA2E6B1CB817F8BACD6E9C4C38C",
+      "registry_persistence": "9691542B15BA73E54C76D919CA9E5F1F23E079AB9C7243D8739B80DA85F5010F",
+      "registry_api": "96A6ADD5FEFBFD49295EA4B920BEB81C2497BBE920004D36E60B679A2D327C96",
+      "catalog": "D2057984E94621E2D4E3AB6B7470E0BF9A90BCBEC8EFEC5C6E13F080D09302B7",
+      "work_profiles": "BFE611670FFB67402B70083842CEC7703E2A1A09C52C5507C925682D9946E37C",
+      "native_panel": "87504FF17486A7F217008C66695DC0441523054806142652BCC1F608F79EB69E",
+      "native_argus_tests": "D2F6D18B030D8EA3B729E3B704E37078E28FD3A11D2CA308678287DFD3EB7DC9"
+    },
+    "source_findings": [
+      "The current durable ModelRegistryStore owns a legacy pool field and legacy constructors; registration, active selection, recovery, rebind, enumeration, and integrity are not backed by injected SurrealStorage.",
+      "The production registry API reads the legacy authority and constructs the current store from AppState. Its five-field predicates do not cure the V6 storage-authority failure.",
+      "The app composition root does not clone the composed SurrealStorage into the registry store and API.",
+      "No complete general Surreal model-runtime registry and active-selection provider was found. Banach's Loom-specific provider is not a substitute and must not become a second registry authority.",
+      "Pure ModelCatalog and Work Profile resolver behavior is implemented and reusable, but cannot prove durable selection, restart, scope, canonical-event, or API behavior.",
+      "The native panel implements rows, actions, telemetry, internals, ledger links, stale state, and stable author IDs; current proof is transport-double/headless or ignored pixels rather than mandatory live production-socket evidence."
+    ],
+    "assertion_inventory": {
+      "durability_integrity_and_recovery": "Preserve restart readback, active-default restoration, failed compare-and-swap preservation, down/up event-chain recovery, projection recreation, event aggregate/sequence/timestamp/idempotency/payload/replay-prefix/immutable-row integrity, schema and artifact-locator identity, boot readback ordering, and UTC truth.",
+      "boundedness_and_concurrency": "Preserve bounded transaction start/cancellation/initialization/lock waits, row count, JSON size, transfer bytes and revision totals; concurrent incompatible selections have one winner; registration is atomic on conflict; rebind requires audit and compare-and-swap.",
+      "api_and_catalog": "Preserve catalog join by artifact identity, selection prevalidation before runtime swap, post-commit audited projection, embedding-role/stale/integrity/revision denials, durable-authority presence, duplicate identity and adapter/capability drift denials, committed observation, telemetry projection, empty registry, unknown sentinel, labels, and selection event.",
+      "work_profiles": "Preserve canonical provider resolution, deterministic surfaced legacy migration, typed unknown rejection, no canonical-path migration event, and no silent rewrite.",
+      "loom_mt016_dependency": "Preserve typed non-fatal reindex/search dimension fallback, operator-visible reason, canonical event, and role-distinct embedding that cannot become completion default.",
+      "scope_privacy": "Preserve same-scope positive; five independent one-field mismatch denials; mixed-source, stale, revoked, and incomplete-context denials; zero durable mutation, canonical event, runtime swap, or restricted metadata on denial.",
+      "native_operator_surface": "Preserve signed provenance, stale provenance rejection, live/dormant rows, roles, capabilities, selected/runtime state, switch/quiesce/unload/adapter-swap/internals/ledger controls, compatibility reasons, KV/VRAM/performance/LoRA/steering telemetry, stale refresh, globally unique author IDs, main/detached panes, truthful receipts, native pixels, and non-focus-stealing operation.",
+      "user_manual_global": "Preserve product-global registry, selection, recovery, role, migration, Loom fallback, diagnostics, and failure-recovery route coverage. HBR-PRIV is NOT_APPLICABLE and no UserManual scope is invented."
+    },
+    "superseded_test_surface": {
+      "src/backend/handshake_core/tests/model_registry_persistence_tests.rs": "37 MT-014 tests covering persistence, restart, event-chain integrity, boundedness, concurrency, atomicity, migration, locking, and boot ordering; retain semantics in the coherent Surreal replacement.",
+      "src/backend/handshake_core/tests/model_runtime_registry_api_tests.rs": "13 MT-014 tests covering join, selection ordering, role/stale/integrity/revision denials, durable authority, drift, committed observation, and telemetry; retain semantics in the coherent Surreal replacement.",
+      "src/backend/handshake_core/tests/model_catalog_tests.rs": "Four reusable MT-014 component tests for enumerate/label, empty, unknown sentinel, and selection event.",
+      "src/backend/handshake_core/tests/work_profile_provider_ref_tests.rs": "Eight reusable MT-014 tests for canonical resolution, surfaced migration, typed unknown, and no-op canonical validation.",
+      "src/backend/handshake_core/tests/loom_search_v2_tests.rs": "Banach-owned typed dimension-mismatch test; historical provider fixture is not V6 proof.",
+      "src/backend/handshake_core/tests/llm_default_boot_resolution_tests.rs": "No-model, configured registry dispatch, UUIDv7 routing, embedding dispatch, and MT-016 distinct-role assertions.",
+      "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs": "Nine relevant tests covering provenance, transport, switch receipt, live/dormant rows, embedding action denial, internals, stale refresh, unique pane IDs, and ignored historical pixels; none substitutes for live V6 pixels."
+    },
+    "dependency_handoff": {
+      "Parfit_provider": "Add src/backend/handshake_core/src/storage/surreal/model_runtime_registry.rs and src/backend/handshake_core/src/storage/surreal/model_runtime_registry_schema.surql; export mod model_runtime_registry plus bootstrap_model_runtime_registry_schema and SurrealModelRegistryStore from src/backend/handshake_core/src/storage/surreal.rs. The store must be backed by injected SurrealStorage with new/open, access, recover_configured_runtime_binding_set, persist_role_bound_boot_set_and_read_back, ensure_active_defaults, list_active_selections, select_active_model, list_recoverable, and rebind_selection_after_verified_unload. Every row and linked canonical kernel_event_ledger record must predicate all five scope fields. Mutation plus event append must be one Surreal transaction with idempotency and compare-and-swap.",
+      "Parfit_composition_api": "Put a clonable composed SurrealStorage in AppState; pass the same clone to boot, registry API, diagnostics projection, ProcessLedger link, and restart recovery. Replace current store construction and direct legacy queries in main.rs and api/model_runtime_registry.rs. Preserve prevalidation-before-swap, post-commit publication, recovery, controls, telemetry, and restricted-error redaction.",
+      "Parfit_tests": "Create complete model_registry_surreal_tests and model_runtime_registry_surreal_api_tests targets. Translate engine-specific hook, connection, sequence, and lock assertions into equivalent embedded-Surreal lifecycle, transaction, timeout, conflict, and bounded-decode invariants. Add live production-socket Argus/native-pixel proof.",
+      "Banach_MT016": "Export role-distinct embedded embedding registration plus typed reindex/search dimension fallback with operator-visible reason and canonical event; MT-014 consumes it without editing Loom internals.",
+      "Halley_ProcessLedger": "Export a read-only ProcessOwnershipLedger link from the same composed storage; MT-014 must not create or mutate a parallel lifecycle ledger."
+    },
+    "DIFF_ATTACK_SURFACES": [
+      "stale ready actors, times, receipts, and verdicts",
+      "forbidden durable authority hidden behind green catalog tests",
+      "one-field scope leakage through registry or linked event rows",
+      "runtime swap split from durable compare-and-swap and canonical event",
+      "restart against a different namespace",
+      "active-owner write collisions",
+      "headless or ignored pixels presented as live native proof"
+    ],
+    "INDEPENDENT_CHECKS_RUN": [
+      "Compared contract and packet acceptance against every named production and test artifact.",
+      "Inspected git status and SHA-256 of named artifacts before declining overlapping product edits.",
+      "Scanned constructors, production callers, route queries, test imports, and targets for durable authority independently of old receipts.",
+      "Inspected panel implementation and Argus inventory, including ignored pixel proof."
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      "Green catalog and Work Profile tests do not close restart, scope, event, or selection authority.",
+      "A provider opening a default namespace may pass same-process tests while failing restart and cross-component truth.",
+      "Any one-field mismatch must reveal no model UUID, artifact identity, revision, or event reference.",
+      "A runtime swap whose durable compare-and-swap loses must not report or publish success."
+    ],
+    "BOUNDARY_PROBES": [
+      "empty/one/max/max-plus-one enumeration",
+      "zero/max/oversized metadata and event payload",
+      "zero/current/stale/malformed revision",
+      "same process/clean reopen/interrupted mutation/second handle on exact namespace",
+      "completion/embedding/incompatible/unloaded/stale/duplicate identity",
+      "main/detached/two panes/stale projection/backend unavailable/native pixels"
+    ],
+    "NEGATIVE_PATH_CHECKS": [
+      "five one-field scope mismatches plus mixed-source, stale, revoked, and incomplete context",
+      "missing/wrong-scope/wrong-aggregate/wrong-hash/duplicate/rewound/tampered canonical event",
+      "compare-and-swap loss, timeout, cancellation, oversized decode, and concurrent conflict",
+      "embedding default, stale catalog, authority drift, uncommitted observation, and artifact mismatch",
+      "denied requests cause no durable, event, runtime, telemetry, or metadata side effect",
+      "refresh failure marks stale and never fabricates telemetry or action success"
+    ],
+    "INDEPENDENT_FINDINGS": [
+      "HIGH: durable registry and active selection are not on injected embedded SurrealStorage; blocked on Parfit.",
+      "HIGH: no coherent V6 persistence/API replacement target exists; blocked on Parfit.",
+      "HIGH: complete five-field, stale/revoked, event non-mutation, and no-leak proof is absent; blocked on the new provider suite.",
+      "HIGH: Loom fallback and role-distinct embedding are Banach-owned MT-016 predecessors.",
+      "HIGH: live production-socket Argus/native pixels are absent.",
+      "MEDIUM: pure catalog and Work Profile tests are component proof only, never an acceptance surrogate."
+    ],
+    "RESIDUAL_UNCERTAINTY": [
+      "No Cargo, build, test, clean, runtime, GUI, or pixel command ran; compile and runtime state are unproved.",
+      "Product files were concurrently modified during inspection; hashes are snapshots, not completion claims.",
+      "Future target names do not exist yet and are proof contracts, not executed evidence.",
+      "A post-implementation reviewer must re-read landed source and live artifacts."
+    ]
+  },
+  "historical_remediation_v2_superseded": {
     "status": "READY_FOR_VALIDATION_V2",
     "remediated_at_utc": "2026-07-11T02:59:39Z",
     "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
@@ -341,8 +534,8 @@
     },
     "readiness_gate": "SATISFIED: durable authority is integrated into the original in-process production boot, exact proofs pass on final source, passed-MT regressions are green, post-implementation adversarial review has no unresolved blocker, and the KB readiness checklist emitted PASS."
   },
-  "validator_verdict": "FAIL_V5",
-  "validation_v1": {
+  "historical_validator_verdict_v5_superseded": "FAIL_V5",
+  "historical_validation_v1_superseded": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
     "validated_at_utc": "2026-07-10T21:19:03Z",
@@ -358,7 +551,7 @@
     "fail_report": "Two independent failures. (1) SPEC-REALISM silent-skip false-green: MT-014's ONLY managed-resource (real PG) proof, mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search (src/backend/handshake_core/tests/loom_search_v2_tests.rs:809), uses the pg_or_skip!() macro (defined :100-110) which prints 'SKIP ...' and returns GREEN when PostgreSQL binaries are absent. Every other MT-014 proof (registry/catalog/provider_ref) is in-memory by design. So MT-014 can report success with ZERO real-resource touch (Spec-Realism SR-2 NEEDS_MANAGED_RESOURCE_PROOF). MT-016 in the SAME FILE uses pg_required(...) (panics) - MT-014 was left inconsistent. (2) UNFINALIZED PROOF CONTRACT: MT-014 scope.proof_targets is still the literal placeholder string 'TO_BE_FINALIZED_AT_ACTIVATION: exact Rust tests for ...' - never finalized, despite its own text 'Proof commands MUST name exact tests and fail on zero matching tests.'",
     "remediation_plan": "STEP 1 (test-only, no product code): convert mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search from pg_or_skip!() to pg_required(\"mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search\") - the pg_required helper is already defined at loom_search_v2_tests.rs:92 and used by MT-016 at :581/:757 - so the real-PG degrade proof fails-closed (panics) when PG is absent instead of silently returning green. STEP 2 (finalize proof contract): replace MT-014 scope.proof_targets TO_BE_FINALIZED placeholder with the exact test invocations: (a) UUIDv7->display_name registry enumeration/label join (cargo test --test model_catalog_tests ... -- --exact), (b) the now-pg_required dim-mismatch degrade test (cargo test --test loom_search_v2_tests mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search -- --exact), (c) Work Profiles provider_ref resolution/migration (cargo test --test work_profile_provider_ref_tests ... -- --exact); each must fail on zero matching tests. STEP 3: re-run all three against real managed PG and re-handoff to READY_FOR_VALIDATION."
   },
-  "remediation_v3": {
+  "historical_remediation_v3_superseded": {
     "status": "READY_FOR_VALIDATION_V3",
     "prepared_by": "KERNEL_BUILDER-20260717-072123",
     "prepared_at_utc": "2026-07-20T01:19:00Z",
@@ -377,7 +570,7 @@
     "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-20T01:18:19.901Z",
     "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
   },
-  "validation_v2": {
+  "historical_validation_v2_superseded": {
     "verdict": "FAIL_V2",
     "validated_by": "INTEGRATION_VALIDATOR-20260718-230746",
     "validated_at_utc": "2026-07-18T23:40:04.194Z",
@@ -400,7 +593,7 @@
       "PASS visual inspection but FAIL freshness: existing PNG is readable and hash-valid, while its projection provenance exceeds the 30-minute limit."
     ]
   },
-  "validation_v4": {
+  "historical_validation_v4_superseded": {
     "verdict": "FAIL_V4",
     "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
     "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
@@ -422,13 +615,13 @@
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   },
-  "palmistry_residual_correction_2026_08_04": {
+  "historical_palmistry_residual_correction_2026_08_04_superseded": {
     "why_this_was_wrong": "The note was written when Palmistry genuinely was not in this worktree. It has since landed on this branch, but the note was never revisited, so two MTs carried an absent-component blocker for a component that is present.",
     "how_verified": "Enumerated every *palmistry* path in the worktree (excluding target/ and .git/) and read the module headers. Six source/migration files plus one e2e test found.",
     "status_unchanged": "Both MTs remain READY_FOR_VALIDATION_V5. This corrects the recorded residual only; no acceptance criterion, proof target, or status was altered.",
     "found_by": "KERNEL_BUILDER-20260801-214802, prompted by a delegated agent correctly disputing a briefing statement that Palmistry was absent. The agent was right and the briefing was wrong; this is the downstream correction."
   },
-  "integration_validation_v5_2026_08_14": {
+  "historical_integration_validation_v5_2026_08_14_superseded": {
     "verdict": "FAIL_V5",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",

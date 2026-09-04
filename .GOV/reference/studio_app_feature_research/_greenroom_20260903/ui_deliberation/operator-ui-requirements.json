@@ -1,0 +1,87 @@
+{
+ "schema_id": "handshake.reference.studio_ui_operator_requirements@1",
+ "file_id": "studio-ui-operator-requirements",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "purpose": "Operator-stated UI requirements for the Handshake Studio module, recorded verbatim in intent so the deliberation agents and the eventual microtasks are held to them.",
+ "requirements": [
+  {
+   "id": "OUI-001",
+   "title": "Studio is an app-wide viewport, switched by its icon",
+   "statement": "Studio occupies the whole Handshake work area when selected. Pressing the Studio icon switches the viewport to Studio; Stage, Notes, Tailor and every other module keep running in the background rather than being torn down.",
+   "implication": "Module switching is a viewport swap over live state, not a navigation that disposes the previous module."
+  },
+  {
+   "id": "OUI-002",
+   "title": "Arbitrary windows inside the main window, each with tabs",
+   "statement": "The operator works the way he works in VS Code: any number of editor windows inside the one main window, each holding multiple tabs. It can be a single file with a chat beside it, or ten windows each with several tabs. The number must never be fixed.",
+   "current_defect": "split_layout.rs implements a hard-coded 2x2 with SplitWeights{vertical,horizontal}, ported verbatim from the old React app/src/App.tsx because MT-006 acceptance criteria demanded those exact field names. Its own docstring states egui_tiles is the intended engine for free-form docking in later MTs. egui_tiles 0.14 is already a dependency.",
+   "implication": "Replacing the fixed 2x2 with the tile tree is a microtask, not a rewrite."
+  },
+  {
+   "id": "OUI-003",
+   "title": "Tabs inside the Studio module for different files and projects",
+   "statement": "Multiple documents and projects open simultaneously as tabs inside Studio, each retaining its own state.",
+   "implication": "Layout persistence must decide its scope: per document type, per project, or per tab."
+  },
+  {
+   "id": "OUI-004",
+   "title": "No persona toggle",
+   "statement": "Affinity swaps its entire interface between nine personas. The operator rejects this. Panels should be job-related and contextual; the whole UI must not switch modes. Photoshop historically shipped pen, vector and video tools inside one application, which is the better precedent.",
+   "evidence_for": "In the deduplicated capability registry, 1,096 capabilities are shared by two applications, 327 by three, 127 by four, 69 by five, 29 by six and 6 by seven. The same tool serves multiple document types, so gating it behind a mode means implementing once and hiding repeatedly.",
+   "prior_art_to_generalise": "Dreamweaver ships 60 property inspectors, each declaring binds_to_tag, priority and selection_scope; the host resolves which to show from the current selection. InDesign's Control panel and Premiere's Effect Controls use the same mechanism. This is the operator's instinct, already implemented in a captured application."
+  },
+  {
+   "id": "OUI-005",
+   "title": "Panels dock to any of the four viewport edges, tabbed into stacks, user-reorganisable",
+   "statement": "The operator's Photoshop habit: many panels open, tabbed together, docked to one side. The viewport has four sides and the user must be able to move panels between all of them and regroup them.",
+   "constraint": "A deliberated DEFAULT layout is required. 'The user can arrange it' is not an answer."
+  },
+  {
+   "id": "OUI-006",
+   "title": "Everything reachable from the top menu bar, including things reachable nowhere else",
+   "statement": "In Adobe applications a great deal is hidden in the menu bar, and the menu is the exhaustive index. Studio's menu must expose every capability, including those that also appear in panels and tool option bars, plus capabilities with no panel equivalent.",
+   "implication": "One command registry backs the menu tree, the command palette and every panel action, so nothing can be reachable in one surface and missing from another."
+  },
+  {
+   "id": "OUI-007",
+   "title": "Tooltips wherever possible",
+   "statement": "Every tool, panel, control and menu item carries a tooltip.",
+   "generation_principle": "Tooltip text must be generated from the green-room captures rather than hand-written, so it cannot drift from the implementation. The captures already hold vendor-written descriptions plus real ranges, units, defaults and decimal places."
+  },
+  {
+   "id": "OUI-008",
+   "title": "Every numeric field is a scrubbable value control",
+   "statement": "Anything with a value is a number input that can also be changed by grabbing the input box and dragging up, down or sideways, and by the scroll wheel over the field.",
+   "required_behaviours": [
+    "Direct text entry by click or focus, committing on Enter or blur, reverting on Escape.",
+    "Press-and-drag on the field body changes the value continuously; horizontal and vertical drag both work.",
+    "Scroll wheel over the field steps the value.",
+    "Modifier keys change the step magnitude, following the established convention: a coarse modifier multiplies the step and a fine modifier divides it. The exact keys are a proposal item.",
+    "The pointer changes to a horizontal-resize affordance on hover so the control is discoverable, since a plain number box does not advertise that it is draggable.",
+    "Values clamp to the parameter's real minimum and maximum and are formatted to the parameter's real decimal precision and unit.",
+    "Drag and scroll produce a single undoable change per interaction, not one per pixel or per wheel notch."
+   ],
+   "why_this_is_cheap_here": "The scrub control can be generated from captured parameter metadata rather than configured by hand. Illustrator's EVE dialog sources give slider minimum and maximum, a separate edit range, the unit token and the decimal places per control across 559 layouts and 2,109 parameters. Photoshop's type library help strings yielded 35 ranges, 140 defaults and 43 units. Premiere's Lumetri surface carries hard bounds and separate UI bounds per parameter across 98 parameters. Affinity's brush schema carries observed minimum and maximum per parameter. Feeding those into one control means the numeric behaviour matches the reference application without anyone typing a range twice.",
+   "accessibility_requirement": "The same clamped set-value path must be reachable through AccessKit so the out-of-process inspector can set a value directly, and the accessible value, minimum, maximum and unit must agree with what the control renders."
+  },
+  {
+   "id": "OUI-009",
+   "title": "Notes embeds Studio documents",
+   "statement": "Notes carries Studio attachments and embedded files that can be worked on inside Notes, or opened in the Studio module. Opening switches the viewport to Studio, shows saved state from already-open files, and opens the attachment in a new tab.",
+   "implication": "A cross-module document reference plus an embedded editable view per document type, routed through the existing interaction bus and cross-reference modules in the WP-KERNEL-012 base."
+  },
+  {
+   "id": "OUI-010",
+   "title": "Scope boundary is by document type, not by application",
+   "statement": "Studio owns raster, vector, layout, motion, video, web and photo-catalog documents. Notes owns text documents but may embed and hand off Studio documents.",
+   "status": "proposed by the assistant, not yet confirmed by the operator"
+  }
+ ],
+ "open_for_operator_decision": [
+  "Whether disabled menu items stay visible and greyed, as Adobe does, or are hidden when out of context.",
+  "Whether panel layout persists per document type, per project or per tab.",
+  "The exact coarse and fine modifier keys for the scrub control.",
+  "Confirmation of OUI-010, the document-type scope boundary."
+ ]
+}

@@ -612,18 +612,18 @@
     },
     {
       "mt_id": "MT-019",
-      "status": "FAIL_V5",
+      "status": "CLAIMED",
       "depends_on": [
         "MT-007"
       ],
       "summary": "Harden the spawned-process reclaim reaper beyond the MT-007 crash->restart boot case: cover the running-app window and decide fail-open vs fail-closed on kill failure. MT-007's blocker (generic reclaim wired into boot) is closed and runtime-proven; these are secondary residuals surfaced by adversarial review, deferred so they are not forgotten.",
       "unlocks": [],
       "blocks": [],
-      "proof_status": "FAIL_V5: The authoritative HBR status is PENDING and the declared git diff check fails. The contract also records unresolved current failures in periodic restart-orphan recovery and concurrent reclaimer behavior. See integration_validation_v5_2026_08_14.",
-      "hbr_status": "PENDING; HBR-INT-001 / HBR-INT-005 / HBR-INT-009 / HBR-MAN-004 / HBR-QUIET-003 for MT-019: the full reclaim suite is green including real-process kill and durable PostgreSQL lifecycle closure, which is the HBR-QUIET-003 process-ownership guarantee (no orphan processes after run, failure, staleness or cancel). hbr_status was previously PENDING, which made PASS illegal under CX-503B1 irrespective of the 12/12 the validator saw.",
+      "proof_status": "V6_SURREAL_SOURCE_REMEDIATED_PENDING_PARENT_PROOF: obsolete relation-backed tests were replaced by one embedded-Surreal production-boundary target with exact five-field ResourceScope probes. Cargo/runtime proof is intentionally pending under the operator's serialized-build constraint; F4 main.rs composition remains parent-owned.",
+      "hbr_status": "PENDING_PARENT_RUNTIME_PROOF: source/tests cover exact immutable process-set ownership, one-field and missing-scope denial, same/foreign owner safety, two-sample corroboration, set-drift rejection, STOP-reservation and timeout denial, crash-after-kill no-rekill recovery, concurrent one-kill/one-STOP fencing, production-runtime fail-open reporting, periodic retry, production-runtime timeout, durable Surreal STOP closure, and real-process identity fencing.",
       "pre_implementation_adversarial_review_status": "COMPLETE_2026_07_30_PLAN_REQUIRES_REWORK_P1_P2_P3_P4_P5_PREREQUISITES",
-      "post_implementation_adversarial_review_status": "PARENT_REVIEWED_PLUS_PRE_IMPLEMENTATION_ADVERSARIAL_REVIEW_REWORKED_THE_PLAN_BEFORE_CODING",
-      "adversarial_findings_status": "PENDING",
+      "post_implementation_adversarial_review_status": "V6_STATIC_ADVERSARIAL_REVIEW_COMPLETE_RUNTIME_REVIEW_PENDING",
+      "adversarial_findings_status": "V6_SOURCE_FINDINGS_ADDRESSED_PARENT_RUNTIME_FINDINGS_PENDING",
       "integration_validation_v5_2026_08_14": {
         "verdict": "FAIL_V5",
         "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",

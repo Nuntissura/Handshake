@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33390",
+ "created_at_utc": "2026-09-04T13:36:11+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-IO-129#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "3. Document PDF export",
+  "spec_line": 19895,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "PDF numeric setting contracts (from the shipped spread)",
+ "spec_anchor": [
+  "STU-IO-129"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "interop",
+ "scope": {
+  "summary": "PDF numeric setting contracts (from the shipped spread).** | Setting | Observed values | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---|---| | `colour_image_resolution` | 100, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `greyscale_image_resolution` | 150, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `monochrome_image_resolution` | 300, 1200 | 1 | unknown | 300 | 2400 | 1200 | ppi | 0 | | `downsample_threshold` | 1.50000 | 1.0 | unknown | 1.0 | 3.0 | 1.5 | ratio | 5 | | `max_subset_percent` | 100 | 0 | 100 | 0 | 100 | 100 | percent | 0 | | `image_memory` | 1048576 | unknown | unknown | absent | absent | 1048576 | bytes | 0 | | `start_page` | 1 | 1 | unknown | 1 | unknown | 1 | page number | 0 | | `end_page` | -1 | -1 | unknown | -1 | unknown | -1 | page number (-1 = last) | 0 | | `dsc_reporting_level` | 0 | 0 | unknown | 0 | 3 | 0 | level | 0 | | `bit_depth` (per image family) | -1, 1, 2 | -1 | unknown | -1 | 16 | -1 | bits (-1 = unchanged) | 0 | Every `unknown` above is honest: the source presets declare a VALUE, not a bound. Studio MUST NOT convert an observed value into a bound. Clamping to an observed set would forbid legal values.",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Studio MUST NOT convert an observed value into a bound.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-IO-129"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -20,7 +20,7 @@
   "wp_id": "WP-1-Handshake-Stage-MVP-v1",
   "mt_id": "MT-092",
   "created_at_utc": "2026-07-20T00:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-09-01T00:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-092.json",
     "microtask_projection": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-092.md",
@@ -40,7 +40,8 @@
       "MT-002",
       "MT-004",
       "MT-006",
-      "MT-007"
+      "MT-007",
+      "MT-125"
     ],
     "blocks": [],
     "active": false,
@@ -64,6 +65,22 @@
     ],
     "proof_targets": [
       "zero-page-activity-search"
+    ]
+  },
+  "storage_obligation": {
+    "contract_ref": ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json#storage_contract",
+    "posture": "SURREALDB_EXCLUSIVE_AUTHORITY",
+    "applicability": "REQUIRED_IF_DURABLE_STATE_EVENT_CACHE_FIXTURE_RECOVERY_OR_DATABASE_PROOF_IS_TOUCHED",
+    "requirements": [
+      "Use the application-injected typed StageRepository and canonical embedded SurrealDB/EventLedger authority.",
+      "Do not introduce Turso, libSQL, SQLite, PostgreSQL, a feature-private database engine, fallback storage, or dual-write authority.",
+      "Keep ArtifactStore as byte/manifests/hash/retention/materialization authority and browser-engine profile files as non-canonical isolated engine materialization."
+    ],
+    "proof_when_applicable": [
+      "real WP-scoped embedded SurrealDB test",
+      "SurrealKit SCHEMAFULL rollout with assertions, indexes, and authenticated record-user permissions",
+      "restart/reopen and concurrency proof appropriate to the MT",
+      "zero-match guard for forbidden database dependencies, drivers, URLs, migrations, fixtures, caches, fallbacks, and compatibility paths"
     ]
   },
   "gui_obligation": {

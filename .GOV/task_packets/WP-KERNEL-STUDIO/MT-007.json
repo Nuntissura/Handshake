@@ -1,123 +1,327 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-007",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-007.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-007.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-002",
-      "MT-005"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "StudioModelAdapter + MCP command surface scaffold [STU-MDL-001,STU-MDL-003,STU-CON-002]",
-  "spec_anchor": [
-    "STU-MDL-001",
-    "STU-MDL-003",
-    "STU-AUT-*"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-007",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:25+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-007.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-007.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-002",
+   "MT-005"
   ],
-  "scope": {
-    "summary": "Create StudioModelAdapter (ModelAdapter trait, model-lane registry) + the typed Studio command API scaffold: command_id (studio.<domain>.<command>.v<N>), auto-generated input/outputSchema, dry_run, receipt, undo semantics, MCP tool exposure. Backend read surface over StudioDocument (tree/selectors/diff).",
-    "allowed_paths": [
-      "src/studio/**",
-      "src/api/studio.rs",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "StudioModelAdapter registered; command contract shape present; MCP read API live"
-    ],
-    "proof_targets": [
-      "command-contract + MCP read-API test"
-    ],
-    "code_surfaces": [
-      "src/studio/model_adapter.rs",
-      "src/api/studio.rs",
-      "src/studio/command.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::command",
-      "test: command contract carries dry_run+receipt+undo; MCP inputSchema auto-generated",
-      "live: read API returns StudioDocument tree/diff"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-SWARM-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "StudioModelAdapter + MCP command surface scaffold [STU-MDL-001,STU-MDL-003,STU-CON-002]",
+ "spec_anchor": [
+  "STU-MDL-001",
+  "STU-MDL-003",
+  "STU-AUT-*"
+ ],
+ "scope": {
+  "summary": "Create StudioModelAdapter (ModelAdapter trait, model-lane registry) + the typed Studio command API scaffold: command_id (studio.<domain>.<command>.v<N>), auto-generated input/outputSchema, dry_run, receipt, undo semantics, MCP tool exposure. Backend read surface over StudioDocument (tree/selectors/diff).",
+  "allowed_paths": [
+   "src/studio/**",
+   "src/api/studio.rs",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No model-visible/steerable command surface; models cannot drive Studio.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "StudioModelAdapter registered",
+   "Command contract shape present",
+   "MCP read API live"
+  ],
+  "proof_targets": [
+   "command-contract + MCP read-API test"
+  ],
+  "code_surfaces": [
+   "src/studio/model_adapter.rs",
+   "src/api/studio.rs",
+   "src/studio/command.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::command",
+   "test: command contract carries dry_run+receipt+undo; MCP inputSchema auto-generated",
+   "live: read API returns StudioDocument tree/diff"
+  ],
+  "acceptance_criteria_original": [
+   "StudioModelAdapter registered; command contract shape present; MCP read API live"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-SWARM-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No model-visible/steerable command surface; models cannot drive Studio.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "StudioModelAdapter registered",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "command-contract + MCP read-API test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Command contract shape present",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "MCP read API live",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-MDL-001",
+    "spec_clause_text": "[STU-MDL-001] BACKEND VISIBILITY. Every Studio capability MUST be reachable through a typed command contract on the unified Studio command API (14.14). The API MUST expose: (a) a structured read surface over `StudioDocument` — the scene/layer-graph tree, selectors by id/kind/name, semantic diffs between document states, and structured render receipts; and (b) a typed write surface where every command declares typed inputs/outputs, `dry_run` support, a receipt shape, undo semantics, and deterministic replay. A model MUST be able to inspect the full Studio document and tool surface from the API alone, without screen-reading and without source-app knowledge."
+   },
+   {
+    "anchor": "STU-MDL-003",
+    "spec_clause_text": "[STU-MDL-003] COMMAND-CONTRACT COMPLETENESS. Every shipped Studio command MUST carry a typed contract with: stable `command_id` (`studio.<domain>.<command>.v<N>`), `inputSchema`/`outputSchema` (auto-generated via `schemars::JsonSchema`), `dry_run` availability, a `SimulationReceipt`-class receipt with stable finding codes and a JSON-Pointer `suggested_fix` (deterministic model self-correction loop, mirroring [TAI-OVR-005]), undo semantics (14.19), and a declared Argus target for any operator-visible surface it affects. Commands without a typed contract MUST NOT ship."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [
+   {
+    "wildcard": "STU-AUT-*",
+    "member_count": 128,
+    "members": [
+     "STU-AUT-001",
+     "STU-AUT-002",
+     "STU-AUT-003",
+     "STU-AUT-004",
+     "STU-AUT-005",
+     "STU-AUT-006",
+     "STU-AUT-007",
+     "STU-AUT-008",
+     "STU-AUT-009",
+     "STU-AUT-010",
+     "STU-AUT-011",
+     "STU-AUT-012",
+     "STU-AUT-013",
+     "STU-AUT-014",
+     "STU-AUT-015",
+     "STU-AUT-016",
+     "STU-AUT-017",
+     "STU-AUT-018",
+     "STU-AUT-019",
+     "STU-AUT-020",
+     "STU-AUT-021",
+     "STU-AUT-022",
+     "STU-AUT-023",
+     "STU-AUT-024",
+     "STU-AUT-025",
+     "STU-AUT-026",
+     "STU-AUT-027",
+     "STU-AUT-100",
+     "STU-AUT-101",
+     "STU-AUT-102",
+     "STU-AUT-103",
+     "STU-AUT-104",
+     "STU-AUT-105",
+     "STU-AUT-106",
+     "STU-AUT-107",
+     "STU-AUT-108",
+     "STU-AUT-109",
+     "STU-AUT-110",
+     "STU-AUT-111",
+     "STU-AUT-112",
+     "STU-AUT-113",
+     "STU-AUT-114",
+     "STU-AUT-115",
+     "STU-AUT-116",
+     "STU-AUT-117",
+     "STU-AUT-118",
+     "STU-AUT-119",
+     "STU-AUT-120",
+     "STU-AUT-121",
+     "STU-AUT-122",
+     "STU-AUT-123",
+     "STU-AUT-124",
+     "STU-AUT-125",
+     "STU-AUT-126",
+     "STU-AUT-127",
+     "STU-AUT-128",
+     "STU-AUT-129",
+     "STU-AUT-130",
+     "STU-AUT-131",
+     "STU-AUT-132",
+     "STU-AUT-133",
+     "STU-AUT-134",
+     "STU-AUT-135",
+     "STU-AUT-136",
+     "STU-AUT-137",
+     "STU-AUT-138",
+     "STU-AUT-139",
+     "STU-AUT-140",
+     "STU-AUT-141",
+     "STU-AUT-142",
+     "STU-AUT-143",
+     "STU-AUT-144",
+     "STU-AUT-145",
+     "STU-AUT-146",
+     "STU-AUT-147",
+     "STU-AUT-148",
+     "STU-AUT-149",
+     "STU-AUT-150",
+     "STU-AUT-151",
+     "STU-AUT-152",
+     "STU-AUT-153",
+     "STU-AUT-154",
+     "STU-AUT-155",
+     "STU-AUT-156",
+     "STU-AUT-157",
+     "STU-AUT-158",
+     "STU-AUT-159",
+     "STU-AUT-160",
+     "STU-AUT-161",
+     "STU-AUT-162",
+     "STU-AUT-163",
+     "STU-AUT-164",
+     "STU-AUT-165",
+     "STU-AUT-166",
+     "STU-AUT-167",
+     "STU-AUT-168",
+     "STU-AUT-169",
+     "STU-AUT-170",
+     "STU-AUT-171",
+     "STU-AUT-172",
+     "STU-AUT-173",
+     "STU-AUT-174",
+     "STU-AUT-175",
+     "STU-AUT-176",
+     "STU-AUT-177",
+     "STU-AUT-178",
+     "STU-AUT-179",
+     "STU-AUT-180",
+     "STU-AUT-181",
+     "STU-AUT-182",
+     "STU-AUT-183",
+     "STU-AUT-184",
+     "STU-AUT-185",
+     "STU-AUT-186",
+     "STU-AUT-187",
+     "STU-AUT-188",
+     "STU-AUT-189",
+     "STU-AUT-190",
+     "STU-AUT-191",
+     "STU-AUT-192",
+     "STU-AUT-193",
+     "STU-AUT-194",
+     "STU-AUT-195",
+     "STU-AUT-196",
+     "STU-AUT-197",
+     "STU-AUT-198",
+     "STU-AUT-199",
+     "STU-AUT-200"
+    ],
+    "note": "Family-scope citation. The contract spans this whole clause family; it does not cite one clause."
+   }
+  ],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:25+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

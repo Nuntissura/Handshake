@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30676",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-LAY-011#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.6.1.2 Liquid Layout, Adjust Layout, and Alternate Layouts",
+  "spec_line": 5529,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Alternate layouts MUST be supported: multiple named page-size/orientation variants",
+ "spec_anchor": [
+  "STU-LAY-011"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "layout",
+ "scope": {
+  "summary": "Alternate layouts MUST be supported: multiple named page-size/orientation variants coexist inside one `StudioDocument`, displayed side by side in the page-navigation surface, with stories linked ([STU-LAY-019]) back to the source layout so edits can propagate. A flex/container layout mode (container-based responsive layout with direction, wrap, alignment and spacing properties) MUST be available with conflict reporting against fixed positioning. The captured section object carries `alternate_layout` (a name string) and `alternate_layout_length` (a page count), so an alternate layout is stored AS A SECTION, not as a separate document. Studio MUST use that model. The captured constraint vocabulary declares two hard rules Studio MUST enforce: an alternate-layout name MUST NOT be blank, and it MUST be unique and MUST NOT end with `*` or `:`. The flex/container layout mode's parameters are owned by the design-system domain (14.10) via `StudioAutoLayout`; the captured layout-suite menu confirms a flex-container command family exists in this domain but its parameters were not recovered on this surface. The normative Studio behaviour is that layout consumes `StudioAutoLayout` and MUST NOT fork a parallel container model ([STU-SECTION-003]).",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Alternate layouts MUST be supported: multiple named page-size/orientation variants coexist inside one `StudioDocument`, displayed side by side in the page-navigation surface, with stories linked ([STU-LAY-019]) back to the source layout so edits can propagate.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-011"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "A flex/container layout mode (container-based responsive layout with direction, wrap, alignment and spacing properties) MUST be available with conflict reporting against fixed positioning.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-011"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Studio MUST use that model.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-011"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The captured constraint vocabulary declares two hard rules Studio MUST enforce: an alternate-layout name MUST NOT be blank, and it MUST be unique and MUST NOT end with `*` or `:`.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-011"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The normative Studio behaviour is that layout consumes `StudioAutoLayout` and MUST NOT fork a parallel container model ([STU-SECTION-003]).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-011"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

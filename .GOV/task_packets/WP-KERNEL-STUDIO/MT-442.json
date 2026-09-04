@@ -1,124 +1,200 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-442",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-442.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-442.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-441",
-      "MT-005",
-      "MT-006"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Five-artifact promotion gate + preservation-blob law [STU-IO-004,STU-IO-005]",
-  "spec_anchor": [
-    "STU-IO-004",
-    "STU-IO-005",
-    "STU-VAL-001",
-    "STU-OVR-003"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-442",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-442.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-442.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-441",
+   "MT-005",
+   "MT-006"
   ],
-  "scope": {
-    "summary": "Implement the NORMATIVE format promotion gate: a format import/export feature MUST NOT be promoted (parity-complete/shippable) unless it declares ALL five artifacts — (a) compatibility scope (what is preserved/transformed/rasterized/unsupported), (b) fixtures per supported app-and-direction, (c) round-trip expectations (bounded fidelity envelope), (d) unsupported-feature diagnostics/receipts (machine-readable, emitted at decode/encode, surfaced to operator+model), (e) recovery behavior (deterministic non-destructive handling of malformed/partial/truncated/password-protected/version-newer inputs; fail closed, never silent partial write). A format missing any is `unsupported` or `optional adapter`, not promoted. Implement the preservation-blob law: vendor-private structures Studio cannot model are carried as an opaque preservation blob, re-emitted on same-family export, receipt-separated from semantically imported structure, and stored as typed SurrealDB authority data; PostgreSQL and SQLite are forbidden.",
-    "allowed_paths": [
-      "src/studio/interop/**",
-      "src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "five-artifact gate enforced fail-closed; preservation blob carried/re-emitted/receipted; no PostgreSQL/SQLite"
-    ],
-    "proof_targets": [
-      "five-artifact gate fail-closed + preservation-blob round-trip test"
-    ],
-    "code_surfaces": [
-      "src/studio/interop/promotion_gate.rs",
-      "src/studio/interop/preservation_blob.rs",
-      "src/studio/validation.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::interop::gate",
-      "negative: format missing any of the 5 artifacts cannot be promoted (fails closed)",
-      "test: preservation blob carried + re-emitted on same-family export; receipt separates opaque vs semantic; no PostgreSQL/SQLite storage"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Five-artifact promotion gate + preservation-blob law [STU-IO-004,STU-IO-005]",
+ "spec_anchor": [
+  "STU-IO-004",
+  "STU-IO-005",
+  "STU-VAL-001",
+  "STU-OVR-003"
+ ],
+ "scope": {
+  "summary": "Implement the NORMATIVE format promotion gate: a format import/export feature MUST NOT be promoted (parity-complete/shippable) unless it declares ALL five artifacts — (a) compatibility scope (what is preserved/transformed/rasterized/unsupported), (b) fixtures per supported app-and-direction, (c) round-trip expectations (bounded fidelity envelope), (d) unsupported-feature diagnostics/receipts (machine-readable, emitted at decode/encode, surfaced to operator+model), (e) recovery behavior (deterministic non-destructive handling of malformed/partial/truncated/password-protected/version-newer inputs; fail closed, never silent partial write). A format missing any is `unsupported` or `optional adapter`, not promoted. Implement the preservation-blob law: vendor-private structures Studio cannot model are carried as an opaque preservation blob, re-emitted on same-family export, receipt-separated from semantically imported structure, and stored as typed SurrealDB authority data; PostgreSQL and SQLite are forbidden.",
+  "allowed_paths": [
+   "src/studio/interop/**",
+   "src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Formats promoted without fixtures/receipts; silent structure loss on round-trip.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Five-artifact gate enforced fail-closed",
+   "Preservation blob carried/re-emitted/receipted",
+   "No PostgreSQL/SQLite"
+  ],
+  "proof_targets": [
+   "five-artifact gate fail-closed + preservation-blob round-trip test"
+  ],
+  "code_surfaces": [
+   "src/studio/interop/promotion_gate.rs",
+   "src/studio/interop/preservation_blob.rs",
+   "src/studio/validation.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::interop::gate",
+   "negative: format missing any of the 5 artifacts cannot be promoted (fails closed)",
+   "test: preservation blob carried + re-emitted on same-family export; receipt separates opaque vs semantic; no PostgreSQL/SQLite storage"
+  ],
+  "acceptance_criteria_original": [
+   "five-artifact gate enforced fail-closed; preservation blob carried/re-emitted/receipted; no PostgreSQL/SQLite"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Formats promoted without fixtures/receipts; silent structure loss on round-trip.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Five-artifact gate enforced fail-closed",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "five-artifact gate fail-closed + preservation-blob round-trip test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Preservation blob carried/re-emitted/receipted",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "No PostgreSQL/SQLite",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-IO-004",
+    "spec_clause_text": "[STU-IO-004] NORMATIVE GATE. A format import or export feature MUST NOT be promoted (marked parity-complete or shippable) unless it declares ALL of the following five artifacts: - (a) **compatibility scope** — an explicit statement of which structures are preserved, transformed, rasterized, or unsupported. - (b) **fixtures** — representative fixtures for every supported app-and-direction it claims. - (c) **round-trip expectations** — the documented, bounded fidelity envelope after import->export. - (d) **unsupported-feature diagnostics/receipts** — a machine-readable receipt enumerating every source feature that could not be represented, was degraded, or was baked, emitted at decode/encode time and surfaced to the operator and model. - (e) **recovery behavior** — deterministic, non-destructive handling of malformed, partial, truncated, password-protected, or version-newer inputs (fail closed with a receipt, never a silent partial write to authority). A format that cannot meet all five is `unsupported` or `optional adapter`, not promoted."
+   },
+   {
+    "anchor": "STU-IO-005",
+    "spec_clause_text": "[STU-IO-005] Unsupported-feature handling MUST be lossless-of-intent where the format is a native round-trip target: - Vendor-private structures that Studio cannot semantically model MUST be preserved as an opaque preservation blob carried with the document. - The preservation blob MUST be re-emitted on export where the target is the same family, so a round-trip does not silently drop unmodeled structure. - A receipt MUST record what was preserved-opaque versus what was semantically imported into editable Studio primitives. - Preservation blobs are authority data under the no-SQLite rule ([STU-OVR-003]) and MUST NOT be stored in any SQLite cache. ### 3. Format compatibility matrix (normative rows)"
+   },
+   {
+    "anchor": "STU-VAL-001",
+    "spec_clause_text": "[STU-VAL-001] `StudioValidationDescriptor` is the Studio validation-check catalog (document-integrity checks, visual-diff checks, format round-trip checks, forbidden-pattern/anti-scaffold checks). Every model-authored proposal (14.18) and every implementing MT MUST pass the applicable checks before promotion/handoff. Checks carry stable codes and severities."
+   },
+   {
+    "anchor": "STU-OVR-003",
+    "spec_clause_text": "[STU-OVR-003] Studio MUST NOT introduce a SQLite dependency anywhere (not in `studio-engine`, not in tests, not as a development cache). The `no_sqlite_tripwire` and SurrealDB-only startup tripwire in [STU-SDB-002] apply to Studio without exception. Durable Studio authority is SurrealDB/EventLedger only; live collaborative document state is CRDT; neither is SQLite-backed. ### 2. Scope Studio's normative feature scope is the deduped union of the five source suites, organized into the domain catalogs below. Each catalog sub-section is the normative Studio feature set for that domain; the research provenance rows are collapsed into these normative features per [STU-SECTION-003]. | Domain catalog | Sub-section | Source-suite parity basis (provenance) | |---|---|---| | Raster imaging & photo editing | 14.4 | Photoshop, Affinity Photo, Figma raster fills | | Vector graphics & illustration | 14.5 | Illustrator, Affinity Designer, Figma/Draw vector networks | | Page layout & publishing | 14.6 | InDesign, Affinity Publisher | | Typography engine | 14.7 | all five suites' text engines | | Color management & pipeline | 14.8 | all five suites' color systems | | Effects, filters & adjustments | 14.9 | Photoshop filters/adjustments, Illustrator effects, Affinity live filters, Figma effects | | Design systems, components & variables | 14.10 | Figma components/variants/variables, Illustrator symbols, InDesign styles | | Prototyping, motion & interaction | 14.11 | Figma prototyping + Motion, InDesign interactive/EPUB | | Camera Raw / Develop pipeline | 14.12 | Photoshop Camera Raw, Affinity Develop persona | | Import/export & file-format compatibility | 14.13 | all five suites' format matrices | | Automation, scripting & plugin/API surface | 14.14 | Photoshop UXP/actions, Illustrator/InDesign scripting DOM, Figma Plugin/REST API | | Whiteboard & diagramming | 14.15 | FigJam | The cross-cutting normative requirements — model visibility/steerability (14.16), parallel workflows (14.17), the propose-work system (14.18), per-file history/undo (14.19), the headless/quiet law (14.20), the operator unification surface (14.21), the dual-audience UserManual (14.22), the canonical contracts (14.23), and validation/promotion/HBR (14.24) — apply to every domain catalog. Out of scope: replicating any source suite's exact menu tree, pixel-perfect UI clone, vendor cloud services, vendor pro"
+   }
+  ],
+  "spec_clause_count": 4,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

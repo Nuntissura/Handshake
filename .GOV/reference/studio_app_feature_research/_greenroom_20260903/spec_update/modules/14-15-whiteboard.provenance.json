@@ -1,0 +1,638 @@
+{
+ "schema_id": "handshake.spec.module_provenance@1",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "authority_note": "This sidecar is PROVENANCE ONLY. It is not authority and MUST NOT be cited as the source of any Studio contract. Per [STU-SECTION-002] the Master Spec module is the single source of truth; this file records HOW each clause was derived so a reviewer can check the derivation, and so a later capture can supersede a studio_declared value without ambiguity. A disagreement between this file and the module is a defect in this file.",
+ "module_file": "14-15-whiteboard.md",
+ "module_title": "14.15 Whiteboard & Diagramming",
+ "module_body_sha256": "3bd172821171338eeb50c73e84b67b6bc8084aa203b36bbb9e738e7b09becec0",
+ "spec_target_bundle": "master-spec-v02.206",
+ "spec_baseline_bundle": "master-spec-v02.205",
+ "green_room": ".GOV/reference/studio_app_feature_research/_greenroom_20260903",
+ "derivation_legend": {
+  "parsed": "the value, field, enumeration or count is read literally from the named record in the named capture file",
+  "derived": "the clause is computed or reasoned from parsed records; the reasoning is stated in the note and is NOT itself in any capture",
+  "studio_declared": "no source declares this value; the Master Spec declares it as Studio's own contract and the clause labels it as such",
+  "spec_internal": "the source is another Master Spec clause, not a green-room capture",
+  "operator_decision": "the source is a recorded operator decision or a shipped work-packet contract, not a capture",
+  "declared_gap": "the clause declares an absence: something the captures do not contain and which this module deliberately does not invent"
+ },
+ "clause_count": 54,
+ "derivable_microtask_count": 46,
+ "derivation_rule_anchor": "STU-WB-137",
+ "source_reference_count": 68,
+ "derivation_census": {
+  "parsed": 20,
+  "derived": 5,
+  "studio_declared": 2,
+  "spec_internal": 35,
+  "operator_decision": 3,
+  "declared_gap": 3
+ },
+ "capture_files_referenced": {
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json": 26,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md": 17,
+  ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md": 13,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md": 5,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json": 2,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json": 2,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/studio-capability-registry.json": 1,
+  ".GOV/task_packets/WP-KERNEL-005/packet.json": 1,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json": 1
+ },
+ "clauses": {
+  "STU-WB-100": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.15 clauses [STU-WB-001]..[STU-WB-011], lines 3078-3143",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types (board node kinds)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-101": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/studio-capability-registry.json",
+     "record": "$.capabilities filtered domain=='whiteboard' -> 35 rows; compare domain=='layout' 4609, domain=='vector' 3826",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.source.provenance",
+     "derivation": "parsed",
+     "note": "single witness: one source object model, no corroborating capture"
+    }
+   ]
+  },
+  "STU-WB-102": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-001], [STU-WB-004]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[*].extends",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-103": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[StickyNode, ShapeWithTextNode, ConnectorNode, StampNode, HighlightNode, WashiTapeNode, TableNode, CodeBlockNode, SectionNode, MediaNode, EmbedNode, LinkUnfurlNode, WidgetNode]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-104": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[StickyNode] (text, authorVisible, authorName, isWideWidth)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-105": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[ShapeWithTextNode] (shapeType, text, cornerRadius, rotation, resize, rescale)",
+     "derivation": "parsed",
+     "note": "shapeType is declared as a member but its value union was NOT recovered"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.output_discipline[2]",
+     "derivation": "studio_declared",
+     "note": "the shape token set is Studio-declared and labelled as such"
+    }
+   ]
+  },
+  "STU-WB-106": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[ConnectorNode] (connectorLineType, connectorStart, connectorEnd, connectorStartStrokeCap, connectorEndStrokeCap, text, textBackground, cornerRadius, rotation)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-107": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[ConnectorNode].properties[connectorLineType] union ELBOWED|STRAIGHT|CURVED",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-108": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.type_aliases[ConnectorEndpoint].definition (ConnectorEndpointPosition | ConnectorEndpointEndpointNodeIdAndMagnet | ConnectorEndpointPositionAndEndpointNodeId)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-109": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.enums[ConnectorStrokeCap].values (12 members)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-110": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[StampNode] (getAuthorAsync)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-111": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[HighlightNode].extends (VectorLikeMixin, CornerMixin, StickableMixin)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-112": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[WashiTapeNode].extends (DefaultShapeMixin, StickableMixin)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-113": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[TableNode] (numRows, numColumns, cellAt, insertRow, insertColumn, removeRow, removeColumn, moveRow, moveColumn, resizeRow, resizeColumn); $.node_types[TableCellNode]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-114": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[CodeBlockNode] (code, codeLanguage); $.enums[CodegenResult].values",
+     "derivation": "derived",
+     "note": "language token set aligned with the codegen enumeration"
+    }
+   ]
+  },
+  "STU-WB-115": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[SectionNode] (sectionContentsHidden); $.mixins[DevStatusMixin].members; $.enums[DevStatus].values",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-116": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[MediaNode] (mediaData); $.node_types[LinkUnfurlNode] (linkUnfurlData); $.node_types[EmbedNode] (embedData); $.enums[LinkPreviewResult].values",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-117": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-004] Drawing (marker/highlighter) row",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.mixins[VectorLikeMixin].members",
+     "derivation": "derived",
+     "note": "ink profile fields are Studio-declared over the vector primitive"
+    }
+   ]
+  },
+  "STU-WB-118": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.mixins[StickableMixin].members",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-119": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[WidgetNode] (widgetId, widgetSyncedState, syncedStateOverrides, syncedMapOverrides, setWidgetSyncedState, cloneWidget)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-120": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-002]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WB-121": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-007] facilitation table",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[StampNode].methods[getAuthorAsync]",
+     "derivation": "derived",
+     "note": "vote tally derived from stamp attribution"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.the_parameter_contract.where_bounds_are_absent",
+     "derivation": "studio_declared",
+     "note": "timer duration bounds Studio-declared"
+    }
+   ]
+  },
+  "STU-WB-122": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.enums[ArgFreeEventType].values (timer lifecycle members)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-WB-123": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-003], [STU-SDB-004]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WB-124": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-005]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008]",
+     "derivation": "operator_decision",
+     "note": "template preview bound to CKC"
+    }
+   ]
+  },
+  "STU-WB-125": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-009]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WB-126": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-009], [STU-ARC-005]",
+     "derivation": "spec_internal",
+     "note": "generation is a reviewable proposal, so run-to-run determinism is not required; application determinism is"
+    }
+   ]
+  },
+  "STU-WB-127": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-010], [STU-IO-006] matrix row 36, [STU-IO-013]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WB-128": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-010] tabular export",
+     "derivation": "spec_internal",
+     "note": "column mapping declared here; not stated in any capture"
+    }
+   ]
+  },
+  "STU-WB-129": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[ShapeWithTextNode].properties[shapeType]",
+     "derivation": "declared_gap",
+     "note": "value union not recovered; Studio-declared set labelled as such"
+    }
+   ]
+  },
+  "STU-WB-130": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types[SlideNode, SlideRowNode, SlideGridNode, InteractiveSlideElementNode]",
+     "derivation": "declared_gap",
+     "note": "presentation node kinds exist in the capture; section 14 has no presentation domain; disposition is an open operator scope question"
+    }
+   ]
+  },
+  "STU-WB-131": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.source.provenance",
+     "derivation": "declared_gap",
+     "note": "one witness only; no corroborating capture for this domain"
+    }
+   ]
+  },
+  "STU-WB-132": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008].what_the_spec_rewrite_must_cover",
+     "derivation": "operator_decision"
+    },
+    {
+     "capture_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+     "record": "$.scope",
+     "derivation": "operator_decision"
+    }
+   ]
+  },
+  "STU-WB-133": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].binding_declaration",
+     "derivation": "derived",
+     "note": "cross-reference to [STU-WEB-030]..[STU-WEB-044]"
+    }
+   ]
+  },
+  "STU-WB-134": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-CON-007]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WB-135": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.node_types; $.enums",
+     "derivation": "derived",
+     "note": "descriptor set derived from the record shapes and enumerations stated in this module"
+    }
+   ]
+  },
+  "STU-WB-136": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-WB-011]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-WB-137": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's own clause set [STU-WB-100]-[STU-WB-136]",
+     "derivation": "spec_internal",
+     "note": "Derivation rule (NORMATIVE): the closed unit list is enumerated from the clause kinds actually present in [STU-WB-100]-[STU-WB-136]; the rule form follows the precedent set by 14.7.21 [STU-TYP-240]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-WB-138": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's own clause set [STU-WB-100]-[STU-WB-136]",
+     "derivation": "spec_internal",
+     "note": "Open items and blocked dependencies: derived from the declared-gap clauses of this module ([STU-WB-129], [STU-WB-130], [STU-WB-131]); the rule that a gap still yields a microtask whose first acceptance criterion resolves the dependency is stated here"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-WB-139": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's own clause set [STU-WB-100]-[STU-WB-136]",
+     "derivation": "spec_internal",
+     "note": "Microtask content obligation: derived from the enumerations, parameter contracts and record shapes stated in [STU-WB-100]-[STU-WB-136]; form follows 14.7.21 [STU-TYP-241]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-WB-140": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's own clause set [STU-WB-100]-[STU-WB-136]",
+     "derivation": "spec_internal",
+     "note": "Yields index (NORMATIVE): counted mechanically over the clause anchors of [STU-WB-100]-[STU-WB-136], excluding the non-yielding classes named in the derivation rule and adding the individually named validation descriptors of [STU-WB-135]; verified by three independent counts (recount from the non-yielding set, sum of the table Yields column, stated module total)"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-WB-141": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's own clause set [STU-WB-100]-[STU-WB-136]",
+     "derivation": "spec_internal",
+     "note": "Anchor binding: derived from the provisional-anchor rule recorded in the green-room architecture decisions and the precedent of 14.7.21 [STU-TYP-243]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-WB-142": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-108], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `connector_endpoint_node_unresolvable` (severity warning); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-143": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-108], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `connector_endpoint_magnet_unknown` (severity error); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-144": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-118], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `stuck_to_node_unresolvable` (severity warning); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-145": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-113], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `table_index_out_of_range` (severity error); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-146": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-114], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `code_block_language_unknown` (severity warning); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-147": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-119], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `widget_plugin_not_installed` (severity warning); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-148": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-119], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `widget_synced_state_schema_violation` (severity error); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-149": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-121], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `voting_session_votes_exceed_allowance` (severity error); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-150": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-121], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `voting_anonymous_actor_projected` (severity error); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-151": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-116], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `link_unfurl_network_capability_not_granted` (severity error); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-152": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-116], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `embed_execution_capability_not_granted` (severity error); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-WB-153": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-15-whiteboard.md",
+     "record": "this module's clause [STU-WB-128], whose contract this descriptor enforces; the descriptor set is named in [STU-WB-135]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `board_export_column_mapping_missing` (severity error); promoted from a prose list inside [STU-WB-135] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  }
+ }
+}

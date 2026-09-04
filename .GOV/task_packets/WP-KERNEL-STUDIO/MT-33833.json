@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33833",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-VID-070a#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.25.5 Motion-graphics templates as a timeline capability",
+  "spec_line": 23964,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "The exposed-control type system is normative",
+ "spec_anchor": [
+  "STU-VID-070a"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "video_timeline",
+ "scope": {
+  "summary": "The exposed-control type system is normative.** Five control types appear across the 461 recovered controls: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Control type | Count | Contract | |---|---|---| | `source_text` | 144 | A localized string bound to a text layer's source text, carrying explicit per-control font-editing permissions: whether the font family, the faux bold/italic style and the font size may be changed by the person using the template, plus the locked font, size, all-caps, small-caps, bold and italic state. A template author can therefore expose the words while locking the typography, and Studio MUST honour that as a hard permission, not a UI hint. | | `group` | 144 | A section header whose value is the kind of the layer it heads. Structural, no value ([STU-FX-117]). | | `colour` | 93 | Linear RGBA as four floats in 0..1, with a `StudioColorProfile` reference ([STU-FX-118]). | | `checkbox` | 51 | Boolean. | | `numeric_slider` | 29 | Numeric, carrying `min`, `max` and `default`. These are SOFT bounds under [STU-FX-105] -- they are the control's presented range -- and the exposed control declares no hard bound, so `bound_state` is `declared_soft_only` and the underlying property's own hard bounds still govern acceptance. |",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "A template author can therefore expose the words while locking the typography, and Studio MUST honour that as a hard permission, not a UI hint. | | `group` | 144 | A section header whose value is the kind of the layer it heads.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-070a"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

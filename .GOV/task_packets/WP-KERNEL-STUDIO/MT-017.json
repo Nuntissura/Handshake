@@ -1,120 +1,468 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-017",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-017.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-017.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-001"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Raster compositor engine core (RasterEngine) [STU-RAS compositor,STU-CON-001]",
-  "spec_anchor": [
-    "STU-RAS-*",
-    "STU-FX-*",
-    "STU-ARC-002",
-    "STU-CON-005"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-017",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:25+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-017.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-017.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-001"
   ],
-  "scope": {
-    "summary": "Implement the studio-engine RasterEngine core: StudioRasterTile tiled pixel buffer, layer compositor with StudioBlendMode (~30 modes), non-destructive adjustment/live-filter application pipeline, GPU path via RenderEngine (wgpu/WGSL). UI-agnostic; consumed by 14.4/14.9 domain MTs.",
-    "allowed_paths": [
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "RasterEngine compositor + blend modes + GPU path; deterministic cross-backend equivalence"
-    ],
-    "proof_targets": [
-      "raster composite + blend-mode + cross-backend tolerance test"
-    ],
-    "code_surfaces": [
-      "studio-engine/src/raster/**",
-      "studio-engine/src/render/**"
-    ],
-    "expected_tests": [
-      "cargo test studio_engine::raster",
-      "test: 30 blend modes correctness; tile composite; cross-backend MeshComparator-style pixel tolerance"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-VIS-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Raster compositor engine core (RasterEngine) [STU-RAS compositor,STU-CON-001]",
+ "spec_anchor": [
+  "STU-RAS-*",
+  "STU-FX-*",
+  "STU-ARC-002",
+  "STU-CON-005"
+ ],
+ "scope": {
+  "summary": "Implement the studio-engine RasterEngine core: StudioRasterTile tiled pixel buffer, layer compositor with StudioBlendMode (~30 modes), non-destructive adjustment/live-filter application pipeline, GPU path via RenderEngine (wgpu/WGSL). UI-agnostic; consumed by 14.4/14.9 domain MTs.",
+  "allowed_paths": [
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No raster engine; all 14.4/14.9 raster/effect MTs blocked.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "RasterEngine compositor",
+   "Blend modes",
+   "GPU path",
+   "Deterministic cross-backend equivalence"
+  ],
+  "proof_targets": [
+   "raster composite + blend-mode + cross-backend tolerance test"
+  ],
+  "code_surfaces": [
+   "studio-engine/src/raster/**",
+   "studio-engine/src/render/**"
+  ],
+  "expected_tests": [
+   "cargo test studio_engine::raster",
+   "test: 30 blend modes correctness; tile composite; cross-backend MeshComparator-style pixel tolerance"
+  ],
+  "acceptance_criteria_original": [
+   "RasterEngine compositor + blend modes + GPU path; deterministic cross-backend equivalence"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-VIS-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No raster engine; all 14.4/14.9 raster/effect MTs blocked.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "RasterEngine compositor",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "raster composite + blend-mode + cross-backend tolerance test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Blend modes",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "GPU path",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Deterministic cross-backend equivalence",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-ARC-002",
+    "spec_clause_text": "[STU-ARC-002] `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `RasterEngine`/`VectorEngine`/`LayoutEngine`/`TextEngine`/`ColorEngine`/`RenderEngine: Send + Sync` trait boundaries defined in `studio-engine/src/lib.rs` (mirrors [TAI-OVR-009])."
+   },
+   {
+    "anchor": "STU-CON-005",
+    "spec_clause_text": "[STU-CON-005] UNITS & DETERMINISM. Unit law per [STU-DOC-003]. Promotion equivalence for renders validated across different GPU backends/drivers MUST use a pixel/vertex tolerance comparator (max per-channel/position deviation <= a declared epsilon), NOT SHA-256 content-hash equality; content hashes are reserved for same-machine same-run idempotency and EventLedger receipt fingerprinting (mirrors [TAI-OVR-006])."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [
+   {
+    "wildcard": "STU-RAS-*",
+    "member_count": 130,
+    "members": [
+     "STU-RAS-001",
+     "STU-RAS-002",
+     "STU-RAS-003",
+     "STU-RAS-004",
+     "STU-RAS-005",
+     "STU-RAS-006",
+     "STU-RAS-007",
+     "STU-RAS-008",
+     "STU-RAS-009",
+     "STU-RAS-010",
+     "STU-RAS-011",
+     "STU-RAS-012",
+     "STU-RAS-013",
+     "STU-RAS-014",
+     "STU-RAS-015",
+     "STU-RAS-016",
+     "STU-RAS-017",
+     "STU-RAS-018",
+     "STU-RAS-019",
+     "STU-RAS-020",
+     "STU-RAS-021",
+     "STU-RAS-022",
+     "STU-RAS-023",
+     "STU-RAS-024",
+     "STU-RAS-025",
+     "STU-RAS-026",
+     "STU-RAS-027",
+     "STU-RAS-028",
+     "STU-RAS-029",
+     "STU-RAS-030",
+     "STU-RAS-031",
+     "STU-RAS-032",
+     "STU-RAS-033",
+     "STU-RAS-034",
+     "STU-RAS-035",
+     "STU-RAS-036",
+     "STU-RAS-037",
+     "STU-RAS-038",
+     "STU-RAS-039",
+     "STU-RAS-040",
+     "STU-RAS-041",
+     "STU-RAS-042",
+     "STU-RAS-043",
+     "STU-RAS-044",
+     "STU-RAS-045",
+     "STU-RAS-046",
+     "STU-RAS-047",
+     "STU-RAS-048",
+     "STU-RAS-049",
+     "STU-RAS-050",
+     "STU-RAS-051",
+     "STU-RAS-100",
+     "STU-RAS-101",
+     "STU-RAS-102",
+     "STU-RAS-103",
+     "STU-RAS-104",
+     "STU-RAS-105",
+     "STU-RAS-106",
+     "STU-RAS-107",
+     "STU-RAS-108",
+     "STU-RAS-109",
+     "STU-RAS-110",
+     "STU-RAS-111",
+     "STU-RAS-112",
+     "STU-RAS-113",
+     "STU-RAS-114",
+     "STU-RAS-115",
+     "STU-RAS-116",
+     "STU-RAS-117",
+     "STU-RAS-118",
+     "STU-RAS-119",
+     "STU-RAS-120",
+     "STU-RAS-121",
+     "STU-RAS-122",
+     "STU-RAS-123",
+     "STU-RAS-124",
+     "STU-RAS-125",
+     "STU-RAS-126",
+     "STU-RAS-127",
+     "STU-RAS-128",
+     "STU-RAS-129",
+     "STU-RAS-130",
+     "STU-RAS-131",
+     "STU-RAS-132",
+     "STU-RAS-133",
+     "STU-RAS-134",
+     "STU-RAS-135",
+     "STU-RAS-136",
+     "STU-RAS-137",
+     "STU-RAS-138",
+     "STU-RAS-139",
+     "STU-RAS-141",
+     "STU-RAS-142",
+     "STU-RAS-143",
+     "STU-RAS-144",
+     "STU-RAS-145",
+     "STU-RAS-146",
+     "STU-RAS-147",
+     "STU-RAS-148",
+     "STU-RAS-149",
+     "STU-RAS-150",
+     "STU-RAS-151",
+     "STU-RAS-152",
+     "STU-RAS-153",
+     "STU-RAS-154",
+     "STU-RAS-155",
+     "STU-RAS-156",
+     "STU-RAS-157",
+     "STU-RAS-158",
+     "STU-RAS-159",
+     "STU-RAS-160",
+     "STU-RAS-161",
+     "STU-RAS-162",
+     "STU-RAS-163",
+     "STU-RAS-164",
+     "STU-RAS-165",
+     "STU-RAS-166",
+     "STU-RAS-167",
+     "STU-RAS-168",
+     "STU-RAS-169",
+     "STU-RAS-170",
+     "STU-RAS-171",
+     "STU-RAS-172",
+     "STU-RAS-173",
+     "STU-RAS-174",
+     "STU-RAS-175",
+     "STU-RAS-176",
+     "STU-RAS-177",
+     "STU-RAS-178",
+     "STU-RAS-179"
+    ],
+    "note": "Family-scope citation. The contract spans this whole clause family; it does not cite one clause."
+   },
+   {
+    "wildcard": "STU-FX-*",
+    "member_count": 126,
+    "members": [
+     "STU-FX-001",
+     "STU-FX-002",
+     "STU-FX-003",
+     "STU-FX-004",
+     "STU-FX-005",
+     "STU-FX-006",
+     "STU-FX-006a",
+     "STU-FX-006b",
+     "STU-FX-007",
+     "STU-FX-008",
+     "STU-FX-009",
+     "STU-FX-010",
+     "STU-FX-011",
+     "STU-FX-011a",
+     "STU-FX-011b",
+     "STU-FX-012",
+     "STU-FX-012a",
+     "STU-FX-012b",
+     "STU-FX-012c",
+     "STU-FX-013",
+     "STU-FX-014",
+     "STU-FX-015",
+     "STU-FX-015a",
+     "STU-FX-016",
+     "STU-FX-016a",
+     "STU-FX-017",
+     "STU-FX-018",
+     "STU-FX-019",
+     "STU-FX-019a",
+     "STU-FX-020",
+     "STU-FX-020a",
+     "STU-FX-021",
+     "STU-FX-022",
+     "STU-FX-023",
+     "STU-FX-024",
+     "STU-FX-025",
+     "STU-FX-026",
+     "STU-FX-027",
+     "STU-FX-028",
+     "STU-FX-029",
+     "STU-FX-030",
+     "STU-FX-031",
+     "STU-FX-032",
+     "STU-FX-033",
+     "STU-FX-034",
+     "STU-FX-035",
+     "STU-FX-036",
+     "STU-FX-037",
+     "STU-FX-038",
+     "STU-FX-039",
+     "STU-FX-039a",
+     "STU-FX-040",
+     "STU-FX-100",
+     "STU-FX-101",
+     "STU-FX-102",
+     "STU-FX-103",
+     "STU-FX-104",
+     "STU-FX-105",
+     "STU-FX-105a",
+     "STU-FX-106",
+     "STU-FX-106a",
+     "STU-FX-107",
+     "STU-FX-108",
+     "STU-FX-108a",
+     "STU-FX-109",
+     "STU-FX-110",
+     "STU-FX-110a",
+     "STU-FX-112",
+     "STU-FX-112a",
+     "STU-FX-113",
+     "STU-FX-113a",
+     "STU-FX-115",
+     "STU-FX-116",
+     "STU-FX-116a",
+     "STU-FX-117",
+     "STU-FX-118",
+     "STU-FX-119",
+     "STU-FX-120",
+     "STU-FX-120a",
+     "STU-FX-121",
+     "STU-FX-123",
+     "STU-FX-124",
+     "STU-FX-125",
+     "STU-FX-126",
+     "STU-FX-126a",
+     "STU-FX-127",
+     "STU-FX-127a",
+     "STU-FX-127b",
+     "STU-FX-127c",
+     "STU-FX-128",
+     "STU-FX-129",
+     "STU-FX-130",
+     "STU-FX-131",
+     "STU-FX-131a",
+     "STU-FX-132",
+     "STU-FX-132a",
+     "STU-FX-133",
+     "STU-FX-133a",
+     "STU-FX-133b",
+     "STU-FX-134",
+     "STU-FX-134a",
+     "STU-FX-135",
+     "STU-FX-136",
+     "STU-FX-136a",
+     "STU-FX-136b",
+     "STU-FX-137",
+     "STU-FX-138",
+     "STU-FX-138a",
+     "STU-FX-142",
+     "STU-FX-142a",
+     "STU-FX-143",
+     "STU-FX-144",
+     "STU-FX-145",
+     "STU-FX-146",
+     "STU-FX-147",
+     "STU-FX-148",
+     "STU-FX-149",
+     "STU-FX-150",
+     "STU-FX-151",
+     "STU-FX-160",
+     "STU-FX-160a",
+     "STU-FX-161",
+     "STU-FX-162",
+     "STU-FX-162a",
+     "STU-FX-163",
+     "STU-FX-164"
+    ],
+    "note": "Family-scope citation. The contract spans this whole clause family; it does not cite one clause."
+   }
+  ],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:25+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30841",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-LAY-159#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.6.9.3 PDF and Ink/Separation Output",
+  "spec_line": 7077,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Stock PDF export presets",
+ "spec_anchor": [
+  "STU-LAY-159"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "layout",
+ "scope": {
+  "summary": "Stock PDF export presets.** Studio MUST ship a first-run set of PDF export presets. The captured stock set is SIX presets, whose real values establish the normative starting points; the captured file additionally holds seven locale-specific variants, so a preset count and a preset FILE count are different numbers. *Derivation: preset/command table, taken whole; yields 1 microtask. Its rows are acceptance criteria and MUST NOT become one microtask each.* | Setting | High Quality Print | Press Quality | Smallest File Size | PDF/X-1a:2001 | PDF/X-3:2002 | PDF/X-4 | |---|---|---|---|---|---|---| | PDF version | 1.4 | 1.4 | 1.5 | 1.3 | 1.3 | 1.4 | | Colour conversion | leave unchanged | to CMYK | to sRGB | to CMYK | device-independent | device-independent | | Colour image resolution (`dpi`) | 300 | 300 | 100 | 300 | 300 | 300 | | Colour downsample threshold | 1.5 | 1.5 | 1.5 | 1.5 | 1.5 | 1.5 | | Greyscale resolution (`dpi`) | 300 | 300 | 150 | 300 | 300 | 300 | | Monochrome resolution (`dpi`) | 1200 | 1200 | 300 | 1200 | 1200 | 1200 | | Colour image filter | DCT | DCT | DCT | DCT | DCT | DCT | | Auto-filter colour images | true | true | true | true | true | true | | Embed all fonts | true | true | false | true | true | true | | Subset fonts | true | true | true | true | true | true | | Max subset percent | 100 | 100 | 100 | 100 | 100 | 100 | | Optimize | true | true | true | false [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Stock PDF export presets.** Studio MUST ship a first-run set of PDF export presets.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-159"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.* | Setting | High Quality Print | Press Quality | Smallest File Size | PDF/X-1a:2001 | PDF/X-3:2002 | PDF/X-4 | |---|---|---|---|---|---|---| | PDF version | 1.4 | 1.4 | 1.5 | 1.3 | 1.3 | 1.4 | | Colour conversion | leave unchanged | to CMYK | to sRGB | to CMYK | device-independent | device-independent | | Colour image resolution (`dpi`) | 300 | 300 | 100 | 300 | 300 | 300 | | Colour downsample threshold | 1.5 | 1.5 | 1.5 | 1.5 | 1.5 | 1.5 | | Greyscale resolution (`dpi`) | 300 | 300 | 150 | 300 | 300 | 300 | | Monochrome [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-159"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Studio MUST carry the compliance token separately from the preset NAME and MUST NOT derive one from the other.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-159"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Additional captured defaults common to all six: JPEG-2000 tile 256 x 256 at quality 30; the ACS image dictionary at QFactor 0.15 with 1:1 chroma sampling; monochrome filter CCITT fax; image memory 1,048,576 bytes; start page 1 and end page -1 (a sentinel meaning \"to the last page\", which Studio MUST carry as a nullable end rather than storing -1).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-159"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

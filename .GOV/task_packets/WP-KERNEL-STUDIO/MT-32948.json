@@ -1,0 +1,529 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-32948",
+ "created_at_utc": "2026-09-04T13:36:11+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-FX-023#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "12. Interactive Filter Workspaces",
+  "spec_line": 18341,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Four filter capabilities are interactive on-canvas workspaces rather than parameter-only effects; each is still recorded as a re-editable `StudioLiveFilter` (or a smart-object-hosted stack entry) so t [...]",
+ "spec_anchor": [
+  "STU-FX-023"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "effects",
+ "scope": {
+  "summary": "Four filter capabilities are interactive on-canvas workspaces rather than parameter-only effects; each is still recorded as a re-editable `StudioLiveFilter` (or a smart-object-hosted stack entry) so the workspace edit is non-destructive. Liquify, mesh warp, and the perspective/wide-angle workspaces are GPU-accelerated.",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [],
+ "acceptance_criteria_count": 0,
+ "implementation_notes": {
+  "extracted_behaviour": [
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Not enough memory to execute Radial Blur.",
+     "label_index": 7,
+     "source": "S3_exe_string_table:$$$/AE/Radial_Blur/LStr",
+     "confidence": "parsed",
+     "role": "parameter label",
+     "role_confidence": "heuristic",
+     "type": "enum",
+     "enum_options": [
+      "Low",
+      "High"
+     ],
+     "enum_options_label_index": 6,
+     "enum_binding": "option list registered at the preceding index; adjacency reading",
+     "enum_binding_confidence": "heuristic"
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "param_index": 10,
+     "record_bytes": 148,
+     "param_type_code": 2,
+     "param_type": "FIX_SLIDER",
+     "name": "Screen Pre-blur",
+     "param_flags_raw": 32,
+     "param_flags": [
+      "COLLAPSE_TWIRLY"
+     ],
+     "value_kind": "fixed_16_16",
+     "valid_min": 0.0,
+     "valid_max": 5000.0,
+     "slider_min": 0.0,
+     "slider_max": 20.0,
+     "default": 0.0,
+     "precision": 1,
+     "display_flags": []
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_presets.json",
+    "path": "presets[].effects_applied[].parameter_definitions[]",
+    "param": {
+     "match_name": "Keylight 906-0010",
+     "param_type": "FIX_SLIDER",
+     "name": "Screen Pre-blur",
+     "default": 0.0,
+     "valid_min": 0.0,
+     "valid_max": 5000.0,
+     "slider_min": 0.0,
+     "slider_max": 20.0
+    }
+   },
+   {
+    "app": "indesign",
+    "file": "indesign_dom_full.json",
+    "path": "properties[]",
+    "param": {
+     "script_id": 125754,
+     "tag": "xpU7",
+     "name": "honor other effects",
+     "description": "If true, the drop shadow will take into account other non-shadow effects.",
+     "plugin": "Transparency",
+     "source_file": "Required/(Transparency Resources)/idrc_SCE2/5050.idrc",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     },
+     "type_id": 30468,
+     "type": {
+      "name": "boolean",
+      "kind": "primitive",
+      "tag": null,
+      "resolution": "heuristic_primitive"
+     },
+     "flags": 1,
+     "value_block": "00000000000000000000000000000000",
+     "related_id": 0,
+     "declared_on": [
+      {
+       "owner_id": 67631,
+       "owner_name": "drop shadow setting",
+       "owner_kind": "class"
+      }
+     ]
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Create a Box Shadow ",
+     "description": "Create a box shadow effect using CSS3",
+     "preview": "code",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "LESS - Box Shadow",
+     "description": "",
+     "preview": "code",
+     "type": "block"
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "azimuth",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "azimuth",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "azimuth",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "azimuth",
+     "type": "Text",
+     "casesensitive": "yes"
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "azimuth",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "azimuth",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "azimuth",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "azimuth",
+     "type": "Text",
+     "casesensitive": "yes"
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "azimuth",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "azimuth",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "elevation",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "elevation",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "elevation",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Elevation",
+     "name_key": "AE/Preset/Elevation",
+     "param_type": "SLIDER",
+     "depth": 0,
+     "default": 0,
+     "valid_min": -3000,
+     "valid_max": 3000,
+     "slider_min": -500,
+     "slider_max": 500
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Elevation",
+     "name_string_key": "AE/Preset/Elevation",
+     "type": "float",
+     "group_path": [],
+     "keyframable": true,
+     "source": "S1_PresetEffects.xml",
+     "confidence": "parsed",
+     "default": 0,
+     "min": -3000,
+     "max": 3000,
+     "ui_slider_min": -500,
+     "ui_slider_max": 500,
+     "units": null
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_code_intelligence.json",
+    "path": "tags[].attributes[].all_attributes",
+    "param": {
+     "name": "elevation",
+     "type": "Text",
+     "casesensitive": "yes"
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "elevation",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "elevation",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "elevation",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Elevation",
+     "name_key": "AE/Preset/Elevation",
+     "param_type": "SLIDER",
+     "depth": 0,
+     "default": 0,
+     "valid_min": -3000,
+     "valid_max": 3000,
+     "slider_min": -500,
+     "slider_max": 500
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "shininess",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "shininess",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "shininess",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "shininess",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "shininess",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "shininess",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "figma",
+    "file": "figma_object_model.json",
+    "path": "interfaces[].members[]",
+    "param": {
+     "name": "bounce",
+     "kind": "property",
+     "readonly": true,
+     "optional": false,
+     "type": "number",
+     "enumerated_values": []
+    }
+   }
+  ],
+  "behaviour_record_count": 33,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

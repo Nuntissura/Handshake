@@ -1,0 +1,947 @@
+{
+  "schema_id": "hsk.studio_panel_dock_architecture@1",
+  "generated_at": "2026-09-04T04:50:46Z",
+  "author": "panel-dock-architecture",
+  "status": "PROPOSAL_FOR_OPERATOR_REVIEW",
+  "scope_note": "Design deliberation only. No existing artifact modified, no application launched, no product code written. Every vendor claim below is derived from the parsed captures named in evidence_base; nothing is asserted from memory of how these applications look.",
+  "evidence_base": {
+    "root": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/",
+    "files_read": [
+      "fold_back/studio-capability-registry.json",
+      "installed_exports/photoshop/offline/photoshop_panels.json",
+      "installed_exports/illustrator/offline/illustrator_panels.json",
+      "installed_exports/indesign/offline/indesign_dialogs.json",
+      "installed_exports/premiere/offline/premiere_panels_dialogs.json",
+      "installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+      "installed_exports/affinity/offline/affinity_tool_panel_registry.json",
+      "installed_exports/aftereffects/offline/ (present: effects catalogue + presets only)",
+      "installed_exports/figma/offline/figma_object_model.json",
+      "installed_exports/lightroom_classic/offline/ (develop parameters, catalog model; no panel capture)"
+    ],
+    "shell_files_read": [
+      "wtc-native-editors-v1/src/frontend/handshake_native/src/pane_registry.rs",
+      "wtc-native-editors-v1/src/frontend/handshake_native/src/split_layout.rs",
+      "wtc-native-editors-v1/src/frontend/handshake_native/src/tab_bar.rs",
+      "wtc-native-editors-v1/src/frontend/handshake_native/src/left_rail.rs",
+      "wtc-native-editors-v1/src/frontend/handshake_native/src/module_switcher.rs",
+      "wtc-native-editors-v1/src/frontend/handshake_native/src/layout_persistence.rs",
+      "wtc-native-editors-v1/src/frontend/handshake_native/src/accessibility/registry.rs",
+      "wtc-native-editors-v1/src/frontend/handshake_native/Cargo.toml"
+    ],
+    "coverage_gaps": [
+      {
+        "app": "aftereffects",
+        "gap": "Only aftereffects_effects_catalogue.json and aftereffects_presets.json exist. No panel or workspace capture. AE panel placement in the motion default layout below is therefore extrapolated from Premiere's dvaui workspace evidence (same Adobe dvaui/dvaworkspace docking engine, confirmed by premiere_panels_dialogs.json method.two_ui_formats) plus the AE effects catalogue, NOT from an AE workspace file.",
+        "label": "EXTRAPOLATED_NOT_CAPTURED"
+      },
+      {
+        "app": "lightroom_classic",
+        "gap": "workspaces.json is a 29-byte stub. The photo-catalog default layout is derived from lightroom_develop_parameters.json + lightroom_catalog_model.json structure, not from a captured LrC panel layout.",
+        "label": "EXTRAPOLATED_NOT_CAPTURED"
+      },
+      {
+        "app": "figma",
+        "gap": "Only figma_object_model.json. Used for the node-type vocabulary in the contextual binding rule (FrameNode, TextNode, ComponentNode, InstanceNode, ComponentSetNode, VectorNode, BooleanOperationNode, ...), not for panel placement.",
+        "label": "PARTIAL"
+      },
+      {
+        "app": "affinity",
+        "gap": "affinity_tool_panel_registry.json states explicitly that the 53 panel 4CC ids are NOT bound to human-readable names in any shipped resource, and the capture deliberately refuses to guess the binding. Therefore Affinity evidence below is used in two separated forms: (a) STRUCTURAL evidence from the 9 .afstudio workspaces (which shelf, which book, how many books, which entries visible) which is fully reliable, and (b) a separate 79-token panel-NAME inventory scraped from resources. No claim below binds a specific 4CC to a specific name.",
+        "label": "STRUCTURE_RELIABLE_NAMES_UNBOUND"
+      },
+      {
+        "app": "premiere",
+        "gap": "The workspace capture serialises pane_path as a splitter tree without an explicit edge label. Zone labels below were computed by walking Splitter(orient,place)/SubN, normalising each workspace to its own occupied extent, and bucketing by centroid and aspect. That derivation is reproducible from the capture but is an INFERENCE over the capture, not a field the capture states.",
+        "label": "DERIVED_BY_GEOMETRY"
+      }
+    ]
+  },
+
+  "operator_requirements_traceability": {
+    "source": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/operator-ui-requirements.json",
+    "mapping": [
+      {"requirement":"OUI-001","title":"Studio is an app-wide viewport switched by its icon, other modules keep running","addressed_in":["proposal.shell_integration.module_boundary","proposal.shell_integration.what_exists_today[module_switcher.rs]"],"note":"Reinforces R-7: module switching must be a viewport swap over live state, so Studio's document set and dock layout must survive a switch to another module and back. The PaneType::StudioViewport recommendation is what makes that survivable."},
+      {"requirement":"OUI-002","title":"Arbitrary editor windows inside the main window, each with tabs","addressed_in":["proposal.dock_model.regions[centre]","proposal.accessibility_scheme.id_grammar","open_questions.OQ-8"],"note":"This requirement CHANGED the centre region of this proposal. The centre is not 'one or more viewers'; it is an unbounded egui_tiles tree of editor GROUPS, each group a tab stack, VS Code style. See regions[centre].editor_group_model."},
+      {"requirement":"OUI-003","title":"Tabs inside Studio for different files and projects","addressed_in":["proposal.persistence_model","proposal.dock_model.regions[centre]"]},
+      {"requirement":"OUI-004","title":"No persona toggle","addressed_in":["proposal.contextual_binding_rule.why_this_replaces_the_persona_toggle","analysis.panel_classification[task_episodic]"]},
+      {"requirement":"OUI-005","title":"Panels dock to any of four edges, tabbed, reorganisable, with a deliberated default","addressed_in":["proposal.dock_model","proposal.default_layouts_by_document_type"]},
+      {"requirement":"OUI-006","title":"Everything reachable from the top menu bar","addressed_in":["proposal.dock_model.reorganisation_gestures","proposal.accessibility_scheme.agent_steerability_contract"],"note":"Every panel action, every dock gesture and every panel-open must be a command in the existing command_registry.rs, which already backs top_menu_bar.rs and command_palette.rs. No Studio surface may own an action that has no command. Stated as a hard constraint in dock_model.constraints."},
+      {"requirement":"OUI-007","title":"Tooltips everywhere, generated from captures","addressed_in":["proposal.dock_model.panel_density_model"],"note":"Density interacts with tooltips: at the field densities proposed here, the label is often abbreviated, so the tooltip carries the full vendor-written parameter description plus its real range and unit. That makes tooltips load-bearing rather than decorative in dense panels."},
+      {"requirement":"OUI-008","title":"Every numeric field is a scrubbable value control","addressed_in":["proposal.dock_model.pointer_gesture_arbitration","proposal.dock_model.panel_density_model","proposal.accessibility_scheme.value_field_contract","risks.R-13","risks.R-14","risks.R-15","open_questions.OQ-11","open_questions.OQ-12"],"note":"Two consequences for docking, both addressed explicitly rather than left to implementation: gesture ownership, and panel density as a sizing constraint."},
+      {"requirement":"OUI-009","title":"Notes embeds Studio documents","addressed_in":["proposal.shell_integration.module_boundary"],"note":"Out of scope for the dock architecture beyond this: an embedded Studio view inside Notes gets NO edge docks, only the centre viewport plus the context bar. The dock model must therefore be able to render with all four edges absent."},
+      {"requirement":"OUI-010","title":"Scope boundary by document type","addressed_in":["proposal.default_layouts_by_document_type"],"note":"This proposal's seven document types are exactly OUI-010's list. If OUI-010 is not confirmed, the seven default layouts are the artefact that changes."}
+    ]
+  },
+
+  "analysis": {
+    "deduplication_method": {
+      "principle": "Applied the same rule the capability registry applies to capabilities: a Studio panel is one entity if the vendor surfaces it merges answer the same operator question about the same object at the same moment. Vendor surfaces that differ only by (a) document type, (b) orientation, (c) preset kind, (d) which of several near-identical effect kinds is being edited, or (e) which vendor shipped it, are ONE Studio panel with a parameter, not several panels.",
+      "input_surface_counts": {
+        "photoshop_native_panels": 37,
+        "photoshop_extension_panel_entries_and_host_slots": 34,
+        "illustrator_panel_catalogue_rows": 71,
+        "illustrator_distinct_workspace_surfaces": 59,
+        "indesign_dialogs_and_panels_total": 390,
+        "indesign_rows_whose_name_matches_panel_or_palette": 183,
+        "indesign_distinct_panel_owning_plugins": 31,
+        "indesign_control_panel_resource_variants": 34,
+        "premiere_dvaui_surfaces": 174,
+        "premiere_eve_surfaces": 318,
+        "premiere_distinct_panel_identifiers_across_19_workspaces": 47,
+        "dreamweaver_registered_panels": 31,
+        "dreamweaver_property_inspectors": 60,
+        "dreamweaver_native_dialogs": 259,
+        "affinity_distinct_panel_4cc_ids": 53,
+        "affinity_panel_name_tokens_in_resources": 79,
+        "panel_class_surfaces_only_sum": 595,
+        "all_captured_ui_surfaces_including_dialogs": 1213
+      },
+      "collapse_ratios": [
+        "InDesign ships 34 resource variants of ONE Control Panel and 9 XP*PanelViews for the nine transparency effect kinds. 43 captured surfaces collapse into 2 Studio panels (context-bar, effect-controls).",
+        "Photoshop ships textcharacter, textparagraph, textcharstyle, textparastyle, textglyphspanel as 5 panels; Illustrator ships Character, Paragraph, AdobeCharStyles, AdobeParaStyles, AdobeOpenTypeFont, AdobeAltGlyphsPanel, AdobeHorizontalTabPanel, AdobeVerticalTabPanel as 8. 13 captured surfaces collapse into 5 Studio panels (character, paragraph, text-styles, opentype, glyphs) plus tabs-indents.",
+        "Photoshop's swatches / gradients / patterns / customshapes / styles / toolpresets / brushpresets sit adjacent inside one tab group in every shipped workspace. 7 captured surfaces collapse into swatches + preset-library + brushes = 3.",
+        "Premiere ships TitlerProperties, TitlerStyles, TitlerTools, TitlerActions, TitlerEditor and Graphics as 6 surfaces for one job. They collapse into graphics-templates = 1.",
+        "Illustrator AdobeSeparationPreview + AdobeFlatteningPreview, InDesign InkMgrPanel + ColorPanel(PrintUI), plus Affinity's soft-proof and 32-bit preview entries collapse into print-preview = 1.",
+        "Dreamweaver's 60 property inspectors are NOT 60 panels. They are 60 BINDINGS into one slot. They collapse into properties = 1 plus 60 binding declarations."
+      ],
+      "distinct_studio_panels_surviving": 75,
+      "plus_reused_existing_shell_panes": 9,
+      "honest_caveat": "75 is the count of panel IDENTITIES. It is not a count of screens: preset-library, effect-controls, source-viewer, scopes and long-document each carry an internal mode/kind selector that in the vendor products was a separate panel. If the operator later rejects any of those five merges, the count rises by at most 17."
+    },
+
+    "distinct_panels": [
+      {"id":"layers","name":"Layers","domain":"document_model","classification":"always_relevant","default_dock":"right","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["panelid.static.layers"],"illustrator":["AdobeLayerPalette"],"indesign":["layers (via Layout UI)"],"premiere":["track head (in Timeline)"],"dreamweaver":["DOMVis"],"affinity":["right-shelf book member, name unbound"],"figma":["layer tree over FrameNode/GroupNode"]},"dedup_note":"Dreamweaver's DOM tree is the same object: the document's node hierarchy. Bound as the web-document rendering of layers rather than a separate panel."},
+      {"id":"pages-artboards","name":"Pages & Artboards","domain":"layout","classification":"document_type_specific","default_dock":"left","document_types":["layout","vector","web","motion"],"merged_from":{"illustrator":["Artboards"],"indesign":["PagesPanelViews (6 numbered variants)"],"affinity":["left-shelf Layout book member; artb workspace flag"],"figma":["FrameNode / SlideNode"]},"dedup_note":"Pages (sequential, spread-aware) and Artboards (free-positioned) are one structure with a layout mode flag. InDesign's 6 Pages Panel variants are spread/master/alternate-layout modes of the same panel."},
+      {"id":"channels","name":"Channels","domain":"raster","classification":"document_type_specific","default_dock":"right","document_types":["raster","photo"],"merged_from":{"photoshop":["panelid.static.channels"],"affinity":["right-shelf Pixel/Compositing book member"]}},
+      {"id":"paths","name":"Paths","domain":"vector","classification":"document_type_specific","default_dock":"right","document_types":["raster","photo"],"merged_from":{"photoshop":["panelid.static.paths"]},"dedup_note":"Kept separate from layers because in a raster document paths are a parallel, non-layer store. In a vector document paths ARE layers, so this panel is not offered there."},
+      {"id":"states-comps","name":"States & Comps","domain":"document_model","classification":"task_episodic","default_dock":"right","document_types":["raster","vector","layout","photo"],"merged_from":{"photoshop":["panelid.static.comps"],"affinity":["Layer States Panel Controller","Snapshots Panel","Snapshots Panel Controller"],"lightroom_classic":["snapshots (catalog model)"],"figma":["variants over ComponentSetNode"]},"dedup_note":"Layer Comps, Layer States and Snapshots are the same primitive: a named recall point over document state."},
+      {"id":"reading-order-tags","name":"Reading Order & Tags","domain":"document_model","classification":"document_type_specific","default_dock":"left","document_types":["layout","web"],"merged_from":{"indesign":["ArticlePanelViews"],"affinity":["Tags Panel"],"dreamweaver":["accessibility attributes via inspectors"]}},
+      {"id":"book","name":"Book","domain":"layout","classification":"task_episodic","default_dock":"left","document_types":["layout"],"merged_from":{"indesign":["BookPanelViews"],"affinity":["left-shelf Layout book member; Toc/Book strings"]}},
+      {"id":"project-bin","name":"Project Bin","domain":"interop","classification":"always_relevant","default_dock":"left","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"premiere":["Project","PrProductionFolder","Sequence Index"],"dreamweaver":["site"],"indesign":["Links UI (partly)"],"affinity":["left-shelf book member"]},"dedup_note":"The set of things this document/project is made of. Premiere's Sequence Index folds in as a bin filter."},
+      {"id":"media-browser","name":"Media Browser","domain":"interop","classification":"always_relevant","default_dock":"left","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"premiere":["Media Browser"],"dreamweaver":["assets"],"photoshop":["(Bridge, out of capture scope)"]},"dedup_note":"Distinct from project-bin: browses the FILESYSTEM, not the project. Premiere co-tabs them on the left in 10 of 13 workspaces where both appear, which is why they are adjacent by default but not merged."},
+      {"id":"library","name":"Library","domain":"design_system","classification":"always_relevant","default_dock":"left","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["com.adobe.cclibrariespanel","DesignLibraries.angular"],"illustrator":["CSXSExtension_com.adobe.DesignLibraries.angular_0","Stock Unified Content Panel"],"indesign":["LibraryPanelViews"],"premiere":["CsxsTabcom.adobe.DesignLibraries.angular"],"dreamweaver":["com.adobe.DesignLibraries.angular","snippets"],"affinity":["Library Panel description","Assets Panel","Pexels Stock Panel","Pixabay Stock Panel"]},"dedup_note":"Libraries, Assets, Snippets and Stock are all 'reusable content from outside this document'. One panel, one source selector. 8 captured surfaces to 1."},
+      {"id":"preset-library","name":"Preset Library","domain":"design_system","classification":"always_relevant","default_dock":"left","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["gradients","patterns","customshapes","styles","toolpresets"],"illustrator":["NamedStyle","Symbols","PatternOptionsPanel"],"indesign":["Swatch Library Panel","ObjStylesPanelViews"],"affinity":["Presets, Styles, Assets book members"],"lightroom_classic":["develop presets, templates"]},"dedup_note":"Largest single merge: 12 captured surfaces to 1 kind-filtered browser. Justified by Photoshop's own workspace files, which place swatches/gradients/patterns adjacent inside one tab group in all 8 shipped workspaces. MUST support multiple simultaneous instances with different kind filters or this merge is a usability regression (see risks)."},
+      {"id":"catalog","name":"Catalog","domain":"raw","classification":"document_type_specific","default_dock":"left","document_types":["photo"],"merged_from":{"lightroom_classic":["folders + collections (lightroom_catalog_model.json)"]},"label":"EXTRAPOLATED_NOT_CAPTURED"},
+      {"id":"keywords","name":"Keywords","domain":"raw","classification":"document_type_specific","default_dock":"right","document_types":["photo"],"merged_from":{"lightroom_classic":["keyword hierarchy (catalog model)"]},"label":"EXTRAPOLATED_NOT_CAPTURED"},
+      {"id":"filter-sort","name":"Filter & Sort","domain":"raw","classification":"document_type_specific","default_dock":"top","document_types":["photo","video"],"merged_from":{"lightroom_classic":["library filter"],"premiere":["Search"]},"dedup_note":"Premiere's Search panel is RIGHT in 7 of the 9 workspaces containing it; for a photo catalog the equivalent filter belongs on the top bar above the grid because it filters the viewport, not the selection."},
+      {"id":"links-placements","name":"Links & Placements","domain":"interop","classification":"always_relevant","default_dock":"left","document_types":["layout","vector","raster","web","video"],"merged_from":{"illustrator":["Links"],"indesign":["Links UI (12 surfaces)"],"affinity":["Resource Panel","Sources Panel","Source Panel"],"premiere":["media offline/relink"]}},
+      {"id":"insert","name":"Insert","domain":"web","classification":"document_type_specific","default_dock":"left","document_types":["web","layout"],"merged_from":{"dreamweaver":["objects"],"indesign":["ButtonUI FormFieldUIPanelView"]}},
+      {"id":"properties","name":"Properties","domain":"cross_cutting","classification":"selection_contextual","default_dock":"right","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["panelid.static.properties"],"illustrator":["AdobePropertiesPanel"],"indesign":["Control Panel (34 resource variants)"],"premiere":["Properties2"],"dreamweaver":["properties + 60 property inspectors"],"affinity":["Appearance/context surfaces"],"figma":["right-hand inspector over node types"]},"dedup_note":"THE contextual slot. Not a panel with fixed content: a host whose content is resolved by contextual_binding_rule. Premiere places Properties2 on the RIGHT in 15 of the 17 workspaces containing it - the single strongest placement fact in the whole corpus."},
+      {"id":"appearance","name":"Appearance","domain":"vector","classification":"selection_contextual","default_dock":"right","document_types":["vector","layout","web","raster"],"merged_from":{"illustrator":["Appearance","Transparency"],"affinity":["Appearance Panel"],"indesign":["XPBlendingPanelViews","XPUIPanelView"]},"dedup_note":"Illustrator's Transparency panel (blend mode, opacity, knockout, opacity mask) merged in: it is the opacity section of the same fill/stroke/effect stack, and Illustrator's own Painting workspace orders Appearance, NamedStyle, Gradient, Transparency consecutively."},
+      {"id":"transform","name":"Transform","domain":"layout","classification":"selection_contextual","default_dock":"right","document_types":["raster","vector","layout","motion","video","web"],"merged_from":{"illustrator":["Transform"],"indesign":["Transform Panel (6 numbered variants)"],"affinity":["Transform book member"],"premiere":["Motion (in Effect Controls)"]}},
+      {"id":"stroke","name":"Stroke","domain":"vector","classification":"selection_contextual","default_dock":"right","document_types":["vector","layout","raster","web"],"merged_from":{"illustrator":["Stroke"],"indesign":["StrokePanelViews"],"affinity":["Stroke book member"]}},
+      {"id":"gradient","name":"Gradient","domain":"color","classification":"selection_contextual","default_dock":"right","document_types":["vector","layout","raster","web"],"merged_from":{"illustrator":["AdobeGradientEditor"],"indesign":["Gradient Panel"],"photoshop":["gradient editor (dialog)"]}},
+      {"id":"effect-controls","name":"Effect Controls","domain":"effects","classification":"selection_contextual","default_dock":"right","document_types":["raster","vector","layout","motion","video","photo"],"merged_from":{"premiere":["Effect Controls","Essential Sound"],"indesign":["XPDropShadowPanelViews","XPInnerShadowPanelViews","XPOuterGlowPanelViews","XPInnerGlowPanelViews","XPBevelEmbossPanelViews","XPSatinPanelViews","XPFeatherPanelViews","XPDirectionalFeatherPanelViews","XPGradientFeatherPanelViews"],"photoshop":["layer style (styles)"],"affinity":["Effects Panel","Live Mask Panel (partly)"],"aftereffects":["effect parameter UI implied by aftereffects_effects_catalogue.json"]},"dedup_note":"The parameter editor for whatever effect stack the selection carries. InDesign's nine XP*PanelViews are nine sections of this one panel. Premiere's Essential Sound folds in because it is literally a selection-driven role editor for the selected audio clip."},
+      {"id":"adjustments","name":"Adjustments","domain":"color","classification":"document_type_specific","default_dock":"right","document_types":["raster","photo","video"],"merged_from":{"photoshop":["adjustment layer creation (in properties/layers)"],"affinity":["Adjustments Panel Controller","Adjustments Panel Window","quick-adjust book member"],"lightroom_classic":["develop parameter groups (lightroom_develop_parameters.json)"]},"dedup_note":"The ordered non-destructive adjustment stack. For a photo document this IS the Develop column; for raster it is the adjustment-layer creator."},
+      {"id":"effects-browser","name":"Effects Browser","domain":"effects","classification":"always_relevant","default_dock":"left","document_types":["raster","vector","layout","motion","video","photo"],"merged_from":{"premiere":["Effects"],"aftereffects":["effects catalogue"],"affinity":["live filter browser"],"illustrator":["illustrator_effects.json surface"]},"dedup_note":"Premiere docks the Effects browser LEFT in 8 of the 11 workspaces containing it, and Effect Controls elsewhere. Browse-left / inspect-right is a vendor-enforced split, not an invention."},
+      {"id":"object-styles","name":"Object Styles","domain":"design_system","classification":"always_relevant","default_dock":"right","document_types":["vector","layout","web","raster"],"merged_from":{"indesign":["ObjStylesPanelViews","TableStyleCaptionPanelView"],"illustrator":["NamedStyle"],"photoshop":["styles"],"affinity":["Styles book member"]}},
+      {"id":"text-styles","name":"Text Styles","domain":"typography","classification":"always_relevant","default_dock":"right","document_types":["layout","vector","raster","web","motion","video"],"merged_from":{"photoshop":["textcharstyle","textparastyle"],"illustrator":["AdobeCharStyles","AdobeParaStyles"],"indesign":["StylePanelViews","TextStylePanelViews","RunIn Styles Panel"],"affinity":["Text Styles Panel"]},"dedup_note":"4 to 7 captured surfaces to 1. Affinity already ships character and paragraph styles as one Text Styles panel, which is the proof this merge is field-tested and not theoretical."},
+      {"id":"character","name":"Character","domain":"typography","classification":"selection_contextual","default_dock":"right","document_types":["layout","vector","raster","web","motion","video"],"merged_from":{"photoshop":["textcharacter"],"illustrator":["Character"],"indesign":["CharPanelViews (9 numbered variants)"],"affinity":["Character Panel Controller"]}},
+      {"id":"paragraph","name":"Paragraph","domain":"typography","classification":"selection_contextual","default_dock":"right","document_types":["layout","vector","raster","web"],"merged_from":{"photoshop":["textparagraph"],"illustrator":["Paragraph"],"indesign":["ParaPanelViews (13 numbered variants)","ParaRulesPanelViews","KeepPanelViews","Justification Panel"],"affinity":["Paragraph Panel"]},"dedup_note":"InDesign's Keeps, Justification and Paragraph Rules panels merged in as sections; they edit paragraph attributes and nothing else."},
+      {"id":"opentype","name":"OpenType","domain":"typography","classification":"selection_contextual","default_dock":"right","document_types":["layout","vector","raster","web"],"merged_from":{"illustrator":["AdobeOpenTypeFont"],"affinity":["OpenType book member"],"indesign":["opentype feature controls"]}},
+      {"id":"tabs-indents","name":"Tabs & Indents","domain":"typography","classification":"selection_contextual","default_dock":"top","document_types":["layout","vector","web"],"merged_from":{"illustrator":["AdobeHorizontalTabPanel","AdobeVerticalTabPanel"],"indesign":["tab ruler"],"affinity":["Tab Stop Panel"]},"dedup_note":"Illustrator ships two panels that differ only by writing direction. One panel with an orientation control."},
+      {"id":"glyphs","name":"Glyphs","domain":"typography","classification":"task_episodic","default_dock":"right","document_types":["layout","vector","raster","web"],"merged_from":{"photoshop":["textglyphspanel"],"illustrator":["AdobeAltGlyphsPanel"],"indesign":["GlyphPanelViews"],"affinity":["glyph browser book member","Font Panel"]}},
+      {"id":"text-frame","name":"Text Frame","domain":"typography","classification":"selection_contextual","default_dock":"right","document_types":["layout","vector"],"merged_from":{"indesign":["TextOptionsPanelViews","GalleyPrefPanel"],"affinity":["Text Frame Panel Controller","Text Properties Panel"]}},
+      {"id":"text-wrap","name":"Text Wrap","domain":"typography","classification":"selection_contextual","default_dock":"right","document_types":["layout","vector","web"],"merged_from":{"indesign":["StandOffPanelViews (Text Wrap Panel, 6 numbered variants)"],"illustrator":["text wrap options"]}},
+      {"id":"masks","name":"Masks","domain":"raster","classification":"selection_contextual","default_dock":"right","document_types":["raster","photo","video","motion"],"merged_from":{"affinity":["Live Mask Panel"],"photoshop":["mask properties (in properties)"]}},
+      {"id":"anchoring","name":"Anchoring & Pinning","domain":"layout","classification":"selection_contextual","default_dock":"right","document_types":["layout","web"],"merged_from":{"affinity":["Anchors Panel","Pinning Panel"],"indesign":["anchored object options"]}},
+      {"id":"metadata","name":"Metadata","domain":"interop","classification":"selection_contextual","default_dock":"right","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"illustrator":["AdobeObjectAttributes","Document Info"],"premiere":["MetadataEditor"],"affinity":["metadata book member"],"lightroom_classic":["metadata fields (catalog model)"]}},
+      {"id":"hyperlinks","name":"Hyperlinks","domain":"interop","classification":"task_episodic","default_dock":"right","document_types":["layout","web"],"merged_from":{"indesign":["HyperlinkPanelViews (2 numbered variants)"],"affinity":["Hyperlinks Panel"],"dreamweaver":["link.htm inspector"]}},
+      {"id":"interactions","name":"Interactions","domain":"prototype","classification":"document_type_specific","default_dock":"right","document_types":["web","layout","motion"],"merged_from":{"dreamweaver":["behaviors"],"indesign":["DynamicDocumentsUI","MSOPanelViews","ButtonUI"],"figma":["prototype domain (365 registry capabilities)"]}},
+      {"id":"css-designer","name":"CSS Designer","domain":"web","classification":"document_type_specific","default_dock":"right","document_types":["web"],"merged_from":{"dreamweaver":["visCSS"],"illustrator":["CSS"],"figma":["inspect/code output"]}},
+      {"id":"data-merge","name":"Data Merge","domain":"automation","classification":"task_episodic","default_dock":"left","document_types":["layout","web"],"merged_from":{"illustrator":["AdobeVariablesPanel"],"indesign":["DataMergeUI"],"affinity":["Data Merge Panel"]}},
+      {"id":"long-document","name":"Long Document","domain":"layout","classification":"task_episodic","default_dock":"left","document_types":["layout"],"merged_from":{"indesign":["Index Panel","TOC generation","cross-reference","footnote/endnote settings (FootnoteSettingsPanelViews, EndnoteSettingsPanelViews)"],"affinity":["TOC Panel","Index Panel","CrossRef Panel","Notes Panel"]},"dedup_note":"4 to 8 captured surfaces to 1 sectioned panel. Justified by Affinity's Layout workspace, which already places TOC and Index adjacent inside the same left-shelf book."},
+      {"id":"colour","name":"Colour","domain":"color","classification":"always_relevant","default_dock":"right","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["picker"],"illustrator":["Color","AdobeColorGuidePanel"],"indesign":["Color Picker Panel (3 numbered variants)","ColorPickerTouchPanelViews","Text Color Panel"],"premiere":["Color (Lumetri)"],"affinity":["Colour Panel"]},"dedup_note":"Illustrator's Colour Guide (harmony suggestions) merged in as a mode of the colour picker."},
+      {"id":"swatches","name":"Swatches","domain":"color","classification":"always_relevant","default_dock":"right","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["swatches"],"illustrator":["AdobeSwatch_"],"indesign":["SwatchesPanelViews","SwatchesOptionsPanel","InkSetSwatchPanelViews"],"affinity":["Swatches Panel"]},"dedup_note":"Deliberately NOT merged into preset-library. Colour is selected far more often than any other preset kind and vendors give it its own always-open panel in 8/8 Photoshop and 12/12 Illustrator workspaces."},
+      {"id":"scopes","name":"Scopes","domain":"color","classification":"document_type_specific","default_dock":"right","document_types":["raster","photo","video","motion"],"merged_from":{"photoshop":["histogram"],"premiere":["Scopes"],"affinity":["Histogram Panel Controller","Scope Panel Controller"],"lightroom_classic":["histogram"]},"dedup_note":"Histogram, waveform, vectorscope and parade are display modes of one measurement surface."},
+      {"id":"navigator","name":"Navigator","domain":"layout","classification":"always_relevant","default_dock":"right","document_types":["raster","vector","layout","photo","web"],"merged_from":{"photoshop":["navigator"],"illustrator":["Navigator"],"affinity":["Navigator Panel Controller"]}},
+      {"id":"info","name":"Info","domain":"cross_cutting","classification":"always_relevant","default_dock":"right","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["info","measurement"],"illustrator":["Info","infoPalette"],"indesign":["Info Panel","CreationToolPanelViews"],"premiere":["Info","Timecode"],"affinity":["Information Panel"]},"dedup_note":"Photoshop's Measurement Log merged in: it is the persistent record of the same readout."},
+      {"id":"guides-grid","name":"Guides & Grid","domain":"layout","classification":"task_episodic","default_dock":"right","document_types":["raster","vector","layout","web","motion"],"merged_from":{"indesign":["GridPrefsPanel","GuidePrefsPanel","UnitsPrefsPanel"],"affinity":["Guides Panel Abbreviated Description"]}},
+      {"id":"snapping","name":"Snapping","domain":"layout","classification":"task_episodic","default_dock":"top","document_types":["raster","vector","layout","web","motion"],"merged_from":{"affinity":["snapping book member (structural)"],"illustrator":["smart guides options"]}},
+      {"id":"align-distribute","name":"Align & Distribute","domain":"layout","classification":"selection_contextual","default_dock":"right","document_types":["raster","vector","layout","web","motion"],"merged_from":{"illustrator":["Align"],"indesign":["AlignPanelViews (14 numbered variants)"],"affinity":["align toolbar command (algn)"]},"dedup_note":"InDesign ships 14 numbered Alignment Panel resources for what is one panel whose control set varies with what is selected. That is the same one-slot-many-bindings pattern as the Control panel."},
+      {"id":"pathfinder","name":"Pathfinder","domain":"vector","classification":"selection_contextual","default_dock":"right","document_types":["vector","layout","web"],"merged_from":{"illustrator":["Pathfinder","PathfinderPanel"],"indesign":["PathFinderPanelViews"],"affinity":["boolean toolbar command (bool)"]}},
+      {"id":"timeline","name":"Timeline","domain":"motion","classification":"document_type_specific","default_dock":"bottom","document_types":["motion","video","raster"],"merged_from":{"photoshop":["animation"],"premiere":["Timeline"],"illustrator":["ccx-timeline"],"aftereffects":["timeline (extrapolated)"]},"dedup_note":"NAME COLLISION with the existing shell PaneType::Timeline (an activity timeline). Studio's id must be studio.panel.timeline; the shell pane keeps its own id. Premiere places Timeline in the lower centre band in 16 of the 18 workspaces containing it, and Photoshop declares a bottom palette dock in 7 of 8 shipped workspaces, the animation palette being its occupant."},
+      {"id":"source-viewer","name":"Source Viewer","domain":"video","classification":"document_type_specific","default_dock":"centre","document_types":["video","motion","photo"],"merged_from":{"premiere":["Source Monitor","ReferenceMonitor","TrimWindow","Multicam"],"lightroom_classic":["compare/survey view"]},"dedup_note":"4 Premiere surfaces to 1 viewer with modes (source, reference, trim, multicam). Lives in the centre tile tree beside the program viewport, matching Premiere's centre-top placement in 8 of the workspaces containing it."},
+      {"id":"audio-mixer","name":"Audio Mixer","domain":"video","classification":"document_type_specific","default_dock":"bottom","document_types":["video","motion"],"merged_from":{"premiere":["AudioClipMixer","AudioMixer","VSTEditor"]},"dedup_note":"Clip mixer and track mixer are scope modes of one mixer."},
+      {"id":"audio-meters","name":"Audio Meters","domain":"video","classification":"document_type_specific","default_dock":"right_rail","document_types":["video","motion"],"merged_from":{"premiere":["MiniAudioMixer"]},"dedup_note":"Premiere places MiniAudioMixer in a narrow far-right rail in 16 of 16 workspaces containing it - 100 percent. It is a rail occupant, not a dock tab."},
+      {"id":"markers","name":"Markers","domain":"video","classification":"document_type_specific","default_dock":"left","document_types":["video","motion","layout","photo"],"merged_from":{"premiere":["MarkerList","Sequence Index","StoryPanel"],"affinity":["notes/markers"]}},
+      {"id":"captions","name":"Captions","domain":"video","classification":"task_episodic","default_dock":"left","document_types":["video"],"merged_from":{"premiere":["Captions","Text panel"]}},
+      {"id":"graphics-templates","name":"Graphics","domain":"motion","classification":"document_type_specific","default_dock":"right","document_types":["video","motion"],"merged_from":{"premiere":["Graphics","TitlerProperties","TitlerStyles","TitlerTools","TitlerActions","TitlerEditor"]},"dedup_note":"6 captured surfaces to 1. Premiere's own newer Graphics panel already absorbed the five legacy Titler surfaces; the capture still ships both generations."},
+      {"id":"history","name":"History","domain":"cross_cutting","classification":"always_relevant","default_dock":"right","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["history"],"illustrator":["History"],"indesign":["HistoryPanelViews"],"premiere":["History"],"affinity":["History Panel"]}},
+      {"id":"actions-macros","name":"Actions & Macros","domain":"automation","classification":"task_episodic","default_dock":"left","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["actions"],"illustrator":["Actions"],"affinity":["Macro Panel"],"dreamweaver":["snippets (partly)"]}},
+      {"id":"export","name":"Export","domain":"interop","classification":"task_episodic","default_dock":"right","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"illustrator":["Export","SmartExportUI","SVGInteractivity"],"affinity":["export options, export layers, export items, quick export (structural book members)"],"indesign":["ObjectExportEPUBOptionsPanel","ObjectExportPDFOptionsPanel","ObjectExportCommonOptionsPanel","EPubExportMetadataPanelView","EPubExportFXLMetadataPanelView"],"lightroom_classic":["export pipeline"]},"dedup_note":"9 or more captured surfaces to 1. Affinity's whole Slice workspace is nothing but this panel, which is why the operator's rejection of persona switching matters: an entire persona existed to show one panel."},
+      {"id":"print-preview","name":"Print Preview","domain":"color","classification":"task_episodic","default_dock":"right","document_types":["layout","vector","raster","photo"],"merged_from":{"illustrator":["AdobeSeparationPreview","AdobeFlatteningPreview"],"indesign":["InkMgrPanel","ColorPanel (PrintUI)","Printing Accessory Panel"],"affinity":["soft proof, 32-bit preview book members"]},"dedup_note":"Separation preview, flattener preview, ink manager, soft proof and 32-bit preview are five views of one question: what will actually come out."},
+      {"id":"preflight","name":"Preflight","domain":"interop","classification":"task_episodic","default_dock":"bottom","document_types":["layout","web","vector","video"],"merged_from":{"indesign":["Package and Preflight UI (39 surfaces)"],"affinity":["Preflight Panel","Preflight Panel Controller"],"dreamweaver":["validation","linkchecker","reports"]},"dedup_note":"Bottom dock, not right: it reports on the whole document, not on the selection. Dreamweaver docks its equivalents (nodeOutput, search) to a bottom panelframe in both shipped workspaces."},
+      {"id":"site-deploy","name":"Site & Deploy","domain":"web","classification":"document_type_specific","default_dock":"left","document_types":["web"],"merged_from":{"dreamweaver":["site","site files","site map","ftplog","reports"]}},
+      {"id":"data-sources","name":"Data Sources","domain":"web","classification":"document_type_specific","default_dock":"left","document_types":["web"],"merged_from":{"dreamweaver":["databases","data bindings","server behaviors","server components"]}},
+      {"id":"find-replace","name":"Find & Replace","domain":"cross_cutting","classification":"task_episodic","default_dock":"bottom","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"indesign":["Find and Change Panel","FCFormatPanelViews (3 numbered variants)"],"affinity":["Find and Replace Panel"],"premiere":["Search"],"dreamweaver":["search"]},"dedup_note":"Document-scoped find and replace over text AND object attributes. Distinct from the existing shell FindInFiles pane, which searches the repository filesystem."},
+      {"id":"spelling","name":"Spelling","domain":"typography","classification":"task_episodic","default_dock":"right","document_types":["layout","web","vector"],"merged_from":{"indesign":["Spelling Panel","AutoCorrectPrefsPanel"],"affinity":["spelling"]}},
+      {"id":"notes-comments","name":"Notes & Comments","domain":"cross_cutting","classification":"always_relevant","default_dock":"right","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["annotation","ccx-comments-uxp-webview"],"illustrator":["CCX Commenting UXP Webview"],"premiere":["frameio comments panel"],"affinity":["Notes Panel"]}},
+      {"id":"generate","name":"Generate","domain":"cross_cutting","classification":"task_episodic","default_dock":"right","document_types":["raster","vector","layout","motion","video","photo"],"merged_from":{"photoshop":["patchmatch","patchmatchfillpreview","smartbrush"],"illustrator":["GenerateUI","GenerativePatterns","GeneratedVariations","Vectorize (partly)"],"affinity":["generative book members (structural)"]},"policy_flag":"Dreamweaver and Premiere captures carry an explicit excluded_ai policy; Illustrator and Photoshop captures do not. Whether Studio ships a Generate panel at all, and whether it routes to Handshake's own ModelRuntime rather than a vendor service, is an operator decision - see open_questions."},
+      {"id":"tools","name":"Tools","domain":"cross_cutting","classification":"always_relevant","default_dock":"left_rail","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["toolbar","assisted.toolbar"],"illustrator":["ToolBar","Basic","Getting Started"],"premiere":["Tools"],"affinity":["tpnl tool panel with 143 tool ids in named groups","ToolPanel","Sub Tools Panel"]},"dedup_note":"Left rail occupant in 18 of 19 Premiere workspaces and in 8 of 8 Photoshop workspaces (dock anchor left, content 'palette toolbar'). Affinity's tpnl serialises tools as ordered named GROUPS, which is the flyout model."},
+      {"id":"context-bar","name":"Context Bar","domain":"cross_cutting","classification":"selection_contextual","default_dock":"top","document_types":["raster","vector","layout","motion","video","web","photo"],"merged_from":{"photoshop":["options (control-bar element in 8 of 8 workspaces)"],"illustrator":["ControlBar (12 of 12 workspaces)"],"indesign":["Control Panel (34 resource variants)"],"affinity":["tbar context toolbar with named item groups"],"dreamweaver":["DW_Toolbar_Main","DW_CodeView_Toolbar"]},"dedup_note":"Unanimous across every vendor with a workspace capture: exactly one top strip, single-occupant, resolved from the active tool and the current selection. It is a slot, not a tab stack."},
+      {"id":"brushes","name":"Brushes","domain":"raster","classification":"document_type_specific","default_dock":"left","document_types":["raster","photo","vector"],"merged_from":{"photoshop":["brushpresets","brushstyler"],"illustrator":["AdobeBrush","TouchCalligraphicBrushStylusPanel"],"affinity":["Brushes book member"]},"dedup_note":"Photoshop's Brushes (presets) and Brush Settings (engine) are adjacent in all 8 shipped workspaces. One panel, presets list plus a settings section."},
+      {"id":"clone-source","name":"Clone Source","domain":"raster","classification":"task_episodic","default_dock":"right","document_types":["raster","photo"],"merged_from":{"photoshop":["clonesource"],"affinity":["clone/blemish book member (structural)"]}},
+      {"id":"vectorise","name":"Vectorise","domain":"vector","classification":"task_episodic","default_dock":"right","document_types":["vector","raster"],"merged_from":{"illustrator":["Vectorize (VectorizePanel)","VectorEdgePanel"],"affinity":["trace"]},"dedup_note":"Illustrator dedicates an entire shipped workspace (Tracing) to this one panel plus its supporting set. Under this architecture it is a task-episodic panel that opens on the command and returns to the icon rail after, with no whole-UI switch."},
+      {"id":"three-d-materials","name":"3D & Materials","domain":"effects","classification":"document_type_specific","default_dock":"right","document_types":["vector","raster","motion"],"merged_from":{"photoshop":["3d","substanceMaterialPanel"],"illustrator":["3D and Materials","Geometry3DUI 3DPanel"]}},
+      {"id":"mockup","name":"Mockup","domain":"design_system","classification":"task_episodic","default_dock":"right","document_types":["vector","raster"],"merged_from":{"illustrator":["Mockup"]},"dedup_note":"Kept as its own panel rather than folded into effect-controls because it is present in 11 of the 12 Illustrator workspaces, i.e. the vendor treats it as first-class, not as an effect parameter."}
+    ],
+
+    "reused_existing_shell_panes": [
+      {"shell_pane_type":"Problems","studio_use":"validator and render errors; also the destination for preflight escalations"},
+      {"shell_pane_type":"Jobs","studio_use":"renders, exports, batch conversions, Premiere-equivalent Capture / EditToTape / Progress / Events surfaces"},
+      {"shell_pane_type":"SourceControl","studio_use":"Dreamweaver DWGit equivalent"},
+      {"shell_pane_type":"UserManual","studio_use":"Photoshop learn, Illustrator Getting Started, Premiere LABORLearningPanel, Affinity Help"},
+      {"shell_pane_type":"FontManager","studio_use":"InDesign Font Usage / fontpanel, Affinity Font Panel"},
+      {"shell_pane_type":"FindInFiles","studio_use":"repository search, distinct from the document-scoped find-replace panel"},
+      {"shell_pane_type":"FlightRecorder","studio_use":"session capture for GUI validation"},
+      {"shell_pane_type":"VisualDebugger","studio_use":"panel and dock inspection during GUI validation"},
+      {"shell_pane_type":"RuntimeChat","studio_use":"agent conversation beside the canvas"}
+    ],
+
+    "vendor_workspace_evidence": [
+      {
+        "app": "photoshop",
+        "workspaces_examined": 8,
+        "workspace_names": ["Assisted","Core Tools","Core Tools_V2","Graphic and Web","Motion","Painting","Photography","Start"],
+        "source": "installed_exports/photoshop/offline/photoshop_panels.json workspaces[].docks and workspaces[].panel_placements",
+        "hard_facts": [
+          "8 of 8 workspaces declare a dock with anchor=top and content=control-bar; its occupant is panelid.static.options in every one.",
+          "8 of 8 declare anchor=left with content='palette toolbar'; panelid.static.toolbar is placed there.",
+          "8 of 8 declare anchor=right with content='palette toolbar'; this is where the palettes live.",
+          "7 of 8 declare anchor=bottom with content='palette' (Assisted is the exception, having only 3 docks total).",
+          "Workspaces additionally declare anchor=none docks marked is_closed=true - between 0 and 8 of them - which are the closed floating groups. This is the vendor's own evidence for a hidden-but-registered panel state distinct from 'not installed'.",
+          "The 37 native panel ids are stable: 24 of them appear in 7 or 8 of the 8 workspaces. Only assisted.toolbar (1), patchmatch (2), smartbrush (2) and learn (4) are workspace-specific.",
+          "The trailing group of the right dock is identically ordered in Graphic and Web, Painting and Photography: ... layers, channels, paths. This is the vendor's own default tab order for the structure group."
+        ],
+        "adjacency_pairs_observed": [
+          "picker + swatches + gradients + patterns (Core Tools)",
+          "textcharacter + textparagraph + textparastyle + textcharstyle + textglyphspanel (all workspaces)",
+          "brushstyler + brushpresets (all workspaces)",
+          "layers + channels + paths (Graphic and Web, Painting, Photography, Motion)",
+          "history + actions (Core Tools, Motion, Photography)"
+        ]
+      },
+      {
+        "app": "illustrator",
+        "workspaces_examined": 12,
+        "workspace_names": ["Automation","Essentials","Essentials Classic","Essentials Classic@2x","Getting Started","Layout","Painting","Printing and Proofing","Start","Tracing","Typography","Web"],
+        "source": "installed_exports/illustrator/offline/illustrator_panels.json workspaces[].surfaces (OWLBookMark decode) and workspace_surfaces[]",
+        "hard_facts": [
+          "41 surfaces appear in all 12 workspaces. ControlBar 12/12 and ToolBar 12/12: the top control bar and the left tool bar are structural, not optional.",
+          "Illustrator does not vary WHICH panels exist per workspace; it varies their ORDER and is_closed flag. 45 to 46 of the 52 surfaces are open in every non-Start workspace.",
+          "The leading entries of each workspace's surface list are the docked-visible group, and they differ per workspace in exactly the way a task expects:",
+          "  Typography leads Character, Paragraph, AdobeOpenTypeFont, AdobeCharStyles, AdobeParaStyles.",
+          "  Layout leads Character, Paragraph, AdobeOpenTypeFont, AdobeCharStyles, AdobeParaStyles, Export, Links.",
+          "  Painting leads ControlBar, Basic, Navigator, Info, Appearance, NamedStyle, AdobeGradientEditor, Transparency, Transform, Align, Pathfinder.",
+          "  Tracing leads ControlBar, Basic, Actions, Links, AdobeBrush, AdobeGradientEditor, Stroke, Appearance, Info, AdobeObjectAttributes, AdobeLayerPalette, NamedStyle, then Vectorize.",
+          "  Printing and Proofing leads Transform, Align, Pathfinder, Artboards, AdobeLayerPalette, Links.",
+          "  Web leads AdobeVariablesPanel, Actions, Info, Character, Paragraph, AdobeOpenTypeFont, Links.",
+          "Appearance, NamedStyle (Graphic Styles), Gradient and Transparency are consecutive in Painting - the evidence used to merge Transparency into Appearance.",
+          "Transform + Align + Pathfinder are consecutive in 5 of the 12 workspaces. They are the geometry triple."
+        ],
+        "panel_size_evidence": {
+          "source": "workspaces[Essentials Classic].surfaces[].preferred_unconstrained_size / preferred_constrained_size - 49 surfaces carry a declared size",
+          "width_distribution": "median 240, mode 240 (30 of 49 surfaces), minimum 130, maximum 490",
+          "why_it_matters": "240px is the vendor's own docked width for a dense parameter panel - Character 240x188, Transform 240x298, Pathfinder 240x107, Stroke 240x31, Align 244x172, Swatches 240x111. This is a measured floor for panel width, not a guess, and it is the anchor for the panel_density_model's scrub-field budget.",
+          "wide_format_outliers": "AdobeAltGlyphsPanel 404x173, AdobeHorizontalTabPanel 430x73, AdobeVerticalTabPanel 130x415, AdobeFlatteningPreview 490x195, Stock Unified Content Panel 400x400, CCX Commenting 350x500, PatternOptionsPanel 288x404, Export 270x472. Eight surfaces exceed 320px wide. The vendor does not force these into a 240 dock; Studio must not either - see panel_density_model.wide_format_rule.",
+          "tall_format": "AdobePropertiesPanel is 250x769 and the CC Libraries extension 245x977 - the contextual inspector and the library are the two panels the vendor gives near-full column height. That corroborates pinning Properties to the top group of the right dock and giving it the largest share."
+        }
+      },
+      {
+        "app": "indesign",
+        "workspaces_examined": 0,
+        "source": "installed_exports/indesign/offline/indesign_dialogs.json (390 dialogs and panels, 144192 nodes, 1778 view resource files)",
+        "hard_facts": [
+          "No workspace layout file was captured for InDesign, so InDesign contributes BINDING evidence rather than PLACEMENT evidence.",
+          "34 distinct Control Panel resource variants ship (Control Panel#6101, #6201, #7401, #7501, #8201, #8203, #8205, #8301, #9001, #9105, #9205, #9305, #9405, #51201, #51701, #51805, #53401, #53705, #53805, #54901 and 14 more). One slot, 34 bound layouts, chosen by what is selected. This is the single largest piece of evidence that the contextual-slot model is what the field actually ships.",
+          "Numbered variant families beyond Control Panel: Alignment Panel 14, Paragraph Panel 13, Style Panel 10, Character Panel 9, Transform Panel 6, Text Wrap Panel 6, Pages Panel 6, Color Picker Panel 3, Find Change Format Panel 3, Hyperlinks Panel 2.",
+          "9 XP*PanelViews (BevelEmboss 1125 nodes, DropShadow 1005, DirectionalFeather 950, InnerShadow 940, Satin 610, InnerGlow 600, OuterGlow 550, GradientFeather 550, Feather 365) are nine effect-kind layouts for one Effects dialog surface.",
+          "31 distinct panel-owning plugins, which is the closest InDesign gets to a panel inventory."
+        ]
+      },
+      {
+        "app": "premiere",
+        "workspaces_examined": 19,
+        "workspace_names": ["ALLPANELS","ASSEMBLY","AUDIO","CAPTIONS","COLORANALYSIS","COLORESSENTIALS","COLORVERTICAL","COLOR","EDITING","EFFECTS","ESSENTIALS","LEARNING","LIBRARIES","METALOGGING","PRELUDE","PRODUCTION","REVIEW","STARTER","VERTICAL"],
+        "source": "installed_exports/premiere/offline/premiere_panels_dialogs.json workspaces[].panes[].pane_path + visible_tabs",
+        "derivation_note": "Zone labels computed by walking each pane_path's Splitter(orient,place)/SubN chain to a normalised rect, renormalising to the workspace's own occupied extent, then bucketing: width<=0.12 is a rail; centroid x<0.25 LEFT, x>0.75 RIGHT; otherwise CENTRE-TOP or CENTRE-BOTTOM by centroid y. This is the richest placement evidence in the corpus because Premiere serialises the actual splitter tree.",
+        "hard_facts": [
+          "Tools: LEFT-RAIL in 18 of 19 placements. A narrow rail, never a tab.",
+          "MiniAudioMixer: RIGHT-RAIL in 16 of 16 placements. 100 percent. A second narrow rail on the far right.",
+          "Properties2: RIGHT in 15 of 17 placements. Present in 17 of 19 workspaces.",
+          "Project: LEFT in 15 of 17 placements. Media Browser: LEFT in 11 of 13.",
+          "Effects (the browser): LEFT in 8 of 11 placements.",
+          "Search: RIGHT in 7 of 9 placements.",
+          "Color (Lumetri): RIGHT in 5 of 6. Essential Sound: RIGHT in 3 of 4.",
+          "Timeline: CENTRE-BOTTOM in 16 of 18 placements.",
+          "Program Monitor: CENTRE-TOP in 16 of 19. Source Monitor: CENTRE-TOP in 8, LEFT in 5.",
+          "Effect Controls: co-tabbed with Source Monitor rather than docked right - LEFT 5, CENTRE-TOP 4, RIGHT 1. The vendor disagrees with itself here: the legacy placement rides the source-viewer stack, the modern Properties2 placement is right. Studio follows the modern one.",
+          "The largest single tab stack in the corpus is ALLPANELS' right dock: Properties2, Effects, Info, Graphics, Essential Sound, Color, Search, MetadataEditor, UXP, MarkerList, History, Events, Timecode - 13 tabs in one group. Vendors do stack this deep."
+        ],
+        "conclusion": "Browse-left, inspect-right, time-bottom, viewers-centre, tools and meters in narrow rails. This is Premiere's own layout law across 19 shipped workspaces, and it is the empirical basis for the Studio edge semantics."
+      },
+      {
+        "app": "dreamweaver",
+        "workspaces_examined": 2,
+        "workspace_names": ["Developer","Standard"],
+        "source": "installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json workspace_layouts[].tree and property_inspectors[]",
+        "hard_facts": [
+          "The workspace file is literally a dock model: panelset > panelframe(dock=left|right|bottom, width=N) > panelcontainer(expanded, visible) > panel(id, showLabel, width, height). Handshake's dock model can be a near-direct port of this shape.",
+          "Developer docks: left width=245 holding site + snippets; left width=35 holding DW_CodeView_Toolbar (an icon rail, 32px panel inside a 35px frame); bottom holding search, nodeOutput, DWGit.",
+          "Standard docks: left width=35 icon rail; right holding site, CC Libraries, objects (Insert), assets, snippets, CSS Designer, DOM; bottom holding output and search.",
+          "31 registered panels, of which only 6 (Developer) and 12 (Standard) are docked in a shipped workspace. 19 to 25 registered panels are reachable but not docked by default - the vendor's own evidence that most panels are episodic.",
+          "The 'properties' panel is registered but docked in NEITHER shipped workspace, because it is the Property Inspector host bar, not a dock tab.",
+          "60 property inspectors, 60 of 60 carrying a binding declaration, 487 controls total."
+        ],
+        "binding_declaration_shape": {
+          "fields": ["tag","attrname","priority","selection","hideclass"],
+          "api_hooks": ["canInspectSelection","inspectSelection","initializeUI","displayHelp"],
+          "tag_values_observed": ["concrete tags: audio, video, canvas, source, BASE, LINK, META, TITLE, button, input, div, span, UL, cfform, cfinput, cfselect, cftextarea, xsl:comment, XSL:IF, XSL:WHEN, XSL:FOR-EACH, MMTemplate:If, MM_REPEATEDREGION","alternation: 'input|Div', 'MMTemplate:Editable|MM...'","wildcard: '*'","pseudo-tags: '*LOCKED*', '*COMMENT*'"],
+          "priority_values_observed": [1,5,6,10,50],
+          "priority_semantics_inferred": "Higher wins. Proof inside the capture: spry_widget.htm binds tag=div at priority 1 (the catch-all for any Spry div) while spry_accordion.htm, spry_collapsiblepanel.htm, spry_tabbedpanels.htm, jQuery_accordion.htm, jQuery_slider.htm and jQuery_tabs.htm all bind tag=div at priority 50. The generic fallback is the low number; the specific widget is the high number. META is bound at 5 by meta.htm and at 6 by description.htm, keywords.htm, refresh.htm and viewport.htm, which are the refined variants - again higher-is-more-specific.",
+          "selection_scope_values_observed": ["exact","within","insideLock"],
+          "distribution": {"exact":33,"within":25,"insideLock":1,"priority_1":17,"priority_5":10,"priority_6":4,"priority_10":4,"priority_50":25}
+        }
+      },
+      {
+        "app": "affinity",
+        "workspaces_examined": 9,
+        "workspace_names": ["Vector","Pixel","Layout","Slice","Canva AI","Retouching","Colour Grading","Typography","Compositing"],
+        "source": "installed_exports/affinity/offline/affinity_tool_panel_registry.json workspaces[].workspace lshl / rshl / floa / tpnl / tbar",
+        "name_binding_caveat": "The capture states that the 4CC panel ids are not bound to names in any shipped resource and refuses to guess. Everything below is STRUCTURAL and is quoted without asserting which panel a 4CC is.",
+        "hard_facts": [
+          "The serialised model is: tbar (context toolbar with ordered item groups), tpnl (tool panel with ordered named groups), lshl (left shelf), rshl (right shelf), floa (floating books). A shelf contains 'book' entries; a book is a tab stack with itms plus a parallel hidd visibility array and a _sel active-tab marker.",
+          "Right shelf book counts: Vector 3, Pixel 3, Layout 3, Slice 2, Canva AI 3, Retouching 2, Colour Grading 2, Typography 3, Compositing 3. THREE stacked tab groups on the right is the modal answer - 6 of 9 workspaces.",
+          "Left shelf is EMPTY in Vector, Slice and Typography; present in Pixel, Layout, Canva AI, Retouching, Colour Grading, Compositing. A left browse dock is optional and document-type dependent, which is exactly how Studio treats it.",
+          "Retouching is the only workspace with a large floating set - 5 separate floating books plus help. Floating is a real, shipped state, not an edge case.",
+          "Slice is the extreme case: two right books containing 3 entries total and nothing else. An entire persona-adjacent workspace exists to show what is effectively one panel. This is the concrete cost of the persona model the operator rejected.",
+          "Typography workspace: 2 left books of 1 entry each and 3 right books of 1-2 entries each, all with hidd=1 (hidden). The workspace is almost entirely a set of hidden registrations.",
+          "The tool panel (tpnl) serialises tools as ordered GROUPS with optional names - e.g. one group of 24 shape tool ids, one group of 3 brush-family ids. That is the flyout structure, captured."
+        ],
+        "counts": {"distinct_tool_4cc_ids":143,"distinct_panel_4cc_ids":53,"toolbar_command_4cc_ids":23,"boolean_setting_4cc_ids":24,"panel_name_tokens_scraped":79}
+      },
+      {
+        "app": "capability_registry",
+        "source": "fold_back/studio-capability-registry.json",
+        "hard_facts": [
+          "40798 capabilities across 9 apps. Domain vocabulary used verbatim by this proposal: cross_cutting 8357, color 7009, effects 4420, layout 4204, vector 3240, interop 2656, typography 2522, raster 2479, design_system 1511, automation 1261, web 1158, video 693, raw 398, prototype 365, motion 310, document_model 183, whiteboard 32.",
+          "kind=panel yields 814 rows, but inspection shows those rows are string-derived and include non-panels such as 'Top', 'Underline', 'Visible'. The registry's panel kind is NOT a usable panel inventory and was deliberately not used as the dedup input; the per-app panel captures were.",
+          "39144 of 40798 capabilities are single-app. Only 29 are shared by 6 apps and 6 by 7. The apps overlap far less at capability level than at panel level - which is why panel dedup (595 to 75, an 8:1 collapse) is far more aggressive than capability dedup.",
+          "document_primitives supplies the node-type vocabulary the contextual binding rule matches against: Document, TextNode, VectorNode, FrameNode, ComponentNode, InstanceNode, ComponentSetNode, SlotNode, SlideNode, TextPathNode, BooleanOperationNode, RectangleNode, EllipseNode, PolygonNode, StarNode, LineNode, HighlightNode, StampNode, WashiTapeNode, TransformGroupNode, SVG11 and more."
+        ]
+      }
+    ],
+
+    "panel_classification": [
+      {
+        "class": "always_relevant",
+        "definition": "Answers a question the operator has at essentially every moment in every document type. Docked and visible by default; never auto-hidden.",
+        "test_applied": "Present and open in 7 or more of 8 Photoshop workspaces, or 11 or more of 12 Illustrator workspaces, or 15 or more of 19 Premiere workspaces, or present in a majority of Affinity shelves.",
+        "members": ["layers","project-bin","media-browser","library","preset-library","links-placements","properties","effects-browser","object-styles","text-styles","colour","swatches","navigator","info","history","notes-comments","tools"],
+        "count": 17
+      },
+      {
+        "class": "document_type_specific",
+        "definition": "Always relevant, but only inside certain document types. Present in the default layout for those types and absent - not merely collapsed - for the others.",
+        "test_applied": "Vendor ships it only in the applications that own that document type, or the panel edits a primitive that does not exist in other types.",
+        "members": ["pages-artboards","channels","paths","reading-order-tags","catalog","keywords","filter-sort","insert","adjustments","interactions","css-designer","scopes","timeline","source-viewer","audio-mixer","audio-meters","markers","graphics-templates","site-deploy","data-sources","brushes","three-d-materials"],
+        "count": 22
+      },
+      {
+        "class": "selection_contextual",
+        "definition": "Relevance is determined by what is currently selected, not by document type or by the operator. Resolved by contextual_binding_rule into a slot; appears and disappears with the selection.",
+        "test_applied": "The vendor either ships multiple bound variants of it (InDesign numbered families, Dreamweaver inspectors) or its content is empty with no selection.",
+        "members": ["properties","context-bar","appearance","transform","stroke","gradient","effect-controls","character","paragraph","opentype","tabs-indents","text-frame","text-wrap","masks","anchoring","metadata","align-distribute","pathfinder"],
+        "count": 18,
+        "note": "properties appears in both always_relevant and selection_contextual: the SLOT is always present, its OCCUPANT is contextual. That dual nature is the whole point of the design."
+      },
+      {
+        "class": "task_episodic",
+        "definition": "Opened deliberately for a job, used, then closed. Lives in the icon rail by default and returns there when the job ends. This class is the direct replacement for Affinity's persona toggle: instead of switching the whole UI to expose one panel, the panel comes to the operator and then leaves.",
+        "test_applied": "Registered by the vendor but not docked in the shipped default workspace (Dreamweaver: 19 to 25 of 31 panels), or the vendor dedicated an entire workspace or persona to it (Illustrator Tracing, Affinity Slice).",
+        "members": ["states-comps","book","glyphs","hyperlinks","data-merge","long-document","guides-grid","snapping","captions","actions-macros","export","print-preview","preflight","find-replace","spelling","generate","clone-source","vectorise","mockup"],
+        "count": 19
+      },
+      {
+        "class": "_reconciliation",
+        "definition": "Bookkeeping, not a class.",
+        "note": "Each of the 75 distinct_panels entries carries exactly one classification field: always_relevant 16, document_type_specific 22, selection_contextual 18, task_episodic 19 = 75. The member lists above sum to 76 because 'properties' is deliberately listed in BOTH always_relevant and selection_contextual - its SLOT is always present, its OCCUPANT is contextual. Its entry-level classification is selection_contextual."
+      }
+    ]
+  },
+
+  "proposal": {
+    "dock_model": {
+      "summary": "Five regions: four edge docks plus the centre. Each edge is a stack of GROUPS; each group is a TAB STACK; each tab is one panel instance. Two edges additionally carry a narrow outer RAIL that is a single-occupant strip, not a tab stack, because both Photoshop and Premiere ship exactly that.",
+      "why_not_a_free_tile_tree_everywhere": "egui_tiles gives free-form tiling but has no concept of edge affinity, icon-rail collapse, or a single-occupant contextual slot. Photoshop, Illustrator, Dreamweaver and Affinity all serialise EDGE-ANCHORED docks; Premiere serialises a pure splitter tree and is the outlier. Studio therefore owns the edge/rail/slot semantics and uses egui_tiles for the tiling INSIDE each region, which is where its tab and split behaviour is exactly right.",
+      "regions": [
+        {
+          "region": "top",
+          "name": "Context Bar",
+          "kind": "single_occupant_contextual_slot",
+          "default_height_px": 34,
+          "purpose": "What the current tool and the current selection can do, right now. Never a tab stack.",
+          "evidence": "Photoshop declares anchor=top content=control-bar in 8 of 8 workspaces with panelid.static.options as the only occupant. Illustrator ships ControlBar in 12 of 12. InDesign ships 34 bound variants of one Control Panel. Affinity serialises a single tbar. No vendor with a workspace capture stacks tabs on the top edge.",
+          "occupancy": "Resolved by contextual_binding_rule against slot='context-bar'. The operator can pin an override; the pin is per document type.",
+          "collapse": "Hideable to 0px by a single toggle; never becomes an icon rail (there is nothing to enumerate)."
+        },
+        {
+          "region": "left_rail",
+          "name": "Tool Rail",
+          "kind": "single_occupant_rail",
+          "default_width_px": 44,
+          "purpose": "The tool palette. Outermost on the left, always visible.",
+          "evidence": "Premiere places Tools in a left rail in 18 of 19 placements. Photoshop declares anchor=left content='palette toolbar' in 8 of 8. Dreamweaver's Standard and Developer workspaces both declare a left panelframe of width=35 holding only DW_CodeView_Toolbar. Three independent vendors, same shape.",
+          "occupancy": "The tools panel. Its groups come from the document type. Affinity's tpnl proves the flyout-group serialisation.",
+          "collapse": "Single-column or double-column toggle. Cannot be emptied, can be moved to the right rail."
+        },
+        {
+          "region": "left",
+          "name": "Browse Dock",
+          "kind": "group_stack",
+          "default_width_px": 260,
+          "default_groups": 1,
+          "purpose": "What exists and what can be brought in. Sources, not properties.",
+          "evidence": "Premiere: Project LEFT 15/17, Media Browser LEFT 11/13, Effects browser LEFT 8/11, MarkerList LEFT 9/13. Affinity's left shelf, where present, holds assets, library, pages, presets and macros. Dreamweaver's Developer workspace docks site and snippets to a left panelframe of width=245.",
+          "collapse": "Collapses to a 32px ICON RAIL listing every registered panel of the dock, one icon each, with the active one highlighted. Clicking an icon opens the dock temporarily (overlay) or pins it open (shift-click). This is the mechanism that lets a task-episodic panel be reachable without being docked."
+        },
+        {
+          "region": "right",
+          "name": "Inspect Dock",
+          "kind": "group_stack",
+          "default_width_px": 300,
+          "default_groups": 3,
+          "purpose": "What is selected and how it is configured. The Properties slot is pinned to the top group.",
+          "evidence": "Premiere: Properties2 RIGHT 15/17, Search RIGHT 7/9, Color RIGHT 5/6, Essential Sound RIGHT 3/4. Affinity: 6 of 9 workspaces use exactly THREE right-shelf books. Photoshop's right dock is the palette home in 8 of 8. Illustrator Essentials leads AdobePropertiesPanel then AdobeLayerPalette - properties above layers.",
+          "three_group_default_rationale": "Affinity's modal answer is 3, and the three groups map cleanly onto three different refresh rhythms: group 1 changes with the SELECTION, group 2 with the OPERATOR's colour choices, group 3 with the DOCUMENT's structure. Putting panels with different refresh rhythms in the same stack is what makes a dock feel jumpy.",
+          "collapse": "Per-group collapse to a title strip, plus whole-dock collapse to a 32px icon rail."
+        },
+        {
+          "region": "right_rail",
+          "name": "Meter Rail",
+          "kind": "single_occupant_rail",
+          "default_width_px": 36,
+          "default_visible": false,
+          "purpose": "A continuously-updating readout that must never be hidden behind a tab.",
+          "evidence": "Premiere places MiniAudioMixer in a far-right narrow rail in 16 of 16 placements - the only 100 percent placement fact in the corpus.",
+          "occupancy": "audio-meters for video and motion; available to scopes on operator request. Hidden by default for non-temporal document types."
+        },
+        {
+          "region": "bottom",
+          "name": "Time & Results Dock",
+          "kind": "group_stack",
+          "default_height_px": 240,
+          "default_groups": 1,
+          "purpose": "Two things that are both wide and both about the whole document rather than the selection: TIME, and RESULTS.",
+          "evidence": "Premiere: Timeline CENTRE-BOTTOM 16/18. Photoshop declares anchor=bottom content=palette in 7 of 8 workspaces, occupied by the animation palette. Dreamweaver docks search, nodeOutput and DWGit to a bottom panelframe in both shipped workspaces.",
+          "collapse": "Collapses to a 28px icon rail. Auto-expands when a job writes a result into it (a preflight run, a find, a render) and returns to the rail when the operator dismisses. Auto-expand is per-panel opt-in and operator-disableable."
+        },
+        {
+          "region": "centre",
+          "name": "Viewport",
+          "kind": "egui_tiles_tree_unbounded",
+          "purpose": "The documents themselves. A clean, chrome-free surface holding an ARBITRARY number of editor groups, each with its own tab stack. The VS Code model, as required by OUI-002.",
+          "editor_group_model": {
+            "rule": "The centre is one egui_tiles Tree whose leaves are EDITOR GROUPS. A group is a tab stack of open documents and viewers. The number of groups is unbounded and never fixed - not two, not four, not 2x2.",
+            "requirement_origin": "OUI-002: 'any number of editor windows inside the one main window, each holding multiple tabs. It can be a single file with a chat beside it, or ten windows each with several tabs. The number must never be fixed.'",
+            "defect_being_replaced": "split_layout.rs's hard-coded 2x2 (pane-a..pane-d) with SplitWeights{vertical,horizontal}, which OUI-002 records was ported verbatim from app/src/App.tsx because the MT-006 acceptance criteria demanded those exact React field names. The module's own docstring already names egui_tiles as the intended engine for free-form docking. egui_tiles 0.14 with serde is already a dependency, so this is a microtask, not a rewrite.",
+            "gestures": "Drag a document tab onto another group's strip to move it; onto a group's body edge to split and create a new group; onto empty centre space to create a group. Close the last tab in a group and the group collapses, its space redistributed by egui_tiles. All four of these come from egui_tiles directly.",
+            "mixed_content": "A group's tabs may be documents, a source-viewer, a code view (reusing the existing code_editor module), or a RuntimeChat pane - which is what makes 'a single file with a chat beside it' a two-group centre rather than a special case."
+          },
+          "evidence": "Premiere places Program Monitor CENTRE-TOP 16/19 and Timeline CENTRE-BOTTOM 16/18 - the centre is itself split when the document type needs two viewers. Photoshop's centre is a single canvas in all 8. Neither vendor fixes the count; Premiere's COLORANALYSIS workspace splits the centre three ways.",
+          "occupancy": "Document-type dependent DEFAULTS, not limits: raster/vector/photo = one group, one canvas; layout = one group plus an optional story/galley group; video/motion = one group split to program viewer and source-viewer; web = design view with an optional code-view group; photo-catalog = one group in grid, loupe, compare or survey mode.",
+          "no_panels_rule": "PANELS never dock into the centre; DOCUMENTS never dock into an edge. A panel dragged over the centre becomes a FLOATING panel, not a centre tile; a document tab dragged onto an edge is refused with a visible no-drop cue. This is the rule that keeps the viewport clean, which was an explicit operator requirement, and it is also what keeps the two egui_tiles tree families from having to share a tile type."
+        }
+      ],
+      "panel_states": [
+        {"state":"docked_tab","description":"A tab in a group of an edge dock. The normal state."},
+        {"state":"docked_active","description":"The visible tab of its group."},
+        {"state":"collapsed_to_rail","description":"Registered in an edge but the edge is collapsed; reachable as an icon. Photoshop's anchor=none is_closed=true docks are the vendor precedent for this exact state."},
+        {"state":"overlay","description":"Temporarily expanded over the viewport from an icon rail; closes on click-away. The state that makes task_episodic panels cheap."},
+        {"state":"floating","description":"A free window inside the Studio viewport bounds. Affinity's Retouching workspace ships 5 floating books, so this is a first-class state, not an edge case."},
+        {"state":"popped_out","description":"An OS window. The existing popout_window.rs already implements pop-out with merge-back and geometry clamping; Studio panels reuse it unchanged."},
+        {"state":"hidden","description":"Registered but not reachable in the current layout; still enumerable through the panel picker."}
+      ],
+      "reorganisation_gestures": [
+        {"gesture":"drag tab within group","result":"reorder"},
+        {"gesture":"drag tab onto another group's tab strip","result":"move to that group at the drop index"},
+        {"gesture":"drag tab onto a group's body edge","result":"split that group, creating a new group in the same dock"},
+        {"gesture":"drag tab onto a different EDGE","result":"cross-dock move. Implemented as a PanelMoveRequest that removes the tile from the source edge's egui_tiles tree and inserts it into the target's; NOT an egui_tiles-internal drag, because the two trees are separate."},
+        {"gesture":"drag tab onto the centre","result":"float (see no_panels_rule)"},
+        {"gesture":"drag tab out of the window","result":"pop out to an OS window via popout_window.rs"},
+        {"gesture":"double-click group title","result":"collapse/expand the group"},
+        {"gesture":"click the edge collapse chevron","result":"collapse the whole edge to its icon rail"},
+        {"gesture":"click an icon in a collapsed rail","result":"overlay; shift-click pins the edge open with that panel active"},
+        {"gesture":"command palette 'Open panel: X'","result":"opens X in its default dock for the current document type, or focuses it if already open. Reuses the existing command_palette.rs and command_registry.rs."},
+        {"gesture":"panel context menu 'Open second instance'","result":"a second instance with an independent parameter (e.g. preset-library filtered to gradients alongside one filtered to brushes). Required by the preset-library merge."}
+      ],
+      "constraints": [
+        "Minimum dock size is clamped exactly the way split_layout.rs already clamps dividers, so no dock can be dragged to zero and no panel can become unreachable.",
+        "An edge with zero panels renders as a 6px seam, not as nothing, so the operator can always drag a panel back to it.",
+        "Group count per EDGE is capped at 4. Premiere's deepest observed nesting inside one edge is 3 groups plus a rail; Affinity's is 3. A cap keeps the persisted tree small and the AccessKit tree shallow. This cap applies to edges ONLY - the centre editor tree is explicitly uncapped per OUI-002.",
+        "Every dock gesture, panel-open, panel-move and panel-close is a registered command in the existing command_registry.rs, so it is reachable from top_menu_bar.rs and command_palette.rs as well as by pointer. OUI-006 makes the menu the exhaustive index; a Studio surface that owns an action with no command is a defect.",
+        "The dock model must render correctly with all four edges absent, because OUI-009 embeds a Studio viewport inside Notes with no edge docks."
+      ],
+
+      "pointer_gesture_arbitration": {
+        "why_this_is_here": "OUI-008 makes every numeric field a press-and-drag scrub control. A dense panel is therefore a grid of drag targets sitting inside a drag-target tab, inside a drag-resizable dock, next to a pannable canvas. Four gesture consumers, one pointer. Leaving the arbitration to implementation guarantees the operator will one day drag a panel out of its dock while trying to nudge a value, so the rules are stated here.",
+        "rule_1_claim_at_press": {
+          "rule": "The topmost widget under the pointer at PRESS-DOWN claims the gesture for its entire duration. There is no movement threshold, no ambiguity window and no hand-off. A press inside a value field's body is owned by that field, full stop.",
+          "consequence": "A drag beginning inside a field can never become a panel drag, a tab drag, a canvas pan, a dock resize, a marquee, or a scroll - regardless of direction, distance or speed.",
+          "egui_mechanics": "The field body is a Sense::click_and_drag() region; egui assigns the interaction to it at press and holds it until release. No other widget may call ctx.set_dragged_id during an active gesture."
+        },
+        "rule_2_drag_chrome_only": {
+          "rule": "Panel and tab drags may START ONLY from designated drag chrome: the tab itself, the group title strip, or the panel header. Never from the panel body.",
+          "why": "This removes the conflict structurally rather than resolving it dynamically. It is also what every captured vendor does - a Photoshop, Illustrator or Premiere panel cannot be dragged by its body, only by its tab.",
+          "consequence": "Rule 1 and rule 2 together mean the arbitration is decided by WHERE the press lands, which is inspectable and testable, rather than by gesture heuristics, which are not."
+        },
+        "rule_3_splitters_are_separate_strips": {
+          "rule": "Dock splitters and group splitters are dedicated hit strips that never overlap a field body. Adopt split_layout.rs's existing constants: DIVIDER_THICKNESS 4.0 visual, DIVIDER_HIT_THICKNESS 8.0 interactive.",
+          "cursor_disambiguation": "OUI-008 requires a horizontal-resize cursor on a hovered scrub field so the control advertises itself. A dock splitter ALSO wants a resize cursor. They must NOT use the same icon or the operator cannot tell a value from a divider. Assignment: splitters use CursorIcon::ResizeHorizontal / ResizeVertical; scrub fields use CursorIcon::ResizeColumn (the double-arrow-with-bar form). If that reads too similarly in practice, the scrub field takes a custom cursor - but the two must remain visually distinct.",
+          "spacing": "A scrub field's hit rect is inset 8px from any splitter hit strip, so the last field in a panel cannot be mistaken for the dock edge."
+        },
+        "rule_4_drag_leaves_the_panel": {
+          "rule": "Once a field owns the gesture, motion is tracked in SCREEN space, not panel-local space. The value keeps updating when the pointer leaves the field, leaves the panel, leaves the dock, crosses the canvas, crosses another panel, or leaves the application window entirely. Release anywhere commits.",
+          "suppression_during_gesture": "While a field owns the pointer: no other widget shows a hover state, no drop target activates, no tooltip fires, the panel's scroll area does not auto-scroll, the dock does not resize, and the canvas does not pan. The application is in a single captured-gesture state.",
+          "escape_cancels": "Escape during an active scrub aborts the gesture and restores the pre-press value. The undo transaction is discarded, not committed as a no-op.",
+          "screen_edge": "The value is NOT bounded by available screen travel. On reaching a screen edge the cursor is HIDDEN and delta continues to accumulate; the cursor is restored at the original press point on release. Deliberately NOT OS cursor warping: warping is fragile across multi-monitor Windows configurations and it moves a pointer the out-of-process inspector is tracking, which would corrupt GUI validation runs.",
+          "clamping": "Accumulated delta x step is clamped only to the parameter's real minimum and maximum, from the captured parameter metadata. Reaching a clamp shows a visual stop but does not end the gesture, so dragging back returns immediately rather than after re-traversing the overshoot."
+        },
+        "rule_5_wheel": {
+          "rule": "The wheel over a hovered field steps that field's value, per OUI-008. The wheel elsewhere in the panel scrolls the panel.",
+          "the_real_conflict": "In a dense panel, most of the surface IS fields, so an unqualified 'wheel over field steps value' makes the panel nearly unscrollable by wheel. This is a genuine conflict, not a hypothetical: Illustrator's Transform panel is 240x298 and is almost entirely fields.",
+          "mitigation": "Every dense panel reserves a 10px SCROLL LANE on its inner right edge that contains no field and always takes the wheel, plus the wheel over any label, group header or blank area scrolls. That guarantees a wheel scroll target exists at every scroll position without qualifying the operator's stated behaviour.",
+          "operator_preference": "A preference inverts the default (wheel always scrolls; wheel-with-modifier steps the value). Recorded as OQ-12 rather than decided here."
+        },
+        "rule_6_modifiers": {
+          "proposal": "Shift = coarse, step x10. Alt = fine, step x0.1. Shift+Alt = x0.01.",
+          "rationale": "Matches Photoshop's own numeric-field convention. Alt is chosen for fine rather than Ctrl because Ctrl is a menu accelerator prefix and OUI-006 makes the menu load-bearing; and because Alt-drag-to-duplicate is a CANVAS gesture, so it cannot collide with a field gesture under rule 1.",
+          "modifier_ownership": "Modifiers are sampled continuously during the gesture, not latched at press, so the operator can go coarse then fine within one drag. The step magnitude changes; the accumulated value does not jump.",
+          "status": "The exact keys are listed in operator-ui-requirements.json open_for_operator_decision. Proposed here, not settled - see OQ-11."
+        },
+        "rule_7_undo": {
+          "rule": "One undo entry per GESTURE. Press opens a transaction on the existing undo_stack.rs, all motion coalesces into it, release commits one entry naming the parameter and its before/after values.",
+          "wheel_coalescing": "Consecutive wheel notches on the same field coalesce into one entry, closed by a 400ms idle timeout or by the pointer leaving the field.",
+          "accesskit_setvalue": "A SetValue dispatched through AccessKit is one discrete entry and takes the identical clamp and commit path as the drag - never a separate code path, or the accessible value and the rendered value will drift."
+        },
+        "rule_8_observability": {
+          "requirement": "The arbitration must be READABLE by the out-of-process inspector, not just correct. Expose studio.gesture.active as an AccessKit node whose value is the author_id of the widget currently owning the pointer, plus the gesture kind (scrub | tab-drag | panel-drag | splitter | pan | none).",
+          "why": "Handshake validates GUI work out of process. A test asserting 'a drag from inside a field did not move the panel' needs to read WHO owned the gesture, not infer it from the absence of an effect. This one node makes every rule above directly testable."
+        }
+      },
+
+      "panel_density_model": {
+        "why_this_is_here": "OUI-008 makes panel density a sizing constraint rather than a style choice. A scrub field needs a grabbable body, so the number of parameters a docked panel can carry at a given width is bounded, and the dock widths proposed above have to be justified against that bound rather than picked.",
+        "vendor_anchor": "Illustrator declares a preferred docked size for 49 surfaces in its own workspace file. Median width 240, mode 240 (30 of 49). Character 240x188, Transform 240x298, Align 244x172, Pathfinder 240x107, Stroke 240x31. 240px is therefore the field-tested floor for a dense parameter panel - measured from the capture, not estimated.",
+        "scrub_allowance": {
+          "field_body_minimum": "72px wide x 24px tall. 24px is the practical minimum pointer target for a press-and-drag grab; a vendor-era 20px row is fine for click-to-type but too thin to grab reliably.",
+          "width_delta": "A vendor field body is roughly 56px. The scrub minimum adds about 16px per field. A two-field row (X/Y, W/H) adds about 32px.",
+          "derived_floor": "240 vendor floor + 32 scrub allowance = 272. Rounded up for a scrollbar gutter and the 10px scroll lane: 300px."
+        },
+        "dock_width_budget": {
+          "right_dock_default_px": 300,
+          "right_dock_hard_minimum_px": 260,
+          "content_width_at_300": "300 - 12 left padding - 12 right padding - 10 scroll lane = 266px usable.",
+          "rows_that_fit": "One labelled scalar per row (label 96 + gap 8 + field 72 = 176, fits with slack), OR one label plus two linked scalars (label 24 + field 72 + gap 8 + field 72 = 176, fits), which is how X/Y and W/H pairs are laid out. THREE fields on one row does not fit at 300px and must not be attempted.",
+          "row_pitch": "24px field + 4px gap = 28px per row.",
+          "vertical_budget": "A right group at 34 percent of a 900px column is 306px; minus a 26px tab strip and 8px padding leaves 272px, which is about 9 rows. Cross-check: Illustrator's own Transform panel preferred height is 298px, which at 28px pitch is about 10 rows. The budget and the vendor's own declared height agree, which is the reassurance that 300x300 is a realistic group, not an optimistic one.",
+          "below_minimum_behaviour": "Below 260px the panel switches to a stacked compact form - label above field, one field per row, 20px pitch, click-to-type still available but the drag target reduced. The panel does not clip and does not hide controls; it changes layout. A panel that would clip instead shows a horizontal scroll, never a truncated field."
+        },
+        "wide_format_rule": {
+          "rule": "A panel declaring preferred_width greater than 320 is registered in its edge but presents as an OVERLAY or FLOATING panel by default rather than occupying a dock tab.",
+          "evidence": "Eight Illustrator surfaces exceed 320px: AdobeAltGlyphsPanel 404, AdobeHorizontalTabPanel 430, AdobeFlatteningPreview 490, Stock Unified Content 400, CCX Commenting 350, PatternOptions 288 (borderline), Export 270 (borderline). The vendor does not force these into its own 240 dock.",
+          "affected_studio_panels": ["glyphs","tabs-indents (horizontal orientation)","print-preview","library (grid mode)","notes-comments","export"],
+          "consequence_for_the_defaults_above": "library appears in several default left docks. At 260px it renders its compact list form; its grid form is an overlay. tabs-indents is already assigned to the top strip, which is the one region wide enough for a 430px ruler. glyphs is task_episodic and reached from the rail, never a default dock tab."
+        },
+        "panels_reclassified_by_density": {
+          "note": "Density changes which panels can share a group, because a group's height is divided among its tabs' content, and a field-dense panel wastes the space a list-dense panel would use.",
+          "rule": "Do not stack a FIELD-DENSE panel (transform, character, paragraph, effect-controls, adjustments, stroke) in the same group as a LIST-DENSE panel (layers, swatches, library, project-bin) when the group is under 300px tall. Field-dense panels want a fixed modest height; list-dense panels want all the height they can get, and a shared group forces one of them to be wrong.",
+          "audit_of_the_proposed_defaults": [
+            "raster group 3 [layers, channels, paths, history] - all list-dense, 46 percent height. Correct.",
+            "raster group 1 [properties, adjustments, effect-controls, masks] - all field-dense, 30 percent. Correct.",
+            "vector group 2 [colour, swatches, align-distribute, pathfinder, navigator, info] - MIXED. swatches is list-dense, align-distribute and pathfinder are button grids, colour is field-dense. At 24 percent of 900px = 216px this group is tight for swatches. Accepted because Illustrator's own preferred heights for these are all small - Swatches 111, Pathfinder 107, Align 172, Info 88 - so 216px is above every one of them.",
+            "layout group 1 [properties, character, paragraph, text-frame, text-wrap, opentype] - six field-dense panels at 34 percent = 306px. Character 188 and Paragraph 257 both fit; text-frame will scroll. Accepted, with text-frame ordered last.",
+            "photo group 2 [adjustments, effect-controls, properties, masks] at 52 percent = 468px - the largest field-dense allocation in any layout, which is correct because a develop stack is the tallest field grid in the product."
+          ]
+        }
+      }
+    },
+
+    "default_layouts_by_document_type": {
+      "shared_rules": [
+        "Every layout has the Context Bar on top and the Tool Rail on the left. No exceptions - this is 8/8 Photoshop, 12/12 Illustrator, 18/19 Premiere.",
+        "The FIRST tab of the FIRST right group is always the Properties slot. 15/17 Premiere and the Illustrator Essentials / Photoshop Assisted ordering.",
+        "The LAST right group is always the document structure group, and layers is its first tab. Photoshop's own trailing group order is layers, channels, paths in 4 of 8 workspaces.",
+        "Panels listed after a '|' are tabs in the same group, in that tab order, with the first one active.",
+        "Panels listed under icon_rail are registered in that edge but the edge starts collapsed."
+      ],
+      "raster": {
+        "derived_from": "Photoshop Photography + Painting workspaces; Affinity Pixel workspace (3 right books, 1 left book)",
+        "centre": "single canvas",
+        "top": "context-bar",
+        "left_rail": "tools",
+        "left": {"state":"collapsed_to_icon_rail","icon_rail":["brushes","preset-library","library","project-bin","effects-browser","actions-macros"]},
+        "right": {
+          "state": "expanded",
+          "groups": [
+            {"index":1,"height_share":0.30,"tabs":["properties","adjustments","effect-controls","masks"]},
+            {"index":2,"height_share":0.24,"tabs":["colour","swatches","scopes","info","navigator"]},
+            {"index":3,"height_share":0.46,"tabs":["layers","channels","paths","history"]}
+          ]
+        },
+        "right_rail": {"visible": false},
+        "bottom": {"state":"collapsed_to_icon_rail","icon_rail":["timeline","find-replace","preflight","jobs","problems"]},
+        "justification": [
+          "Group 3 tab order layers|channels|paths is Photoshop's own trailing group order, identical in Graphic and Web, Painting, Photography and Motion.",
+          "Group 2 groups picker+swatches with the histogram: Photoshop places picker, swatches, gradients, patterns consecutively, and Affinity's Pixel right-shelf book 1 is exactly histogram, scopes, colour, swatches.",
+          "Group 1 leads with the contextual slot then the two panels that edit the selected layer's non-destructive stack. Affinity's Pixel book 2 leads with adjustments then metadata then layers, which is the same idea with a different split point.",
+          "The left dock starts collapsed because Photoshop ships NO left browse dock at all - only the toolbar - and Affinity's Pixel workspace is the only pixel-side workspace with a left shelf. Collapsed-but-registered is the honest compromise between the two vendors.",
+          "Timeline is registered in the bottom rail but collapsed: Photoshop declares a bottom palette dock in 7 of 8 workspaces but only Motion and Core Tools open the animation palette."
+        ]
+      },
+      "vector": {
+        "derived_from": "Illustrator Essentials Classic and Painting workspaces; Affinity Vector workspace (3 right books, empty left shelf)",
+        "centre": "single canvas",
+        "top": "context-bar",
+        "left_rail": "tools",
+        "left": {"state":"collapsed_to_icon_rail","icon_rail":["library","preset-library","project-bin","links-placements","actions-macros","effects-browser"]},
+        "right": {
+          "state":"expanded",
+          "groups":[
+            {"index":1,"height_share":0.32,"tabs":["properties","appearance","stroke","gradient","transform"]},
+            {"index":2,"height_share":0.24,"tabs":["colour","swatches","align-distribute","pathfinder","navigator","info"]},
+            {"index":3,"height_share":0.44,"tabs":["layers","pages-artboards","object-styles","history"]}
+          ]
+        },
+        "right_rail": {"visible": false},
+        "bottom": {"state":"collapsed_to_icon_rail","icon_rail":["find-replace","preflight","export","jobs","problems"]},
+        "justification": [
+          "Group 1 is Illustrator's Painting lead sequence with Transparency folded into Appearance: Appearance, NamedStyle, Gradient, Transparency are consecutive there, and AdobePropertiesPanel leads Essentials.",
+          "Transform + Align + Pathfinder are consecutive in 5 of 12 Illustrator workspaces; align-distribute and pathfinder therefore share a group, with transform promoted into group 1 because it is selection-driven.",
+          "Artboards sits with layers because Illustrator's Printing and Proofing workspace orders Artboards immediately after AdobeLayerPalette, and Essentials Classic orders AdobeLayerPalette, Export, Artboards.",
+          "Affinity's Vector workspace has an EMPTY left shelf. The left dock therefore starts collapsed, matching both vendors."
+        ]
+      },
+      "layout": {
+        "derived_from": "Illustrator Layout and Typography workspaces; Affinity Layout workspace (left shelf with 6 visible, 3 right books); InDesign panel plugin inventory",
+        "centre": "page canvas",
+        "top": "context-bar",
+        "left_rail": "tools",
+        "left": {
+          "state":"expanded",
+          "width_px":260,
+          "groups":[{"index":1,"tabs":["pages-artboards","book","long-document","links-placements","library","preset-library","data-merge","reading-order-tags"]}]
+        },
+        "right": {
+          "state":"expanded",
+          "groups":[
+            {"index":1,"height_share":0.34,"tabs":["properties","character","paragraph","text-frame","text-wrap","opentype"]},
+            {"index":2,"height_share":0.22,"tabs":["text-styles","object-styles","colour","swatches","align-distribute"]},
+            {"index":3,"height_share":0.44,"tabs":["layers","transform","history","info"]}
+          ]
+        },
+        "right_rail": {"visible": false},
+        "bottom": {"state":"expanded","height_px":180,"groups":[{"index":1,"tabs":["preflight","find-replace","spelling","problems"]}]},
+        "justification": [
+          "The left dock is EXPANDED here and collapsed for raster/vector because Affinity's Layout workspace is one of only six with a populated left shelf, and its visible left entries are the page/long-document/preflight family. Illustrator's Layout workspace also promotes Links and Export into its lead group.",
+          "Group 1's typography run is Illustrator Typography's exact lead order: Character, Paragraph, AdobeOpenTypeFont, AdobeCharStyles, AdobeParaStyles - with the styles pair split into group 2 because styles are chosen less often than character attributes are nudged.",
+          "The bottom dock is EXPANDED because preflight is a continuous concern in a layout document. InDesign devotes 39 captured surfaces to Package and Preflight UI, more than any other single plugin."
+        ]
+      },
+      "motion": {
+        "derived_from": "Premiere EFFECTS and COLOR workspaces (dvaui, the same engine After Effects uses); Photoshop Motion workspace",
+        "coverage_caveat": "EXTRAPOLATED. No After Effects workspace file was captured. See coverage_gaps.",
+        "centre": "composition viewer (egui_tiles tree; splits to composition + source-viewer on demand)",
+        "top": "context-bar",
+        "left_rail": "tools",
+        "left": {"state":"expanded","width_px":260,"groups":[{"index":1,"tabs":["project-bin","effects-browser","media-browser","library","preset-library","markers"]}]},
+        "right": {
+          "state":"expanded",
+          "groups":[
+            {"index":1,"height_share":0.55,"tabs":["effect-controls","properties","transform","masks"]},
+            {"index":2,"height_share":0.20,"tabs":["colour","swatches","scopes","info"]},
+            {"index":3,"height_share":0.25,"tabs":["layers","graphics-templates","history"]}
+          ]
+        },
+        "right_rail": {"visible": true, "occupant": "audio-meters"},
+        "bottom": {"state":"expanded","height_px":300,"groups":[{"index":1,"tabs":["timeline","audio-mixer"]}]},
+        "justification": [
+          "effect-controls takes the largest right group and leads group 1 because in a motion document the keyframe stack IS the work. Premiere's own legacy placement co-tabs Effect Controls with the Source Monitor (LEFT 5, CENTRE-TOP 4), but its modern Properties2 placement is right, and a keyframe editor needs height, which the right dock has and the centre-top stack does not.",
+          "Timeline at 300px is the tallest bottom dock of any type: Premiere's Timeline occupies roughly the lower 42 percent of the frame in the EDITING and PRODUCTION workspaces.",
+          "Meter rail visible: Premiere shows MiniAudioMixer in every workspace that has audio."
+        ]
+      },
+      "video": {
+        "derived_from": "Premiere EDITING workspace, which is the vendor's own default for this document type",
+        "centre": "egui_tiles horizontal split: source-viewer left, program viewer right",
+        "top": "context-bar",
+        "left_rail": "tools",
+        "left": {"state":"expanded","width_px":300,"groups":[{"index":1,"tabs":["project-bin","media-browser","effects-browser","library","markers","captions","info","history"]}]},
+        "right": {
+          "state":"expanded",
+          "groups":[
+            {"index":1,"height_share":0.60,"tabs":["properties","effect-controls","graphics-templates"]},
+            {"index":2,"height_share":0.40,"tabs":["colour","scopes","metadata","find-replace"]}
+          ]
+        },
+        "right_rail": {"visible": true, "occupant": "audio-meters"},
+        "bottom": {"state":"expanded","height_px":320,"groups":[{"index":1,"tabs":["timeline","audio-mixer"]}]},
+        "justification": [
+          "This is a near-direct transcription of Premiere's EDITING workspace: Source Monitor + Effect Controls + AudioClipMixer + MetadataEditor top-left; Program Monitor top-centre; Properties2 + Search top-right; Project + Media Browser + Graphics + Libraries + Info + Effects + MarkerList + History lower-left; Tools rail; Timeline lower-centre; MiniAudioMixer far-right rail.",
+          "Two right groups rather than three: the EDITING workspace has a single tall right pane holding Properties2, Search and UXP. Video is the one document type where Affinity's three-book modal answer does not apply, because Premiere is the vendor of record for it.",
+          "The centre is split rather than stacked because Premiere's Program and Source monitors are side-by-side in 8 of the workspaces containing both."
+        ]
+      },
+      "web": {
+        "derived_from": "Dreamweaver Standard and Developer workspaces; Illustrator Web workspace",
+        "centre": "egui_tiles vertical split: design view top, code view bottom (code view reuses the existing code_editor module). Split ratio 1.0 (design only) in Standard, 0.0 (code only) in a Developer preset.",
+        "top": "context-bar",
+        "left_rail": "tools",
+        "left": {"state":"expanded","width_px":245,"groups":[{"index":1,"tabs":["site-deploy","project-bin","insert","library","data-sources","reading-order-tags"]}]},
+        "right": {
+          "state":"expanded",
+          "groups":[
+            {"index":1,"height_share":0.40,"tabs":["properties","css-designer","interactions","hyperlinks"]},
+            {"index":2,"height_share":0.20,"tabs":["colour","swatches","text-styles","character"]},
+            {"index":3,"height_share":0.40,"tabs":["layers","pages-artboards","metadata","history"]}
+          ]
+        },
+        "right_rail": {"visible": false},
+        "bottom": {"state":"expanded","height_px":200,"groups":[{"index":1,"tabs":["preflight","find-replace","problems","source-control"]}]},
+        "justification": [
+          "Left width 245 is Dreamweaver's own Developer panelframe width, read from the capture.",
+          "Dreamweaver's Standard workspace docks site, CC Libraries, objects (Insert), assets, snippets, CSS Designer and DOM to the RIGHT, but its Developer workspace docks site and snippets LEFT. Studio follows Developer's split - sources left, inspectors right - because that is consistent with all four other vendors, and Standard's right-side pile-up is a Dreamweaver idiosyncrasy that puts the file tree and the CSS inspector in the same column.",
+          "Bottom holds Dreamweaver's own bottom panelframe contents: search, nodeOutput and DWGit, mapped to find-replace, problems and the existing SourceControl shell pane."
+        ]
+      },
+      "photo": {
+        "derived_from": "Lightroom Classic develop parameters and catalog model; Affinity Retouching and Colour Grading workspaces",
+        "coverage_caveat": "EXTRAPOLATED for the catalog side. No Lightroom Classic panel layout was captured.",
+        "centre": "photo viewport with a mode selector: grid | loupe | compare | survey. Mode lives in the centre, NOT in a persona.",
+        "top": "context-bar (carries filter-sort in grid mode)",
+        "left_rail": "tools",
+        "left": {"state":"expanded","width_px":260,"groups":[{"index":1,"tabs":["catalog","project-bin","preset-library","library","states-comps"]}]},
+        "right": {
+          "state":"expanded",
+          "groups":[
+            {"index":1,"height_share":0.18,"tabs":["scopes","navigator"]},
+            {"index":2,"height_share":0.52,"tabs":["adjustments","effect-controls","properties","masks"]},
+            {"index":3,"height_share":0.30,"tabs":["metadata","keywords","layers","history"]}
+          ]
+        },
+        "right_rail": {"visible": false},
+        "bottom": {"state":"collapsed_to_icon_rail","icon_rail":["filter-sort","export","jobs","problems"]},
+        "justification": [
+          "Scopes on TOP of the right column, alone in a short group: this is the one layout where the histogram outranks everything, and it is the only placement all three photo-adjacent sources agree on (Lightroom's histogram is the top-right element; Affinity's Colour Grading and Retouching workspaces both open with a scope-bearing right book; Photoshop's Photography workspace opens histogram).",
+          "adjustments gets 52 percent of the right column because for a photo document the adjustment stack IS the document. Lightroom's develop parameter capture is the largest single parameter surface among the non-Adobe-dvaui apps.",
+          "Affinity's Retouching workspace is the only one of nine that floats five separate books. That is a symptom of a right column too small for the job, and the 52 percent allocation is the direct fix."
+        ]
+      },
+      "cross_type_table": {
+        "note": "Panels present in every default layout: context-bar, tools, properties, layers, colour, swatches, history, info. Eight panels form the invariant spine. Everything else varies by type - which is what makes the doc-type default meaningful rather than cosmetic."
+      }
+    },
+
+    "contextual_binding_rule": {
+      "origin": "A direct generalisation of Dreamweaver's property inspector API as captured in dreamweaver_panels_dialogs.json: 60 of 60 inspectors declare {tag, attrname, priority, selection, hideclass} and implement canInspectSelection / inspectSelection / initializeUI / displayHelp. Corroborated by InDesign's 34 Control Panel resource variants and 14 Alignment Panel variants, and by Premiere's Properties2 slot.",
+      "what_a_panel_declares": {
+        "author_id": "string, stable, kebab-case, globally unique. The AccessKit identity as well as the registry key.",
+        "slot": "one of: context-bar | inspector | free. 'free' panels are never auto-resolved; they are placed by the layout and only their ENABLEMENT is contextual.",
+        "binds_to": "array of selector strings. Grammar: 'node:<PrimitiveName>' (vocabulary from the capability registry's document_primitives: Document, TextNode, VectorNode, FrameNode, ComponentNode, InstanceNode, RectangleNode, BooleanOperationNode, ...), 'tag:<htmlTag>' for web documents (Dreamweaver's tag values verbatim, including alternation 'input|div' and pseudo-tags '*LOCKED*', '*COMMENT*'), 'track:<audio|video|caption>' for temporal documents, 'tool:<toolId>' for tool-driven binding, 'document' for the no-selection case, and '*' as the wildcard.",
+        "attr_match": "optional {key, op, value}. Dreamweaver's attrname, generalised from presence-only to a comparison. Example from the capture: OAWidget.htm binds tag='*' with attrname='OAWidgetID' at priority 5 - a wildcard tag rescued to usefulness by an attribute test.",
+        "selection_scope": "one of: exact | within | ancestor | multiple | none. exact and within are Dreamweaver's own values (33 and 25 of 60 respectively). insideLock, which Dreamweaver uses once, generalises to 'ancestor' with a lock predicate. 'multiple' and 'none' are Studio additions for cases Dreamweaver's single-selection model never had.",
+        "priority": "integer. HIGHER WINS. Semantics proven inside the capture, not assumed: spry_widget.htm binds tag=div at 1 as the catch-all while six widget inspectors bind tag=div at 50; meta.htm binds META at 5 while its four refined siblings bind META at 6. Studio adopts Dreamweaver's observed bands verbatim so a port is mechanical: 1 = catch-all fallback, 5 = concrete primitive, 6 = refined primitive variant, 10 = template or structural construct, 50 = named component or widget instance.",
+        "document_types": "array. A hard pre-filter; a panel not declared for the active document type never enters resolution.",
+        "can_bind": "runtime predicate, the port of canInspectSelection. Implemented by every one of the 60 captured inspectors, so it is not optional. It may VETO regardless of priority, which is what lets a high-priority binding decline a selection it cannot actually edit.",
+        "hide_when_unbound": "boolean, the port of hideclass. If true the panel disappears from its stack when unbound; if false it renders an explanatory empty state. Default false, because a tab that vanishes breaks muscle memory and breaks an agent's ability to address it."
+      },
+      "resolution_algorithm": [
+        "1. PRE-FILTER by document_types against the active document. Panels outside the type are not candidates.",
+        "2. MATCH binds_to against the selection, honouring selection_scope: exact matches the selected node's own primitive; within matches any ancestor of the caret or selection; ancestor matches the nearest enclosing container only; multiple applies only when the selection count is greater than one, resolving to the nearest common supertype for a heterogeneous selection; none matches with no selection at all.",
+        "3. APPLY attr_match. A declared attr_match that fails removes the candidate even if the tag matched.",
+        "4. CALL can_bind(selection). A false is an absolute veto and is applied BEFORE priority so a high-priority binding cannot squat on a selection it cannot edit.",
+        "5. SORT by priority descending.",
+        "6. TIE-BREAK deterministically, in this order: (a) narrower selection_scope wins - exact over within over ancestor; (b) concrete binds_to over alternation over wildcard; (c) attr_match present over absent; (d) lexicographic author_id. Step (d) exists solely so the resolution is byte-stable frame to frame, because the AccessKit tree must be deterministic for the out-of-process inspector.",
+        "7. FILL THE SLOT. For slot='context-bar' (single-occupant): rank 1 only. For slot='inspector': rank 1 becomes the ACTIVE tab of the properties group; ranks 2..5 become sibling tabs in the same group, in rank order. Capping at 5 total is a judgement call - Premiere's deepest single group is 13 tabs, but 13 auto-generated tabs would be unreadable.",
+        "8. NO-SELECTION FALLBACK. When nothing is selected, resolve against binds_to='document' with selection_scope='none'. There is always at least one such binding (Document Setup), so the inspector is never blank. Dreamweaver has no equivalent and shows an empty inspector, which is a defect to fix rather than copy."
+      ],
+      "anti_thrash_rules": [
+        "STICKY ACTIVE TAB: when the operator manually activates a non-rank-1 tab in the inspector group, that choice is remembered keyed by (document_type, resolved primitive). Selecting another node of the same primitive re-activates the operator's choice, not rank 1. Selecting a node of a different primitive re-runs resolution. Without this, an inspector that re-resolves on every click is actively hostile.",
+        "RESOLUTION HYSTERESIS: resolution runs on selection CHANGE, not per frame. A drag that momentarily passes through a different selection state does not re-resolve until the drag ends.",
+        "STABLE TAB SET: ranks 2..5 are recomputed only when rank 1 changes. Otherwise the sibling tabs stay put, so a tab does not move under the pointer."
+      ],
+      "why_this_replaces_the_persona_toggle": [
+        "A persona swaps every tool, every panel and the whole context bar at once, on an explicit operator action, for the whole application. Its cost is visible in the capture: Affinity's Slice workspace exists to show what amounts to one export panel, and its Typography workspace ships five books of one entry each.",
+        "This model instead: (1) the DOCUMENT TYPE picks the default layout once, at open, and never again; (2) the SELECTION picks the contents of two slots continuously and silently; (3) a TASK brings its episodic panel in as an overlay and lets it leave. Nothing ever swaps wholesale, the operator's own arrangement is never destroyed by a mode change, and there is no toggle to hunt for.",
+        "The operator's own words - 'panels to be job-related and contextual instead of the whole interface switching' - map exactly onto (2) and (3)."
+      ],
+      "worked_examples": [
+        {"selection":"a text frame in a layout document, caret inside the text","context_bar_resolves_to":"character-attributes bar (binds_to node:TextNode, scope exact, priority 5)","inspector_group_becomes":"[character*, paragraph, text-frame, properties, text-wrap]","note":"character wins over text-frame because scope=exact beats scope=ancestor at equal priority."},
+        {"selection":"the same text frame selected as an object, no caret","context_bar_resolves_to":"object-geometry bar","inspector_group_becomes":"[properties*, text-frame, transform, text-wrap, appearance]","note":"Same object, different scope, different resolution. This is the behaviour InDesign implements with 34 Control Panel variants."},
+        {"selection":"three heterogeneous vector objects","context_bar_resolves_to":"multi-select alignment bar (scope=multiple)","inspector_group_becomes":"[align-distribute*, transform, appearance, properties]","note":"Dreamweaver has no multiple scope; this is the Studio addition."},
+        {"selection":"nothing, raster document","context_bar_resolves_to":"active-tool options (binds_to tool:<current>)","inspector_group_becomes":"[properties* showing Document Setup, adjustments, effect-controls]","note":"The no-selection fallback."},
+        {"selection":"an audio clip on a video timeline","context_bar_resolves_to":"clip trim bar (binds_to track:audio)","inspector_group_becomes":"[effect-controls* with the audio-role section, properties, metadata]","note":"Premiere's Essential Sound is this resolution, not a separate panel."}
+      ]
+    },
+
+    "persistence_model": {
+      "verdict": "Layout is PER DOCUMENT TYPE, with a per-tab override layer and a named-preset layer. NOT per project.",
+      "reasoning": [
+        "Per project is wrong: it means every new project starts from the shipped default and the operator re-arranges forever. The vendors agree - Photoshop, Illustrator, Premiere and Affinity all scope workspaces to the APPLICATION, never to the document. Not one of the 50 captured workspace files is project-scoped.",
+        "Per document type is right because the arrangement is a property of the JOB, and the job is what the document type encodes. A second raster file must look identical to the first or muscle memory is worthless.",
+        "A per-tab override layer is nevertheless required, because the operator explicitly opens multiple tabs for different files at once and may want one of them in a comparison or reference arrangement without contaminating the type default."
+      ],
+      "layers": [
+        {"layer":"L0","name":"shipped_default","scope":"document_type","writable":false,"content":"the default_layouts_by_document_type above","reset_target":"'Reset layout' always returns to this."},
+        {"layer":"L1","name":"named_preset","scope":"document_type","writable":true,"content":"operator-saved named arrangements within a type, e.g. 'Retouch' or 'Colour pass' for raster. The vendor 'workspace' concept, but scoped to a type so it can never swap the whole application.","selector":"a small dropdown in the Studio tab strip, listing only presets for the active type."},
+        {"layer":"L2","name":"user_default","scope":"document_type","writable":true,"content":"the operator's live arrangement for this type. Written automatically, debounced, whenever the operator moves anything. This is the layer that makes rearrangement stick."},
+        {"layer":"L3","name":"tab_override","scope":"open_tab_instance","writable":true,"content":"a diff against L2 for one open document tab. Created only when the operator changes the layout while a per-tab override is explicitly engaged (a lock icon in the tab). Ephemeral by default; promoted to durable only if that tab is part of a saved session."}
+      ],
+      "resolution": "effective_layout = L3 ?? (selected L1 preset) ?? L2 ?? L0, keyed by document_type.",
+      "storage": {
+        "L1_and_L2": {
+          "store": "preference_client.rs",
+          "why": "These are OPERATOR preferences, not workspace state. The existing workbench layout endpoint is /workspaces/:workspace_id/workbench/layout, i.e. per workspace, which is the wrong scope for a per-operator per-document-type arrangement. preference_client.rs already exists in the shell and is the correct home.",
+          "risk_flagged": "If preference_client.rs turns out to be workspace-scoped too, this needs an operator-scoped key namespace before Studio ships. Listed in open_questions."
+        },
+        "L3": {
+          "store": "the existing layout_persistence.rs snapshot, extended",
+          "how": "Add a `studio` object to the native snapshot under LAYOUT_SCHEMA_ID hsk.native_worksurface_layout@1, or ship a sibling schema hsk.studio_dock_layout@1 through the same PUT /workspaces/:workspace_id/workbench/layout endpoint. The backend already stores layout_state as opaque JSON and distinguishes payloads by schema_id - that is exactly how the native and React schemas already coexist in one column. A sibling schema is preferred: it keeps the Studio blob independently versionable and lets a Studio schema bump not invalidate the shell layout.",
+          "validation": "Reuse LayoutSnapshot::validate's discipline: a structurally-corrupt-but-schema-valid Studio blob must be rejected and fall back to last-known-good, then to L2, then to L0. A Studio blob referencing a panel author_id that no longer exists drops that panel and logs, rather than failing the whole restore."
+        }
+      },
+      "multi_tab_behaviour": [
+        "Opening a second document of the SAME type in a new Studio tab: identical layout, shared L2. Moving a panel in either tab moves it in both, because they share the layer.",
+        "Opening a document of a DIFFERENT type in a new Studio tab: the layout changes when that tab is activated. This is the one place Studio does change the whole panel arrangement - and it is triggered by opening a different kind of document, not by a mode toggle. That distinction is the whole design.",
+        "The transition is animated and reversible, and the outgoing type's arrangement is preserved untouched, which is precisely what a persona toggle does not do.",
+        "Panels that exist in both types (the eight-panel invariant spine) keep their edge and group index across the switch wherever the target layout also places them there, so the switch does not feel like a reset."
+      ]
+    },
+
+    "shell_integration": {
+      "what_exists_today": [
+        {"file":"pane_registry.rs","fact":"PaneId = Arc<str>, BTreeMap-keyed for deterministic iteration, monotonic AccessKit NodeId counter starting at PANE_NODE_ID_BASE = 100, author_id is the kebab-case pane_id. PaneRecord carries pane_id, pane_type, project_id, content_id, lock_state, dirty, authority. PaneFactory is a trait with pane_type/render/accesskit role.","studio_impact":"Studio's panel registry MIRRORS these conventions rather than reusing PaneRecord, because a Studio panel is not a shell pane: it has a dock, a group, a tab index, a binding declaration and an optional instance parameter, none of which PaneRecord models. A parallel StudioPanelRegistry with the same Arc<str> + BTreeMap + stable-author_id discipline is the right shape."},
+        {"file":"split_layout.rs","fact":"A hand-rolled 2x2 (pane-a..pane-d) with SplitWeights{vertical,horizontal}, SPLIT_MIN 0.2 / SPLIT_MAX 0.8 / SPLIT_STEP 0.05, dividers as Role::Splitter with author_ids divider-horizontal (NodeId 30) and divider-vertical (31) and a clamped SetValue action. Its own module doc already states: 'egui_tiles remains the intended engine for free-form docking work where its tree model is the right tool.'","studio_impact":"OUI-002 settles this: the fixed 2x2 is a recorded DEFECT, it exists only because the MT-006 acceptance criteria demanded the old React field names verbatim, and replacing it with the tile tree is a microtask. Studio's centre editor tree therefore REPLACES split_layout.rs's role rather than sitting beside it. Recommended sequencing: Studio builds the unbounded centre tree first and proves it; the shell's remaining split_layout.rs callers migrate onto that same tree in a follow-on microtask; split_layout.rs is deleted only when its last caller is gone. What survives from it permanently is its clamp discipline (clamp_split, apply_set_value, SPLIT_MIN/MAX/STEP, DIVIDER_THICKNESS 4.0 and DIVIDER_HIT_THICKNESS 8.0) and its Role::Splitter + clamped SetValue convention, all of which Studio's dock dividers adopt unchanged - including the hit-thickness constant, which pointer_gesture_arbitration rule 3 depends on."},
+        {"file":"tab_bar.rs","fact":"TabBarState{tabs, active_index} with TabState{pane_type, content_id, pinned, dirty}, cross-pane drag via TabDragPayload/TabDropTarget/apply_drop, tab-bar containers at fixed NodeIds 60..63, individual tabs addressed by hashed egui::Id derived from the author_id string tab-{pane_id}-{index}.","studio_impact":"Studio's DOCUMENT tabs (the multiple files and projects the operator opens inside the module) reuse this directly. Studio's PANEL tabs need a separate widget because TabState is keyed to PaneType and a panel tab needs a panel author_id plus an instance parameter. The drag/drop contract (TabDragPayload/TabDropTarget/apply_drop) is the right shape to generalise for cross-DOCK moves and should be lifted to a shared trait rather than duplicated. IMPROVEMENT TO ADOPT: tab_bar.rs addresses tabs by INDEX (tab-{pane}-{index}), which shifts under reorder; Studio panel tabs should be addressed by NAME instead."},
+        {"file":"left_rail.rs","fact":"An egui::SidePanel::left('left-rail') with a 32px always-visible activity icon strip plus an expandable 220px panel, collapse state persisted to drawers.project, fixed AccessKit NodeIds 80..88.","studio_impact":"COLLISION: the shell already owns the left edge. Studio's Tool Rail cannot be the outermost left element without displacing it. Proposal: when ModuleId::Studio is active the shell's left_rail auto-collapses to its 32px icon strip (a capability it already has) and Studio's Tool Rail renders immediately inboard of it, giving 44 + 32 = 76px of left chrome before the Browse Dock. Flagged as a tradeoff, not a settled answer."},
+        {"file":"module_switcher.rs","fact":"MODULE_DEFINITIONS is a compile-time [ModuleDefinition; 6]. The STUDIO entry currently declares tabs [ModelRuntime, Swarm, InferenceLab, FontManager, KernelDcc, UserManual] with default_tab ModelRuntime - byte-identical in intent to the LAB entry. Studio is a placeholder in the shell today.","studio_impact":"This entry MUST be rewritten as part of Studio. It also carries a constraint the proposal must respect: module_tab_list() rewrites the active pane's tab list on module switch as uniqueTabs([default, ...module.tabs, ...existing]). Studio's document tabs are documents, not PaneTypes, so Studio needs either a new PaneType::StudioDocument(String) variant or an escape from the MODULE_DEFINITIONS tab model. Recommend a single PaneType::StudioViewport whose content_id is the document id, so the existing tab machinery keeps working unchanged."},
+        {"file":"layout_persistence.rs","fact":"LAYOUT_SCHEMA_ID hsk.native_worksurface_layout@1, LAYOUT_SNAPSHOT_VERSION 1, persisted via PUT /workspaces/:workspace_id/workbench/layout as an opaque layout_state JSON with an EventLedger event id. SurrealDB-authoritative, no local file. LayoutTransport abstracts the send for testability. Restore validates and falls back to last-known-good then default.","studio_impact":"Reused as described in persistence_model. The schema_id discrimination pattern is already proven by the native and React schemas sharing one column."},
+        {"file":"Cargo.toml","fact":"egui 0.33, eframe 0.33 with features wgpu + accesskit + persistence, egui_tiles 0.14 with serde, egui_kittest 0.33 with wgpu + eframe.","studio_impact":"Everything Studio needs is already a dependency. egui_tiles' serde feature is what makes per-region tree persistence cheap. egui_kittest is the harness the GUI validation runs through."}
+      ],
+      "egui_tiles_usage": {
+        "one_tree_per_region": "Five independent egui_tiles::Tree instances: left, right, bottom, centre, and (only when a dock is split into groups) the group container inside each. Not one global tree.",
+        "why_not_one_tree": "A single tree cannot express 'this tile is anchored to the right edge and collapses to an icon rail', and a stray drag could dissolve the edge structure entirely. Separate trees make the edge semantics structural rather than conventional.",
+        "cross_tree_moves": "A drag from one edge to another is a Handshake-level PanelMoveRequest: remove the tile from the source Tree, insert into the target Tree at the drop index. egui_tiles supports both halves; what it does not supply is the edge-aware drop targeting, which Studio draws itself.",
+        "what_egui_tiles_supplies": "Tab strips, tab drag within and between containers of the same tree, splitters with drag resize, serde round-trip of the tile tree. That is the majority of the work.",
+        "what_studio_supplies": "Edge anchoring, icon-rail collapse, single-occupant slots, contextual resolution, the panel registry, AccessKit identity, and the persistence cascade."
+      },
+      "module_boundary": "Studio is a MODULE inside the Handshake shell, not a second shell. Above Studio: the shell title bar, the shell left_rail (collapsed), the module switcher, the project tabs. Inside Studio: its own document tab strip (reusing tab_bar.rs), then the five-region dock model. The shell's status bar stays at the bottom of the window, below Studio's bottom dock.",
+      "migration_sequence_suggested": [
+        "1. Replace MODULE_DEFINITIONS[Studio] and add PaneType::StudioViewport.",
+        "2. Unbounded centre editor tree over egui_tiles, replacing the fixed 2x2 for Studio (OUI-002). Prove N groups with tabs, cross-group document drag, and serde round-trip.",
+        "3. The scrub value control as ONE widget with its clamp-and-commit path, its AccessKit SpinButton contract, and its gesture capture. Built before any dense panel, because every dense panel depends on it and because pointer_gesture_arbitration is only testable once it exists.",
+        "4. StudioPanelRegistry + binding declarations for a spine of 8 panels only.",
+        "5. Five-region dock host with the right dock functional and the other three stubbed; adopt split_layout.rs's clamp and hit-thickness constants for the dividers.",
+        "6. Contextual resolution for slot='inspector' with three bindings, proven end to end through the AccessKit inspector before adding more.",
+        "7. The remaining 66 panels as content work behind a stable registry API, fed by captured parameter metadata.",
+        "Rationale: the risk in this design is concentrated in three places - the centre tree, the scrub widget and the resolver - and none of it is in the panels. Steps 2, 3 and 6 are the ones worth proving with a deliberately small panel set. Step 3 is placed before the docks because a scrub control retrofitted into finished panels would have to re-litigate every gesture boundary."
+      ]
+    },
+
+    "accessibility_scheme": {
+      "principle": "Every Studio surface is addressable by a stable, name-based author_id that survives reorder, collapse, theme change and restart. The out-of-process inspector must be able to answer 'what is on screen, where, and what did the binding rule decide' from the AccessKit tree alone, with no screen reading and no guessing.",
+      "convention": "studio.<kind>.<region>[.<name>][#<instance>] - all lowercase, dot-separated, kebab-case within a segment. Matches the existing shell convention (left-rail.activity.files, module-main, divider-horizontal, tab-{pane}-{index}) while being unambiguously namespaced.",
+      "id_grammar": [
+        {"kind":"module","pattern":"studio","example":"studio","role":"Group","note":"The Studio module root."},
+        {"kind":"editor group","pattern":"studio.editor.<n>","example":"studio.editor.2","role":"Group","note":"n is the group's ordinal in the centre tile tree, 1-based in tree traversal order. Unbounded count per OUI-002."},
+        {"kind":"document tab strip","pattern":"studio.doctabs.<n>","example":"studio.doctabs.2","role":"TabList","note":"One strip per editor group, not one for the module."},
+        {"kind":"document tab","pattern":"studio.doctab.<document_id>","example":"studio.doctab.poster-a4-v3","role":"Tab","note":"Named by DOCUMENT, not by group and not by index, so moving a document between editor groups does not change its address. Fixes the reorder instability in tab_bar.rs's tab-{pane}-{index}."},
+        {"kind":"viewport","pattern":"studio.viewport.<document_id>","example":"studio.viewport.poster-a4-v3","role":"Canvas"},
+        {"kind":"dock","pattern":"studio.dock.<region>","example":"studio.dock.right","role":"Group","actions":["Focus"],"properties":["expanded: bool","width_or_height: f32","group_count: u32"]},
+        {"kind":"rail","pattern":"studio.rail.<region>","example":"studio.rail.left-tools","role":"ToolBar"},
+        {"kind":"dock collapse toggle","pattern":"studio.dock.<region>.collapse","example":"studio.dock.right.collapse","role":"Button","actions":["Click","Focus"]},
+        {"kind":"icon-rail entry","pattern":"studio.rail.<region>.<panel>","example":"studio.rail.left.brushes","role":"Button","note":"Present whenever the panel is registered in that edge, whether the edge is collapsed or not, so an agent can always open a panel by one stable id."},
+        {"kind":"group","pattern":"studio.group.<region>.<n>","example":"studio.group.right.1","role":"Group","note":"n is the group's ordinal within the dock, 1-based, top to bottom or left to right."},
+        {"kind":"group tab strip","pattern":"studio.tabs.<region>.<n>","example":"studio.tabs.right.1","role":"TabList"},
+        {"kind":"panel tab","pattern":"studio.tab.<region>.<n>.<panel>","example":"studio.tab.right.3.layers","role":"Tab","note":"NAME-based, not index-based. Reordering tabs changes their position but not their id."},
+        {"kind":"panel body","pattern":"studio.panel.<panel>","example":"studio.panel.layers","role":"Group","properties":["labelled_by the tab","state: docked|overlay|floating|popped_out|hidden","bound: bool"]},
+        {"kind":"panel instance","pattern":"studio.panel.<panel>#<n>","example":"studio.panel.preset-library#2","role":"Group","note":"Second and later instances only. The first instance carries no suffix, so existing addresses never change when a second is opened."},
+        {"kind":"splitter","pattern":"studio.split.<region>.<n>","example":"studio.split.right.1","role":"Splitter","actions":["SetValue","Focus"],"note":"SetValue clamped exactly as split_layout.rs::apply_set_value clamps, so an agent cannot collapse a dock to zero."},
+        {"kind":"contextual slot","pattern":"studio.slot.<slot>","example":"studio.slot.context-bar","role":"Group"},
+        {"kind":"slot resolution readout","pattern":"studio.slot.<slot>.resolved","example":"studio.slot.inspector.resolved","role":"Label","value":"the author_id of the panel the binding rule chose, plus the matched selector and the winning priority, as a compact string","note":"THE key observability affordance. Without it an agent must infer the resolver's decision from what happens to be visible; with it, one read gives the decision, the input and the reason."},
+        {"kind":"value field","pattern":"studio.field.<panel>.<parameter>","example":"studio.field.transform.x","role":"SpinButton","actions":["SetValue","Increment","Decrement","Focus"],"note":"Every scrubbable numeric control per OUI-008. See value_field_contract below."},
+        {"kind":"active gesture readout","pattern":"studio.gesture.active","example":"studio.gesture.active","role":"Label","value":"the author_id of the widget currently owning the pointer plus the gesture kind (scrub | tab-drag | panel-drag | splitter | pan | none)","note":"Makes pointer_gesture_arbitration directly testable out of process rather than inferable from side effects."},
+        {"kind":"layout projection","pattern":"studio.dock.state","example":"studio.dock.state","role":"Label","value":"a JSON projection of the whole dock model - regions, groups, tab order, active tabs, collapse states, floating and popped-out panels, plus the centre editor tree","note":"One read yields the entire layout. Grounded in the existing UiTreeSnapshot::to_json pattern in accessibility/snapshot.rs. This is what makes a GUI regression test a string comparison rather than a screenshot diff."}
+      ],
+
+      "value_field_contract": {
+        "requirement_origin": "OUI-008, whose accessibility_requirement states that the same clamped set-value path must be reachable through AccessKit and that the accessible value, minimum, maximum and unit must agree with what the control renders.",
+        "role": "accesskit::Role::SpinButton for a bounded scalar; Role::Slider where the parameter's captured metadata declares a slider range distinct from its edit range (Illustrator's EVE sources carry exactly that distinction across 2109 parameters).",
+        "required_properties": ["numeric_value","min_numeric_value","max_numeric_value","numeric_value_step","numeric_value_jump (the coarse step)","value (the formatted string exactly as rendered, including unit and decimal places)"],
+        "required_actions": ["SetValue (clamped)","Increment","Decrement","Focus"],
+        "single_path_rule": "SetValue, Increment, Decrement, wheel, drag and typed entry all converge on ONE clamp-and-commit function. If any of them has its own clamp, the accessible value and the rendered value will eventually disagree, which is exactly the failure the out-of-process inspector exists to catch and would then be unable to catch.",
+        "metadata_source": "min, max, step, unit and decimal precision are read from the captured parameter metadata rather than hand-configured - Illustrator EVE (2109 parameters across 559 layouts), Photoshop type-library help strings (35 ranges, 140 defaults, 43 units), Premiere Lumetri (98 parameters with hard bounds separate from UI bounds), Affinity brush schema (observed min/max). A parameter with no captured metadata renders as unbounded with a logged warning, never as a silently invented range.",
+        "undo_visibility": "Each committed gesture emits one undo entry whose label names the parameter and its before and after values, so an agent reading the undo stack can verify a scrub did what it intended without re-reading the field.",
+        "density_interaction": "The field's AccessKit bounds must be its GRAB rect (72x24 minimum), not its glyph rect. An inspector computing a click point from the reported bounds must land inside the draggable body."
+      },
+      "id_space_registration": [
+        "Studio panel counts are DYNAMIC, so Studio must NOT consume the small fixed NodeId band (10, 20, 21, 30, 31, 40..43, 50, 51..56, 60..67, 80..90, panes at 100+). It follows the tab_bar.rs precedent instead: derive egui::Id from the author_id STRING via egui::Id::new, landing in egui's hashed space, which is disjoint from the small fixed band by construction.",
+        "Register the prefix 'studio.' in accessibility::registry::DECLARED_HASHED_AUTHOR_ID_PREFIXES so the existing collision test and the assert_no_unnamed_interactive check cover every Studio node without enumerating them.",
+        "The five REGION containers are fixed in count and may take fixed NodeIds if a fresh band is wanted; recommend NOT doing so, to keep one rule for the whole module."
+      ],
+      "determinism_requirements": [
+        "Panel iteration order is BTreeMap order on author_id, mirroring pane_registry.rs, so the emitted tree is byte-identical frame to frame for an unchanged layout.",
+        "Contextual resolution runs on selection change only, and its tie-break terminates in a lexicographic author_id comparison, so the same selection always yields the same tree.",
+        "A panel in state 'collapsed_to_rail' still emits its studio.rail.<region>.<panel> node. An agent must never have to expand a dock to discover that a panel exists.",
+        "hide_when_unbound defaults to false precisely so a contextual panel's node does not vanish from the tree; it renders an empty state with bound=false instead."
+      ],
+      "agent_steerability_contract": [
+        "Open a panel: dispatch Click on studio.rail.<region>.<panel>, or the command-palette command, whichever the caller prefers. Both must exist.",
+        "Read the layout: read the value of studio.dock.state.",
+        "Read what the resolver decided: read studio.slot.inspector.resolved.",
+        "Resize a dock: SetValue on studio.split.<region>.<n>, clamped.",
+        "Activate a tab: Click studio.tab.<region>.<n>.<panel>.",
+        "Move a panel: not directly steerable by a single AccessKit action; expose an explicit command 'studio.move-panel' taking {panel, region, group, index} through the existing command_registry.rs rather than trying to synthesise a drag. Synthesising drags out of process is fragile and should not be the supported path.",
+        "Set a value: SetValue on studio.field.<panel>.<parameter>, clamped by the same function the drag uses. Increment and Decrement step by numeric_value_step. NEVER synthesise a scrub drag out of process - it is the one gesture whose correctness depends on continuous screen-space delta and it would be untestable.",
+        "Verify a gesture did not leak: read studio.gesture.active during the gesture and studio.dock.state after it. A test that a scrub did not move a panel is then two string reads, not a screenshot comparison."
+      ]
+    }
+  },
+
+  "open_questions": [
+    {"id":"OQ-1","question":"Is preference_client.rs operator-scoped or workspace-scoped? L1 and L2 of the persistence cascade require an operator-scoped, workspace-independent store. If it is workspace-scoped, either it needs an operator key namespace or the cascade needs a fourth store, before Studio ships.","blocks":"persistence_model L1/L2","owner":"operator or shell owner"},
+    {"id":"OQ-2","question":"Two left rails - the shell activity rail plus Studio's tool rail - consume 76px before any content. Acceptable, or should Studio's tools be injected as a section INTO the shell rail (one rail, mode-dependent contents)? Injecting is cleaner spatially but couples Studio to shell chrome and makes the tool rail disappear when the shell rail is used for navigation.","blocks":"dock_model left_rail","owner":"operator"},
+    {"id":"OQ-3","question":"Does Studio ship a Generate panel at all? The Dreamweaver and Premiere captures carry an explicit excluded_ai policy; the Photoshop and Illustrator captures do not, and both ship generative surfaces. If yes, does it route to Handshake's own ModelRuntime rather than any vendor service?","blocks":"panel 'generate'","owner":"operator"},
+    {"id":"OQ-4","question":"Is the preset-library merge (12 vendor surfaces to 1 kind-filtered panel) acceptable, given it depends entirely on multi-instance support to avoid regressing simultaneous visibility? Rejecting it raises the panel count from 75 to about 84 and simplifies the panel widget considerably.","blocks":"distinct_panels count","owner":"operator"},
+    {"id":"OQ-5","question":"Should a document-type switch between Studio tabs animate the layout change or apply it instantly? Animation reads as intentional and reversible; instant reads as fast but is easy to mistake for a glitch. This is the one moment Studio's whole arrangement changes, so how it reads matters more than usual.","blocks":"persistence_model multi_tab_behaviour","owner":"operator"},
+    {"id":"OQ-6","question":"After Effects has no captured workspace file. The motion default layout is extrapolated from Premiere's dvaui evidence. Should an AE workspace capture be added to the greenroom before the motion layout is treated as settled?","blocks":"default_layouts_by_document_type.motion","owner":"greenroom capture owner"},
+    {"id":"OQ-7","question":"Lightroom Classic likewise has no captured panel layout. The photo layout leans on develop parameters and Affinity's photo-side workspaces. Same question.","blocks":"default_layouts_by_document_type.photo","owner":"greenroom capture owner"},
+    {"id":"OQ-8","question":"RESOLVED BY OUI-002. The fixed 2x2 is a recorded defect and replacing it with the egui_tiles tree is a microtask. Remaining sub-question: does the shell's non-Studio use of split_layout.rs migrate onto Studio's centre tree in the same work packet, or a follow-on? This proposal recommends a follow-on so the two migrations do not block each other, with split_layout.rs deleted when its last caller is gone.","blocks":"shell_integration scope","owner":"operator","status":"partially_resolved"},
+    {"id":"OQ-11","question":"Confirm the scrub modifier keys. Proposed: Shift = coarse x10, Alt = fine x0.1, Shift+Alt = x0.01. Alt is proposed for fine rather than Ctrl because Ctrl is a menu accelerator prefix and OUI-006 makes the menu load-bearing. Already listed in operator-ui-requirements.json open_for_operator_decision.","blocks":"pointer_gesture_arbitration rule_6","owner":"operator"},
+    {"id":"OQ-12","question":"Wheel default over a dense panel. OUI-008 states the wheel over a field steps the value, but in a panel that is mostly fields this makes wheel-scrolling the panel nearly impossible. Proposed mitigation is a reserved 10px scroll lane plus wheel-over-label scrolling, keeping the operator's stated behaviour intact. The alternative is to invert the default (wheel scrolls, modifier+wheel steps). Which?","blocks":"pointer_gesture_arbitration rule_5","owner":"operator"},
+    {"id":"OQ-13","question":"Is a 24px scrub row acceptable, or does the operator want the denser 20px vendor row with a smaller grab target? 24px costs about 20 percent of the visible parameter count per group; 20px risks missed grabs. This is the single biggest density lever in the proposal.","blocks":"panel_density_model","owner":"operator"},
+    {"id":"OQ-9","question":"Does the operator want cross-document-type named presets (an arrangement that survives switching from raster to vector), or is per-type strictly correct? Per-type is proposed because it is what every vendor does, but the operator's tab-heavy workflow might argue otherwise.","blocks":"persistence_model L1","owner":"operator"},
+    {"id":"OQ-10","question":"Cap of 5 tabs for auto-resolved inspector siblings: is that the right number? Premiere ships a 13-tab group, so the platform tolerates depth, but 13 auto-generated tabs would be unreadable. The number is a judgement, not evidence.","blocks":"contextual_binding_rule step 7","owner":"operator"}
+  ],
+
+  "risks": [
+    {"id":"R-1","risk":"The preset-library merge regresses simultaneous visibility. In Photoshop the operator can see swatches, gradients and patterns at once; under the merge he sees one at a time unless multi-instance works.","severity":"high","likelihood":"high_if_unmitigated","mitigation":"Multi-instance support (studio.panel.preset-library#2) is a HARD requirement of the merge, not an enhancement. If multi-instance slips, un-merge the panel before shipping. Also: the panel's kind selector should be a persistent row of icons, not a dropdown, so switching kinds costs one click."},
+    {"id":"R-2","risk":"The contextual inspector thrashes. Every selection change reshuffles the right column, the operator loses their place, and the AccessKit tree churns so GUI tests become flaky.","severity":"high","likelihood":"high_if_unmitigated","mitigation":"The three anti_thrash_rules (sticky active tab keyed by primitive, resolution on selection-change only, stable ranks 2..5). Plus a hard test: a GUI validation case that selects, deselects and reselects the same node and asserts the emitted AccessKit tree is byte-identical."},
+    {"id":"R-3","risk":"Two left rails plus a browse dock leave too little canvas on a laptop display. 44 + 32 + 260 = 336px of left chrome before the document.","severity":"medium","likelihood":"medium","mitigation":"The left dock starts COLLAPSED for raster, vector and photo - the three types where vendors themselves ship no left dock. Below a width threshold, auto-collapse the shell rail to icons and the Studio browse dock to its icon rail, and surface a 'focus mode' command that collapses every edge to rails in one action. See OQ-2."},
+    {"id":"R-4","risk":"Five separate egui_tiles trees drift out of sync during a cross-tree drag - a tile removed from the source and never inserted into the target, losing the panel.","severity":"high","likelihood":"low","mitigation":"PanelMoveRequest is applied as a single transaction against the StudioPanelRegistry FIRST (which owns the truth about where every panel is), and the trees are rebuilt from the registry, rather than mutating the two trees directly. The registry can then assert that every registered panel appears in exactly one tree, every frame in debug builds."},
+    {"id":"R-5","risk":"Panel author_ids leak into persisted layouts, then a panel is renamed or merged and every saved layout silently loses it.","severity":"medium","likelihood":"medium","mitigation":"author_ids are frozen on first ship and carry an alias table for merges (e.g. gradients -> preset-library?kind=gradient). Restore drops unknown ids with a log line rather than failing, exactly as layout_persistence.rs already handles a missing pane. Add the alias table to the same schema so it versions with the layout."},
+    {"id":"R-6","risk":"The 75-panel count is treated as a work estimate. It is a count of identities, not of implementation effort - effect-controls alone subsumes nine InDesign surfaces and the entire After Effects effect catalogue.","severity":"medium","likelihood":"high","mitigation":"Any downstream work packet must size from the capability registry's 40798 capabilities mapped through these panels, not from the panel count. State this explicitly in the work packet that consumes this proposal."},
+    {"id":"R-7","risk":"module_switcher.rs's module_tab_list() rewrites the active pane's tab list on every module switch. If Studio documents are modelled as PaneTypes, switching to Studio and back could destroy the operator's open document set.","severity":"high","likelihood":"medium","mitigation":"Model Studio documents as a single PaneType::StudioViewport with content_id carrying the document id, so module_tab_list sees one stable tab. Studio's own document tab strip manages the document set independently of the module machinery. Add a regression test that switches MAIN -> STUDIO -> MAIN with three Studio documents open and asserts all three survive."},
+    {"id":"R-8","risk":"Dreamweaver's priority semantics are INFERRED, not documented in the capture. If higher-wins is backwards, every binding priority in Studio is inverted.","severity":"medium","likelihood":"low","mitigation":"The inference is supported by two independent internal patterns (div at 1 as catch-all versus div at 50 for six widgets; META at 5 versus four refined META variants at 6) and no counterexample was found in the 60 declarations. Nevertheless, the resolver should be written with the comparator as a single named function so an inversion is a one-line change, and a fixture test should encode the six div bindings and assert spry_accordion wins over spry_widget."},
+    {"id":"R-9","risk":"The right dock's three-group default is derived from Affinity's modal answer (6 of 9 workspaces). Premiere's own default (EDITING) uses one tall right pane. Studio may be imposing a page-design habit on video work.","severity":"low","likelihood":"medium","mitigation":"Already handled: the video default layout uses TWO right groups, transcribed from Premiere's EDITING workspace, rather than three. The three-group default applies to the page-design types where its evidence comes from."},
+    {"id":"R-10","risk":"Auto-expand of the bottom dock on a job result steals focus and layout space mid-gesture - the exact class of interruption the shell's quiet-mode discipline exists to prevent.","severity":"medium","likelihood":"medium","mitigation":"Auto-expand is per-panel opt-in, never steals keyboard focus, never fires while a pointer drag is in progress, and is globally disableable. Route it through the existing quiet_mode module rather than reimplementing the policy."},
+    {"id":"R-11","risk":"The operator's requirement that panels move across all four sides is satisfiable, but a panel designed for a 300px-wide right dock renders badly in a 240px-tall bottom dock.","severity":"medium","likelihood":"high","mitigation":"Every panel declares min_width, min_height and a preferred_orientation (vertical, horizontal, either). Photoshop's own workspace files carry preferred_unconstrained_size and preferred_constrained_size per placement - the vendor solved this by declaring sizes, and Studio should copy that field rather than invent one. A panel dropped into an orientation it declares as unsupported still docks, but renders a compact fallback layout."},
+    {"id":"R-13","risk":"A scrub drag that starts in a field but continues over a tab strip or a dock edge triggers a panel move, tab reorder or dock resize. The operator tries to nudge an X value and loses their panel arrangement.","severity":"high","likelihood":"high_if_unmitigated","mitigation":"pointer_gesture_arbitration rules 1, 2 and 4 together: claim at press with no threshold, panel and tab drags only from designated chrome, and total suppression of every other hover and drop target for the duration of a captured gesture. Test: a scripted press inside studio.field.transform.x followed by motion across studio.tabs.right.1 and studio.split.right.1 and release, asserting studio.dock.state is byte-identical before and after and studio.gesture.active read 'scrub' throughout."},
+    {"id":"R-14","risk":"Panel density and scrubbability are in direct conflict. Making every field grabbable costs vertical space, so a right dock shows meaningfully fewer parameters than the vendor product it replaces, and the operator experiences Studio as cramped.","severity":"high","likelihood":"high","mitigation":"Quantified rather than hand-waved: panel_density_model derives a 300px right dock from Illustrator's own measured 240px floor plus a 32px scrub allowance, and shows the resulting 9-row group height agrees with Illustrator's own declared 298px Transform panel height. The residual cost is real - roughly 20 percent fewer visible rows at 24px pitch than at the vendor's 20px - and is surfaced to the operator as OQ-13 rather than absorbed silently. Secondary mitigation: linked pairs (X/Y, W/H) share a row, recovering most of the loss on the geometry panels where it bites hardest."},
+    {"id":"R-15","risk":"The scrub cursor and the dock-splitter cursor look the same, so the operator cannot tell a value from a divider and drags the wrong one.","severity":"medium","likelihood":"medium","mitigation":"Distinct cursor assignment (splitters ResizeHorizontal/ResizeVertical, fields ResizeColumn), an 8px inset between a field's hit rect and any splitter hit strip, and a custom scrub cursor if the two still read alike in practice. This is a genuine consequence of OUI-008's requirement that the field advertise draggability with a resize cursor."},
+    {"id":"R-16","risk":"The wheel mitigation fails in practice: the 10px scroll lane is too narrow to hit reliably, and the operator finds dense panels unscrollable.","severity":"medium","likelihood":"medium","mitigation":"Wheel also scrolls over labels, group headers, separators and any blank area, so the lane is a guarantee rather than the only target. If it still fails, OQ-12's inversion is the fallback and is a one-line default change, not a redesign."},
+    {"id":"R-17","risk":"The centre editor tree being unbounded (OUI-002) makes the persisted layout unbounded too, and a session with many groups produces a large AccessKit tree that slows the out-of-process inspector.","severity":"low","likelihood":"medium","mitigation":"accessibility/snapshot.rs already caps snapshots at MAX_SNAPSHOT_NODES; Studio must respect that cap and report truncation explicitly rather than silently. The editor tree persists as egui_tiles' own serde form, which is compact. No group cap is imposed, because OUI-002 forbids one."},
+    {"id":"R-12","risk":"Vendor evidence is treated as user evidence. What Adobe shipped as a default is not proof that the operator prefers it - it is proof of what the field converged on, which is a weaker claim.","severity":"low","likelihood":"medium","mitigation":"Stated here explicitly. Every placement in this proposal is traceable to a counted vendor fact, and every such fact is one the operator can overrule in one drag, with L2 persistence making the overrule permanent. The defaults are a starting position, not an argument."}
+  ]
+}

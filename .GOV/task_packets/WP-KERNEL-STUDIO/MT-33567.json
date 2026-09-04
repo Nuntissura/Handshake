@@ -1,0 +1,740 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33567",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-AUT-018#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "7. Plugin / extension surface",
+  "spec_line": 20831,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Plugins MUST run under the kernel capability/consent gate system and MUST NEVER run unsandboxed. A plugin's manifest-declared capabilities are inert until consent-granted; the granted set gates every [...]",
+ "spec_anchor": [
+  "STU-AUT-018"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "automation",
+ "scope": {
+  "summary": "Plugins MUST run under the kernel capability/consent gate system and MUST NEVER run unsandboxed. A plugin's manifest-declared capabilities are inert until consent-granted; the granted set gates every command the plugin can resolve ([STU-AUT-005]). Plugin execution is sandboxed (process-tier by default, as with model edits per [STU-ARC-005]); a plugin has no ambient filesystem, network, or authority access beyond its consent-granted capabilities. Document mutations authored by a plugin carry a `KernelActor` plugin identity in their receipts and pass the sandbox → validation → `PromotionGate` lifecycle. Plugin UI runs in an isolated surface with no direct access to the native shell's internals; it communicates with the sandboxed plugin logic through a typed message channel.",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Plugins MUST run under the kernel capability/consent gate system and MUST NEVER run unsandboxed.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-AUT-018"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [
+   {
+    "app": "indesign",
+    "file": "indesign_dom_full.json",
+    "path": "properties[]",
+    "param": {
+     "script_id": 9536,
+     "tag": "Bmsp",
+     "name": "monochrome bitmap sampling",
+     "description": "The sampling option to apply to monochrome bitmap images.",
+     "plugin": "PDF",
+     "source_file": "Required/(PDF Resources)/idrc_SCE2/20.idrc",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     },
+     "type_id": 9680,
+     "type": {
+      "name": "sampling",
+      "kind": "enumeration",
+      "tag": "enSm",
+      "resolution": "parsed"
+     },
+     "flags": 1,
+     "value_block": "00000000000000000000000000000000",
+     "related_id": 0,
+     "declared_on": [
+      {
+       "owner_id": 9477,
+       "owner_name": "PDF export preference",
+       "owner_kind": "class"
+      },
+      {
+       "owner_id": 9478,
+       "owner_name": "PDF export preset",
+       "owner_kind": "class"
+      }
+     ]
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Stencil Original Alpha",
+     "label_index": 2,
+     "source": "S3_exe_string_table:$$$/AE/Color_Link/LStr",
+     "confidence": "parsed",
+     "role": "parameter label",
+     "role_confidence": "heuristic",
+     "type": "enum",
+     "enum_options": [
+      "Average",
+      "Median",
+      "Brightest",
+      "Darkest",
+      "Max RGB",
+      "Min RGB",
+      "(-",
+      "Average Alpha",
+      "Median Alpha",
+      "Max Alpha",
+      "Min Alpha"
+     ],
+     "enum_options_label_index": 1,
+     "enum_binding": "option list registered at the preceding index; adjacency reading",
+     "enum_binding_confidence": "heuristic"
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Speed (pixels/second)",
+     "name_key": "AE/Preset/Speedpixelssecond",
+     "param_type": "SLIDER",
+     "depth": 0,
+     "default": 100,
+     "valid_min": -10000,
+     "valid_max": 10000,
+     "slider_min": -1000,
+     "slider_max": 1000
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Speed (pixels/second)",
+     "name_key": "AE/Preset/Speedpixelssecond",
+     "param_type": "SLIDER",
+     "depth": 0,
+     "default": -25,
+     "valid_min": -10000,
+     "valid_max": 10000,
+     "slider_min": -1000,
+     "slider_max": 1000
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Speed (pixels/second)",
+     "name_key": "AE/Preset/Speedpixelssecond",
+     "param_type": "SLIDER",
+     "depth": 0,
+     "default": 50,
+     "valid_min": -10000,
+     "valid_max": 10000,
+     "slider_min": -1000,
+     "slider_max": 1000
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_presets.json",
+    "path": "presets[].effects_applied[].parameter_definitions[]",
+    "param": {
+     "match_name": "ADBE CM AutoscrollHorizontal-0001",
+     "param_type": "FLOAT_SLIDER",
+     "name": "\tSpeed (pixels/second)",
+     "default": 100.0,
+     "valid_min": -10000.0,
+     "valid_max": 10000.0,
+     "slider_min": -1000.0,
+     "slider_max": 1000.0
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_presets.json",
+    "path": "presets[].effects_applied[].parameter_definitions[]",
+    "param": {
+     "match_name": "ADBE CM AutoscrollVertical-0001",
+     "param_type": "FLOAT_SLIDER",
+     "name": "\tSpeed (pixels/second)",
+     "default": -25.0,
+     "valid_min": -10000.0,
+     "valid_max": 10000.0,
+     "slider_min": -1000.0,
+     "slider_max": 1000.0
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_presets.json",
+    "path": "presets[].effects_applied[].parameter_definitions[]",
+    "param": {
+     "match_name": "ADBE CM Throw-0002",
+     "param_type": "FLOAT_SLIDER",
+     "name": "\tSpeed (pixels/second)",
+     "default": 50.0,
+     "valid_min": -10000.0,
+     "valid_max": 10000.0,
+     "slider_min": -1000.0,
+     "slider_max": 1000.0
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Wiggle Position (pixels)",
+     "name_key": "AE/Preset/WigglePositionpixels",
+     "param_type": "SLIDER",
+     "depth": 0,
+     "default": 25,
+     "valid_min": 0,
+     "valid_max": 10000,
+     "slider_min": 0,
+     "slider_max": 500
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_presets.json",
+    "path": "presets[].effects_applied[].parameter_definitions[]",
+    "param": {
+     "match_name": "ADBE CM Wigglerama-0003",
+     "param_type": "FLOAT_SLIDER",
+     "name": "\tWiggle Position (pixels)",
+     "default": 25.0,
+     "valid_min": 0.0,
+     "valid_max": 10000.0,
+     "slider_min": 0.0,
+     "slider_max": 500.0
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Wiggle Position (pixels)",
+     "name_string_key": "AE/Preset/WigglePositionpixels",
+     "type": "float",
+     "group_path": [],
+     "keyframable": true,
+     "source": "S1_PresetEffects.xml",
+     "confidence": "parsed",
+     "default": 25,
+     "min": 0,
+     "max": 10000,
+     "ui_slider_min": 0,
+     "ui_slider_max": 500,
+     "units": null
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Stacked Progress Bar",
+     "description": "Stacked Progress Bar",
+     "preview": "code",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Stacked Progress Bar",
+     "description": "Stacked Progress Bar",
+     "preview": "code",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Stacked Progress Bar",
+     "description": "Stacked Progress Bar",
+     "preview": "code",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Center-aligned pagination",
+     "description": "Create center-aligned pagination link buttons",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Center-aligned pagination",
+     "description": "Create center-aligned pagination link buttons",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Center-aligned Toast",
+     "description": "Create a center-aligned Toast message.",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Center-aligned Toast",
+     "description": "Create a center-aligned Toast message.",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "End-aligned Border Spinner",
+     "description": "Create a End(right)-aligned border spinner.",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "End-aligned Toast",
+     "description": "Create a End(right)-aligned Toast message.",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Right-aligned pagination",
+     "description": "Create right-aligned pagination link buttons",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Right-aligned pagination",
+     "description": "Create right-aligned pagination link buttons",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Right-aligned Toast",
+     "description": "Create a right-aligned Toast message.",
+     "type": "block"
+    }
+   },
+   {
+    "app": "indesign",
+    "file": "indesign_dom_full.json",
+    "path": "properties[]",
+    "param": {
+     "script_id": 21055,
+     "tag": "acce",
+     "name": "auto correct capitalization errors",
+     "description": "If true, automatically corrects capitalization errors listed in the auto-correct table.",
+     "plugin": "Spelling Service",
+     "source_file": "Required/(Spelling Service Resources)/idrc_SCE2/4020.idrc",
+     "version_stamp": {
+      "a": 2147483647,
+      "b": 2147483647,
+      "c": 2147483647,
+      "d": 2147483647
+     },
+     "type_id": 30468,
+     "type": {
+      "name": "boolean",
+      "kind": "primitive",
+      "tag": null,
+      "resolution": "heuristic_primitive"
+     },
+     "flags": 1,
+     "value_block": "00000000000000000000000000000000",
+     "related_id": 0,
+     "declared_on": [
+      {
+       "owner_id": 21003,
+       "owner_name": "auto correct preference",
+       "owner_kind": "class"
+      }
+     ]
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Dropdown with Divider",
+     "description": "Dropdown with Divider",
+     "preview": "code",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Dropdown with Divider",
+     "description": "Dropdown with Divider",
+     "preview": "code",
+     "type": "block"
+    }
+   },
+   {
+    "app": "dreamweaver",
+    "file": "dreamweaver_templates_css.json",
+    "path": "snippets[].all_attributes",
+    "param": {
+     "name": "Dropdown with Divider",
+     "description": "Dropdown with Divider",
+     "preview": "code",
+     "type": "block"
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Currency Symbol Position",
+     "name_string_key": "AE/Preset/CurrencySymbolPosition",
+     "type": "point_2d_normalized",
+     "group_path": [],
+     "keyframable": true,
+     "source": "S1_PresetEffects.xml",
+     "confidence": "parsed",
+     "default": {
+      "x": 0,
+      "y": 0
+     },
+     "units": "fraction of layer bounds"
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Currency Symbol Scale",
+     "name_key": "AE/Preset/CurrencySymbolScale",
+     "param_type": "SLIDER",
+     "depth": 0,
+     "default": 100,
+     "valid_min": -1000000,
+     "valid_max": 1000000,
+     "slider_min": 0,
+     "slider_max": 100,
+     "precision": 1,
+     "display_units": [
+      "percent"
+     ]
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_presets.json",
+    "path": "presets[].effects_applied[].parameter_definitions[]",
+    "param": {
+     "match_name": "Pseudo/ADBE Currency Controls-0011",
+     "param_type": "FLOAT_SLIDER",
+     "name": "Currency Symbol Scale",
+     "default": 100.0,
+     "valid_min": -1000000.0,
+     "valid_max": 1000000.0,
+     "slider_min": 0.0,
+     "slider_max": 100.0,
+     "display_flags": [
+      "PERCENT"
+     ]
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Currency Symbol Scale",
+     "name_string_key": "AE/Preset/CurrencySymbolScale",
+     "type": "float",
+     "group_path": [],
+     "keyframable": true,
+     "source": "S1_PresetEffects.xml",
+     "confidence": "parsed",
+     "default": 100,
+     "min": -1000000,
+     "max": 1000000,
+     "ui_slider_min": 0,
+     "ui_slider_max": 100,
+     "units": "percent"
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Percent Symbol Position",
+     "name_string_key": "AE/Preset/PercentSymbolPosition",
+     "type": "point_2d_normalized",
+     "group_path": [],
+     "keyframable": true,
+     "source": "S1_PresetEffects.xml",
+     "confidence": "parsed",
+     "default": {
+      "x": 0,
+      "y": 0
+     },
+     "units": "fraction of layer bounds"
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Percent Symbol Scale",
+     "name_key": "AE/Preset/PercentSymbolScale",
+     "param_type": "SLIDER",
+     "depth": 0,
+     "default": 100,
+     "valid_min": -1000000,
+     "valid_max": 1000000,
+     "slider_min": 0,
+     "slider_max": 100,
+     "precision": 1,
+     "display_units": [
+      "percent"
+     ]
+    }
+   },
+   {
+    "app": "aftereffects",
+    "file": "aftereffects_presets.json",
+    "path": "presets[].effects_applied[].parameter_definitions[]",
+    "param": {
+     "match_name": "Pseudo/ADBE Percentage Controls-0009",
+     "param_type": "FLOAT_SLIDER",
+     "name": "Percent Symbol Scale",
+     "default": 100.0,
+     "valid_min": -1000000.0,
+     "valid_max": 1000000.0,
+     "slider_min": 0.0,
+     "slider_max": 100.0,
+     "display_flags": [
+      "PERCENT"
+     ]
+    }
+   },
+   {
+    "app": "premiere",
+    "file": "premiere_effects_catalogue.json",
+    "path": "effects[].parameters[]",
+    "param": {
+     "name": "Percent Symbol Scale",
+     "name_string_key": "AE/Preset/PercentSymbolScale",
+     "type": "float",
+     "group_path": [],
+     "keyframable": true,
+     "source": "S1_PresetEffects.xml",
+     "confidence": "parsed",
+     "default": 100,
+     "min": -1000000,
+     "max": 1000000,
+     "ui_slider_min": 0,
+     "ui_slider_max": 100,
+     "units": "percent"
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "spline",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "spline",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "spline",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "spline",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "spline",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "spline",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "spline",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   },
+   {
+    "app": "affinity",
+    "file": "affinity_scripting_api_detail.json",
+    "path": "modules[].classes[].members[].parameters[]",
+    "param": {
+     "name": "spline",
+     "default": null,
+     "rest": false,
+     "destructured": false,
+     "optional": false
+    }
+   }
+  ],
+  "behaviour_record_count": 43,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

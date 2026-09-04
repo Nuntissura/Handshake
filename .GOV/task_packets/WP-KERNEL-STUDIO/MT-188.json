@@ -1,135 +1,419 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-188",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-188.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-188.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-019",
-      "MT-181"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Prepress control surfaces (ink/overprint/trap/separations/flattener) [STU-LAY-062]",
-  "spec_anchor": [
-    "STU-LAY-062",
-    "STU-COL-*",
-    "STU-LAY-067"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-188",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-188.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-188.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-019",
+   "MT-181"
   ],
-  "scope": {
-    "summary": "Implement the prepress control surfaces that drive the color pipeline (14.8, ColorEngine MT-019 — math owned there, never forked here) and are enumerable: PDF/X output intents (at least PDF/X-1a, PDF/X-3, PDF/X-4 with embedded output intents through built-in presets); Ink manager (per-ink spot-to-process conversion, all-spots-to-process, ink aliasing, use-standard-Lab-values-for-spots, per-ink trapping type normal/transparent/opaque/opaque-ignore with neutral density and sequence); Overprint (per-object overprint of fill, stroke, and gap, plus a black-overprint policy); Trap presets (trap width/black width, join/end styles, appearance thresholds, image-trap placement, assignable to page ranges); Separations preview (per-plate on/off preview, ink-limit view with configurable total-ink threshold, per-ink coverage readouts); Transparency flattener (flattener presets plus a flattener preview highlighting rasterized/outlined regions). This MT owns the control surfaces; math/profiles owned by 14.8.",
-    "allowed_paths": [
-      "src/studio/layout/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "PDF/X intents + ink manager + overprint + trap presets + separations preview + flattener surfaces driving ColorEngine (no forked math)"
-    ],
-    "proof_targets": [
-      "separations/ink-limit + flattener preview runtime; ink-manager/trap driving ColorEngine test"
-    ],
-    "code_surfaces": [
-      "src/studio/layout/prepress/ink_trap.rs",
-      "src/studio/layout/prepress/separations.rs",
-      "src/studio/layout/prepress/flattener.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::layout::prepress",
-      "live: separations preview toggles plates + shows ink-limit over configurable threshold; flattener preview highlights rasterized regions",
-      "test: ink manager spot-to-process + trap preset assignment to page range + overprint fill/stroke/gap drive ColorEngine (no forked math)"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "ink manager",
-      "trap presets",
-      "separations preview",
-      "flattener preview"
-    ],
-    "argus_targets": [
-      "studio.layout.ink_manager",
-      "studio.layout.trap_presets",
-      "studio.layout.separations_preview",
-      "studio.layout.flattener_preview"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Page Layout / Prepress (ink, trapping, separations, flattener)"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Prepress control surfaces (ink/overprint/trap/separations/flattener) [STU-LAY-062]",
+ "spec_anchor": [
+  "STU-LAY-062",
+  "STU-COL-*",
+  "STU-LAY-067"
+ ],
+ "scope": {
+  "summary": "Implement the prepress control surfaces that drive the color pipeline (14.8, ColorEngine MT-019 — math owned there, never forked here) and are enumerable: PDF/X output intents (at least PDF/X-1a, PDF/X-3, PDF/X-4 with embedded output intents through built-in presets); Ink manager (per-ink spot-to-process conversion, all-spots-to-process, ink aliasing, use-standard-Lab-values-for-spots, per-ink trapping type normal/transparent/opaque/opaque-ignore with neutral density and sequence); Overprint (per-object overprint of fill, stroke, and gap, plus a black-overprint policy); Trap presets (trap width/black width, join/end styles, appearance thresholds, image-trap placement, assignable to page ranges); Separations preview (per-plate on/off preview, ink-limit view with configurable total-ink threshold, per-ink coverage readouts); Transparency flattener (flattener presets plus a flattener preview highlighting rasterized/outlined regions). This MT owns the control surfaces; math/profiles owned by 14.8.",
+  "allowed_paths": [
+   "src/studio/layout/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No prepress control; commercial print output (spots/traps/separations) unmanageable.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "PDF/X intents",
+   "Ink manager",
+   "Overprint",
+   "Trap presets",
+   "Separations preview",
+   "Flattener surfaces driving ColorEngine (no forked math)"
+  ],
+  "proof_targets": [
+   "separations/ink-limit + flattener preview runtime; ink-manager/trap driving ColorEngine test"
+  ],
+  "code_surfaces": [
+   "src/studio/layout/prepress/ink_trap.rs",
+   "src/studio/layout/prepress/separations.rs",
+   "src/studio/layout/prepress/flattener.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::layout::prepress",
+   "live: separations preview toggles plates + shows ink-limit over configurable threshold; flattener preview highlights rasterized regions",
+   "test: ink manager spot-to-process + trap preset assignment to page range + overprint fill/stroke/gap drive ColorEngine (no forked math)"
+  ],
+  "acceptance_criteria_original": [
+   "PDF/X intents + ink manager + overprint + trap presets + separations preview + flattener surfaces driving ColorEngine (no forked math)"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "ink manager",
+   "trap presets",
+   "separations preview",
+   "flattener preview"
+  ],
+  "argus_targets": [
+   "studio.layout.ink_manager",
+   "studio.layout.trap_presets",
+   "studio.layout.separations_preview",
+   "studio.layout.flattener_preview"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Page Layout / Prepress (ink, trapping, separations, flattener)"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No prepress control; commercial print output (spots/traps/separations) unmanageable.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "PDF/X intents",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "separations/ink-limit + flattener preview runtime; ink-manager/trap driving ColorEngine test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Ink manager",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Overprint",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Trap presets",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Separations preview",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "Flattener surfaces driving ColorEngine (no forked math)",
+   "evidence_kind": "gui_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 6,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-LAY-062",
+    "spec_clause_text": "**[STU-LAY-062]** Prepress control surfaces that drive the colour pipeline (14.8) MUST be provided."
+   },
+   {
+    "anchor": "STU-LAY-067",
+    "spec_clause_text": "**[STU-LAY-067]** Every capability in this catalog MUST be exposed through BOTH the operator UI and the typed model-steerable command/MCP surface as two projections of one primitive per [STU-DOC-004], MUST satisfy the model-visibility/steerability and parallel-workflow requirements (14.16, 14.17), MUST obey the headless/quiet output law so preflight, package, print, PDF and merge never steal focus or block on a foreground window (14.20), and MUST be represented in the dual-audience UserManual and the GUI/diagnostic and accessibility surfaces (14.22, 14.16). Model-authored layout mutations MUST pass the sandbox -> validation -> `PromotionGate` lifecycle ([STU-ARC-005]) via the propose-work system (14.18) before layout authority rows change. All durable layout authority persists through the canonical Studio SurrealDB tables and `studio.layout` EventLedger events (14.23) under the SurrealDB-only authority guard ([STU-SDB-002]); live collaborative editing is CRDT-backed. This obligation is stated once and is not restated per clause."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [
+   {
+    "wildcard": "STU-COL-*",
+    "member_count": 181,
+    "members": [
+     "STU-COL-001",
+     "STU-COL-002",
+     "STU-COL-003",
+     "STU-COL-004",
+     "STU-COL-005",
+     "STU-COL-006",
+     "STU-COL-007",
+     "STU-COL-008",
+     "STU-COL-009",
+     "STU-COL-010",
+     "STU-COL-011",
+     "STU-COL-012",
+     "STU-COL-013",
+     "STU-COL-014",
+     "STU-COL-015",
+     "STU-COL-016",
+     "STU-COL-017",
+     "STU-COL-018",
+     "STU-COL-019",
+     "STU-COL-020",
+     "STU-COL-021",
+     "STU-COL-022",
+     "STU-COL-023",
+     "STU-COL-024",
+     "STU-COL-025",
+     "STU-COL-026",
+     "STU-COL-027",
+     "STU-COL-028",
+     "STU-COL-029",
+     "STU-COL-030",
+     "STU-COL-031",
+     "STU-COL-032",
+     "STU-COL-033",
+     "STU-COL-034",
+     "STU-COL-035",
+     "STU-COL-036",
+     "STU-COL-100",
+     "STU-COL-101",
+     "STU-COL-102",
+     "STU-COL-103",
+     "STU-COL-104",
+     "STU-COL-105",
+     "STU-COL-106",
+     "STU-COL-107",
+     "STU-COL-108",
+     "STU-COL-109",
+     "STU-COL-110",
+     "STU-COL-111",
+     "STU-COL-112",
+     "STU-COL-113",
+     "STU-COL-114",
+     "STU-COL-115",
+     "STU-COL-116",
+     "STU-COL-117",
+     "STU-COL-118",
+     "STU-COL-119",
+     "STU-COL-120",
+     "STU-COL-121",
+     "STU-COL-122",
+     "STU-COL-123",
+     "STU-COL-124",
+     "STU-COL-125",
+     "STU-COL-126",
+     "STU-COL-127",
+     "STU-COL-128",
+     "STU-COL-129",
+     "STU-COL-130",
+     "STU-COL-131",
+     "STU-COL-132",
+     "STU-COL-133",
+     "STU-COL-134",
+     "STU-COL-135",
+     "STU-COL-136",
+     "STU-COL-137",
+     "STU-COL-138",
+     "STU-COL-139",
+     "STU-COL-140",
+     "STU-COL-141",
+     "STU-COL-142",
+     "STU-COL-143",
+     "STU-COL-144",
+     "STU-COL-150",
+     "STU-COL-151",
+     "STU-COL-152",
+     "STU-COL-153",
+     "STU-COL-154",
+     "STU-COL-155",
+     "STU-COL-156",
+     "STU-COL-157",
+     "STU-COL-158",
+     "STU-COL-159",
+     "STU-COL-160",
+     "STU-COL-161",
+     "STU-COL-162",
+     "STU-COL-163",
+     "STU-COL-164",
+     "STU-COL-165",
+     "STU-COL-170",
+     "STU-COL-171",
+     "STU-COL-172",
+     "STU-COL-173",
+     "STU-COL-174",
+     "STU-COL-175",
+     "STU-COL-176",
+     "STU-COL-177",
+     "STU-COL-178",
+     "STU-COL-179",
+     "STU-COL-180",
+     "STU-COL-181",
+     "STU-COL-182",
+     "STU-COL-183",
+     "STU-COL-184",
+     "STU-COL-185",
+     "STU-COL-186",
+     "STU-COL-187",
+     "STU-COL-188",
+     "STU-COL-190",
+     "STU-COL-191",
+     "STU-COL-192",
+     "STU-COL-193",
+     "STU-COL-194",
+     "STU-COL-195",
+     "STU-COL-196",
+     "STU-COL-197",
+     "STU-COL-198",
+     "STU-COL-205",
+     "STU-COL-206",
+     "STU-COL-207",
+     "STU-COL-208",
+     "STU-COL-209",
+     "STU-COL-210",
+     "STU-COL-211",
+     "STU-COL-212",
+     "STU-COL-213",
+     "STU-COL-214",
+     "STU-COL-215",
+     "STU-COL-218",
+     "STU-COL-219",
+     "STU-COL-220",
+     "STU-COL-221",
+     "STU-COL-222",
+     "STU-COL-223",
+     "STU-COL-224",
+     "STU-COL-225",
+     "STU-COL-226",
+     "STU-COL-227",
+     "STU-COL-228",
+     "STU-COL-229",
+     "STU-COL-230",
+     "STU-COL-231",
+     "STU-COL-232",
+     "STU-COL-233",
+     "STU-COL-235",
+     "STU-COL-236",
+     "STU-COL-237",
+     "STU-COL-240",
+     "STU-COL-241",
+     "STU-COL-242",
+     "STU-COL-243",
+     "STU-COL-244",
+     "STU-COL-245",
+     "STU-COL-246",
+     "STU-COL-250",
+     "STU-COL-251",
+     "STU-COL-252",
+     "STU-COL-253",
+     "STU-COL-254",
+     "STU-COL-260",
+     "STU-COL-261",
+     "STU-COL-262",
+     "STU-COL-263",
+     "STU-COL-265",
+     "STU-COL-266",
+     "STU-COL-267",
+     "STU-COL-268",
+     "STU-COL-270",
+     "STU-COL-271",
+     "STU-COL-272",
+     "STU-COL-273",
+     "STU-COL-274",
+     "STU-COL-275"
+    ],
+    "note": "Family-scope citation. The contract spans this whole clause family; it does not cite one clause."
+   }
+  ],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

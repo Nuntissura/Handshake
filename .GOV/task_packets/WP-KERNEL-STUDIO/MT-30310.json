@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30310",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAW-101#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "1. Pipeline, Parameter Surface, and the Two Laws That Govern It",
+  "spec_line": 1932,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "CANONICAL SCALE LAW — ONE SCALE PER PARAMETER, PLUS A REQUIRED CONVERSION LAYER",
+ "spec_anchor": [
+  "STU-RAW-101"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "CANONICAL SCALE LAW — ONE SCALE PER PARAMETER, PLUS A REQUIRED CONVERSION LAYER (supersedes the flat \"translate the incoming parameters\" rule of [STU-RAW-002]).** The same develop parameter is serialized on **different numeric scales** by the interchange form and by the engine's own resolved-settings form. This is measured, not suspected: comparing the two captured serializations, `LuminanceAdjustmentYellow` spans ±90 in the interchange form and ±1 in the engine form — a ratio of about 0.011 — and `MaskSubCategoryID` spans up to 50008 in the interchange form and 3..12 in the engine form. Therefore: - Every develop `StudioParameterSpec` MUST declare exactly one **canonical Studio scale**, and that scale is what `StudioRawDevelop` stores. - A conversion layer is REQUIRED, not optional, in every `StudioImportProfile` and `StudioExportRecipe` that reads or writes a develop parameter. The conversion MUST be declared per parameter, MUST be invertible, and MUST be tested round-trip. - Studio's canonical scale for a develop slider is the one the *engine* uses, not the one the interchange file uses, because the engine scale is what the render maths consumes. - A conversion performed implicitly in a UI layer, or a single scale assumed across both forms, is a defect. An unconvertible value produces an unsupported-value receipt ([STU-RAS-162]). The global and local stacks are the worked ex [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "CANONICAL SCALE LAW — ONE SCALE PER PARAMETER, PLUS A REQUIRED CONVERSION LAYER (supersedes the flat \"translate the incoming parameters\" rule of [STU-RAW-002]).** The same develop parameter is serialized on **different numeric scales** by the interchange form and by the engine's own resolved-settings form.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAW-101"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Therefore: - Every develop `StudioParameterSpec` MUST declare exactly one **canonical Studio scale**, and that scale is what `StudioRawDevelop` stores. - A conversion layer is REQUIRED, not optional, in every `StudioImportProfile` and `StudioExportRecipe` that reads or writes a develop parameter.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAW-101"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The conversion MUST be declared per parameter, MUST be invertible, and MUST be tested round-trip. - Studio's canonical scale for a develop slider is the one the *engine* uses, not the one the interchange file uses, because the engine scale is what the render maths consumes. - A conversion performed implicitly in a UI layer, or a single scale assumed across both forms, is a defect.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAW-101"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "They are two scales of one control and MUST be converted, not conflated.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-RAW-101"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

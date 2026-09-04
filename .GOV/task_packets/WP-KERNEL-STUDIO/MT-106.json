@@ -1,132 +1,231 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-106",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-106.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-106.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-104",
-      "MT-019"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "StudioPattern tiled + live-source + pattern editing mode + swatch storage [STU-VEC-017,STU-VEC-067,STU-VEC-051 pattern]",
-  "spec_anchor": [
-    "STU-VEC-017",
-    "STU-VEC-067",
-    "STU-VEC-051"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-106",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-106.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-106.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-104",
+   "MT-019"
   ],
-  "scope": {
-    "summary": "Implement StudioPattern tiled fills (tile-layout grid/brick-by-row/brick-by-column/hex-by-row/hex-by-column, brick/hex offset, tile size with move-with-art, spacing, overlap order, side/corner/start/end tiling for path application), transformable independently of the filled object, plus a live-source pattern tiling another in-document object; a pattern editing mode isolates the tile artwork with live preview + dimmed neighbors and exits without materializing tiles; patterns store as typed swatches (edit-updates-all-references, break-link).",
-    "allowed_paths": [
-      "src/frontend/handshake_native/src/studio/**",
-      "src/studio/vector/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "tiled + live-source patterns + isolation edit mode + swatch storage; author_ids + manual entry"
-    ],
-    "proof_targets": [
-      "Argus pattern-edit + reference-update test"
-    ],
-    "code_surfaces": [
-      "src/frontend/handshake_native/src/studio/vector/pattern.rs",
-      "src/studio/vector/pattern.rs",
-      "studio-engine/src/vector/pattern.rs"
-    ],
-    "expected_tests": [
-      "argus: pattern panel + pattern-edit mode reachable via author_id",
-      "test: tile layouts + independent fill transform; live-source pattern tiles another object; edit mode updates all references without materializing tiles"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "pattern panel",
-      "pattern edit mode"
-    ],
-    "argus_targets": [
-      "studio.vector.pattern_panel",
-      "studio.vector.pattern_edit_mode"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Vector / Patterns & pattern editing"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "StudioPattern tiled + live-source + pattern editing mode + swatch storage [STU-VEC-017,STU-VEC-067,STU-VEC-051 pattern]",
+ "spec_anchor": [
+  "STU-VEC-017",
+  "STU-VEC-067",
+  "STU-VEC-051"
+ ],
+ "scope": {
+  "summary": "Implement StudioPattern tiled fills (tile-layout grid/brick-by-row/brick-by-column/hex-by-row/hex-by-column, brick/hex offset, tile size with move-with-art, spacing, overlap order, side/corner/start/end tiling for path application), transformable independently of the filled object, plus a live-source pattern tiling another in-document object; a pattern editing mode isolates the tile artwork with live preview + dimmed neighbors and exits without materializing tiles; patterns store as typed swatches (edit-updates-all-references, break-link).",
+  "allowed_paths": [
+   "src/frontend/handshake_native/src/studio/**",
+   "src/studio/vector/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No patterns; tiled fills + pattern editing missing.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Tiled",
+   "Live-source patterns",
+   "Isolation edit mode",
+   "Swatch storage",
+   "Author_ids",
+   "Manual entry"
+  ],
+  "proof_targets": [
+   "Argus pattern-edit + reference-update test"
+  ],
+  "code_surfaces": [
+   "src/frontend/handshake_native/src/studio/vector/pattern.rs",
+   "src/studio/vector/pattern.rs",
+   "studio-engine/src/vector/pattern.rs"
+  ],
+  "expected_tests": [
+   "argus: pattern panel + pattern-edit mode reachable via author_id",
+   "test: tile layouts + independent fill transform; live-source pattern tiles another object; edit mode updates all references without materializing tiles"
+  ],
+  "acceptance_criteria_original": [
+   "tiled + live-source patterns + isolation edit mode + swatch storage; author_ids + manual entry"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "pattern panel",
+   "pattern edit mode"
+  ],
+  "argus_targets": [
+   "studio.vector.pattern_panel",
+   "studio.vector.pattern_edit_mode"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Vector / Patterns & pattern editing"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No patterns; tiled fills + pattern editing missing.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Tiled",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "Argus pattern-edit + reference-update test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Live-source patterns",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Isolation edit mode",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Swatch storage",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Author_ids",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "Manual entry",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 6,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-VEC-017",
+    "spec_clause_text": "**[STU-VEC-017]** `StudioPattern` MUST support tiled fills with an editable tile-layout type, brick/hex offset, tile size (with move-with-art), spacing, overlap order, and side/corner/start/end tiling for path application. A pattern MUST be transformable independently of the object it fills. Studio MUST also support a live-source pattern that tiles another in-document object as a repeating fill or stroke with spacing and alignment controls."
+   },
+   {
+    "anchor": "STU-VEC-067",
+    "spec_clause_text": "**[STU-VEC-067]** Studio MUST provide a pattern editing mode that isolates a pattern's tile artwork for direct editing with live preview of the tiled result and dimmed neighbour copies, exiting back to the document without materialising the tiles. Edits to a pattern definition MUST update every object that references it ([STU-VEC-051])."
+   },
+   {
+    "anchor": "STU-VEC-051",
+    "spec_clause_text": "**[STU-VEC-051]** A gradient or pattern fill MUST be storable as a typed swatch in the `StudioSwatch`/`StudioStyleRegistry` surface and reusable across objects and documents; editing a shared gradient/pattern swatch MUST update every object referencing it, and an object MUST be able to break the link to hold a local copy. Freeform and mesh gradients MUST retain per-point editability when stored and re-applied."
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

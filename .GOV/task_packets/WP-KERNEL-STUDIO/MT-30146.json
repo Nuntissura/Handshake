@@ -1,0 +1,218 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30146",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-139#parameter_table#0",
+  "unit_kind": "parameter_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "7. Painting, Retouching, and Erasing Tools",
+  "spec_line": 1125,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "RETOUCH AND ERASE TOOL OPTION CONTRACTS - scope. Their captured option contracts are parameter bounds",
+ "spec_anchor": [
+  "STU-RAS-139"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "RETOUCH AND ERASE TOOL OPTION CONTRACTS.** The retouch family of [STU-RAS-026], the local tonal brushes of [STU-RAS-027], and the eraser family of [STU-RAS-028] are retained unchanged in scope. Their captured option contracts are: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Tool | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | classification | |---|---|---|---|---|---|---|---|---|---| | Smudge | `strength` | 0 | 100 | 0 | 100 | unknown | percent | 0 | `observed` 24 .. 100 | | Smudge | `finger_painting` | — | — | — | — | false | none | — | boolean | | Smudge | `sample_all_layers` | — | — | — | — | false | none | — | boolean | | Dodge / Burn | `tonal_range` | enum | enum | — | — | `midtones` | none | — | `shadows` \\| `midtones` \\| `highlights` | | Dodge / Burn | `exposure` | 0 | 100 | 0 | 100 | 50 | percent | 0 | `derived` midpoint default | | Dodge / Burn | `protect_tones` | — | — | — | — | true | none | — | boolean | | Sponge | `mode` | enum | enum | — | — | `desaturate` | none | — | `saturate` \\| `desaturate` | | Sponge | `flow` | 0 | 100 | 0 | 100 | 50 | percent | 0 | `derived` midpoint default | | Sponge | `protect_vibrance` | — | — | — | — | true | none | — | boolean | | Sharpen | `protect_detail` | — | — | — | — | true | none | — | boolean | | Clone sta [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The parameter `Smudge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=unknown, unit=percent, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "default"
+   ],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The parameter `Smudge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The parameter `Smudge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The parameter `Dodge / Burn` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`midtones`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The parameter `Dodge / Burn` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=50, unit=percent, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The parameter `Dodge / Burn` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=true, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The parameter `Sponge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`desaturate`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The parameter `Sponge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=50, unit=percent, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The parameter `Sponge` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=true, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The parameter `Sharpen` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=true, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The parameter `Clone stamp` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=true, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The parameter `Clone stamp` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`current_layer`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 12"
+  },
+  {
+   "id": "AC-013",
+   "criterion": "The parameter `Clone stamp` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-180, hard_max=180, soft_min=-180, soft_max=180, default=0, unit=degrees, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 13"
+  },
+  {
+   "id": "AC-014",
+   "criterion": "The parameter `Eraser` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`brush`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 14"
+  },
+  {
+   "id": "AC-015",
+   "criterion": "The parameter `Eraser` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 15"
+  },
+  {
+   "id": "AC-016",
+   "criterion": "The parameter `Magic / flood eraser` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=255, soft_min=0, soft_max=255, default=32, unit=levels_0_255, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 16"
+  },
+  {
+   "id": "AC-017",
+   "criterion": "The parameter `Magic / flood eraser` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=true, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 17"
+  },
+  {
+   "id": "AC-018",
+   "criterion": "The parameter `Background eraser` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`continuous`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 18"
+  },
+  {
+   "id": "AC-019",
+   "criterion": "The parameter `Background eraser` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=enum, hard_max=enum, soft_min=—, soft_max=—, default=`find_edges`, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 19"
+  },
+  {
+   "id": "AC-020",
+   "criterion": "The parameter `Background eraser` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=—, hard_max=—, soft_min=—, soft_max=—, default=false, unit=none, precision=—. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-139 parameter table row 20"
+  }
+ ],
+ "acceptance_criteria_count": 20,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

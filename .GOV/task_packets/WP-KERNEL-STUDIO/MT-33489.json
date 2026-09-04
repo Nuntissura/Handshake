@@ -1,0 +1,94 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33489",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-AUT-136#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "3. Batch processing",
+  "spec_line": 20489,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Quiet-law conformance",
+ "spec_anchor": [
+  "STU-AUT-136"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "automation",
+ "scope": {
+  "summary": "Quiet-law conformance.** A batch job MUST NOT open a foreground window, steal focus, hijack keyboard input, or block on a modal dialog. Its progress, per-file outcomes, current input and cancellation state MUST be readable through structured job state. A job carrying an `always_show` dialog step ([STU-AUT-105]) or an `ask` overwrite policy ([STU-AUT-131]) MUST refuse to start, naming the offending configuration. This is a hard gate: a batch runner that can hang on a dialog is not admissible. --- ### 4. Data-driven graphics",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Quiet-law conformance.** A batch job MUST NOT open a foreground window, steal focus, hijack keyboard input, or block on a modal dialog.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-AUT-136"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Its progress, per-file outcomes, current input and cancellation state MUST be readable through structured job state.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-AUT-136"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "A job carrying an `always_show` dialog step ([STU-AUT-105]) or an `ask` overwrite policy ([STU-AUT-131]) MUST refuse to start, naming the offending configuration.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-AUT-136"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

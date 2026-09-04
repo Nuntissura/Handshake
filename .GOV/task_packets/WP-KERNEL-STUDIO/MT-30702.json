@@ -1,0 +1,136 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30702",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-LAY-125#enumeration#0",
+  "unit_kind": "enumeration",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.6.3 Text Frames and Story Threading",
+  "spec_line": 5812,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Paragraph-level layout-flow attribute contract - Keep options and flow enumeration",
+ "spec_anchor": [
+  "STU-LAY-125"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "layout",
+ "scope": {
+  "summary": "Paragraph-level layout-flow attribute contract.** [STU-LAY-022] required these attributes to be applied through the layout style system while their glyph-level rendering stays in 14.7. This clause gives them their captured bounds. All are stored on paragraph style records and paragraph overrides. Keep options and flow: *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Field | Kind | Members / bounds | |---|---|---| | `keep_with_previous` | boolean | -- | | `keep_with_next` | integer, `count` | number of following lines to keep with this paragraph | | `keep_all_lines_together` | boolean | -- | | `keep_first_lines` | integer, `count` | widow control | | `keep_last_lines` | integer, `count` | orphan control | | `start_paragraph` | enumeration | `start.anywhere`, `start.next_column`, `start.next_frame`, `start.next_page`, `start.next_odd_page`, `start.next_even_page` | | `balance_ragged_lines` | boolean | -- | | `align_to_baseline_grid` | boolean | see [STU-LAY-115] | | `hyphenate_across_columns` | boolean | -- | | `hyphenate_last_word` | boolean | -- | Justification numerics -- every one carries a DECLARED hard range and Studio MUST enforc [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The enumeration accepts the member `keep_with_previous` with the exact meaning the spec states: boolean | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-125 enumeration row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The enumeration accepts the member `keep_with_next` with the exact meaning the spec states: integer, `count` | number of following lines to keep with this paragraph. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-125 enumeration row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The enumeration accepts the member `keep_all_lines_together` with the exact meaning the spec states: boolean | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-125 enumeration row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The enumeration accepts the member `keep_first_lines` with the exact meaning the spec states: integer, `count` | widow control. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-125 enumeration row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The enumeration accepts the member `keep_last_lines` with the exact meaning the spec states: integer, `count` | orphan control. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-125 enumeration row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The enumeration accepts the member `start_paragraph` with the exact meaning the spec states: enumeration | `start.anywhere`, `start.next_column`, `start.next_frame`, `start.next_page`, `start.next_odd_page`, `start.next_even_page`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-125 enumeration row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The enumeration accepts the member `balance_ragged_lines` with the exact meaning the spec states: boolean | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-125 enumeration row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The enumeration accepts the member `align_to_baseline_grid` with the exact meaning the spec states: boolean | see [STU-LAY-115]. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-125 enumeration row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The enumeration accepts the member `hyphenate_across_columns` with the exact meaning the spec states: boolean | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-125 enumeration row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The enumeration accepts the member `hyphenate_last_word` with the exact meaning the spec states: boolean | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-125 enumeration row 10"
+  }
+ ],
+ "acceptance_criteria_count": 10,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

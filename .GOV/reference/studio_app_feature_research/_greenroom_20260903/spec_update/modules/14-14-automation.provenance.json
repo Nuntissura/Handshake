@@ -1,0 +1,1169 @@
+{
+ "schema_id": "handshake.spec.module_provenance@1",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "authority_note": "This sidecar is PROVENANCE ONLY. It is not authority and MUST NOT be cited as the source of any Studio contract. Per [STU-SECTION-002] the Master Spec module is the single source of truth; this file records HOW each clause was derived so a reviewer can check the derivation, and so a later capture can supersede a studio_declared value without ambiguity. A disagreement between this file and the module is a defect in this file.",
+ "module_file": "14-14-automation.md",
+ "module_title": "14.14 Automation, Scripting & Plugin/API Surface",
+ "module_body_sha256": "2f40c07f1f2613e4c94f3165215c97736cc511427022ed513d682add0d8daeca",
+ "spec_target_bundle": "master-spec-v02.206",
+ "spec_baseline_bundle": "master-spec-v02.205",
+ "green_room": ".GOV/reference/studio_app_feature_research/_greenroom_20260903",
+ "derivation_legend": {
+  "parsed": "the value, field, enumeration or count is read literally from the named record in the named capture file",
+  "derived": "the clause is computed or reasoned from parsed records; the reasoning is stated in the note and is NOT itself in any capture",
+  "studio_declared": "no source declares this value; the Master Spec declares it as Studio's own contract and the clause labels it as such",
+  "spec_internal": "the source is another Master Spec clause, not a green-room capture",
+  "operator_decision": "the source is a recorded operator decision or a shipped work-packet contract, not a capture",
+  "declared_gap": "the clause declares an absence: something the captures do not contain and which this module deliberately does not invent"
+ },
+ "clause_count": 101,
+ "derivable_microtask_count": 94,
+ "derivation_rule_anchor": "STU-AUT-176",
+ "source_reference_count": 134,
+ "derivation_census": {
+  "parsed": 48,
+  "derived": 7,
+  "studio_declared": 0,
+  "spec_internal": 71,
+  "operator_decision": 7,
+  "declared_gap": 1
+ },
+ "capture_files_referenced": {
+  ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md": 41,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md": 25,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json": 16,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json": 10,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json": 8,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json": 7,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json": 5,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json": 5,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md": 5,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/affinity/offline/affinity_scripting_api_detail.json": 4,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json": 3,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_scripting_expressions.json": 2,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json": 1,
+  ".GOV/task_packets/WP-KERNEL-005/packet.json": 1,
+  ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json": 1
+ },
+ "clauses": {
+  "STU-AUT-100": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.14 clauses [STU-AUT-001]..[STU-AUT-027], lines 2889-3077",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions]",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "$.totals",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/affinity/offline/affinity_scripting_api_detail.json",
+     "record": "$.counts",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.counts",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-101": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-010]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].entries",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-102": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions] (11 .atn containers, each an action set)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-103": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].entries[*] fields: index, function_key_index, shift_key, command_key, color_index, name, name_raw, expanded, declared_step_count, steps, step_count, parse_status",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-104": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].entries[*].steps[*] fields: index, expanded, enabled, with_dialog, dialog_options, event_type_marker, event_id, item_name, descriptor_flag, has_descriptor, param_class, params",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-105": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].entries[*].steps[*].dialog_options observed distribution 0:901, 2:630, 3:10, 1:2 over 1543 steps; with_dialog true on 119",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions][0].note",
+     "derivation": "parsed",
+     "note": "the step layout note describes the flag bytes"
+    }
+   ]
+  },
+  "STU-AUT-106": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].entries[*].steps[*].params value shapes across 1355 parameterised steps: 1242 bare number, 1092 ref(n), 613 Enum.Value, 586 number+unit, 463 string/list, 403 boolean, 90 class:",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-107": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].entries[*].steps[*].params unit tokens: Prc 244, Pxl 127, Rlt 90, Ang 71, Pnt 42, Rsl 12",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-108": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.by_family.actions (11 containers, 149 entries); derived step totals 1543 steps, 1388 with descriptor, 1355 with params, 102 distinct event_ids, 704 distinct param keys",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-109": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-001], [STU-AUT-010]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].entries[*].steps[*].event_id",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-110": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-011] Insert command step row",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-111": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-011] rows: Insert message stop, Insert path step, Record tool strokes, Conditional step, Conditional mode change",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].entries[*].steps[*].event_id[stop, play]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-112": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-011] Event-bound trigger row",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.enums[ArgFreeEventType].values",
+     "derivation": "derived",
+     "note": "event name set aligned with the plugin event set"
+    }
+   ]
+  },
+  "STU-AUT-113": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-011] Conditional step row",
+     "derivation": "spec_internal",
+     "note": "predicate domain declared here; the source capture stores the branch but not an enumerated predicate vocabulary"
+    }
+   ]
+  },
+  "STU-AUT-114": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-011] Macro library row",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].path (portable .atn containers)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-115": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-006]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-116": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "$.suites (28 suites with tag, name, description); $.totals.suites",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-117": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "$.classes[*] fields: script_id, tag, name, description, plural_name, plural_tag, plural_description, collection_type_id, suite_id, guid, collection_guid, properties, methods, property_count",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-118": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "$.primitive_type_hints (18 type ids with inferred names); $.primitive_type_evidence",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-119": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "$.properties[*] fields: script_id, tag, name, description, type_id, type, flags, value_block, related_id, declared_on",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-120": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "$.enumerations[*] (526 enumerations, 3000 enumerators); $.totals.enumeration_extensions = 123; $.totals.enumeration_extension_entries = 260",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-121": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "$.methods[*] fields: reply, parameters[*] with tag, name, description, type_id, flags, has_default, default_raw; $.totals.method_parameters = 1349",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-122": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "$.totals (516 classes, 526 enums, 3000 enumerators, 3398 properties, 2837 distinct property names, 783 methods, 39 typedefs, 8065 property edges, 1607 method edges)",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_scripting_expressions.json",
+     "record": "$.summary.extendscript_classes = 44; $.summary.extendscript_members = 1708",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/affinity/offline/affinity_scripting_api_detail.json",
+     "record": "$.counts (415 classes, 5412 class members, 367 native api classes, 3150 native api methods, 19 native modules)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-123": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/affinity/offline/affinity_scripting_api_detail.json",
+     "record": "$.native_modules (19 modules with symbol counts; 582 imported symbols)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-124": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/affinity/offline/affinity_scripting_api_detail.json",
+     "record": "$.native_api_methods[AddChildNodesCommandBuilderApi] (69 typed add* methods)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-125": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_scripting_expressions.json",
+     "record": "$.summary.expression_identifiers = 333; $.summary.expression_categories (12); $.summary.expression_identifiers_by_category; $.summary.expression_argument_signatures = 37",
+     "derivation": "declared_gap",
+     "note": "the 333 identifiers are NOT enumerated in this module; enumerating them is its own microtask"
+    }
+   ]
+  },
+  "STU-AUT-126": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-012], [STU-AUT-013]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-127": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-013] rows",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008]",
+     "derivation": "operator_decision",
+     "note": "catalog_query source kind added by the CKC binding"
+    }
+   ]
+  },
+  "STU-AUT-128": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-013] Format-conversion batch row",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-129": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-013] Multi-format output row",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-130": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "$.still_image_export.value_domains_from_ui_labels.families[AgExportDialog/TokenGroup] (Image Name, Sequence and Date, Metadata, Custom)",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "$.still_image_export.settings[initialSequenceNumber, tokens, tokenCustomString]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-131": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "$.still_image_export.value_domains_from_ui_labels.families[AgExport/CollisionHandling] (Ask, Overwrite, Rename, Skip)",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-013] error log",
+     "derivation": "spec_internal",
+     "note": "error policy members beyond the collision set are Studio-declared"
+    }
+   ]
+  },
+  "STU-AUT-132": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-012] receipting",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-133": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-013] Portable batch action row",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-134": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-013] rows: Load set into one document, Stack statistics render, Utility batches, Watched-folder asset export",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-135": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-013] Stack statistics render row",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].entries[*].steps[*].event_id",
+     "derivation": "derived",
+     "note": "the eight statistical modes are declared here; variance is Studio-declared alongside the seven named in the v02.205 clause"
+    }
+   ]
+  },
+  "STU-AUT-136": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions].entries[*].steps[*].dialog_options = 3 (always show, 10 steps)",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.20 headless/quiet law",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-137": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-014], [STU-AUT-015]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.enums[VariableBindableNodeField].values",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-138": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-015] Dataset binding row",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-139": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-015] Dataset binding row",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008]",
+     "derivation": "operator_decision",
+     "note": "catalog_query import source added by the CKC binding"
+    }
+   ]
+  },
+  "STU-AUT-140": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-015] Row preview and Batch expansion rows",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-141": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.find_change_queries.queries[*].raw (Query/Header/Version, Application, QueryType, Description/FindExpression, ReplaceExpression, Scope, FindChangeOptions, FindFormatSettings, ReplaceFormatSettings)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-142": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-016] five modes",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.find_change_queries.queries[*].raw QueryType value=Grep",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-143": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.find_change_queries.queries[*].raw Scope element",
+     "derivation": "parsed",
+     "note": "scope is an integer in the source; the five-member token set is the Studio reading"
+    }
+   ]
+  },
+  "STU-AUT-144": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.find_change_queries.queries[*].raw FindChangeOptions (IncludeLockedLayers, IncludeLockedStories, IncludeMasterPages, IncludeHiddenLayers, IncludeFootnotes, KanaSensitive, WidthSensitive)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-145": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-016] dry-run, receipt, single-undo",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-146": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "$.find_change_queries.count = 11; $.sections.find_change_queries",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-147": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.flat_command_index[*] fields: node_type, id, label, label_string_key, command_js, enabler_js, menubar_id, menu_path",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-002], [STU-AUT-005]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-148": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.counts.flat_invocable_entries = 2176; enabler present on 1274 entries",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-149": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.counts (2176 invocable entries, 301 menus, 89 menubars, 508 with a shortcut, 445 distinct implementing files, 264 scripted command surfaces)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-150": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.scripted_commands[*].api_hooks_implemented census: commandButtons 190, initializeUI 120, isDOMRequired 89, receiveArguments 59, displayHelp 47, canAcceptCommand 44, windowDimensions 8",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-151": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.keyboard_shortcut_sets (3 sets: 776, 701, 509 bindings; one active on a clean install); $.adaptive_keyboard_layout_sets = 23; $.keyboard_layouts.layouts = 138",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-152": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-CON-007], [STU-MDL-006]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-153": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SDB-004], [STU-ARC-003] KernelActor",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-154": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SDB-004] replay",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-004].spec_specifics",
+     "derivation": "operator_decision",
+     "note": "promotion-equivalence determinism"
+    }
+   ]
+  },
+  "STU-AUT-155": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-017]..[STU-AUT-020]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-156": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-017] manifest",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.enums[PropertyMenuItemType].values",
+     "derivation": "derived"
+    }
+   ]
+  },
+  "STU-AUT-157": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-019] plugin capability table",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-158": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.enums[ArgFreeEventType].values (close, currentpagechange, selectionchange, timeradjust, timerdone, timerpause, timerresume, timerstart, timerstop)",
+     "derivation": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-019] Event subscription row",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-159": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-019] Per-node plugin data row",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.mixins[PluginDataMixin].members",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-160": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-019] Local client storage row",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-161": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+     "record": "$.property_inspectors[*].binding_declaration",
+     "derivation": "derived",
+     "note": "plugin panels bind through the contextual panel contract"
+    }
+   ]
+  },
+  "STU-AUT-162": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-019] Parameter quick-run row",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-163": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-021]..[STU-AUT-024]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-164": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.enums[CodegenResult].values (16 language tokens)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-165": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.enums[CodegenPreferences].values (PIXEL, SCALED)",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-166": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.interfaces[ExportSettingsImage].members; $.interfaces[ExportSettingsSVGString].members",
+     "derivation": "derived",
+     "note": "render-to-bytes command derived from the node render settings"
+    }
+   ]
+  },
+  "STU-AUT-167": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.interfaces[Annotation].members; $.enums[AnnotationPropertyType].values; $.interfaces[Measurement].members; $.enums[MeasurementSide].values; $.enums[MeasurementOffset].values; $.interfaces[DevResource].members; $.enums[DevStatus].values",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-168": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "$.enums[DetachedInfo].values; $.node_types[InstanceNode].properties[overrides]",
+     "derivation": "parsed"
+    }
+   ]
+  },
+  "STU-AUT-169": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-023]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-170": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-008].what_the_spec_rewrite_must_cover",
+     "derivation": "operator_decision"
+    },
+    {
+     "capture_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+     "record": "$.scope",
+     "derivation": "operator_decision"
+    }
+   ]
+  },
+  "STU-AUT-171": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "$.containers[family=actions]",
+     "derivation": "derived",
+     "note": "descriptor set derived from the record shapes and enumerations stated in this module"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+     "record": "$.flat_command_index",
+     "derivation": "derived"
+    }
+   ]
+  },
+  "STU-AUT-172": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "$.every_microtask_must_carry[hbr_int_009_tier_obligations]",
+     "derivation": "operator_decision",
+     "note": "all three tiers exist in the base; none may be deferred"
+    }
+   ]
+  },
+  "STU-AUT-173": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SDB-005] ResourceBroker and record-level permissions",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-174": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-OVR-003], [STU-SDB-002]",
+     "derivation": "spec_internal"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "$.decisions[SAD-002]",
+     "derivation": "operator_decision"
+    }
+   ]
+  },
+  "STU-AUT-175": {
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-AUT-027]",
+     "derivation": "spec_internal"
+    }
+   ]
+  },
+  "STU-AUT-176": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's own clause set [STU-AUT-100]-[STU-AUT-175]",
+     "derivation": "spec_internal",
+     "note": "Derivation rule (NORMATIVE): the closed unit list is enumerated from the clause kinds actually present in [STU-AUT-100]-[STU-AUT-175]; the rule form follows the precedent set by 14.7.21 [STU-TYP-240]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-AUT-177": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's own clause set [STU-AUT-100]-[STU-AUT-175]",
+     "derivation": "spec_internal",
+     "note": "Open items and blocked dependencies: derived from the declared-gap clauses of this module ([STU-AUT-125]); the rule that a gap still yields a microtask whose first acceptance criterion resolves the dependency is stated here"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-AUT-178": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's own clause set [STU-AUT-100]-[STU-AUT-175]",
+     "derivation": "spec_internal",
+     "note": "Microtask content obligation: derived from the enumerations, parameter contracts and record shapes stated in [STU-AUT-100]-[STU-AUT-175]; form follows 14.7.21 [STU-TYP-241]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-AUT-179": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's own clause set [STU-AUT-100]-[STU-AUT-175]",
+     "derivation": "spec_internal",
+     "note": "Yields index (NORMATIVE): counted mechanically over the clause anchors of [STU-AUT-100]-[STU-AUT-175], excluding the non-yielding classes named in the derivation rule and adding the individually named validation descriptors of [STU-AUT-171]; verified by three independent counts (recount from the non-yielding set, sum of the table Yields column, stated module total)"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-AUT-180": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's own clause set [STU-AUT-100]-[STU-AUT-175]",
+     "derivation": "spec_internal",
+     "note": "Anchor binding: derived from the provisional-anchor rule recorded in the green-room architecture decisions and the precedent of 14.7.21 [STU-TYP-243]"
+    },
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-07-typography.md",
+     "record": "14.7.21 Microtask Derivation, [STU-TYP-240]-[STU-TYP-243]",
+     "derivation": "spec_internal",
+     "note": "structural precedent for the derivation section; content is this module's own"
+    }
+   ]
+  },
+  "STU-AUT-181": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-103], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `action_declared_step_count_mismatch` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-182": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-103], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `action_shortcut_collision` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-183": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-104], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `action_step_command_unresolvable` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-184": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-104], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `action_step_parameter_key_unknown` (severity warning); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-185": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-107], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `action_measured_value_missing_unit` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-186": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-136], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `batch_always_show_dialog_in_headless` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-187": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-131], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `batch_ask_overwrite_in_headless` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-188": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-135], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `batch_stack_dimension_mismatch` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-189": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-139], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `dataset_column_type_coercion_failure` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-190": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-140], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `dataset_asset_reference_unresolvable` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-191": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-142], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `findchange_pattern_unbounded` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-192": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-147], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `command_missing_input_schema` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-193": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-150], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `command_missing_receive_arguments` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-194": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-148], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `command_enabler_has_side_effect` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-195": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-154], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `command_not_deterministic_undeclared` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-196": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-157], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `plugin_capability_not_granted` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-197": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-161], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `plugin_author_id_prefix_collision` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-198": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-159], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `plugin_node_data_contains_secret_pattern` (severity warning); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-199": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-164], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `codegen_language_token_shadows_baseline` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  },
+  "STU-AUT-200": {
+   "sources": [
+    {
+     "capture_file": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-14-automation.md",
+     "record": "this module's clause [STU-AUT-112], whose contract this descriptor enforces; the descriptor set is named in [STU-AUT-171]",
+     "derivation": "spec_internal",
+     "note": "validation descriptor `event_bound_action_reentrancy` (severity error); promoted from a prose list inside [STU-AUT-171] to its own clause so that one descriptor yields one microtask. Empirically verified against spec-derive-microtasks.py: a descriptor list inside one clause, whether prose or table, yields exactly 1 unit; one clause per descriptor yields 1 each."
+    }
+   ]
+  }
+ }
+}

@@ -1,169 +1,271 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-480",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-480.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-480.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-446",
-      "MT-447",
-      "MT-448",
-      "MT-449",
-      "MT-450",
-      "MT-451",
-      "MT-452",
-      "MT-453",
-      "MT-454",
-      "MT-455",
-      "MT-456",
-      "MT-457",
-      "MT-458",
-      "MT-459",
-      "MT-460",
-      "MT-461",
-      "MT-462",
-      "MT-463",
-      "MT-464",
-      "MT-465",
-      "MT-466",
-      "MT-467",
-      "MT-468",
-      "MT-469",
-      "MT-470",
-      "MT-471",
-      "MT-472",
-      "MT-473",
-      "MT-474",
-      "MT-475",
-      "MT-476",
-      "MT-477",
-      "MT-478",
-      "MT-479",
-      "MT-006",
-      "MT-015",
-      "MT-556",
-      "MT-557",
-      "MT-558",
-      "MT-559",
-      "MT-560"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Interop model steerability + headless/quiet + manual + validation obligation [STU-IO-014]",
-  "spec_anchor": [
-    "STU-IO-014",
-    "STU-IO-004",
-    "STU-ARC-005",
-    "STU-MDL-001",
-    "STU-QUIET-001",
-    "STU-MAN-001"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-480",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:27+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-480.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-480.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-446",
+   "MT-447",
+   "MT-448",
+   "MT-449",
+   "MT-450",
+   "MT-451",
+   "MT-452",
+   "MT-453",
+   "MT-454",
+   "MT-455",
+   "MT-456",
+   "MT-457",
+   "MT-458",
+   "MT-459",
+   "MT-460",
+   "MT-461",
+   "MT-462",
+   "MT-463",
+   "MT-464",
+   "MT-465",
+   "MT-466",
+   "MT-467",
+   "MT-468",
+   "MT-469",
+   "MT-470",
+   "MT-471",
+   "MT-472",
+   "MT-473",
+   "MT-474",
+   "MT-475",
+   "MT-476",
+   "MT-477",
+   "MT-478",
+   "MT-479",
+   "MT-006",
+   "MT-015",
+   "MT-556",
+   "MT-557",
+   "MT-558",
+   "MT-559",
+   "MT-560"
   ],
-  "scope": {
-    "summary": "Enforce the interop cross-cutting obligation: every StudioImportProfile and StudioExportRecipe action is a typed model-steerable command with a stable identifier, observable through Argus (14.16), and runs headless + quiet under 14.20 (no foreground window, no focus steal, bounded + observable) so batch import/export is safe for parallel operator/model co-work. Each format row and export surface carries a dual-audience UserManual entry (14.22) stating compatibility scope, fixtures, round-trip envelope, unsupported-feature receipts, and recovery behavior. A model-authored import/export changing document authority MUST pass sandbox -> StudioValidationDescriptor -> PromotionGate ([STU-ARC-005]); the fixture/receipt gate of [STU-IO-004] is part of that validation and is NOT optional regardless of model confidence.",
-    "allowed_paths": [
-      "src/studio/interop/**",
-      "src/manual/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "all interop ops model-steerable + Argus-observable + headless/quiet + manual-covered + promotion+fixture/receipt-gated"
-    ],
-    "proof_targets": [
-      "manual coverage + fail-closed promotion (fixture/receipt gate) + quiet-headless audit"
-    ],
-    "code_surfaces": [
-      "src/studio/interop/commands.rs",
-      "src/studio/interop/manual.rs"
-    ],
-    "expected_tests": [
-      "HBR-MAN-003: every studio import/export command_id has a manual entry stating scope/fixtures/round-trip/receipts/recovery",
-      "negative: model-authored interop write blocked from direct authority write (fails closed via PromotionGate incl. fixture/receipt gate)",
-      "argus+quiet: batch import/export observable headless with no focus steal"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Import & Export / (coverage-completeness gate)"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-SWARM-001",
-    "HBR-VIS-001",
-    "HBR-QUIET-001",
-    "HBR-MAN-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Interop model steerability + headless/quiet + manual + validation obligation [STU-IO-014]",
+ "spec_anchor": [
+  "STU-IO-014",
+  "STU-IO-004",
+  "STU-ARC-005",
+  "STU-MDL-001",
+  "STU-QUIET-001",
+  "STU-MAN-001"
+ ],
+ "scope": {
+  "summary": "Enforce the interop cross-cutting obligation: every StudioImportProfile and StudioExportRecipe action is a typed model-steerable command with a stable identifier, observable through Argus (14.16), and runs headless + quiet under 14.20 (no foreground window, no focus steal, bounded + observable) so batch import/export is safe for parallel operator/model co-work. Each format row and export surface carries a dual-audience UserManual entry (14.22) stating compatibility scope, fixtures, round-trip envelope, unsupported-feature receipts, and recovery behavior. A model-authored import/export changing document authority MUST pass sandbox -> StudioValidationDescriptor -> PromotionGate ([STU-ARC-005]); the fixture/receipt gate of [STU-IO-004] is part of that validation and is NOT optional regardless of model confidence.",
+  "allowed_paths": [
+   "src/studio/interop/**",
+   "src/manual/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Ungated/unobservable/undocumented interop commands; model interop bypasses fixture/receipt validation.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "All interop ops model-steerable",
+   "Argus-observable",
+   "Headless/quiet",
+   "Manual-covered",
+   "Promotion+fixture/receipt-gated"
+  ],
+  "proof_targets": [
+   "manual coverage + fail-closed promotion (fixture/receipt gate) + quiet-headless audit"
+  ],
+  "code_surfaces": [
+   "src/studio/interop/commands.rs",
+   "src/studio/interop/manual.rs"
+  ],
+  "expected_tests": [
+   "HBR-MAN-003: every studio import/export command_id has a manual entry stating scope/fixtures/round-trip/receipts/recovery",
+   "negative: model-authored interop write blocked from direct authority write (fails closed via PromotionGate incl. fixture/receipt gate)",
+   "argus+quiet: batch import/export observable headless with no focus steal"
+  ],
+  "acceptance_criteria_original": [
+   "all interop ops model-steerable + Argus-observable + headless/quiet + manual-covered + promotion+fixture/receipt-gated"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Import & Export / (coverage-completeness gate)"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-SWARM-001",
+  "HBR-VIS-001",
+  "HBR-QUIET-001",
+  "HBR-MAN-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Ungated/unobservable/undocumented interop commands; model interop bypasses fixture/receipt validation.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "All interop ops model-steerable",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "manual coverage + fail-closed promotion (fixture/receipt gate) + quiet-headless audit",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Argus-observable",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Headless/quiet",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Manual-covered",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Promotion+fixture/receipt-gated",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-IO-014",
+    "spec_clause_text": "[STU-IO-014] Every `StudioImportProfile` and `StudioExportRecipe` action MUST be a typed, model-steerable command with a stable identifier, observable through the Studio visual-debug/inspection surface (Argus) per 14.16, and MUST run headless and quiet under 14.20 (no foreground window, no focus steal, bounded and observable) so batch import/export is safe for parallel operator/model co-work. Each format row and export surface MUST carry a dual-audience UserManual entry per 14.22 stating its compatibility scope, fixtures, round-trip envelope, unsupported-feature receipts, and recovery behavior. A model-authored import/export that changes document authority MUST pass the sandbox -> `StudioValidationDescriptor` -> `PromotionGate` lifecycle of [STU-ARC-005]; the fixture/receipt gate of [STU-IO-004] is part of that validation and is not optional regardless of model confidence. --- ## 14.14 Automation, Scripting & Plugin/API Surface ## 14.14 Automation, Scripting & Plugin/API Surface This sub-section is the normative automation surface for Studio at professional depth: the recorded-action and macro model with its per-step parameter contract, the batch runner, the typed scripting object model, the model-steerable command surface required by [STU-CON-007], the find/change surface, the plugin contract, and the inspect/codegen projection. ### 0. Baseline, supersession and disposition"
+   },
+   {
+    "anchor": "STU-IO-004",
+    "spec_clause_text": "[STU-IO-004] NORMATIVE GATE. A format import or export feature MUST NOT be promoted (marked parity-complete or shippable) unless it declares ALL of the following five artifacts: - (a) **compatibility scope** — an explicit statement of which structures are preserved, transformed, rasterized, or unsupported. - (b) **fixtures** — representative fixtures for every supported app-and-direction it claims. - (c) **round-trip expectations** — the documented, bounded fidelity envelope after import->export. - (d) **unsupported-feature diagnostics/receipts** — a machine-readable receipt enumerating every source feature that could not be represented, was degraded, or was baked, emitted at decode/encode time and surfaced to the operator and model. - (e) **recovery behavior** — deterministic, non-destructive handling of malformed, partial, truncated, password-protected, or version-newer inputs (fail closed with a receipt, never a silent partial write to authority). A format that cannot meet all five is `unsupported` or `optional adapter`, not promoted."
+   },
+   {
+    "anchor": "STU-ARC-005",
+    "spec_clause_text": "[STU-ARC-005] A model-authored Studio mutation (any command batch that changes document authority) MUST NOT be written directly to a SurrealDB authority record. It MUST enter the kernel sandbox (`SandboxAdapter`, process-tier by default), be validated by the `StudioValidationDescriptor` catalog (14.24), and pass the `PromotionGate` (`PromotionDecisionV1: Accepted`) before authority records change. This lifecycle is not optional and MUST NOT be bypassed regardless of model confidence (mirrors [TAI-OVR-004]). See 14.18 for the propose-work system that carries model edits through this lifecycle."
+   },
+   {
+    "anchor": "STU-MDL-001",
+    "spec_clause_text": "[STU-MDL-001] BACKEND VISIBILITY. Every Studio capability MUST be reachable through a typed command contract on the unified Studio command API (14.14). The API MUST expose: (a) a structured read surface over `StudioDocument` — the scene/layer-graph tree, selectors by id/kind/name, semantic diffs between document states, and structured render receipts; and (b) a typed write surface where every command declares typed inputs/outputs, `dry_run` support, a receipt shape, undo semantics, and deterministic replay. A model MUST be able to inspect the full Studio document and tool surface from the API alone, without screen-reading and without source-app knowledge."
+   },
+   {
+    "anchor": "STU-QUIET-001",
+    "spec_clause_text": "[STU-QUIET-001] HEADLESS BY LAW. Agent-driven Studio work MUST run headless (no visible window brought to foreground). It MUST NOT steal keyboard focus, hijack keyboard input, move or click the OS mouse/cursor, capture focus, or use attention-stealing desktop APIs (HBR-QUIET-001)."
+   },
+   {
+    "anchor": "STU-MAN-001",
+    "spec_clause_text": "[STU-MAN-001] DUAL-AUDIENCE ENTRY CONTRACT. Every Studio tool, command, panel, and workflow MUST have ONE UserManual entry with two layers of the same entry: (a) an operator layer — user-friendly, task-oriented, minimal technicality (\"how do I crop\", \"how do I mask\", \"how do I set type on a path\"), navigation path, expected result; and (b) a model layer — technically complete: `command_id`, typed inputs/outputs, `dry_run` availability, receipt shape, undo semantics, Argus `author_id` targets, proof/evidence path, failure modes, recovery. Both layers satisfy CX-982-003 and CX-982-004 (Flight Recorder/EventLedger linkage + HBR-INT-009 three-tier posture per entry)."
+   }
+  ],
+  "spec_clause_count": 6,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:27+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

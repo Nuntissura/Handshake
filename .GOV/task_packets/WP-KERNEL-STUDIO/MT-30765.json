@@ -1,0 +1,88 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30765",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-LAY-143#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.6.6 Layout Style System",
+  "spec_line": 6420,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Style constraint vocabulary",
+ "spec_anchor": [
+  "STU-LAY-143"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "layout",
+ "scope": {
+  "summary": "Style constraint vocabulary.** The captured error tables declare the style-system rules Studio MUST enforce as distinct typed errors, and this is the closest thing the source has to a written style specification: a style name MUST NOT be empty; a style group name MUST NOT be empty; a style name MUST be unique within its scope; a style group name MUST be unique; certain names are RESERVED and MUST be refused; a style name MUST NOT exceed a maximum length; a style name MUST NOT contain a bracket character; a based-on chain MUST NOT be circular; a group MUST NOT be copied into itself; a parent group MUST NOT be copied into its own child; a root style MUST NOT be modified in ways reserved to derived styles; a style pack name MUST begin with a declared prefix; a style inside a style pack MUST NOT be renamed; a style-mapping tag MUST be valid; a text-variable name MUST NOT exceed a maximum length; and a style operation on a locked story MUST fail closed. Each of these is a SEPARATE typed error in the capture and MUST be a separate typed error in Studio: a model that receives one generic \"invalid style\" cannot repair its input, which is the entire purpose of the vocabulary. Optional bundled style sets (coordinated style packs) and role-detecting automatic style application MAY be provided over this mechanism; the captured style-pack prefix rule above governs their naming.",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Style constraint vocabulary.** The captured error tables declare the style-system rules Studio MUST enforce as distinct typed errors, and this is the closest thing the source has to a written style specification: a style name MUST NOT be empty; a style group name MUST NOT be empty; a style name MUST be unique within its scope; a style group name MUST be unique; certain names are RESERVED and MUST be refused; a style name MUST NOT exceed a maximum length; a style name MUST NOT contain a bracket character; a based-on chain MUST NOT be circular; a group MUST NOT be copied into itself; a parent gr [...]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-143"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Each of these is a SEPARATE typed error in the capture and MUST be a separate typed error in Studio: a model that receives one generic \"invalid style\" cannot repair its input, which is the entire purpose of the vocabulary.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-143"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

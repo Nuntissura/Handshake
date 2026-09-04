@@ -1,0 +1,2867 @@
+{
+ "schema_id": "handshake.reference.spec_module_provenance@1",
+ "file_id": "14-08-color-provenance-20260904",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "module": {
+  "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/spec_update/modules/14-08-color.md",
+  "section_id": "14.8",
+  "title": "14.8 Color Management and Pipeline",
+  "anchor_prefix": "STU-COL",
+  "anchor_range_new": "STU-COL-100..STU-COL-273 plus STU-COL-104A",
+  "supersedes": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md lines 1483-1643"
+ },
+ "purpose": "Maps every clause anchor in the module to the capture file and record it was derived from. The module is the authority; this file records HOW each clause was derived so a reviewer can audit it. Nothing here is normative.",
+ "capture_root": ".GOV/reference/studio_app_feature_research/",
+ "domain_note": "Colour is the largest captured domain (7478 registry rows) and has almost no menu surface (5 menu rows). The model in this module was therefore built from parsed value types, enumerations, preset payloads and shader source rather than transcribed from a command tree.",
+ "evidence_kind_legend": {
+  "parsed": "read directly out of a parsed capture record",
+  "derived": "computed or inferred from parsed capture records; the inference is stated in the clause",
+  "contract": "an authoring-contract or operator rule, not an application observation",
+  "operator_decision": "an operator-confirmed architecture decision",
+  "spec_text": "the superseded Master Spec text itself",
+  "defect_notice": "a recorded defect in the capture, cited so the clause does not rely on it",
+  "recovery_limit": "a capture that did not recover the value; the clause records the limit and does not fabricate"
+ },
+ "derivation_legend": {
+  "parsed": "clause states what the capture states",
+  "derived": "clause states a consequence of what the capture states",
+  "studio_normative_choice": "clause fixes a value no capture declared; the clause says so inline",
+  "contradiction_of_record": "clause records a disagreement between capture and superseded spec text",
+  "restatement": "clause restates a retained anchor",
+  "restatement_hardened": "clause restates a retained anchor and adds binding detail",
+  "governance": "clause is authority or scope bookkeeping, not behaviour",
+  "contract": "clause implements an authoring-contract rule",
+  "parsed+normative_choice": "clause mixes parsed values with a stated Studio choice",
+  "parsed+governance": "clause mixes measured counts with authority bookkeeping",
+  "parsed+contradiction_of_record": "clause is parsed and simultaneously records a trap the capture exposed",
+  "contract+self_audit": "clause implements a contract rule and reports counts measured over this module"
+ },
+ "self_check": {
+  "anchors_defined_in_module": 146,
+  "anchors_mapped_here": 146,
+  "unmapped_anchors": [],
+  "mapped_but_not_in_module": []
+ },
+ "contradictions_of_record": [
+  {
+   "id": "COL-CONTRA-1",
+   "superseded_anchor": "STU-COL-021",
+   "successor": "STU-COL-184..STU-COL-187",
+   "claim_in_spec": "current Photoshop no longer bundles Pantone books and routes them through a licensed plug-in, generalised to a blanket licence-gated-adapter posture for branded libraries",
+   "capture_says": "five branded book families are still bundled and only PANTONE is absent",
+   "evidence": [
+    "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json :: containers where family=='color_books' - 12 books, 5243 colours: ANPA Color 300 (Lab), DIC Color Guide 1280 (Lab), FOCOLTONE 860 (CMYK), HKS E 98 (Lab), HKS E Process 86 (CMYK), HKS K 100 (Lab), HKS K Process 86 (CMYK), HKS N 98 (Lab), HKS N Process 86 (CMYK), HKS Z 59 (Lab), HKS Z Process 86 (CMYK), TRUMATCH 2104 (CMYK)",
+    "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json :: totals.library_files_by_extension - '.acb': 14 and '.acbl': 6, i.e. twenty colour-book containers",
+    "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json :: totals.primary_entries_by_kind.colors == 10011"
+   ],
+   "consequence": "a blanket posture is wrong; licensing is per book, and TRUMATCH alone (2104 colours) is larger than the absent book"
+  },
+  {
+   "id": "COL-CONTRA-2",
+   "superseded_anchor": "none (under-determination)",
+   "successor": "STU-COL-112",
+   "claim_in_spec": "colour component defaults are inherited from the source applications",
+   "capture_says": "the two source applications declare DIFFERENT defaults for the same component with the same range",
+   "evidence": [
+    "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json :: classes._RGBColor.Red.constraints == {minimum 0.0, maximum 255.0, default 255.0}",
+    "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json :: classes._RGBColor.Red == range_hint {min 0.0, max 255.0}, default_hint '0.0'"
+   ],
+   "consequence": "a spec that inherits 'the vendor default' is under-determined; Studio fixes 0.0 and states it"
+  },
+  {
+   "id": "COL-CONTRA-3",
+   "superseded_anchor": "STU-COL-010",
+   "successor": "STU-COL-192",
+   "claim_in_spec": "a gradient has an editable midpoint, with no bound stated",
+   "capture_says": "the midpoint is declared 13.0 to 87.0 percent while sibling fields on the same object are 0.0 to 100.0",
+   "evidence": [
+    "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json :: classes.GradientStop.MidPoint == range_hint {min 13.0, max 87.0}, units_hint percent",
+    "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json :: classes.GradientStop.RampPoint and .Opacity == range_hint {min 0.0, max 100.0}"
+   ],
+   "consequence": "a midpoint control built on a 0-100 assumption emits values the engine rejects"
+  },
+  {
+   "id": "COL-CONTRA-4",
+   "superseded_anchor": "none (import trap)",
+   "successor": "STU-COL-223",
+   "claim_in_spec": "colour grading is a uniform five-wheel model",
+   "capture_says": "four of the fifteen grading values have no modern key and are stored under legacy split-toning keys",
+   "evidence": [
+    "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json :: derived_observations.colour_grading_key_aliasing.absent_keys == [ColorGradeShadowHue, ColorGradeShadowSat, ColorGradeHighlightHue, ColorGradeHighlightSat]",
+    "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json :: derived_observations.colour_grading_key_aliasing.present_legacy_equivalents == [SplitToningBalance, SplitToningHighlightHue, SplitToningHighlightSaturation, SplitToningShadowHue, SplitToningShadowSaturation]"
+   ],
+   "consequence": "an importer reading only ColorGrade* keys silently drops shadow and highlight hue and saturation"
+  },
+  {
+   "id": "COL-CONTRA-5",
+   "superseded_anchor": "none (parameter-identity trap)",
+   "successor": "STU-COL-227",
+   "claim_in_spec": "a control named Temperature has one definition",
+   "capture_says": "the same control name carries a different hard bound in a different section of the same effect",
+   "evidence": [
+    "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json :: lumetri_color_effect.sections['White Balance'].Temperature == min -150, max 150, ui_min -100, ui_max 100",
+    "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json :: lumetri_color_effect.sections['Correction'].Temperature == min -300, max 300, ui_min -100, ui_max 100"
+   ],
+   "consequence": "a shared parameter definition would silently reject legal secondary values or accept illegal primary ones"
+  }
+ ],
+ "clauses": {
+  "STU-COL-100": {
+   "derivation": "parsed+governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/studio-capability-registry.json",
+     "record": "capabilities where domain=='color'",
+     "evidence_kind": "parsed",
+     "detail": "7478 rows: preset 4740, option 1588, capability 458, command 357, dialog 182, tool 100, panel 48, menu 5"
+    },
+    {
+     "capture_file": "_greenroom_20260903/fold_back/studio-capability-registry.json",
+     "record": "capabilities where domain=='typography'",
+     "evidence_kind": "parsed",
+     "detail": "3040 rows with 63 menu entries, for the comparison"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].operator_reinforcement_20260904",
+     "evidence_kind": "operator_decision",
+     "detail": "the spec must contain the contract itself; the corpus is evidence"
+    }
+   ]
+  },
+  "STU-COL-101": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "anchors STU-COL-001..036",
+     "evidence_kind": "spec_text",
+     "detail": "highest pre-existing colour anchor is STU-COL-036"
+    }
+   ]
+  },
+  "STU-COL-102": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "14.8 lines 1483-1643",
+     "evidence_kind": "spec_text",
+     "detail": "full pre-existing clause set, dispositioned row by row"
+    }
+   ]
+  },
+  "STU-COL-103": {
+   "derivation": "contradiction_of_record",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers where family=='color_books'",
+     "evidence_kind": "parsed",
+     "detail": "12 books, 5243 entries: ANPA Color 300 Lab, DIC Color Guide 1280 Lab, FOCOLTONE 860 CMYK, HKS E 98 Lab, HKS E Process 86 CMYK, HKS K 100 Lab, HKS K Process 86 CMYK, HKS N 98 Lab, HKS N Process 86 CMYK, HKS Z 59 Lab, HKS Z Process 86 CMYK, TRUMATCH 2104 CMYK; no PANTONE book present"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "by_family.color_books",
+     "evidence_kind": "parsed",
+     "detail": "container_files 12, entries_parsed 5243, containers_parsed 12, failed 0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "totals.library_files_by_extension",
+     "evidence_kind": "parsed",
+     "detail": "'.acb': 14, '.acbl': 6 - twenty colour-book containers"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "totals.primary_entries_by_kind.colors",
+     "evidence_kind": "parsed",
+     "detail": "10011 colour-book colours"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-021]",
+     "evidence_kind": "spec_text",
+     "detail": "the superseded clause"
+    }
+   ]
+  },
+  "STU-COL-104": {
+   "derivation": "contradiction_of_record",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._RGBColor.properties.Red.constraints",
+     "evidence_kind": "parsed",
+     "detail": "minimum 0.0, maximum 255.0, default 255.0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._RGBColor.Red",
+     "evidence_kind": "parsed",
+     "detail": "range_hint {min:0.0,max:255.0}, default_hint '0.0'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.GradientStop.MidPoint",
+     "evidence_kind": "parsed",
+     "detail": "range_hint {min:13.0,max:87.0}, units_hint percent"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.GradientStop.RampPoint and .Opacity",
+     "evidence_kind": "parsed",
+     "detail": "range_hint {min:0.0,max:100.0} on the same object"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-010]",
+     "evidence_kind": "spec_text",
+     "detail": "the superseded clause describing an unbounded editable midpoint"
+    }
+   ]
+  },
+  "STU-COL-104A": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "naming_discipline.rule",
+     "evidence_kind": "contract",
+     "detail": "a source product name is never a Studio tool, command, panel or manual name; vendor names appear only as provenance in evidence fields"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-SECTION-003]",
+     "evidence_kind": "spec_text",
+     "detail": "dedup and no-double-features law"
+    }
+   ]
+  },
+  "STU-COL-105": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.parameters where name=='Temperature' (White Balance section)",
+     "evidence_kind": "parsed",
+     "detail": "min -150, max 150, ui_min -100, ui_max 100"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.parameters where name=='Exposure'",
+     "evidence_kind": "parsed",
+     "detail": "min -7, max 7, ui_min -5, ui_max 5"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.parameters where name=='Saturation'",
+     "evidence_kind": "parsed",
+     "detail": "min 0, max 300, ui_max 200, ui_min null"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.parameters where name=='Blur' (Refine section)",
+     "evidence_kind": "parsed",
+     "detail": "min 0, max 1000, ui_max 30"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.parameters where name=='Faded Film'",
+     "evidence_kind": "parsed",
+     "detail": "min 0, max 150, ui_max 100"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Correction'] Temperature and Tint",
+     "evidence_kind": "parsed",
+     "detail": "min -300, max 300, ui_min -100, ui_max 100 - the SAME control name with a different hard bound in a different section"
+    },
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.irreversible_mistake",
+     "evidence_kind": "contract",
+     "detail": "collapsing hard and soft bounds is irreversible"
+    }
+   ]
+  },
+  "STU-COL-106": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.required_fields",
+     "evidence_kind": "contract",
+     "detail": "hard_min/hard_max, soft_min/soft_max, default, unit, precision"
+    }
+   ]
+  },
+  "STU-COL-107": {
+   "derivation": "contract+self_audit",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.where_bounds_are_absent",
+     "evidence_kind": "contract",
+     "detail": "where a bound is unknown, say so explicitly; never invent one"
+    }
+   ]
+  },
+  "STU-COL-108": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.where_bounds_are_absent",
+     "evidence_kind": "contract",
+     "detail": "Affinity ranges are OBSERVED across shipped presets, not declared, so clamping to them would forbid legal values"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "counts",
+     "evidence_kind": "parsed",
+     "detail": "25 adjustment types, 153 presets, 21 adjustments with presets; every numeric value is observed_min/observed_max across those presets"
+    }
+   ]
+  },
+  "STU-COL-109": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.required_fields",
+     "evidence_kind": "contract",
+     "detail": "unit must be the real unit token from the capture, not a guess"
+    }
+   ]
+  },
+  "STU-COL-110": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-032] and [STU-DOC-003]",
+     "evidence_kind": "spec_text",
+     "detail": "no implicit device colour anywhere"
+    }
+   ]
+  },
+  "STU-COL-111": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsColorModel",
+     "evidence_kind": "parsed",
+     "detail": "psGrayscaleModel=1, psRGBModel=2, psCMYKModel=3, psLabModel=4, psHSBModel=5, psNoModel=50"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['color space']",
+     "evidence_kind": "parsed",
+     "detail": "RGB, CMYK, LAB, MixedInk, HSB, no alternate color"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiColorModel",
+     "evidence_kind": "parsed",
+     "detail": "aiRegistration=0, aiProcess=1, aiSpot=2 - a different axis, recorded so the two are not conflated"
+    }
+   ]
+  },
+  "STU-COL-112": {
+   "derivation": "parsed+normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._RGBColor.{Red,Green,Blue}.constraints",
+     "evidence_kind": "parsed",
+     "detail": "0.0-255.0, default 255.0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._RGBColor.{Red,Green,Blue}",
+     "evidence_kind": "parsed",
+     "detail": "0.0-255.0, default_hint 0.0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._CMYKColor.{Cyan,Magenta,Yellow,Black}.constraints",
+     "evidence_kind": "parsed",
+     "detail": "between 0.0 and 100.0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._CMYKColor.{Cyan,Magenta,Yellow,Black}",
+     "evidence_kind": "parsed",
+     "detail": "0.0-100.0, default_hint 0.0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._LabColor.{L,A,B}.constraints",
+     "evidence_kind": "parsed",
+     "detail": "L 0.0-100.0; A and B -128.0-127.0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._LabColor.{L,A,B}",
+     "evidence_kind": "parsed",
+     "detail": "same ranges, default_hint 0.0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._GrayColor.Gray.constraints",
+     "evidence_kind": "parsed",
+     "detail": "0.0-100.0, default 0.0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._HSBColor.{Hue,Saturation,Brightness}.constraints",
+     "evidence_kind": "parsed",
+     "detail": "Hue 0.0-360.0; Saturation and Brightness 0.0-100.0"
+    }
+   ]
+  },
+  "STU-COL-113": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsBitsPerChannelType",
+     "evidence_kind": "parsed",
+     "detail": "the storage precision axis is separate from the entry scale"
+    }
+   ]
+  },
+  "STU-COL-114": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._RGBColor.HexValue",
+     "evidence_kind": "parsed",
+     "detail": "'Hex representation of this color'"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-016] picker table row 'Value modes'",
+     "evidence_kind": "spec_text",
+     "detail": "8-bit, 16-bit or percentage value entry"
+    }
+   ]
+  },
+  "STU-COL-115": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "interfaces.RGB (3 members) vs interfaces.RGBA (4 members)",
+     "evidence_kind": "parsed",
+     "detail": "the paint model separates colour from alpha; SolidPaint.color is RGB, and opacity is a sibling property"
+    }
+   ]
+  },
+  "STU-COL-116": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['color space']",
+     "evidence_kind": "parsed",
+     "detail": "includes 'no alternate color' as a member"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.color.properties",
+     "evidence_kind": "parsed",
+     "detail": "alternate space, alternate color value, spot ink alias spot color reference, model, space, color value, base color, color override, convert to hsb"
+    }
+   ]
+  },
+  "STU-COL-117": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiImageColorSpace",
+     "evidence_kind": "parsed",
+     "detail": "aiImageGrayScale=1, aiImageRGB=2, aiImageCMYK=3, aiImageLAB=4, aiImageSeparation=5, aiImageDeviceN=6, aiImageIndexed=7"
+    }
+   ]
+  },
+  "STU-COL-118": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsDocumentMode",
+     "evidence_kind": "parsed",
+     "detail": "psGrayscale=1, psRGB=2, psCMYK=3, psLab=4, psBitmap=5, psIndexedColor=6, psMultiChannel=7, psDuotone=8"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsNewDocumentMode",
+     "evidence_kind": "parsed",
+     "detail": "5 members - no indexed, multichannel or duotone"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsChangeMode",
+     "evidence_kind": "parsed",
+     "detail": "7 members - no to-duotone"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.Document.methods.ChangeMode",
+     "evidence_kind": "parsed",
+     "detail": "(DestinationMode: PsChangeMode, Options)"
+    }
+   ]
+  },
+  "STU-COL-119": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsBitmapConversionType",
+     "evidence_kind": "parsed",
+     "detail": "psHalfThreshold=1, psPatternDither=2, psDiffusionDither=3, psHalftoneScreen=4, psCustomPattern=5"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsBitmapHalfToneType",
+     "evidence_kind": "parsed",
+     "detail": "psHalftoneRound=1, psHalftoneDiamond=2, psHalftoneEllipse=3, psHalftoneLine=4, psHalftoneSquare=5, psHalftoneCross=6"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._BitmapConversionOptions",
+     "evidence_kind": "parsed",
+     "detail": "Resolution default 72.0 ppi, Method default DiffusionDither, PatternName, Frequency, Angle, Shape"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsPaletteType",
+     "evidence_kind": "parsed",
+     "detail": "12 members, psExact=1 first"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsForcedColors",
+     "evidence_kind": "parsed",
+     "detail": "psNoForced=1, psBlackWhite=2, psPrimaries=3, psWeb=4"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsDitherType",
+     "evidence_kind": "parsed",
+     "detail": "psNoDither=1, psDiffusion=2, psPattern=3, psNoise=4"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsMatteType",
+     "evidence_kind": "parsed",
+     "detail": "7 members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._IndexedConversionOptions",
+     "evidence_kind": "parsed",
+     "detail": "Palette default Exact, Colors, Forced, Transparency, Dither, DitherAmount 1-100 diffusion only, PreserveExactColors, Matte"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers where family=='color_tables'",
+     "evidence_kind": "parsed",
+     "detail": "4 .act tables: Black-White 2 entries, Grayscale 256, Mac OS 256, Windows 256"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "by_family.duotones",
+     "evidence_kind": "parsed",
+     "detail": "114 .ado containers, all partial"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "unknowns[UNK-PRE-001]",
+     "evidence_kind": "recovery_limit",
+     "detail": "the duotone curve record layout did not reproduce consistently across the 114 shipped files; ink count and ink names were recovered instead"
+    }
+   ]
+  },
+  "STU-COL-120": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsBitsPerChannelType",
+     "evidence_kind": "parsed",
+     "detail": "psDocument1Bit=1, psDocument8Bits=8, psDocument16Bits=16, psDocument32Bits=32"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.Document.properties.BitsPerChannel",
+     "evidence_kind": "parsed",
+     "detail": "'number of bits per channel' - a document-level property with no per-model restriction declared"
+    }
+   ]
+  },
+  "STU-COL-121": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.Document.properties.BitsPerChannel",
+     "evidence_kind": "parsed",
+     "detail": "the source declares NO per-model restriction; the availability matrix is Studio's own choice and the clause says so"
+    }
+   ]
+  },
+  "STU-COL-122": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.parameters where name=='HDR White'",
+     "evidence_kind": "parsed",
+     "detail": "min 100, max 1000"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.parameters where name=='HDR Range'",
+     "evidence_kind": "parsed",
+     "detail": "min 100, max 10000"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.working_colour_spaces_used_by_shipped_sequence_presets",
+     "evidence_kind": "parsed",
+     "detail": "'BT.2100 HLG RGB Full': 5"
+    }
+   ]
+  },
+  "STU-COL-123": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='OCIO' (uid 83) and 'LUT3D' (uid 71)",
+     "evidence_kind": "parsed",
+     "detail": "a display/preview transform lane exists as an adjustment kind"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-005]",
+     "evidence_kind": "spec_text",
+     "detail": "the 32-bit preview control retained and bounded here"
+    }
+   ]
+  },
+  "STU-COL-124": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.auto_tone_map_default_in_sequence_presets",
+     "evidence_kind": "parsed",
+     "detail": "{'true': 27} - true on all 27 presets that declare it"
+    }
+   ]
+  },
+  "STU-COL-125": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.Document.properties.{ColorProfileType,ColorProfileName}",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsColorProfileType",
+     "evidence_kind": "parsed",
+     "detail": "psNo=1, psWorking=2, psCustom=3"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['color setting'] (21 properties)",
+     "evidence_kind": "parsed",
+     "detail": "the profile and policy surface"
+    }
+   ]
+  },
+  "STU-COL-126": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.icc_profiles",
+     "evidence_kind": "parsed",
+     "detail": "only 2 ICC files ship with the captured video application (ai_cmyk_default.icc 133772 bytes, ai_rgb_default.icc 568 bytes); the ICC tag set required here is the ICC specification, not a capture"
+    }
+   ]
+  },
+  "STU-COL-127": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['color setting'].properties",
+     "evidence_kind": "parsed",
+     "detail": "working space CMYK, working space CMYK list, working space RGB, working space RGB list"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-004]",
+     "evidence_kind": "spec_text",
+     "detail": "per-model working spaces retained"
+    }
+   ]
+  },
+  "STU-COL-128": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['color setting'] (21 properties)",
+     "evidence_kind": "parsed",
+     "detail": "CMYK policy, enable color management, engine, engine list, intent, mismatch ask when opening, mismatch ask when pasting, missing ask when opening, RGB policy, CMS settings, CMS settings list, CMS settings path, use BPC, working space CMYK, working space CMYK list, working space RGB, working space RGB list, color settings, idealized black to screen, idealized black to export, accurate LAB spots"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._Application.{ColorSettings,WinColorSettings} and methods.ChangeColorSettings",
+     "evidence_kind": "parsed",
+     "detail": "'set Color Settings to a named set or to the contents of a settings file'"
+    }
+   ]
+  },
+  "STU-COL-129": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['placed vector profile policy']",
+     "evidence_kind": "parsed",
+     "detail": "'The color profile policy for placed vector files (PDF or EPS)' - a policy separate from the raster policies"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['color settings policy']",
+     "evidence_kind": "parsed",
+     "detail": "'The policy for handling mismatched CMYK configurations'"
+    }
+   ]
+  },
+  "STU-COL-130": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsColorProfileType",
+     "evidence_kind": "parsed",
+     "detail": "psNo=1 (strip), psWorking=2, psCustom=3"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.Document.properties.ColorProfileName",
+     "evidence_kind": "parsed",
+     "detail": "'Valid when no value is specified for color profile kind (to indicate a custom color profile)'"
+    }
+   ]
+  },
+  "STU-COL-131": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.Document.methods.ConvertProfile",
+     "evidence_kind": "parsed",
+     "detail": "(DestinationProfile: BSTR, Intent: PsIntent, BlackPointCompensation: optional, Dither: optional) - 'convert the document from using one color profile to using an other'"
+    }
+   ]
+  },
+  "STU-COL-132": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiColorProfile",
+     "evidence_kind": "parsed",
+     "detail": "aiDontIncludeProfile=0, aiIncludeAllProfile=1, aiLeaveProfileUnchanged=2, aiIncludeRGBProfile=3, aiIncludeDestProfile=4"
+    }
+   ]
+  },
+  "STU-COL-133": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiColorConversion",
+     "evidence_kind": "parsed",
+     "detail": "aiNoColorConversion=0, aiColorConversionToDest=1, aiColorConversionRepurpose=2"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiColorDestination",
+     "evidence_kind": "parsed",
+     "detail": "aiNoDestination=0, aiColorDestinationDocCMYK=1, aiColorDestinationWorkingCMYK=2, aiColorDestinationDocRGB=3, aiColorDestinationWorkingRGB=4, aiColorDestinationProfile=5"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "pdf_export_presets.setting_frequency.ColorConversionStrategy",
+     "evidence_kind": "parsed",
+     "detail": "present on all 13 shipped PDF export presets"
+    }
+   ]
+  },
+  "STU-COL-134": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-004]",
+     "evidence_kind": "parsed",
+     "detail": "ICC handling generalised; device-link behaviour is an ICC-specification consequence, not a capture"
+    }
+   ]
+  },
+  "STU-COL-135": {
+   "derivation": "parsed+normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsIntent",
+     "evidence_kind": "parsed",
+     "detail": "psPerceptual=1, psSaturation=2, psRelativeColorimetric=3, psAbsoluteColorimetric=4"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiPrintColorIntent",
+     "evidence_kind": "parsed",
+     "detail": "aiPerceptualIntent=0, aiSaturationIntent=1, aiRelativeColorimetric=2, aiAbsoluteColorimetric=3"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['rendering intent'] and ['default rendering intent']",
+     "evidence_kind": "recovery_limit",
+     "detail": "present as enumerations; values not recovered in this capture"
+    }
+   ]
+  },
+  "STU-COL-136": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['color setting'].properties['use BPC']",
+     "evidence_kind": "parsed",
+     "detail": "a separate boolean field from 'intent'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.Document.methods.ConvertProfile",
+     "evidence_kind": "parsed",
+     "detail": "BlackPointCompensation is a separate parameter from Intent"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='SoftProof'",
+     "evidence_kind": "parsed",
+     "detail": "AdjP.BPCs and AdjP.Intn are separate tags"
+    }
+   ]
+  },
+  "STU-COL-137": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['default rendering intent'] and ['color rendering dictionary']",
+     "evidence_kind": "parsed",
+     "detail": "two separate enumerations"
+    }
+   ]
+  },
+  "STU-COL-138": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-024]",
+     "evidence_kind": "spec_text",
+     "detail": "gamut warning requires a clipping report to drive it"
+    }
+   ]
+  },
+  "STU-COL-139": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.ocio_configs[0].luma_coefficients",
+     "evidence_kind": "parsed",
+     "detail": "[0.2126, 0.7152, 0.0722] - white-point-dependent constants are carried explicitly in a shipped configuration, not assumed"
+    }
+   ]
+  },
+  "STU-COL-140": {
+   "derivation": "restatement_hardened",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[2]",
+     "evidence_kind": "operator_decision",
+     "detail": "studio-engine owns colour management behind ColorEngine; six Send+Sync traits"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-006]",
+     "evidence_kind": "spec_text",
+     "detail": "retained in force"
+    }
+   ]
+  },
+  "STU-COL-141": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[2]",
+     "evidence_kind": "operator_decision",
+     "detail": "the trait boundary is the only owner; no assumption is made about a crate providing ICC"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].verified_in_012",
+     "evidence_kind": "operator_decision",
+     "detail": "no studio-engine crate exists yet; the two-crate split is greenfield, so nothing already provides this"
+    }
+   ]
+  },
+  "STU-COL-142": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[2]",
+     "evidence_kind": "operator_decision",
+     "detail": "handshake_core must not gain GPU dependencies, so transforms must be materialised as data at the trait boundary"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lut_catalogue.cube_grid_sizes",
+     "evidence_kind": "parsed",
+     "detail": "a baked 3D LUT with a declared grid size is the shipped materialisation form in the field"
+    }
+   ]
+  },
+  "STU-COL-143": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-006] final sentence",
+     "evidence_kind": "spec_text",
+     "detail": "transforms are deterministic given identical profiles and intents; a promotion-equivalence requirement of 14.24"
+    }
+   ]
+  },
+  "STU-COL-144": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsBitsPerChannelType",
+     "evidence_kind": "parsed",
+     "detail": "32-bit float is a shipped document precision, so the transform path must not narrow it"
+    }
+   ]
+  },
+  "STU-COL-150": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.ocio_configs",
+     "evidence_kind": "parsed",
+     "detail": "3 configs at ocio_profile_version 1, 2.1 and 2.1"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='OCIO' (uid 83)",
+     "evidence_kind": "parsed",
+     "detail": "OCIO is a shipped adjustment kind in a second application"
+    }
+   ]
+  },
+  "STU-COL-151": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.ocio_configs[*] keys",
+     "evidence_kind": "parsed",
+     "detail": "file, ocio_profile_version, name, description, search_path, luma_coefficients, roles, active_displays, active_views, displays, display_count, view_count, view_transforms, looks, colorspace_count, colorspaces, display_colorspaces"
+    }
+   ]
+  },
+  "STU-COL-152": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.ocio_configs[0].roles",
+     "evidence_kind": "parsed",
+     "detail": "color_picking, color_timing, compositing_linear, compositing_log, data, default, matte_paint, reference, rendering, scene_linear, texture_paint - 11 roles"
+    }
+   ]
+  },
+  "STU-COL-153": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "extraction_summary",
+     "evidence_kind": "parsed",
+     "detail": "ocio_configs 3, ocio_colorspaces_total 406, ocio_views_total 54"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.ocio_configs[0]",
+     "evidence_kind": "parsed",
+     "detail": "version 1, 353 colorspaces, 26 active views, 1 display, 11 roles, luma [0.2126,0.7152,0.0722]"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.ocio_configs[1]",
+     "evidence_kind": "parsed",
+     "detail": "version 2.1, 14 colorspaces, 6 views, 5 displays, 9 roles"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.ocio_configs[2]",
+     "evidence_kind": "parsed",
+     "detail": "version 2.1, 39 colorspaces, 18 views, 9 displays, 9 roles"
+    }
+   ]
+  },
+  "STU-COL-154": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.ocio_configs[*].displays",
+     "evidence_kind": "parsed",
+     "detail": "display to ordered view mapping"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-005]",
+     "evidence_kind": "spec_text",
+     "detail": "choice of ICC display transform, unmanaged linear light, or OCIO display transform"
+    }
+   ]
+  },
+  "STU-COL-155": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='OCIO'",
+     "evidence_kind": "parsed",
+     "detail": "an OCIO transform is a document adjustment, distinct from a view setting"
+    }
+   ]
+  },
+  "STU-COL-156": {
+   "derivation": "parsed+normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.working_colour_spaces_used_by_shipped_sequence_presets",
+     "evidence_kind": "parsed",
+     "detail": "{'BT.709 RGB Full': 22, 'BT.2100 HLG RGB Full': 5}"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management.ocio_configs[2].colorspaces",
+     "evidence_kind": "parsed",
+     "detail": "ACES2065-1, ACEScc, ACEScct, ACEScg, Linear P3-D65, Linear Rec.2020, Linear Rec.709 and camera spaces"
+    }
+   ]
+  },
+  "STU-COL-157": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "colour_management",
+     "evidence_kind": "parsed",
+     "detail": "ICC profiles and OCIO configs coexist in the same capture under one colour-management key"
+    }
+   ]
+  },
+  "STU-COL-158": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lut_catalogue.cube_grid_sizes",
+     "evidence_kind": "parsed",
+     "detail": "{'21':98, '2':6, '256':1, '1024':3, '32':2, '16':5}"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lut_catalogue.files[*]",
+     "evidence_kind": "parsed",
+     "detail": "kind '3D', size, domain_min [0.0,0.0,0.0], domain_max [1.0,1.0,1.0]"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers where family=='luts_3d'",
+     "evidence_kind": "parsed",
+     "detail": "header carries title, lut_3d_size 17, domain_min, domain_max, sample_count 4913 == 17^3"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "method.known_gaps",
+     "evidence_kind": "recovery_limit",
+     "detail": "dimensionality of some files was not confirmed"
+    }
+   ]
+  },
+  "STU-COL-159": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lut_catalogue.totals_by_format",
+     "evidence_kind": "parsed",
+     "detail": "{'itx':117, 'Iridas/Adobe .cube':115, 'look':3, 'ilut':6, 'lut':2, 'bin':45} - 288 files"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "extraction_summary.count_semantics",
+     "evidence_kind": "parsed",
+     "detail": "lut_files counts LUT files because a LUT IS a file; every other number counts entities"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "formats_implemented",
+     "evidence_kind": "parsed",
+     "detail": "'.3dl': luts_3d, '.cube': luts_3d, '.look': luts_look"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "by_family.luts_3d and by_family.luts_look",
+     "evidence_kind": "parsed",
+     "detail": "20 and 7 containers"
+    }
+   ]
+  },
+  "STU-COL-160": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections",
+     "evidence_kind": "parsed",
+     "detail": "18 sections in declared panel order: Basic Correction, White Balance, Tone, Saturation, Creative, Adjustments, Curves, RGB Curves, Hue Saturation Curve, Color Wheels, HSL Secondary, Key, Refine, Correction, Vignette, SpeedGrade Custom"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "method.reading_the_parameter_surface",
+     "evidence_kind": "parsed",
+     "detail": "control_type_code 11 opens a section and 12 closes it; that grouping reconstructs the panel layout"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "shader_engine.shaders",
+     "evidence_kind": "parsed",
+     "detail": "Premiere Color group order: BasicCorrection, ToneCurves, Wheels, LookAdjustments, SecondaryLayer, Vignette"
+    }
+   ]
+  },
+  "STU-COL-161": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[2]",
+     "evidence_kind": "operator_decision",
+     "detail": "six traits with a hard boundary; RenderEngine and ColorEngine are separate owners"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "shader_engine",
+     "evidence_kind": "parsed",
+     "detail": "the shipped grading engine is a shader stack fed by a host that resolves colour management outside it"
+    }
+   ]
+  },
+  "STU-COL-162": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['blending space']",
+     "evidence_kind": "parsed",
+     "detail": "'Transparency blending space options' - a document property separate from the document colour model"
+    }
+   ]
+  },
+  "STU-COL-163": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004].spec_specifics[2]",
+     "evidence_kind": "operator_decision",
+     "detail": "handshake_core MUST NOT gain wgpu, WGSL or GPU-compute dependencies"
+    }
+   ]
+  },
+  "STU-COL-164": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-OBLIG-001]",
+     "evidence_kind": "spec_text",
+     "detail": "soft-proof, gamut and separation previews must be inspectable state under the Argus path"
+    }
+   ]
+  },
+  "STU-COL-165": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['placed vector profile policy']",
+     "evidence_kind": "parsed",
+     "detail": "placed assets carry their own profile policy"
+    }
+   ]
+  },
+  "STU-COL-170": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.swatch",
+     "evidence_kind": "parsed",
+     "detail": "swatch creator ID, swatch color group reference, name, color editable, color removable, visible, parent color group"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.color",
+     "evidence_kind": "parsed",
+     "detail": "spot ink alias spot color reference, alternate space, alternate color value, model, space, color value, base color, color override, convert to hsb"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['color group']",
+     "evidence_kind": "parsed",
+     "detail": "name, is root color group"
+    }
+   ]
+  },
+  "STU-COL-171": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.tint",
+     "evidence_kind": "parsed",
+     "detail": "name, model, space, color value, tint value, base color"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['mixed ink'] and classes['mixed ink group']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiColorModel",
+     "evidence_kind": "parsed",
+     "detail": "aiRegistration=0, aiProcess=1, aiSpot=2"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "totals.all_definitions_by_kind",
+     "evidence_kind": "parsed",
+     "detail": "swatches 4756, colors 10011, gradients 1249, patterns 417, swatch_groups 455"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "libraries[*].entries.swatches.items[*].color_type",
+     "evidence_kind": "parsed",
+     "detail": "'normal' | 'global' | 'spot' as parsed from the ASE colour_type field"
+    }
+   ]
+  },
+  "STU-COL-172": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-033]",
+     "evidence_kind": "spec_text",
+     "detail": "global-swatch propagation retained and tightened"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "libraries[*].entries.swatches.items[*].color_type=='global'",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-COL-173": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.Spot",
+     "evidence_kind": "parsed",
+     "detail": "Color, ColorType (AiColorModel), Name, SpotKind (AiSpotColorKind)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiSpotColorKind",
+     "evidence_kind": "parsed",
+     "detail": "aiSpotCMYK=0, aiSpotRGB=1, aiSpotLAB=2"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._SpotColor.Tint",
+     "evidence_kind": "parsed",
+     "detail": "range_hint {min:0.0,max:100.0}, default_hint 100.0, units_hint percent"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.color.properties['alternate space','alternate color value']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers where family=='color_books'",
+     "evidence_kind": "parsed",
+     "detail": "the acb trailer record declares ink_type 'spot'"
+    }
+   ]
+  },
+  "STU-COL-174": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.tint",
+     "evidence_kind": "parsed",
+     "detail": "tint value and base color"
+    }
+   ]
+  },
+  "STU-COL-175": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['mixed ink']",
+     "evidence_kind": "parsed",
+     "detail": "ink list, ink percentages, ink name list, mixed ink spot color name list, mixed ink spot color list, model, space, base color"
+    }
+   ]
+  },
+  "STU-COL-176": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['mixed ink group']",
+     "evidence_kind": "parsed",
+     "detail": "ink list, ink name list, mixed ink spot color name list, mixed ink spot color list, model"
+    }
+   ]
+  },
+  "STU-COL-177": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['color group'].properties['is root color group']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['color group swatch']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "totals.all_definitions_by_kind.swatch_groups",
+     "evidence_kind": "parsed",
+     "detail": "455 swatch groups across the shipped libraries"
+    }
+   ]
+  },
+  "STU-COL-178": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-008]",
+     "evidence_kind": "spec_text",
+     "detail": "document, application and system palette scope retained"
+    }
+   ]
+  },
+  "STU-COL-179": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-008]",
+     "evidence_kind": "spec_text",
+     "detail": "swatch-panel operation list retained and made typed commands"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.swatch.properties['color editable','color removable']",
+     "evidence_kind": "parsed",
+     "detail": "the delete-with-replacement and edit-permission fields"
+    }
+   ]
+  },
+  "STU-COL-180": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "libraries where container=='ase'",
+     "evidence_kind": "parsed",
+     "detail": "ASEF binary fully parsed: per entry name, color_model 'CMYK'|'RGB'|'LAB'|'GRAY', components as floats, color_type 'normal'|'global'|'spot', plus group blocks"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "totals.library_files_by_extension['.ase']",
+     "evidence_kind": "parsed",
+     "detail": "40 files"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "unknowns[UNK-PRE-005]",
+     "evidence_kind": "recovery_limit",
+     "detail": "a full ASEF parser is implemented but this install ships ZERO .ase files, so the parser is unexercised against that application's data"
+    }
+   ]
+  },
+  "STU-COL-181": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-009]",
+     "evidence_kind": "spec_text",
+     "detail": "import of swatches from another document retained"
+    }
+   ]
+  },
+  "STU-COL-182": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "by_family.swatches",
+     "evidence_kind": "parsed",
+     "detail": "24 container files, 8901 entries parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "by_family.color_books",
+     "evidence_kind": "parsed",
+     "detail": "12 container files, 5243 entries parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "totals.primary_entries_by_kind",
+     "evidence_kind": "parsed",
+     "detail": "swatches 3155, colors 10011, gradients 659, patterns 382, brushes 561, symbols 884, graphic_styles 314"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "by_family.Swatches",
+     "evidence_kind": "parsed",
+     "detail": "118 library files, 14216 primary entries"
+    }
+   ]
+  },
+  "STU-COL-183": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['find color preference'] (5 properties) and classes['change color preference'] (3 properties)",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['find change color option'] (7 properties)",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-COL-184": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-020]",
+     "evidence_kind": "spec_text",
+     "detail": "native spot colour is first class and licence-free; retained unchanged"
+    }
+   ]
+  },
+  "STU-COL-185": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers where family=='color_books'",
+     "evidence_kind": "parsed",
+     "detail": "format 8BCB with fields file_version, book_id, title, title_raw, name_prefix, name_postfix, description, declared_count, page_size, page_selector_offset, colorspace_id, colorspace, components_per_color; entries carry name, code, components"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "libraries where container=='acb'",
+     "evidence_kind": "parsed",
+     "detail": "the same record plus a parsed 'spfl' trailer declaring ink_type 'spot'"
+    }
+   ]
+  },
+  "STU-COL-186": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers where family=='color_books'",
+     "evidence_kind": "parsed",
+     "detail": "five branded families bundled, PANTONE absent - the evidence the per-book posture is derived from"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-021]",
+     "evidence_kind": "spec_text",
+     "detail": "the blanket posture being replaced"
+    }
+   ]
+  },
+  "STU-COL-187": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers where family=='color_books'",
+     "evidence_kind": "parsed",
+     "detail": "ANPA, DIC, FOCOLTONE, HKS (E/K/N/Z with Process companions), TRUMATCH; no PANTONE"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+     "record": "totals.library_files_by_extension",
+     "evidence_kind": "parsed",
+     "detail": "'.acb': 14 and '.acbl': 6"
+    }
+   ]
+  },
+  "STU-COL-188": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers where family=='color_books'",
+     "evidence_kind": "parsed",
+     "detail": "the acb record carries measured Lab or CMYK components per entry, which is what an ncl2 named-colour profile also carries"
+    }
+   ]
+  },
+  "STU-COL-190": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "interfaces.GradientPaint.type",
+     "evidence_kind": "parsed",
+     "detail": "'GRADIENT_LINEAR' | 'GRADIENT_RADIAL' | 'GRADIENT_ANGULAR' | 'GRADIENT_DIAMOND' - diamond is absent from the superseded clause"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiGradientType",
+     "evidence_kind": "parsed",
+     "detail": "aiLinearGradient=1, aiRadialGradient=2 - only two in that lineage"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['gradient type']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._GradientColor",
+     "evidence_kind": "parsed",
+     "detail": "Angle, HiliteAngle, HiliteLength, Length, Origin, Matrix, Gradient"
+    }
+   ]
+  },
+  "STU-COL-191": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['gradient stop']",
+     "evidence_kind": "parsed",
+     "detail": "stop color, location, midpoint"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['opacity gradient stop']",
+     "evidence_kind": "parsed",
+     "detail": "a SEPARATE class from gradient stop - colour and opacity stop lists are independent"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "interfaces.ColorStop",
+     "evidence_kind": "parsed",
+     "detail": "position, color: RGBA, boundVariables"
+    }
+   ]
+  },
+  "STU-COL-192": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.GradientStop.MidPoint",
+     "evidence_kind": "parsed",
+     "detail": "range_hint {min:13.0,max:87.0}, units_hint percent - 'midpoint key value in percent ( 13.0 - 87.0 )'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.GradientStop.RampPoint",
+     "evidence_kind": "parsed",
+     "detail": "range_hint {min:0.0,max:100.0}, units_hint percent"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.GradientStop.Opacity",
+     "evidence_kind": "parsed",
+     "detail": "range_hint {min:0.0,max:100.0}"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._GradientColor.{Angle,Length,HiliteAngle,HiliteLength}",
+     "evidence_kind": "parsed",
+     "detail": "default_hint 0.0 on all four"
+    }
+   ]
+  },
+  "STU-COL-193": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-011]",
+     "evidence_kind": "spec_text",
+     "detail": "reverse, dither, interpolation and gradient-on-stroke retained"
+    }
+   ]
+  },
+  "STU-COL-194": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-036]",
+     "evidence_kind": "spec_text",
+     "detail": "mesh and freeform structure retained and folded into the geometry discriminator"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.MeshItem",
+     "evidence_kind": "parsed",
+     "detail": "the mesh primitive exists as its own page-item class"
+    }
+   ]
+  },
+  "STU-COL-195": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "interfaces.PatternPaint",
+     "evidence_kind": "parsed",
+     "detail": "type 'PATTERN', sourceNodeId, tileType 'RECTANGULAR'|'HORIZONTAL_HEXAGONAL'|'VERTICAL_HEXAGONAL', scalingFactor, spacing: Vector, horizontalAlignment 'START'|'CENTER'|'END'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.Pattern",
+     "evidence_kind": "parsed",
+     "detail": "Name, Parent"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-012]",
+     "evidence_kind": "spec_text",
+     "detail": "the five tile types retained"
+    }
+   ]
+  },
+  "STU-COL-196": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._PatternColor",
+     "evidence_kind": "parsed",
+     "detail": "Reflect default false, ReflectAngle default 0.0, Rotation default 0.0, ScaleFactor, ShearAngle default 0.0, ShearAxis default 0.0, ShiftAngle default 0.0, ShiftDistance default 0.0, Matrix - eight neutral-defaulting placement fields"
+    }
+   ]
+  },
+  "STU-COL-197": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "interfaces.SolidPaint / GradientPaint / ImagePaint / VideoPaint / PatternPaint / ShaderPaint",
+     "evidence_kind": "parsed",
+     "detail": "six paint interfaces, each with visible, opacity and blendMode"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "interfaces.ImagePaint",
+     "evidence_kind": "parsed",
+     "detail": "scaleMode 'FILL'|'FIT'|'CROP'|'TILE', imageHash, imageTransform, scalingFactor, rotation, filters"
+    }
+   ]
+  },
+  "STU-COL-198": {
+   "derivation": "parsed+normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsBlendMode",
+     "evidence_kind": "parsed",
+     "detail": "28 members with integer values 1-30, non-contiguous"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsColorBlendMode",
+     "evidence_kind": "parsed",
+     "detail": "29 members including psBehindBlend=24 and psClearBlend=25 which PsBlendMode omits"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiBlendModes",
+     "evidence_kind": "parsed",
+     "detail": "16 members, aiNormalBlend=0..aiLuminosity=15 - a different set and a different encoding"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+     "record": "enums.BlendMode",
+     "evidence_kind": "parsed",
+     "detail": "19 string members including PASS_THROUGH"
+    }
+   ]
+  },
+  "STU-COL-205": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.ink",
+     "evidence_kind": "parsed",
+     "detail": "alias ink name, angle, convert to process, frequency, is process ink, neutral density, print ink, solidity, trap order, ink type, name - 11 properties"
+    }
+   ]
+  },
+  "STU-COL-206": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['ink types']",
+     "evidence_kind": "parsed",
+     "detail": "'Ink trapping type options'"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-027]",
+     "evidence_kind": "spec_text",
+     "detail": "normal / transparent / opaque / opaque-ignore retained"
+    }
+   ]
+  },
+  "STU-COL-207": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiInkPrintStatus",
+     "evidence_kind": "parsed",
+     "detail": "aiDisableInk=0, aiEnableInk=1, aiConvertInk=2"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiInkType",
+     "evidence_kind": "parsed",
+     "detail": "aiCyanInk=0, aiMagentaInk=1, aiYellowInk=2, aiBlackInk=3, aiCustomInk=4"
+    }
+   ]
+  },
+  "STU-COL-208": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.ink.properties['convert to process','alias ink name','neutral density','trap order']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['color setting'].properties['accurate LAB spots']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._PrintColorSeparationOptions.ConvertSpotColors",
+     "evidence_kind": "parsed",
+     "detail": "default false"
+    }
+   ]
+  },
+  "STU-COL-209": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiPrintColorSeparationMode",
+     "evidence_kind": "parsed",
+     "detail": "aiComposite=0, aiHostBasedSeparation=1, aiInRIPSeparation=2"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['color output modes']",
+     "evidence_kind": "parsed",
+     "detail": "'Color output mode options for composites'"
+    }
+   ]
+  },
+  "STU-COL-210": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.CharacterAttributes.{OverprintFill,OverprintStroke}",
+     "evidence_kind": "parsed",
+     "detail": "two separate booleans on the text lineage"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.TextPath.{FillOverprint,StrokeOverprint}",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "topics.rules_and_decoration",
+     "evidence_kind": "parsed",
+     "detail": "every decoration record carries overprint AND gap overprint as separate booleans"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_text_model.json",
+     "record": "enumerations['adornment overprint']",
+     "evidence_kind": "parsed",
+     "detail": "auto, overprint on, overprint off - a three-value overprint for attached adornments"
+    }
+   ]
+  },
+  "STU-COL-211": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes._PrintColorSeparationOptions.OverPrintBlack",
+     "evidence_kind": "parsed",
+     "detail": "default false"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "pdf_export_presets.setting_frequency.PreserveOverprintSettings",
+     "evidence_kind": "parsed",
+     "detail": "present on all 13 shipped PDF export presets"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+     "record": "pdf_export_presets.setting_frequency.OPM",
+     "evidence_kind": "parsed",
+     "detail": "the overprint-mode setting, present on all 13"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiPDFOverprint",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-COL-212": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.ink.properties.solidity",
+     "evidence_kind": "parsed",
+     "detail": "per-ink coverage is a first-class property"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-025]",
+     "evidence_kind": "spec_text",
+     "detail": "per-plate preview, ink limit and coverage readout retained and bounded here"
+    }
+   ]
+  },
+  "STU-COL-213": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['trap preset']",
+     "evidence_kind": "parsed",
+     "detail": "default trap width, black width, trap join, trap end, objects to images, images to images, internal images, one bit images, image placement, step threshold, black color threshold, black density, sliding trap threshold, color reduction, name - 15 properties"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['trap end types'] and ['trap image placement types'] and ['trapping']",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+     "record": "enums.AiTrappingType",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-COL-214": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['flattener preset']",
+     "evidence_kind": "parsed",
+     "detail": "name, raster vector balance, line art and text resolution, gradient and mesh resolution, clip complex regions, convert all strokes to outlines, convert all text to outlines - 7 properties"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['flattener preference'] (7 properties)",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['flattener level'] and ['spread flattener level']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-COL-215": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes['color setting'].properties['idealized black to screen','idealized black to export']",
+     "evidence_kind": "parsed",
+     "detail": "two separate booleans"
+    }
+   ]
+  },
+  "STU-COL-218": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "camera_profiles_dcp.correction_model.description",
+     "evidence_kind": "parsed",
+     "detail": "two illuminant-referenced 3x3 ColorMatrix (XYZ to camera) plus optional ForwardMatrix (camera to XYZ D50) and CameraCalibration matrices, an optional 3D HueSatMap deformation lattice over (hue, saturation, value), an optional ProfileLookTable lattice of the same shape applied AFTER the HueSatMap, an optional 1D ProfileToneCurve, plus BaselineExposureOffset and DefaultBlackRender rendering hints"
+    }
+   ]
+  },
+  "STU-COL-219": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "counts",
+     "evidence_kind": "parsed",
+     "detail": "dcp_files_parsed 4373, dcp_total_bytes 895530990, dcp_distinct_unique_camera_models 1429, dcp_distinct_profile_names 129"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "camera_profiles_dcp.tag_presence",
+     "evidence_kind": "parsed",
+     "detail": "21 tags with per-tag file counts and fractions, verbatim in the clause"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "camera_profiles_dcp.calibration_illuminant_pairs",
+     "evidence_kind": "parsed",
+     "detail": "(standard light A, D65) on 4365; (A, flash) 4; (D65, A) 2; (D55, D75) 1; (flash, tungsten) 1"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "camera_profiles_dcp.hue_sat_map_dims",
+     "evidence_kind": "parsed",
+     "detail": "[90,30,1] on 1116 files; [8,2,1] on 22"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-002].bulk_binary_position",
+     "evidence_kind": "operator_decision",
+     "detail": "Lightroom ships 854 MB of camera profiles plus 449 MB of lens profiles; none of that wants to live in a document database"
+    }
+   ]
+  },
+  "STU-COL-220": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['White Balance']",
+     "evidence_kind": "parsed",
+     "detail": "Temperature min -150 max 150 ui -100/100; Tint min -150 max 150 ui -100/100"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Tone']",
+     "evidence_kind": "parsed",
+     "detail": "Exposure -7/7 ui -5/5; Contrast, Highlights, Shadows, Whites, Blacks and HDR Specular all -150/150 ui -100/100"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Adjustments']",
+     "evidence_kind": "parsed",
+     "detail": "Sharpen -100/100; Vibrance -100/100; Saturation 0/300 ui_max 200; Tint Balance -150/150 ui -100/100"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.parameters[*].preset_value",
+     "evidence_kind": "parsed",
+     "detail": "null on every parameter, so default is UNKNOWN"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.parameters[*].units",
+     "evidence_kind": "parsed",
+     "detail": "null on every parameter, so unit is a Studio determination"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters where name=='AsShotTemperature'",
+     "evidence_kind": "parsed",
+     "detail": "modal_value_when_present 6000"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters where name=='AsShotTint'",
+     "evidence_kind": "parsed",
+     "detail": "modal_value_when_present 18"
+    }
+   ]
+  },
+  "STU-COL-221": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Creative']",
+     "evidence_kind": "parsed",
+     "detail": "Look min 0 max 998; Intensity min 0 max 200"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Basic Correction']",
+     "evidence_kind": "parsed",
+     "detail": "Input LUT min 0 max 998"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Adjustments']",
+     "evidence_kind": "parsed",
+     "detail": "Faded Film min 0 max 150 ui_max 100"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "extraction_summary",
+     "evidence_kind": "parsed",
+     "detail": "shipped_look_presets 325, lut_files 288"
+    }
+   ]
+  },
+  "STU-COL-222": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "shader_engine.shaders where shader_name=='IRIDAS.Primary'",
+     "evidence_kind": "parsed",
+     "detail": "133 controls, 118 IRIDAScript lines, 1 LUT binding"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "shader_engine.shaders['IRIDAS.Primary'].iridascript",
+     "evidence_kind": "parsed",
+     "detail": "the verbatim transform: TempGain from pow(2, gain + Temperature/Magenta terms); Contrast = pow(2, Contrast); offset = TempGain * (offset + Pivot - Contrast*Pivot); gain = TempGain * Contrast; gammaLow = pow(3, gammaLow + gamma)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "shader_engine.shaders['IRIDAS.Primary'].controls",
+     "evidence_kind": "parsed",
+     "detail": "Pivot default 0.5; Contrast min -1 default 0; Saturation max 2 clamp_at_min 1; PostSat default [1,1,1]; offset/gamma/gain default [0,0,0]; lowMid default 0.5; midHigh default 0.5; hwcolor offset/gain min '-1,-1,-1'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "look_files[*].shader_stack[*].parameters",
+     "evidence_kind": "parsed",
+     "detail": "luminance.X 0.299 and luminance.Z 0.114 explicitly set in the shipped Legacy look"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "extraction_summary",
+     "evidence_kind": "parsed",
+     "detail": "shaders_parsed 56, shader_controls 540, iridascript_lines_captured 1720"
+    }
+   ]
+  },
+  "STU-COL-223": {
+   "derivation": "parsed+contradiction_of_record",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.colour_grading_key_aliasing.finding",
+     "evidence_kind": "parsed",
+     "detail": "Colour Grading shadow/highlight HUE and SATURATION have no ColorGrade* key; they are stored under the legacy Split Toning keys"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.colour_grading_key_aliasing.absent_keys",
+     "evidence_kind": "parsed",
+     "detail": "ColorGradeShadowHue, ColorGradeShadowSat, ColorGradeHighlightHue, ColorGradeHighlightSat"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.colour_grading_key_aliasing.present_legacy_equivalents",
+     "evidence_kind": "parsed",
+     "detail": "SplitToningBalance, SplitToningHighlightHue, SplitToningHighlightSaturation, SplitToningShadowHue, SplitToningShadowSaturation"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.colour_grading_key_aliasing.present_colorgrade_keys",
+     "evidence_kind": "parsed",
+     "detail": "ColorGradeBlending, ColorGradeGlobalHue, ColorGradeGlobalLum, ColorGradeGlobalSat, ColorGradeHighlightLum, ColorGradeMidtoneHue, ColorGradeMidtoneLum, ColorGradeMidtoneSat, ColorGradeShadowLum"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.colour_grading_key_aliasing.consequence_for_reimplementation",
+     "evidence_kind": "parsed",
+     "detail": "a naive ColorGrade*-only model silently drops shadow and highlight hue and saturation"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters where panel=='color_grading'",
+     "evidence_kind": "parsed",
+     "detail": "observed values: SplitToningHighlightHue 16-315, SplitToningShadowHue 249-286, SplitToningShadowSaturation 11-54, ColorGradeMidtoneHue 0-166, ColorGradeBlending 50-64"
+    }
+   ]
+  },
+  "STU-COL-224": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters where panel=='calibration'",
+     "evidence_kind": "parsed",
+     "detail": "RedHue, RedSaturation, GreenHue, GreenSaturation, BlueHue, BlueSaturation, ShadowTint - 7 parameters, modal value 0 on all seven"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "counts.parameters_by_panel_heuristic.calibration",
+     "evidence_kind": "parsed",
+     "detail": "7"
+    }
+   ]
+  },
+  "STU-COL-225": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters where name=='ToneCurvePV2012'",
+     "evidence_kind": "parsed",
+     "detail": "default_value [0, 0, 255, 255]"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters where name in {ToneCurvePV2012Red, ToneCurvePV2012Green, ToneCurvePV2012Blue}",
+     "evidence_kind": "parsed",
+     "detail": "default_value [0, 0, 255, 255] on all three"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters where name=='ToneCurveName2012'",
+     "evidence_kind": "parsed",
+     "detail": "default_value 'Linear'"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters where panel=='tone_curve'",
+     "evidence_kind": "parsed",
+     "detail": "18 parameters; ParametricShadowSplit observed 15-18, ParametricMidtoneSplit observed 50, ParametricHighlightSplit observed 75, CurveRefineSaturation observed 100"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "heuristics[HEU-PRE-002]",
+     "evidence_kind": "recovery_limit",
+     "detail": "the .acv container stores no channel identifier at all; the channel label was recovered by index order"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "by_family.curves",
+     "evidence_kind": "parsed",
+     "detail": "9 container files, 9 entries, all parsed; declared_curve_count 5 per file (composite plus four channels)"
+    }
+   ]
+  },
+  "STU-COL-226": {
+   "derivation": "parsed+normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "counts.parameters_by_panel_heuristic.hsl_color_mixer",
+     "evidence_kind": "parsed",
+     "detail": "33 parameters"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='HSL' (uid 10, 4cc HsRA)",
+     "evidence_kind": "parsed",
+     "detail": "AdjP.HueA, AdjP.SatA, AdjP.LumA, AdjP.HueC, AdjP.SatC, AdjP.LumC, AdjP.RngC, AdjP.HSV, AdjP.Vers - master offsets plus per-band curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Hue Saturation Curve']",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-COL-227": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Key']",
+     "evidence_kind": "parsed",
+     "detail": "Set color, Add color, Remove color plus enumerated and boolean controls"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Refine']",
+     "evidence_kind": "parsed",
+     "detail": "Denoise min 0 max 100; Blur min 0 max 1000 ui_max 30"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Correction']",
+     "evidence_kind": "parsed",
+     "detail": "Temperature min -300 max 300 ui -100/100; Tint min -300 max 300 ui -100/100; Contrast -150/150 ui -100/100; Sharpen -100/100; Saturation 0/300 ui_max 200"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "shader_engine.shaders where file=='Lumetri/Premiere Color/SecondaryLayer.irtp'",
+     "evidence_kind": "parsed",
+     "detail": "15 controls, 187 IRIDAScript lines, 2 LUT bindings"
+    }
+   ]
+  },
+  "STU-COL-228": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Vignette']",
+     "evidence_kind": "parsed",
+     "detail": "Amount min -5 max 5 ui -3/3; Midpoint 0/100; Roundness -100/100; Feather 0/100"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "shader_engine.shaders where file=='Lumetri/Premiere Color/Vignette.irtp'",
+     "evidence_kind": "parsed",
+     "detail": "2 controls, 73 IRIDAScript lines"
+    }
+   ]
+  },
+  "STU-COL-229": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments",
+     "evidence_kind": "parsed",
+     "detail": "25 types with 4cc layer-node tags: Levels LeRA, WhiteBalance WBRA, HSL HsRA, Recolour RcRA, BlackAndWhite BWRA, BrightnessContrast BCRA, Posterise PoRA, Vibrance VbRA, Exposure ExRA, ShadowsHighlights SHRA, Threshold ThRA, Curves CrRA, ChannelMixer CMRA, GradientMap GrRA, SelectiveColour SCRA, ColourBalance CBRA, Invert, SoftProof SPRA, LUT3D 3DLA, PhotoFilter PfRA, SplitToning SpTA, OCIO, Normals, ToneCompression TcAN, ToneStretch"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='SoftProof'",
+     "evidence_kind": "parsed",
+     "detail": "AdjP.BPCs, AdjP.Intn, AdjP.Prof, AdjP.SPGC - exactly four fields, confirming BPC is separate from intent"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='ColourBalance'",
+     "evidence_kind": "parsed",
+     "detail": "AdjP.{Sh,Mi,Hi}{CR,MG,YB} plus AdjP.PeLu (preserve luminosity)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='SelectiveColour'",
+     "evidence_kind": "parsed",
+     "detail": "AdjP.Rela (relative vs absolute), AdjP.Weig, AdjP.Vers"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='PhotoFilter'",
+     "evidence_kind": "parsed",
+     "detail": "AdjP.L___, AdjP.A___, AdjP.B___ (a Lab filter colour), AdjP.Dens, AdjP.Pres"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments observed ranges",
+     "evidence_kind": "parsed",
+     "detail": "Levels Gamm 0.5-2.0; Exposure Expo -6.0-6.0 with Gamm 2.2; BrightnessContrast Brig -1.0-1.0 and Ctrs 0.0-2.0; Posterise Post 3-17; Threshold Thre 0.25-0.75; PhotoFilter Dens 0.5-1.0; ToneCompression mthd 0-7 - all OBSERVED across 153 presets, never declared"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers where family=='channel_mixer'",
+     "evidence_kind": "parsed",
+     "detail": "output_channels[*] with source_r, source_g, source_b, source_4, constant, plus a monochrome flag"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "heuristics[HEU-PRE-001]",
+     "evidence_kind": "recovery_limit",
+     "detail": "field order and numeric scaling of the Channel Mixer, Levels and Hue/Saturation fixed records were inferred from record size, not from a published spec"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers where family=='black_and_white'",
+     "evidence_kind": "parsed",
+     "detail": "params Rd/Yllw/Grn/Cyn/Bl/Mgnt plus useTint and tintColor RGB"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "unknowns[UNK-PRE-003]",
+     "evidence_kind": "recovery_limit",
+     "detail": "HDR Toning parameter values were not decoded; only signature, version, preset name and raw floats were recovered"
+    }
+   ]
+  },
+  "STU-COL-230": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsColorPicker",
+     "evidence_kind": "parsed",
+     "detail": "psAdobeColorPicker=1, psAppleColorPicker=2, psWindowsColorPicker=3, psPlugInColorPicker=4 - the picker is a selectable implementation in the source, which Studio collapses to one"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.Document.properties.ColorSamplers",
+     "evidence_kind": "parsed"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-016]",
+     "evidence_kind": "spec_text",
+     "detail": "the six picker facets retained and bounded"
+    }
+   ]
+  },
+  "STU-COL-231": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsSourceSpaceType",
+     "evidence_kind": "parsed",
+     "detail": "psDocumentSpace=1, psProofSpace=2 - the two candidate warning bases are an explicit enumeration"
+    }
+   ]
+  },
+  "STU-COL-232": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.Document.properties.ColorSamplers and classes.ColorSampler",
+     "evidence_kind": "parsed"
+    }
+   ]
+  },
+  "STU-COL-233": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._Application.properties.{ForegroundColor,BackgroundColor}",
+     "evidence_kind": "parsed",
+     "detail": "typed _SolidColor, i.e. full tagged values held as application state"
+    }
+   ]
+  },
+  "STU-COL-235": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-017]",
+     "evidence_kind": "spec_text",
+     "detail": "harmony rules and limit-to-library retained and made a pure function"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='Recolour' (uid 14)",
+     "evidence_kind": "parsed",
+     "detail": "AdjP.RecH, AdjP.RecS, AdjP.RecL - the deterministic hue/saturation/lightness remap"
+    }
+   ]
+  },
+  "STU-COL-236": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-018]",
+     "evidence_kind": "spec_text",
+     "detail": "assign and edit modes plus colour reduction retained"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsColorReductionType",
+     "evidence_kind": "parsed",
+     "detail": "psPerceptualReduction=0, psSelective=1, psAdaptive=2, psRestrictive=3, psCustomReduction=4, psBlackWhiteReduction=5, psSFWGrayscale=6, psMacintoshColors=7, psWindowsColors=8"
+    }
+   ]
+  },
+  "STU-COL-237": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-019]",
+     "evidence_kind": "spec_text",
+     "detail": "generative recolour is an optional adapter; retained unchanged"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "excluded_ai.policy",
+     "evidence_kind": "contract",
+     "detail": "Adobe AI and generative features are out of scope for the Handshake Studio Rust rebuild"
+    }
+   ]
+  },
+  "STU-COL-240": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='SoftProof' (uid 66, 4cc SPRA)",
+     "evidence_kind": "parsed",
+     "detail": "soft proof is a shipped adjustment kind with 4 fields"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "enumerations['proofing type']",
+     "evidence_kind": "parsed",
+     "detail": "'Options for proofing colors'"
+    }
+   ]
+  },
+  "STU-COL-241": {
+   "derivation": "parsed+normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='SoftProof'",
+     "evidence_kind": "parsed",
+     "detail": "AdjP.Prof (profile), AdjP.Intn (intent), AdjP.BPCs (black point compensation), AdjP.SPGC (gamut check)"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums.PsSourceSpaceType",
+     "evidence_kind": "parsed",
+     "detail": "psDocumentSpace / psProofSpace - the two-stage nature of a proof transform"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-022]",
+     "evidence_kind": "spec_text",
+     "detail": "soft proof retained and expanded to two intents"
+    }
+   ]
+  },
+  "STU-COL-242": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='SoftProof'",
+     "evidence_kind": "parsed",
+     "detail": "presets 3 - the source ships three named proof conditions"
+    }
+   ]
+  },
+  "STU-COL-243": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-022]",
+     "evidence_kind": "spec_text",
+     "detail": "colour-blindness simulation profiles as proof conditions; retained and made first class"
+    }
+   ]
+  },
+  "STU-COL-244": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments where adjustment=='SoftProof'",
+     "evidence_kind": "parsed",
+     "detail": "AdjP.SPGC is the gamut-check flag, i.e. gamut warning rides the proof transform"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-024]",
+     "evidence_kind": "spec_text",
+     "detail": "gamut warning retained and made queryable"
+    }
+   ]
+  },
+  "STU-COL-245": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-024]",
+     "evidence_kind": "spec_text",
+     "detail": "one-click in-gamut substitute retained"
+    }
+   ]
+  },
+  "STU-COL-246": {
+   "derivation": "studio_normative_choice",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_test",
+     "evidence_kind": "contract",
+     "detail": "a contrast query must resolve through the colour engine so a wide-gamut document gets a correct ratio"
+    }
+   ]
+  },
+  "STU-COL-250": {
+   "derivation": "restatement",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-OBLIG-001]",
+     "evidence_kind": "spec_text",
+     "detail": "obligation restated and extended with the specific inspection-state list"
+    }
+   ]
+  },
+  "STU-COL-251": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_test",
+     "evidence_kind": "contract",
+     "detail": "a no-context model must implement without guessing a range, a default, an enumerated value or a unit"
+    }
+   ]
+  },
+  "STU-COL-252": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-032]",
+     "evidence_kind": "spec_text",
+     "detail": "no untagged device triple; extended to the command decode boundary"
+    }
+   ]
+  },
+  "STU-COL-253": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry",
+     "evidence_kind": "contract",
+     "detail": "resource_privacy_obligation"
+    }
+   ]
+  },
+  "STU-COL-254": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-002].bulk_binary_position",
+     "evidence_kind": "operator_decision",
+     "detail": "raster tiles, video media, brush tip bitmaps, LUTs and fonts belong in content-addressed artifact storage with SurrealDB holding the records and references"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "counts.dcp_total_bytes",
+     "evidence_kind": "parsed",
+     "detail": "895530990 bytes of camera profiles"
+    }
+   ]
+  },
+  "STU-COL-260": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry",
+     "evidence_kind": "contract",
+     "detail": "validator_focus that names what a reviewer should attack"
+    }
+   ]
+  },
+  "STU-COL-261": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-004]",
+     "evidence_kind": "operator_decision",
+     "detail": "everything is Rust; third-party code only as a managed dependency behind Handshake boundaries"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-OVR-003]",
+     "evidence_kind": "spec_text",
+     "detail": "the no_sqlite_tripwire precedent"
+    }
+   ]
+  },
+  "STU-COL-262": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.colour_grading_key_aliasing",
+     "evidence_kind": "parsed",
+     "detail": "case 8"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections['Correction'] vs ['White Balance']",
+     "evidence_kind": "parsed",
+     "detail": "case 9: -300/300 versus -150/150 on the same control name"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+     "record": "classes.GradientStop.MidPoint",
+     "evidence_kind": "parsed",
+     "detail": "case 10: 13.0-87.0"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lut_catalogue.files[*].domain_min/domain_max",
+     "evidence_kind": "parsed",
+     "detail": "case 6: a declared non-default domain"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/premiere/offline/premiere_lumetri_color.json",
+     "record": "lumetri_color_effect.sections",
+     "evidence_kind": "parsed",
+     "detail": "case 7: the declared section order"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+     "record": "classes.ink.solidity",
+     "evidence_kind": "parsed",
+     "detail": "case 14: per-ink coverage can exceed 400 percent with spot plates"
+    }
+   ]
+  },
+  "STU-COL-263": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_test",
+     "evidence_kind": "contract",
+     "detail": "no guessing implies a lossless round trip"
+    }
+   ]
+  },
+  "STU-COL-265": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "14.8 preamble",
+     "evidence_kind": "spec_text",
+     "detail": "scope statement carried forward and widened"
+    }
+   ]
+  },
+  "STU-COL-266": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md#14.8",
+     "record": "[STU-COL-014]",
+     "evidence_kind": "spec_text",
+     "detail": "the channel-operation boundary against 14.4, carried forward"
+    }
+   ]
+  },
+  "STU-COL-267": {
+   "derivation": "parsed",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/studio-capability-registry.json",
+     "record": "capabilities where domain=='color'",
+     "evidence_kind": "parsed",
+     "detail": "7478 rows; preset 4740, option 1588, capability 458, command 357, dialog 182, tool 100, panel 48, menu 5"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "known_defects_in_this_green_room[GRD-001]",
+     "evidence_kind": "defect_notice",
+     "detail": "the registry merged on normalised name alone; sharing counts are invalid until the merge is re-keyed"
+    }
+   ]
+  },
+  "STU-COL-268": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].operator_reinforcement_20260904.granularity_rule",
+     "evidence_kind": "operator_decision",
+     "detail": "a preset's NAME is evidence; the normative statement is the contract around it; the test is loss of CONTRACT, not loss of rows"
+    },
+    {
+     "capture_file": "_greenroom_20260903/fold_back/studio-capability-registry.json",
+     "record": "capabilities where domain=='color' and kind=='preset'",
+     "evidence_kind": "parsed",
+     "detail": "4740 preset rows"
+    }
+   ]
+  },
+  "STU-COL-270": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].operator_reinforcement_20260904.completeness_test",
+     "evidence_kind": "operator_decision",
+     "detail": "a capable model with no chat context and no green-room access must implement from section 14 alone"
+    }
+   ]
+  },
+  "STU-COL-271": {
+   "derivation": "contract",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry",
+     "evidence_kind": "contract",
+     "detail": "implementation_notes carrying the actual extracted behaviour: parameters with the full contract, enumerated values, defaults"
+    }
+   ]
+  },
+  "STU-COL-272": {
+   "derivation": "derived",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "what_agents_must_do",
+     "evidence_kind": "contract",
+     "detail": "the generated file is the skeleton; real behavioural specification replaces it"
+    }
+   ]
+  },
+  "STU-COL-273": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].anchor_dependency",
+     "evidence_kind": "operator_decision",
+     "detail": "no microtask can be activated until the spec update has given it something true to cite"
+    },
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "hard_rules_from_operator_decisions SAD-008",
+     "evidence_kind": "contract",
+     "detail": "spec anchors are PROVISIONAL until the Master Spec update lands; do not invent anchor ids"
+    }
+   ]
+  },
+  "STU-COL-274": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/spec_update/RECONCILIATION_BRIEF.json",
+     "record": "how_to_close_a_delta.derived_greater_than_declared",
+     "evidence_kind": "contract",
+     "detail": "state in the clause which table spawns and how many, so the tool can be corrected to match"
+    },
+    {
+     "capture_file": "_greenroom_20260903/spec_update/RECONCILIATION_BRIEF.json",
+     "record": "what_the_deriver_extracts",
+     "evidence_kind": "contract",
+     "detail": "the unit kinds a derivation tool extracts"
+    }
+   ]
+  },
+  "STU-COL-275": {
+   "derivation": "governance",
+   "sources": [
+    {
+     "capture_file": "_greenroom_20260903/spec_update/RECONCILIATION_BRIEF.json",
+     "record": "the_operator_acceptance_test",
+     "evidence_kind": "contract",
+     "detail": "the derived count and the module's own declared yields total must agree"
+    },
+    {
+     "capture_file": "_greenroom_20260903/spec_update/RECONCILIATION_BRIEF.json",
+     "record": "authority_direction",
+     "evidence_kind": "contract",
+     "detail": "the spec is authority; the tool reconciles to it, but a ledger claiming non-derivable work is a spec defect"
+    },
+    {
+     "capture_file": "_greenroom_20260903/spec_update/RECONCILIATION_BRIEF.json",
+     "record": "how_to_close_a_delta.no_declared_total",
+     "evidence_kind": "contract",
+     "detail": "add a yields index table ending in a total row; the reconciler reads the LAST numeric column"
+    }
+   ]
+  }
+ }
+}

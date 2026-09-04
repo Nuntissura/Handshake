@@ -3,7 +3,7 @@ stage_microtask_allocator_contract:
   allocator_id: stage-microtask-allocator
   authority: NON_AUTHORITATIVE_REFERENCE
   status: SPECIFIED_UNBOUND
-  updated_at: "2026-07-19"
+  updated_at: "2026-09-01"
   wp_id: WP-1-Handshake-Stage-MVP-v1
   purpose: >-
     Deterministically compile the later approved Stage requirement, acceptance,
@@ -98,6 +98,7 @@ canonical_field_mapping:
   - { planning_field: hbr, output_field: hbr_obligations_and_hbr_int_009_tier_obligations, rule: project_authority_resolved }
   - { planning_field: handoff_and_status, output_field: handoff_and_status_sync, rule: canonical_receipts_validator_and_transaction_surfaces }
   - { planning_field: risks_and_failures, output_field: red_team, rule: canonical_required_profile_plus_task_specific_risks_and_controls }
+  - { planning_field: stage_storage_contract, output_field: storage_obligation, rule: every_mt_references_stub_storage_contract_and_proves_surrealdb_exclusive_authority_when_data_bearing }
 
 generated_contract_template:
   schema_id: hsk.microtask_contract@1
@@ -126,6 +127,18 @@ generated_contract_template:
     generator: null
   lifecycle: { status: PENDING, depends_on: [], blocks: [], active: false, validator_verdict: PENDING }
   scope: { summary: ALLOCATED_CLOSURE_UNIT, allowed_paths: [], forbidden_paths: [], acceptance_criteria: [], proof_targets: [] }
+  storage_obligation:
+    contract_ref: .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json#storage_contract
+    posture: SURREALDB_EXCLUSIVE_AUTHORITY
+    applicability: REQUIRED_IF_DURABLE_STATE_EVENT_CACHE_FIXTURE_RECOVERY_OR_DATABASE_PROOF_IS_TOUCHED
+    requirements:
+      - use_the_application_injected_typed_stage_repository_and_canonical_embedded_surrealdb_eventledger
+      - forbid_turso_libsql_sqlite_postgresql_private_database_fallback_and_dual_write_paths
+      - preserve_artifactstore_byte_authority_and_engine_profile_materialization_boundary
+    proof_when_applicable:
+      - real_wp_scoped_embedded_surrealdb_test
+      - surrealkit_schemafull_rollout_assertion_index_and_record_user_permission_proof
+      - forbidden_database_zero_match_guard
   file_ownership: { owned_paths: [], shared_paths: [], reference_paths: [], forbidden_paths: [], merge_owner: UNBOUND, conflict_groups: [] }
   traceability: { requirement_ids: [], source_ids: [], decision_ids: [], spec_anchor_ids: [], pillar_edge_ids: [], acceptance_ids: [], release_ids: [], production_gate_ids: [] }
   external_dependency_gates: []
@@ -190,6 +203,7 @@ allocator_rejections:
   - { id: STAGE-ALLOC-REJECT-018, condition: gui_manual_diagnostics_hbr_red_team_handoff_or_status_sync_obligation_missing_or_unresolved }
   - { id: STAGE-ALLOC-REJECT-019, condition: absolute_machine_local_path_or_non_portable_command }
   - { id: STAGE-ALLOC-REJECT-020, condition: task_activation_before_packet_validator_and_allocator_receipt_pass }
+  - { id: STAGE-ALLOC-REJECT-021, condition: missing_stage_storage_obligation_or_any_turso_libsql_sqlite_postgresql_private_database_fallback_dual_write_mock_only_or_in_memory_only_authority_path }
 
 status_sync_transaction:
   canonical_source: official_microtask_json_and_packet_contract

@@ -1,0 +1,82 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34270",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-WEB-052#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.28.3 Code intelligence",
+  "spec_line": 29019,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Validator rule sets (normative, ten rows)",
+ "spec_anchor": [
+  "STU-WEB-052"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "web_authoring",
+ "scope": {
+  "summary": "Validator rule sets (normative, ten rows).** Studio MUST ship a markup validator driven by declarative rule sets, one per DTD context and version. The shipped baseline: | Rule set | Tags | Attribute rules | Valid-value rules | Invalid rules | Context rules | Requirement sets | |---|---|---|---|---|---|---| | `validator` (union) | 327 | 4,124 | 4,537 | 121 | 325 | 85 / 86 | | `html_all` | 106 | 1,768 | 2,593 | 65 | 106 | 14 / 14 | | `xhtml10_transitional` | 89 | 1,603 | 2,774 | — | 88 | 13 / 13 | | `xhtml10_frameset` | 91 | 1,623 | 2,696 | — | 90 | 13 / 13 | | `xhtml10_strict` | 79 | 1,377 | 1,822 | — | 78 | 10 / 10 | | `cfml` | 111 | 1,061 | 30 | 55 | 96 | 62 / 67 | | `wml` | 31 | 96 | 30 | — | 31 | — | | `smil` | 19 | 244 | 57 | 1 | 19 | 9 / 9 | | `value_map` | — | 433 value keys | — | — | — | — | | `versions` | 20 version keys | — | — | — | — | — |",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Validator rule sets (normative, ten rows).** Studio MUST ship a markup validator driven by declarative rule sets, one per DTD context and version.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-WEB-052"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

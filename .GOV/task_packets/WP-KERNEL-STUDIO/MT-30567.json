@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30567",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-VEC-162#catalogue_row#0_brush_scatter",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.5.8 Brushes",
+  "spec_line": 4356,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "brush.scatter",
+ "spec_anchor": [
+  "STU-VEC-162"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "vector",
+ "scope": {
+  "summary": "Brush primitive and kind enumeration.** [STU-VEC-026] required a single canonical `StudioVectorBrush` with a discriminated `kind`. The captured shipped inventory confirms exactly five kinds and no others, with these per-kind entry counts across 25 shipped brush libraries totalling 561 brush definitions: *Derivation: catalogue table, splits per row; yields 5 microtasks, one per brush kind.* | Studio brush kind | Captured kind token | Shipped entries | Behaviour | |---|---|---|---| | `brush.calligraphic` | `calligraphic` | 45 | Angled-nib stroke with angle, roundness and size. | | `brush.scatter` | `scatter` | 58 | Distribute copies of source art along the path. | | `brush.art` | `art` | 238 | Stretch source artwork along the path length. | | `brush.pattern` | `pattern` | 206 | Tile side/corner/start/end tiles along the path. | | `brush.bristle` | `bristle` | 14 | Simulate natural bristle painting. | Two further brush behaviours are required by [STU-VEC-026] and carry NO captured parameter contract: `brush.image` (raster-textured organic stroke along an editable vector spine) and `brush.custom` (capture any single vector layer as a reusable brush). Both are declared SPEC GAPS: they MUST be registrable against the same primitive, and their parameter sets MUST be raised rather than invented. The captured libraries confirm image-brush and bristle-brush library files exist (10 and 14 [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`brush.scatter` satisfies the spec's stated studio brush kind: `brush.scatter`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-162 catalogue row `brush.scatter`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`brush.scatter` satisfies the spec's stated captured kind token: `scatter`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-162 catalogue row `brush.scatter`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`brush.scatter` satisfies the spec's stated shipped entries: 58",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-162 catalogue row `brush.scatter`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`brush.scatter` satisfies the spec's stated behaviour: Distribute copies of source art along the path.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-162 catalogue row `brush.scatter`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`brush.scatter` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-VEC-162"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

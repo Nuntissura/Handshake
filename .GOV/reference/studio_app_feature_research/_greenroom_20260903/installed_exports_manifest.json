@@ -1,0 +1,601 @@
+{
+ "schema_id": "handshake.reference.studio_capture_manifest@1",
+ "generated_at": "2026-09-04T13:53:00+00:00",
+ "why": "The raw teardown captures are the EVIDENCE the Studio spec was derived from. They are large and are deliberately kept out of git history; this manifest records exactly which file carried which bytes so any provenance claim in the spec or in a provenance sidecar can be re-verified against the payload on disk or in artifact storage.",
+ "payload_location": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports (working tree, not committed)",
+ "authority": "Captures are evidence and are never authority. The Master Spec carries the contract; an implementer is never required to read a capture file.",
+ "file_count": 118,
+ "total_bytes": 302520689,
+ "files": [
+  {
+   "path": "installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+   "bytes": 6185971,
+   "sha256": "a1311d8cebf1c4f0d324bb8d328831394e4241e618febe175f13316d63e85f30"
+  },
+  {
+   "path": "installed_exports/affinity/offline/affinity_brush_parameters.json",
+   "bytes": 17287486,
+   "sha256": "20fe0c87f3ca2051a9fb67acd0f78564e03982bff1544132867d1d3d7cdd0d8c"
+  },
+  {
+   "path": "installed_exports/affinity/offline/affinity_preset_contents.json",
+   "bytes": 30364154,
+   "sha256": "6ac3f69931d23f83c48d6d62b3a5605e8ec960c89af90886cebf99b84271f4af"
+  },
+  {
+   "path": "installed_exports/affinity/offline/affinity_scripting_api_detail.json",
+   "bytes": 3602554,
+   "sha256": "5d8cd4b38ead6490e53b24c30924b766f70ec417e3d5008cbe50f52b3eb00baa"
+  },
+  {
+   "path": "installed_exports/affinity/offline/affinity_tool_panel_registry.json",
+   "bytes": 156602,
+   "sha256": "650f457672418ebd11f261f9d859f6787039c3f4ee3183634015f2e6aa2a7e98"
+  },
+  {
+   "path": "installed_exports/affinity/offline/extract_record.json",
+   "bytes": 599,
+   "sha256": "2bd08a2663a0389dda0b8d5e833125e4d423ba5741d6dcaa94da6fbdd5543204"
+  },
+  {
+   "path": "installed_exports/affinity/offline/harvest_record.json",
+   "bytes": 1088,
+   "sha256": "a058a087665439d00ab4535e81fee5d6c166ca8a0d7722adcc803c503f2d278f"
+  },
+  {
+   "path": "installed_exports/affinity/offline/plugins.json",
+   "bytes": 31,
+   "sha256": "c475f160eeadc5240475fea0cf7c3dc498f047b6eec35c16c94665e436bfd873"
+  },
+  {
+   "path": "installed_exports/affinity/offline/presets.json",
+   "bytes": 143832,
+   "sha256": "ec922be1a43ff23f2ea6c750dd17b84db87d37a61db8dc02bb56b88b6ce4f1ca"
+  },
+  {
+   "path": "installed_exports/affinity/offline/presets_names_scan.json",
+   "bytes": 1478260,
+   "sha256": "448ecc10327831f27b033f92bd9bec30ec3e65bf6925c03813c7160a20612671"
+  },
+  {
+   "path": "installed_exports/affinity/offline/scripting_api_surface.json",
+   "bytes": 458281,
+   "sha256": "555e50b7be62de63b1a924a291678952dfa0752724c0ad508c95db60715a5a13"
+  },
+  {
+   "path": "installed_exports/affinity/offline/tree_manifest.json",
+   "bytes": 196053,
+   "sha256": "bd9eb6331a3033bde80c22a4f454fd4f1d712654c153f410e1a126949188a1d2"
+  },
+  {
+   "path": "installed_exports/affinity/offline/ui_strings_dotnet_en-US.json",
+   "bytes": 1546455,
+   "sha256": "41efc71f31a3ec294b9e032ab1a3c7a8938e52579db8c38d2e6b6f5ca3cb6107"
+  },
+  {
+   "path": "installed_exports/affinity/offline/ui_strings_dotnet_summary.json",
+   "bytes": 5094,
+   "sha256": "04ba9e5f6ea80b960c946a67943d33c555ac2c1190382f2fa7dc5be8d2c9b257"
+  },
+  {
+   "path": "installed_exports/affinity/offline/ui_strings_lproj_Base.json",
+   "bytes": 97397,
+   "sha256": "8ba9d3801fcfcc4efd9985aa74d7cf0909c715fc535808c1e26f1d629118c9b7"
+  },
+  {
+   "path": "installed_exports/affinity/offline/ui_strings_lproj_en-US.json",
+   "bytes": 97096,
+   "sha256": "abbe8d17805ffc14a4bcf12436093070868101da655336e99117db32718d676d"
+  },
+  {
+   "path": "installed_exports/affinity/offline/uxp_manifests.json",
+   "bytes": 33,
+   "sha256": "75ad7e8c658478df3db741c31abff8f488a7c914775c8fa48c51c2c335591838"
+  },
+  {
+   "path": "installed_exports/affinity/offline/workspaces.json",
+   "bytes": 29,
+   "sha256": "56b1f7a354514669cb47dedfbd6cb60197dc6acaf4c1998606549a7fceb804d1"
+  },
+  {
+   "path": "installed_exports/aftereffects/offline/aftereffects_commands_shortcuts.json",
+   "bytes": 636176,
+   "sha256": "405e91863ab17f7d4152e678a8e10de43a91bfd4f723e7c3f76be180f708915c"
+  },
+  {
+   "path": "installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+   "bytes": 6336485,
+   "sha256": "a5dec26c86b5d6e940b5727758b5b16ec207e10f0f6ec4b86adaa5c4f6a0949b"
+  },
+  {
+   "path": "installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+   "bytes": 480800,
+   "sha256": "ee7e8531aa844d6fcbc71a73db7d84f9960b03b50b8f175d6bf6e81d0faa87fe"
+  },
+  {
+   "path": "installed_exports/aftereffects/offline/aftereffects_panels_dialogs.json",
+   "bytes": 4230232,
+   "sha256": "f219ec4d43198de32c4cdc38f6257a7d7abcd5650cbf36ba56ea66dc538eaa33"
+  },
+  {
+   "path": "installed_exports/aftereffects/offline/aftereffects_presets.json",
+   "bytes": 27631037,
+   "sha256": "3c1e07f788717af9531505e41e0b88a2740c28acb316db35a3c695f52c06661b"
+  },
+  {
+   "path": "installed_exports/aftereffects/offline/aftereffects_render_output.json",
+   "bytes": 712607,
+   "sha256": "fec6683b75d0c976c64a116fcd32100b3f07f538ed4f2c4eb2abd5efaefc16ac"
+  },
+  {
+   "path": "installed_exports/aftereffects/offline/aftereffects_scripting_expressions.json",
+   "bytes": 256628,
+   "sha256": "110b135f6d8cc9e6d644df0067159dd0d02e5bb0d6a0fcde8883ec7fe5a63663"
+  },
+  {
+   "path": "installed_exports/aftereffects/offline/aftereffects_text_shape_mask.json",
+   "bytes": 314909,
+   "sha256": "ea7d80e8ef205394e2973954ad71e013dd62ce15c8b7d1293e05ce952fa02828"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/dreamweaver_code_intelligence.json",
+   "bytes": 12710343,
+   "sha256": "99eff56260054c5c9635c5a5be2ab5e64be4d135d9ec5d649eac445e16f46c9b"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/dreamweaver_command_surface.json",
+   "bytes": 4029391,
+   "sha256": "97086eaa6a685d11cbaa4f54ed7b83a4fcba09147c3a8bfe4c9c0e3bfd52e2d7"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/dreamweaver_objects_behaviors.json",
+   "bytes": 2362964,
+   "sha256": "8b5406ab0e9ea1c50e68d41d0d954ca7aeb6a98ccb5192b201b3d179675c3686"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/dreamweaver_panels_dialogs.json",
+   "bytes": 4488036,
+   "sha256": "a8e570ee08cbfeed374b4a9fae5117da01aa8fb38112db0fa2426fcdf2d13d1d"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/dreamweaver_site_server_model.json",
+   "bytes": 1671567,
+   "sha256": "47af376863df53c551b116d9455cbd47f49023ac4fb0178f68b168024576cb46"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/dreamweaver_strings_en_US.json",
+   "bytes": 2187361,
+   "sha256": "787554f4d5f9c612758a1132e2d90a1df0b607cbc1c62c80a450964d60b6c0a3"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/dreamweaver_templates_css.json",
+   "bytes": 1502706,
+   "sha256": "f2b852bba53f8b10429970aa056c6c6642a1e9b1abe70173f083f7fb9ba90edf"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/harvest_record.json",
+   "bytes": 977,
+   "sha256": "c9511b65a461c2ab865bb53da0d569c741d2db96f355e73476a924969184c201"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/plugins.json",
+   "bytes": 31,
+   "sha256": "c475f160eeadc5240475fea0cf7c3dc498f047b6eec35c16c94665e436bfd873"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/presets.json",
+   "bytes": 2196036,
+   "sha256": "8d3a13121027f6d6ed8d98f58f7cd120b7e7fe121025323e9deec0d037c4833d"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/tree_manifest.json",
+   "bytes": 6226293,
+   "sha256": "4c44b39eb7281b0e9b61fc8a3b7aeef61fd7a365c1ea5e2d08e0bad2ec93a16d"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/uxp_manifests.json",
+   "bytes": 1762,
+   "sha256": "20190e2806edf9a10129e14972d6cf7324221e1fd4f32405303f90d098cc8820"
+  },
+  {
+   "path": "installed_exports/dreamweaver/offline/workspaces.json",
+   "bytes": 29,
+   "sha256": "56b1f7a354514669cb47dedfbd6cb60197dc6acaf4c1998606549a7fceb804d1"
+  },
+  {
+   "path": "installed_exports/figma/offline/figma_object_model.json",
+   "bytes": 1271945,
+   "sha256": "e7d851b46bd71bc709e325f260b48c11dad48a559fe9a2c0e5fcc24a4d717fac"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/dom_typelib.json",
+   "bytes": 318374,
+   "sha256": "c7216d81fcb24113f3247717e8bb7a9bb67eb8861f370c6498706151c1749ca6"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/harvest_record.json",
+   "bytes": 1653,
+   "sha256": "713cb5315715932fe757e0d3ae13547c103ca63c7b77d39321013a825d9dae7f"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/illustrator_effects.json",
+   "bytes": 1192151,
+   "sha256": "6a8e0d8672c10ae50ff7527e4004d3d2fe4f73da8fbb1ec59b684651a3593780"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/illustrator_enums.json",
+   "bytes": 84872,
+   "sha256": "101ce48b3e7d68e587950fd05b61fbdce19ad34ad566541c0da8aa82e1b1d391"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/illustrator_library_contents.json",
+   "bytes": 2860692,
+   "sha256": "7183b4238e16eeb088e5ed6a66b346be51001a7bc53908c44b069fd0b20b1322"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/illustrator_panels.json",
+   "bytes": 245111,
+   "sha256": "7b07502b780a75936b630769a8169770a04b2f927531154e009cc4b97ab8cab2"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+   "bytes": 872647,
+   "sha256": "528cb931d57ea38e787f2fad2b12b47b9202a9c8aef05cbdc4727654add784b2"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/illustrator_shortcuts.json",
+   "bytes": 257238,
+   "sha256": "9acfb313c558daec6a3ee693a540a62191a7da86dd82df3f94d6402c736ce05b"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/keyboard_shortcuts.json",
+   "bytes": 8849,
+   "sha256": "d209eb89ffffd2b93af5ebff82e3d66407247510ecbafde12432ccfe19b748d1"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/plugins.json",
+   "bytes": 1516,
+   "sha256": "b945ec0bc861b1df808844dab0a7578eb4b1a3bc401ad7fb23dff7c172a183d8"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/presets.json",
+   "bytes": 230108,
+   "sha256": "5bc06b4abedaca0d541f6d0303494bd49a38d7907ae09e5bc1f3f441b4bce6c5"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/tree_manifest.json",
+   "bytes": 1120250,
+   "sha256": "2b14c93ecd4acab293b9825e36cffa09abb3704f6ec6e05a53854a886e4719ff"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/uxp_manifests.json",
+   "bytes": 27485,
+   "sha256": "8fc92386fa2344b80ecb2d37b3a113e899c1da1baa0ff3c22ae391278d0bfc14"
+  },
+  {
+   "path": "installed_exports/illustrator/offline/workspaces.json",
+   "bytes": 29,
+   "sha256": "56b1f7a354514669cb47dedfbd6cb60197dc6acaf4c1998606549a7fceb804d1"
+  },
+  {
+   "path": "installed_exports/indesign/export_record.json",
+   "bytes": 401,
+   "sha256": "3779af08a16bb22cbc8dd8b7ddba0bd9660497a643950aac2bdc601e1afbfc9d"
+  },
+  {
+   "path": "installed_exports/indesign/offline/harvest_record.json",
+   "bytes": 974,
+   "sha256": "9fc21a102b1bb11362b1b580f3761d878c31b107f5134f78539e8c5eb1e111a3"
+  },
+  {
+   "path": "installed_exports/indesign/offline/indesign_command_surface.json",
+   "bytes": 4035104,
+   "sha256": "ab1fbf5ef650f9f82f474ff39c0c21a73f2aef061f12ef1501e4265c28f0432c"
+  },
+  {
+   "path": "installed_exports/indesign/offline/indesign_dialogs.json",
+   "bytes": 42210809,
+   "sha256": "647750ec07b688b076a45b5fe22ed8fdbcb3a439aca82beefe8daba187739022"
+  },
+  {
+   "path": "installed_exports/indesign/offline/indesign_dom.json",
+   "bytes": 334343,
+   "sha256": "72d50237bbdae6969059931694be6d1bb9ff4b7b69f439ca756e58d8028c5ef2"
+  },
+  {
+   "path": "installed_exports/indesign/offline/indesign_dom_full.json",
+   "bytes": 8551537,
+   "sha256": "f0ed7f94dac10dcdab8b032b7b6e0eb07c2dcd84160b0b45157d040d06ae6830"
+  },
+  {
+   "path": "installed_exports/indesign/offline/indesign_error_catalog.json",
+   "bytes": 749159,
+   "sha256": "301ba95b31f5d6b8eeb5f969c6a8d9ed2754beaf9408a62b41955acae1265664"
+  },
+  {
+   "path": "installed_exports/indesign/offline/indesign_idrc_survey.json",
+   "bytes": 3527564,
+   "sha256": "d2771f5e0a21772c4019184752f80923f6f5f12797886073f9fb94b0d8a82227"
+  },
+  {
+   "path": "installed_exports/indesign/offline/indesign_preset_contents.json",
+   "bytes": 118859,
+   "sha256": "bd69866c6168ce4d832b692601065feb6a45318f5a9b002dacda2b0037fae293"
+  },
+  {
+   "path": "installed_exports/indesign/offline/indesign_resource_code_map.json",
+   "bytes": 170378,
+   "sha256": "57cc04a3d36c01fec5e6141b4d4f313d3dcb5183882b514c09fa144cfb870b04"
+  },
+  {
+   "path": "installed_exports/indesign/offline/indesign_text_model.json",
+   "bytes": 4463109,
+   "sha256": "04dc05d892b1cb7bb95a9fd195db4aeb1d8c36325c1738c6bc9e7772a8764143"
+  },
+  {
+   "path": "installed_exports/indesign/offline/plugins.json",
+   "bytes": 635,
+   "sha256": "79cceec95ada274ce02c1bdd9d1839e5306f0fc3fbf4bbe405808597078d587e"
+  },
+  {
+   "path": "installed_exports/indesign/offline/presets.json",
+   "bytes": 347058,
+   "sha256": "2c0b6885a0521c19580db116a7071a3ddb7911042593fdb0d8cbeea5d0641676"
+  },
+  {
+   "path": "installed_exports/indesign/offline/tree_manifest.json",
+   "bytes": 6088389,
+   "sha256": "480ff3c39fcc1febce11a42c4da9d7562adc78b2556e1f6b396ed21ecf5b9c00"
+  },
+  {
+   "path": "installed_exports/indesign/offline/uxp_manifests.json",
+   "bytes": 28875,
+   "sha256": "0af49a5bddc0f81368347597ad4cdf6bd68e4faf7261606e6d8e8ca6389d0277"
+  },
+  {
+   "path": "installed_exports/indesign/offline/workspaces.json",
+   "bytes": 29,
+   "sha256": "56b1f7a354514669cb47dedfbd6cb60197dc6acaf4c1998606549a7fceb804d1"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/harvest_record.json",
+   "bytes": 928,
+   "sha256": "532a56c01d32678f237f4c9fe7f1e2372e02eda453579a657f167cbe79d07a0e"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/lightroom_catalog_model.json",
+   "bytes": 364744,
+   "sha256": "f4cc411b933258022b7dcc01f16b0e3534aa209090831274d75e30aa7a620d84"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+   "bytes": 947433,
+   "sha256": "841d8a9760d82ab223ce57cb453547022bf5adbd8eafd3e564345eb330828f48"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+   "bytes": 1506803,
+   "sha256": "58417368354956a4aa294655f62022b6d96f39d75ec95a5ec58007aae7ab15e7"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+   "bytes": 361847,
+   "sha256": "0e70198924f7ff0471a12c27870854543e8e8179a927eb77545bf945cce3b40a"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/lightroom_sdk_api.json",
+   "bytes": 923167,
+   "sha256": "f0e9b96fb20ff412dd62653856557364e2f5a6213d6d5612bbfed27be041af8c"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/lightroom_templates.json",
+   "bytes": 508776,
+   "sha256": "8aab6515634abc24722c3ba16e6e68600d92928223b58f7ab27c244f888cdd95"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/plugins.json",
+   "bytes": 1611,
+   "sha256": "5a9afeed12e6d8b507b39845b83cd643a5f75a21edd4c6c753b732f638783a5d"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/presets.json",
+   "bytes": 224351,
+   "sha256": "c1735185301ce54402a407509189d1e4c3e970f8de6f68c00f358b93d3c0d3fb"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/tree_manifest.json",
+   "bytes": 2554971,
+   "sha256": "b295dc07c06020b1e10d092a2b03b75080b7242f831067ff072a9e3addfaaaf3"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/uxp_manifests.json",
+   "bytes": 9998,
+   "sha256": "da6c89aaaec0f1437bedcedae6d3fdffa679c00e27635e8e65cf327e31f24503"
+  },
+  {
+   "path": "installed_exports/lightroom_classic/offline/workspaces.json",
+   "bytes": 29,
+   "sha256": "56b1f7a354514669cb47dedfbd6cb60197dc6acaf4c1998606549a7fceb804d1"
+  },
+  {
+   "path": "installed_exports/media_encoder/offline/harvest_record.json",
+   "bytes": 927,
+   "sha256": "32b916a431b9f27bc7c25bece4d27a62745abb6402cce520aebef2a06dbee73c"
+  },
+  {
+   "path": "installed_exports/media_encoder/offline/plugins.json",
+   "bytes": 93721,
+   "sha256": "8646a4e9c1f94543b92f978bae8dbfa9d51398005b730a0dcd4089de609e3f70"
+  },
+  {
+   "path": "installed_exports/media_encoder/offline/presets.json",
+   "bytes": 34496,
+   "sha256": "5b0e2e769f7591de0b32ef2be06f26c8ce3adc0c29975f94109eddaf4391a72e"
+  },
+  {
+   "path": "installed_exports/media_encoder/offline/tree_manifest.json",
+   "bytes": 1756826,
+   "sha256": "9e8bb094b73e2e3a2d0d1d720015943f615c05e0e387a547a6d2b03351b82b31"
+  },
+  {
+   "path": "installed_exports/media_encoder/offline/uxp_manifests.json",
+   "bytes": 33,
+   "sha256": "75ad7e8c658478df3db741c31abff8f488a7c914775c8fa48c51c2c335591838"
+  },
+  {
+   "path": "installed_exports/media_encoder/offline/workspaces.json",
+   "bytes": 29,
+   "sha256": "56b1f7a354514669cb47dedfbd6cb60197dc6acaf4c1998606549a7fceb804d1"
+  },
+  {
+   "path": "installed_exports/photoshop/export_record.json",
+   "bytes": 616,
+   "sha256": "9250350353b1625b9878d112df228816a135929bf7d361e60d24d6c880f0ccb0"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/dom_typelib.json",
+   "bytes": 133702,
+   "sha256": "8ffb318ebaed3606773103d68e7ac5151c2e145ff67d488466fd603dc2ac0f28"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/harvest_record.json",
+   "bytes": 1969,
+   "sha256": "b6ac4b1eb2e13354787910a0f6abc9a977f311520ccabdf17d0dfe8597ddadab"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/keyboard_shortcuts.json",
+   "bytes": 17903,
+   "sha256": "a47f32367e3b5f6fd78491168315b5c73058f3bec3ddcee0543a367317083d9d"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/photoshop_dialogs.json",
+   "bytes": 20217321,
+   "sha256": "8c322bbadab9b84cb6d5fb1501f12381201e70f14eb22642892662d87417f2a2"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/photoshop_enums.json",
+   "bytes": 271037,
+   "sha256": "cb19ee40d1c0aba4a22dd4307d1d4cd5bb458e9b2102405521f0ccb30dde8bfe"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/photoshop_panels.json",
+   "bytes": 611545,
+   "sha256": "5ca0cc33cfbc51a8e286bff70761e82bd8647b9d958d4d9b6d096c6514dac314"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+   "bytes": 1223125,
+   "sha256": "5ee27aa6f5e4a6ec5f742fe88763cfd0abbf1c77e0801073755d708967b62ba6"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/photoshop_preset_contents.json",
+   "bytes": 7974203,
+   "sha256": "f58bb3038d7e21c45f59830b2f1e6dedd74285c52e3029f13a4a40b1e9b20d6e"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/photoshop_shortcuts_full.json",
+   "bytes": 279657,
+   "sha256": "ee59de840a1dfb2f4ba5be88a02b34f62c24585d06ca7bef1c2cd38921254927"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/plugins.json",
+   "bytes": 8211,
+   "sha256": "3c71a7fe28a89f7659450c45b16e97f3144b6e7a3c1cdb3b8817a30085e75505"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/presets.json",
+   "bytes": 378114,
+   "sha256": "db062cf496462fad574249d58cd6f640434fbc062f056f7c035fe9fb50070abe"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/tree_manifest.json",
+   "bytes": 1471644,
+   "sha256": "278276f44e7b72c4a114dca28f435c338b4eb608f6335258beb0d108d28ab3c6"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/uxp_manifests.json",
+   "bytes": 36599,
+   "sha256": "89e7ed4661d937e0eb01c62cc74d1abcd231eaa38ddff18549c4b69ecfcbe91a"
+  },
+  {
+   "path": "installed_exports/photoshop/offline/workspaces.json",
+   "bytes": 85293,
+   "sha256": "2e47859974d880204ba5557099425e490732aa765163ba2c35166fbc54e66044"
+  },
+  {
+   "path": "installed_exports/premiere/offline/harvest_record.json",
+   "bytes": 11387,
+   "sha256": "d84acc96336aeac0ad6888f47baa473d639c3286a5ae09c5b89a9925f6769307"
+  },
+  {
+   "path": "installed_exports/premiere/offline/keyboard_shortcuts.json",
+   "bytes": 16674,
+   "sha256": "e376672b9a52c4d7a358dc6217ac1a34e432a5d0b19214778703dc66751cbda9"
+  },
+  {
+   "path": "installed_exports/premiere/offline/plugins.json",
+   "bytes": 30973,
+   "sha256": "a07df565f6ef7df42c349353d273119ac50321500213aa1c66687cf8ad51f7e1"
+  },
+  {
+   "path": "installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+   "bytes": 8705835,
+   "sha256": "954582266870f32aee5a4681ba2b627b87d62ba425e4b99a3389525d93d2cf93"
+  },
+  {
+   "path": "installed_exports/premiere/offline/premiere_effects_catalogue.json",
+   "bytes": 4910634,
+   "sha256": "5fa35640eddc62b997b47690b8ab7573cb8cda99c708806ab776b77f0a0873f3"
+  },
+  {
+   "path": "installed_exports/premiere/offline/premiere_export_pipeline.json",
+   "bytes": 15659786,
+   "sha256": "0240af4441e548162b37ba331dfc2fd1a00cc0c68836e54e397fce72fa3ced29"
+  },
+  {
+   "path": "installed_exports/premiere/offline/premiere_graphics_text.json",
+   "bytes": 893522,
+   "sha256": "0aaf8207b5f5f0214603dba1accaee50aea7b6b9ad1075bc7e8e254552aa4b31"
+  },
+  {
+   "path": "installed_exports/premiere/offline/premiere_lumetri_color.json",
+   "bytes": 1362901,
+   "sha256": "3cb34c119c18ee82682424b47b7488a148109f11ff6e0f4acdde29e5e16184ab"
+  },
+  {
+   "path": "installed_exports/premiere/offline/premiere_media_io.json",
+   "bytes": 177121,
+   "sha256": "5ea99a52da75fa515ea8e2c265a6f101fa60f5f399c8834ddb7a3ccad95b524b"
+  },
+  {
+   "path": "installed_exports/premiere/offline/premiere_panels_dialogs.json",
+   "bytes": 4455761,
+   "sha256": "be40f460f2c1e8c498fedededc398128a7740a8bd059f84752864b9d61911115"
+  },
+  {
+   "path": "installed_exports/premiere/offline/premiere_sequence_project_model.json",
+   "bytes": 2609000,
+   "sha256": "2dd4de982a25d2e6189fdee126c43fd6be43009240bc9b965129eb0698478d2c"
+  },
+  {
+   "path": "installed_exports/premiere/offline/presets.json",
+   "bytes": 210066,
+   "sha256": "97ba3e39bf5aa83df1a73c4f61b63d4442efb4cb533667f064c0571e961af91b"
+  },
+  {
+   "path": "installed_exports/premiere/offline/tree_manifest.json",
+   "bytes": 2735458,
+   "sha256": "de3a7518816b868ce9d66bb50f13cefb4f243105aecc8702dbfba08ce17f56a6"
+  },
+  {
+   "path": "installed_exports/premiere/offline/uxp_manifests.json",
+   "bytes": 22385,
+   "sha256": "cfbff33e1bfb15b3daf4a16c52dfc7af264cb82262bdbea05a8b5bc9fd23750a"
+  },
+  {
+   "path": "installed_exports/premiere/offline/workspaces.json",
+   "bytes": 29,
+   "sha256": "56b1f7a354514669cb47dedfbd6cb60197dc6acaf4c1998606549a7fceb804d1"
+  }
+ ]
+}

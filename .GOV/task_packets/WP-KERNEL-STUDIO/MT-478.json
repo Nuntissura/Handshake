@@ -1,139 +1,246 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-478",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-478.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-478.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-477",
-      "MT-464",
-      "MT-019"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Unified export surfaces II — PDF presets, batch/packaging, video/animation, print [STU-IO-010]",
-  "spec_anchor": [
-    "STU-IO-010",
-    "STU-IO-004",
-    "STU-PRO-043",
-    "STU-SOT"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-478",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:27+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-478.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-478.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-477",
+   "MT-464",
+   "MT-019"
   ],
-  "scope": {
-    "summary": "Implement the second StudioExportRecipe surface group: PDF export (option groups for preset/standard incl. PDF/X, general/preserve-editing, compression/downsampling, output color conversion, security, with named reusable PDF presets); batch and packaging (export each layer or artboard to individual files, artboards-to-PDF packaging); video/animation render (timeline to encoder presets or image sequences with range/size/frame-rate options); and print output (printer setup; Studio- vs printer-managed color with rendering intent + soft-proof; position + scaled print size; printing marks; bleed/background/border). Each is a StudioExportRecipe configuration; export area resolves against the canonical document/selection/slice set, not the rendered/visible subset.",
-    "allowed_paths": [
-      "src/studio/interop/**",
-      "studio-engine/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "PDF presets + batch/packaging + video render + print output as StudioExportRecipe on canonical set; Argus + manual"
-    ],
-    "proof_targets": [
-      "PDF-preset/batch/video/print export + canonical-set resolution test"
-    ],
-    "code_surfaces": [
-      "src/studio/interop/export/pdf_presets.rs",
-      "src/studio/interop/export/batch.rs",
-      "src/studio/interop/export/video.rs",
-      "src/studio/interop/export/print.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::interop::export::pdf_batch_video_print",
-      "test: named PDF presets + batch layer/artboard-to-files + artboards-to-PDF",
-      "test: video timeline->encoder-presets/image-sequence; print managed-color + intent + marks + bleed; canonical-set resolution"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "PDF export dialog",
-      "batch export",
-      "video render",
-      "print dialog"
-    ],
-    "argus_targets": [
-      "studio.export.pdf",
-      "studio.export.batch",
-      "studio.export.video",
-      "studio.export.print"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Import & Export / Export surfaces — PDF, batch, video & print"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Unified export surfaces II — PDF presets, batch/packaging, video/animation, print [STU-IO-010]",
+ "spec_anchor": [
+  "STU-IO-010",
+  "STU-IO-004",
+  "STU-PRO-043"
+ ],
+ "scope": {
+  "summary": "Implement the second StudioExportRecipe surface group: PDF export (option groups for preset/standard incl. PDF/X, general/preserve-editing, compression/downsampling, output color conversion, security, with named reusable PDF presets); batch and packaging (export each layer or artboard to individual files, artboards-to-PDF packaging); video/animation render (timeline to encoder presets or image sequences with range/size/frame-rate options); and print output (printer setup; Studio- vs printer-managed color with rendering intent + soft-proof; position + scaled print size; printing marks; bleed/background/border). Each is a StudioExportRecipe configuration; export area resolves against the canonical document/selection/slice set, not the rendered/visible subset.",
+  "allowed_paths": [
+   "src/studio/interop/**",
+   "studio-engine/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No PDF/batch/video/print export; production output gap.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "PDF presets",
+   "Batch/packaging",
+   "Video render",
+   "Print output as StudioExportRecipe on canonical set",
+   "Argus",
+   "Manual"
+  ],
+  "proof_targets": [
+   "PDF-preset/batch/video/print export + canonical-set resolution test"
+  ],
+  "code_surfaces": [
+   "src/studio/interop/export/pdf_presets.rs",
+   "src/studio/interop/export/batch.rs",
+   "src/studio/interop/export/video.rs",
+   "src/studio/interop/export/print.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::interop::export::pdf_batch_video_print",
+   "test: named PDF presets + batch layer/artboard-to-files + artboards-to-PDF",
+   "test: video timeline->encoder-presets/image-sequence; print managed-color + intent + marks + bleed; canonical-set resolution"
+  ],
+  "acceptance_criteria_original": [
+   "PDF presets + batch/packaging + video render + print output as StudioExportRecipe on canonical set; Argus + manual"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "PDF export dialog",
+   "batch export",
+   "video render",
+   "print dialog"
+  ],
+  "argus_targets": [
+   "studio.export.pdf",
+   "studio.export.batch",
+   "studio.export.video",
+   "studio.export.print"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Import & Export / Export surfaces — PDF, batch, video & print"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No PDF/batch/video/print export; production output gap.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "PDF presets",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PDF-preset/batch/video/print export + canonical-set resolution test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Batch/packaging",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Video render",
+   "evidence_kind": "gui_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Print output as StudioExportRecipe on canonical set",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Argus",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "Manual",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 6,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-IO-010",
+    "spec_clause_text": "[STU-IO-010] All export surfaces recorded across the source suites MUST unify into `StudioExportRecipe` — one primitive, many recipes — with NO separate per-surface export subsystem. The unified recipe MUST cover: - Single-target export: per-document, per-layer, and per-artboard export — the deduped \"Export As\" / \"Save a Copy\" derived-format matrix, plus a one-click \"Quick Export\" default with a preferred format and location. - Export-for-screens / slices: independent named export regions drawn from areas, layers, or artboards, each with its own format and scale set; multi-scale variants (1x/2x/3x…) with scale-suffix filename tokens; and continuous/automatic re-export when slice content changes. - Legacy web optimizer: 2-up/4-up preview, GIF/JPEG/PNG-8/PNG-24 settings, dither, transparency matte, color-table editing, image-size, and slice-aware HTML/image output. - PDF export: option groups for preset/standard (including PDF/X), general/preserve-editing, compression/downsampling, output color conversion, and security, with named reusable PDF presets. - Batch and packaging: export of each layer or artboard to individual files, and artboards-to-PDF packaging. - Video/animation render: timeline to encoder presets or image sequences with range, size, and frame-rate options. - Print output: printer setup; Studio- vs printer-managed color with rendering intent and soft-proof; position and scaled print size; printing marks; and bleed/background/border functions. Each is a `StudioExportRecipe` configuration; export area MUST resolve against the canonical document/selection/slice set, not the currently rendered/visible subset. ### 7. Fixtures and round-trip expectations"
+   },
+   {
+    "anchor": "STU-IO-004",
+    "spec_clause_text": "[STU-IO-004] NORMATIVE GATE. A format import or export feature MUST NOT be promoted (marked parity-complete or shippable) unless it declares ALL of the following five artifacts: - (a) **compatibility scope** — an explicit statement of which structures are preserved, transformed, rasterized, or unsupported. - (b) **fixtures** — representative fixtures for every supported app-and-direction it claims. - (c) **round-trip expectations** — the documented, bounded fidelity envelope after import->export. - (d) **unsupported-feature diagnostics/receipts** — a machine-readable receipt enumerating every source feature that could not be represented, was degraded, or was baked, emitted at decode/encode time and surfaced to the operator and model. - (e) **recovery behavior** — deterministic, non-destructive handling of malformed, partial, truncated, password-protected, or version-newer inputs (fail closed with a receipt, never a silent partial write to authority). A format that cannot meet all five is `unsupported` or `optional adapter`, not promoted."
+   },
+   {
+    "anchor": "STU-PRO-043",
+    "spec_clause_text": "[STU-PRO-043] All interactive and motion output is produced through the export pipeline in 14.13 via `StudioExportRecipe`, not by a separate exporter here. This sub-section authors the interactive/motion content; 14.13 owns the format writers."
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:27+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ },
+ "anchor_corrections": [
+  {
+   "removed": "STU-SOT",
+   "replaced_with": null,
+   "reason": "STU-SOT is not a clause anchor and appears in no bundle. It read as shorthand for the spec being the source of truth, which every contract already states, so it is removed rather than repointed.",
+   "approved_by": "ilja040920261532",
+   "at": "2026-09-04"
+  }
+ ]
 }

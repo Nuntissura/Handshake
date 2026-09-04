@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30595",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-VEC-030#catalogue_row#0_move_rotate_scale_reflect_shear",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.5.10 Transforms and Distortions",
+  "spec_line": 4615,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Move / rotate / scale / reflect / shear",
+ "spec_anchor": [
+  "STU-VEC-030"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "vector",
+ "scope": {
+  "summary": "Studio MUST provide the deduped transform and distortion set below. Each is a typed operation available identically to operator and model. Live/envelope distortions MUST be non-destructive constructs whose contents remain editable until explicitly expanded. *Derivation: catalogue table, splits per row; yields 8 microtasks, one per transform or distortion construct. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Studio transform | Function (normative) | Parameter contract | |---|---|---| | Move / rotate / scale / reflect / shear | Affine transforms about a settable reference point, with per-object randomised transform-each | [STU-VEC-157] | | Free transform | Combined on-canvas move/scale/rotate/shear with constrain and perspective/distort modifiers | [STU-VEC-157] | | Free distort | Reshape by dragging four corner points of a distortion frame | [STU-VEC-155] | | Perspective distort | Map artwork onto a perspective plane or mockup surface | [STU-VEC-172] | | Envelope distort | Wrap artwork in an editable envelope from a warp preset, a custom mesh grid or a top object | [STU-VEC-168], [STU-VEC-169] | | Warp group | Live perspective/quad/mesh warp wrapping children that stay editable | [STU-VEC-169] | | Puppet warp | Pin-and-drag mesh deform [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Move / rotate / scale / reflect / shear` satisfies the spec's stated studio transform: Move / rotate / scale / reflect / shear",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-030 catalogue row `Move / rotate / scale / reflect / shear`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`Move / rotate / scale / reflect / shear` satisfies the spec's stated function (normative): Affine transforms about a settable reference point, with per-object randomised transform-each",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-030 catalogue row `Move / rotate / scale / reflect / shear`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`Move / rotate / scale / reflect / shear` satisfies the spec's stated parameter contract: [STU-VEC-157]",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-030 catalogue row `Move / rotate / scale / reflect / shear`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`Move / rotate / scale / reflect / shear` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-VEC-030"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

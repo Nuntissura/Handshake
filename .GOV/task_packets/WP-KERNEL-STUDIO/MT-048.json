@@ -1,135 +1,217 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-048",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-048.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-048.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-017",
-      "MT-032",
-      "MT-009"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Warp family: warp, puppet warp, perspective warp, liquify [STU-RAS-029]",
-  "spec_anchor": [
-    "STU-RAS-029"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-048",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-048.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-048.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-017",
+   "MT-032",
+   "MT-009"
   ],
-  "scope": {
-    "summary": "Implement the mesh/warp reshaping primitives on layers, selections, and placed-asset containers: Warp (grid/handle mesh warp with warp presets and custom control-point deformation, including bezier mesh warp); Puppet warp (pin-and-deform mesh with density and expansion); Perspective warp (multi-plane perspective reshaping/correction, single- and dual-plane); Liquify (localized mesh push-forward/left, twirl, pinch, punch, turbulence, mesh-clone, reconstruct brushes, with freeze/thaw masking). Mesh math runs in studio-engine.",
-    "allowed_paths": [
-      "src/studio/**",
-      "studio-engine/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "warp/puppet-warp/perspective-warp/liquify with presets + custom control points",
-      "liquify brushes + freeze/thaw masking + reconstruct proven"
-    ],
-    "proof_targets": [
-      "mesh warp + liquify freeze/thaw runtime + snapshot"
-    ],
-    "code_surfaces": [
-      "src/studio/raster/warp.rs",
-      "studio-engine/src/raster/mesh_warp.rs",
-      "src/frontend/handshake_native/src/studio/raster/warp_ui.rs"
-    ],
-    "expected_tests": [
-      "live: apply a mesh warp preset and a custom control-point deformation; puppet-warp pins deform a shape; liquify push-forward brush with a frozen region leaves the frozen area unchanged",
-      "argus: before/after warp snapshot",
-      "test: reconstruct brush restores warped mesh toward original"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "warp tools",
-      "liquify workspace"
-    ],
-    "argus_targets": [
-      "studio.tool_warp",
-      "studio.tool_puppet_warp",
-      "studio.tool_perspective_warp",
-      "studio.liquify"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Raster / Warp, puppet warp & liquify"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-009"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Warp family: warp, puppet warp, perspective warp, liquify [STU-RAS-029]",
+ "spec_anchor": [
+  "STU-RAS-029"
+ ],
+ "scope": {
+  "summary": "Implement the mesh/warp reshaping primitives on layers, selections, and placed-asset containers: Warp (grid/handle mesh warp with warp presets and custom control-point deformation, including bezier mesh warp); Puppet warp (pin-and-deform mesh with density and expansion); Perspective warp (multi-plane perspective reshaping/correction, single- and dual-plane); Liquify (localized mesh push-forward/left, twirl, pinch, punch, turbulence, mesh-clone, reconstruct brushes, with freeze/thaw masking). Mesh math runs in studio-engine.",
+  "allowed_paths": [
+   "src/studio/**",
+   "studio-engine/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No warp/liquify; organic reshaping and perspective correction absent.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Warp/puppet-warp/perspective-warp/liquify with presets",
+   "Custom control points",
+   "Liquify brushes",
+   "Freeze/thaw masking",
+   "Reconstruct proven"
+  ],
+  "proof_targets": [
+   "mesh warp + liquify freeze/thaw runtime + snapshot"
+  ],
+  "code_surfaces": [
+   "src/studio/raster/warp.rs",
+   "studio-engine/src/raster/mesh_warp.rs",
+   "src/frontend/handshake_native/src/studio/raster/warp_ui.rs"
+  ],
+  "expected_tests": [
+   "live: apply a mesh warp preset and a custom control-point deformation; puppet-warp pins deform a shape; liquify push-forward brush with a frozen region leaves the frozen area unchanged",
+   "argus: before/after warp snapshot",
+   "test: reconstruct brush restores warped mesh toward original"
+  ],
+  "acceptance_criteria_original": [
+   "warp/puppet-warp/perspective-warp/liquify with presets + custom control points",
+   "liquify brushes + freeze/thaw masking + reconstruct proven"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "warp tools",
+   "liquify workspace"
+  ],
+  "argus_targets": [
+   "studio.tool_warp",
+   "studio.tool_puppet_warp",
+   "studio.tool_perspective_warp",
+   "studio.liquify"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Raster / Warp, puppet warp & liquify"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-INT-009"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No warp/liquify; organic reshaping and perspective correction absent.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Warp/puppet-warp/perspective-warp/liquify with presets",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "mesh warp + liquify freeze/thaw runtime + snapshot",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Custom control points",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Liquify brushes",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Freeze/thaw masking",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Reconstruct proven",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-RAS-029",
+    "spec_clause_text": "**[STU-RAS-029]** Studio MUST provide the following deduped transform and reshaping primitives on layers, selections, and placed-asset containers. Numeric and handle-based input MUST both be supported, and every transform MUST carry explicit typed units per [STU-DOC-003]. *Derivation: catalogue table, splits per row; yields 10 microtasks, one per transform primitive.* | Transform primitive | Normative behavior | |---|---| | Move | Moves selection or layer content, with auto-select and layer-bounds hover options. | | Crop | Crops/expands canvas with ratio and absolute presets, overlay guides, straighten, delete-vs-hide cropped pixels, crop-to-selection, and content-aware fill of newly exposed areas on commit. | | Perspective crop | Crops while correcting keystoned perspective to a straight-on rectangle via corner handles. | | Free transform | Scale, rotate, skew, distort, and flip in one interactive operation with numeric entry and reference-point control. | | Warp | Grid/handle mesh warp with warp presets and custom control-point deformation, including bezier mesh warp. | | Puppet warp | Pin-and-deform mesh with density and expansion controls for organic reshaping. | | Perspective warp | Multi-plane perspective reshaping/correction (single- and dual-plane). | | Content-aware scale | Scales while protecting flagged content from distortion using a protection mask/channel. | | Content-aware fill | Fills a selection by synthesizing plausible pixels from sampled source regions ([STU-RAS-143]). | | Liquify | Localized mesh push-forward, push-left, twirl, pinch, punch, turbulence, mesh-clone, and reconstruct brushes, with freeze/thaw masking. |"
+   }
+  ],
+  "spec_clause_count": 1,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

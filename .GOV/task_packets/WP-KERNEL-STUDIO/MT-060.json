@@ -1,131 +1,199 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-060",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-060.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-060.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-002",
-      "MT-017",
-      "MT-009"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "StudioBlendMode canonical enum wiring + additional modes + capability metadata [STU-RAS-038,STU-RAS-039]",
-  "spec_anchor": [
-    "STU-RAS-038",
-    "STU-RAS-039"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-060",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-060.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-060.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-002",
+   "MT-017",
+   "MT-009"
   ],
-  "scope": {
-    "summary": "Wire the single canonical StudioBlendMode enum (14.23) shared by layers, groups, brush tools, fills, and effects: all normative modes in the STU-RAS-038 table (Normal/Dissolve/Behind/Clear, Darken group, Lighten group, Contrast group, Comparative, Component, Pass Through) PLUS the additional modes present in only one source suite (Average, Negation, Reflect, Glow, Erase) so no source blend behavior is lost. Record per-bit-depth availability (32-bit restricts the set) and tool-vs-layer applicability (Behind/Clear tool-only) as inspectable capability metadata rather than silent no-ops. Blend math is in RasterEngine (MT-017); this MT wires the enum, metadata, and the layer/tool/effect blend-mode selectors.",
-    "allowed_paths": [
-      "src/studio/**",
-      "studio-engine/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "full canonical StudioBlendMode enum incl. additional modes, shared across surfaces",
-      "per-bit-depth + tool-vs-layer applicability inspectable, not silent"
-    ],
-    "proof_targets": [
-      "blend-mode composite runtime + capability-metadata query"
-    ],
-    "code_surfaces": [
-      "src/studio/raster/blend_mode.rs",
-      "src/frontend/handshake_native/src/studio/raster/blend_selector.rs"
-    ],
-    "expected_tests": [
-      "live: set a layer blend mode from each group and confirm the composite via snapshot; Behind/Clear are offered only as tool modes, not layer modes",
-      "test: at 32-bit the restricted mode set is reported as inspectable capability metadata; Average/Negation/Reflect/Glow/Erase present",
-      "argus: blend-selector author_ids"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "blend-mode selector (layer/tool/effect)"
-    ],
-    "argus_targets": [
-      "studio.blend_mode"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Raster / Blend modes"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-009"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "StudioBlendMode canonical enum wiring + additional modes + capability metadata [STU-RAS-038,STU-RAS-039]",
+ "spec_anchor": [
+  "STU-RAS-038",
+  "STU-RAS-039"
+ ],
+ "scope": {
+  "summary": "Wire the single canonical StudioBlendMode enum (14.23) shared by layers, groups, brush tools, fills, and effects: all normative modes in the STU-RAS-038 table (Normal/Dissolve/Behind/Clear, Darken group, Lighten group, Contrast group, Comparative, Component, Pass Through) PLUS the additional modes present in only one source suite (Average, Negation, Reflect, Glow, Erase) so no source blend behavior is lost. Record per-bit-depth availability (32-bit restricts the set) and tool-vs-layer applicability (Behind/Clear tool-only) as inspectable capability metadata rather than silent no-ops. Blend math is in RasterEngine (MT-017); this MT wires the enum, metadata, and the layer/tool/effect blend-mode selectors.",
+  "allowed_paths": [
+   "src/studio/**",
+   "studio-engine/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Blend modes forked or incomplete; source blend behaviors lost; silent no-ops at 32-bit / tool-only misuse.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Full canonical StudioBlendMode enum incl. additional modes, shared across surfaces",
+   "Per-bit-depth",
+   "Tool-vs-layer applicability inspectable, not silent"
+  ],
+  "proof_targets": [
+   "blend-mode composite runtime + capability-metadata query"
+  ],
+  "code_surfaces": [
+   "src/studio/raster/blend_mode.rs",
+   "src/frontend/handshake_native/src/studio/raster/blend_selector.rs"
+  ],
+  "expected_tests": [
+   "live: set a layer blend mode from each group and confirm the composite via snapshot; Behind/Clear are offered only as tool modes, not layer modes",
+   "test: at 32-bit the restricted mode set is reported as inspectable capability metadata; Average/Negation/Reflect/Glow/Erase present",
+   "argus: blend-selector author_ids"
+  ],
+  "acceptance_criteria_original": [
+   "full canonical StudioBlendMode enum incl. additional modes, shared across surfaces",
+   "per-bit-depth + tool-vs-layer applicability inspectable, not silent"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "blend-mode selector (layer/tool/effect)"
+  ],
+  "argus_targets": [
+   "studio.blend_mode"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Raster / Blend modes"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-INT-009"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Blend modes forked or incomplete; source blend behaviors lost; silent no-ops at 32-bit / tool-only misuse.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Full canonical StudioBlendMode enum incl. additional modes, shared across surfaces",
+   "evidence_kind": "gui_proof",
+   "proof_target": "blend-mode composite runtime + capability-metadata query",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Per-bit-depth",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Tool-vs-layer applicability inspectable, not silent",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-RAS-038",
+    "spec_clause_text": "**[STU-RAS-038]** `StudioBlendMode` is the single canonical blend-mode enum, shared by layers, groups, brush tools, fills, effects and every other Studio domain."
+   },
+   {
+    "anchor": "STU-RAS-039",
+    "spec_clause_text": "**[STU-RAS-039]** Additional comparative/intensity modes present in one source family but not another MUST be included as `StudioBlendMode` values so no source blend behaviour is lost. They receive discriminants above 30 in the order below, and their applicability metadata MUST be populated per [STU-RAS-155]. They are enumerated here rather than named only in prose so that each carries its own implementable contract exactly as the thirty members of [STU-RAS-154] do: *Derivation: catalogue table, splits per row; yields 5 microtasks, one per additional blend mode.* | Blend mode (`StudioBlendMode`) | Discriminant | Group | Applicability and compositing function | |---|---|---|---| | `average` | 31 | comparative | applicability `unknown`; the compositing function was not recovered by the capture and MUST be established by governed spec enrichment before implementation, not guessed | | `negation` | 32 | comparative | applicability `unknown`; compositing function `unknown`, as above | | `reflect` | 33 | intensity | applicability `unknown`; compositing function `unknown`, as above | | `glow` | 34 | intensity | applicability `unknown`; compositing function `unknown`, as above | | `erase` | 35 | normal | applicability `unknown`; compositing function `unknown`, as above. The name is the source family's own and its semantics MUST be confirmed before a discriminant is frozen | The group column above is the clause's own \"comparative/intensity\" classification and is the only property the capture supports; every other property of these five is a stated unknown under [STU-RAS-106], so each row's first acceptance criterion is recovering its compositing function and applicability set rather than implementing a guessed formula. One captured source family additionally enumerates blend modes with a small dense integer set of its own (observed 0..21 on brush records); that numbering is a per-format import concern and MUST be translated by the `StudioImportProfile`, never adopted as Studio's. --- ### 13. Layer Effects and Advanced Blending"
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

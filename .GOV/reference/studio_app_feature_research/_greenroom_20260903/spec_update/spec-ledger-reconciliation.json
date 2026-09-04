@@ -1,0 +1,164 @@
+{
+ "schema_id": "handshake.reference.studio_ledger_reconcile@1",
+ "generated_at": "2026-09-04T13:35:19+00:00",
+ "why": "The Master Spec must yield the microtask set. A module whose declared yield and derived yield disagree breaks that property in one direction or the other.",
+ "modules_total": 19,
+ "modules_in_agreement": 19,
+ "modules_without_a_declared_total": 0,
+ "absolute_gap_across_modules": 0,
+ "per_module": [
+  {
+   "module": "14-04-raster-and-raw.md",
+   "declared_by_module": 350,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 350,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-05-vector.md",
+   "declared_by_module": 276,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 276,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-06-layout.md",
+   "declared_by_module": 209,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 209,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-07-typography.md",
+   "declared_by_module": 211,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 211,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-08-color.md",
+   "declared_by_module": 225,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 225,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-09-effects.md",
+   "declared_by_module": 1042,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 1042,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-10-design-systems.md",
+   "declared_by_module": 83,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 83,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-11-prototyping.md",
+   "declared_by_module": 66,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 66,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-13-interop.md",
+   "declared_by_module": 71,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 71,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-14-automation.md",
+   "declared_by_module": 94,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 94,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-15-whiteboard.md",
+   "declared_by_module": 46,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 46,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-25-video-timeline.md",
+   "declared_by_module": 163,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 163,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-26-motion-keyframing.md",
+   "declared_by_module": 226,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 226,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-27-compositing.md",
+   "declared_by_module": 145,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 145,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-28-web-authoring.md",
+   "declared_by_module": 174,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 174,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-29-asset-library-binding.md",
+   "declared_by_module": 29,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 29,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-30-operator-shell.md",
+   "declared_by_module": 247,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 247,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-31-tools-and-controls.md",
+   "declared_by_module": 432,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 432,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  },
+  {
+   "module": "14-32-tooltips-and-manual.md",
+   "declared_by_module": 41,
+   "declared_source": "yields-index total row, last numeric column",
+   "derived_by_tool": 41,
+   "delta_derived_minus_declared": 0,
+   "reading": "agree"
+  }
+ ],
+ "verdict": "PASS"
+}

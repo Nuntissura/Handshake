@@ -1,124 +1,200 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-558",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-558.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-558.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-008",
-      "MT-547",
-      "MT-007"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "UNIVERSAL visual-verifiability conformance gate [STU-CON-007(d),STU-VAL-004]",
-  "spec_anchor": [
-    "STU-CON-007",
-    "STU-VAL-004",
-    "STU-VAL-003",
-    "STU-QUIET-005"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-558",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:27+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-558.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-558.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-008",
+   "MT-547",
+   "MT-007"
   ],
-  "scope": {
-    "summary": "Suite-wide conformance harness proving [STU-CON-007](d): for EVERY Studio command producing visual output, the result is inspectable through the headless StudioRenderHarness render capture (MT-008) + Argus (MT-547), with before/after evidence, no foreground UI, and no focus steal. Enumerates all visual-output command_ids; runs each and asserts a render-harness pixel capture (real-GPU) or AccessKit-tree/state assertion (headless fallback) plus an Argus author_id inspection is produced. Fails closed on any visual-output command with no render/Argus proof path.",
-    "allowed_paths": [
-      "src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "every visual-output command render-harness/Argus verifiable with before/after evidence; headless-safe; no focus steal"
-    ],
-    "proof_targets": [
-      "suite-wide visual-verifiability gate"
-    ],
-    "code_surfaces": [
-      "tests/studio/conformance/visual.rs",
-      "src/studio/conformance/visual_gate.rs"
-    ],
-    "expected_tests": [
-      "live: every visual-output command_id yields render-harness capture (real-GPU) or AccessKit fallback (headless) + Argus inspection + before/after evidence",
-      "negative: a visual command with no render/Argus path fails the gate",
-      "test: no foreground/focus-steal during capture"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-VIS-002",
-    "HBR-QUIET-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "UNIVERSAL visual-verifiability conformance gate [STU-CON-007(d),STU-VAL-004]",
+ "spec_anchor": [
+  "STU-CON-007",
+  "STU-VAL-004",
+  "STU-VAL-003",
+  "STU-QUIET-005"
+ ],
+ "scope": {
+  "summary": "Suite-wide conformance harness proving [STU-CON-007](d): for EVERY Studio command producing visual output, the result is inspectable through the headless StudioRenderHarness render capture (MT-008) + Argus (MT-547), with before/after evidence, no foreground UI, and no focus steal. Enumerates all visual-output command_ids; runs each and asserts a render-harness pixel capture (real-GPU) or AccessKit-tree/state assertion (headless fallback) plus an Argus author_id inspection is produced. Fails closed on any visual-output command with no render/Argus proof path.",
+  "allowed_paths": [
+   "src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Models cannot deterministically verify visual edits (photos/masks/layouts); STU-CON-007(d) unenforced.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Every visual-output command render-harness/Argus verifiable with before/after evidence",
+   "Headless-safe",
+   "No focus steal"
+  ],
+  "proof_targets": [
+   "suite-wide visual-verifiability gate"
+  ],
+  "code_surfaces": [
+   "tests/studio/conformance/visual.rs",
+   "src/studio/conformance/visual_gate.rs"
+  ],
+  "expected_tests": [
+   "live: every visual-output command_id yields render-harness capture (real-GPU) or AccessKit fallback (headless) + Argus inspection + before/after evidence",
+   "negative: a visual command with no render/Argus path fails the gate",
+   "test: no foreground/focus-steal during capture"
+  ],
+  "acceptance_criteria_original": [
+   "every visual-output command render-harness/Argus verifiable with before/after evidence; headless-safe; no focus steal"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-VIS-002",
+  "HBR-QUIET-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Models cannot deterministically verify visual edits (photos/masks/layouts); STU-CON-007(d) unenforced.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Every visual-output command render-harness/Argus verifiable with before/after evidence",
+   "evidence_kind": "gui_proof",
+   "proof_target": "suite-wide visual-verifiability gate",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Headless-safe",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "No focus steal",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-CON-007",
+    "spec_clause_text": "[STU-CON-007] [ADD v02.200] UNIVERSAL COMMAND CONTRACT (HARD). Every Studio command, tool, and primitive defined in sub-sections 14.4-14.15 — without exception and regardless of domain — MUST satisfy ALL FOUR of the following properties. A per-domain obligation clause MUST enumerate all four; omission of any one for a shipped command is a spec-conformance defect, not domain discretion; and each domain's acceptance surface MUST carry a conformance check proving all four hold for that domain's commands. - (a) MODEL-INVOKABLE (14.16): reachable through the typed model command API with `command_id`, auto-generated input/output schema, `dry_run`, a `SimulationReceipt`-class receipt, and undo semantics. Operator-only/headless is allowed only with a typed reason ([STU-MDL-006]). - (b) PARALLEL-SAFE (14.17, 14.18): every document-state mutation routes through the per-file CRDT document + file-scoped lease + EventLedger-idempotent promotion path, so multiple model agents editing multiple files, AND multiple model agents editing one file, cannot corrupt, race, or silently overwrite each other, and never interfere with concurrent operator work on other projects/modules (14.20). No editing command may mutate authority outside this path. - (c) DETERMINISTIC ([STU-CON-005]): the same command with the same inputs produces byte-stable output on a given backend and output within the declared tolerance across GPU backends/drivers, so a parallel agent's edit is reproducible and fully replayable from EventLedger receipts alone. Non-deterministic behavior (e.g. an unseeded stochastic filter) MUST expose an explicit seed making it deterministic. - (d) VISUALLY-VERIFIABLE (14.20, 14.24 [STU-VAL-004]): any command producing visual output MUST be inspectable through the headless `StudioRenderHarness` render capture + Argus, so a model can deterministically edit a photo, a raster or vector mask, a layout, or any visual surface, and then verify the rendered result — capturing before/after evidence — without foreground UI or focus steal. This clause makes the entire Studio tool/primitive surface usable by parallel model agents on multiple files simultaneously, editing deterministically in conjunction with the visual tools, as a HARD product invariant rather than a per-tool option. --- --- ## 14.24 Validation, Promotion Equivalence, and HBR"
+   },
+   {
+    "anchor": "STU-VAL-004",
+    "spec_clause_text": "[STU-VAL-004] VISUAL INSPECTION DUTY. A model MUST inspect BOTH structured output (document-model diffs, receipts, exported-file integrity) AND rendered visual output (canvas/screenshot capture via `StudioRenderHarness` + Argus) before claiming a Studio edit done. Proposal receipts (14.18) carry before/after evidence references."
+   },
+   {
+    "anchor": "STU-VAL-003",
+    "spec_clause_text": "[STU-VAL-003] ARGUS VISUAL PROOF (HBR-VIS). Every GUI/operator-surface/diagnostic-surface/frontend Studio change MUST be inspected and (where steered) verified through Argus with stable `author_id` targets, before/after observation, and recorded evidence; missing Argus visibility/steering is HBR-VIS debt with allowed same-MT/WP remediation."
+   },
+   {
+    "anchor": "STU-QUIET-005",
+    "spec_clause_text": "[STU-QUIET-005] HEADLESS VISUAL PROOF. Agents visually inspect output through the headless `StudioRenderHarness` (render-to-buffer capture) and Argus on the AccessKit tree. Where headless-GPU pixel readback is unreliable (documented `Harness::render` readback crash class `0xc0000005` on headless-GPU hosts), the harness MUST fall back to AccessKit-tree/state assertions and run pixel screenshots on a real-GPU host, never blocking on foreground automation. --- --- ## 14.21 Operator Unification Surface Studio MUST also work as ONE unified operator-facing creative application that replaces the five source suites for a human operator. This sub-section is normative."
+   }
+  ],
+  "spec_clause_count": 4,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:27+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

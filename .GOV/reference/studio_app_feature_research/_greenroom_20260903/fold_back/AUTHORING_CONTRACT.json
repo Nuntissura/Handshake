@@ -1,0 +1,86 @@
+{
+ "schema_id": "handshake.reference.studio_mt_authoring_contract@1",
+ "file_id": "studio-mt-authoring-contract-20260904",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "purpose": "The single contract every microtask-authoring agent follows, so that 1,487 new contracts and 509 patches written by different agents in parallel come out as one coherent set rather than fifteen dialects.",
+
+ "what_is_being_replaced": {
+  "current_state": "mt-author.py generated 1,487 structurally-correct but GENERIC contracts, one per capability cluster. Each has the right shape (multi-row acceptance criteria with stable ids and evidence kinds, one proof target per row, resource privacy obligation, validator focus, implementation notes, corrected diagnostic tiers) but its content is templated from the cluster name.",
+  "what_agents_must_do": "Replace the generic content with real behavioural specification drawn from the green-room captures. The generated file is the skeleton and the starting point, never the deliverable.",
+  "the_test": "A capable model with no chat context, reading only the microtask, must be able to implement the behaviour without guessing a range, a default, an enumerated value, a unit, or what the feature does. If it would have to guess, the microtask is not finished."
+ },
+
+ "hard_rules_from_operator_decisions": [
+  "SAD-001. Every code_surfaces path resolves against the WP-KERNEL-012 worktree at ../wtc-native-editors-v1. Never main. Reconcile against the real tree; do not invent paths.",
+  "SAD-002. No microtask may introduce SQLite, libSQL, Turso, PostgreSQL, or any second database. SurrealDB with the EventLedger is the only durable authority. It runs embedded via kv-rocksdb; there is no database process to start.",
+  "SAD-003. No microtask may add routing machinery. Navigation extends loom_address.rs, navigation_bus.rs and the existing ShellNavigator seams.",
+  "SAD-004. handshake_core must never gain wgpu, WGSL or GPU dependencies; all GPU and compute work lives in the studio-engine crate behind the six Send + Sync traits. Text shaping must be native Rust of the cosmic-text / rustybuzz / swash class; a platform text engine is forbidden even where it would be easier.",
+  "SAD-006. Do not propose a consolidation that only works given an unbuilt capability. If a merge needs simultaneous visibility of two members, un-merge it.",
+  "SAD-007. Video is fully in scope, timeline clip editing and compositing both, for professional editors and VFX artists. Do not treat any Premiere or After Effects capability as out of scope on the strength of [STU-OVR-015]; that clause is superseded and flagged for amendment.",
+  "SAD-008. Spec anchors are PROVISIONAL until the Master Spec update lands. Keep spec_anchor_status as it is; do not invent anchor ids. The spec update assigns the real ones.",
+  "GRD-001. The capability registry merged rows on name alone until it was fixed. Do not cite the pre-fix sharing counts. If a capability's app_count looks surprising, check the evidence field before relying on it."
+ ],
+
+ "where_the_behaviour_comes_from": {
+  "rule": "Every parameter, range, default, unit and enumerated value in a microtask must be traceable to a named capture file. Do not write a range you cannot cite.",
+  "per_app_sources": {
+   "photoshop": "photoshop_parameter_surface.json (820 properties, 296 methods, 35 ranges, 140 defaults, 43 units from the type library's own help strings), photoshop_enums.json (130 enums, 733 enumerators with integer values), photoshop_preset_contents.json (16,994 real preset entries across 286 containers), photoshop_dialogs.json (987 surfaces, 25,222 controls), photoshop_shortcuts_full.json (243 rows)",
+   "illustrator": "illustrator_parameter_surface.json (160 classes, 2,100 properties, 672 methods, 472 with a machine-readable range or default), illustrator_enums.json (138 groups, 678 members), illustrator_effects.json (559 EVE dialog layouts, 2,109 parameters with ranges, units, decimal places, enumerated options; 60 live effects with 269 parameter keys), illustrator_library_contents.json (15,987 primary entries), illustrator_shortcuts.json (742 commands), illustrator_panels.json (71-row catalogue)",
+   "indesign": "indesign_dom_full.json (516 classes, 3,398 properties, 783 methods, 526 enumerations, 3,000 enumerators), indesign_dialogs.json (390 dialogs and panels, 144,192 nodes), indesign_text_model.json (124 text classes, 1,181 attributes, 116 enumerations), indesign_preset_contents.json (6 stock PDF presets across 149 settings, 11 find-change queries), indesign_command_surface.json (693 menu paths, 1,097 actions), indesign_error_catalog.json (1,453 errors, the app's validation rules)",
+   "affinity": "affinity_brush_parameters.json (455 brushes, 38 parameters with observed ranges and per-parameter dynamics, response curves decoded), affinity_adjustment_parameters.json (25 adjustment types with their layer-node tags and parameter blocks, 153 presets with actual values), affinity_preset_contents.json (26 of 29 containers parsed exactly to their end marker, 66,113 objects, 6,066 preset leaves), affinity_scripting_api_detail.json (415 classes, 5,412 members with real parameter lists, 3,150 native methods), affinity_tool_panel_registry.json (143 tool ids, 53 panel ids)",
+   "lightroom_classic": "lightroom_develop_parameters.json (389 develop parameters across 21 panels, 64 with trustworthy derived defaults), lightroom_export_pipeline.json (152 still-export keys, 142 video parameters), lightroom_profiles.json (1,429 camera models, 2,167 lens names), lightroom_templates.json, lightroom_sdk_api.json",
+   "premiere": "premiere_effects_catalogue.json (617 effects, 9,654 parameter rows), premiere_lumetri_color.json (98 parameters with hard AND soft bounds, plus the grading maths from the shaders), premiere_export_pipeline.json (1,541 presets, 453 parameter identifiers, 40 containers), premiere_sequence_project_model.json (392 sequence presets, 53 editing modes with constraint lists), premiere_panels_dialogs.json (492 surfaces), premiere_commands_shortcuts.json (1,491 commands), premiere_graphics_text.json (77 templates, 461 exposed controls)",
+   "aftereffects": "aftereffects_effects_catalogue.json (482 installed effects, 208 with typed parameter records covering 1,573 parameters with valid range, slider range, default, precision and display unit), aftereffects_presets.json (621 presets, 79,014 value streams, 3,217 keyframes), aftereffects_layer_property_model.json (1,238 match names, 759 containment edges, 7 enumerations recovered by content signature), aftereffects_scripting_expressions.json (44 classes, 1,708 members, 333 expression identifiers, 37 argument signatures), aftereffects_panels_dialogs.json (405 control-tree surfaces, 144 Eve dialogs, 16 factory workspaces), aftereffects_render_output.json, aftereffects_commands_shortcuts.json (673 bindings, 665 commands, 22 tools), aftereffects_text_shape_mask.json (21 shape operator families, 99 text animator properties)",
+   "figma": "figma_object_model.json (40 node types with fully resolved property surfaces, 282 interfaces, 1,023 properties, 443 methods, 68 enumerations covering 932 values)",
+   "dreamweaver": "dreamweaver_command_surface.json (2,176 invocable entries), dreamweaver_panels_dialogs.json (259 dialogs with 2,068 controls, 60 property inspectors with their binding declarations), dreamweaver_code_intelligence.json (470 tags, 9,741 attributes, 14,733 enumerated values), dreamweaver_objects_behaviors.json, dreamweaver_site_server_model.json, dreamweaver_templates_css.json (647 snippets, 82 CSS Designer properties)"
+  }
+ },
+
+ "the_parameter_contract": {
+  "why_this_matters_most": "This is the single most consequential detail in the whole green room. After Effects declares a valid range and a slider range separately on 833 parameters, and on 61.2 percent of the 618 that declare both, they DIFFER. Blend is valid from 5 to 10000 but its slider runs 10 to 500. Premiere's Lumetri carries the same split as hard bounds and UI bounds.",
+  "required_fields": [
+   "hard_min and hard_max: the values the engine will actually accept. Exceeding these is an error.",
+   "soft_min and soft_max: the range the control presents by default. A user may type past these but not past the hard bounds.",
+   "default",
+   "unit: the real unit token from the capture (pixels, percent, degrees, seconds, document units), not a guess",
+   "precision: decimal places as the source declares them",
+   "step and coarse_step and fine_step for the scrubbable control"
+  ],
+  "irreversible_mistake": "Collapsing hard and soft bounds into one range. Do it once and the distinction cannot be recovered without re-deriving it from the captures. Emit both fields from the first contract even when a source declares only one, marking the other as absent rather than equal.",
+  "where_bounds_are_absent": "Photoshop leaves 79.7 percent of numeric properties unbounded and Premiere carries bounds on only 6.4 percent of 9,654 rows. Affinity's are OBSERVED across shipped presets, not declared, so clamping to them would forbid legal values. Where a bound is unknown, say so explicitly in the contract; never invent one and never clamp to an observed range as though it were declared."
+ },
+
+ "every_microtask_must_carry": [
+  "A clause naming one coherent behaviour, not a cluster label.",
+  "A scope summary a no-context implementer can act on, including what the feature does and what it produces.",
+  "Multiple acceptance criteria, each with a stable id, an evidence_kind, and a source_evidence field citing the capture file it came from.",
+  "One proof target per acceptance row, naming a real command or check.",
+  "code_surfaces reconciled against the 012 tree, with code_surface_status stating whether each path exists or is proposed.",
+  "implementation_notes carrying the actual extracted behaviour: parameters with the full contract above, enumerated values, defaults, and the vendor's own description where one was recovered.",
+  "gui_obligation with the surface and stable author_id targets.",
+  "user_manual_obligation naming the target entry and what it must cover.",
+  "resource_privacy_obligation.",
+  "validator_focus that names what a reviewer should attack, specific to this behaviour.",
+  "risk_if_missed stated as what a professional loses.",
+  "hbr_int_009_tier_obligations with all three tiers WIRED against the 012 base."
+ ],
+
+ "naming_discipline": {
+  "rule": "[STU-SECTION-003]. A source product name is never a Studio tool, command, panel, or manual name. Photoshop, Illustrator, InDesign, Affinity, Photo, Designer, Publisher, Figma, FigJam, Premiere, After Effects, Lightroom and Dreamweaver appear only as provenance in evidence fields.",
+  "dedup": "Where several applications provide a capability, it collapses to ONE Studio operation with per-suite variants recorded as provenance. Do not author one microtask per source application for the same behaviour."
+ },
+
+ "patching_the_existing_509": {
+  "defects_measured": "463 of 509 have exactly one acceptance row; 401 of those jam several criteria into one semicolon string. All 509 have exactly one proof target. Zero carry a resource privacy obligation, validator focus, or implementation notes. 1,002 diagnostic tier obligations carry a stale reason claiming internal diagnostics and the external watcher ship later, when both exist in the 012 base.",
+  "task": "Split the jammed rows into real criteria, attach a proof target to each, add the three missing field groups, correct the tier reasons, and attach the behavioural payload from the captures where the microtask's subject appears in them.",
+  "preserve": "Do not discard the original clause or intent. These were authored against the spec and carry real scope decisions. Patch, do not rewrite."
+ },
+
+ "output_discipline": [
+  "JSON only. Never create a .md file.",
+  "Write to the staging directories under fold_back. Nothing under .GOV/task_packets is modified by an authoring agent.",
+  "Label every heuristic as heuristic. Where a capture failed or a value is unknown, say so in the contract rather than filling the gap.",
+  "Never report a file count as an entry count."
+ ]
+}

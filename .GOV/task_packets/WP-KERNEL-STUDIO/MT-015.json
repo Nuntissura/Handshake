@@ -1,130 +1,206 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-015",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-015.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-015.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-007"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Studio UserManual system + dual-audience entry contract [STU-MAN-001,STU-MAN-002,STU-MAN-004]",
-  "spec_anchor": [
-    "STU-MAN-001",
-    "STU-MAN-002",
-    "STU-MAN-003",
-    "STU-MAN-004"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-015",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:25+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-015.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-015.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-007"
   ],
-  "scope": {
-    "summary": "Implement the Studio section of the in-product internal UserManual with the dual-audience entry contract (operator layer + model layer per tool/command/panel), full-tool-surface coverage duty, four-axis searchability (tool name / task intent / command_id / Argus author_id), and the coverage-completeness check (every shipped command_id has a manual entry).",
-    "allowed_paths": [
-      "src/studio/**",
-      "src/manual/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "dual-audience Studio manual system; coverage-completeness check; four-axis search"
-    ],
-    "proof_targets": [
-      "manual self-consistency + no-context harness + search test"
-    ],
-    "code_surfaces": [
-      "src/studio/manual.rs",
-      "src/manual/studio/**"
-    ],
-    "expected_tests": [
-      "HBR-MAN-003 self-consistency: every studio command_id has a manual entry",
-      "HBR-MAN-002 no-context operation test on a sample workflow",
-      "test: four-axis search resolves"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "manual viewer (Studio section)"
-    ],
-    "argus_targets": [
-      "manual.studio"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / (manual system itself)"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-MAN-001",
-    "HBR-MAN-002",
-    "HBR-MAN-003",
-    "HBR-VIS-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Studio UserManual system + dual-audience entry contract [STU-MAN-001,STU-MAN-002,STU-MAN-004]",
+ "spec_anchor": [
+  "STU-MAN-001",
+  "STU-MAN-002",
+  "STU-MAN-003",
+  "STU-MAN-004"
+ ],
+ "scope": {
+  "summary": "Implement the Studio section of the in-product internal UserManual with the dual-audience entry contract (operator layer + model layer per tool/command/panel), full-tool-surface coverage duty, four-axis searchability (tool name / task intent / command_id / Argus author_id), and the coverage-completeness check (every shipped command_id has a manual entry).",
+  "allowed_paths": [
+   "src/studio/**",
+   "src/manual/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No dual-audience manual; no-context models cannot discover the tool surface.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Dual-audience Studio manual system",
+   "Coverage-completeness check",
+   "Four-axis search"
+  ],
+  "proof_targets": [
+   "manual self-consistency + no-context harness + search test"
+  ],
+  "code_surfaces": [
+   "src/studio/manual.rs",
+   "src/manual/studio/**"
+  ],
+  "expected_tests": [
+   "HBR-MAN-003 self-consistency: every studio command_id has a manual entry",
+   "HBR-MAN-002 no-context operation test on a sample workflow",
+   "test: four-axis search resolves"
+  ],
+  "acceptance_criteria_original": [
+   "dual-audience Studio manual system; coverage-completeness check; four-axis search"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "manual viewer (Studio section)"
+  ],
+  "argus_targets": [
+   "manual.studio"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / (manual system itself)"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-MAN-001",
+  "HBR-MAN-002",
+  "HBR-MAN-003",
+  "HBR-VIS-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No dual-audience manual; no-context models cannot discover the tool surface.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Dual-audience Studio manual system",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "manual self-consistency + no-context harness + search test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Coverage-completeness check",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Four-axis search",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-MAN-001",
+    "spec_clause_text": "[STU-MAN-001] DUAL-AUDIENCE ENTRY CONTRACT. Every Studio tool, command, panel, and workflow MUST have ONE UserManual entry with two layers of the same entry: (a) an operator layer — user-friendly, task-oriented, minimal technicality (\"how do I crop\", \"how do I mask\", \"how do I set type on a path\"), navigation path, expected result; and (b) a model layer — technically complete: `command_id`, typed inputs/outputs, `dry_run` availability, receipt shape, undo semantics, Argus `author_id` targets, proof/evidence path, failure modes, recovery. Both layers satisfy CX-982-003 and CX-982-004 (Flight Recorder/EventLedger linkage + HBR-INT-009 three-tier posture per entry)."
+   },
+   {
+    "anchor": "STU-MAN-002",
+    "spec_clause_text": "[STU-MAN-002] FULL-TOOL-SURFACE COVERAGE. ALL Studio tools available and how to use them MUST be documented: a no-context model MUST be able to discover the complete Studio tool surface from the manual alone — no chat history, no source-app prior knowledge, no repo reading (CX-982-003; HBR-MAN-002 no-context operation test). Coverage completeness is checkable: every shipped command contract MUST have a matching manual entry, and manual entries for wired surfaces MUST be code-truthful with self-consistency tests (HBR-MAN-003); drift is a build-rule failure."
+   },
+   {
+    "anchor": "STU-MAN-003",
+    "spec_clause_text": "[STU-MAN-003] SAME-CHANGE CURRENCY. Every implementation MT that adds, changes, wires, exposes, deprecates, or removes a Studio behavior MUST update the UserManual in the SAME change (HBR-MAN-001, CX-982-002), with self-consistency verification (HBR-MAN-003), the no-context operation harness (HBR-MAN-002), and the HBR-INT-009 diagnostic-posture linkage per entry (HBR-MAN-004; internal_diagnostics/Palmistry absence recorded DEFERRED-with-reason, never silently skipped)."
+   },
+   {
+    "anchor": "STU-MAN-004",
+    "spec_clause_text": "[STU-MAN-004] SEARCHABILITY. The Studio manual MUST be queryable along at least four axes: tool name, task intent (e.g. \"remove background\", \"set type on a path\"), `command_id` (exact `studio.<domain>.<command>.v<N>` lookup for models), and Argus `author_id` target (reverse lookup from a UI target to the manual entry that documents it). Search MUST work for both audiences without chat history. --- --- ## 14.23 Canonical Studio Authority Contracts This sub-section is the single canonical semantic authority for every Studio type, field, unit, event variant, schema id, table/entity, and promotion rule, subject to the physical-storage, schema-rollout, privacy, transaction, and proof override in [STU-SDB-001] through [STU-SDB-009]. Where another Studio sub-section conflicts with 14.23 on semantic product behavior, 14.23 wins; where 14.23 uses a legacy database-specific form, the v02.204 SurrealDB override wins."
+   }
+  ],
+  "spec_clause_count": 4,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:25+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

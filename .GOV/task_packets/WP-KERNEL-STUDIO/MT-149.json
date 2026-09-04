@@ -1,131 +1,207 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-149",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-149.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-149.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-011",
-      "MT-013"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Automatic recovery + document-states surface [STU-LAY-013]",
-  "spec_anchor": [
-    "STU-LAY-013",
-    "STU-HIS-001",
-    "STU-LAY-066",
-    "STU-LAY-067"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-149",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-149.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-149.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-011",
+   "MT-013"
   ],
-  "scope": {
-    "summary": "Provide crash-safe automatic recovery (recover unsaved changes on next launch from a configurable recovery location) and a document-states surface listing session edit states that can jump the document to any recorded state beyond linear undo. Both MUST bind to the kernel per-file history/undo model (14.19, MT-011) and CRDT authority; Studio MUST NOT implement a private undo store. Recovery + states are projections over the ledger-backed history, not a parallel store.",
-    "allowed_paths": [
-      "src/studio/layout/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "auto-recovery from configurable location; document-states jump beyond linear undo; kernel-history-backed, no private store"
-    ],
-    "proof_targets": [
-      "crash-recovery runtime; state-jump over kernel history test"
-    ],
-    "code_surfaces": [
-      "src/studio/layout/recovery.rs",
-      "src/studio/layout/document_states.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::layout::document_states",
-      "live: simulated crash recovers unsaved changes from configurable location on relaunch",
-      "test: document-states jump to a recorded state beyond linear undo; no private undo store (uses kernel history)"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "document states panel",
-      "recovery prompt"
-    ],
-    "argus_targets": [
-      "studio.layout.document_states",
-      "studio.layout.recovery"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Page Layout / Recovery & document states"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Automatic recovery + document-states surface [STU-LAY-013]",
+ "spec_anchor": [
+  "STU-LAY-013",
+  "STU-HIS-001",
+  "STU-LAY-066",
+  "STU-LAY-067"
+ ],
+ "scope": {
+  "summary": "Provide crash-safe automatic recovery (recover unsaved changes on next launch from a configurable recovery location) and a document-states surface listing session edit states that can jump the document to any recorded state beyond linear undo. Both MUST bind to the kernel per-file history/undo model (14.19, MT-011) and CRDT authority; Studio MUST NOT implement a private undo store. Recovery + states are projections over the ledger-backed history, not a parallel store.",
+  "allowed_paths": [
+   "src/studio/layout/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Data loss on crash; no non-linear state navigation; forbidden private undo store risk.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Auto-recovery from configurable location",
+   "Document-states jump beyond linear undo",
+   "Kernel-history-backed, no private store"
+  ],
+  "proof_targets": [
+   "crash-recovery runtime; state-jump over kernel history test"
+  ],
+  "code_surfaces": [
+   "src/studio/layout/recovery.rs",
+   "src/studio/layout/document_states.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::layout::document_states",
+   "live: simulated crash recovers unsaved changes from configurable location on relaunch",
+   "test: document-states jump to a recorded state beyond linear undo; no private undo store (uses kernel history)"
+  ],
+  "acceptance_criteria_original": [
+   "auto-recovery from configurable location; document-states jump beyond linear undo; kernel-history-backed, no private store"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "document states panel",
+   "recovery prompt"
+  ],
+  "argus_targets": [
+   "studio.layout.document_states",
+   "studio.layout.recovery"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Page Layout / Recovery & document states"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Data loss on crash; no non-linear state navigation; forbidden private undo store risk.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Auto-recovery from configurable location",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "crash-recovery runtime; state-jump over kernel history test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Document-states jump beyond linear undo",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Kernel-history-backed, no private store",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-LAY-013",
+    "spec_clause_text": "**[STU-LAY-013]** The document MUST provide crash-safe automatic recovery (recovering unsaved changes on next launch from a configurable recovery location) and a document-states surface that lists session edit states and can jump the document to any recorded state beyond linear undo. Both bind to the kernel per-file history/undo model (14.19) and CRDT authority; Studio MUST NOT implement a private undo store. The captured layout-snapshot commands of [STU-LAY-107] are the geometry-specific case of this surface and MUST route through the same history authority. --- ## 14.6.2 Sections, Page Numbering, and Running Headers"
+   },
+   {
+    "anchor": "STU-HIS-001",
+    "spec_clause_text": "[STU-HIS-001] PER-FILE HISTORY STACK. Each Studio file maintains its own history stack; there is one unified history/undo surface across all domains in that file (no per-domain or per-mode undo stacks — 14.21). Every promoted command batch appends a `StudioHistoryEntry` backed by the EventLedger events it produced. History is model-visible via a history-query command (14.16)."
+   },
+   {
+    "anchor": "STU-LAY-066",
+    "spec_clause_text": "**[STU-LAY-066]** Review and collaboration MUST be local-first. The native review surface -- comments, annotations and markup anchored to layout positions, plus a document-states/history surface beyond linear undo (14.19) -- is a first-class native Studio capability backed by kernel CRDT collaboration, requiring no external account or cloud service. Hosted/cloud collaboration capabilities MUST be treated as optional adapter-backed rows, never as the primary path: *Derivation: preset/command table, taken whole; yields 1 microtask. Its rows are acceptance criteria and MUST NOT become one microtask each.* | Capability | Studio posture | |---|---| | Hosted share-for-review link with pin, highlight, strike, insert and reply comments | Adapter-backed / optional; the native local review surface is the primary path. | | Cloud documents, autosave, cross-device version history | Adapter-backed / optional; local document plus kernel history is the primary path. | | Invite-to-edit, shared projects, asset-library sync | Adapter-backed / optional; kernel CRDT co-edit is the primary path. | | Hosted font activation and hosted custom-font rendering in reviews | Adapter-backed / optional; local font install is the primary path. | | File-based assignment and check-in/check-out copy-editing workflow | Native; operates on shared local or network storage. | | Generative assists (text variation, text-to-image, expand-image) | Adapter-backed / optional; provider-dependent via the model-lane surface. | The captured comment-import model is four object types -- a comment plus three destination kinds (page, page item and text) -- and an import command taking a source path and a property bag. Studio MUST carry all four so an imported comment anchors to the right thing. The captured check-in/check-out constraint vocabulary (locked elsewhere, locked by another user, locked exclusively, locked shared, would clobber a lock, a valid username is required) MUST be reproduced as typed errors for the native file-based workflow. --- ## 14.6.11 Constraint Vocabulary and Cross-Cutting Obligations"
+   },
+   {
+    "anchor": "STU-LAY-067",
+    "spec_clause_text": "**[STU-LAY-067]** Every capability in this catalog MUST be exposed through BOTH the operator UI and the typed model-steerable command/MCP surface as two projections of one primitive per [STU-DOC-004], MUST satisfy the model-visibility/steerability and parallel-workflow requirements (14.16, 14.17), MUST obey the headless/quiet output law so preflight, package, print, PDF and merge never steal focus or block on a foreground window (14.20), and MUST be represented in the dual-audience UserManual and the GUI/diagnostic and accessibility surfaces (14.22, 14.16). Model-authored layout mutations MUST pass the sandbox -> validation -> `PromotionGate` lifecycle ([STU-ARC-005]) via the propose-work system (14.18) before layout authority rows change. All durable layout authority persists through the canonical Studio SurrealDB tables and `studio.layout` EventLedger events (14.23) under the SurrealDB-only authority guard ([STU-SDB-002]); live collaborative editing is CRDT-backed. This obligation is stated once and is not restated per clause."
+   }
+  ],
+  "spec_clause_count": 4,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

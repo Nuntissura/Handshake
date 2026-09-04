@@ -1,0 +1,75 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30956",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-TYP-171#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.7.11 OpenType Feature Exposure",
+  "spec_line": 8304,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Feature groups (operator-facing projection)",
+ "spec_anchor": [
+  "STU-TYP-171"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "typography",
+ "scope": {
+  "summary": "Feature groups (operator-facing projection).** The registry is projected into named groups for the UI and the model surface. This projection is presentation; the tag map is authority. *Derivation: contract table carried into this clause's own microtask as acceptance criteria; yields no microtask of its own.* | Group | Tags | |---|---| | Ligatures | `liga`, `dlig`, `clig`, `rlig`, `hlig` | | Alternates | `salt`, `calt`, `titl`, `swsh`, `cswh`, `ornm`, `aalt` | | Stylistic sets | `ss01`-`ss20` | | Character variants | `cv01`-`cv99` | | Figure style | `lnum`, `onum` | | Figure width | `pnum`, `tnum` | | Fractions | `frac`, `afrc` | | Ordinals | `ordn` | | Vertical position | `sups`, `subs`, `numr`, `dnom` | | Zero | `zero` | | Caps forms | `smcp`, `c2sc`, `pcap`, `c2pc`, `cpsp`, `case` | | Positional forms | `init`, `medi`, `fina`, `isol`, `curs` | | Arabic justification | `jalt`, `mset`, `cfar` | | Indic | `akhn`, `blwf`, `blws`, `blwm`, `abvf`, `abvs`, `abvm`, `cjct`, `half`, `haln`, `nukt`, `pref`, `pres`, `pstf`, `psts`, `rkrf`, `rphf`, `vatu` | | CJK width and form | `halt`, `hwid`, `fwid`, `pwid`, `twid`, `qwid`, `palt`, `vhal`, `vpal` | | CJK variants | `jp78`, `jp83`, `jp90`, `jp04`, `nlck`, `trad`, `smpl`, `expt`, `hojo` | | Vertical writing | `vert`, `vrt2`, `vkna`, `vkrn`, `valt`, `vrtr` | | Kana | `hkna`, `pkna`, `ruby` | | Kerning and marks | `kern`, `mark`, `mkmk`, ` [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [],
+ "acceptance_criteria_count": 0,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -1,0 +1,118 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34701",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-155#catalogue_row#1_hue_range_picker",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "2A. The tool catalogue",
+  "spec_line": 30876,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Hue Range Picker",
+ "spec_anchor": [
+  "STU-SHL-155"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "The tool catalogue (normative, closed).** The 362 tools of [STU-SHL-140] are enumerated below, grouped by the 22 families of [STU-SHL-141]. EACH ROW IS ONE UNIT OF WORK. A tool absent from this table does not exist in Studio; a tool present here may not be dropped, silently merged or deferred without an operator decision recorded under [STU-SHL-136]. Each row carries: the Studio name; the stable `tool_id` used to build its `author_id` `studio.tool.<family>.<tool_id>` ([STU-MDL-100]) and its command id; its family; its menu path, which is mechanically derived from the family per [STU-SHL-039] and is where the tool is guaranteed reachable ([STU-SHL-144]); the capture provenance; and the vendor variants that collapsed into it, shipped inline so every merge is auditable and reversible from this table alone ([STU-SHL-135]). Vendor names in the last two columns are PROVENANCE ONLY and are never Studio names ([STU-SECTION-003]). Three per-tool facts are NOT resolved by the captures and are UNKNOWN for every row rather than guessed: (1) Tool Rail group membership - roughly 120 of the 362 live in the rail's ~20 groups ([STU-SHL-148]) but the captures do not resolve which, and the assignment is closed by OD-1 and by the rail work of [STU-SHL-145]-[STU-SHL-147]; (2) the default chord, because every chord is PROVISIONAL until the arbitration is recomputed ([STU-SHL-045], SD-2); (3) Task Sc [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Hue Range Picker` satisfies the spec's stated tool: Hue Range Picker",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-155 catalogue row `Hue Range Picker`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`Hue Range Picker` satisfies the spec's stated tool_id: `hue_range_picker`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-155 catalogue row `Hue Range Picker`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`Hue Range Picker` satisfies the spec's stated family: `select_region`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-155 catalogue row `Hue Range Picker`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`Hue Range Picker` satisfies the spec's stated menu path: WORKSPACE > Tools > Selection - region",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-155 catalogue row `Hue Range Picker`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`Hue Range Picker` satisfies the spec's stated provenance: affinity",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-155 catalogue row `Hue Range Picker`"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "`Hue Range Picker` satisfies the spec's stated vendor variants recorded: Hue Range Picker Tool",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-155 catalogue row `Hue Range Picker`"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "`Hue Range Picker` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-SHL-155"
+  }
+ ],
+ "acceptance_criteria_count": 7,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -1,102 +1,183 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-005",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-005.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-005.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-002"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "StudioValidationDescriptor catalog scaffold [STU-VAL-001,STU-CON-001]",
-  "spec_anchor": [
-    "STU-VAL-001",
-    "STU-MDL-003",
-    "STU-CON-002"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-005",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:25+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-005.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-005.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-002"
   ],
-  "scope": {
-    "summary": "Create the StudioValidationDescriptor check-catalog (document-integrity, visual-diff, format-round-trip, forbidden-pattern/anti-scaffold) with stable codes + severities (blocking/advisory/info) and a SimulationReceipt (hsk.studio.simulation_receipt@1) returning finding codes + JSON-Pointer suggested_fix.",
-    "allowed_paths": [
-      "src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "descriptor + receipt types present; stable codes; suggested_fix pointer"
-    ],
-    "proof_targets": [
-      "validation descriptor test green"
-    ],
-    "code_surfaces": [
-      "src/studio/validation.rs",
-      "src/studio/receipt.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::validation",
-      "test: descriptor emits stable codes + severities; receipt carries suggested_fix pointer"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "StudioValidationDescriptor catalog scaffold [STU-VAL-001,STU-CON-001]",
+ "spec_anchor": [
+  "STU-VAL-001",
+  "STU-MDL-003",
+  "STU-CON-002"
+ ],
+ "scope": {
+  "summary": "Create the StudioValidationDescriptor check-catalog (document-integrity, visual-diff, format-round-trip, forbidden-pattern/anti-scaffold) with stable codes + severities (blocking/advisory/info) and a SimulationReceipt (hsk.studio.simulation_receipt@1) returning finding codes + JSON-Pointer suggested_fix.",
+  "allowed_paths": [
+   "src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [],
-  "risk_if_missed": "No validation gate; model edits could reach authority unchecked.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
+  ],
+  "acceptance_criteria": [
+   "Descriptor",
+   "Receipt types present",
+   "Stable codes",
+   "Suggested_fix pointer"
+  ],
+  "proof_targets": [
+   "validation descriptor test green"
+  ],
+  "code_surfaces": [
+   "src/studio/validation.rs",
+   "src/studio/receipt.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::validation",
+   "test: descriptor emits stable codes + severities; receipt carries suggested_fix pointer"
+  ],
+  "acceptance_criteria_original": [
+   "descriptor + receipt types present; stable codes; suggested_fix pointer"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [],
+ "risk_if_missed": "No validation gate; model edits could reach authority unchecked.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Descriptor",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "validation descriptor test green",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "id": "AC-002",
+   "criterion": "Receipt types present",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Stable codes",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Suggested_fix pointer",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
   }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-VAL-001",
+    "spec_clause_text": "[STU-VAL-001] `StudioValidationDescriptor` is the Studio validation-check catalog (document-integrity checks, visual-diff checks, format round-trip checks, forbidden-pattern/anti-scaffold checks). Every model-authored proposal (14.18) and every implementing MT MUST pass the applicable checks before promotion/handoff. Checks carry stable codes and severities."
+   },
+   {
+    "anchor": "STU-MDL-003",
+    "spec_clause_text": "[STU-MDL-003] COMMAND-CONTRACT COMPLETENESS. Every shipped Studio command MUST carry a typed contract with: stable `command_id` (`studio.<domain>.<command>.v<N>`), `inputSchema`/`outputSchema` (auto-generated via `schemars::JsonSchema`), `dry_run` availability, a `SimulationReceipt`-class receipt with stable finding codes and a JSON-Pointer `suggested_fix` (deterministic model self-correction loop, mirroring [TAI-OVR-005]), undo semantics (14.19), and a declared Argus target for any operator-visible surface it affects. Commands without a typed contract MUST NOT ship."
+   },
+   {
+    "anchor": "STU-CON-002",
+    "spec_clause_text": "[STU-CON-002] SCHEMA IDS. Canonical Studio schema ids (each a `pub const SCHEMA_STUDIO_* = \"hsk.studio.*@N\"`): `hsk.studio.document@1`, `hsk.studio.layer@1`, `hsk.studio.artboard@1`, `hsk.studio.page_spread@1`, `hsk.studio.selection_set@1`, `hsk.studio.mask@1`, `hsk.studio.vector_path@1`, `hsk.studio.vector_network@1`, `hsk.studio.text_story@1`, `hsk.studio.type_style@1`, `hsk.studio.color_profile@1`, `hsk.studio.swatch@1`, `hsk.studio.gradient@1`, `hsk.studio.pattern@1`, `hsk.studio.effect_stack@1`, `hsk.studio.adjustment@1`, `hsk.studio.live_filter@1`, `hsk.studio.component@1`, `hsk.studio.component_instance@1`, `hsk.studio.variable@1`, `hsk.studio.variable_collection@1`, `hsk.studio.style_registry@1`, `hsk.studio.auto_layout@1`, `hsk.studio.constraint@1`, `hsk.studio.layout_grid@1`, `hsk.studio.prototype_flow@1`, `hsk.studio.motion_timeline@1`, `hsk.studio.raw_develop@1`, `hsk.studio.export_recipe@1`, `hsk.studio.import_profile@1`, `hsk.studio.history_entry@1`, `hsk.studio.edit_proposal@1`, `hsk.studio.simulation_receipt@1`."
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:25+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

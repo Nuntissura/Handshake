@@ -1,133 +1,212 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-170",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-170.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-170.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-168",
-      "MT-167"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Object/table/cell style application cascade [STU-LAY-039]",
-  "spec_anchor": [
-    "STU-LAY-039",
-    "STU-LAY-029",
-    "STU-LAY-024",
-    "STU-LAY-025",
-    "STU-LAY-032",
-    "STU-LAY-041",
-    "STU-LAY-067"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-170",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-170.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-170.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-168",
+   "MT-167"
   ],
-  "scope": {
-    "summary": "Implement object styles as the layout counterpart of text styles carrying the full frame-formatting surface named in MT-168; applying an object style sets fitting (MT-162), text wrap (MT-157), anchoring (MT-158), effects targeting (MT-164), and export tagging (MT-171) in one operation. Table and cell styles MUST format tables and cells declaratively; a table style references its component cell styles and applying it cascades through the table. All over the shared StudioStyleRegistry; consumed by MT-155/MT-162/MT-167.",
-    "allowed_paths": [
-      "src/studio/layout/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "object style sets fitting/wrap/anchor/effects/export-tag in one op; table style cascades through cell styles"
-    ],
-    "proof_targets": [
-      "one-operation object-style application runtime; table-style cascade test"
-    ],
-    "code_surfaces": [
-      "src/studio/layout/styles/object_style_apply.rs",
-      "src/studio/layout/styles/table_style_apply.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::layout::styles::object_style_apply",
-      "live: applying one object style sets fitting+wrap+anchoring+effects+export-tag together",
-      "test: table style cascades through component cell styles across the table"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "object styles panel",
-      "table/cell styles panels"
-    ],
-    "argus_targets": [
-      "studio.layout.object_style_apply",
-      "studio.layout.table_style_apply"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Page Layout / Object, table & cell styles"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Object/table/cell style application cascade [STU-LAY-039]",
+ "spec_anchor": [
+  "STU-LAY-039",
+  "STU-LAY-029",
+  "STU-LAY-024",
+  "STU-LAY-025",
+  "STU-LAY-032",
+  "STU-LAY-041",
+  "STU-LAY-067"
+ ],
+ "scope": {
+  "summary": "Implement object styles as the layout counterpart of text styles carrying the full frame-formatting surface named in MT-168; applying an object style sets fitting (MT-162), text wrap (MT-157), anchoring (MT-158), effects targeting (MT-164), and export tagging (MT-171) in one operation. Table and cell styles MUST format tables and cells declaratively; a table style references its component cell styles and applying it cascades through the table. All over the shared StudioStyleRegistry; consumed by MT-155/MT-162/MT-167.",
+  "allowed_paths": [
+   "src/studio/layout/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Object/table/cell formatting not reusable in one operation; declarative table styling absent.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Object style sets fitting/wrap/anchor/effects/export-tag in one op",
+   "Table style cascades through cell styles"
+  ],
+  "proof_targets": [
+   "one-operation object-style application runtime; table-style cascade test"
+  ],
+  "code_surfaces": [
+   "src/studio/layout/styles/object_style_apply.rs",
+   "src/studio/layout/styles/table_style_apply.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::layout::styles::object_style_apply",
+   "live: applying one object style sets fitting+wrap+anchoring+effects+export-tag together",
+   "test: table style cascades through component cell styles across the table"
+  ],
+  "acceptance_criteria_original": [
+   "object style sets fitting/wrap/anchor/effects/export-tag in one op; table style cascades through cell styles"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "object styles panel",
+   "table/cell styles panels"
+  ],
+  "argus_targets": [
+   "studio.layout.object_style_apply",
+   "studio.layout.table_style_apply"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Page Layout / Object, table & cell styles"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Object/table/cell formatting not reusable in one operation; declarative table styling absent.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Object style sets fitting/wrap/anchor/effects/export-tag in one op",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "one-operation object-style application runtime; table-style cascade test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Table style cascades through cell styles",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-LAY-039",
+    "spec_clause_text": "**[STU-LAY-039]** Object styles are the layout counterpart of text styles and MUST carry the full frame-formatting surface of [STU-LAY-142]; applying an object style sets fitting ([STU-LAY-131]), text wrap ([STU-LAY-126]), anchoring ([STU-LAY-127]), effects targeting ([STU-LAY-134]) and export tagging ([STU-LAY-146]) in one operation. Table and cell styles MUST format tables and cells declaratively; a table style references its component cell styles and applying it cascades through the table."
+   },
+   {
+    "anchor": "STU-LAY-029",
+    "spec_clause_text": "**[STU-LAY-029]** Fitting MUST support fit-content-to-frame, fit-frame-to-content, fit-content- proportionally, fill-frame-proportionally, centre-content and clear-fitting, plus a stored frame content-fit rule and an anchor point for placed content. Fitting MUST be expressible as an object-style property ([STU-LAY-142])."
+   },
+   {
+    "anchor": "STU-LAY-024",
+    "spec_clause_text": "**[STU-LAY-024]** Text wrap MUST be a per-object property with the full option set of [STU-LAY-126]."
+   },
+   {
+    "anchor": "STU-LAY-025",
+    "spec_clause_text": "**[STU-LAY-025]** Anchored/pinned objects MUST attach a frame to a position in text so it travels with reflow, using the contract of [STU-LAY-127]. A pinning surface MUST manage inline and floating anchored objects."
+   },
+   {
+    "anchor": "STU-LAY-032",
+    "spec_clause_text": "**[STU-LAY-032]** Object effects and transparency apply through the shared `StudioEffectStack` (14.9) with the four-target model and bounds of [STU-LAY-134]. Blend modes MUST draw from the canonical Studio blend-mode set defined in [STU-VEC-151]. SUPERSEDED: the v02.205 [STU-LAY-032] claim that the blend-mode set is \"the standard sixteen\" is wrong. The layout capture confirms a sixteen-member enumeration and the design-suite capture declares nineteen; the canonical Studio set is nineteen, and `blend.pass_through` -- which the \"sixteen\" formulation excluded while [STU-VEC-025] simultaneously required it as the group default -- is a member. Isolate-blending and knockout-group flags follow [STU-VEC-153]. Effect and blend maths are owned by 14.9 and 14.8; this clause fixes the layout targeting model and the captured bounds."
+   },
+   {
+    "anchor": "STU-LAY-041",
+    "spec_clause_text": "**[STU-LAY-041]** Export tag mapping is stored on the style record in `StudioStyleRegistry` per [STU-LAY-146]. --- ## 14.6.7 Long-Document System"
+   },
+   {
+    "anchor": "STU-LAY-067",
+    "spec_clause_text": "**[STU-LAY-067]** Every capability in this catalog MUST be exposed through BOTH the operator UI and the typed model-steerable command/MCP surface as two projections of one primitive per [STU-DOC-004], MUST satisfy the model-visibility/steerability and parallel-workflow requirements (14.16, 14.17), MUST obey the headless/quiet output law so preflight, package, print, PDF and merge never steal focus or block on a foreground window (14.20), and MUST be represented in the dual-audience UserManual and the GUI/diagnostic and accessibility surfaces (14.22, 14.16). Model-authored layout mutations MUST pass the sandbox -> validation -> `PromotionGate` lifecycle ([STU-ARC-005]) via the propose-work system (14.18) before layout authority rows change. All durable layout authority persists through the canonical Studio SurrealDB tables and `studio.layout` EventLedger events (14.23) under the SurrealDB-only authority guard ([STU-SDB-002]); live collaborative editing is CRDT-backed. This obligation is stated once and is not restated per clause."
+   }
+  ],
+  "spec_clause_count": 7,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

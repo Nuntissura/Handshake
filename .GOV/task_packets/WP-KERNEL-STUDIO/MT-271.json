@@ -1,121 +1,180 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-271",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-271.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-271.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-261",
-      "MT-264",
-      "MT-016"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Pixelate family [STU-FX-016,STU-FX-016a]",
-  "spec_anchor": [
-    "STU-FX-016",
-    "STU-FX-016a"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-271",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-271.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-271.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-261",
+   "MT-264",
+   "MT-016"
   ],
-  "scope": {
-    "summary": "Implement pixelate StudioLiveFilter kinds; cell-mosaic kinds reuse the studio-engine tessellation core shared with the vector engine (14.5), not a private per-filter impl (Voronoi + Crystallize differ only in cell-fill rule): Color Halftone (per-channel screens, dot 4-127, per-channel angles), Halftone Screen (dot/line/circular + continuous-tone), Crystallize (polygonal color cells), Facet (block clumping), Fragment (four-offset average), Mezzotint (dot/line/stroke type menu), Mosaic (square blocks), Pointillize (random dots on bg color), Voronoi (cell-mosaic tessellation).",
-    "allowed_paths": [
-      "src/studio/effects/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "Color Halftone, Halftone Screen, Crystallize, Facet, Fragment, Mezzotint, Mosaic, Pointillize, Voronoi; shared tessellation core"
-    ],
-    "proof_targets": [
-      "pixelate + shared-tessellation correctness"
-    ],
-    "code_surfaces": [
-      "studio-engine/src/render/pixelate/mod.rs",
-      "src/studio/effects/families/pixelate.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio_engine::render::pixelate",
-      "test: Color Halftone per-channel angles; Crystallize/Voronoi share tessellation core (cell topology identical, fill rule differs); Mosaic block size"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-VIS-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Pixelate family [STU-FX-016,STU-FX-016a]",
+ "spec_anchor": [
+  "STU-FX-016",
+  "STU-FX-016a"
+ ],
+ "scope": {
+  "summary": "Implement pixelate StudioLiveFilter kinds; cell-mosaic kinds reuse the studio-engine tessellation core shared with the vector engine (14.5), not a private per-filter impl (Voronoi + Crystallize differ only in cell-fill rule): Color Halftone (per-channel screens, dot 4-127, per-channel angles), Halftone Screen (dot/line/circular + continuous-tone), Crystallize (polygonal color cells), Facet (block clumping), Fragment (four-offset average), Mezzotint (dot/line/stroke type menu), Mosaic (square blocks), Pointillize (random dots on bg color), Voronoi (cell-mosaic tessellation).",
+  "allowed_paths": [
+   "src/studio/effects/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Halftone/mosaic/cell set missing; tessellation forked per filter.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Color Halftone, Halftone Screen, Crystallize, Facet, Fragment, Mezzotint, Mosaic, Pointillize, Voronoi",
+   "Shared tessellation core"
+  ],
+  "proof_targets": [
+   "pixelate + shared-tessellation correctness"
+  ],
+  "code_surfaces": [
+   "studio-engine/src/render/pixelate/mod.rs",
+   "src/studio/effects/families/pixelate.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio_engine::render::pixelate",
+   "test: Color Halftone per-channel angles; Crystallize/Voronoi share tessellation core (cell topology identical, fill rule differs); Mosaic block size"
+  ],
+  "acceptance_criteria_original": [
+   "Color Halftone, Halftone Screen, Crystallize, Facet, Fragment, Mezzotint, Mosaic, Pointillize, Voronoi; shared tessellation core"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-VIS-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Halftone/mosaic/cell set missing; tessellation forked per filter.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Color Halftone, Halftone Screen, Crystallize, Facet, Fragment, Mezzotint, Mosaic, Pointillize, Voronoi",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "pixelate + shared-tessellation correctness",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Shared tessellation core",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-FX-016",
+    "spec_clause_text": "[STU-FX-016] Pixelate effects cluster pixels into cells/dots/blocks. Halftone/screen kinds carry per-channel angle and dot parameters. Cell-mosaic kinds (mosaic, crystallize, Voronoi) share a cell-generation core."
+   },
+   {
+    "anchor": "STU-FX-016a",
+    "spec_clause_text": "[STU-FX-016a] Cell-mosaic effects reuse the `studio-engine` tessellation core shared with the vector engine (14.5) rather than a private per-filter implementation, so cell generation is consistent and testable in one place; the deduped Voronoi and crystallize kinds differ only in cell-fill rule, not in cell topology. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Color Halftone | R | Opt | Simulates enlarged per-channel halftone screens; dot radius 4-127, per-channel screen angles. | | Halftone Screen | R,V | Opt | Dot / line / circular halftone screening with continuous-tone option. Dedup of the halftone pattern filter and the halftone live filter. | | Crystallize | R | Opt | Clumps pixels into solid-color polygonal cells. | | Facet | R | Opt | Clumps similar-color pixels into blocks for a hand-painted look. | | Fragment | R | Opt | Averages four offset copies of the region's pixels. | | Mezzotint | R | Opt | Random black/white or saturated dot/line/stroke patterns from a type menu. | | Mosaic | R | Opt | Clumps pixels into uniform square color blocks. | | Pointillize | R | Opt | Random pointillist dots with the background color as canvas between dots. | | Voronoi | R | Opt | Voronoi cell-mosaic tessellation. | --- ### 7. Render & Generative-Pattern Family (GPU)"
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

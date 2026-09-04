@@ -1,7 +1,18 @@
 {
   "schema": "handshake.spec_current@1",
-  "updated_at": "2026-08-15",
+  "updated_at": "2026-09-04",
   "current_spec": {
+    "entrypoint_type": "indexed_manifest",
+    "entrypoint_path": ".GOV/spec/master-spec-v02.206/indexed-spec-manifest.json",
+    "resolver_index_path": ".GOV/spec/master-spec-v02.206/INDEX.json",
+    "version": "v02.206",
+    "previous_version": "v02.205",
+    "source_baseline_path": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+    "active_bundle_root_path": ".GOV/spec/master-spec-v02.206",
+    "archive_root_path": ".GOV/spec/spec_archive",
+    "changelog_path": ".GOV/spec/master-spec-v02.206/spec-changelog.jsonl"
+  },
+  "previous_current_spec": {
     "entrypoint_type": "indexed_manifest",
     "entrypoint_path": ".GOV/spec/master-spec-v02.205/indexed-spec-manifest.json",
     "resolver_index_path": ".GOV/spec/master-spec-v02.205/INDEX.json",
@@ -11,17 +22,6 @@
     "active_bundle_root_path": ".GOV/spec/master-spec-v02.205",
     "archive_root_path": ".GOV/spec/spec_archive",
     "changelog_path": ".GOV/spec/master-spec-v02.205/spec-changelog.jsonl"
-  },
-  "previous_current_spec": {
-    "entrypoint_type": "indexed_manifest",
-    "entrypoint_path": ".GOV/spec/master-spec-v02.204/indexed-spec-manifest.json",
-    "resolver_index_path": ".GOV/spec/master-spec-v02.204/INDEX.json",
-    "version": "v02.204",
-    "previous_version": "v02.203",
-    "source_baseline_path": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
-    "active_bundle_root_path": ".GOV/spec/master-spec-v02.204",
-    "archive_root_path": ".GOV/spec/spec_archive",
-    "changelog_path": ".GOV/spec/master-spec-v02.204/spec-changelog.jsonl"
   },
   "governance_reference": {
     "path": ".GOV/codex/Handshake_Codex_v1.4.md"

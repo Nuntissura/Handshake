@@ -1,0 +1,208 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34670",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-141#enumeration#0",
+  "unit_kind": "enumeration",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "1. The tool registry",
+  "spec_line": 30790,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "The 22 families (normative, closed) - enumeration",
+ "spec_anchor": [
+  "STU-SHL-141"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "The 22 families (normative, closed).** Family is the TAXONOMIC axis and is closed. Every tool belongs to exactly one family. The family level is what makes 362 tools browsable and it is MANDATORY in the menu ([STU-SHL-039]). | family_id | Display name | Definition | Members | |---|---|---|---| | `select_object` | Selection — object | Pick, sub-pick and group-pick whole objects, nodes and clips. | 11 | | `select_region` | Selection — region | Produce or refine a pixel, range or colour selection rather than picking an object. | 22 | | `navigate` | Navigation | Move the viewport. NEVER mutates the document. | 4 | | `camera_3d` | Camera and 3D scene | Move and frame a camera layer, and manipulate 3D scene geometry. Distinct from `navigate` precisely because it MUTATES a camera layer's transform. | 4 | | `paint_raster` | Paint | Deposit colour with a stroke, raster or vector. | 6 | | `erase` | Erase | Remove coverage with a stroke. | 4 | | `retouch` | Retouch and repair | Replace image content from elsewhere, from a model, or from a computed reconstruction. | 21 | | `tone_brush` | Tone and local adjustment brushes | Modify tone, colour, focus or a live adjustment by painting a mask. | 12 | | `draw_path` | Draw and edit paths | Construct and manipulate curve geometry and its nodes, handles and topology. | 21 | | `shape` | Shapes | Parametric primitive construction. | 37 | | `type` | [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The enumeration accepts the member `select_object` with the exact meaning the spec states: Selection — object | Pick, sub-pick and group-pick whole objects, nodes and clips. | 11. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The enumeration accepts the member `select_region` with the exact meaning the spec states: Selection — region | Produce or refine a pixel, range or colour selection rather than picking an object. | 22. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The enumeration accepts the member `navigate` with the exact meaning the spec states: Navigation | Move the viewport. NEVER mutates the document. | 4. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The enumeration accepts the member `camera_3d` with the exact meaning the spec states: Camera and 3D scene | Move and frame a camera layer, and manipulate 3D scene geometry. Distinct from `navigate` precisely because it MUTATES a camera layer's transform. | 4. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The enumeration accepts the member `paint_raster` with the exact meaning the spec states: Paint | Deposit colour with a stroke, raster or vector. | 6. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The enumeration accepts the member `erase` with the exact meaning the spec states: Erase | Remove coverage with a stroke. | 4. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The enumeration accepts the member `retouch` with the exact meaning the spec states: Retouch and repair | Replace image content from elsewhere, from a model, or from a computed reconstruction. | 21. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The enumeration accepts the member `tone_brush` with the exact meaning the spec states: Tone and local adjustment brushes | Modify tone, colour, focus or a live adjustment by painting a mask. | 12. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The enumeration accepts the member `draw_path` with the exact meaning the spec states: Draw and edit paths | Construct and manipulate curve geometry and its nodes, handles and topology. | 21. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The enumeration accepts the member `shape` with the exact meaning the spec states: Shapes | Parametric primitive construction. | 37. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The enumeration accepts the member `type` with the exact meaning the spec states: Type and tables | Create and edit text runs, frames, type-on-path, grids and tables. | 18. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The enumeration accepts the member `fill_color` with the exact meaning the spec states: Fill, gradient and colour | Apply and sample fills, gradients, meshes, transparency and styles. | 11. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 12"
+  },
+  {
+   "id": "AC-013",
+   "criterion": "The enumeration accepts the member `crop_frame` with the exact meaning the spec states: Crop, frame and page | Define document, page, artboard, slice, frame and placement geometry. | 18. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 13"
+  },
+  {
+   "id": "AC-014",
+   "criterion": "The enumeration accepts the member `transform` with the exact meaning the spec states: Transform and warp | Move, scale, rotate, distort, liquify and remap existing geometry or pixels. | 42. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 14"
+  },
+  {
+   "id": "AC-015",
+   "criterion": "The enumeration accepts the member `measure_annotate` with the exact meaning the spec states: Measure and annotate | Sample distances, counts, notes and alignment WITHOUT changing render output. | 8. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 15"
+  },
+  {
+   "id": "AC-016",
+   "criterion": "The enumeration accepts the member `mask_channel` with the exact meaning the spec states: Mask and channel | Author and edit masks, mattes and source-image masks as first-class targets. | 9. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 16"
+  },
+  {
+   "id": "AC-017",
+   "criterion": "The enumeration accepts the member `adjustment_live` with the exact meaning the spec states: Live adjustment tools | Each non-destructive tonal or colour adjustment as a selectable tool. | 36. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 17"
+  },
+  {
+   "id": "AC-018",
+   "criterion": "The enumeration accepts the member `filter_live` with the exact meaning the spec states: Live filter tools | Each non-destructive filter as a selectable tool. | 44. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 18"
+  },
+  {
+   "id": "AC-019",
+   "criterion": "The enumeration accepts the member `generative_ml` with the exact meaning the spec states: Generative and model-backed | Model-backed tools: generative fill, expand, extend, background removal, model-driven selection. | 7. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 19"
+  },
+  {
+   "id": "AC-020",
+   "criterion": "The enumeration accepts the member `timeline_edit` with the exact meaning the spec states: Timeline edit | The trim grammar: ripple edit, rolling edit, slip, slide, rate stretch, razor, remix, track select forward, track select backward. | 9. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 20"
+  },
+  {
+   "id": "AC-021",
+   "criterion": "The enumeration accepts the member `symbol_instance` with the exact meaning the spec states: Symbol and instance | Spray and then modify symbol instances in place. | 8. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 21"
+  },
+  {
+   "id": "AC-022",
+   "criterion": "The enumeration accepts the member `data_graph` with the exact meaning the spec states: Data and graph | Chart construction tools that build geometry from a data table. | 10. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-141 enumeration row 22"
+  }
+ ],
+ "acceptance_criteria_count": 22,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -1,0 +1,389 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v2_greenroom",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-600",
+ "created_at_utc": "2026-09-03T17:55:07+00:00",
+ "generated_by": "handshake.greenroom.mt_regen.v1",
+ "evidence_provenance": {
+  "capture": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/affinity/offline/presets_names_scan.json",
+  "source_app": "Affinity 3.2.3.4646 (offline package extraction; app never launched)",
+  "source_file": "raster_brushes.propcol",
+  "source_bytes": 210694478,
+  "note": "Vendor data is provenance only. Studio ships Handshake-native names and its own stock content per STU-SECTION-003."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Raster Brush Library: registry, categories, stock set, user entries, panel, persistence [STU-RAS-020,STU-DS-010]",
+ "spec_anchor": [
+  "STU-RAS-020",
+  "STU-DS-010"
+ ],
+ "scope": {
+  "summary": "Implement the canonical Raster Brush Library preset registry as one Studio primitive: a two-level category/entry tree, a stock set, user entries, and the full panel operation set. The reference implementation ships 221 stock entries across 14 categories (Basic (21), Acrylics (12), Inks (12), Dry Media (16), Engraving (18), Gouaches (16), Markers (16), Masking (12), Oils (16), Pencils (16), Pens (16), Sprays and Spatters (20), Textures (18), Watercolours (16)). Entries and categories are durable SurrealDB records with EventLedger mutation events, owner-scoped, importable and exportable as a package.",
+  "acceptance_criteria": [
+   {
+    "id": "AC-MT-600-01",
+    "criterion": "The Raster Brush Library registry ships 221 stock entries organised into the captured category set and every entry is listable, previewable, and applicable.",
+    "evidence_kind": "runtime_behavior",
+    "status": "PENDING",
+    "evidence": null,
+    "reason": null,
+    "source_evidence": "propcol:raster_brushes name_count=221"
+   },
+   {
+    "id": "AC-MT-600-02",
+    "criterion": "Categories support create, rename, reorder, duplicate, delete-with-contents-policy, import, and export as typed commands.",
+    "evidence_kind": "runtime_behavior",
+    "status": "PENDING",
+    "evidence": null,
+    "reason": null,
+    "source_evidence": "affinity string table: Preset Manager / Presets panel command set"
+   },
+   {
+    "id": "AC-MT-600-03",
+    "criterion": "A user entry is created from current settings, renamed, reordered across categories, and deleted, with name-collision handled by the documented policy rather than silent overwrite.",
+    "evidence_kind": "runtime_behavior",
+    "status": "PENDING",
+    "evidence": null,
+    "reason": null,
+    "source_evidence": "affinity strings: 'The preset name you gave is already used by another preset' / '...by one of the stock presets'"
+   },
+   {
+    "id": "AC-MT-600-04",
+    "criterion": "Stock entries are immutable: an edit to a stock entry forks a user copy and the stock entry is preserved.",
+    "evidence_kind": "negative_guard",
+    "status": "PENDING",
+    "evidence": null,
+    "reason": null,
+    "source_evidence": "affinity strings: stock-preset name-collision message"
+   },
+   {
+    "id": "AC-MT-600-05",
+    "criterion": "Every entry and category row persists in SCHEMAFULL SurrealDB studio_* records with owner/AccessSpace linkage and replays after restart; a STUDIO_* EventLedger event is appended per mutation.",
+    "evidence_kind": "eventledger_append",
+    "status": "PENDING",
+    "evidence": null,
+    "reason": null,
+    "source_evidence": "STU-ARC-003 / STU-ARC-004"
+   },
+   {
+    "id": "AC-MT-600-06",
+    "criterion": "The Raster Brush Library panel is reachable by stable author_id, renders the category tree and entry grid, and each command is steerable and re-observable through Argus.",
+    "evidence_kind": "ui_projection",
+    "status": "PENDING",
+    "evidence": null,
+    "reason": null,
+    "source_evidence": "HBR-VIS-001"
+   },
+   {
+    "id": "AC-MT-600-07",
+    "criterion": "A second account in the same project cannot list, search, preview, or export another owner's user entries, and entry counts do not leak.",
+    "evidence_kind": "negative_guard",
+    "status": "PENDING",
+    "evidence": null,
+    "reason": null,
+    "source_evidence": "HBR-PRIV-004"
+   },
+   {
+    "id": "AC-MT-600-08",
+    "criterion": "Import of a malformed or truncated preset package fails closed with a typed unsupported-feature receipt and a recovery instruction; no partial registry mutation is committed.",
+    "evidence_kind": "negative_guard",
+    "status": "PENDING",
+    "evidence": null,
+    "reason": null,
+    "source_evidence": "STU-VAL-* recovery contract"
+   }
+  ],
+  "proof_targets": [
+   {
+    "for": "AC-MT-600-01",
+    "command_or_check": "live: open the Raster Brush Library panel, assert stock entry count and category structure"
+   },
+   {
+    "for": "AC-MT-600-02",
+    "command_or_check": "live: exercise every category command; assert tree state after each"
+   },
+   {
+    "for": "AC-MT-600-03",
+    "command_or_check": "live: create from current settings, rename, move, delete; collision path asserted"
+   },
+   {
+    "for": "AC-MT-600-04",
+    "command_or_check": "test: stock entry edit forks a user copy; stock row unchanged"
+   },
+   {
+    "for": "AC-MT-600-05",
+    "command_or_check": "live: mutate, restart the runtime, assert registry replay + EventLedger event sequence"
+   },
+   {
+    "for": "AC-MT-600-06",
+    "command_or_check": "argus: panel reachable by author_id; before/after capture per command"
+   },
+   {
+    "for": "AC-MT-600-07",
+    "command_or_check": "test: cross-account isolation incl. counts, search hits, and previews"
+   },
+   {
+    "for": "AC-MT-600-08",
+    "command_or_check": "test: malformed package import fails closed with receipt; registry unchanged"
+   }
+  ],
+  "code_surfaces": [
+   "studio-engine/src/presets/raster_brushes.rs",
+   "studio-engine/src/presets/registry.rs",
+   "src/frontend/handshake_native/src/studio/presets/raster_brushes_panel.rs",
+   "src/backend/handshake_core/src/studio/presets.rs"
+  ],
+  "code_surface_status": "PROPOSED_UNRECONCILED: paths must be reconciled against the feat/WP-KERNEL-012 native tree before claiming this MT",
+  "allowed_paths": [
+   "studio-engine/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "src/backend/handshake_core/src/studio/**",
+   "tests/studio/**"
+  ],
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
+  ],
+  "expected_tests": [
+   "cargo test -p studio-engine presets::raster_brushes",
+   "argus: studio.presets.raster_brushes_panel category tree + entry grid, before/after per command",
+   "live: restart replay of registry state from SurrealDB",
+   "negative: cross-account isolation + malformed import"
+  ]
+ },
+ "implementation_notes": {
+  "reference_structure": {
+   "stock_entry_count": 221,
+   "category_count": 14,
+   "categories": [
+    {
+     "name": "Basic",
+     "entries": 21
+    },
+    {
+     "name": "Acrylics",
+     "entries": 12
+    },
+    {
+     "name": "Inks",
+     "entries": 12
+    },
+    {
+     "name": "Dry Media",
+     "entries": 16
+    },
+    {
+     "name": "Engraving",
+     "entries": 18
+    },
+    {
+     "name": "Gouaches",
+     "entries": 16
+    },
+    {
+     "name": "Markers",
+     "entries": 16
+    },
+    {
+     "name": "Masking",
+     "entries": 12
+    },
+    {
+     "name": "Oils",
+     "entries": 16
+    },
+    {
+     "name": "Pencils",
+     "entries": 16
+    },
+    {
+     "name": "Pens",
+     "entries": 16
+    },
+    {
+     "name": "Sprays and Spatters",
+     "entries": 20
+    },
+    {
+     "name": "Textures",
+     "entries": 18
+    },
+    {
+     "name": "Watercolours",
+     "entries": 16
+    }
+   ],
+   "sample_entry_names": [
+    "Basic",
+    "Round Brush",
+    "Round Soft Brush",
+    "Round Light Brush",
+    "Acrylics",
+    "Matte Acrylic 01",
+    "Matte Acrylic 02",
+    "Textured Acrylic",
+    "Grainy Acrylic",
+    "Gradual Acrylic Sand Paper 01",
+    "Gradual Acrylic Sand Paper 02",
+    "Gradual Acrylic Cotton Paper 01",
+    "Gradual Acrylic Cotton Paper 02",
+    "Smooth Blending Acrylic 01",
+    "Smooth Blending Acrylic 02",
+    "Dirty Acrylic 01",
+    "Dirty Acrylic 02",
+    "Inks",
+    "Comics Ink Pen",
+    "Comics G Pen",
+    "Low Absorption Ink",
+    "Analog Ink Nib",
+    "Dry Bristle Ink",
+    "Brush Pen"
+   ]
+  },
+  "container_format": "Reference stock content is stored in a Serif KA container (raster_brushes.propcol, header 00ff4b410b0008007572425223496e66). Studio does not adopt that format; it ships its own SurrealDB-backed registry and a Handshake-native package format for import/export.",
+  "naming": "Do not ship vendor category or entry names verbatim as Studio product content. Use the captured structure to size the registry, the category model, and the panel; author Studio's own stock set.",
+  "panel_operations": [
+   "create category",
+   "rename category",
+   "reorder",
+   "duplicate",
+   "delete (with contents policy)",
+   "import presets to category",
+   "export preset",
+   "create entry from current settings",
+   "rename entry",
+   "move entry",
+   "delete entry",
+   "reset to stock"
+  ],
+  "collision_policy": "user entry name collision prompts; stock entry name collision forks a user copy"
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "surfaces": [
+   "Raster Brush Library panel",
+   "category tree",
+   "entry grid",
+   "import/export dialog"
+  ],
+  "argus_targets": [
+   "studio.presets.raster_brushes_panel",
+   "studio.presets.raster_brushes_category_tree",
+   "studio.presets.raster_brushes_entry_grid"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Presets / Raster Brush Library"
+  ],
+  "must_cover": [
+   "purpose",
+   "panel path",
+   "create/apply/organise workflow",
+   "import/export",
+   "collision and reset behavior",
+   "failure and recovery",
+   "diagnostic linkage"
+  ],
+  "not_applicable_reason": null
+ },
+ "resource_privacy_obligation": {
+  "applies": true,
+  "touched_resources": [
+   "Raster Brush Library registry rows",
+   "user preset entries",
+   "category rows",
+   "entry thumbnails",
+   "imported preset packages",
+   "search index rows"
+  ],
+  "identity_context": "authenticated account + acting Principal + session + active AccessSpace; StudioDocument and every derived preset/thumbnail/index row carry owner + ResourceGrant linkage",
+  "enforcement_boundaries": [
+   "SurrealDB record-user table/field permissions",
+   "ResourceBroker / ArtifactStore",
+   "studio API surface",
+   "search/index + model-retrieval context assembly",
+   "preview/thumbnail generation",
+   "export/sync",
+   "UI query"
+  ],
+  "positive_case": "owner in an authorised AccessSpace reads, edits, and exports the resource",
+  "negative_case": "a second account in the same project cannot read, list, search, preview, count, or export it; existence metadata does not leak",
+  "derived_scope_rule": "thumbnails, indexes, caches, and model context inherit the intersection of contributing source scopes and never widen",
+  "revocation_rule": "grant revocation or AccessSpace switch invalidates cached previews and in-flight reads promptly; running sessions stay pinned to immutable context",
+  "note": "User-authored presets are owner-scoped resources; stock content is installation-scoped and readable by every authenticated account.",
+  "hbr": [
+   "HBR-PRIV-001",
+   "HBR-PRIV-002",
+   "HBR-PRIV-004",
+   "HBR-PRIV-005"
+  ]
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001",
+  "HBR-PRIV-002",
+  "HBR-PRIV-004",
+  "HBR-SWARM-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-PRESET-* business events on every registry mutation"
+  },
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "present in the feat/WP-KERNEL-012 base at src/frontend/handshake_native/src/diagnostics/; emit registry load time + panel frame cost"
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "present in the feat/WP-KERNEL-012 base as the src/frontend/palmistry crate; large registry loads are watched for UI-thread stall"
+  }
+ ],
+ "validator_focus": [
+  "Registry state must survive a real runtime restart from SurrealDB, not from an in-memory fixture.",
+  "Stock immutability must be proven by attempting a stock edit, not asserted in prose.",
+  "Cross-account isolation must cover metadata: counts, search hits, thumbnails, and export listings.",
+  "Reject the MT if the panel is not Argus-observable or if proof is fixture-only (Spec-Realism Gate sub-rule 2).",
+  "Confirm no vendor category or entry name shipped as Studio product content."
+ ],
+ "risk_if_missed": "Raster Brush Library degrades to a flat unmanaged list: no categories, no user entries, no durable owner-scoped persistence, and no import/export path, which blocks professional asset reuse across documents and projects.",
+ "red_team": {
+  "required": true,
+  "risks": [
+   "Registry implemented as an in-memory Vec with a JSON sidecar instead of SurrealDB authority.",
+   "Thumbnails generated into a shared cache without owner scoping (metadata side channel).",
+   "Large stock registry loaded synchronously on the UI thread, stalling the shell.",
+   "Import path trusting package contents and partially mutating the registry before validation."
+  ]
+ },
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ }
+}

@@ -1,132 +1,199 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-189",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-189.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-189.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-181",
-      "MT-165",
-      "MT-161"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Raster export + data merge [STU-LAY-063]",
-  "spec_anchor": [
-    "STU-LAY-063",
-    "STU-LAY-034",
-    "STU-LAY-054",
-    "STU-LAY-067"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-189",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-189.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-189.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-181",
+   "MT-165",
+   "MT-161"
   ],
-  "scope": {
-    "summary": "Implement raster export (JPEG/PNG-class): export selection, ranges, or all pages/spreads with quality, resolution, color space, anti-alias, bleed, and overlap, as StudioExportRecipe executions (MT-181). Implement data merge binding a data source (delimited CSV/TSV, JSON array-of-objects, or spreadsheet, including image fields by path) to placeholder fields in the layout and generating merged output; it MUST support preview records, multiple records per page with arrangement (rows-first/columns-first), margins and spacing, a repeating grid-layout mode replicating a first-cell design to all cells, content-placement options (fitting, center, link images), blank-line removal, record-range filtering, per-record QR-code fields (MT-165), and direct-to-PDF merge without an intermediate document. Data merge is a StudioExportRecipe variant; the source is embeddable in the document. Stale data-merge sources are a preflight rule (MT-183).",
-    "allowed_paths": [
-      "src/studio/layout/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "raster export with full options + data merge (multi-record/grid/QR/blank-line/direct-PDF) as embeddable recipe"
-    ],
-    "proof_targets": [
-      "data-merge generation runtime; raster-export + grid/QR test"
-    ],
-    "code_surfaces": [
-      "src/studio/layout/output/raster_export.rs",
-      "src/studio/layout/output/data_merge.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::layout::output::data_merge",
-      "live: data merge binds a CSV+image-path source to placeholders and generates multi-record-per-page output (rows-first) + direct-to-PDF",
-      "test: raster export of ranges with resolution/color-space/bleed; repeating grid-layout mode + per-record QR + blank-line removal"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "export image dialog",
-      "data merge panel"
-    ],
-    "argus_targets": [
-      "studio.layout.raster_export",
-      "studio.layout.data_merge"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Page Layout / Raster export & data merge"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-QUIET-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Raster export + data merge [STU-LAY-063]",
+ "spec_anchor": [
+  "STU-LAY-063",
+  "STU-LAY-034",
+  "STU-LAY-054",
+  "STU-LAY-067"
+ ],
+ "scope": {
+  "summary": "Implement raster export (JPEG/PNG-class): export selection, ranges, or all pages/spreads with quality, resolution, color space, anti-alias, bleed, and overlap, as StudioExportRecipe executions (MT-181). Implement data merge binding a data source (delimited CSV/TSV, JSON array-of-objects, or spreadsheet, including image fields by path) to placeholder fields in the layout and generating merged output; it MUST support preview records, multiple records per page with arrangement (rows-first/columns-first), margins and spacing, a repeating grid-layout mode replicating a first-cell design to all cells, content-placement options (fitting, center, link images), blank-line removal, record-range filtering, per-record QR-code fields (MT-165), and direct-to-PDF merge without an intermediate document. Data merge is a StudioExportRecipe variant; the source is embeddable in the document. Stale data-merge sources are a preflight rule (MT-183).",
+  "allowed_paths": [
+   "src/studio/layout/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No raster export or variable-data publishing; catalogs/mailers/badges impossible.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Raster export with full options",
+   "Data merge (multi-record/grid/QR/blank-line/direct-PDF) as embeddable recipe"
+  ],
+  "proof_targets": [
+   "data-merge generation runtime; raster-export + grid/QR test"
+  ],
+  "code_surfaces": [
+   "src/studio/layout/output/raster_export.rs",
+   "src/studio/layout/output/data_merge.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::layout::output::data_merge",
+   "live: data merge binds a CSV+image-path source to placeholders and generates multi-record-per-page output (rows-first) + direct-to-PDF",
+   "test: raster export of ranges with resolution/color-space/bleed; repeating grid-layout mode + per-record QR + blank-line removal"
+  ],
+  "acceptance_criteria_original": [
+   "raster export with full options + data merge (multi-record/grid/QR/blank-line/direct-PDF) as embeddable recipe"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "export image dialog",
+   "data merge panel"
+  ],
+  "argus_targets": [
+   "studio.layout.raster_export",
+   "studio.layout.data_merge"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Page Layout / Raster export & data merge"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-QUIET-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No raster export or variable-data publishing; catalogs/mailers/badges impossible.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Raster export with full options",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "data-merge generation runtime; raster-export + grid/QR test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Data merge (multi-record/grid/QR/blank-line/direct-PDF) as embeddable recipe",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-LAY-063",
+    "spec_clause_text": "**[STU-LAY-063]** Raster export MUST export a selection, ranges, or all pages and spreads with quality, resolution, colour space, anti-aliasing, bleed and overlap ([STU-LAY-162]). Data merge MUST bind a data source (delimited text, a JSON array of objects, or a spreadsheet, including image fields by path) to placeholder fields in the layout and generate merged output, supporting preview records, multiple records per page with arrangement, margins and spacing, a repeating grid-layout mode, content-placement options, blank-line removal, record-range filtering, per-record QR-code fields and direct-to-PDF merge without an intermediate document ([STU-LAY-163])."
+   },
+   {
+    "anchor": "STU-LAY-034",
+    "spec_clause_text": "**[STU-LAY-034]** QR codes MUST be generatable as editable vector objects, reusable object libraries and snippets MUST store, search, sort and re-place objects with per-item metadata, and frame stroke options apply through the shared vector stroke model (14.5, [STU-VEC-143] to [STU-VEC-146])."
+   },
+   {
+    "anchor": "STU-LAY-054",
+    "spec_clause_text": "**[STU-LAY-054]** All render-to-output operations are `StudioExportRecipe` executions dispatched through the quiet/headless output path. Output MUST run without stealing focus or popping foreground windows and MUST be observable as a background task with progress and cancel, per the headless/quiet law (14.20). The captured object model confirms a first-class ASYNCHRONOUS export command distinct from the synchronous one, and a captured typed error stating that a particular format cannot be exported asynchronously; Studio MUST expose both paths and MUST report the per-format capability rather than silently blocking."
+   },
+   {
+    "anchor": "STU-LAY-067",
+    "spec_clause_text": "**[STU-LAY-067]** Every capability in this catalog MUST be exposed through BOTH the operator UI and the typed model-steerable command/MCP surface as two projections of one primitive per [STU-DOC-004], MUST satisfy the model-visibility/steerability and parallel-workflow requirements (14.16, 14.17), MUST obey the headless/quiet output law so preflight, package, print, PDF and merge never steal focus or block on a foreground window (14.20), and MUST be represented in the dual-audience UserManual and the GUI/diagnostic and accessibility surfaces (14.22, 14.16). Model-authored layout mutations MUST pass the sandbox -> validation -> `PromotionGate` lifecycle ([STU-ARC-005]) via the propose-work system (14.18) before layout authority rows change. All durable layout authority persists through the canonical Studio SurrealDB tables and `studio.layout` EventLedger events (14.23) under the SurrealDB-only authority guard ([STU-SDB-002]); live collaborative editing is CRDT-backed. This obligation is stated once and is not restated per clause."
+   }
+  ],
+  "spec_clause_count": 4,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

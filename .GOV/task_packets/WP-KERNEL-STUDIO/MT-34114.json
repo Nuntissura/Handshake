@@ -1,0 +1,181 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34114",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-CMP-040#parameter_table#0",
+  "unit_kind": "parameter_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "2. Cameras",
+  "spec_line": 28126,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "A camera layer defines the view for the 3D layers in its composition - group is normative and every member is keyframable parameter bounds",
+ "spec_anchor": [
+  "STU-CMP-040"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "compositing",
+ "scope": {
+  "summary": "A camera layer defines the view for the 3D layers in its composition.** Its property group is normative and every member is keyframable: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Property | Role | |---|---| | `zoom` | Focal distance in pixels; with the composition size this determines the field of view. Zoom and angle-of-view are two views of one value and both MUST be presented. | | `depth_of_field` | Master enable for the optical model below. | | `focus_distance` | Distance at which the image is sharp. A \"link focus to layer\" convenience is a typed command producing an expression ([STU-MOT-070]), not a hidden binding. | | `aperture` | Aperture size; larger means shallower depth of field. | | `blur_level` | A multiplier on the computed blur, so the physical result can be exaggerated or tamed. | | `focus_area_width` | Width of the in-focus band. | | `split_blur_level` | Independent blur scaling in front of and behind focus. | | `iris_shape` | Enumerated aperture shape; drives bokeh geometry. | | `iris_rotation` | Rotation of the iris shape. | | `iris_roundness` | Blade curvature. | | `iris_aspect_ratio` | Anamorphic bokeh. | | `iris_diffraction_fringe` | Edge diffraction on the bokeh. | | `highlight_gain` | How much bright highlights bloom into bokeh discs. | | `highlight_threshold` | The lumi [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The parameter `zoom` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The parameter `depth_of_field` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The parameter `focus_distance` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The parameter `aperture` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The parameter `blur_level` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The parameter `focus_area_width` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The parameter `split_blur_level` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The parameter `iris_shape` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The parameter `iris_rotation` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The parameter `iris_roundness` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The parameter `iris_aspect_ratio` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The parameter `iris_diffraction_fringe` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 12"
+  },
+  {
+   "id": "AC-013",
+   "criterion": "The parameter `highlight_gain` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 13"
+  },
+  {
+   "id": "AC-014",
+   "criterion": "The parameter `highlight_threshold` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 14"
+  },
+  {
+   "id": "AC-015",
+   "criterion": "The parameter `highlight_saturation` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: . A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-CMP-040 parameter table row 15"
+  }
+ ],
+ "acceptance_criteria_count": 15,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

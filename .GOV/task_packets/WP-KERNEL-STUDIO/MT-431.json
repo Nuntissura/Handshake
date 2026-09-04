@@ -1,129 +1,205 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-431",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-431.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-431.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-430",
-      "MT-441"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Develop output routing via StudioExportRecipe + multi-image apply on canonical selection [STU-RAW-017]",
-  "spec_anchor": [
-    "STU-RAW-017",
-    "STU-IO-010",
-    "STU-SOT"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-431",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-431.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-431.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-430",
+   "MT-441"
   ],
-  "scope": {
-    "summary": "Route save/output of a developed raw through StudioExportRecipe (14.13) for derived deliverables (DNG/TIFF/PNG/JPEG and layered document formats) with format-specific options, WITHOUT inventing a raw-develop-only export path that bypasses the 14.13 export contract. Implement multi-image apply — copy develop settings from one raw to a selection of others, paste-settings, previous, and preset apply across a filmstrip selection — operating on the CANONICAL selection set, not the visible/loaded subset.",
-    "allowed_paths": [
-      "src/studio/raw/**",
-      "src/studio/interop/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "develop output via StudioExportRecipe; multi-image apply on canonical selection; no bypass"
-    ],
-    "proof_targets": [
-      "export-via-recipe + canonical-selection apply test"
-    ],
-    "code_surfaces": [
-      "src/studio/raw/output.rs",
-      "src/studio/interop/export_recipe.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::raw::output",
-      "test: developed-raw save routes through StudioExportRecipe (no bypass path)",
-      "test: multi-image apply targets canonical selection set, not visible/loaded subset"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "develop output/apply"
-    ],
-    "argus_targets": [
-      "studio.raw.output",
-      "studio.raw.apply_settings"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Camera Raw & Develop / Output & multi-image apply"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Develop output routing via StudioExportRecipe + multi-image apply on canonical selection [STU-RAW-017]",
+ "spec_anchor": [
+  "STU-RAW-017",
+  "STU-IO-010"
+ ],
+ "scope": {
+  "summary": "Route save/output of a developed raw through StudioExportRecipe (14.13) for derived deliverables (DNG/TIFF/PNG/JPEG and layered document formats) with format-specific options, WITHOUT inventing a raw-develop-only export path that bypasses the 14.13 export contract. Implement multi-image apply — copy develop settings from one raw to a selection of others, paste-settings, previous, and preset apply across a filmstrip selection — operating on the CANONICAL selection set, not the visible/loaded subset.",
+  "allowed_paths": [
+   "src/studio/raw/**",
+   "src/studio/interop/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Bypass export path or partial-selection apply (SOT canonical-set violation).",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Develop output via StudioExportRecipe",
+   "Multi-image apply on canonical selection",
+   "No bypass"
+  ],
+  "proof_targets": [
+   "export-via-recipe + canonical-selection apply test"
+  ],
+  "code_surfaces": [
+   "src/studio/raw/output.rs",
+   "src/studio/interop/export_recipe.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::raw::output",
+   "test: developed-raw save routes through StudioExportRecipe (no bypass path)",
+   "test: multi-image apply targets canonical selection set, not visible/loaded subset"
+  ],
+  "acceptance_criteria_original": [
+   "develop output via StudioExportRecipe; multi-image apply on canonical selection; no bypass"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "develop output/apply"
+  ],
+  "argus_targets": [
+   "studio.raw.output",
+   "studio.raw.apply_settings"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Camera Raw & Develop / Output & multi-image apply"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Bypass export path or partial-selection apply (SOT canonical-set violation).",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Develop output via StudioExportRecipe",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "export-via-recipe + canonical-selection apply test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Multi-image apply on canonical selection",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "No bypass",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-RAW-017",
+    "spec_clause_text": "**[STU-RAW-017]** Save and output of a developed raw MUST route through `StudioExportRecipe` (14.13) for derived deliverables with format-specific options, and MUST NOT invent a raw-develop-only export path that bypasses the 14.13 export contract. Multi-image apply — copying develop settings from one raw to a selection of others, paste-settings, previous-settings and preset apply across a filmstrip selection — MUST operate on the canonical selection set, not on the visible or loaded subset. The raw-side export facts 14.13 MUST carry are: a DNG output path with a compatibility version, a compression flag, a conversion method that may preserve the original raw payload, and an embedded-preview cache option; output bit depths of 8, 10, 16 and 32 bits per component; compression selectable as none, LZW or ZIP; a resize mode enumeration of `width_and_height`, `dimensions`, `long_edge`, `short_edge`, `megapixels` and `percentage`; an output-sharpening amount of `low`, `standard` or `high`; and a filename-collision policy of `ask`, `overwrite`, `rename` or `skip`. ### 18. Model Steerability, Headless Operation, and Validation"
+   },
+   {
+    "anchor": "STU-IO-010",
+    "spec_clause_text": "[STU-IO-010] All export surfaces recorded across the source suites MUST unify into `StudioExportRecipe` — one primitive, many recipes — with NO separate per-surface export subsystem. The unified recipe MUST cover: - Single-target export: per-document, per-layer, and per-artboard export — the deduped \"Export As\" / \"Save a Copy\" derived-format matrix, plus a one-click \"Quick Export\" default with a preferred format and location. - Export-for-screens / slices: independent named export regions drawn from areas, layers, or artboards, each with its own format and scale set; multi-scale variants (1x/2x/3x…) with scale-suffix filename tokens; and continuous/automatic re-export when slice content changes. - Legacy web optimizer: 2-up/4-up preview, GIF/JPEG/PNG-8/PNG-24 settings, dither, transparency matte, color-table editing, image-size, and slice-aware HTML/image output. - PDF export: option groups for preset/standard (including PDF/X), general/preserve-editing, compression/downsampling, output color conversion, and security, with named reusable PDF presets. - Batch and packaging: export of each layer or artboard to individual files, and artboards-to-PDF packaging. - Video/animation render: timeline to encoder presets or image sequences with range, size, and frame-rate options. - Print output: printer setup; Studio- vs printer-managed color with rendering intent and soft-proof; position and scaled print size; printing marks; and bleed/background/border functions. Each is a `StudioExportRecipe` configuration; export area MUST resolve against the canonical document/selection/slice set, not the currently rendered/visible subset. ### 7. Fixtures and round-trip expectations"
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ },
+ "anchor_corrections": [
+  {
+   "removed": "STU-SOT",
+   "replaced_with": null,
+   "reason": "STU-SOT is not a clause anchor and appears in no bundle. It read as shorthand for the spec being the source of truth, which every contract already states, so it is removed rather than repointed.",
+   "approved_by": "ilja040920261532",
+   "at": "2026-09-04"
+  }
+ ]
 }

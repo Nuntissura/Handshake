@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-016",
   "created_at_utc": "2026-07-02T03:00:00Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
-  "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-04",
+  "updated_at_utc": "2026-09-01T00:00:00Z",
+  "scope_status": "BLOCKED_ON_DEPENDENCY",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-016.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -16,25 +16,25 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-014"
     ],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "FAIL_V5",
+    "active": true,
+    "validator_verdict": "BLOCKED_ON_DEPENDENCY",
     "claimed_by": "KERNEL_BUILDER-20260704-003205",
     "claimed_at_utc": "2026-07-04T00:32:05Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260723-205940",
     "ready_for_validation_at_utc": "2026-07-24T14:33:31Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "PARFIT_COMPOSITION_AND_RUNTIME_PROOF: boot.rs/local_router.rs still require the relational ModelRegistryStore for configured-set preflight, atomic role-bound boot commit/read-back, active completion/embedding defaults, and verified-unload adapter rebind. Parfit must replace that concrete dependency with one exact-scope Surreal model-registry authority and inject the same cloned SurrealStorage into SurrealLoomSearchStore. Shared storage/surreal.rs export/bootstrap and API/main caller wiring are outside this lane. Historical non-MT-016 loom_search_v2_tests still call the replaced Database/WriteContext service signatures and require migration by their owner before the target compiles. No Cargo/runtime proof has run.",
     "missing_resource": null,
-    "proof_status": "FAIL_V5: HBR privacy remains explicitly PARTIAL: scope non-widening across embedding artifact, Loom index, and derived search results is still owed. The fresh six-test validator bundle timed out during compilation and produced no test verdict. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL: shared ModelRegistry/ModelCatalog capability validation, embedded local-runtime dedicated embedding registration, LoomSearchV2 no-chat-fallback route with stable embedding-space persistence, PostgreSQL same-space vector filtering, and UserManual startup/recovery/evidence coverage.; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_enumerate_each_others_model_registry_rows - registry rows are isolated per account. STILL OWED: Embedding artifact, Loom index, and derived search-result non-widening are not yet attached.",
+    "proof_status": "CLAIMED/BLOCKED V6: dedicated Embedded SurrealDB schema/provider and MT-016 source tests now encode exact five-field scope on embedding registration, Loom index, retrieval trace, result set, result rows, and canonical EventLedger receipts; stale/revoked/cross-scope and orphan-receipt counterfactuals are present. Static formatting/scans are the only current evidence. Parfit export/bootstrap, production boot/local-router authority replacement, API caller wiring, Cargo compilation, embedded runtime tests, and real Candle restart proof remain owed.",
+    "hbr_status": "SOURCE_ENCODED_NOT_RUNTIME_PROVEN: HBR-PRIV-001/002/004/005 exact-scope attribution and non-widening are encoded across source artifact -> index -> retrieval/result derivatives; missing, mismatched, stale, revoked, ambiguous, and receipt-inconsistent paths fail closed. HBR-INT-001/009 and canonical EventLedger linkage are encoded. No PASS is claimed until Parfit composition and parent -j1 runtime proof complete.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
     "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_DALTON_HELMHOLTZ_DEWEY_FINDINGS_APPLIED",
-    "adversarial_findings_status": "POST_REVIEW_FINDINGS_APPLIED: stable embedding-space key replaces per-boot UUID persistence/search matching; router rejects runtime embedding dimension mismatch with typed error; dedicated embedding capabilities no longer overdeclare chat/LoRA/KV/steering; UserManual event family and tool-entry proof targets updated; optional bad embedding-model load remains fail-closed under existing boot contract and is not claimed as separate fail-open behavior.",
+    "adversarial_findings_status": "V6_SOURCE_REVIEW: dedicated-role/artifact/dimension matching prevents chat fallback; Surreal vector scoring filters exact embedding space; source/index/result scopes are exact and non-widening; identical retries return stable evidence; receipt-without-mutation and internally inconsistent evidence throw transactionally. BLOCKER: boot/local_router retain concrete relational authority and the real-model target deliberately remains ignored-and-failing instead of acting as a partial-green surrogate.",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
     "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
@@ -70,8 +70,8 @@
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_tests mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency -- --exact --nocapture",
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_catalog_tests mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat -- --exact --nocapture",
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests mt016_default_boot_registers_distinct_embedding_model_when_configured -- --exact --nocapture",
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test loom_search_v2_tests mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model -- --exact --nocapture",
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test loom_search_v2_tests mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call -- --exact --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test mt016_surreal_loom_search_tests -- --nocapture",
+      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support,candle-runtime-engine --test mt016_real_embedding_e2e mt016_real_candle_embedding_restart_recovers_role_isolation_and_event_ledger -- --ignored --exact --nocapture",
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests dedicated_embedding_model_behaviors_have_manual_coverage -- --exact --nocapture"
     ],
     "risk_if_missed": "LoomSearchV2 semantic search is permanently tied to the single chat model's embedding output; operators cannot run a separate, correctly-dimensioned embedding model, limiting semantic search quality and the CPU-baseline story.",
@@ -95,7 +95,8 @@
   ],
   "hbr_obligations": [
     "INT",
-    "MAN"
+    "MAN",
+    "PRIV"
   ],
   "handoff": {
     "coder_session": null,
@@ -155,7 +156,31 @@
     "rust_only_implementation": "Rust backend + native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real engine-free proofs; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V5",
+  "validator_verdict": "BLOCKED_ON_DEPENDENCY",
+  "surreal_v6_remediation": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "storage_authority": "One cloned embedded SurrealStorage; no relational or in-memory compatibility authority in the MT-016 Loom/provider/test boundary.",
+    "source_closure": [
+      "storage/surreal/loom_search_schema.surql defines exact-scope embedding registration, 768-dimensional HNSW index rows, retrieval traces, result sets, result rows, and EventLedger references.",
+      "storage/surreal/loom_search.rs provides durable idempotent embedding registration, exact-scope source indexing, Surreal vector::similarity::cosine scoring, durable result evidence, and fail-closed lifecycle/receipt checks.",
+      "loom_search/mod.rs requires the persisted dedicated embedding selection, exact artifact match in the live catalog, embedding role, ready state, capability, and dimension; it never selects a chat model as fallback.",
+      "tests/mt016_surreal_loom_search_tests.rs covers stable retry evidence, same-namespace restart identity, completion-role rejection, vector semantics, cross-scope denial, stale/revoked denial, and receipt-without-mutation counterfactuals.",
+      "tests/mt016_real_embedding_e2e.rs contains no relational harness and remains an explicit ignored failure until production Surreal model-registry composition exists."
+    ],
+    "parfit_handoff": {
+      "shared_export": "Add mod loom_search; and export bootstrap_loom_search_schema, SurrealEmbeddingRegistration, SurrealLoomIndexMutation, SurrealLoomSearchEvidence, and SurrealLoomSearchStore from storage/surreal.rs.",
+      "bootstrap": "Call bootstrap_loom_search_schema(&surreal_storage).await? after bootstrap_schema, then construct SurrealLoomSearchStore::new(surreal_storage.clone()).",
+      "loom_callers": "reindex_block(store: &SurrealLoomSearchStore, llm: &dyn LlmClient, recorder: &dyn FlightRecorder, scope: &ExactResourceScopeAttribution, block: &LoomBlock) -> StorageResult<bool>; search(store: &SurrealLoomSearchStore, llm: &dyn LlmClient, recorder: &dyn FlightRecorder, scope: &ExactResourceScopeAttribution, request: LoomSearchV2Request) -> StorageResult<LoomSearchV2Response>.",
+      "model_registry_required_api": "Replace Option<ModelRegistryStore> in boot.rs and LocalModelRuntimeLlmClient with one exact-scope Surreal authority exposing: recover_configured_runtime_binding_set(scope, &[ModelRuntimeSelection]); persist_role_bound_boot_set_and_read_back(scope, &[RoleBoundModelRegistration]); ensure_active_defaults(scope, &[(ModelRuntimeSelectionPurpose, [u8;32])]); and rebind_selection_after_verified_unload(scope, &ModelRuntimeSelection, ExplicitModelRuntimeRebind). The commit/read-back result must preserve artifact_sha256, last_observed_runtime_model_id, runtime_role, selection revision, and EventLedger receipt. Rebind must atomically compare expected revision, preserve runtime role (including EmbeddingsDefault), advance revision once, and return stable evidence on an identical request retry. boot must pass the same exact scope and cloned SurrealStorage to this authority and SurrealLoomSearchStore."
+    },
+    "parent_cargo_target_dir": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt016-cargo-target",
+    "focused_parent_commands": [
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt016-cargo-target'; cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test mt016_surreal_loom_search_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt016-cargo-target'; cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support,candle-runtime-engine --test mt016_real_embedding_e2e mt016_real_candle_embedding_restart_recovers_role_isolation_and_event_ledger -- --ignored --exact --nocapture"
+    ],
+    "runtime_proof": "PENDING_PARENT_SERIAL_CARGO_SLOT",
+    "historical_note": "validation_v1/v4/v5 and integration_validation_v5 are retained as governance provenance only; their relational proof paths are not current V6 acceptance evidence."
+  },
   "validation_v5": {
     "verdict": "READY_FOR_VALIDATION_V5",
     "ready_by": "KERNEL_BUILDER-20260723-205940",

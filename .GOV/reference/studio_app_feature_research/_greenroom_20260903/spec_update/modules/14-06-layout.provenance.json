@@ -1,0 +1,2345 @@
+{
+ "schema_id": "handshake.reference.studio_spec_clause_provenance@1",
+ "file_id": "studio-spec-provenance-14-06-layout.md",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "module": "14-06-layout.md",
+ "section_title": "14.6 Studio -- Page Layout & Publishing",
+ "authority_note": "This file records HOW each clause was derived. It is NOT authority. Authority is the Master Spec module itself ([STU-SECTION-002]). Where this file and the module disagree, the module wins and this file is stale.",
+ "conventions": {
+  "kind.new": "clause added in v02.206 from a green-room capture",
+  "kind.preserved": "clause carried forward from v02.205 unchanged in meaning",
+  "kind.preserved_and_superseded_in_part": "clause carried forward, with a named part superseded by captured behaviour",
+  "sources[].capture": "key into capture_files",
+  "sources[].record": "the path inside that capture file the clause was read from",
+  "sources[].fields": "the specific parsed fields transcribed",
+  "sources[].note": "a caveat that limits how the record may be used"
+ },
+ "capture_files": {
+  "contract": {
+   "path": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+   "schema_id": "handshake.reference.studio_mt_authoring_contract@1",
+   "channel": "operator-confirmed authoring contract",
+   "totals": {}
+  },
+  "decisions": {
+   "path": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+   "schema_id": "handshake.reference.studio_architecture_decisions@1",
+   "channel": "operator-confirmed architecture decisions",
+   "totals": {}
+  },
+  "id_dom": {
+   "path": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+   "schema_id": "handshake.reference.indesign_dom_full@1",
+   "channel": "binary record parser for idrc_SCE2 scripting-element resources read from the installed application; read-only, never launched",
+   "totals": {
+    "resource_files_parsed": 1774,
+    "classes": 516,
+    "properties": 3398,
+    "methods": 783,
+    "enumerations": 526,
+    "enumerators": 3000,
+    "properties_with_explicit_range_or_default_text": 207
+   }
+  },
+  "id_errors": {
+   "path": "_greenroom_20260903/installed_exports/indesign/offline/indesign_error_catalog.json",
+   "schema_id": "handshake.reference.indesign_error_catalog@1",
+   "channel": "binary record parser for idrc_uetb error tables plus English idrc_PMST string pools",
+   "totals": {
+    "distinct_error_codes": 1453,
+    "errors_with_english_message": 1436,
+    "constraint_candidates": 421,
+    "distinct_plugins": 71
+   }
+  },
+  "id_presets": {
+   "path": "_greenroom_20260903/installed_exports/indesign/offline/indesign_preset_contents.json",
+   "schema_id": "handshake.reference.indesign_preset_contents@1",
+   "channel": "offline read of shipped preset files; PDF export presets are PostScript dictionaries parsed key by key",
+   "totals": {
+    "pdf_export_preset_records": 13,
+    "distinct_pdf_preset_names": 10,
+    "stock_presets_in_locale_neutral_dir": 6,
+    "distinct_pdf_settings": 149,
+    "find_change_queries": 11,
+    "autocorrect_languages": 6
+   }
+  },
+  "prior_spec": {
+   "path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+   "schema_id": "handshake.indexed_spec.module@1",
+   "channel": "the superseded v02.205 text of 14.5 (lines 490-895) and 14.6 (lines 896-1239)",
+   "totals": {}
+  },
+  "id_commands": {
+   "path": "_greenroom_20260903/installed_exports/indesign/offline/indesign_command_surface.json",
+   "schema_id": "handshake.reference.indesign_command_surface@1",
+   "channel": "idrc_MENR menu resources, idrc_ACTD action resources and idrc_PMST English string tables",
+   "totals": {
+    "menu_paths": 770,
+    "menu_leaves": 693,
+    "actions": 1097,
+    "shortcut_categories": 162
+   }
+  }
+ },
+ "counts": {
+  "clauses_total": 137,
+  "clauses_new": 70,
+  "clauses_preserved": 51,
+  "clauses_preserved_and_superseded_in_part": 16,
+  "capture_files_cited": 7
+ },
+ "clauses": {
+  "STU-LAY-001": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-001]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-002": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-002]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-106"
+   ],
+   "reason": "'a document-configured maximum of at least ten' pages per spread does not exist in the capture; the limit is a configured value surfaced through a typed error"
+  },
+  "STU-LAY-003": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-003]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-004": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-004]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-005": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-005]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-006": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-006]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-007": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-007]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-008": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-008]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-009": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-009]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-111"
+   ],
+   "reason": "the captured liquid-rule enumeration has seven members; the v02.205 table had six"
+  },
+  "STU-LAY-010": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-010]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-011": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-011]"
+    },
+    {
+     "capture": "id_commands",
+     "record": "menu_tree.Main.Object",
+     "fields": [
+      "FlexContainer command family present under the object menu"
+     ],
+     "note": "used only to confirm the command family exists; no parameter, bound or default was taken from this capture"
+    }
+   ],
+   "derivation": "carried forward; the flex-container statement is corroborated by the captured menu tree, and its parameters are delegated to 14.10"
+  },
+  "STU-LAY-012": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-012]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-013": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-013]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-014": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-014]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-015": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-015]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-016": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-016]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-017": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-017]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-118"
+   ],
+   "reason": "the frame-option list omitted the flexible-column-width family, the footnote overrides and the column-rule inset chain"
+  },
+  "STU-LAY-018": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-018]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-019": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-019]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-020": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-020]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-123"
+   ],
+   "reason": "smart text reflow is six independent gated booleans, not one behaviour"
+  },
+  "STU-LAY-021": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-021]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-022": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-022]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-023": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-023]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-024": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-024]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-126"
+   ],
+   "reason": "the captured wrap-type enumeration has a sixth member (user-modified) that the five-row table lost"
+  },
+  "STU-LAY-025": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-025]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-127"
+   ],
+   "reason": "the anchored-object positioning description is replaced by the captured enumerations and fields"
+  },
+  "STU-LAY-026": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-026]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-027": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-027]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-028": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-028]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-029": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-029]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-131"
+   ],
+   "reason": "the captured fit enumeration has seven members including content-aware fit"
+  },
+  "STU-LAY-030": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-030]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-132"
+   ],
+   "reason": "the six-field link record is replaced by the captured thirty-eight-property record and its five status members"
+  },
+  "STU-LAY-031": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-031]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-133"
+   ],
+   "reason": "clipping gains its captured enumeration and its three declared numeric bounds"
+  },
+  "STU-LAY-032": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-032]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-151",
+    "STU-LAY-134",
+    "STU-LAY-135"
+   ],
+   "reason": "'the standard sixteen' blend modes is contradicted by a nineteen-member capture, and pass-through is required as the group default"
+  },
+  "STU-LAY-033": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-033]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-034": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-034]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-035": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-035]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-036": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-036]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-142"
+   ],
+   "reason": "the style-type table gains the captured property counts and the seventeen object-style category toggles"
+  },
+  "STU-LAY-037": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-037]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-038": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-038]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-039": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-039]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-040": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-040]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-041": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-041]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-042": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-042]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-043": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-043]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-044": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-044]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-045": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-045]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-046": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-046]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-047": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-047]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-048": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-048]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-151"
+   ],
+   "reason": "the ten-variable table merged the two running-header variants; the capture declares twelve distinct variable types"
+  },
+  "STU-LAY-049": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-049]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-050": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-050]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-051": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-051]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-052": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-052]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-053": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-053]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-101"
+   ],
+   "reason": "the captured measurement enumeration has twelve members and does not contain pixels; the v02.205 list had ten and did contain them"
+  },
+  "STU-LAY-054": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-054]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-055": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-055]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-056": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-056]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-057": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-057]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-058": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-058]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-059": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-059]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-060": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-060]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-157"
+   ],
+   "reason": "the captured booklet-type enumeration has five members; the v02.205 text named three"
+  },
+  "STU-LAY-061": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-061]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-062": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-062]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-160"
+   ],
+   "reason": "the captured PDF/X standards enumeration has six members including the 2003 revisions of X-1a and X-3"
+  },
+  "STU-LAY-063": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-063]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-LAY-162",
+    "STU-LAY-163"
+   ],
+   "reason": "raster export and data merge gain their captured bounds, enumerations and typed errors"
+  },
+  "STU-LAY-064": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-064]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-065": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-065]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-066": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-066]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-067": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.6 clause [STU-LAY-067]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-LAY-100": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "the_parameter_contract.required_fields"
+    },
+    {
+     "capture": "id_dom",
+     "record": "properties[*].description matching '(Range: ...)'",
+     "fields": "207 properties carry an explicit range or default in their own description text"
+    }
+   ],
+   "derivation": "operator contract + capture shape"
+  },
+  "STU-LAY-101": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['measurement units']",
+     "fields": [
+      "points",
+      "picas",
+      "inches",
+      "inches decimal",
+      "millimeters",
+      "centimeters",
+      "ciceros",
+      "custom",
+      "agates",
+      "q",
+      "ha",
+      "american points"
+     ]
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[InvalidUnitError]",
+     "fields": [
+      "cm",
+      "mm",
+      "in",
+      "pt",
+      "%",
+      "px",
+      "vh",
+      "vw",
+      "vmin",
+      "vmax"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['ruler origin']"
+    }
+   ],
+   "derivation": "transcribed; supersedes prior spec text"
+  },
+  "STU-LAY-102": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations[*].enumerators[]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-103": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "hard_rules_from_operator_decisions.GRD-001"
+    }
+   ],
+   "derivation": "operator contract"
+  },
+  "STU-LAY-104": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "what_is_being_replaced.the_test"
+    }
+   ],
+   "derivation": "operator contract"
+  },
+  "STU-LAY-105": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['document preference'] and ['document preset'].properties",
+     "fields": [
+      "pages per document Range: 1 to 9999",
+      "start page number default 1",
+      "document bleed uniform size default true",
+      "document slug uniform size default false",
+      "page binding options",
+      "document intent options",
+      "page orientation",
+      "create primary text frame",
+      "overprint black"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-106": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.spread.properties",
+     "fields": [
+      "allow page shuffle",
+      "page count",
+      "binding location",
+      "spread hidden"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['document preference'].properties",
+     "fields": [
+      "allow page shuffle",
+      "preserve layout when shuffling",
+      "spread hidden visibility"
+     ]
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[CantExceedPubPageLimit / CantExceedSpreadPageLimit]",
+     "fields": [
+      "Number of pages in a publication cannot exceed ^1",
+      "Spread cannot have more than ^1 pages"
+     ]
+    }
+   ],
+   "derivation": "transcribed; supersedes prior spec text"
+  },
+  "STU-LAY-107": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.page.properties and .methods",
+     "fields": [
+      "applied section",
+      "applied alternate layout",
+      "applied master",
+      "master page transform",
+      "override list",
+      "master page items",
+      "side",
+      "page color",
+      "layout rule",
+      "snapshot blending mode",
+      "grid starting point",
+      "use master grid",
+      "applied trap preset",
+      "tab order",
+      "adjust layout",
+      "snapshot current layout",
+      "reframe",
+      "resize",
+      "transform"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-108": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.section.properties",
+     "fields": [
+      "page number start",
+      "continue numbering",
+      "section prefix (up to 8 characters)",
+      "marker",
+      "alternate layout",
+      "alternate layout length"
+     ]
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Sections']",
+     "fields": [
+      "EmptySectionName: no more than five characters",
+      "BadSectionCharacter: , and +",
+      "BadSectionStartPageNumber: between 1 and 999999",
+      "DuplicateSection",
+      "DuplicateSectionStartPage",
+      "kConflictSectionSettingError",
+      "kCantDeleteDefaultSection",
+      "kEmptyAlternateLayoutNameError",
+      "kDuplicateAlternateLayoutNameError"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['page number style'] (14 and 17 member declarations), ['numbering style'] (16), ['variable numbering styles'] (12)"
+    }
+   ],
+   "derivation": "transcribed; two captures reconciled"
+  },
+  "STU-LAY-109": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.layer.properties and .methods",
+     "fields": [
+      "layer color",
+      "ignore wrap",
+      "show guides",
+      "lock guides",
+      "printable",
+      "expendable",
+      "visible",
+      "locked",
+      "merge"
+     ]
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Layer']",
+     "fields": [
+      "LockedLayer",
+      "LayerNameAlreadyExistsError",
+      "CantMoveLockedItemsToLayer",
+      "LastLayerError",
+      "CantMoveToLayer",
+      "CantMoveInlineToLayer",
+      "CantDeleteLayer",
+      "CantDropOnLayer"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-110": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.page.properties['override list'] / ['master page items'] / ['master page transform'] and .methods['remove override'] / .detach"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[CannotUnlinkItemNotOverriddenError]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-111": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['layout rule options']",
+     "fields": [
+      "off",
+      "scale",
+      "recenter",
+      "guide based",
+      "object based",
+      "use master",
+      "preserve existing"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes.guide.properties",
+     "fields": [
+      "guide type",
+      "guide zone"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['guide type options']",
+     "fields": [
+      "ruler",
+      "liquid"
+     ]
+    }
+   ],
+   "derivation": "transcribed; supersedes prior spec text"
+  },
+  "STU-LAY-112": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "methods['adjust layout'].description",
+     "fields": [
+      "permissible keys width/height/bleedInside/bleedTop/bleedOutside/bleedBottom/leftMargin/topMargin/rightMargin/bottomMargin",
+      "bleed changes have no effect on individual pages"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-113": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['margin preference'].properties",
+     "fields": [
+      "column count",
+      "column gutter",
+      "column direction",
+      "custom columns",
+      "columns positions",
+      "left/top/right/bottom"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes.spread.methods['create guides'].parameters"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-114": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.guide.properties",
+     "fields": [
+      "view threshold Range: 5.0 to 4000.0",
+      "guide color",
+      "orientation",
+      "location",
+      "fit to page",
+      "locked",
+      "page index",
+      "allow overrides",
+      "overridden"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['guide preference'].properties",
+     "fields": [
+      "ruler guides view threshold Range: 5 to 4000",
+      "guides in back",
+      "guides shown",
+      "guides locked",
+      "guides snapto"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "properties['guide snapto zone']",
+     "fields": [
+      "Range: 1 to 36"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-115": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['grid preference'].properties",
+     "fields": [
+      "baseline view threshold Range: 5 to 4000",
+      "baseline start",
+      "baseline division",
+      "horizontal/vertical gridline division",
+      "horizontal/vertical grid subdivision",
+      "grids in back",
+      "baseline grid relative option"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['baseline frame grid option'].properties"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-116": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['view preference'].properties",
+     "fields": [
+      "cursor key increment Range points 0.001 to 100",
+      "points per inch Range: 60 to 80",
+      "horizontal custom points Range: 4 to 256",
+      "vertical custom points"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "properties['zoom percentage']",
+     "fields": [
+      "Range: 5 to 4000"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "properties['real precision']",
+     "fields": [
+      "Range: 1 to 7"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-117": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['grid data information'] and ['grid printing preference']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['document preference'].properties",
+     "fields": [
+      "text area width",
+      "text area depth",
+      "text area depth unit",
+      "character aki",
+      "line aki",
+      "Text Area CharPerLine"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "properties['minimum scale'] on 'cjk grid preference'",
+     "fields": [
+      "Range: 5 to 4000"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-118": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['text frame preference'].properties (38 fields)"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-119": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['auto sizing type enum']",
+     "fields": [
+      "off",
+      "height only",
+      "width only",
+      "height and width",
+      "height and width proportionally"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['auto sizing reference enum'] (9 members)"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-120": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['first baseline'] and ['footnote first baseline']",
+     "fields": [
+      "ascent offset",
+      "cap height",
+      "leading offset",
+      "embox height",
+      "x height",
+      "fixed height"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-121": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['vertical justification']",
+     "fields": [
+      "top align",
+      "center align",
+      "bottom align",
+      "justify align"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-122": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['text frame'].properties",
+     "fields": [
+      "parent story",
+      "start text frame",
+      "end text frame",
+      "previous text frame",
+      "next text frame",
+      "text frame index",
+      "overflows"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-123": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['text preference'].properties",
+     "fields": [
+      "smart text reflow",
+      "smart text reflow sync",
+      "limit to master text frames",
+      "delete empty pages",
+      "preserve facing page spreads",
+      "link text files when importing"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-125": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "properties with explicit ranges owned by 'paragraph style' / 'story' / 'text default'",
+     "fields": [
+      "minimum/desired/maximum word spacing Range: 0 to 1000",
+      "minimum/desired/maximum letter spacing Range: -100 to 500",
+      "minimum/desired/maximum glyph scaling Range: 50 to 200",
+      "auto leading Range: 0 to 500",
+      "hyphen weight Range: 0 to 100",
+      "rule above/below tint Range: 0 to 100",
+      "paragraph shading tint",
+      "paragraph border tint",
+      "optical margin size Range: 0.1 to 1296"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['start paragraph'] / ['justification'] / ['rule width']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['paragraph style'].properties (334)"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-126": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['text wrap modes'] (5) and ['text wrap types'] (6)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['text wrap side options'] (6)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['text wrap preference'].properties",
+     "fields": [
+      "text wrap offset",
+      "inverse",
+      "apply to master page only",
+      "user modified wrap",
+      "path geometry"
+     ]
+    }
+   ],
+   "derivation": "transcribed; two captures reconciled"
+  },
+  "STU-LAY-127": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['anchored object setting'].properties and .methods"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['anchor position'] / ['anchored relative to'] / ['anchor point']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[CannotReAnchorMemberOfGroupError / kBadInLineMoveError]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-128": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['table formatting options'] and ['alignment style options']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-129": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes with find/change methods",
+     "fields": [
+      "find text",
+      "find grep",
+      "find glyph",
+      "find object",
+      "find transliterate",
+      "change color"
+     ]
+    },
+    {
+     "capture": "id_presets",
+     "record": "find_change_queries",
+     "fields": "11 shipped queries"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Text Walker']",
+     "fields": [
+      "kCantSearchOnEmptyTextError",
+      "kInvalidSearchModeError",
+      "kFCInvalidQueryNameError",
+      "kFCReadOnlyQueryFileError",
+      "kFCQueryFileNotFoundError"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-130": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['PDF crop'] (7 members)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['layer comp option']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Photoshop Import Filter']",
+     "fields": [
+      "Unsupported bit depth",
+      "Unsupported color space"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-131": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['fit options'] (7 members) and ['fitting'] (7 members, DataMerge)"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[kCannotApplyContentAwareFitOnWin32Error]"
+    }
+   ],
+   "derivation": "transcribed; two captures reconciled"
+  },
+  "STU-LAY-132": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.link.properties (38) and .methods (15)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['link status'] (4 and 5 member declarations) / ['link stored state'] / ['link resource rendition type'] / ['link import policy'] / ['link export policy'] / ['link stock state']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Links']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-133": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['clipping path settings'].properties",
+     "fields": [
+      "threshold Range: 0 to 255",
+      "tolerance Range: 0 to 10",
+      "inset frame Range points -10000 to 10000"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['clipping path type']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-134": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "properties with explicit ranges owned by the effect setting classes",
+     "fields": [
+      "drop shadow setting: opacity/noise/spread 0-100, size points 0-144, x/y offset points -1000..1000",
+      "inner shadow setting: choke amount/noise/opacity 0-100, angle -360..360",
+      "outer glow / inner glow: noise/opacity/spread 0-100",
+      "bevel and emboss setting: altitude 0-90, angle -180..180, depth 0-1000, highlight opacity/shadow opacity 0-100",
+      "satin setting: angle -360..360, opacity 0-100",
+      "feather setting: choke amount/noise 0-100, width points 0-1000",
+      "directional feather setting: angle 180 to -180, choke amount/noise 0-100, top/bottom/left/right width 0.2-250"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['object style object effects category settings'] / ['object style fill effects category settings'] / ['object style stroke effects category settings'] / ['object style content effects category settings']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['feather corner type'] / ['feather mode'] / ['bevel and emboss style'] / ['bevel and emboss technique'] / ['bevel and emboss direction'] / ['glow technique'] / ['shadow mode']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-135": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['transparency preference'].properties",
+     "fields": [
+      "global light angle Range: -360 to 360",
+      "global light altitude Range: 0 to 90"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "properties.opacity on 'blending setting'",
+     "fields": [
+      "Range: 0 to 100"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['blending space'] and ['flattener level']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes.spread.properties['flattener override']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-136": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['multi state object'] and .state properties and methods"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['state types'] (9 members)"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-137": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.document.methods['Create vCard QR Code'].parameters (13 named fields + swatch)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['Hyperlink QR Code'] and ['data merge qrcode placeholder']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-138": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.document.methods['export page items selection to snippet'] / ['export page items to snippet']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['document preference'].properties['snippet import uses original location']"
+    },
+    {
+     "capture": "id_presets",
+     "record": "sections.snippets",
+     "fields": "25 shipped snippet files"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-139": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.table (181p/21m), .cell (116p/21m), .row (103p/17m), .column (104p/17m)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['row types'] / ['column types'] / ['header columns position types'] / ['header footer break types'] / ['stroke order types'] / ['table direction options'] / ['table caption position options'] / ['display order options'] / ['alternating fills types'] / ['cell type enum']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Table Model']",
+     "fields": [
+      "kInvalidCellRangeError",
+      "kCellsTooSmallToSplitError"
+     ]
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[kCanNotPlaceTextFrameInTableError]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-140": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "properties matching '*tint*' owned by table / table style / cell / row / column / cell style",
+     "fields": [
+      "all declare Range: 0 to 100"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes.table.properties (alternating start/end stroke and fill groups, skip-first/skip-last counts)"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-141": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.cell.properties (116)"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-142": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['paragraph style'] (334p) / ['character style'] (161p) / ['object style'] (62p) / ['cell style'] (75p) / ['table style'] / ['TOC style'] (11p)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['object style'].properties (17 enable_* booleans, corner radii, arrow head scales Range: 1 to 1000, miter limit Range: 1 to 500, epub aria fields)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['*style group'] (5 distinct group classes)"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-143": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Text' and constraint_candidate==true]",
+     "fields": [
+      "StyleNameAlreadyExistsError",
+      "StyleSetNameAlreadyExistsError",
+      "EmptyStyleNameError",
+      "EmptyStyleGroupNameError",
+      "ReservedStyleNameError",
+      "LongStyleNameError",
+      "CircularBasedOnError",
+      "StyleNameContainsBracketError",
+      "CannotCopyParentToChildGroupError",
+      "CannotCopyStyleGroupIntoItSelfError",
+      "InvalidRequestForRootStyleError",
+      "kStylePackNamePrefixMissing",
+      "kCannotRenameStyleInStylePackError",
+      "ErrorInvalidTag",
+      "LongVariableNameError",
+      "CantCompleteOperationStorysLockedError"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-144": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['list style'] and enumerations['bullet character type'] / ['numbering style'] / ['bullet list export option']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[kBNCharAndTypeRequiredError]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-145": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.document.methods['import styles'].parameters",
+     "fields": [
+      "format",
+      "from",
+      "global strategy"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['cell style mapping'] and sibling mapping classes"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-146": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['object style export tag map']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['object style'].properties",
+     "fields": [
+      "epub aria role",
+      "epub aria label",
+      "epub aria label source type",
+      "emit css",
+      "include class"
+     ]
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[InvalidEpubTypeError / InvalidEpubARIARoleError / InvalidEpubARIALabelError]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-147": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.book.properties (30) and .methods (14)",
+     "fields": [
+      "17 synchronize_* booleans",
+      "smart match style groups",
+      "repagination option",
+      "insert blank page",
+      "automatic pagination",
+      "automatic document conversion",
+      "merge identical layers"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['book content'].properties and .methods"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Book']",
+     "fields": [
+      "kInvalidScriptExportDocsError",
+      "kInvalidScriptExportFormatError"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-148": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['TOC style'].properties (11) and ['TOC style entry'].properties (8)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes.document.methods['create TOC'].parameters",
+     "fields": [
+      "using",
+      "replacing",
+      "from book",
+      "place point",
+      "include overset"
+     ]
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='TOC']",
+     "fields": [
+      "MissingTOCEntryInTOCStyleError",
+      "AddDuplicateTOCEntryInStyleError",
+      "kConditionTag_LockedContainerErr"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-149": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['index options'].properties (23), ['index header setting'], ['index section'], ['indexing sort option'], ['page reference'], ['cross reference']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['cross reference type'] (8) / ['index capitalization options'] (4) / ['index format'] (2) / ['header types'] (27)"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Indexing']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-150": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['footnote option'].properties (42) and ['endnote option'].properties (15)",
+     "fields": [
+      "start at Range: 1 to 400",
+      "separator text Range: 0 to 100 characters",
+      "rule line weight Range: 0 to 1000",
+      "rule tint / rule gap tint Range: 0 to 100",
+      "continuing rule line weight Range: 0 to 1000",
+      "endnote title / prefix / suffix Limit: 0 to 100 characters"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['footnote numbering style'] (15) / ['footnote restarting'] (4) / ['footnote marker positioning'] (4) / ['footnote prefix suffix'] (4) / ['endnote restarting'] / ['endnote scope'] / ['endnote frame create'] / ['EPub Footnote placement']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[EndnoteOnMasterPageAlert]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-151": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes hyperlink / ['hyperlink URL destination'] / ['hyperlink page destination'] / ['hyperlink external page destination'] / ['hyperlink text destination'] / ['hyperlink text source'] / ['hyperlink page item source'] / ['cross reference source'] / ['cross reference format'] / bookmark"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['hyperlink appearance highlight'] / ['hyperlink appearance style'] / ['hyperlink appearance width'] / ['hyperlink destination page setting'] (7)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "properties['view percentage']",
+     "fields": [
+      "Range: 5 to 4000"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['text variable'] and enumerations['variable types'] (12) / ['variable scopes'] / ['variable numbering styles']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Hyperlinks']"
+    }
+   ],
+   "derivation": "transcribed; supersedes prior spec text (10 variables merged to 12)"
+  },
+  "STU-LAY-152": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['trap preset'].properties",
+     "fields": [
+      "default trap width Range points 0.0 to 8.0",
+      "black width Range points 0.0 to 8.0",
+      "black color threshold Range: 0 to 100",
+      "black density Range: .001 to 10 and 0.001 to 12.0",
+      "sliding trap threshold Range: 0 to 100",
+      "step threshold Range: 1 to 100",
+      "color reduction Range: 0 to 100"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['trap end types'] / ['trap image placement types'] / ['ink types']"
+    }
+   ],
+   "derivation": "transcribed; two captures reconciled"
+  },
+  "STU-LAY-153": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.condition / ['condition set'] / ['conditional text preference'] and .methods.delete(replacing with)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['condition indicator method'] / ['condition indicator mode'] / ['condition underline indicator appearance']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-154": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['preflight profile'] / ['preflight profile rule'] / ['preflight rule'] / ['preflight rule instance'] / ['preflight process'] / ['preflight option'] / ['preflight book option']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['preflight rule flag'] / ['preflight scope options'] / ['preflight layer options'] / ['preflight profile options'] / ['rule data type']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Package and Preflight']",
+     "fields": [
+      "kProfileNameAlreadyExists",
+      "kProfileNameInvalid"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-155": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.document.methods.package.parameters (9)"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-156": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['print preference'].properties (109) and ['printer preset'].properties (105)",
+     "fields": [
+      "scale width/height Range: 0 to 1000",
+      "bitmap resolution Range: 72 to 1200",
+      "black/cyan/magenta/yellow/spot/composite angle Range: 0 to 360",
+      "...frequency Range: 1 to 500"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['print layer options'] / ['print page orientation'] / ['image data types'] / ['trapping'] / ['printer preset types']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[kHalfGapGTCrossover / kInkMgrErrCantAliasProcessInk]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-157": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['print booklet option'].properties (14) and ['print booklet print preference'].properties (99)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['booklet type options'] (5)"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-158": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['PDF export preference'].properties (88) and ['PDF export preset'].properties (73)",
+     "fields": [
+      "color/grayscale/monochrome bitmap sampling DPI Range: 9 to 2400",
+      "threshold to compress * Range: 1 to 10 times the sampling DPI",
+      "subset fonts below Range: 0 to 100",
+      "color tile size / Gray tile size Range: 128 to 2048"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['acrobat compatibility'] / ['PDF color space'] / ['PDF compression type'] / ['PDF raster compression options'] / ['compression quality'] / ['PDF mark weight'] (3, 7 and 9 member declarations) / ['pdf magnification options'] / ['pdf display title options'] / ['export layer options']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-159": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_presets",
+     "record": "pdf_export_presets.presets[locale_dir=='mul']",
+     "fields": [
+      "High Quality Print",
+      "Press Quality",
+      "Smallest File Size",
+      "PDFX1a 2001",
+      "PDFX3 2002",
+      "PDFX4 2008"
+     ],
+     "note": "each preset's settings dictionary read key by key; 145-146 settings per preset out of 149 distinct"
+    }
+   ],
+   "derivation": "transcribed verbatim"
+  },
+  "STU-LAY-160": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['PDF X standards'] (6 members)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes.ink.properties",
+     "fields": [
+      "angle Range: 0 to 360",
+      "frequency Range: 1 to 500",
+      "neutral density Range: 0.001 to 10.0",
+      "solidity Range: 0.0 to 1.0"
+     ]
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[kExceedMaxInksInInkGroupError / kExceedMaxMixedInkSwatchesInGroupError]",
+     "fields": [
+      "no more than 27 spot color inks and no more than 31 inks total",
+      "maximum 1000 mixed ink swatches"
+     ]
+    }
+   ],
+   "derivation": "transcribed; supersedes prior spec text"
+  },
+  "STU-LAY-161": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['flattener preset'] / ['flattener preference'].properties",
+     "fields": [
+      "line art and text resolution Range: 1 to 9600",
+      "gradient and mesh resolution Range: 0 to 1200"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['flattener level']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-162": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['PNG export preference'].properties",
+     "fields": [
+      "export resolution Range: 1.0 to 2400.0"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['export range or all pages'] / ['image resolution'] / ['image format']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-163": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['data merge'] / ['data merge field'] / ['data merge option'] / ['data merge preference'] / ['data merge text placeholder'] / ['data merge image placeholder'] / ['data merge qrcode placeholder']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations.fitting / ['arrange by'] / ['record selection'] / ['records per page']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='DataMerge']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-164": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes.DTD / ['XML element'] and document.methods['import XML'] / ['import dtd']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['image conversion'] (3 and 4 member declarations)"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors_by_plugin[XMLParser]",
+     "fields": "447 of 1453 codes"
+    }
+   ],
+   "derivation": "transcribed; two captures reconciled"
+  },
+  "STU-LAY-165": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "classes['EPub export preference'].properties (57) and ['EPub fixed layout export preference'].properties (34)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['epub version'] / ['export order'] / ['epub cover'] / ['epub navigation style'] / ['epub fixed layout spread control'] / ['image alignment type'] / ['image page break type'] / ['bullet list export option'] / ['EPub Footnote placement'] / ['page transition type options'] / ['page transition direction options'] / ['page transition duration options']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[kPageTrans_BadDirectionError]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-166": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_errors",
+     "record": "totals and errors_by_plugin",
+     "fields": [
+      "1453 distinct codes",
+      "1436 with English text",
+      "421 constraint candidates",
+      "71 plug-ins"
+     ]
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[InvalidValueError / InvalidUnitError / kIllegalScaleValueError / kIllegalSkewValueError / kItemTooSmallError / kItemTooLargeError]"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[kObjectIsLockedError / LockedLayer / CantCompleteOperationStorysLockedError / CreateOnLockedLayerError / CantMoveLockedItemsToLayer]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-LAY-167": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "decisions",
+     "record": "decisions.SAD-004.spec_specifics",
+     "fields": [
+      "STU-TYP-008 native Rust text shaping",
+      "STU-ARC-002 no wgpu in handshake_core"
+     ]
+    },
+    {
+     "capture": "contract",
+     "record": "hard_rules_from_operator_decisions.SAD-004"
+    }
+   ],
+   "derivation": "operator decision"
+  },
+  "STU-LAY-168": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "every_microtask_must_carry"
+    }
+   ],
+   "derivation": "operator contract"
+  },
+  "STU-LAY-169": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['export format'] (18 and 15 member declarations)"
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes.document.methods['asynchronous export file']"
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[kAsynchronousExportUnsupportedFormatError / kInvalidExportFormatForObjectError]"
+    }
+   ],
+   "derivation": "transcribed; two captures reconciled"
+  },
+  "STU-LAY-199": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "what_is_being_replaced.the_test"
+    },
+    {
+     "capture": "decisions",
+     "record": "decisions.SAD-008.ordered_steps"
+    }
+   ],
+   "derivation": "operator contract"
+  }
+ },
+ "captures_read_but_not_cited": [
+  {
+   "capture_file": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dialogs.json",
+   "schema_id": "handshake.reference.indesign_dialogs@1",
+   "totals": {
+    "surfaces": 390,
+    "nodes": 144192
+   },
+   "reason": "the dialog control trees were inspected for structure but every numeric bound, default, unit and enumerated value used in 14.6 was available from the scripting object model, the shipped presets or the error tables, which declare their values explicitly. No clause in 14.6 rests on this capture, so it is not cited."
+  },
+  {
+   "capture_file": "_greenroom_20260903/fold_back/studio-capability-registry.json",
+   "schema_id": "handshake.reference.studio_capability_registry",
+   "totals": {
+    "domain_layout_rows": 4609
+   },
+   "reason": "used only as a coverage cross-check against the clause set. Per GRD-001 its rows merge on normalised name and conflate unrelated capabilities, so no bound, default, unit or enumerated value in 14.6 is taken from it."
+  }
+ ]
+}

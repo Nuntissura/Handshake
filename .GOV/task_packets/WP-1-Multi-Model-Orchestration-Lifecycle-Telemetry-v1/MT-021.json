@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-021",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-08-15T05:59:00.3703222Z",
+  "updated_at_utc": "2026-09-01T15:23:14.9167554Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -52,25 +52,26 @@
     }
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING",
+    "active": true,
+    "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260729-225554",
     "claimed_at_utc": "2026-07-30T04:30:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260814-200552",
-    "ready_for_validation_at_utc": "2026-08-15T05:59:00.3703222Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "kb_ready_checklist_receipt_id": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V6: product commit e7c4eacf. Exact production-socket WGC/Argus proof passed for Settings consent, both concurrency controls, and the WP-1 console in main and detached windows; six captures were directly inspected by the kernel builder and independently reviewed with no blocker. Quiet-focus audit passed 8/8, detached Settings/Settings-dialog/console integrations passed 30/30, project-tree authority regressions passed 10/10, screenshot identity units passed 10/10, settings-authority regressions passed, and git diff --check passed. The ignored focus-audit report was relocated to the required central Handshake_Artifacts tree.",
-    "hbr_status": "PASS_HBR_VIS_001_002_003_QUIET_001_PRIV_008_MAN_004_FOR_MT021: production WGC/Argus pixels and typed state proved the operator surfaces without focus stealing; consent-denial presentation exposes posture/reason without restricted identifiers; the internal UserManual seed covers the WP-1 settings and console behavior.",
+    "blocker": "The disjoint embedded-Surreal workspace-settings provider, canonical EventLedger transaction, scoped GET/PUT handlers, and focused tests are implemented but cannot compile or run until Parfit lands the exact storage/surreal.rs module exports and startup bootstrap call. Cargo/runtime/GUI proof remains prohibited and therefore absent.",
+    "missing_resource": "Parfit-owned module export and startup bootstrap lines listed in v6_embedded_surreal_correction_2026_09_01.shared_integration_handoff, followed by parent-serialized focused Cargo/runtime proof.",
+    "proof_status": "BLOCKED_ON_DEPENDENCY_V6_IMPLEMENTED_UNPROVEN: source/static remediation is present; no Cargo or runtime verdict exists. The 2026-08-15 GUI captures remain superseded visual provenance only and do not prove the corrected embedded-Surreal authority or required artifact root.",
+    "hbr_status": "REVALIDATION_REQUIRED: prior visual/privacy/quiet evidence is historical provenance; current HBR acceptance remains blocked until the embedded-Surreal settings boundary and fresh focused proof exist.",
     "pre_implementation_adversarial_review_status": null,
-    "post_implementation_adversarial_review_status": "COMPLETED_INDEPENDENT_MULTI_LENS_2026-08-15",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
-    "last_runtime_status_ref": "READY_FOR_VALIDATION_V6 at product commit e7c4eacf; exact production WGC/Argus, privacy, quiet-focus, settings-authority, and console gates green"
+    "post_implementation_adversarial_review_status": "BLOCKING_FINDINGS_RECORDED_2026-09-01",
+    "validated_by": null,
+    "validated_at_utc": null,
+    "last_runtime_status_ref": "NO_CURRENT_RUNTIME_PROOF: Cargo/build/test/GUI execution was prohibited for this correction; prior GUI evidence is superseded provenance."
   },
   "origin": {
     "discovered_by": "KERNEL_BUILDER-20260729-225554",
@@ -95,7 +96,7 @@
     "forbidden_paths": [
       "adding a settings section BEFORE the Layout section (settings_dialog.rs:1311-1314 is normative: earlier insertion pushes existing sections' widgets out of the coordinate-clickable viewport and regresses their kittest interaction proofs)",
       "granting authority from a UI control - a Settings toggle must never widen consent or access scope",
-      "SQLite in any form"
+      "any non-embedded durable settings authority or compatibility fallback"
     ],
     "acceptance_criteria": [
       "AC-1: menu.models.wp1-orchestration-console is added to SWARM_ACCESSIBLE_ACTIONS and the pinned assert_eq!(len, 13) at top_menu_bar.rs:1016-1020 is updated to 14. A swarm agent can dispatch the WP-1 console through the same path as the other MODELS leaves; prove with an Argus/AccessKit test, not by inspection.",
@@ -106,10 +107,12 @@
       "AC-6: HBR-VIS - every changed surface is proven through headless non-intrusive Argus with before/after observation; no foregrounding, no OS cursor automation."
     ],
     "proof_commands": [
-      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar -- --nocapture",
-      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog -- --nocapture",
-      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_wp1_console_stream_pane_argus -- --nocapture",
-      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_visual_interaction_proof -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support --test workspace_settings_surreal_tests -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_visual_interaction_proof -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_focus_audit_quiet -- --nocapture",
+      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-gui-proof'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt021_production_settings_consent_concurrency_and_console_main_detached -- --ignored --exact --nocapture",
       "git diff --check"
     ],
     "risk_if_missed": "The WP-1 console stays undispatchable by the swarm it exists to observe, and the operator has no surface for cloud consent posture or swarm concurrency - the two controls that decide whether cloud data leaves the machine and how hard the machine is driven."
@@ -118,7 +121,7 @@
     "Menu leaf convention (top_menu_bar.rs:403 menu_items): self.item(ui, \"menu.{menu}.{leaf}\", label, shortcut, enabled, MenuBarAction::NavigateToTab(\"<tab-id>\"), action); then add the arm to dispatch_menu_action (app.rs:3754, exhaustive match) and the string->PaneType arm in navigate_to_tab (app.rs:3731-3741).",
     "Settings control convention is 7 steps: author_id const (:99-166) -> search gate + CollapsingHeader + set_author_id_ack_click section tag -> per-widget set_author_id / set_author_id_and_label -> ack INSIDE the guarded changed() block -> new SettingsOutcome variant (:433-485) -> handle in apply_settings_outcome (app.rs:3113-3220) -> persist across 5 coordinated edits in workspace_settings.rs (field :166-183, default :241-257, serialize :213-234, parse :383-451) plus DialogState::draft_settings (settings_dialog.rs:561-588).",
     "The dialog never mutates app state directly (settings_dialog.rs:28-36, :505-519) - it returns a SettingsOutcome.",
-    "Settings persist to PostgreSQL via PUT /workspaces/{id}/settings (schema hsk.workspace_settings_state@1); there is no local settings file. BYOK keys deliberately bypass that blob."
+    "Settings must persist through an injected clone of the product's embedded SurrealStorage via GET/PUT /workspaces/{id}/settings (schema hsk.workspace_settings_state@1). The same namespace/database must survive the restart proof; no local settings file or alternate durable backend is permitted. BYOK keys deliberately bypass that blob."
   ],
   "required_build_rules": [
     "HBR-VIS-001",
@@ -157,7 +160,7 @@
   },
   "handshake_compatibility": {
     "native_rust_backend_first": true,
-    "durable_authority": "PostgreSQL workspace settings (hsk.workspace_settings_state@1) + EventLedger; no SQLite",
+    "durable_authority": "Injected embedded SurrealStorage workspace settings (hsk.workspace_settings_state@1) with atomic EventLedger linkage and exact five-field ResourceScope predicates",
     "rust_only_implementation": true,
     "spec_realism_gate": "Controls must drive real runtime behaviour and be proven through Argus against the running shell; a rendered widget with no backend effect does not satisfy this MT."
   },
@@ -200,12 +203,14 @@
     "remediation_by": "KERNEL_BUILDER-20260801-214802"
   },
   "v6_remediation_2026_08_15": {
+    "status": "SUPERSEDED_VISUAL_AND_RELATIONAL_PROVENANCE_ONLY",
+    "superseded_reason": "The operator requires embedded SurrealDB as the sole durable authority and requires build/proof artifacts under Handshake/_Artifacts. This historical run used a relational settings path and a different artifact root, so none of its readiness claims are active V6 proof.",
     "remediation_by": "KERNEL_BUILDER-20260814-200552",
     "product_commit": "e7c4eacf",
     "validator_verdict_remediated": "FAIL_V5",
     "implemented": [
       "Production WGC capture is bound to the exact HWND with PID, title, and bounds identity checks before and after capture; bounded same-process title retry handles transient WM_GETTEXT failure without selecting another window.",
-      "Settings preserves raw PostgreSQL authority, overlays only explicit operator deltas, rejects stale project/generation responses, and gates saves until exact canonical workspace authority resolves.",
+      "Historical run preserved the then-active relational authority, overlaid only explicit operator deltas, rejected stale project/generation responses, and gated saves until exact canonical workspace authority resolved. This storage proof is superseded.",
       "Cloud consent/export posture, runtime concurrency, Argus action admission, and the WP-1 console have stable operator-facing main and detached surfaces with explicit live connection state.",
       "Provisional default-project state is cleared until canonical /workspaces authority resolves, preventing fabricated project selection and visible pre-authority 404 state.",
       "The Handshake internal UserManual seed documents the work-packet controls and recovery behavior."
@@ -219,7 +224,171 @@
       "git_diff_check": "exit 0"
     },
     "proof_artifacts_root": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\handshake-test",
-    "independent_review": "PASS: exact production captures, settings truthfulness/privacy, quiet operation, HWND binding, workspace authority, and stale-response behavior reviewed with no blocking finding."
+    "independent_review": "HISTORICAL_ONLY: exact production captures, settings truthfulness/privacy, quiet operation, HWND binding, workspace authority, and stale-response behavior were reviewed with no blocking visual finding; storage authority and artifact-root proof are superseded."
+  },
+  "v6_embedded_surreal_correction_2026_09_01": {
+    "status": "IMPLEMENTED_BLOCKED_ON_SHARED_EXPORT_BOOTSTRAP_AND_RUNTIME_PROOF",
+    "correction_owner": "authority-started MT-021 delegated lane",
+    "correction_basis": "Operator correction: embedded SurrealDB is the sole durable authority; no compatibility fallback is allowed; old proof outside D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts is not current proof.",
+    "source_inspection": {
+      "frontend_transport": "src/frontend/handshake_native/src/workspace_settings.rs issues GET/PUT /workspaces/{workspace_id}/settings and includes an ignored integration test named live_backend_settings_round_trips_through_postgres in tests/test_settings_dialog.rs.",
+      "route_boundary": "src/backend/handshake_core/src/api/workspaces.rs now extracts RequestAccountScope, rejects a path/scope mismatch before any existence lookup, and calls SurrealWorkspaceSettingsStore over state.surreal_storage. The former state.storage settings calls are absent from the migrated handlers.",
+      "facade_boundary": "src/backend/handshake_core/src/storage/mod.rs exposes unscoped Database methods get_workspace_settings_state(workspace_id) and save_workspace_settings_state(workspace_id, input).",
+      "relational_implementation": "src/backend/handshake_core/src/storage/postgres.rs is the only located concrete implementation of those methods; it reads/upserts knowledge_workspace_settings_states and appends the linked EventLedger event.",
+      "surreal_implementation": "New storage/surreal/workspace_settings.rs and workspace_settings_schema.surql implement a dedicated scoped settings authority table, generation/CAS, idempotency, restart-safe injected storage, and an atomic canonical kernel_event_ledger append. All reads and mutations bind all five ResourceScope fields.",
+      "composition_boundary": "src/backend/handshake_core/src/api/mod.rs mounts `let workspace_routes = workspaces::routes(state.clone());` and later layers ProductLocalResourceScope over the fully merged router. Therefore api/mod.rs composition does not need to change; RequestAccountScope can be extracted directly by the two handlers. AppState already has clonable surreal_storage."
+    },
+    "assertion_inventory": {
+      "durable_backend": [
+        "Reject a non-object settings_state.",
+        "Reject a settings_state with the wrong schema_id.",
+        "Reject duplicate keybinding chords before any durable event append.",
+        "An empty workspace returns no fabricated settings state.",
+        "The first save returns the exact schema/theme and a durable EventLedger identifier.",
+        "A later save returns a distinct receipt; load returns the latest state and receipt.",
+        "Exactly one matching EventLedger record exists for each accepted save, and the settings row retains its EventLedger foreign reference.",
+        "Future Surreal proof must use the same cloned/injected namespace and database before and after restart."
+      ],
+      "resource_scope_and_privacy": [
+        "Every durable read and mutation predicates owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id.",
+        "Same-scope save/load succeeds; each of five independent one-field mismatches is denied without identifier or settings leakage.",
+        "Mixed-source scope, missing scope, stale context, revoked context, and legacy/incomplete rows fail closed without mutation.",
+        "The UI shows denied or unavailable state truthfully without restricted resource metadata and never fabricates consent posture or persisted settings."
+      ],
+      "concurrency_and_runtime_truth": [
+        "Lowering model-session concurrency is cooperative: it retires permits as sessions finish, never kills live sessions, blocks over-cap admission, and converges to the requested floor.",
+        "Raising the cap admits immediately and cancels an older pending lowering; a requested zero clamps to one and cannot wedge admission.",
+        "The settings UI distinguishes requested, in-force, fully-applied, and live-session values; failed updates remain visible and do not fabricate success.",
+        "The separate ActionChannel admission budget drives its live channel and persists independently.",
+        "Concurrent durable settings writers require explicit compare-and-set revision/generation semantics so stale saves cannot silently overwrite newer authority; accepted retries are idempotent and EventLedger linkage is atomic."
+      ],
+      "frontend_and_gui": [
+        "Theme, search, keybinding conflict rejection, layout reset, diagnostics, operator-chat, view mode, and swarm defaults persist through the canonical settings path.",
+        "Read-only not-wired rows reject input; cloud consent is visible per configured lane as explicitly unavailable when no real posture exists.",
+        "Four WP-1 controls and omitted settings sections retain stable author IDs; menu dispatch opens the real WP-1 console.",
+        "Settings opens and closes predictably; detached, re-docked, closed, and repeated-open states retain exactly one settings host.",
+        "Model-runtime actions navigate to real panes; stale project/generation responses are rejected.",
+        "Production proof covers settings consent, both concurrency controls, and console surfaces in main and detached windows without focus stealing; capture remains exact-HWND WGC."
+      ]
+    },
+    "superseded_dependency_inventory": [
+      "Database::get_workspace_settings_state and Database::save_workspace_settings_state are unscoped and are concretely implemented in storage/postgres.rs.",
+      "migrations/0327_workspace_settings_state.sql and workspace_settings_state_tests.rs construct the old relational/EventLedger fixture.",
+      "The ignored native test live_backend_settings_round_trips_through_postgres targets the old backend path.",
+      "Historical contract/proof text and the 2026-08-15 artifact root describe superseded relational evidence; they are retained only as provenance."
+    ],
+    "required_dependency_apis": {
+      "provider_owner": "IMPLEMENTED_IN_DISJOINT_MT021_LANE",
+      "provider": [
+        "SurrealWorkspaceSettingsStore::new(SurrealStorage) using the already-composed injected clone.",
+        "SurrealWorkspaceSettingsStore::get(scope: &ResourceScope, workspace_id: &str) -> Result<Option<SurrealWorkspaceSettingsState>, _>.",
+        "SurrealWorkspaceSettingsStore::save(scope: &ResourceScope, workspace_id: &str, SurrealWorkspaceSettingsWrite) -> Result<SurrealWorkspaceSettingsState, _> with one atomic transaction for validation, revision/CAS, canonical EventLedger append, and settings mutation."
+      ],
+      "schema": [
+        "workspace_settings_authority stores all five ResourceScope fields and a generation token; its unique index includes the exact scope tuple rather than workspace_id alone.",
+        "Every SELECT/CREATE/UPDATE/DELETE and linked EventLedger query predicates all five fields; legacy rows missing any field cannot match.",
+        "event_ledger_event_id references canonical kernel_event_ledger; settings and event are created/updated in the same Surreal transaction with identical scope. No domain-local ledger exists."
+      ],
+      "route_handoff_to_parfit": {
+        "current_call": "let workspace_routes = workspaces::routes(state.clone());",
+        "composition_change_required": false,
+        "required_call": "let workspace_routes = workspaces::routes(state.clone());",
+        "required_route_signature": "pub fn routes(state: AppState) -> Router",
+        "required_get_signature": "async fn get_workspace_settings(State(state): State<AppState>, scope: RequestAccountScope, Path(workspace_id): Path<String>) -> ...",
+        "required_save_signature": "async fn save_workspace_settings(State(state): State<AppState>, scope: RequestAccountScope, Path(workspace_id): Path<String>, Json(payload): Json<SaveWorkspaceSettingsRequest>) -> ...",
+        "invariant": "The path workspace_id must equal scope.exact().workspace_id, and both handlers must call the scoped embedded-Surreal provider through state.surreal_storage rather than state.storage. The existing outer ProductLocalResourceScope Extension layer supplies the extractor authority."
+      },
+      "test_seams": [
+        "A complete backend integration target named workspace_settings_surreal_tests with injectable SurrealStorage and restart/reopen support.",
+        "A native SettingsClient test seam that points at the production GET/PUT route while supplying authenticated exact scope; rename the ignored relational round-trip only when the complete replacement is runnable.",
+        "Deterministic barriers/hooks for two concurrent save attempts so CAS loss, idempotent retry, event count, and latest-state behavior are non-vacuously asserted."
+      ]
+    },
+    "migration_decision": "The production handlers, dedicated provider/schema, and coherent focused test target were migrated. A first draft domain-local settings ledger was rejected during adversarial review because no authority anchor permitted a parallel audit island; the final implementation appends canonical kernel_event_ledger atomically.",
+    "event_ledger_authority_check": {
+      "verdict": "CANONICAL_KERNEL_EVENT_LEDGER_REQUIRED",
+      "contract_anchor": "handshake_compatibility.durable_authority and assertion_inventory.durable_backend require atomic EventLedger linkage; no MT-021 clause authorizes a domain-local ledger.",
+      "spec_anchor": ".GOV/spec/master-spec-v02.203/spec-modules/05-security-and-observability.md:1192 requires authoritative state transitions to reference the durable EventLedger event identity; the operator correction changes the embedded database backend, not the shared EventLedger authority concept.",
+      "product_anchor": "src/backend/handshake_core/src/storage/surreal/schema.surql defines kernel_event_ledger; src/backend/handshake_core/src/storage/surreal/model_lane.rs atomically creates canonical kernel_event_ledger rows and authority rows in one transaction.",
+      "remediation": "Removed workspace_settings_event_ledger from the dedicated schema/provider. workspace_settings_authority.event_ledger_event_id now references kernel_event_ledger, and the write transaction creates the canonical event with exact scope before creating/updating settings authority."
+    },
+    "shared_integration_handoff": {
+      "owner": "Parfit",
+      "storage_surreal_rs_module_line": "mod workspace_settings;",
+      "storage_surreal_rs_export_lines": [
+        "pub use workspace_settings::{bootstrap_workspace_settings_schema, SurrealWorkspaceSettingsError, SurrealWorkspaceSettingsState, SurrealWorkspaceSettingsStore, SurrealWorkspaceSettingsWrite};",
+        "#[cfg(feature = \"surreal-test-support\")] pub use workspace_settings::{workspace_settings_test_event_count, workspace_settings_test_seed_legacy_unscoped_row};"
+      ],
+      "main_rs_import_line": "surreal::{bootstrap_workspace_settings_schema, SurrealStorage, SurrealStorageConfig},",
+      "main_rs_bootstrap_line_after_surreal_open": "bootstrap_workspace_settings_schema(&surreal_storage).await?;",
+      "api_mod_change_required": false,
+      "notes": "bootstrap_workspace_settings_schema first runs the canonical bootstrap_schema, then applies the dedicated schema. The current workspaces::routes(state.clone()) call and outer ProductLocalResourceScope Extension remain correct."
+    },
+    "superseded_visual_provenance": {
+      "product_commit": "e7c4eacf",
+      "prior_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test",
+      "captures": [
+        "argus_mt021_settings_concurrency_main.png",
+        "argus_mt021_settings_consent_main.png",
+        "argus_mt021_settings_consent_detached.png",
+        "argus_mt021_settings_concurrency_detached.png",
+        "argus_mt021_console_main.png",
+        "argus_mt021_console_detached.png"
+      ],
+      "acceptance": "Preserved only to show the prior visual surface. It is not current storage, artifact-root, privacy, or readiness proof and must not be rerun or accepted until the dependency closes."
+    },
+    "future_focused_proof": {
+      "artifact_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts",
+      "resource_policy": "Serialize these commands with the parent build slot, use -j 1, reuse mt021-cargo-target while inputs remain unchanged, and remove only the MT-021 target/proof directories after proof retention is no longer required.",
+      "commands": [
+        "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support --test workspace_settings_surreal_tests -- --nocapture",
+        "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog -- --nocapture",
+        "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar -- --nocapture",
+        "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_visual_interaction_proof -- --nocapture",
+        "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_focus_audit_quiet -- --nocapture",
+        "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-gui-proof'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt021_production_settings_consent_concurrency_and_console_main_detached -- --ignored --exact --nocapture"
+      ]
+    },
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Canonical frontend GET/PUT transport to api/workspaces.rs, Database facade dispatch, concrete durable provider, Surreal schema and EventLedger atomicity, ResourceScope extraction, restart persistence, concurrent writers, stale-response rejection, stable author IDs, detached GUI lifecycle, and quiet exact-HWND capture.",
+        "The old visual proof could remain pixel-correct while the durable authority is wrong; therefore visual and storage acceptance are independent surfaces."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "Traced both production handlers after migration: exact RequestAccountScope and workspace path reach the new provider over the injected AppState SurrealStorage clone without a state.storage settings call.",
+        "Independently inspected every dedicated settings/canonical-event query and schema identity for all five ResourceScope fields.",
+        "Compared the MT-021 contract proof claims and artifact root with current source and the operator correction.",
+        "Compared the proposed domain-local ledger against MT-021, spec EventLedger authority, canonical kernel_event_ledger schema, and the ModelLane canonical-event transaction pattern; removed the audit island.",
+        "rustfmt --check, focused git diff --check, JSON parse, relational-symbol scans, and exact-scope predicate scans passed; no Cargo was run."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "If a Surreal-only test wrote directly to knowledge_workspace_settings_states, it could pass while production GET/PUT still calls the relational facade; such a suite was rejected as non-proof.",
+        "If the table were migrated but queries matched workspace_id alone, two accounts sharing an identifier could read or overwrite each other's settings; all-five predicates and one-field mismatch denials are mandatory.",
+        "If two saves race without CAS and atomic event linkage, both may report success while one update or one receipt is lost; deterministic concurrent-writer proof is mandatory.",
+        "If settings used a dedicated event table, canonical replay and diagnostics could miss the mutation even while focused tests passed; the parallel audit island was removed."
+      ],
+      "BOUNDARY_PROBES": [
+        "Workspace path versus exact authenticated ResourceScope workspace.",
+        "AppState surreal_storage clone versus Arc<dyn Database> facade.",
+        "Settings row scope versus linked EventLedger event scope.",
+        "Pre-restart and post-restart namespace/database identity.",
+        "Requested concurrency versus effective concurrency and live sessions.",
+        "Main-window versus detached-window settings identity and focus behavior."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Each single ResourceScope field mismatch, mixed-source scope, stale/revoked context, missing scope, legacy incomplete row, wrong workspace path, malformed schema, duplicate chord, stale revision, concurrent CAS loser, failed runtime update, absent consent posture, and unavailable live proof must fail closed without mutation or metadata leakage."
+      ],
+      "INDEPENDENT_FINDINGS": [
+        "FINDING-1 REMEDIATED: production settings handlers no longer use the unscoped Database settings methods and now use injected SurrealStorage with exact scope.",
+        "FINDING-2 REMEDIATED_STATICALLY: the dedicated authority schema and every provider read/mutation carry all five scope fields; focused runtime proof is still owed.",
+        "FINDING-3 REMEDIATED: the handlers extract RequestAccountScope; api/mod.rs composition remains unchanged because it already layers ProductLocalResourceScope over the merged router.",
+        "FINDING-4 REMEDIATED: the proposed domain-local workspace-settings ledger had no authority anchor and was replaced by atomic canonical kernel_event_ledger linkage.",
+        "FINDING-5 BLOCKER: shared module exports/startup bootstrap and serialized Cargo/runtime proof are not landed in this lane.",
+        "FINDING-6: historical GUI evidence and its artifact root cannot establish current storage readiness, although it remains useful superseded visual provenance.",
+        "FINDING-7: valid coordinator concurrency semantics and frontend truthfulness assertions remain preserved; they do not substitute for durable storage proof."
+      ],
+      "RESIDUAL_UNCERTAINTY": "No Cargo, runtime, GUI, or restart proof was run by operator instruction. Static inspection cannot prove the implemented provider's transaction isolation, persistence, or runtime route wiring; these remain explicit focused proof debt after Parfit lands the shared export/bootstrap dependency."
+    }
   },
   "validator_verdict": "PENDING",
   "integration_validation_v5_2026_08_14": {

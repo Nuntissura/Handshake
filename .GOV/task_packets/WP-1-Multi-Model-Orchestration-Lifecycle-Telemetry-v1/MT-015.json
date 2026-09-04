@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-015",
   "created_at_utc": "2026-07-01T23:23:30Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
-  "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-02_CLOUD_CONFIG_SECRETS_HARDENED",
+  "updated_at_utc": "2026-09-01T16:55:47.6296658Z",
+  "scope_status": "BLOCKED_ON_DEPENDENCY",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-015.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -16,28 +16,28 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-006"
     ],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "FAIL_V5",
-    "claimed_by": "KERNEL_BUILDER-20260701-190732",
-    "claimed_at_utc": "2026-07-02T13:20:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
-    "ready_for_validation_at_utc": "2026-08-04T15:30:00Z",
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER-20260901-124956",
+    "claimed_at_utc": "2026-09-01T12:57:58.668Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": "Validator-gated: live 2nd-OS-window + live-pixel PrintWindow grab (GUI host); existing test_argus_production_socket_live* covers it on a display.",
-    "proof_status": "FAIL_V5: The contract itself records the live detached-OS-window PrintWindow/Palmistry proof as missing. Named UI suites use egui_kittest rather than production LiveApp, so the required real Settings surface and quiet-focus behavior are not proven. See integration_validation_v5_2026_08_14.",
+    "blocker": "Parent-owned serialized Cargo/runtime proof is pending under the Operator's no-Cargo restriction. Shared production composition remains owned by MT-003 (api/mod.rs, main/lib, ModelLane/routing/factory). Native frontend Settings and authenticated main/detached-window Argus/WGC/PrintWindow proof remain outside this lane.",
+    "missing_resource": "Parent validator run using the required external _Artifacts target with -j 1; frozen shared production composition; authenticated production main-window and detached-Settings live-pixel evidence.",
+    "proof_status": "V6_OWNED_SOURCE_STATIC_AUDIT_COMPLETE_RUNTIME_AND_EXTERNAL_BOUNDARIES_PENDING: see v6_source_audit_2026_09_01. No Cargo/build/test/clean or live GUI proof was run or claimed.",
     "hbr_status": "PASS_HBR_VIS_INT_MAN_FOR_MT015_CLOUD_CONFIG_SECRETS_HARDENED; HBR-QUIET-001 code-level violation removed (ConPTY, no CREATE_NEW_CONSOLE). HBR-QUIET-004 is NOT declared on this MT and is NOT needed now - there is no foreground exception to declare because the foreground launch is gone. Detached Settings Argus proof remains BLOCKED on authenticated Palmistry provenance (WP-KERNEL-012).",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_task_a0e9015f5c0ee8643",
     "post_implementation_adversarial_review_status": "COMPLETED_SECRETS_LEAKAGE_LENS_20260729_PASS",
     "adversarial_findings_status": "NO_SECRET_LEAKS; real accessibility gap fixed; HBR-QUIET CLI-login window + canary value-scan deferred",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
+    "validated_by": null,
+    "validated_at_utc": null,
+    "last_runtime_status_ref": "No V6 runtime result exists. Current evidence is the static source audit in v6_source_audit_2026_09_01."
   },
   "scope": {
     "summary": "Operator-facing cloud-model access configuration surface: (a) CLI-bridge / subscription-plan auth-and-login status + config for the official-CLI providers the operator uses (Claude Code, GPT/Codex), and (b) a BYOK API-key entry (Anthropic, OpenAI) stored in the existing OS-keychain secrets vault for users who bring their own keys. Gemini is explicitly excluded (CLI deprecating).",
@@ -54,7 +54,8 @@
       "storing API keys in plaintext, logs, EventLedger, or any non-keychain store",
       "adding a Gemini provider lane/config",
       "new TypeScript/React/app/src implementation",
-      "SQLite runtime/test/fixture additions"
+      "non-embedded database runtime/test/fixture dependencies in MT-015-owned surfaces",
+      "database or file compatibility fallback for cloud-access configuration"
     ],
     "acceptance_criteria": [
       "A native egui settings surface (in the existing Settings Swarm/Models section) lets the operator configure cloud model access. It is reachable from the operator settings and Argus-inspectable with stable author_id targets.",
@@ -70,7 +71,7 @@
       "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_settings_argus  (egui_kittest HEADLESS)",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_byok_access_config_leak_tests",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_access_route_tests",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests  (cloud-model-access behavior coverage)"
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_access_manual_coverage_tests"
     ],
     "risk_if_missed": "Operators (especially BYOK users) have no way to configure cloud model access; the CLI-bridge and BYOK backends WP-KERNEL-004 already built are unreachable from the operator surface, so cloud lanes cannot be used by anyone who is not already logged into a CLI out-of-band.",
     "reference_only_paths": [
@@ -103,7 +104,7 @@
     "MAN"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260901-124956",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
@@ -121,7 +122,7 @@
     "full_review_ref": "session task a0e9015f5c0ee8643 output (read-only adversarial, security-first, file:line evidence)",
     "base_is_solid": "WP-KERNEL-004 backends verified good: OsKeychainSecretsVault (real keyring, os-keychain in DEFAULT features, no in-proc cache), redacted-Debug BYOK runtimes, env-scrubbed official CLI bridge (is_secret_bearing_env_name), consent gate, honest ProviderNotConfigured errors. Risks are in the NEW seams MT-015 adds.",
     "blockers_and_decisions": [
-      "HIGH ENUMERATION: keychain cannot enumerate (OsKeychainSecretsVault::list_lanes returns empty by design). DECISION: MT-015 defines a NON-SECRET 'configured providers' registry in the native settings store / Postgres (NEVER vault.list_lanes, NEVER SQLite); map ProviderNotConfigured -> 'unavailable' not error. MT-012 is PENDING, so soften AC to 'unit-tested enumeration API MT-012 will consume'; do not require proving the picker.",
+      "HIGH ENUMERATION: keychain cannot enumerate (OsKeychainSecretsVault::list_lanes returns empty by design). DECISION: MT-015 defines a NON-SECRET 'configured providers' registry in the native settings store / embedded SurrealDB only (NEVER vault.list_lanes, NEVER an alternate database); map ProviderNotConfigured -> 'unavailable' not error. MT-012 is PENDING, so soften AC to 'unit-tested enumeration API MT-012 will consume'; do not require proving the picker.",
       "HIGH CLI AUTH-STATUS: no auth_status/whoami probe exists (register_bridge only checks executable exists); 'trigger login/detect expired' risks drifting into forbidden token/credential capture. DECISION: down-scope to 'configured / not-configured' + an operator-INITIATED launch of the provider's OWN official login command in a visible terminal (reconciled with HBR-QUIET-001, operator-initiated not background); live logged-in/expired detection best-effort/DEFERRED per provider; NEVER capture/store provider credentials.",
       "HIGH LEAK TEST: #1 leak path is the NEW egui state - key must NEVER enter DialogState, the persisted egui snapshot, or the workspace-settings PUT. DECISION: leak/negative test stores a canary key and asserts absence from persisted DialogState/settings blob, workspace-settings PUT, tracing, Flight Recorder, EventLedger, cloud_invocations rows, and all Debug/Display; asserts wired vault is OsKeychainSecretsVault (not InMemory); asserts refuse-to-persist under --no-default-features; asserts egui buffer cleared post-submit. Key must still round-trip out of the vault.",
       "MED CONSENT: DECISION: add AC + negative test that saving a key creates/approves NO ConsentReceipt or ConsentGate entry; first lane launch still hits MT-006 fail-closed.",
@@ -163,7 +164,7 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real proofs (incl. the secrets-leak negative test); COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V5",
+  "validator_verdict": null,
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -176,7 +177,7 @@
       ".GOV/codex/Handshake_Codex_v1.4.md"
     ],
     "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
-    "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
+    "runtime_status": "HISTORICAL_V1_ENVIRONMENT_BLOCKED: the superseded relational validation attempt could not provision its database and produced no current verdict. Runtime evidence from that attempt is retained only as history and supplies no V6 proof.",
     "basis": "Operator cloud-model access config (BYOK vault + CLI-bridge login + enumeration). SECRET HANDLING SAFE (independently verified): expose_secret() called only at the vault.put boundary (access_config.rs:417/425); production() fails closed with KeychainUnavailable (no plaintext fallback); CloudModelAccess hand-written Debug redacts the vault; egui key buffers are zeroize::Zeroizing wiped on clear/close. Leak test byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain round-trips through the REAL OS keychain (Windows Credential Manager) and asserts canary absent from request body, audit rows, tracing/FR/EventLedger, and all Debug/enumeration surfaces.",
     "concerns": [
       "LOW hardening: fetch_byok_key returns a plain String (transient copy not zeroized on drop); vault original is wiped. Deliberate; follow-on hardening candidate (Zeroizing/SecretString return).",
@@ -202,7 +203,7 @@
     "independent_checks": [
       "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
-      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
+      "Attempted fresh serial app-runtime and superseded relational validation against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   },
   "v5_remediation_2026_08_04": {
@@ -266,7 +267,7 @@
       "Independently inspect artifacts and rerun all declared model-access, quiet, UserManual, and live-Argus commands."
     ],
     "proof_observations": [
-      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "A superseded relational test service was available for the historical external-resource checks.",
       "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
       "No incomplete or timed-out command was credited as passing or as a code-test failure; the verdict rests on the independent mandatory gate(s) named in failed_gates."
     ],
@@ -283,7 +284,7 @@
       ],
       "COUNTERFACTUAL_CHECKS": [
         "Historical green output was not accepted as proof of current HEAD.",
-        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, a live durable store, or KVM.",
         "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
       ],
       "BOUNDARY_PROBES": [
@@ -292,10 +293,161 @@
       ],
       "NEGATIVE_PATH_CHECKS": [
         "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
-        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM or legacy-database endpoints where applicable."
       ],
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
+    }
+  },
+  "v6_source_slice_2026_09_01": {
+    "status": "SOURCE_IMPLEMENTED_VALIDATION_PENDING",
+    "implemented_by": "KERNEL_BUILDER-20260901-124956",
+    "implemented_at_utc": "2026-09-01T13:21:23.8099376Z",
+    "product_worktree": "wtc-multi-model-orchestration-v1",
+    "product_head_before_slice": "022ddf8c620ce15f2e06f39b60d15856aefaa2bb",
+    "source_slice": [
+      "Official Claude Code and Codex subscription login/status argv remain provider-owned and exact: claude auth login, claude auth status, codex login, codex login status.",
+      "CODEX_HOME remains inherited as provider-owned configuration. OPENAI_API_KEY, CODEX_ACCESS_TOKEN, ANTHROPIC_API_KEY, and CLAUDE_CODE_OAUTH_TOKEN are explicitly covered by the negative inherited-environment proof, so Operator credentials are never required by Handshake.",
+      "Optional BYOK remains OS-keychain-only. Non-secret lane discovery guidance now names embedded SurrealDB/EventLedger as the sole durable authority and rejects alternate database and file fallback.",
+      "The focused MT-015 UserManual behavior proof now reads the canonical compiled corpus and creates no durable test state instead of requiring the superseded durable UserManual projection.",
+      "The cloud-access UserManual records provider-owned CLI profile/config preservation, no inherited API-key/token substitution, optional keychain BYOK, and the database-free focused proof name."
+    ],
+    "product_files_touched": [
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/openai_byok.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/secrets_vault.rs",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/tests/cloud_model_access_manual_coverage_tests.rs",
+      "src/backend/handshake_core/tests/model_access_route_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs"
+    ],
+    "focused_static_proof": {
+      "git_diff_check": "PASS for all seven touched product files",
+      "rustfmt_check": "PASS for cloud_model_access_manual_coverage_tests.rs, openai_byok.rs, secrets_vault.rs, seed.rs, and user_manual_behavior_coverage_tests.rs. Whole-file checks for official_cli_bridge.rs and model_access_route_tests.rs encounter unrelated pre-existing formatting drift; those shared files were not bulk-formatted.",
+      "forbidden_database_scan": "PASS: no active alternate-database clients or constructors in the MT-015 cloud/API/route/leak surfaces, and no legacy database symbols in the dedicated MT-015 manual proof binary",
+      "file_integrity": "Every apply_patch was followed by a nonzero length and SHA-256 read."
+    },
+    "focused_runtime_proof_names_for_validator": [
+      "access_config::tests::cli_bridge_login_commands_are_the_providers_own_official_commands",
+      "access_config::tests::official_auth_status_parsing_uses_exact_subscription_grammar_and_never_returns_output",
+      "official_cli_bridge::tests::inherited_environment_is_an_explicit_runtime_allowlist",
+      "official_cli_bridge::tests::codex_home_bind_is_canonical_and_read_write",
+      "model_access_route_tests",
+      "cloud_byok_access_config_leak_tests::byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain",
+      "cloud_model_access_manual_coverage_tests::cloud_model_access_behaviors_have_manual_coverage_without_legacy_database",
+      "test_cloud_models_settings_argus",
+      "test_cloud_models_detached_settings_argus",
+      "cli_bridge_login_quiet_tests::in_app_cli_login_creates_no_new_visible_window_and_no_foreground_change",
+      "test_argus_production_socket_live"
+    ],
+    "proof_not_run": "The Operator explicitly prohibited Cargo. No Cargo command or runtime validator was run; no unexecuted proof is claimed green.",
+    "exact_overlap": [
+      "MT-003 currently owns and has changes in src/backend/handshake_core/src/api/mod.rs and src/backend/handshake_core/tests/model_lane_launch_tests.rs; MT-015 did not touch either file.",
+      "MT-003 owns main/lib and ModelLane/factory surfaces. The production_factory.rs TracingCloudAuditSink and api/mod.rs CloudLaneObservability wiring were inspected read-only and not changed.",
+      "The settings_dialog.rs cloud-consent/export-posture block is explicitly WP-1 MT-021-owned; MT-015 did not edit it."
+    ],
+    "remaining_blockers": [
+      "Run the focused Cargo proofs on the current combined source after the Operator permits Cargo.",
+      "Run and independently inspect the production main-window and detached-Settings Argus/WGC/PrintWindow proof with authenticated Palmistry provenance.",
+      "Reconcile any current MT-003 changes before validator freeze; shared api/mod.rs and ModelLane/factory wiring cannot be modified by MT-015."
+    ],
+    "research_basis_update": {
+      "openai": "Official OpenAI Codex authentication documentation verified codex login, codex login status, ChatGPT subscription access, distinct usage-based API-key auth, CODEX_HOME credential storage configuration, and OS credential-store support.",
+      "anthropic": "Official Claude Code CLI documentation verified claude auth login and claude auth status JSON for provider-owned subscription authentication."
+    },
+    "post_implementation_adversarial_review": {
+      "risk_tier": "HIGH_AUTH_AND_SECURITY_BOUNDARY",
+      "DIFF_ATTACK_SURFACES": [
+        "Provider login/status producer vectors versus the native client's exact-command allowlist.",
+        "Provider-owned profile configuration versus accidentally inherited API keys or OAuth tokens.",
+        "A supposedly database-free focused proof still compiling through a shared legacy-database test binary.",
+        "Stale UserManual proof names after moving the focused test."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "Compared backend and frontend official-login vectors byte-for-byte and observed exact agreement for Claude Code and Codex.",
+        "Inspected the production inherited-environment allowlist separately from its test and observed CODEX_HOME present with OPENAI_API_KEY, CODEX_ACCESS_TOKEN, ANTHROPIC_API_KEY, and CLAUDE_CODE_OAUTH_TOKEN absent.",
+        "Searched the dedicated cloud_model_access_manual_coverage_tests.rs binary for alternate-database clients and legacy harness symbols; none were present.",
+        "Searched product and MT contract references for the replaced proof name; only the new dedicated binary/function remains."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "If official_cli_bridge.rs removed CODEX_HOME from is_inherited_runtime_env_name, Codex login/status could inspect a different profile than the configured official CLI.",
+        "If backend_client.rs accepted a login program/argv that differed from access_config.rs, a substituted command could cross the API-to-GUI boundary instead of the row being rejected.",
+        "If the MT-015 manual proof remained in user_manual_behavior_coverage_tests.rs, compiling that proof binary would still activate the shared legacy-database harness even though the test function itself performed no query."
+      ],
+      "BOUNDARY_PROBES": [
+        "Backend CloudAccessEnumeration login vectors and frontend parse_cloud_access_snapshot expected vectors agree exactly.",
+        "The dedicated manual proof projects only the compiled seed corpus into the existing coverage verifier and creates no durable state."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Unknown/Gemini providers, unavailable keychain production, and substituted CLI login commands remain fail-closed by source assertions.",
+        "Operator credential environment variables remain excluded from the production inherited official-CLI environment."
+      ],
+      "INDEPENDENT_FINDINGS": "One substantive issue was found and fixed: the first database-free function still lived in a legacy-database-linked shared test binary. It now lives in dedicated cloud_model_access_manual_coverage_tests.rs with no alternate-database support symbols. No additional changed-slice defect was found by the static adversarial checks.",
+      "RESIDUAL_UNCERTAINTY": "Compilation and runtime behavior are not proven because Cargo was prohibited. The production main/detached-window Argus/WGC/PrintWindow proof also remains unexecuted. Shared MT-003 wiring is concurrently modified and must be frozen before validation.",
+      "FINAL_RECOMMENDATION": "NOT_READY_FOR_VALIDATION_V6 until the focused Cargo proofs and live production-window proof pass on a frozen combined source. The current lifecycle is BLOCKED_ON_DEPENDENCY."
+    }
+  },
+  "v6_source_audit_2026_09_01": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "audited_at_utc": "2026-09-01T16:55:47.6296658Z",
+    "owned_source_result": [
+      "Claude Code status now uses the current documented claude auth status command; the undocumented --json argument was removed.",
+      "ProductionCliBridgeAuthStatusProbe now rejects provider/config pairs whose CliKind does not exactly match Claude Code or Codex, including cross-provider and excluded CLI kinds.",
+      "BYOK key storage now exposes SecretString once as one borrowed value before handing it to the vault. Vault reads remain Zeroizing<String>; enumeration, errors, and Debug surfaces carry no key material.",
+      "Claude Code, Codex, Anthropic BYOK, and OpenAI BYOK remain the only offered MT-015 providers. Gemini remains excluded by construction.",
+      "No scoped ResourceScope was added because official CLI profile configuration and OS-keychain secrets are global resources, not WP durable rows."
+    ],
+    "changed_product_files": {
+      "src/backend/handshake_core/src/model_runtime/cloud/access_config.rs": "sha256:0E15DDD9A2452A0170E1149C4FCB0944FD4E3AC9FAEACAECEE504A103407B56A"
+    },
+    "static_checks": {
+      "git_diff_check": "PASS for src/backend/handshake_core/src/model_runtime/cloud/**",
+      "relational_symbol_scan": "PASS_ZERO: no PostgreSQL, SQLite, sqlx, PgPool, or rusqlite token under model_runtime/cloud/**",
+      "stale_claude_status_argument_scan": "PASS_ZERO: no --json token in access_config.rs",
+      "provider_boundary_scan": "PASS: exact status argv and exact CliBridgeProvider-to-CliKind predicates are present",
+      "secret_boundary_scan": "PASS_STATIC: one SecretString exposure on store; SecretsVault::get returns Zeroizing<String>; non-secret Debug tests exist",
+      "rustfmt_check": "BLOCKED_TOOLING: default rustfmt is not applicable to the active stable toolchain. rustup run 1.90.0 rustfmt --check reached only unrelated pre-existing access_config.rs formatting drift at cancel(); changed hunks were inspected manually."
+    },
+    "proof_not_run": "No Cargo/build/test/clean or GUI/runtime proof was started. The unrelated host Cargo process reported by the Operator was not started or terminated by this lane.",
+    "parent_focused_commands": [
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt015-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --lib 'model_runtime::cloud::access_config::tests' -- --test-threads=1",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt015-v6-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,os-keychain --test cloud_byok_access_config_leak_tests -- --test-threads=1"
+    ],
+    "external_handoffs": [
+      "MT-003/shared composition owner: api/mod.rs, main/lib, ModelLane/routing/factory production wiring and frozen combined-source proof.",
+      "MT-017/operator-chat owner: consume BYOK material without logging/serializing it and shorten/zeroize the transient ApiKeyProvider String after request-header construction.",
+      "MT-012/native picker owner: consume only CloudAccessEnumeration and preserve unavailable/fail-closed provider semantics.",
+      "Native frontend/Argus owner: operator-facing Settings semantics plus authenticated main-window and detached-window WGC/PrintWindow live-pixel proof.",
+      "UserManual global and HBR are N/A for this bounded source audit and were not edited."
+    ],
+    "post_implementation_adversarial_review": {
+      "risk_tier": "HIGH_AUTH_SECRET_AND_PROCESS_BOUNDARY",
+      "DIFF_ATTACK_SURFACES": [
+        "Official command vectors and canonical executable pairing.",
+        "Inherited and configured child environment.",
+        "BYOK store/read, enumeration, Debug, error, and request-boundary secret lifetime."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "Compared current official OpenAI and Anthropic CLI documentation to source argv.",
+        "Inspected the production explicit-environment allowlist and deny surface independently of tests.",
+        "Scanned every model_runtime/cloud Rust file for active relational symbols and inspected key wrapper/Debug boundaries."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "A Claude provider paired with Codex CliKind, a Codex provider paired with Claude CliKind, GeminiCli, and Other all fail the exact pairing predicate.",
+        "An undocumented Claude --json argument would now fail the zero-token scan.",
+        "A key copied into enumeration or Debug would violate existing canary assertions and the inspected serialized row shape."
+      ],
+      "BOUNDARY_PROBES": [
+        "Provider rows contain only identifiers, labels, typed status, and fixed login command metadata.",
+        "Persisted CLI config admits only locale/terminal presentation variables; secret, endpoint, proxy, executable, loader, and startup-control variables are rejected."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Missing canonical auth target, mismatched provider/CLI kind, unknown provider, excluded Gemini, absent key, and unavailable production keychain all fail closed by source inspection.",
+        "OPENAI_API_KEY, CODEX_ACCESS_TOKEN, ANTHROPIC_API_KEY, and CLAUDE_CODE_OAUTH_TOKEN remain absent from inherited official-CLI environment."
+      ],
+      "INDEPENDENT_FINDINGS": "Two owned defects were fixed: undocumented Claude status argv and an unchecked provider/config pairing. One BYOK exposure-count mismatch was also fixed. No active relational dependency exists in the owned cloud subtree.",
+      "RESIDUAL_UNCERTAINTY": "Compilation, OS-keychain round-trip, real provider status, shared composition, operator-chat transient-secret lifetime, native Settings behavior, and authenticated main/detached-window pixels remain unproven in this no-Cargo/source-only lane.",
+      "FINAL_RECOMMENDATION": "Keep MT-015 BLOCKED_ON_DEPENDENCY. Parent may validate after serialized focused Cargo/runtime proof and external owner closure; do not wait in this lane."
     }
   }
 }

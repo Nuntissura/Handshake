@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-013",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
-  "scope_status": "READY_FOR_VALIDATION_V4",
+  "updated_at_utc": "2026-09-01T00:00:00Z",
+  "scope_status": "V6_BLOCKED_ON_DEPENDENCY_2026-09-01",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-013.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -16,29 +16,29 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V5",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260809-150449",
     "claimed_at_utc": "2026-08-09T20:33:29.822Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260810-011933",
-    "ready_for_validation_at_utc": "2026-08-10T02:49:52.393Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": null,
-    "proof_status": "FAIL_V5: The mandatory real Candle proof cannot run in the current environment because HANDSHAKE_TEST_CANDLE_MODEL_DIR is unset. The ignored real-model gate cannot be replaced by deterministic model tests. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN; operator correction 2026-08-10 confirms WP-KERNEL-006/007 privacy-foundation work is not part of MT-013 and is not a predecessor to this WP-1 microtask.",
+    "blocker": "V6 embedded-Surreal-only closure is blocked by the shared model-registry authority and composition boundary. Production boot still constructs the durable model registry from the legacy control-plane provider, while the real-Candle proof mixes that registry with a separate Surreal ProcessLedger harness. ProcessLedger/reclaim tests are owned by Halley, composition and provider files by Parfit, and the embedding lane by Banach.",
+    "missing_resource": "A complete Surreal model-registry authority with canonical EventLedger transactions and exact five-field ResourceScope; product composition that injects one cloned SurrealStorage into model registry and ProcessLedger; one coherent Surreal lifecycle/restart/negative suite; a real Candle model directory and fresh real-load proof after those source predecessors land.",
+    "proof_status": "V6 NOT RUN and NOT READY. Prior relational lifecycle tests, mixed-provider real-Candle proof, and historical runtime artifacts are superseded non-authoritative provenance. No Cargo, build, test, clean, real-model load, or proof artifact generation was run during the 2026-09-01 correction.",
+    "hbr_status": "V6 UNPROVEN. Embedded model-registry and ProcessLedger resources are scoped and require exact owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id enforcement. Product-global UserManual content and route coverage remain HBR-PRIV NOT_APPLICABLE. Flight Recorder and canonical EventLedger obligations remain active.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-    "post_implementation_adversarial_review_status": "PASS_2026-08-10_CURRENT_BACKEND_PATHS_NO_LOCAL_DELTA_FINDINGS",
-    "adversarial_findings_status": "LOCAL_DELTA_PASS; unrelated WP-KERNEL-006/007 findings remain owned by those future packets and do not block MT-013",
-    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-013:2026-08-10T02:49:52.393Z",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
+    "post_implementation_adversarial_review_status": "V6_REVIEW_BLOCKED_ON_DEPENDENCY_2026-09-01",
+    "adversarial_findings_status": "OPEN_V6: model-registry authority, same-storage composition, coherent lifecycle/restart proof, authorization negatives, and fresh real-model proof remain.",
+    "kb_ready_checklist_receipt_id": null,
+    "validated_by": null,
+    "validated_at_utc": null,
+    "last_runtime_status_ref": null
   },
   "scope": {
     "summary": "Embedded ModelRuntime real-load conformance hardening: for the in-process Candle/llama.cpp library path, enforce artifact integrity plus ProcessOwnershipLedger START/STOP rows with honest pid-less metadata; any actual spawned model process remains SandboxAdapter-owned. Emit a Flight Recorder event on DisabledLlmClient and fail-closed error paths, validated with a REAL Candle model load.",
@@ -55,27 +55,22 @@
     "forbidden_paths": [
       "re-implementing llama.cpp/Candle engine internals (WP-KERNEL-004 owns them)",
       "new TypeScript/React/app/src implementation",
-      "SQLite runtime/test/fixture additions"
+      "relational runtime/test/fixture/cache/fallback additions"
     ],
     "acceptance_criteria": [
       "For the default embedded-model load path (llm/boot.rs build_default_local_client), SandboxAdapter boxing is NOT_APPLICABLE when Candle/llama.cpp is loaded as an in-process Rust library with no OS child or guest. The enforced obligation is artifact integrity plus ProcessOwnershipLedger START on load and STOP on unload (master-spec 4.6.1), using os_pid=null and os_pid_absent_reason=in_process_library_load_no_os_process; any actual spawned model process remains SandboxAdapter-owned. Verify with a REAL Candle CPU model load (feature candle-runtime-engine).",
       "DisabledLlmClient (and any fail-closed error return on the default LLM path) emits a Flight Recorder event carrying the disabled/error reason so 'every call emits a Flight Recorder event' (master-spec 4.2.3.2(3)) holds on the error path too; a test proves the FR event is emitted.",
       "The LocalModelRuntimeLlmClient::embedding() path (added by MT-003) emits a Flight Recorder event with trace_id/model_id (embeddings carry no TokenUsage, so record the embedding-appropriate FR shape) so the embedding lane is Flight-Recorder-correlatable per 4.2.3.2(3)/11.5; a test proves emission. (Deferred from MT-003 post-review: embedding() currently carries EmbeddingRequest.trace_id but does not emit, matching the removed OllamaAdapter parity.)",
-      "A real-load runtime proof (cargo test --features \"test-utils,candle-runtime-engine\" against tests/candle_e2e_smoke.rs or a new embedded-default e2e test) shows a ProcessOwnershipLedger START row on load and STOP row on unload for the default embedded model, and no bare std::process::Command model spawn.",
+      "A real-load runtime proof against the production-composed embedded authorities shows an exact-scope ProcessOwnershipLedger START row on load and matching STOP row on unload for the default embedded model, canonical kernel EventLedger linkage, one cloned SurrealStorage namespace across registry/lifecycle/restart reads, and no bare std::process::Command model spawn.",
       "Same-change UserManual coverage for the embedded-load boxing/ledger + FR-on-error behavior; HBR-INT-009 three-tier posture recorded (Flight Recorder WIRED; internal_diagnostics + Palmistry DEFERRED-with-reason until WP-KERNEL-012/016).",
       "Pre- and post-implementation adversarial review before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
     ],
     "proof_commands": [
-      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib managed_postgres::tests::shutdown_timeout_is_separate_bounded_and_representable -- --exact --nocapture",
-      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests -- --test-threads=1 --nocapture",
-      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_writer_tests -- --test-threads=1 --nocapture",
-      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests -- --test-threads=1 --nocapture",
-      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --lib model_runtime::candle::generate::activity_tests::bounded_stream_reserves_terminal_slot_and_cancellation_releases_full_worker -- --exact --nocapture",
-      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,llama-cpp-runtime-engine\" --lib llama_stream_reserves_terminal_slot_under_saturated_cancellation -- --exact --nocapture",
-      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
-      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests mt016_default_boot_registers_distinct_embedding_model_when_configured -- --exact --nocapture",
-      "cargo test -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests embedded_model_behaviors_have_manual_coverage -- --exact --nocapture",
-      "cargo check -j 4 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime"
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt013-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt013-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features 'test-utils,surreal-test-support' --test embedded_model_surreal_ledger_tests -- --test-threads=1 --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt013-cargo-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test llm_client_local_routing_tests -- --test-threads=1 --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt013-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt013-surreal-stores'; $env:HANDSHAKE_ARTIFACTS_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts'; if ([string]::IsNullOrWhiteSpace($env:HANDSHAKE_TEST_CANDLE_MODEL_DIR)) { throw 'HANDSHAKE_TEST_CANDLE_MODEL_DIR must identify the real Candle model directory' }; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features 'test-utils,candle-runtime-engine,surreal-test-support' --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --test-threads=1 --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt013-cargo-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests embedded_model_behaviors_have_manual_coverage -- --exact --test-threads=1 --nocapture",
+      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt013-cargo-target'; cargo check --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features app-runtime"
     ],
     "risk_if_missed": "The default local model path runs an unboxed, unledgered model load - a master-spec 3.6.2/4.6.1 HARD violation and a swarm-safety/attribution gap (no ownership/reclaim record for the default model process), and error/disabled LLM calls are invisible to Flight Recorder replay.",
     "reference_only_paths": [
@@ -165,7 +160,209 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after a REAL Candle model load proves artifact integrity plus matching pid-less ProcessOwnershipLedger START/STOP rows; SandboxAdapter boxing is NOT_APPLICABLE to the no-child/no-guest in-process path, and any actual spawned model process remains SandboxAdapter-owned. COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V5",
+  "v6_surreal_only_correction_2026_09_01": {
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "risk_tier": "HIGH",
+    "authority_correction": "Embedded SurrealDB is the only durable application database. Historical relational and mixed-provider proof is superseded and non-authoritative. Exact five-field ResourceScope applies to the durable model registry, ProcessLedger lifecycle, canonical event, runtime-control, and scoped diagnostic resources. Product-global UserManual content and route coverage remain HBR-PRIV NOT_APPLICABLE.",
+    "write_scope_decision": {
+      "product_edits": "NONE",
+      "reason": "Every missing production predecessor crosses an active owner: Parfit owns provider/composition/main, Halley owns ProcessLedger and broad stale lifecycle tests, and Banach owns embedding/Loom search. No disjoint missing product fix was found after inspecting the clean MT-013 LLM source files.",
+      "contract_edit_only": true
+    },
+    "inspected_source_snapshots": [
+      {
+        "path": "src/backend/handshake_core/src/llm/embedded_ledger.rs",
+        "sha256": "4E9B329CAE7892F2A64E6D810743D75E2B0E037B3E08413826A56ADD7A83C9EE",
+        "git_status": "CLEAN"
+      },
+      {
+        "path": "src/backend/handshake_core/src/llm/boot.rs",
+        "sha256": "80543E75AEB1D7770232457F9C56A2386A87FE07770E7EEC3103A0D8A34CDABA",
+        "git_status": "CLEAN"
+      },
+      {
+        "path": "src/backend/handshake_core/src/llm/local_router.rs",
+        "sha256": "4056B9E17ECC51E5F10FF2D501518BF95DCEE828034C222C084479207514EA35",
+        "git_status": "CLEAN"
+      },
+      {
+        "path": "src/backend/handshake_core/src/llm/mod.rs",
+        "sha256": "2B90E98485B4B83C481224D128F0476D6CA3C4671065163039B20C787CAF4567",
+        "git_status": "CLEAN"
+      },
+      {
+        "path": "src/backend/handshake_core/src/model_runtime/registry_persistence.rs",
+        "sha256": "9691542B15BA73E54C76D919CA9E5F1F23E079AB9C7243D8739B80DA85F5010F",
+        "git_status": "CLEAN_BLOCKING_PROVIDER"
+      },
+      {
+        "path": "src/backend/handshake_core/src/process_ledger/runtime.rs",
+        "sha256_at_inspection": "7FEB7E28D08598FEF4B4347338263E263CEF11E7B12FE40772054313DD27B62A",
+        "git_status": "CONCURRENTLY_MODIFIED_BY_HALLEY"
+      },
+      {
+        "path": "src/backend/handshake_core/src/storage/surreal/process_ledger.rs",
+        "sha256_at_inspection": "638B7E8313F99BECAC7BCEF6F776E43175E4D7898CF9CE1C07346D0A094B9AB9",
+        "git_status": "CONCURRENT_UNTRACKED_HALLEY_PROVIDER"
+      },
+      {
+        "path": "src/backend/handshake_core/src/main.rs",
+        "sha256_at_inspection": "E844D2E028448D324B1B25C99F3D0134289A23D08825F9C99AA237F67ADD8B39",
+        "git_status": "CONCURRENTLY_MODIFIED_BY_PARFIT"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/embedded_model_ledger_tests.rs",
+        "sha256_at_inspection": "CE41716C4B4252474F6BB3763C66CCCD53E5B77BCA3A2349167D2C0ADC1C764C",
+        "git_status": "CONCURRENTLY_MODIFIED_SUPERSEDED_RELATIONAL_TARGET"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/candle_e2e_smoke.rs",
+        "sha256_at_inspection": "0F0CD8D2AA733F17027B1351EB4DB9D13B2514E23339D19395644729486C688F",
+        "git_status": "CONCURRENTLY_MODIFIED_MIXED_PROVIDER_TARGET"
+      },
+      {
+        "path": "src/backend/handshake_core/tests/llm_client_local_routing_tests.rs",
+        "sha256": "4A8D9EA05CD80C19BEDED1D3BDE588F850880AFC3487E8C445C9A5A4658CDFDD",
+        "git_status": "CLEAN_ENGINE_FREE_FR_TARGET"
+      }
+    ],
+    "current_source_findings": [
+      "The clean embedded-ledger seam emits honest pidless START metadata, stamps exact ResourceScope when supplied, reserves STOP authority, and leaves START open instead of forging STOP when quiescence or unload is unproved.",
+      "The clean boot path refuses artifact access without a liveness descriptor, live ProcessLedger writer, complete scoped model-registry authority, and all-or-none lifecycle reservations; it waits for durable START before READY exposure and rolls loaded runtimes back on later authority failure.",
+      "The clean local-router path emits call-time completion/error/embedding events, owns graceful quiescence and unload, commits STOP only after successful unload, and retains reconciliation state on failure.",
+      "The in-progress Surreal ProcessLedger provider predicates all five scope fields and appends canonical kernel EventLedger START/STOP records in the same transaction.",
+      "The blocking model-registry implementation still owns durable selection through the legacy provider, and production main still constructs it from the control-plane pool before passing it to boot.",
+      "The partially migrated real-Candle target uses Surreal ProcessLedger but still opens its model-registry authority through the legacy provider; registry and lifecycle therefore do not share one cloned SurrealStorage namespace."
+    ],
+    "complete_assertion_inventory": {
+      "artifact_and_boot": [
+        "configured artifact bytes and sidecars are captured, length/hash verified, and changed or missing inputs fail before READY publication",
+        "primary and optional embedding runtime identities are minted UUIDv7 values and checked against returned runtime identities",
+        "all lifecycle capacity is reserved before artifact access and an incomplete writer fails closed with zero partial publication",
+        "durable registry preflight precedes artifact access; registry commit/read-back and active-default selection precede READY exposure",
+        "every post-load failure unloads what was loaded and emits STOP only when unload is proven",
+        "in-process Candle/llama.cpp loads spawn no child or guest; any actual spawned engine remains SandboxAdapter-owned"
+      ],
+      "lifecycle_and_shutdown": [
+        "one pidless START per loaded completion or embedding model with model UUID, runtime binding, integrity receipt, display name, absent-pid reason, runtime-instance descriptor, and exact scope",
+        "graceful shutdown cancels admission, waits for exact worker quiescence, obtains unique runtime ownership, unloads the exact model, and then emits one matching STOP",
+        "unload failure, extra Arc ownership, failed quiescence, dropped client, or unconfirmed durability leaves START open for reconciliation and cannot be reclassified as graceful",
+        "STOP is idempotent, survives unrelated queue saturation through reserved capacity, and waits for bounded authoritative durability",
+        "restart reconciliation distinguishes live, stale, foreign-host, corrupt, incomplete, legacy, and port-reuse states and closes an eligible stale lifecycle exactly once",
+        "concurrent reconcilers, lock timeouts, bounded batches, cyclic cursors, and retry paths are deterministic, recoverable, and non-duplicating"
+      ],
+      "flight_recorder": [
+        "DisabledLlmClient completion and embedding emit a call-time event for every denied call",
+        "local completion success and every stream, budget, and unregistered-model error emit attributable events",
+        "local embedding success emits DataEmbeddingComputed with trace/model/dimension/latency and embedding errors emit an attributable error event",
+        "construction-time emission cannot substitute for per-call evidence and no path silently fabricates embeddings"
+      ],
+      "scope_and_event_authority": [
+        "same-scope registry, lifecycle, canonical-event, restart, and runtime-control reads/writes use one exact five-field tuple",
+        "each independent one-field mismatch, stale context, revoked context, mixed-source tuple, legacy row, or incomplete row fails closed without identifiers or metadata",
+        "denied operations append no canonical event, create no lifecycle or registry row, publish no model, and advance no reclaim cursor",
+        "registry selection mutation and lifecycle START/STOP each append the canonical kernel EventLedger atomically in the same Surreal transaction"
+      ],
+      "manual_and_runtime_proof": [
+        "product-global UserManual explains pidless lifecycle, artifact integrity, shutdown/reconciliation, disabled/error observability, and recovery without scoped privacy claims",
+        "a real Candle CPU load exercises the production-composed store, records non-skipped START/STOP and canonical events, uses the same namespace before and after restart, and writes proof under the authorized artifact root"
+      ]
+    },
+    "superseded_non_authoritative_test_inventory": [
+      "embedded_model_load_emits_ledger_start_and_shutdown_seam_emits_stop",
+      "embedded_stop_waits_for_exact_model_unload_completion",
+      "embedded_unload_failure_leaves_start_open_without_stop",
+      "embedded_extra_runtime_arc_owner_blocks_unload_and_stop",
+      "optional_embedding_model_load_emits_matching_ledger_start_stop",
+      "retired_source_lifecycle_does_not_block_replacement_graceful_stop",
+      "supplied_ledger_start_failure_fails_local_client_assembly_closed",
+      "supplied_ledger_start_overflow_fails_local_client_assembly_closed",
+      "embedded_model_reserved_stop_survives_unrelated_queue_saturation",
+      "embedded_model_shutdown_bounded_waits_for_authoritative_stop_durability",
+      "shutdown_seam_is_idempotent_single_stop_row",
+      "dropping_unquiesced_client_leaves_start_open_for_reconciliation",
+      "graceful_stop_waits_for_the_exact_loaded_runtime_worker_guard",
+      "failed_runtime_quiescence_abandons_stop_and_drop_cannot_reclassify_success",
+      "graceful_shutdown_sequence_flushes_stop_through_background_writer",
+      "durable_start_ack_rejects_uuid_reuse_without_emitting_stop",
+      "writer_rejects_conflicting_stop_without_mutating_original_start",
+      "writer_allows_exact_stop_replay_but_rejects_terminal_outcome_rewrite",
+      "exact_and_conflicting_same_uuid_cobatch_rejects_only_conflict_in_both_orderings",
+      "cached_writer_rejects_same_schema_lifecycle_relation_replacement",
+      "writer_rejects_wrong_generated_expression_with_exact_types_and_primary_key",
+      "pidless_reclaimer_forces_sync_commit_for_cursor_and_terminal_update",
+      "pidless_reclaimer_rejects_lifecycle_user_trigger_without_mutation",
+      "pidless_reclaimer_rejects_cursor_user_trigger_without_mutation",
+      "pidless_reclaimer_rejects_lifecycle_rls_policy_without_mutation",
+      "pidless_reclaimer_rejects_cursor_rls_policy_without_mutation",
+      "pidless_reclaimer_reports_authority_lock_timeout_without_advancing_cursor",
+      "pidless_reclaimer_rejects_unlogged_cursor_and_inherited_lifecycle_rows",
+      "loopback_database_host_scope_is_stable_and_credential_independent",
+      "explicit_host_scope_overrides_identical_loopback_database_endpoint",
+      "unproven_mismatched_or_external_database_endpoints_fail_closed",
+      "pidless_reclaim_preserves_two_live_instances_and_closes_one_stale_instance",
+      "database_session_loss_does_not_reclaim_live_os_leased_instance",
+      "concurrent_reconcilers_close_stale_instance_exactly_once",
+      "pidless_reclaim_row_lock_timeout_is_bounded_reported_and_recoverable",
+      "pidless_reclaim_caps_each_boot_batch_and_reports_deferred_candidates",
+      "cyclic_reclaim_cursor_advances_past_full_live_prefix_to_later_stale_instance",
+      "foreign_host_scope_is_never_reclaimed_through_local_loopback",
+      "legacy_endpoint_only_host_scope_is_not_adopted_by_v2_reclaimer",
+      "reused_udp_port_fails_safe_until_exclusive_claim_is_available",
+      "corrupt_and_conflicting_metadata_does_not_abort_valid_reclaim",
+      "terminal_metadata_only_row_makes_reclaim_report_incomplete",
+      "missing_descriptor_only_row_makes_reclaim_report_incomplete",
+      "temporary_search_path_and_function_shadows_cannot_redirect_reclaim"
+    ],
+    "exact_missing_shared_apis_files_and_tests": [
+      "Parfit/provider: add a complete Surreal model-registry authority, preferably behind a provider-neutral interface, supporting access, recover_configured_runtime_binding_set, persist_role_bound_boot_set_and_read_back, ensure_active_defaults, rebind_selection_after_verified_unload, and runtime-control selection updates with canonical EventLedger transactions and exact scope.",
+      "Parfit/composition: replace the model-registry construction in src/backend/handshake_core/src/main.rs:276-280 and inject the same cloned SurrealStorage and product-local ResourceScope into model registry, ProcessReclaimRuntime, and default-model boot.",
+      "Parfit/provider plus Banach embedding boundary: migrate ModelRegistryStore-typed fields and methods in src/backend/handshake_core/src/llm/boot.rs and src/backend/handshake_core/src/llm/local_router.rs to the provider-neutral authority without weakening dedicated embedding selection or runtime-control rebind semantics.",
+      "Halley/tests: replace tests/embedded_model_ledger_tests.rs with a coherent embedded_model_surreal_ledger_tests.rs target preserving the complete lifecycle, restart, reclaim, concurrency, idempotency, canonical-event, scope-denial, and zero-mutation inventory; do not retain database-specific triggers, policies, relation shadows, or endpoint identity as active proof.",
+      "Shared real-load test: migrate tests/candle_e2e_smoke.rs so model registry and ProcessLedger use clones of the same injected SurrealStorage namespace and exact scope; remove its legacy registry fixture and host-scope endpoint dependency.",
+      "Focused authorization seams: five independent one-field mismatch reads, stale/revoked model-registry context, mixed-source scope, incomplete/legacy rows, and no-leakage/no-mutation assertions across registry, lifecycle, canonical events, restart, and runtime control.",
+      "External proof resource: HANDSHAKE_TEST_CANDLE_MODEL_DIR must identify a real compatible Candle CPU model; the ignored test must fail rather than skip when explicitly invoked and publish current proof only under HANDSHAKE_ARTIFACTS_DIR."
+    ],
+    "adversarial_review": {
+      "DIFF_ATTACK_SURFACES": [
+        "Configured artifact and sidecar capture, hash/length verification, runtime identity, durable registry preflight/commit/default selection, lifecycle reservation/START acknowledgement, READY publication, and rollback ordering.",
+        "Graceful cancellation, worker quiescence, unique Arc ownership, exact unload, STOP durability, drop behavior, restart reconciliation, concurrent reclaim, and runtime-control replacement.",
+        "Five-field scope propagation and canonical-event atomicity across model registry, ProcessLedger, boot, local router, composition, restart, and real-load proof."
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "Compared MT-013 contract readiness fields against the taskboard FAIL_V5 row and the current WP in-progress authority without editing the broad projection.",
+        "Traced production composition from main.rs through build_default_local_client, EmbeddedModelProcess, LocalModelRuntimeLlmClient, and the current model-registry provider; this independently exposed the mixed-authority boundary.",
+        "Enumerated every legacy lifecycle and routing test and scanned the current real-Candle target, proving that ProcessLedger migration is partial while durable registry authority remains on the legacy provider.",
+        "Inspected the in-progress Surreal ProcessLedger transaction and verified five-field predicates plus canonical kernel EventLedger creation rather than inferring support from test names."
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "If boot stopped awaiting the durable START acknowledgement before READY publication, an active model could become operator-visible without recoverable ownership evidence.",
+        "If LocalModelRuntimeLlmClient emitted STOP before exact runtime unload and quiescence, a live in-process model could be falsely recorded as terminated.",
+        "If the real-Candle test retained separate registry and lifecycle stores, it could pass while production composition still split authority and restart could not recover one coherent state.",
+        "If any one ResourceScope predicate were omitted, a caller changing only that field could observe or mutate another operator's model selection or lifecycle metadata."
+      ],
+      "BOUNDARY_PROBES": [
+        "Producer/consumer: boot-created model registration versus local-router durable selection and runtime-control rebind.",
+        "Writer/reader: lifecycle START/STOP plus canonical event versus restart/reclaim reads after reopening the same namespace and a deliberately different namespace.",
+        "Artifact/runtime: attested captured bytes and returned ModelId versus READY registry publication and lifecycle process UUID.",
+        "Composition/test: production main store injection versus the stores constructed by the real-Candle proof."
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "Missing liveness lease, missing ledger, missing registry authority, incomplete exact scope, reservation failure, artifact mismatch, runtime identity mismatch, registry preflight/commit/default failure, unload failure, quiescence failure, and STOP durability failure all remain fail-closed requirements.",
+        "Each one-field mismatch, stale/revoked context, mixed-source scope, incomplete row, legacy row, foreign host, reused port, corrupt metadata, lock timeout, and concurrent reclaim must prove zero unauthorized mutation and no metadata leakage.",
+        "Real-model proof must panic on absent configuration when explicitly invoked, reject stale proof artifacts, and cannot convert skipped family smoke coverage into MT-013 success."
+      ],
+      "INDEPENDENT_FINDINGS": [
+        "P0: the durable model-registry provider is not embedded-Surreal-only, so production local-model boot remains outside V6 authority despite the ProcessLedger migration.",
+        "P0: the current real-Candle proof composes different registry and lifecycle authorities and therefore cannot prove same-namespace production restart behavior.",
+        "P1: the complete MT-013 lifecycle/reclaim target remains relational and cannot serve as active V6 proof; replacing only its happy-path START/STOP assertions would be a partial surrogate.",
+        "P1: exact-scope positive stamping exists, but the MT-013 boundary lacks a coherent five one-field mismatch plus stale/revoked/no-leakage/no-mutation matrix.",
+        "P2: clean disjoint LLM source already carries the requested FR and lifecycle safeguards; editing it now would add collision risk without removing the shared blockers."
+      ],
+      "RESIDUAL_UNCERTAINTY": "No Cargo, app startup, model load, restart, or proof-artifact inspection was permitted. Halley and Parfit files changed concurrently during this audit, so their hashes are inspection snapshots only. V6 must be re-audited at one frozen source state after provider/composition/test predecessors land and then proven with real model bytes."
+    }
+  },
+  "validator_verdict": null,
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",

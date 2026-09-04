@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30772",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-LAY-147#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.6.7 Long-Document System",
+  "spec_line": 6484,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Book contract and synchronisation category set",
+ "spec_anchor": [
+  "STU-LAY-147"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "layout",
+ "scope": {
+  "summary": "Book contract and synchronisation category set.** The captured book object declares the synchronisation categories as SEVENTEEN INDEPENDENT BOOLEANS, not as a category list; Studio MUST carry all seventeen so a partial synchronisation is expressible: `sync_paragraph_styles`, `sync_character_styles`, `sync_object_styles`, `sync_table_styles`, `sync_cell_styles`, `sync_toc_styles`, `sync_swatches`, `sync_text_variables`, `sync_bullet_numbering_lists`, `sync_cross_reference_formats`, `sync_conditional_text`, `sync_parent_pages`, `sync_trap_styles`, `sync_mojikumi_styles`, `sync_kinsoku_styles`, `sync_composite_fonts`, `sync_named_grids`. Plus `smart_match_style_groups`, a two-member enumeration `{smart_match.by_style_path, smart_match.by_style_name}` governing how a style inside a group is matched across documents. This is the mechanism behind \"smart style-group matching\" and MUST be exposed, not hidden. Book-level fields and commands: *Derivation: preset/command table, taken whole; yields 1 microtask. Its rows are acceptance criteria and MUST NOT become one microtask each. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Field / command | Notes | |---|---| | `style_source_document` | The document whose styles win. | | `repagination_option` | [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Studio MUST carry all seventeen so a partial synchronisation is expressible: `sync_paragraph_styles`, `sync_character_styles`, `sync_object_styles`, `sync_table_styles`, `sync_cell_styles`, `sync_toc_styles`, `sync_swatches`, `sync_text_variables`, `sync_bullet_numbering_lists`, `sync_cross_reference_formats`, `sync_conditional_text`, `sync_parent_pages`, `sync_trap_styles`, `sync_mojikumi_styles`, `sync_kinsoku_styles`, `sync_composite_fonts`, `sync_named_grids`.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-147"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "This is the mechanism behind \"smart style-group matching\" and MUST be exposed, not hidden.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-147"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Its rows are acceptance criteria and MUST NOT become one microtask each.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-147"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The captured constraint vocabulary declares two book typed errors Studio MUST reproduce: the book does not contain one or more documents named for export, and the requested export format is unsupported for a book.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-147"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

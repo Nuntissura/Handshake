@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-35281",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-VID-062#catalogue_row#0_hbd",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.25.4 Export",
+  "spec_line": 23888,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "hbd",
+ "spec_anchor": [
+  "STU-VID-062"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "video_timeline",
+ "scope": {
+  "summary": "Container formats.** 40 distinct container/exporter pairings carry shipped recipes. The table below is the coverage target, with the shipped recipe count as the weight of each. Studio's own shipped container set is a dependency decision under [STU-VID-051]; the contract is that each supported container declares which codecs, colour metadata, caption streams and timecode tracks it can carry, and that an unsupported combination is refused with a determinate result before encoding starts rather than failing partway. *Derivation: catalogue table, splits per row; yields 34 microtasks, one per container.* | Container fourcc | Exporter class | Shipped presets | Present in | |---|---|---|---| | `DMXF` | `MXF` | 152 | premiere, media_encoder | | `MXFX` | `XDCA` | 117 | premiere, media_encoder | | `H264` | `NICK` | 43 | premiere, media_encoder | | `MooV` | `????` | 35 | premiere, media_encoder | | `MXF` | `P2MX` | 23 | premiere, media_encoder | | `mpg2` | `LORI` | 18 | premiere, media_encoder | | `WMV` | `????` | 15 | premiere, media_encoder | | `mpg2` | `AME` | 14 | premiere, media_encoder | | `dvd` | `AME` | 12 | premiere, media_encoder | | `mbd` | `AME` | 11 | premiere, media_encoder | | `HEVC` | `JEFF` | 10 | premiere, media_encoder | | `dvd` | `LORI` | 9 | premiere, media_encoder | | `mbd` | `LORI` | 9 | premiere, media_encoder | | `H26B` | `NICK` | 9 | premiere, media_encoder | | ` [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`hbd` satisfies the spec's stated container fourcc: `hbd`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-062 catalogue row `hbd`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`hbd` satisfies the spec's stated exporter class: `AME`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-062 catalogue row `hbd`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`hbd` satisfies the spec's stated shipped presets: 2",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-062 catalogue row `hbd`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`hbd` satisfies the spec's stated present in: premiere, media_encoder",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VID-062 catalogue row `hbd`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`hbd` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-VID-062"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

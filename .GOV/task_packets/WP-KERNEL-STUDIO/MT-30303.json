@@ -1,0 +1,175 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30303",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-RAS-171#parameter_table#0",
+  "unit_kind": "parameter_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "15. Diagnostics, Export Touchpoints, and Domain Authority",
+  "spec_line": 1806,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "RASTER-SIDE EXPORT PARAMETER CONTRACTS - rather than re-derived parameter bounds",
+ "spec_anchor": [
+  "STU-RAS-171"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "raster",
+ "scope": {
+  "summary": "RASTER-SIDE EXPORT PARAMETER CONTRACTS.** 14.13 owns the format matrix; 14.4 owns these declared raster encoder bounds, which MUST be carried into the `StudioExportRecipe` parameter specs rather than re-derived: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Encoder parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | classification | |---|---|---|---|---|---|---|---|---| | JPEG quality | 0 | 12 | 0 | 12 | 3 | count | 0 | hard `declared`; soft `derived` equal to hard; default `declared` | | JPEG progressive scan count | 3 | 5 | 3 | 5 | unknown | count | 0 | hard `declared` | | PNG compression | 0 | 9 | 0 | 9 | 0 | count | 0 | hard `declared`; default `declared` | | TIFF embedded JPEG quality | 0 | 12 | 0 | 12 | unknown | count | 0 | hard `declared` | | PDF embedded JPEG quality | 0 | 12 | 0 | 12 | unknown | count | 0 | hard `declared` | | GIF dither amount | 1 | 100 | 1 | 100 | 75 | percent | 0 | hard `declared`; default `declared` | | Web-optimized colour count | 2 | 256 | 2 | 256 | 256 | count | 0 | hard `derived` from the 8-bit index domain; default `declared` | | Web-optimized quality | 0 | 100 | 0 | 100 | 60 | count | 0 | hard `derived` from the percentage domain; default `declared` | | Web-optimized lossy | 0 | 100 | 0 | 100 | 0 | count | 0 | hard `derived`; de [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The parameter `JPEG quality` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=12, soft_min=0, soft_max=12, default=3, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The parameter `JPEG progressive scan count` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=3, hard_max=5, soft_min=3, soft_max=5, default=unknown, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "default"
+   ],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The parameter `PNG compression` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=9, soft_min=0, soft_max=9, default=0, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The parameter `TIFF embedded JPEG quality` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=12, soft_min=0, soft_max=12, default=unknown, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "default"
+   ],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The parameter `PDF embedded JPEG quality` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=12, soft_min=0, soft_max=12, default=unknown, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "default"
+   ],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The parameter `GIF dither amount` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1, hard_max=100, soft_min=1, soft_max=100, default=75, unit=percent, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The parameter `Web-optimized colour count` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=2, hard_max=256, soft_min=2, soft_max=256, default=256, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The parameter `Web-optimized quality` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=60, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The parameter `Web-optimized lossy` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The parameter `Web-optimized web-snap` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=0, unit=percent, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The parameter `Web-optimized blur` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=0.0, soft_max=2.0, default=0.0, unit=count, precision=1. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The parameter `PDF downsample threshold and target` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=unknown, soft_max=unknown, default=unknown, unit=pixels_per_inch, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default"
+   ],
+   "source": "14-studio-creative-suite.md STU-RAS-171 parameter table row 12"
+  }
+ ],
+ "acceptance_criteria_count": 12,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

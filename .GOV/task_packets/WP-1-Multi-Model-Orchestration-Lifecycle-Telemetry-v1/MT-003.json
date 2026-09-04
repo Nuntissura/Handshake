@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T19:19:28.4959954Z",
+  "updated_at_utc": "2026-08-30T12:50:01.2440772Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -41,8 +41,32 @@
       "still_owed": "MT-003-specific evidence that a LAUNCHED model/session resource carries owner/scope through the launch adapters for every lane (local, cloud, CLI, human, subagent), plus HBR-PRIV-006 revocation/context-switch behaviour for a live launch. The shared substrate proof does not by itself discharge this MT's launch-path rows."
     }
   },
+  "operator_correction_2026_08_30": {
+    "authority": "OPERATOR_DIRECTIVE_2026_08_30_BYOK_OPTIONAL_FUTURE_USER_CAPABILITY",
+    "correction": "BYOK is an optional future-user capability. The Operator is not a BYOK user, is firmly against using personal BYOK credentials, and will not provide OpenAI or Anthropic secrets for product proof.",
+    "required_product_posture": "Keep the CloudLane/BYOK boundary available for future users, disabled and fail-closed unless a user explicitly configures a provider credential and supplies valid ProjectionPlan/ConsentReceipt authority.",
+    "required_proof_posture": "Required MT proof must not depend on Operator-provisioned or paid-provider credentials. Use generated inert test credentials in an isolated test vault plus a controlled no-egress recording provider, and prove that absent configuration or consent causes zero provider calls. A real paid-provider end-to-end run is optional certification only.",
+    "supersedes": [
+      "lifecycle.blocker requiring Operator-provisioned OpenAI and Anthropic BYOK entries",
+      "lifecycle.missing_resource requiring production OS-keychain BYOK entries"
+    ]
+  },
+  "operator_storage_correction_2026_09_01": {
+    "authority": "OPERATOR_DIRECTIVE_2026_09_01_EMBEDDED_SURREALDB_ONLY",
+    "storage_authority": "Embedded SurrealDB is the only permitted MT-003 production and proof database.",
+    "forbidden": [
+      "PostgreSQL production wiring, fixtures, schemas, ports, helpers, or proof evidence",
+      "SQLite production wiring, fixtures, schemas, files, helpers, or proof evidence",
+      "in-memory substitutes presented as durable-boundary proof"
+    ],
+    "required_remap": "ModelLane launch authority, adjacent durable factory wiring, and MT-003 launch proof must share the exact SurrealStorage namespace/database. Historical PostgreSQL evidence is retained only as history and cannot satisfy current readiness.",
+    "required_process_ledger_api": "The separately owned ProcessLedger migration must provide a SurrealStorage-backed ProcessLedgerStore and ModelLane stale-session source that can reuse the same embedded database handle. MT-003 does not edit process_ledger/**.",
+    "focused_proof_target": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_cloud_launch_is_no_egress_and_fail_closed_without_authority -- --exact --nocapture",
+    "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/wp1-mt003-storage-core",
+    "readiness_posture": "NOT_READY: source conversion and fresh focused proof remain required; this correction issues no validator verdict."
+  },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-002"
     ],
@@ -51,24 +75,24 @@
       "MT-007",
       "MT-009"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": "KERNEL_BUILDER-20260701-190732",
-    "claimed_at_utc": "2026-07-01T19:02:22Z",
+    "claimed_by": "KERNEL_BUILDER-20260831-180220",
+    "claimed_at_utc": "2026-08-31T18:04:05.855Z",
     "ready_for_validation_by": null,
     "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": "The production all-lane exact proof fails at the real OsKeychainSecretsVault prerequisite because no secret is stored for cloud-byok-openai; the proof also requires the corresponding Anthropic BYOK entry. No credential was seeded, substituted, or mocked.",
-    "missing_resource": "Operator-provisioned OpenAI and Anthropic BYOK entries in the production OS keychain vault",
-    "proof_status": "SOURCE_REMEDIATED_BLOCKED_ON_DEPENDENCY: product commit 05ee4e67. Real llama.cpp GGUF smoke passed 1/1; seven feasible launch exact tests passed 7/7; real PostgreSQL schema tests passed 4/4; UserManual tests passed 2/2; default boot tests passed 4/4; app-runtime cargo check, scoped rustfmt, and diff checks passed. The production all-lane proof executed and failed only at the real operator-vault precheck for absent cloud-byok-openai, so readiness is not claimed.",
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "OPERATOR_STORAGE_CORRECTION_2026_09_01_NOT_READY: PostgreSQL/SQLite production or proof evidence is invalid for MT-003. Embedded SurrealDB is the sole database authority. Deterministic isolated-vault/no-egress launch proof, durable restart replay, and separately owned Surreal ProcessLedger integration remain required; no readiness claim is made.",
     "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-003:2026-07-20T01:13:21.386Z",
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "SOURCE_REMEDIATED at 05ee4e67; exact production all-lane proof awaits real OpenAI and Anthropic OS-keychain BYOK entries",
+    "last_runtime_status_ref": "FAIL_V5 contract corrected 2026-08-30: no real BYOK credential dependency; deterministic isolated-vault/no-egress proof remains MT-003 remediation work",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_MULTI_LENS_2026-08-14",
-    "adversarial_findings_status": "SOURCE_FINDINGS_REMEDIATED; EXTERNAL_PRODUCTION_VAULT_PREREQUISITE_REMAINS",
+    "adversarial_findings_status": "SOURCE_FINDINGS_REMEDIATED; STALE_EXTERNAL_CREDENTIAL_PREREQUISITE_RETRACTED; DETERMINISTIC_NO_EGRESS_BYOK_PROOF_REMAINS",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
   },
@@ -108,13 +132,14 @@
     ],
     "acceptance_criteria": [
       "Local lanes launch through LlmClient -> ModelRuntime.",
-      "Cloud lanes launch through existing CloudLane/BYOK boundary.",
+      "When a future user explicitly configures a cloud provider, cloud lanes launch through the existing CloudLane/BYOK boundary; BYOK is optional and disabled/fail-closed by default.",
       "CLI, human/operator, validator, and subagent lanes have normalized records and startup failure status.",
       "All local/cloud/CLI/human/subagent/validator lane launches MUST resolve through the Rust backend SwarmCoordinator/ModelRuntime adapter registry; LlmClient may be used only as an existing service facade when it delegates to that registry. No frontend, app/src, direct endpoint, or terminal-only path may become launch authority.",
       "Launch adapter output records capability negotiation results, provider feature profile, requested/effective execution policy, trace_id/span_id, owner_session, reclaim policy, cancellation token boundary, and startup failure code for every lane kind.",
       "Local OpenAI-compatible servers such as llama.cpp and Rust-native runtimes such as Candle are adapter backends only; no MT may call them as authoritative side channels outside the ModelRuntime boundary.",
       "Tool-capable lanes route tool calls through capability check, consent/projection where needed, Flight Recorder/EventLedger logging, execution, result capture, and ModelLaneMessage result refs.",
       "Every lane kind (local, BYOK cloud, official CLI, CLI bridge, human/operator, subagent, validator) MUST declare cancellation_token_ref, reclaim_policy, owner_session, terminal status mapping, and EventLedger START/STOP or explicit no-OS-process equivalent at launch time.",
+      "Required BYOK proof MUST NOT require Operator-provisioned or paid-provider credentials. It MUST use generated inert test credentials in an isolated test vault and a controlled no-egress recording provider, prove that the secret value is never logged or persisted outside the vault contract, and prove zero provider calls when provider configuration or ProjectionPlan/ConsentReceipt authority is absent, expired, mismatched, or revoked. Real-provider end-to-end execution is optional certification only.",
       "Source/negative proof MUST fail closed for direct endpoint launch, app/src/app-src-tauri launch authority, terminal-only launch state, and unsupported tool capability.",
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED.",
       "REOPENED SCOPE (operator decision 2026-07-01): The default LlmClient boot path (src/backend/handshake_core/src/main.rs) MUST resolve local inference through the embedded ModelRuntime (LlamaCppRuntime default, CandleRuntime for hook/non-transformer lanes), NOT the auto-detected Ollama daemon. src/backend/handshake_core/src/llm/ollama.rs OllamaAdapter and its /api/tags auto-detect default are removed.",
@@ -202,7 +227,7 @@
     "MAN"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260831-180220",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,

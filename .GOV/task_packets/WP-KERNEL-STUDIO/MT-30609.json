@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30609",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-VEC-170#parameter_table#0",
+  "unit_kind": "parameter_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.5.10 Transforms and Distortions",
+  "spec_line": 4681,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Liquify-family contract - block across the whole tool family parameter bounds",
+ "spec_anchor": [
+  "STU-VEC-170"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "vector",
+ "scope": {
+  "summary": "Liquify-family contract.** The captured liquify surface declares one shared option block across the whole tool family: *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `twirl_rate` | unknown | unknown | -180 | 180 | -180.0 | `deg` | preference-controlled: `angle_precision` | | `detail` | unknown | unknown | 1 | 10 | 1 | `count` | preference-controlled: `value_precision` | | `simplify` | unknown | unknown | 0.2 | 100 | 0.2 | `count` | preference-controlled: `value_precision` | plus `use_pressure_pen` (boolean, `false`), `detail_enabled` (boolean, `false`), `simplify_enabled` (boolean, `false`), `brush_affects_anchor_points` (boolean, default UNKNOWN), `brush_affects_in_tangent_handles` (boolean, default UNKNOWN), `brush_affects_out_tangent_handles` (boolean, default UNKNOWN), `show_brush_size` (boolean, `false`). `detail` and `simplify` are GATED by their own enable booleans: an implementer MUST NOT apply them when the gate is off, and a model MUST set the gate explicitly. Brush width, height and angle for the liquify nib were NOT recovered and are a declared spec gap.",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The parameter `twirl_rate` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=-180, soft_max=180, default=-180.0, unit=`deg`, precision=preference-controlled: `angle_precision`. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-VEC-170 parameter table row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The parameter `detail` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=1, soft_max=10, default=1, unit=`count`, precision=preference-controlled: `value_precision`. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-VEC-170 parameter table row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The parameter `simplify` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=0.2, soft_max=100, default=0.2, unit=`count`, precision=preference-controlled: `value_precision`. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-VEC-170 parameter table row 3"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

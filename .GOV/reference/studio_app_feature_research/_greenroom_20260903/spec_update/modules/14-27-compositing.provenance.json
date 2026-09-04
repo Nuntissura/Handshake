@@ -1,0 +1,952 @@
+{
+ "schema_id": "handshake.spec.module_provenance@1",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "module_file": "14-27-compositing.md",
+ "module_section_id": "14.27",
+ "module_title": "Compositing & Visual Effects",
+ "module_sha256": "9419598995ee6f8560fff618c8084a06fdcd63f646a5a6bf56e2f6e655652805",
+ "module_bytes": 50570,
+ "spec_version_target": "v02.206",
+ "authority_note": "The Master Spec module is the sole authority. This file records HOW each clause was derived so a reviewer can re-check it against the green-room captures. It is NOT co-authority and MUST NOT be cited as the source of any contract (SAD-008.operator_reinforcement_20260904; [STU-SECTION-002] as amended). A capable model with no access to these captures must be able to implement the module from the module alone.",
+ "capture_files": [
+  {
+   "capture_id": "AE_COMMANDS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_commands_shortcuts.json",
+   "bytes": 636176,
+   "sha256": "405e91863ab17f7d4152e678a8e10de43a91bfd4f723e7c3f76be180f708915c"
+  },
+  {
+   "capture_id": "AE_EFFECTS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+   "bytes": 6336485,
+   "sha256": "a5dec26c86b5d6e940b5727758b5b16ec207e10f0f6ec4b86adaa5c4f6a0949b"
+  },
+  {
+   "capture_id": "AE_LAYER_PROPS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+   "bytes": 480800,
+   "sha256": "ee7e8531aa844d6fcbc71a73db7d84f9960b03b50b8f175d6bf6e81d0faa87fe"
+  },
+  {
+   "capture_id": "AE_RENDER_OUTPUT",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+   "bytes": 712607,
+   "sha256": "fec6683b75d0c976c64a116fcd32100b3f07f538ed4f2c4eb2abd5efaefc16ac"
+  },
+  {
+   "capture_id": "AE_SCRIPTING",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_scripting_expressions.json",
+   "bytes": 256628,
+   "sha256": "110b135f6d8cc9e6d644df0067159dd0d02e5bb0d6a0fcde8883ec7fe5a63663"
+  },
+  {
+   "capture_id": "AE_TEXT_SHAPE_MASK",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_text_shape_mask.json",
+   "bytes": 314909,
+   "sha256": "ea7d80e8ef205394e2973954ad71e013dd62ce15c8b7d1293e05ce952fa02828"
+  },
+  {
+   "capture_id": "DECISIONS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+   "bytes": 32133,
+   "sha256": "32bf460f02f9a15e9c111ed37c2a80265b70f08855a33e4db7730cdb9bfeeea2"
+  },
+  {
+   "capture_id": "PR_COMMANDS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+   "bytes": 8705835,
+   "sha256": "954582266870f32aee5a4681ba2b627b87d62ba425e4b99a3389525d93d2cf93"
+  },
+  {
+   "capture_id": "PR_SEQUENCE",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+   "bytes": 2609000,
+   "sha256": "2dd4de982a25d2e6189fdee126c43fd6be43009240bc9b965129eb0698478d2c"
+  },
+  {
+   "capture_id": "SPEC_14",
+   "path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+   "bytes": 413204,
+   "sha256": "bd661bb6f2453ac4167a668e68aa256d80a969ab88bc1084b25c4ad2f5dfd4ec"
+  }
+ ],
+ "clause_count": 66,
+ "clauses": [
+  {
+   "anchor": "STU-CMP-001",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-007] -- operator_statement, supersedes, capability_effect"
+    },
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-OVR-015]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-002",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-007].spec_amendment_required.consequential"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-003",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-008].operator_reinforcement_20260904"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-004",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "layer_types[layer_type='composition'] -- an AV layer whose source is a CompItem"
+    },
+    {
+     "capture_id": "PR_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_commands_shortcuts.json",
+     "record": "cmd.clip.aeify 'Replace With After Effects Composition'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-005",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "layer_types[layer_type='composition']"
+    },
+    {
+     "capture_id": "AE_RENDER_OUTPUT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+     "record": "render_and_output_dialogs[surface_title='New Composition from Selection'] (15 controls)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-010",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "property_group_topics ordering: masks, effects, layer_styles, transform; enumerations.layer_blending_modes and .track_matte_modes as the final composite stage"
+    },
+    {
+     "capture_id": "AE_RENDER_OUTPUT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+     "record": "Composition Settings shutterAngleNumEdit / shutterPhaseNumEdit / threeDsamplesNumEdit motion-blur sampling"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-010a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "enumerations.track_matte_modes labels 'Matte Layer Above' / 'Matte Layer Below' -- stack-order semantics"
+    },
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-FX-002] render_scope"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-010b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "property_group_topics -- masks and effects are sibling groups under the layer, transform is applied at composite"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-015",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "layer_types[layer_type='adjustment'] -- 'adjustment layer'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-016",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "layer_types[layer_type='composition'] and [layer_type='shape']; property_group_topics.shape"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-016a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "layer_types"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-020",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "enumerations.layer_blending_modes -- menu_id 0249, 39 recovered rows, 38 members after removing the 'New Transfer Mode' title row; evidence: '$$$/AE/MenuID/0249/* located by content signature'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-020a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "enumerations.layer_blending_modes options StencilAlpha_2186, StencilLuma_2187, SilhouetteAlpha_2188, SilhouetteLuma_2189, AlphaAdd_2198, LuminescentPremul_2197"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-020b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "enumerations.layer_blending_modes options ClassicColorBurn_2177, ClassicColorDodge_2176, ClassicDifference_2180, Dissolve_2168, DancingDissolve_2169"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-020c",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[] POPUP parameters named 'Blending Mode' with 22-member option lists"
+    },
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "layer_styles[].parameters[name='Blend Mode'] with 33-row option lists"
+    },
+    {
+     "capture_id": "AE_TEXT_SHAPE_MASK",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_text_shape_mask.json",
+     "record": "shape_layer.operators['ADBE Vector Graphic - Fill'].child_match_names includes 'ADBE Vector Blend Mode'; text_layer 'ADBE Text Character Blend Mode'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-021",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[].video.allow_linear_compositing (true in the shipped configurations read); .colour.sequence_working_colour_space.workingSpaceIsLinearized"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-022",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_RENDER_OUTPUT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+     "record": "Output Module Settings pmVideoColor 'Color:' popup (premultiplied/straight)"
+    },
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[display_name='Remove Color Matting'] (3 typed parameters)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-025",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_TEXT_SHAPE_MASK",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_text_shape_mask.json",
+     "record": "masks.groups: ADBE Mask Parade -> ADBE Mask Atom -> {ADBE Mask Shape, ADBE Mask Feather, ADBE Mask Opacity, ADBE Mask Offset}"
+    },
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "property_containment_edges parent='ADBE Mask Atom'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-025a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "enumerations.mask_modes -- menu_id 0175, 8 recovered rows, 7 members after removing the 'Mask Mode2' title row: Add, Darken, Difference, Intersect, Lighten, None, Subtract"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-026",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_TEXT_SHAPE_MASK",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_text_shape_mask.json",
+     "record": "masks.groups['ADBE Mask Opacity'].observed_values -- declared_stream_min 0.0, declared_stream_max 100.0, observed_min 0.0, observed_max 1.0, most_common_first_component [{1.0:76},{0.0:70},{0.5:6}] across 168 observations"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-027",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_commands_shortcuts.json",
+     "record": "tools[] Pen Tool G, Add Vertex Tool G, Delete Vertex Tool G, Convert Vertex Tool G"
+    },
+    {
+     "capture_id": "AE_TEXT_SHAPE_MASK",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_text_shape_mask.json",
+     "record": "shape_layer.operators['ADBE Vector Shape - Group'] 'Bezier path (Path)'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-030",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "enumerations.track_matte_modes -- menu_id 0250, 10 recovered rows"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-030a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "enumerations.track_matte_modes options: NoTrackMatte_2191, AlphaMatteBelow_4235, AlphaInvertedMatteBelow_4236, LumaMatteBelow_4237, LumaInvertedMatteBelow_4238, TrackMatteAbove, TrackMatteAbove_4233, TrackMatteBelow, TrackMatteBelow_4234, plus the 'Track Matte' title row"
+    },
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "param_flag_bits['0x100'] LAYER_PARAM_IS_TRACKMATTE"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-031",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "enumerations.layer_blending_modes stencil/silhouette members versus enumerations.track_matte_modes"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-032",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Keying'] (19 entries) and [category='Matte'] (2 entries); typed parameter records on Keylight (1.2) 80 params, Advanced Spill Suppressor 11, Key Cleaner 5, Unmult 6, Simple Choker 3"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-032a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Keying'] and [category='Matte'] -- 3 of 21 carry typed parameter records"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-033",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Keying'] composition of pre-process, extract, refine, despill capabilities"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-034",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "no assisted-roto capability with a recovered parameter surface in effects[]"
+    },
+    {
+     "capture_id": "AE_TEXT_SHAPE_MASK",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_text_shape_mask.json",
+     "record": "masks.groups['ADBE Mask Shape'] -- manual path animation is the recovered mechanism"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-035",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "property_group_topics.material_options_3d, .geometry_options_3d; property_containment_edges parent='ADBE Transform Group' children ADBE Rotate X / Rotate Y / Position_2"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-035a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "layer_types and the 2D/3D layer distinction implied by property_group_topics"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-040",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "property_containment_edges parent='ADBE Camera Options Group' -- 14 children: Camera Aperture, Camera Blur Level, Camera Focus Area Width, Camera Focus Distance, Camera Split Blur Level, Camera Zoom, Iris Aspect Ratio, Iris Diffraction Fringe, Iris Highlight Gain, Iris Highlight Threshold, Iris Hightlight Saturation, Iris Rotation, Iris Roundness, Iris Shape"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-040a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_SCRIPTING",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_scripting_expressions.json",
+     "record": "expression_language.identifiers point_of_interest / pointOfInterest, zoom, depthOfField, focusDistance, aperture, blurLevel, irisShape, irisRotation, irisRoundness, irisAspectRatio, irisDiffractionFringe, highlightGain, highlightThreshold, highlightSaturation"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-040b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_commands_shortcuts.json",
+     "record": "tools[] Orbit Camera Tool C, Track XY Camera Tool C, Track Z Camera Tool C"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-045",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "property_containment_edges parent='ADBE Light Options Group' -- 14 children: Casts Shadows, Light Backgd Blur, Light Backgd Opacity, Light Backgd Visible, Light Color, Light Cone Angle, Light Cone Feather 2, Light Env Atom, Light Falloff Distance, Light Falloff Start, Light Falloff Type, Light Intensity, Light Shadow Darkness, Light Shadow Diffusion"
+    },
+    {
+     "capture_id": "AE_SCRIPTING",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_scripting_expressions.json",
+     "record": "expression_language.identifiers intensity, color, coneAngle, coneFeather, shadowDarkness, shadowDiffusion"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-045a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "property_containment_edges: 'ADBE Casts Shadows' under Light Options AND 'ADBE Casts Shadows' / 'ADBE Accepts Shadows' under Material Options"
+    },
+    {
+     "capture_id": "AE_SCRIPTING",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_scripting_expressions.json",
+     "record": "expression_language.identifiers castsShadows, acceptsShadows, acceptsLights"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-050",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='3D Channel'] -- 8 entries: 3D Channel Extract, Cryptomatte, Depth Matte, Depth of Field, EXtractoR, Fog 3D, ID Matte, IDentifier"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-050a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[display_name='EXtractoR'] and [display_name='IDentifier'] -- named-channel access to multi-part EXR"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-050b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[display_name='3D Glasses'] in category 'Perspective'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-055",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Immersive Video'] -- 21 entries, 20 gpu_accelerated"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-055a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[].immersive_video"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-060",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_RENDER_OUTPUT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+     "record": "render_and_output_dialogs[surface_title='Composition Settings'] RendererTab, renderingPluginPopup, RendererAbout 'Classic 3D is the traditional After Effects renderer...'; [surface_title='Advanced 3D Render Options'] htQualitySamples min 1 max 300; [surface_title='Classic 3D Render Options']"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-065",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_commands_shortcuts.json",
+     "record": "command_categories.MotionTracker=18; binding_contexts.Tracker=18"
+    },
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[display_name='3D Camera Tracker'] in category 'Perspective'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-065a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_commands_shortcuts.json",
+     "record": "command_categories.MotionTracker=18"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-065b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "no tracker parameter records in effects[]; 3D Camera Tracker parameter_count_recovered=0"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-070",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Time'] -- 10 entries: CC Force Motion Blur, CC Time Blend, CC Time Blend FX, CC Wide Time, Echo (6 typed params), Pixel Motion Blur, Posterize Time (2), Time Difference (6), Time Displacement, Timewarp"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-070a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Time'] temporal read behaviour; out_flags_raw / out_flags2_raw carry the plug-in's declared temporal capabilities"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-075",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Simulation'] -- 22 entries; typed records on CC Mr. Mercury (33), Foam (47), Wave World (48)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-075a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Simulation'] statefulness"
+    },
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-FX-011] determinism and seed requirement"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-075b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Simulation'] -- 3 of 22 carry typed parameter records; several display_name values carry a third-party vendor prefix"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-080",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Channel'] -- 17 entries; typed records on Calculations (14), Set Channels (10), Channel Combiner (9), Set Matte (7), Minimax (6), CC Composite (5), Shift Channels (5), Solid Composite (5), Invert (3), Remove Color Matting (3)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-080a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[category='Channel'] enumerated option lists; 9 of 17 carry typed records"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-090",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "the entire capture -- layer_types, property_group_topics, property_containment_edges, enumerations"
+    },
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[] catalogue expressed in layer terms"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-091",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-007].open_architecture_fork -- question, why_it_matters, status 'NOT YET DECIDED', note"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-092",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-007].open_architecture_fork.note -- 'Handshake already has node-graph precedent: the Loom graph surface and the canvas board exist in the 012 shell, and Graphite (Rust, node-based, Vello-rendered) is the closest open-source field reference'"
+    },
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-003].existing_layers_verified_in_012 -- loom_address.rs 'Every document, rich-text block, canvas node and graph node is addressable as workspace_id + block_id, rendered as a loom:// URI'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-093",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-FX-012b] tiled/progressive/region-of-interest re-render; [STU-FX-120] layer_reference parameters"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-094",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-007].open_architecture_fork.status -- 'The captured After Effects data supports the layer model fully; a node model would need its own reference basis'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-095",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "enumerations (7 enumerations recovered by content signature) and summary.enumerations counts"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-095a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "enumerations.view_layout -- menu_id 0357: 1 View, 2 Views, 4 Views, Share View Options"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-100",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "absence of an assisted-roto parameter surface"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-101",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-007].open_architecture_fork"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-102",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_RENDER_OUTPUT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+     "record": "renderingPluginPopup member list not recovered"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-103",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "3D Camera Tracker parameter_count_recovered=0"
+    },
+    {
+     "capture_id": "AE_COMMANDS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_commands_shortcuts.json",
+     "record": "command_categories.MotionTracker -- commands only, no parameters"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-104",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "typed-record coverage by category: Keying+Matte 3/21, 3D Channel 0/8, Immersive Video 0/21, Simulation 3/22"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-105",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "property_containment_edges 'ADBE Light Falloff Type' and 'ADBE Iris Shape' -- properties present, member lists absent"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-106",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "sequence_presets[].immersive_video.projectionType"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-CMP-110",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.16, 14.20, 14.22 cross-cutting obligations"
+    }
+   ]
+  }
+ ],
+ "cross_referenced_anchors_defined_elsewhere": [
+  "STU-ARC-002",
+  "STU-CON-007",
+  "STU-DOC-004",
+  "STU-FX-002",
+  "STU-FX-003",
+  "STU-FX-008",
+  "STU-FX-011",
+  "STU-FX-012b",
+  "STU-FX-018",
+  "STU-FX-038",
+  "STU-FX-108",
+  "STU-FX-115",
+  "STU-FX-120",
+  "STU-FX-120a",
+  "STU-FX-124",
+  "STU-FX-126",
+  "STU-FX-132",
+  "STU-FX-146",
+  "STU-MOT-001",
+  "STU-MOT-004",
+  "STU-MOT-005",
+  "STU-MOT-007a",
+  "STU-MOT-008",
+  "STU-MOT-009",
+  "STU-MOT-012",
+  "STU-MOT-014",
+  "STU-MOT-030",
+  "STU-MOT-045",
+  "STU-MOT-070",
+  "STU-MOT-093",
+  "STU-MOT-101",
+  "STU-MOT-122",
+  "STU-MOT-131",
+  "STU-OVR-015",
+  "STU-SECTION-002",
+  "STU-SECTION-003",
+  "STU-VID-001",
+  "STU-VID-011",
+  "STU-VID-018",
+  "STU-VID-020",
+  "STU-VID-031",
+  "STU-VID-050",
+  "STU-VID-082"
+ ],
+ "generated_tables": [
+  {
+   "fragment": "frag_ae_enumerations.md",
+   "capture_id": "AE_LAYER_PROPS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+   "record_selector": "enumerations (7 enumerations, verbatim option labels)",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  }
+ ]
+}

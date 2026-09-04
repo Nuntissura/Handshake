@@ -1,130 +1,207 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-512",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-512.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-512.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-510",
-      "MT-511"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Plugin data, storage, codegen/text-review extensions, isolated UI [STU-AUT-019,STU-AUT-018]",
-  "spec_anchor": [
-    "STU-AUT-019",
-    "STU-AUT-018"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-512",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:27+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-512.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-512.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-510",
+   "MT-511"
   ],
-  "scope": {
-    "summary": "Implement per-node plugin data (private + cross-plugin shared key-value, travelling with the document, namespaced), local client storage (plugin-local key-value separate from document data), codegen extension registration (register languages, emit code for the current selection), text-review extension (participate in a text-review pipeline over document text), and the isolated plugin UI surface with no direct access to native-shell internals, communicating with sandboxed plugin logic through a typed message channel.",
-    "allowed_paths": [
-      "src/studio/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "per-node/shared data + client storage + codegen/text-review extensions + isolated UI via typed channel"
-    ],
-    "proof_targets": [
-      "plugin-data round-trip + isolated-UI negative test"
-    ],
-    "code_surfaces": [
-      "src/studio/plugin/node_data.rs",
-      "src/studio/plugin/client_storage.rs",
-      "src/studio/plugin/extensions.rs",
-      "src/frontend/handshake_native/src/studio/plugin_ui.rs"
-    ],
-    "expected_tests": [
-      "live: per-node private + shared plugin data round-trips with the document",
-      "test: codegen extension emits code for a selection; text-review extension participates",
-      "negative: plugin UI cannot reach native-shell internals (typed message channel only)"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "isolated plugin UI host"
-    ],
-    "argus_targets": [
-      "studio.plugin_ui_host"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Automation / Plugin data, storage & UI isolation"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-VIS-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Plugin data, storage, codegen/text-review extensions, isolated UI [STU-AUT-019,STU-AUT-018]",
+ "spec_anchor": [
+  "STU-AUT-019",
+  "STU-AUT-018"
+ ],
+ "scope": {
+  "summary": "Implement per-node plugin data (private + cross-plugin shared key-value, travelling with the document, namespaced), local client storage (plugin-local key-value separate from document data), codegen extension registration (register languages, emit code for the current selection), text-review extension (participate in a text-review pipeline over document text), and the isolated plugin UI surface with no direct access to native-shell internals, communicating with sandboxed plugin logic through a typed message channel.",
+  "allowed_paths": [
+   "src/studio/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Plugin data/codegen/text-review parity dropped, or plugin UI escapes isolation.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Per-node/shared data",
+   "Client storage",
+   "Codegen/text-review extensions",
+   "Isolated UI via typed channel"
+  ],
+  "proof_targets": [
+   "plugin-data round-trip + isolated-UI negative test"
+  ],
+  "code_surfaces": [
+   "src/studio/plugin/node_data.rs",
+   "src/studio/plugin/client_storage.rs",
+   "src/studio/plugin/extensions.rs",
+   "src/frontend/handshake_native/src/studio/plugin_ui.rs"
+  ],
+  "expected_tests": [
+   "live: per-node private + shared plugin data round-trips with the document",
+   "test: codegen extension emits code for a selection; text-review extension participates",
+   "negative: plugin UI cannot reach native-shell internals (typed message channel only)"
+  ],
+  "acceptance_criteria_original": [
+   "per-node/shared data + client storage + codegen/text-review extensions + isolated UI via typed channel"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "isolated plugin UI host"
+  ],
+  "argus_targets": [
+   "studio.plugin_ui_host"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Automation / Plugin data, storage & UI isolation"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-VIS-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Plugin data/codegen/text-review parity dropped, or plugin UI escapes isolation.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Per-node/shared data",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "plugin-data round-trip + isolated-UI negative test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Client storage",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Codegen/text-review extensions",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Isolated UI via typed channel",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-AUT-019",
+    "spec_clause_text": "[STU-AUT-019] The plugin surface MUST support the deduped extension capabilities below. A plugin capability that the manifest does not declare and consent does not grant is unavailable at runtime and fails closed. | Plugin capability | Behavior | Deduped source provenance | |---|---|---| | Manifest & mode targeting | Declare identity, targeted document/editor modes, and required capabilities | manifest editorType targeting | | Capability & network gating | Request typed command capabilities and whitelisted network domains with reasoning; consent-gated | manifest networkAccess/permissions; capabilities | | Scene-node access | Read/write scene nodes through the typed object model and descriptor path | node/document/page/frame/vector/text node APIs | | Node factories | Create new primitives (paths, text, frames, shapes, images, board objects) as commands | `create*` node factory methods | | Event subscription | Subscribe to run, selection-change, document-change, view-change, text-review, style-change, and drop events | plugin event subscription | | Parameter quick-run | Declare typed input parameters gathered from the command surface for headless quick runs | parameter-driven quick-run | | Relaunch entry points | Pin contextual re-run entry points onto specific nodes | relaunch buttons; setRelaunchData | | Per-node plugin data | Store private and cross-plugin shared key-value data on nodes, travelling with the document | plugin data (private + shared) | | Local client storage | Persist plugin-local key-value data separate from document data | clientStorage persistence | | Codegen extension | Register languages and emit code for the current selection | codegen API / codegen plugins | | Text-review extension | Participate in a text-review pipeline over document text | text-review capability | | Board widget | Ship an interactive board widget with synced multi-user state (whiteboard mode, 14.15) | Widget API model; widgets on boards | | Dev tooling | Typed stubs, hot reload, and a developer console for plugin development | plugin dev tooling (typings/hot reload/console) | | Local registry distribution | Discover, install, update, and remove plugins from a local/native registry | plugins marketplace posture; private plugin distribution |"
+   },
+   {
+    "anchor": "STU-AUT-018",
+    "spec_clause_text": "[STU-AUT-018] Plugins MUST run under the kernel capability/consent gate system and MUST NEVER run unsandboxed. A plugin's manifest-declared capabilities are inert until consent-granted; the granted set gates every command the plugin can resolve ([STU-AUT-005]). Plugin execution is sandboxed (process-tier by default, as with model edits per [STU-ARC-005]); a plugin has no ambient filesystem, network, or authority access beyond its consent-granted capabilities. Document mutations authored by a plugin carry a `KernelActor` plugin identity in their receipts and pass the sandbox → validation → `PromotionGate` lifecycle. Plugin UI runs in an isolated surface with no direct access to the native shell's internals; it communicates with the sandboxed plugin logic through a typed message channel."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:27+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

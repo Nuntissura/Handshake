@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-007",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-09-01T15:34:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-002",
       "MT-003",
@@ -28,38 +28,33 @@
       "MT-009",
       "MT-010"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": "FAIL_V5",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T01:19:49Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-032321",
-    "ready_for_validation_at_utc": "2026-07-29T03:23:21Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": null,
-    "proof_status": "FAIL_V5: Required recovery privacy evidence is still missing for diagnostic replay under a stale or revoked context. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT007_RECOVERY_RECONCILED; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: boot_recovery_refuses_to_run_from_an_account_scoped_store - recovery is a NAMED cross-owner operation (SystemScopeAuthority::boot_recovery) rather than a silent unscoped read, so 'no account filter' cannot happen by accident. STILL OWED: Recovery/diagnostic replay under a stale or revoked context (HBR-PRIV-006) is not yet attached.",
+    "blocker": "The shared ModelLane provider does not yet implement complete embedded-Surreal recovery checkpoints, recovery events, lane leases, diagnostic tiers, MT runtime statuses, boot recovery, EventLedger integrity/replay, or recovery navigation. The owned tests cannot supply these production APIs.",
+    "missing_resource": "Parfit-owned complete embedded-Surreal ModelLane recovery/diagnostics provider plus same-namespace restart, scoped tamper, and revoked-context test seams.",
+    "proof_status": "V6_EMBEDDED_SURREAL_CORRECTION_BLOCKED: stale readiness and storage proof are withdrawn. The complete legacy recovery suites remain byte-for-byte superseded migration provenance; no partial replacement suite was created. No Cargo, build, test, clean, or runtime proof was run.",
+    "hbr_status": "V6_REVALIDATION_REQUIRED: exact five-field ResourceScope, stale/revoked context denial, EventLedger replay and integrity, orphan/lease recovery, restart persistence, diagnostics posture, and non-mutation remain unproven on embedded SurrealDB.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14",
+    "last_runtime_status_ref": "V6_EMBEDDED_SURREAL_CORRECTION_2026_09_01_NO_CURRENT_RUNTIME_PROOF",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "COMPLETED_2LENS_20260729",
-    "adversarial_findings_status": "SAFETY_CLEARED_NO_WRONG_KILL; RESIDUAL_FINDINGS_DEFERRED_TO_MT-019",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
+    "post_implementation_adversarial_review_status": "V6_STORAGE_AUTHORITY_REAUDIT_BLOCKED_ON_SHARED_PROVIDER_2026_09_01",
+    "adversarial_findings_status": "OPEN_SHARED_PREDECESSOR_NO_PARTIAL_OR_VACUOUS_OWNED_REPLACEMENT_CREATED; PROCESS_RECLAIM_REMAINS_MT-019",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Add lane recovery, orphan detection, replay, and diagnostics state.",
     "allowed_paths": [
-      "src/backend/handshake_core/src/swarm_orchestration/",
-      "src/backend/handshake_core/src/kernel/session_broker.rs",
-      "src/backend/handshake_core/tests/",
-      "src/backend/handshake_core/migrations/",
-      "src/backend/handshake_core/src/process_ledger/",
-      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
-      "src/backend/handshake_core/src/inspector_read/",
-      "src/backend/handshake_core/src/storage/"
+      "src/backend/handshake_core/tests/model_lane_recovery_surreal_tests.rs (future complete replacement only)",
+      "src/backend/handshake_core/tests/model_lane_recovery_scope_api_surreal_tests.rs (future complete replacement only)",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json"
     ],
     "forbidden_paths": [
       "best-effort recovery based on terminal text only",
@@ -77,7 +72,7 @@
       "ModelLaneRun recovery MUST persist lane checkpoints containing run_id, lane_id, session_id/model_session_id, status, last_event_ledger_seq, last_message_id, open payload refs, lease_id, idempotency scope, and recovery_state. Replay MUST load the latest checkpoint, apply EventLedger records after that sequence in order, ignore duplicate idempotency keys, and emit typed failure if checkpoint or replay order is missing/corrupt.",
       "MT-007 MUST define and test canonical EventLedger/Flight Recorder event families for RUN_CREATED/RUN_COMPLETED/RUN_FAILED, LANE_PLANNED/LANE_STARTED/LANE_STATUS_CHANGED/LANE_COMPLETED/LANE_FAILED/LANE_CANCELLED/ORPHAN_DETECTED, MESSAGE_RECORDED/PAYLOAD_REF_RECORDED/PAYLOAD_REF_MISSING, RECOVERY_REQUESTED/REPLAY_RECONSTRUCTED/RECOVERY_FAILED. Every family row MUST include run_id, lane_id where applicable, session_id/model_session_id, trace_id, span_id, parent_span_id or span links, wp_id, mt_id, error code, artifact refs, and replay hint.",
       "ModelLane recovery MUST persist and inspect lane leases with lease_id, scope_kind, scope_ref, holder_actor_id, holder_session_id, lease_expires_at_utc, takeover_policy, and release/cancel/failure state. Orphan recovery MUST distinguish active lease, expired lease, cancelled lane, crashed lane, and never-started lane, and must emit durable typed denial/reclaim receipts for takeover or unrecoverable CX-MM-009 paths.",
-      "Replay reconstructs run/lane/message/artifact/status/checkpoint state from PostgreSQL/EventLedger/ArtifactStore/CRDT records without provider trace history, terminal scrollback, UI rows, Flight Recorder rows, or chat history.",
+      "Replay reconstructs run/lane/message/artifact/status/checkpoint state from embedded SurrealDB/EventLedger/ArtifactStore/CRDT records without provider trace history, terminal scrollback, UI rows, Flight Recorder rows, or chat history.",
       "Recovery covers never-started, partial-start, interrupted stream, missing payload, stale CRDT base, orphaned subagent, failed cloud consent, cancelled background process, crashed app, and restart-after-crash paths with typed codes and recovery hints.",
       "Recovery MUST also recreate MT lifecycle/status signaling for claimed_by, blocker, missing_resource, proof_status, hbr_status, ready_for_validation state, last_recovery_event_ref, and last_runtime_status_ref before implementation resumes.",
       "Recovery negative proof MUST cover corrupt checkpoint, EventLedger sequence gap, duplicate idempotency, missing payload ref, stale CRDT base, failed cloud consent, cancelled process, crashed app, and orphaned subagent.",
@@ -85,11 +80,8 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan -- --exact"
+      "PENDING_SHARED_PROVIDER: $env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt007-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_surreal_tests",
+      "PENDING_SHARED_PROVIDER: $env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt007-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_scope_api_surreal_tests"
     ],
     "risk_if_missed": "Parallel swarms will fail in ways the operator and later models cannot recover.",
     "reference_only_paths": [
@@ -113,7 +105,7 @@
     "Use Flight Recorder/EventLedger payloads as bounded events plus artifact refs; do not put unbounded model output, raw secrets, or prompt-only state in event payloads.",
     "If this MT changes any product behavior, storage/event contract, command, IPC/API path, diagnostic surface, model lane, or navigation path, update the in-product UserManual in the same implementation change per HBR-MAN-004.",
     "Product implementation for this MT must be Rust-only: Rust backend plus Rust native egui/Argus surfaces where UI is touched. Legacy app/src, app/src-tauri, React, Tauri/WebView, TypeScript, JavaScript, docs/model-manual, and npm proof targets are reference-only or forbidden and MUST NOT satisfy implementation/proof authority.",
-    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources or an explicit real PostgreSQL URL.",
+    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but embedded SurrealDB/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources through the injected shared SurrealStorage namespace and database.",
     "Each behavior-changing MT must include same-change UserManual coverage for the changed behavior; MT-011 audits coverage and cannot substitute for same-change HBR-MAN-004 proof.",
     "This pre-implementation contract review does not replace post-implementation review. After coding, run adversarial review against the actual diff through the listed lenses and update MT status signaling before handoff."
   ],
@@ -147,7 +139,7 @@
     "post_implementation_adversarial_review_required": true,
     "post_implementation_review_lenses": [
       "runtime_launch_and_model_lane_authority",
-      "postgres_eventledger_crdt_state_recovery",
+      "embedded_surreal_eventledger_crdt_state_recovery",
       "rust_native_argus_operator_surface_and_usermanual",
       "spec_realism_negative_guards_and_mt_status_signaling"
     ]
@@ -163,6 +155,7 @@
     ]
   },
   "research_basis": {
+    "storage_relevance": "SUPERSEDED_RELATIONAL_RESEARCH_PROVENANCE_ONLY; current V6 implementation authority is embedded SurrealDB",
     "updated_at_utc": "2026-06-28T20:10:33.273Z",
     "authority_posture": "Master spec/SPEC_CURRENT/product code are authority; HANDSHAKE_PRODUCT_REFERENCE.md and external research are navigation/evidence only.",
     "local_authority_checked": [
@@ -175,9 +168,9 @@
     ],
     "product_code_evidence": [
       "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs contains recovery dashboard/evidence types",
-      "src/backend/handshake_core/src/process_ledger/restart_resume.rs replays from checkpoints and EventLedger sequence",
-      "src/backend/handshake_core/src/atelier/model_lease.rs uses PostgreSQL-clock lease discipline",
-      "migrations 0311_parallel_swarm_state_recovery.sql, 0312_parallel_swarm_editor_agent_safety.sql, and 0313_parallel_swarm_quiet_background_work.sql exist"
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs exposes generic immutable-record and CRDT operations but no complete MT-007 recovery/diagnostics provider API set",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs exposes the required recovery/diagnostics façade names but their storage migration is incomplete",
+      "tests/model_lane_recovery_pg_tests.rs and tests/model_lane_recovery_scope_api_pg_tests.rs preserve the superseded assertion inventory"
     ],
     "external_sources_checked": [
       {
@@ -201,16 +194,6 @@
         "url": "https://research.google/pubs/dapper-a-large-scale-distributed-systems-tracing-infrastructure/"
       },
       {
-        "id": "pgEvent",
-        "name": "PostgreSQL event sourcing reference",
-        "url": "https://github.com/eugene-khyst/postgresql-event-sourcing"
-      },
-      {
-        "id": "fstore",
-        "name": "fstore-sql PostgreSQL event store",
-        "url": "https://github.com/fraktalio/fstore-sql"
-      },
-      {
         "id": "yjsInternals",
         "name": "Yjs internals state vectors/snapshots",
         "url": "https://github.com/yjs/yjs/blob/main/INTERNALS.md"
@@ -218,7 +201,7 @@
     ],
     "patterns_applied": [
       "Typed multi-agent orchestration becomes ModelLaneRun/ModelLane/ModelLaneMessage records, never peer-to-peer chat authority.",
-      "Durable workflow/replay patterns become PostgreSQL/EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
+      "Durable workflow/replay patterns become embedded SurrealDB/EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
       "CRDT research becomes explicit draft/proposal/update/state-vector/snapshot/stale-base records before promotion.",
       "Trace/span research becomes propagated trace_id/span_id/model_session_id/lane_id correlation across lanes, tools, providers, artifacts, and diagnostics.",
       "Tool protocol research becomes Handshake capability check, consent/projection, Flight Recorder/EventLedger logging, execution, result capture, and recovery."
@@ -227,18 +210,18 @@
       "peer-to-peer model channels outside coordinator-owned ModelLaneMessage records",
       "prompt-only or chat-history-only state transfer",
       "legacy app/src React/Tauri code as runtime authority",
-      "SQLite runtime/test/fixture/cache/fallback authority for this WP",
-      "Flight Recorder-only replay without PostgreSQL/EventLedger authority rows",
+      "non-embedded runtime/test/fixture/cache/fallback authority for this WP",
+      "Flight Recorder-only replay without embedded SurrealDB/EventLedger authority rows",
       "manual or markdown prose as product runtime authority"
     ],
-    "selected_handshake_translation": "Recovery must reconstruct ModelLaneRun from PostgreSQL/EventLedger/ArtifactStore/CRDT checkpoints and events, handle leases/orphans/cancel/restart paths, and expose three-tier diagnostic posture."
+    "selected_handshake_translation": "Recovery must reconstruct ModelLaneRun from embedded SurrealDB/EventLedger/ArtifactStore/CRDT checkpoints and events, handle leases/orphans/cancel/restart paths, and expose three-tier diagnostic posture."
   },
   "handshake_compatibility": {
     "native_rust_backend_first": true,
     "product_reference_file_posture": "reference/navigation only; do not override SPEC_CURRENT, master spec, build rules, or product code evidence",
     "proposal_promotion_model": "Models may propose, critique, summarize, and produce artifacts; Handshake validates/promotes deterministically through Rust backend authority surfaces before state becomes authoritative.",
     "durable_authority": [
-      "PostgreSQL",
+      "EmbeddedSurrealDB",
       "EventLedger",
       "ArtifactStore",
       "ContextBundle",
@@ -262,8 +245,169 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
+  "v6_embedded_surreal_correction_2026_09_01": {
+    "status": "BLOCKED_ON_SHARED_PROVIDER",
+    "dependency_owner": "Parfit",
+    "active_storage_authority": "EmbeddedSurrealDB",
+    "readiness_effect": "Stale readiness metadata and storage proof are withdrawn. MT-007 must not return to READY_FOR_VALIDATION until the shared provider and both complete replacement targets satisfy this inventory.",
+    "taskboard_projection_observation": "TASK_BOARD keeps the WP IN_PROGRESS. The generated MT index still projects the prior FAIL_V5 fields and states that individual MT JSON lifecycle fields are authoritative; it was inspected but not edited because it is outside this lane's ownership and must be regenerated by its authority owner.",
+    "superseded_provenance": [
+      {
+        "path": "src/backend/handshake_core/tests/model_lane_recovery_pg_tests.rs",
+        "sha256_before_correction": "889FEB108DAB503DB5BD3E4E7E377128B873EF3890CA813C6DF8BEC161FC9CCC",
+        "bytes_before_correction": 97436,
+        "disposition": "Preserved byte-for-byte as the complete recovery assertion inventory; not active V6 proof."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/model_lane_recovery_scope_api_pg_tests.rs",
+        "sha256_before_correction": "0D57902B68193C10C5E36B9BE931E67F2E5240DD0797146A8F3EED048294B5BF",
+        "bytes_before_correction": 22470,
+        "disposition": "Preserved byte-for-byte as the exact-scope and stale/revoked route assertion inventory; not active V6 proof."
+      }
+    ],
+    "complete_assertion_inventory": {
+      "checkpoint_replay_and_authority": [
+        "reconstruct run, lanes, messages, payload/artifact bindings, statuses, recovery events, checkpoints, leases, diagnostic tiers, cloud-consent denials, and MT runtime statuses without chat history",
+        "checkpoint contains run_id, lane_id, session_id/model_session_id, status, exact pre-write EventLedger high-watermark, last_message_id, open payload refs, lease_id, idempotency scope, recovery_state, and recovery hints",
+        "select the canonical checkpoint from EventLedger authority; mutable projection-row drift cannot override it",
+        "reject EventLedger payload tamper, physical-row/ledger mismatch, cross-stream checkpoint payload, corrupt checkpoint, missing checkpoint, and sequence gaps with typed failures and no partial recovery",
+        "post-checkpoint payload or CRDT repairs cannot retroactively authorize checkpoint-bounded replay",
+        "replay applies events after the checkpoint in contiguous canonical order and ignores exact duplicate idempotency while rejecting divergent reuse"
+      ],
+      "orphan_lease_and_boot_recovery": [
+        "distinguish active, expired, cancelled, crashed, and never-started lane lease states",
+        "include current unexpired leases while marking every expired lease reclaimable",
+        "emit exactly one durable ORPHAN_DETECTED/CX-MM-009 decision per expired lease across repeated recovery",
+        "append exactly one later orphan decision when a new expired lease appears without moving the replay watermark",
+        "concurrent recoveries and ordinary recovery-event append allocate a contiguous ordered tail without duplicate orphan decisions",
+        "boot recovery selects restartable runs, remains idempotent, preserves opaque identifiers, and does not pull a post-checkpoint lane into bounded replay",
+        "orphan events inherit authoritative session_id/model_session_id and exact parent scope"
+      ],
+      "failure_and_recovery_matrix": [
+        "cover PLANNED, STARTING, READY, RUNNING, WAITING, BLOCKED, DONE, FAILED, and CANCELLED lane states",
+        "cover never-started, partial-start, interrupted stream, missing payload, stale CRDT base, orphaned subagent, failed cloud consent, cancelled background process, crashed app, and restart-after-crash",
+        "missing or unauthoritative payload produces CX-MM-006 with bounded recovery hints",
+        "stale-base-only or partial CRDT metadata fails at admission; stale CRDT recovery evidence fails closed",
+        "failed cloud consent remains an attributable denial and cannot become recovered authority",
+        "corrupt checkpoint, sequence gap, duplicate conflict, missing payload, stale CRDT, cancellation, crash, and orphan paths produce typed failures without fallback"
+      ],
+      "diagnostics_and_lifecycle": [
+        "HBR-INT-009 stores exactly Flight Recorder, internal_diagnostics, and Palmistry tier records with behavior_id, status, reason, follow_up_ref, and evidence_ref",
+        "missing Flight Recorder posture fails; Flight Recorder-only posture fails",
+        "DEFERRED-with-reason and NOT_APPLICABLE-with-reason states are accepted only when all three tier rows are present",
+        "recovery restores claimed_by, blocker, missing_resource, proof_status, hbr_status, ready-for-validation state, last_recovery_event_ref, and last_runtime_status_ref",
+        "recovery navigation returns the canonical recovery events/checkpoints and diagnostics navigation returns the exact tier rows and private payload only to the authorized caller"
+      ],
+      "resource_scope_and_privacy": [
+        "every durable run, lane, message, recovery event, checkpoint, lease, diagnostic tier, MT status, artifact binding, and EventLedger event predicates owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id together",
+        "same-scope replay, diagnostics, recovery navigation, and route access succeed as non-vacuous positive controls",
+        "deny each of five independent one-field scope mismatches while the other four fields and resource identifiers match",
+        "foreign scope cannot attach recovery children to an owned run",
+        "system-created recovery children inherit all five parent scope values in physical records and EventLedger payloads",
+        "authorization occurs before integrity validation so a foreign caller cannot use corruption as an existence oracle",
+        "stale context is absent-shaped; revoked or unavailable authority returns only the fixed unavailable code",
+        "denials leak no run, lane, event, checkpoint, diagnostic, reason, evidence, payload, recovery-hint, count, or existence metadata and do not mutate canonical state",
+        "owner access remains available and unchanged after all denied attempts"
+      ],
+      "concurrency_atomicity_and_non_mutation": [
+        "concurrent recovery child writes lock or transact through the canonical parent without upgrade deadlock",
+        "checkpoint watermark validation rejects stale-but-valid sequence before writing any checkpoint or ledger row",
+        "orphan reconciliation, EventLedger append, and idempotency checks are atomic under concurrent recovery",
+        "denied, corrupt, stale, duplicate, and unavailable paths leave canonical state unchanged"
+      ],
+      "canonical_event_families": [
+        "RUN_CREATED, RUN_COMPLETED, RUN_FAILED",
+        "LANE_PLANNED, LANE_STARTED, LANE_STATUS_CHANGED, LANE_COMPLETED, LANE_FAILED, LANE_CANCELLED, ORPHAN_DETECTED",
+        "MESSAGE_RECORDED, PAYLOAD_REF_RECORDED, PAYLOAD_REF_MISSING",
+        "RECOVERY_REQUESTED, REPLAY_RECONSTRUCTED, RECOVERY_FAILED",
+        "each applicable event carries run_id, lane_id, session_id/model_session_id, trace_id, span_id, parent/span links, wp_id, mt_id, error code, artifact refs, replay hint, exact ResourceScope, event ID, and stream sequence"
+      ]
+    },
+    "missing_shared_provider_apis_for_parfit": [
+      "Surreal-backed record_recovery_checkpoint with exact current EventLedger high-watermark validation and atomic checkpoint/event append",
+      "Surreal-backed record_recovery_event with contiguous per-run replay_order_seq and atomic idempotency conflict handling",
+      "Surreal-backed record_lane_lease with current/expired/cancelled/crashed/never-started state reads and deterministic clock handling",
+      "Surreal-backed record_diagnostic_tier_status, diagnostic_tier_posture, and validate_diagnostic_tier_posture",
+      "Surreal-backed record_mt_runtime_status",
+      "Surreal-backed recover_run_after_restart and recover_restartable_runs_at_boot",
+      "Surreal-backed navigation_by_recovery and navigation_by_diagnostics",
+      "Surreal replay_run integration that joins checkpoint-bounded EventLedger, payload/artifact authority, CRDT state, leases, diagnostic tiers, cloud denials, and MT status under one exact ResourceScope",
+      "Surreal EventLedger high-watermark, ordered range, aggregate lookup, lineage validation, and no-duplicate append APIs",
+      "typed integrity and unavailable-authority errors with no fallback"
+    ],
+    "required_narrow_test_seams_for_parfit": [
+      "construct ModelLaneStore from one cloned injected SurrealStorage and expose namespace/database identity for assertions",
+      "close and reopen the same namespace/database for pre/post-restart durability proof without opening a default database",
+      "test-only scope-aware canonical inspector covering physical recovery rows and EventLedger payloads",
+      "test-only scoped tamper seam for checkpoint row, EventLedger payload, stream ID, sequence gap, incomplete scope, and stable-anchor corruption",
+      "deterministic clock seam for active, expired, cancelled, crashed, and never-started leases",
+      "deterministic concurrent append barrier for two recoveries plus an ordinary recovery-event write",
+      "revoked/stale ResourceAccessContext fixture and authority-unavailable route fixture",
+      "five one-field mismatch fixture with identical resource identifiers and positive owner control",
+      "canonical snapshot/count seam proving denials and failed writes do not mutate state"
+    ],
+    "replacement_suite_rule": "Do not create model_lane_recovery_surreal_tests.rs or model_lane_recovery_scope_api_surreal_tests.rs until every listed provider operation and seam exists and the full inventory can compile through production paths. No partial, fixture-only, source-text-only, or vacuous green surrogate is permitted.",
+    "focused_future_cargo": {
+      "artifact_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts",
+      "targets": [
+        "model_lane_recovery_surreal_tests",
+        "model_lane_recovery_scope_api_surreal_tests"
+      ],
+      "commands": [
+        "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt007-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_surreal_tests",
+        "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt007-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_scope_api_surreal_tests"
+      ],
+      "cleanup": "Remove only the verified MT-007 cargo target subdirectory after its proof is no longer needed; preserve shared or concurrently used artifacts."
+    },
+    "adversarial_review": {
+      "risk_tier": "HIGH",
+      "DIFF_ATTACK_SURFACES": [
+        "stale readiness actor/time and retired storage proof in lifecycle, proof targets, implementation notes, research translation, and durable authority",
+        "partial test migration hiding missing checkpoint, lease, diagnostics, MT-status, boot, navigation, or integrity behavior",
+        "reopening a different namespace/database and falsely claiming restart durability",
+        "four-field scope matching, system-child widening, or integrity-before-authorization leakage",
+        "mutable projection rows, post-checkpoint repairs, recorder order, or current leases overriding checkpoint-bounded EventLedger authority",
+        "concurrent recoveries duplicating orphan decisions or replay sequence numbers"
+      ],
+      "INDEPENDENT_CHECKS_RUN": [
+        "compared the authoritative MT contract and MT index projection with both exact legacy suites",
+        "enumerated current SurrealModelLaneStore methods and compared them with every production recovery/diagnostics façade method used by the suites",
+        "counted direct retired-storage references inside each recovery/diagnostics façade method instead of relying on test names or prior validation prose",
+        "hashed both legacy suites before contract remediation"
+      ],
+      "COUNTERFACTUAL_CHECKS": [
+        "If recover_run_after_restart stopped enforcing the checkpoint EventLedger high-watermark, post-checkpoint payload or CRDT repairs could retroactively authorize a failed replay.",
+        "If record_recovery_event did not allocate replay_order_seq and idempotency atomically, concurrent boot recovery could emit duplicate ORPHAN_DETECTED decisions or a non-contiguous tail.",
+        "If navigation_by_recovery or navigation_by_diagnostics omitted any ResourceScope field, a four-field match could reveal another session's recovery existence or private diagnostic payload.",
+        "If authorization followed integrity validation, a foreign caller could distinguish corrupted owned resources from absent resources."
+      ],
+      "BOUNDARY_PROBES": [
+        "façade recovery methods versus SurrealModelLaneStore provider methods",
+        "checkpoint writer versus EventLedger ordered replay reader",
+        "parent run scope versus system-created recovery child scope",
+        "pre-restart store versus reopened same namespace/database",
+        "storage navigation versus account-facing recovery and diagnostics routes"
+      ],
+      "NEGATIVE_PATH_CHECKS": [
+        "five independent one-field scope mismatches",
+        "stale context, revoked authority, and unavailable authority",
+        "legacy or incomplete scope rows",
+        "corrupt checkpoint, sequence gap, cross-stream payload, row/ledger mismatch, and stable-anchor corruption",
+        "missing payload, stale CRDT base, divergent idempotency reuse, post-checkpoint repair, lease expiry, cancellation, crash, and never-started lane",
+        "concurrent recovery and ordinary append"
+      ],
+      "INDEPENDENT_FINDINGS": [
+        "The exact stale/revoked route suite exists but is tied to superseded composition and has no explicit Cargo target; it is not current V6 proof.",
+        "The shared Surreal provider exposes generic immutable-record and CRDT operations but no complete MT-007 recovery/diagnostics provider API set.",
+        "The recovery façade methods still contain direct retired-storage operations, so test-only migration cannot compile coherently or prove production behavior.",
+        "Process reclaim proof is owned by MT-019 and is removed from active MT-007 V6 proof rather than copied or weakened here."
+      ],
+      "RESIDUAL_UNCERTAINTY": "No compile or runtime proof was authorized. Provider completion, route composition, same-namespace restart behavior, and serialized focused execution remain unproven."
+    }
+  },
   "validator_verdict": "FAIL_V5",
   "validation_v1": {
+    "storage_proof_status": "SUPERSEDED_PROVENANCE_ONLY_NOT_ACTIVE_V6_PROOF",
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
     "validated_at_utc": "2026-07-10T21:19:03Z",
@@ -282,6 +426,7 @@
     ]
   },
   "validation_v4": {
+    "storage_proof_status": "SUPERSEDED_PROVENANCE_ONLY_NOT_ACTIVE_V6_PROOF",
     "verdict": "FAIL_V4",
     "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
     "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
@@ -304,6 +449,7 @@
     ]
   },
   "proof_command_repair_2026_08_04": {
+    "storage_proof_status": "SUPERSEDED_PROVENANCE_ONLY_NOT_ACTIVE_V6_PROOF",
     "defect": "Declared proof commands targeted handshake_core test binaries whose Cargo.toml [[test]] entries carry required-features = [\"test-utils\"], but omitted --features test-utils. Run verbatim they execute ZERO tests and exit 101 with `requires the features: test-utils`.",
     "verification": "Confirmed by reading src/backend/handshake_core/Cargo.toml required-features for each named target, not inferred. Frontend (handshake_native) proof commands in this packet were checked and deliberately NOT changed: test-utils is a handshake_core feature and does not exist there.",
     "repair": "Inserted --features test-utils only into the affected commands. No test name, assertion, or acceptance criterion changed; this makes the declared proof runnable, it does not weaken it.",
@@ -316,6 +462,7 @@
     "found_by": "KERNEL_BUILDER-20260801-214802, after hitting the same defect while executing MT-010's proofs."
   },
   "v5_declared_proof_reverification_2026_08_04": {
+    "storage_proof_status": "SUPERSEDED_PROVENANCE_ONLY_NOT_ACTIVE_V6_PROOF",
     "declared_proofs_reverified": {
       "model_lane_recovery_pg_tests": "12 passed, 0 failed (all four declared tests are members of this binary)"
     },
@@ -326,6 +473,7 @@
     "status_unchanged": "Remains READY_FOR_VALIDATION_V5. This attaches fresh execution evidence; it does not change any acceptance criterion, and no test was added, filtered, or weakened to obtain it."
   },
   "integration_validation_v5_2026_08_14": {
+    "storage_proof_status": "SUPERSEDED_PROVENANCE_ONLY_NOT_ACTIVE_V6_PROOF",
     "verdict": "FAIL_V5",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
     "validated_at_utc": "2026-08-14T06:06:48.4919021Z",

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-022",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-08-14T06:06:48.4919021Z",
+  "updated_at_utc": "2026-09-01T17:35:58.424Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -39,26 +39,132 @@
       "Bare paths without a method (/knowledge/code/*, /proc/self/fd) are deliberately not route-checked: they are fragments, globs and OS paths, and checking them would report the whole class as drift."
     ]
   },
+  "v6_remediation_2026_09_01_superseded_provenance": {
+    "status": "SUPERSEDED_BY_V6_CONTRACT_AUDIT_2026_09_01; retained as non-authoritative source-work provenance only",
+    "remediation_by": "KERNEL_BUILDER-20260901-134231",
+    "source_state": "022ddf8c620ce15f2e06f39b60d15856aefaa2bb plus the active delegated diff",
+    "enforcement_path": "Rust canonical-corpus named-surface and prose-symbol gate beside compute_behavior_consistency; the legacy hbr-man-003-scan.mjs remains unchanged because this contract already selected Rust enforcement.",
+    "changes": [
+      "Canonical ExternalEngineImport/external_compat and swarm budget, concurrency, circuit-breaker, and spawn-rejection pages are registered in the existing UserManual with HBR-INT-009 posture and recovery guidance.",
+      "The canonical schema registry and negative counterfactuals bind manual prose to compiled/model-lane source symbols and prove injected drift is rejected.",
+      "USER_MANUAL_VERSION advances to 2.0.23 and the canonical seeder now targets SurrealStorage with deterministic page, section, anchor, tool, feature, alias, and version upserts.",
+      "MT-022 behavior/storage proof uses EmbeddedSurrealTestScope; active relational database symbols and proof text are removed from the owned current manual and MT-022 test surface. Historical V5 validation provenance remains unchanged below.",
+      "UserManualStore now owns a cloned lifecycle-managed SurrealStorage handle, performs bounded product-global reads, writes deterministic records, and commits page/version EventLedger linkage atomically in embedded SurrealDB.",
+      "The complete /usermanual API now resolves the store from AppState.surreal_storage; pages, sections, anchors, links, search, tools, features, freshness, compatibility receipts, and gated resync no longer use relational store types."
+      ,"The legacy freshness wrapper and UserManual-owned storage, route, content, and negative-tamper fixtures now run against cloned injected embedded SurrealStorage through a bounded UserManual-local seam; receipt retries preserve committed evidence and receipt-without-mutation inconsistencies fail closed.",
+      "The UserManual context-bundle bridge now writes exact-scoped user_manual_page KnowledgeEntity records through a dedicated embedded-Surreal provider. The entity and scoped EventLedger receipt commit atomically; deterministic identity, predecessor-bound idempotency, stable identical retries, exact identity lookup, and fail-closed orphan or mismatched receipt handling are implemented.",
+      "spec_seed.rs, projection.rs, and migration_plan.rs now describe the current embedded-Surreal UserManual authority. The historical Loom graph-search fixture injects SurrealStorage for UserManual and the knowledge bridge while retaining an explicitly isolated relational Loom-query fixture until that downstream lane migrates."
+    ],
+    "focused_static_proof": {
+      "rustfmt": "PASS: rustfmt --edition 2021 --config skip_children=true --check on the owned UserManual source, dedicated Surreal knowledge provider, and historical Loom constructor/bridge fixture.",
+      "relational_symbol_scan": "PASS on the four owned UserManual source files and dedicated Surreal knowledge provider. The Loom target remains relational outside its migrated UserManual constructor/bridge fixture because the downstream Loom search implementation has not migrated.",
+      "diff_check": "PASS on the authorized MT-022 knowledge-bridge/prose/test/contract paths and both new untracked provider files; line-ending notices only.",
+      "cargo": "NOT_RUN: the parent owns the only serialized Cargo slot."
+    },
+    "predecessors": [
+      "Parfit owns main.rs/lib.rs/api/mod.rs composition and must replace main.rs:451-454 with UserManualStore::new(surreal_storage.clone()).ensure_seeded().await; routes(state: AppState) remains unchanged and resolves state.surreal_storage internally.",
+      "Parfit must export storage::surreal::user_manual_knowledge and initialize SurrealUserManualKnowledgeStore only after bootstrap_schema. The exact module/export/bootstrap handoff is recorded in the Kernel Builder report; this lane did not edit shared storage/surreal.rs, schema.surql, main.rs, lib.rs, or api/mod.rs.",
+      "The Loom graph-search implementation and the rest of tests/loom_graph_search_filters_tests.rs remain PostgreSQL-owned. Its UserManual constructor and bundle bridge now use injected embedded SurrealStorage, but unchanged Loom assertions require a separately seeded relational knowledge query fixture until the Loom storage lane migrates.",
+      "The parent-owned serialized Cargo slot still owes compilation plus embedded provider schema/query, exact-scope isolation, A-to-B-to-A mutation, stable retry, orphan-receipt rejection, and historical Loom integration runtime proof."
+    ]
+  },
+  "v6_contract_audit_2026_09_01": {
+    "audit_mode": "CONTRACT_ONLY_NO_PRODUCT_TEST_CARGO_BUILD_OR_CLEAN",
+    "authority_correction": "Embedded SurrealDB is the only current durable backend. PostgreSQL, SQLite, sqlx, relational fixtures, and historical proof are prohibited from active V6 requirements and proof.",
+    "source_findings": [
+      "UserManualStore::new accepts an injected SurrealStorage, the API resolves AppState.surreal_storage, and current main composition constructs and seeds the store from the same cloned SurrealStorage. Shared module export and bootstrap lines are now present in storage/surreal.rs and main.rs; this is static evidence only until compilation and startup proof run.",
+      "The canonical user_manual_* rows are intentionally product-global. Their schema and store do not carry owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, or workspace_id. HBR-PRIV is NOT_APPLICABLE to these manual rows; imposing ResourceScope on them would be a scope invention.",
+      "Product-global page/version mutations use canonical kernel_event_ledger transactions. Current source derives deterministic mutation idempotency from action, subject, predecessor fingerprint, and target payload; identical committed retry and orphan-receipt fail-close tests exist. No current test proves the required A-to-B-to-A predecessor-bound transition and replay behavior.",
+      "The derived user_manual_page KnowledgeEntity is a separate workspace resource. SurrealUserManualKnowledgeStore predicates all five scope fields on entity identity, linked-receipt reads, idempotency receipt reads, upsert, and lookup; creates the entity and canonical kernel_event_ledger receipt in one transaction; and derives deterministic identity plus predecessor-bound transition fingerprints over the same injected storage.",
+      "The only current MT-022 knowledge-bridge tests live in loom_graph_search_filters_tests.rs, whose active fixture and implementation remain relational. That target is superseded and inadmissible as V6 MT-022 proof even though its UserManual constructor uses SurrealStorage.",
+      "The current native UserManual Argus target is not current V6 proof: native_consumes_fresh_backend_user_manual_contract_artifact is ignored behind a real-PostgreSQL prerequisite, expects the obsolete Handshake_Artifacts sibling, and consumes a generated contract transport rather than proving the production socket against the required _Artifacts root.",
+      "Seed, freshness, projection, registry, behavior-coverage, content, API, bounded-search, navigation, and failure-state assertions remain present in the five dedicated UserManual backend targets, but no compile or runtime result was produced by this contract-only audit."
+    ],
+    "active_v6_invariants": [
+      "UserManual content and routes are product-global and HBR-PRIV NOT_APPLICABLE; no ResourceScope fields are added to manual rows.",
+      "Derived workspace knowledge, and only that derived resource, requires exact owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id predicates without widening.",
+      "Manual, derived knowledge, canonical kernel EventLedger receipts, restart reads, API reads, and native proof use one injected/cloned SurrealStorage namespace and database.",
+      "Deterministic receipts must reject orphan, mismatched, ambiguous, stale-predecessor, mixed-scope, and incomplete-scope state without mutation or identifier leakage.",
+      "A-to-B-to-A mutations must bind each transition to its actual predecessor, keep diff/receipt identity deterministic for identical retry, and remain stable after reopening the same storage.",
+      "No relational backend, fixture, command, compatibility path, or historical pixel artifact is active V6 evidence."
+    ],
+    "superseded_active_evidence": [
+      "integration_validation_v5_2026_08_14 and v5_remediation_2026_08_02 are historical provenance only.",
+      "v6_remediation_2026_09_01_superseded_provenance records source work only; its relational Loom target, old composition blockers, and historical proof commands are not active V6 authority.",
+      "tests/loom_graph_search_filters_tests.rs and native_consumes_fresh_backend_user_manual_contract_artifact are not valid MT-022 V6 proof in their current form."
+    ],
+    "remaining_blockers_by_owner": {
+      "Parfit_shared_composition": "Source export/bootstrap/AppState/main/API composition is statically present. Parfit or the parent must provide current compile and production-startup proof on the frozen tree; static inspection is not a runtime verdict.",
+      "Banach_Loom": "The existing Loom search implementation and loom_graph_search_filters_tests target remain relational. They cannot be credited to MT-022 and must migrate independently; MT-022 need not wait if its bridge assertions are extracted into a dedicated Surreal-only target.",
+      "parent_assigned_MT022_test_owner": "Create a dedicated user_manual_knowledge_surreal_tests target containing coherent same-storage exact-scope positives, five one-field mismatches, incomplete/legacy row fail-close, mixed-scope denial, canonical receipt linkage, orphan/mismatched receipt denial, restart, identical retry, and A-to-B-to-A predecessor tests. Add the missing product-global page A-to-B-to-A test without weakening existing suites.",
+      "parent_assigned_native_proof_owner": "Replace the stale real-PostgreSQL/Handshake_Artifacts ignored proof with an embedded-Surreal production-socket Argus test rooted at D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts. It must inspect real navigation, page, search, loading/error/retry states, stable author IDs, pixels, and backend-produced canonical receipts without focus stealing.",
+      "parent_serialized_validation_slot": "Run the focused backend, dedicated bridge, startup, and native proof commands only after the missing targets and source corrections land; do not credit the foreign WP-KERNEL Cargo process."
+    },
+    "future_proof_commands_after_dependencies_land": [
+      "$env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-surreal-stores'; cargo test --locked -j 1 --target-dir 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-user-manual-target' --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_storage_tests mt022_page_a_to_b_to_a_is_predecessor_bound_and_replay_stable -- --exact --test-threads=1 --nocapture",
+      "$env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-surreal-stores'; cargo test --locked -j 1 --target-dir 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-user-manual-target' --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --test user_manual_knowledge_surreal_tests -- --test-threads=1 --nocapture",
+      "$env:HANDSHAKE_ARTIFACTS_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-surreal-stores'; cargo test --locked -j 1 --target-dir 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-native-target' --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\frontend\\handshake_native\\Cargo.toml' --test test_user_manual_pane_production_socket_live mt022_production_socket_user_manual_seed_search_navigation_and_failure_states -- --ignored --exact --test-threads=1 --nocapture"
+    ],
+    "DIFF_ATTACK_SURFACES": [
+      "Product-global UserManual schema/store/seed/freshness/projection/registry/API and five dedicated backend targets.",
+      "Derived scoped KnowledgeEntity schema/provider/bundle bridge and canonical kernel EventLedger transaction.",
+      "Shared Surreal export/bootstrap/AppState/main composition and native UserManual Argus proof boundary.",
+      "Relational Loom test contamination and obsolete artifact-root assumptions."
+    ],
+    "INDEPENDENT_CHECKS_RUN": [
+      "Inspected UserManual schema/store/API/main composition independently from the derived knowledge provider and verified the intentional global-versus-scoped boundary.",
+      "Scanned every durable knowledge-provider SELECT/UPSERT/EventLedger predicate and independently inspected current bridge tests, native Argus tests, Cargo target declarations, and active contract commands.",
+      "Resolved named UserManual test targets and assertion families statically; no test execution was credited."
+    ],
+    "COUNTERFACTUAL_CHECKS": [
+      "A product-global manual row without five scope fields is not a privacy defect; adding them would contradict authoritative MT-022 semantics.",
+      "A bridge test that uses SurrealStorage does not become valid V6 proof when its enclosing target still requires relational Loom authority.",
+      "Headless fixed transport or historical screenshot evidence does not substitute for fresh production-socket Argus proof.",
+      "Source-level predecessor hashing does not prove A-to-B-to-A behavior without a nonvacuous runtime test and canonical reread."
+    ],
+    "BOUNDARY_PROBES": [
+      "Manual row versus derived workspace KnowledgeEntity scope boundary.",
+      "Knowledge entity versus canonical kernel EventLedger receipt identity and atomic commit boundary.",
+      "Same cloned storage before/after reopen and backend API versus native production-socket boundary.",
+      "Required _Artifacts root versus obsolete Handshake_Artifacts test assumption."
+    ],
+    "NEGATIVE_PATH_CHECKS": [
+      "Five independent one-field mismatches, incomplete/legacy scope, mixed-source scope, stale predecessor, ambiguous duplicate, orphan receipt, mismatched receipt, and denied-state immutability are mandatory but not yet held in a valid dedicated V6 target.",
+      "Missing page, orphan navigation, tampered child rows, stale seed/version, unavailable backend, loading, error, and retry assertion inventory remains present but unrun.",
+      "Relational target reuse and historical pixel reuse are explicitly rejected."
+    ],
+    "INDEPENDENT_FINDINGS": [
+      "FINDING-1 HIGH: active MT-022 proof cited a relational Loom target and therefore violated embedded-Surreal-only authority.",
+      "FINDING-2 HIGH: the only ignored native UserManual artifact proof still declares PostgreSQL and the obsolete artifact root and is not production-socket proof.",
+      "FINDING-3 MEDIUM: source supports predecessor-bound receipts, but no current UserManual or knowledge-bridge test proves A-to-B-to-A plus restart-stable replay.",
+      "FINDING-4 MEDIUM: current bridge tests do not independently prove all five one-field mismatches or incomplete/legacy scope fail-close."
+    ],
+    "RESIDUAL_UNCERTAINTY": "No Cargo, build, runtime, startup, socket, Argus, or pixel proof ran. Concurrent source can invalidate inspected signatures; all commands remain future proof only until missing targets land and the candidate tree is frozen."
+  },
   "lifecycle": {
-    "status": "FAIL_V5",
-    "depends_on": [],
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "depends_on": [
+      "MT-022 dedicated Surreal-only knowledge-bridge test target",
+      "MT-022 corrected production-socket native Argus target",
+      "parent serialized compile/runtime validation slot"
+    ],
     "blocks": [],
-    "active": false,
-    "validator_verdict": "FAIL_V5",
-    "claimed_by": "KERNEL_BUILDER-20260729-225554",
-    "claimed_at_utc": "2026-07-30T04:30:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
-    "ready_for_validation_at_utc": "2026-08-02T13:05:00Z",
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": null,
-    "proof_status": "FAIL_V5: A declared acceptance command fails now: git diff --check main...HEAD exits 2 on pidless_cloud_lifecycle_harness/Cargo.toml:14. See integration_validation_v5_2026_08_14.",
-    "hbr_status": "PASS_HBR_MAN_001_002_003_004_AND_INT_009_FOR_MT022: mounted-route registry and manual corpus are code-truthful and self-consistency-gated; HBR-PRIV NOT_APPLICABLE for MT-022 because it changes only in-product UserManual content and its own gate, creating no product resource (HBR-PRIV-001 not_applicable_when).",
+    "blocker": "BLOCKED_ON_DEPENDENCY: current product-global UserManual and derived-knowledge source are statically Surreal-only, but mandatory V6 proof is incomplete. Knowledge-bridge assertions remain trapped in a relational Loom target; A-to-B-to-A, five mismatch, incomplete-scope, and same-storage restart tests are missing; and the native proof still declares PostgreSQL, uses the obsolete artifact root, and is not production-socket evidence.",
+    "missing_resource": "Dedicated Surreal-only knowledge-bridge target, product-global and derived-knowledge A-to-B-to-A/restart tests, corrected embedded-Surreal production-socket Argus target under the exact _Artifacts root, then parent-owned serialized compile/runtime proof.",
+    "proof_status": "V6 CONTRACT AUDIT COMPLETE; SOURCE STATIC ONLY; RUNTIME UNPROVEN. No Cargo/build/test/clean command ran. Relational Loom and stale native artifact proof are superseded and cannot be credited.",
+    "hbr_status": "V6 BLOCKED: HBR-MAN-001/002/003/004 and HBR-INT-009 source assertions remain present but unrun. HBR-PRIV is NOT_APPLICABLE to product-global UserManual rows. Exact five-field scope applies only to the derived workspace KnowledgeEntity and its canonical EventLedger receipt.",
     "pre_implementation_adversarial_review_status": null,
-    "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z",
-    "last_runtime_status_ref": "FAIL_V5 at df463aa6459d29c82187e7284d86a0bf37575009; see integration_validation_v5_2026_08_14"
+    "post_implementation_adversarial_review_status": "HIGH_RISK_V6_CONTRACT_AUDIT_COMPLETE_WITH_OPEN_BLOCKERS",
+    "validated_by": null,
+    "validated_at_utc": null,
+    "last_runtime_status_ref": null
   },
   "origin": {
     "discovered_by": "KERNEL_BUILDER-20260729-225554",
@@ -70,6 +176,8 @@
     "root_cause": "A 2026-07-30 audit found 18 WP-1-relevant UserManual pages already seeded, but TWO gaps that are explicit packet acceptance criteria have ZERO coverage anywhere in the manual module. (1) ExternalEngineImport / external_compat compat lane: zero occurrences across user_manual/seed.rs, registry.rs and behavior_coverage.rs, despite live product code at model_runtime/invariant.rs:43,50,259,281,290,370, model_runtime/types.rs:106, llm/boot.rs:16,109,1268, llm/registry.rs:119 and Dexterity's explicit rejection path at swarm_orchestration/model_lane.rs:5363,8466 (packet.json:202 and the external_engine_import_compat_lane directive at :224). (2) Swarm budget / concurrency cap / circuit breaker / spawn-rejection semantics: max_concurrent, ResourceGovernor, SwarmBudget, concurrency_cap, lifetime_ceiling and breaker_open appear in the manual ONLY as SSE category labels at seed.rs:844, while the live behaviour is at coordinator.rs:803,805,907,919,929,940,952,965, events.rs:81,182 (FR-EVT-SWARM-SPAWN-REJECTED) and breaker.rs. Additionally SwarmCoordinator has 29 incidental mentions but no owning page. ROOT ENFORCEMENT DEFECT: HBR-MAN-003 requires every surface named in the manual to actually exist, but the scanner .GOV/roles_shared/checks/hbr-man-003-scan.mjs reads ONLY the LEGACY manual (MANUAL_CONTENT_PATH = src/backend/handshake_core/src/model_manual/content.rs at :29) and never the canonical user_manual corpus, AND it was deregistered from gov-check on 2026-06-03 (gov-check.mjs:96-98, 'Product-owned, not a governance gate'). The Rust gate compute_behavior_consistency (user_manual/behavior_coverage.rs:451) does enforce routes/symbols/schemas structurally but does NOT read prose, so symbol names inside section() markdown bodies are unverified free text.",
     "allowed_paths": [
       "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/src/storage/surreal/user_manual_knowledge.rs",
+      "src/backend/handshake_core/src/storage/surreal/user_manual_knowledge_schema.surql",
       "src/backend/handshake_core/tests/",
       ".GOV/roles_shared/checks/"
     ],
@@ -77,12 +185,30 @@
       "src/backend/handshake_core/src/user_manual/seed.rs",
       "src/backend/handshake_core/src/user_manual/registry.rs",
       "src/backend/handshake_core/src/user_manual/behavior_coverage.rs",
-      "src/backend/handshake_core/src/user_manual/mod.rs"
+      "src/backend/handshake_core/src/user_manual/mod.rs",
+      "src/backend/handshake_core/src/user_manual/store.rs",
+      "src/backend/handshake_core/src/user_manual/freshness.rs",
+      "src/backend/handshake_core/src/user_manual/fixtures.rs",
+      "src/backend/handshake_core/src/user_manual/bundle_bridge.rs",
+      "src/backend/handshake_core/src/user_manual/spec_seed.rs",
+      "src/backend/handshake_core/src/user_manual/projection.rs",
+      "src/backend/handshake_core/src/user_manual/migration_plan.rs",
+      "src/backend/handshake_core/src/storage/surreal/user_manual_knowledge.rs",
+      "src/backend/handshake_core/src/storage/surreal/user_manual_knowledge_schema.surql",
+      "src/backend/handshake_core/src/api/user_manual.rs",
+      "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_support.rs",
+      "src/backend/handshake_core/tests/user_manual_storage_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_freshness_fixture_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_api_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_content_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_knowledge_surreal_tests.rs",
+      "src/backend/handshake_core/Cargo.toml"
     ],
     "forbidden_paths": [
       "creating a second manual surface - legacy ModelManual identifiers are ALIASES ONLY per CX-982-001",
       "documenting a surface that does not exist in code (HBR-MAN-003)",
-      "SQLite in any form"
+      "creating any secondary database authority or compatibility fallback"
     ],
     "acceptance_criteria": [
       "AC-1: ExternalEngineImport / external_compat has real UserManual coverage explaining purpose, why it is NOT swarm-spawnable, the Dexterity rejection path, expected inputs/outputs, failure modes and recovery, per CX-982-003.",
@@ -90,13 +216,16 @@
       "AC-3: Each new/changed entry records the HBR-INT-009 diagnostic posture (Flight Recorder / internal_diagnostics / Palmistry) as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason, and links the behaviour to Flight Recorder/EventLedger evidence (CX-982-004, HBR-MAN-004).",
       "AC-4: USER_MANUAL_VERSION (user_manual/mod.rs:78) is bumped and the pages resync cleanly; no page is left unseeded or stale.",
       "AC-5: HBR-MAN-003 enforcement is repaired for the canonical corpus. Either repoint/extend hbr-man-003-scan.mjs to read user_manual/seed.rs and re-register it in gov-check.mjs, OR implement the equivalent prose-symbol check in Rust next to compute_behavior_consistency. Record which was chosen and why. A drift MUST fail the gate - prove it by introducing a deliberately bogus surface name, observing the failure, then removing it.",
-      "AC-6: The existing exact-set assertion at tests/user_manual_behavior_coverage_tests.rs:270-295 (24 behavior keys) stays green, or is extended deliberately with the new keys and the inverse guard at behavior_coverage.rs:1609-1620 still holds."
+      "AC-6: The existing exact-set assertion at tests/user_manual_behavior_coverage_tests.rs:270-295 (24 behavior keys) stays green, or is extended deliberately with the new keys and the inverse guard at behavior_coverage.rs:1609-1620 still holds.",
+      "AC-7: UserManualStore and /usermanual API use only injected embedded SurrealStorage and the product-global user_manual_* schema. HBR-PRIV is NOT_APPLICABLE and no ResourceScope is imposed on manual rows. Deterministic IDs, bounded page/section/anchor/tool/feature/link/search/freshness behavior, idempotent resync, fail-closed errors, and canonical EventLedger linkage are preserved without compatibility authority.",
+      "AC-8: UserManual context-bundle mirroring uses the same cloned embedded-Surreal storage over knowledge_entities, requires exact owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, and workspace_id for the derived workspace entity, commits entity plus canonical kernel EventLedger evidence atomically, preserves deterministic identity and bundle citations, and fails closed on every one-field mismatch, incomplete or mixed scope, ambiguity, stale predecessor, and orphan or mismatched receipt without mutation or leakage.",
+      "AC-9: Product-global page receipts and derived-knowledge receipts prove stable identical retry and predecessor-bound A-to-B-to-A transitions across reopening the same storage; orphan receipts fail closed on canonical reread.",
+      "AC-10: Fresh native Argus proof runs against the production /usermanual socket backed by the same embedded-Surreal namespace, verifies navigation/page/search/loading/error/retry semantics, stable author IDs and pixels, uses only the exact _Artifacts root, and does not steal focus. Headless fixed transports and historical artifacts are supporting evidence only."
     ],
     "proof_commands": [
-      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests -- --nocapture",
-      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests -- --nocapture",
-      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests -- --nocapture",
-      "git diff --check"
+      "$env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-surreal-stores'; cargo test --locked -j 1 --target-dir 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-user-manual-target' --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests --test user_manual_storage_tests --test user_manual_freshness_fixture_tests --test user_manual_api_tests --test user_manual_content_tests -- --test-threads=1 --nocapture",
+      "rustfmt --edition 2021 --config skip_children=true --check src/backend/handshake_core/src/user_manual/seed.rs src/backend/handshake_core/src/user_manual/registry.rs src/backend/handshake_core/src/user_manual/behavior_coverage.rs src/backend/handshake_core/src/user_manual/mod.rs src/backend/handshake_core/src/user_manual/store.rs src/backend/handshake_core/src/user_manual/freshness.rs src/backend/handshake_core/src/user_manual/fixtures.rs src/backend/handshake_core/src/user_manual/bundle_bridge.rs src/backend/handshake_core/src/user_manual/spec_seed.rs src/backend/handshake_core/src/user_manual/projection.rs src/backend/handshake_core/src/user_manual/migration_plan.rs src/backend/handshake_core/src/storage/surreal/user_manual_knowledge.rs src/backend/handshake_core/src/api/user_manual.rs src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs src/backend/handshake_core/tests/user_manual_support.rs src/backend/handshake_core/tests/user_manual_storage_tests.rs src/backend/handshake_core/tests/user_manual_freshness_fixture_tests.rs src/backend/handshake_core/tests/user_manual_api_tests.rs src/backend/handshake_core/tests/user_manual_content_tests.rs",
+      "git diff --check -- .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-022.json"
     ],
     "risk_if_missed": "Two named packet acceptance criteria stay undocumented, so a no-context model or the Operator cannot discover the external-compat lane or understand why a swarm spawn was rejected. Because the HBR-MAN-003 scanner points at the legacy manual and is deregistered, the canonical corpus has no enforced named-surface check and further drift accumulates silently - which is exactly how these two gaps survived."
   },
@@ -140,7 +269,7 @@
   },
   "handshake_compatibility": {
     "native_rust_backend_first": true,
-    "durable_authority": "PostgreSQL user_manual pages/versions + EventLedger; no SQLite",
+    "durable_authority": "Embedded SurrealDB user_manual pages/versions plus EventLedger; no compatibility fallback",
     "rust_only_implementation": true,
     "spec_realism_gate": "Manual content must be proven code-truthful by a gate that fails on drift; prose alone does not satisfy this MT."
   },
@@ -155,7 +284,7 @@
       "One line in behavior_coverage.rs authored by the parent to unblock a 40-minute lib-red state: a concrete fn-pointer anchor, since both turbofish (E0107, argument-position impl Trait) and bare reference (E0283) are illegal for that signature. Disclosed to the coder."
     ]
   },
-  "validator_verdict": "FAIL_V5",
+  "validator_verdict": null,
   "integration_validation_v5_2026_08_14": {
     "verdict": "FAIL_V5",
     "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",

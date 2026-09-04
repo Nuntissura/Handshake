@@ -1,0 +1,94 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34678",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-SHL-149#clause#0",
+  "unit_kind": "clause",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "2. The Tool Rail",
+  "spec_line": 30837,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Variant disclosure MUST be untimed",
+ "spec_anchor": [
+  "STU-SHL-149"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "operator_shell",
+ "scope": {
+  "summary": "Variant disclosure MUST be untimed.** A timed long-press MUST NOT be the only path to a tool variant. An untimed, VISIBLE disclosure is required. Four untimed paths MUST exist: 1. click the persistent corner marker on the slot, or secondary-click anywhere on the slot; the variant strip opens with NO timer; 2. press the group's shortcut repeatedly to cycle members forward, and `Shift`+the shortcut to cycle backward; 3. type the tool name into tool search or the command palette; 4. open `WORKSPACE > Tools > <family> > <tool>` from the menu. A timed long-press MAY survive as a muscle-memory alias with identical behaviour and MUST NEVER be load-bearing. The reasons are stated because they generalise: a timed press is an invisible gesture with a hidden duration and nothing on screen states that it exists or how long it takes; it is nondeterministic for the out-of-process inspector to drive and flaky to assert, and Handshake validates GUI work through that inspector, so a gesture the inspector cannot reliably produce is a gesture the product cannot reliably test; and it costs the long-press latency on every variant switch. The largest captured tool group has 24 members, which is not usable as a flyout strip at all, so family browse is not optional.",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Variant disclosure MUST be untimed.** A timed long-press MUST NOT be the only path to a tool variant.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-149"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Four untimed paths MUST exist: 1. click the persistent corner marker on the slot, or secondary-click anywhere on the slot; the variant strip opens with NO timer; 2. press the group's shortcut repeatedly to cycle members forward, and `Shift`+the shortcut to cycle backward; 3. type the tool name into tool search or the command palette; 4. open `WORKSPACE > Tools > <family> > <tool>` from the menu.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-149"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "A timed long-press MAY survive as a muscle-memory alias with identical behaviour and MUST NEVER be load-bearing.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-SHL-149"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

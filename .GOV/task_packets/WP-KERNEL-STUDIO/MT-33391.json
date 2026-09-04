@@ -1,0 +1,167 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33391",
+ "created_at_utc": "2026-09-04T13:36:11+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-IO-129#parameter_table#0",
+  "unit_kind": "parameter_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "3. Document PDF export",
+  "spec_line": 19895,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "PDF numeric setting contracts (from the shipped spread) - parameter bounds",
+ "spec_anchor": [
+  "STU-IO-129"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "interop",
+ "scope": {
+  "summary": "PDF numeric setting contracts (from the shipped spread).** | Setting | Observed values | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---|---| | `colour_image_resolution` | 100, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `greyscale_image_resolution` | 150, 300, 350 | 1 | unknown | 72 | 600 | 300 | ppi | 0 | | `monochrome_image_resolution` | 300, 1200 | 1 | unknown | 300 | 2400 | 1200 | ppi | 0 | | `downsample_threshold` | 1.50000 | 1.0 | unknown | 1.0 | 3.0 | 1.5 | ratio | 5 | | `max_subset_percent` | 100 | 0 | 100 | 0 | 100 | 100 | percent | 0 | | `image_memory` | 1048576 | unknown | unknown | absent | absent | 1048576 | bytes | 0 | | `start_page` | 1 | 1 | unknown | 1 | unknown | 1 | page number | 0 | | `end_page` | -1 | -1 | unknown | -1 | unknown | -1 | page number (-1 = last) | 0 | | `dsc_reporting_level` | 0 | 0 | unknown | 0 | 3 | 0 | level | 0 | | `bit_depth` (per image family) | -1, 1, 2 | -1 | unknown | -1 | 16 | -1 | bits (-1 = unchanged) | 0 | Every `unknown` above is honest: the source presets declare a VALUE, not a bound. Studio MUST NOT convert an observed value into a bound. Clamping to an observed set would forbid legal values.",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The parameter `colour_image_resolution` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1, hard_max=unknown, soft_min=72, soft_max=600, default=300, unit=ppi, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-IO-129 parameter table row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The parameter `greyscale_image_resolution` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1, hard_max=unknown, soft_min=72, soft_max=600, default=300, unit=ppi, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-IO-129 parameter table row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The parameter `monochrome_image_resolution` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1, hard_max=unknown, soft_min=300, soft_max=2400, default=1200, unit=ppi, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-IO-129 parameter table row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The parameter `downsample_threshold` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1.0, hard_max=unknown, soft_min=1.0, soft_max=3.0, default=1.5, unit=ratio, precision=5. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-IO-129 parameter table row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The parameter `max_subset_percent` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=0, soft_max=100, default=100, unit=percent, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [],
+   "source": "14-studio-creative-suite.md STU-IO-129 parameter table row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The parameter `image_memory` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=unknown, hard_max=unknown, soft_min=absent, soft_max=absent, default=1048576, unit=bytes, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-IO-129 parameter table row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The parameter `start_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=1, hard_max=unknown, soft_min=1, soft_max=unknown, default=1, unit=page number, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max",
+    "soft_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-IO-129 parameter table row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The parameter `end_page` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=unknown, default=-1, unit=page number (-1 = last), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max",
+    "soft_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-IO-129 parameter table row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The parameter `dsc_reporting_level` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=unknown, soft_min=0, soft_max=3, default=0, unit=level, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-IO-129 parameter table row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The parameter `bit_depth` (per image family)` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=-1, hard_max=unknown, soft_min=-1, soft_max=16, default=-1, unit=bits (-1 = unchanged), precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max"
+   ],
+   "source": "14-studio-creative-suite.md STU-IO-129 parameter table row 10"
+  }
+ ],
+ "acceptance_criteria_count": 10,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

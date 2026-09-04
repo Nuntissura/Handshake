@@ -1,0 +1,94 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-31314",
+ "created_at_utc": "2026-09-04T13:36:05+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-COL-229#catalogue_row#0_channel_mixer",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.8.13 Camera Colour Rendering",
+  "spec_line": 10717,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Channel Mixer (2)",
+ "spec_anchor": [
+  "STU-COL-229"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "colour",
+ "scope": {
+  "summary": "Colour adjustment catalogue.** The following colour adjustments MUST exist as `StudioAdjustment` kinds, each non-destructive, each maskable, each reorderable in the effect stack. The parameter block of each is normative: *Derivation: catalogue table, splits per row; yields 23 microtasks, one per colour adjustment. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Adjustment | Parameters | |---|---| | Levels | input black, input white, gamma, output black, output white, plus per-channel curves | | Curves | four channel curves ([STU-COL-225]) | | Exposure | exposure (stops), offset, gamma | | Brightness / Contrast | brightness, contrast, use-legacy (bool) | | Vibrance | vibrance, saturation | | Hue / Saturation / Lightness | master hue, saturation, lightness plus per-band ([STU-COL-226]) | | Colour Balance | shadow/midtone/highlight x cyan-red / magenta-green / yellow-blue, preserve luminosity (bool) | | Black and White | six channel weights (red, yellow, green, cyan, blue, magenta), tint enable, tint colour | | Channel Mixer | per output channel: source r, g, b, constant; plus monochrome (bool) | | Selective Colour | per colour band: cyan, magenta, yellow, black; relative-or-absolute (bool) | | Photo Filter | filter colour (Lab), density, pre [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Channel Mixer` satisfies the spec's stated adjustment: Channel Mixer",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-229 catalogue row `Channel Mixer`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`Channel Mixer` satisfies the spec's stated parameters: per output channel: source r, g, b, constant; plus monochrome (bool)",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-COL-229 catalogue row `Channel Mixer`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`Channel Mixer` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-COL-229"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

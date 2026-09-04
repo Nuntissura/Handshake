@@ -1,0 +1,2537 @@
+{
+ "schema_id": "handshake.spec.module_provenance@1",
+ "file_id": "14-04-raster-and-raw-provenance",
+ "generated_at": "2026-09-04",
+ "status": "audit_metadata_only_not_normative",
+ "module": "spec_update/modules/14-04-raster-and-raw.md",
+ "module_covers_section_ids": [
+  "14.4",
+  "14.12"
+ ],
+ "replaces": {
+  "file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+  "ranges": [
+   "14.4 lines 198-489",
+   "14.12 lines 2555-2723"
+  ],
+  "reason": "the superseded text was authored from vendor documentation; this module is authored from behaviour parsed out of the installed applications"
+ },
+ "authority_note": "This sidecar records HOW each clause was derived so the derivation is auditable. It carries no normative content and is not co-authority. The Master Spec module is self-sufficient; where this file and the module disagree, the module wins and this file is stale.",
+ "capture_files_referenced": [
+  ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+  "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+  "_greenroom_20260903/fold_back/studio-capability-registry.json",
+  "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+  "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+  "_greenroom_20260903/installed_exports/affinity/offline/affinity_preset_contents.json",
+  "_greenroom_20260903/installed_exports/affinity/offline/affinity_tool_panel_registry.json",
+  "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+  "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+  "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+  "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+  "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+  "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+  "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+  "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json"
+ ],
+ "counts": {
+  "clauses_total": 176,
+  "clauses_stu_ras": 125,
+  "clauses_stu_raw": 51,
+  "anchors_without_provenance_entry": 0,
+  "provenance_entries_without_a_clause": 0
+ },
+ "integrity": {
+  "anchors_without_provenance_entry": [],
+  "provenance_entries_without_a_clause": []
+ },
+ "known_corrections_recorded_during_authoring": [
+  {
+   "id": "PROV-COR-001",
+   "claim_checked": "the sprint framing stated that LocalShadows2012 is -1..1 in XMP but on the UI scale in the catalog",
+   "what_the_capture_shows": "lightroom_develop_parameters.json parameters[LocalShadows2012] carries xmp_presets observed -0.386135..0.333783 and catalog_engine observed -1.0..1.0; both are fractional in this corpus, so that specific example is not the divergence case",
+   "what_was_used_instead": "the two parameters the capture itself flags with a scale_divergence record: LuminanceAdjustmentYellow (90.0 vs 1.0) and MaskSubCategoryID (50008.0 vs 12.0)",
+   "effect_on_the_clause": "none on the requirement; [STU-RAW-101] still mandates one canonical scale and a conversion layer, but it cites the measured cases rather than the unverified one"
+  },
+  {
+   "id": "PROV-COR-002",
+   "claim_checked": "capability-registry rows could be used as a raster/raw capability catalogue",
+   "what_the_capture_shows": "studio-architecture-decisions.json known_defects_in_this_green_room[GRD-001]: the registry merged rows on normalised name alone, so the kind field on merged rows and every app_count-derived sharing figure are unreliable",
+   "what_was_used_instead": "the per-app teardown artifacts, which are parsed directly from the installed applications and never passed through the merge; the registry is cited only for domain row counts in [STU-RAS-102]",
+   "effect_on_the_clause": "no clause in this module derives a behaviour from a merged registry row"
+  }
+ ],
+ "clauses": [
+  {
+   "anchor": "STU-RAS-100",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].operator_reinforcement_20260904",
+     "what_was_taken": "spec is sole authority; corpus is derivation record"
+    },
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "what_is_being_replaced.the_test",
+     "what_was_taken": "no-context implementability test"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-101",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.4 lines 198-489 and 14.12 lines 2555-2723",
+     "what_was_taken": "full anchor inventory for disposition"
+    },
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "patching_the_existing_509.preserve",
+     "what_was_taken": "preserve, do not rewrite"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-102",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/studio-capability-registry.json",
+     "record": "capabilities[] filtered domain=='raster' (2700 rows) and domain=='raw' (471 rows)",
+     "what_was_taken": "capability inventory size"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].operator_reinforcement_20260904.granularity_rule",
+     "what_was_taken": "loss-of-contract test"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "known_defects_in_this_green_room[GRD-001]",
+     "what_was_taken": "registry rows are evidence, not a clause list"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-103",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.required_fields and .irreversible_mistake",
+     "what_was_taken": "the seven separate fields and the never-collapse rule"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-104",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.required_fields and .irreversible_mistake",
+     "what_was_taken": "the seven separate fields and the never-collapse rule"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-105",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "descriptor_evidence.unit_vocabulary (#Ang #Nne #Pnt #Prc #Pxl #Rlt #Rsl)",
+     "what_was_taken": "unit tokens and occurrence counts"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "summary.properties_with_unit_from_help_string = 43",
+     "what_was_taken": "typed units on properties"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "attribute_key_index.unit -> NumberEditUnit_Percent/Pixel/Degree/Point",
+     "what_was_taken": "dialog unit vocabulary"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsUnits] (7) and enums[PsTypeUnits] (3)",
+     "what_was_taken": "document and type unit sets"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-106",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.where_bounds_are_absent",
+     "what_was_taken": "never invent, never clamp to observed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "unknowns[UNK-PS-001], unknowns[UNK-PS-002]",
+     "what_was_taken": "ranges and factory defaults are not declared"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[].observed_min/observed_max",
+     "what_was_taken": "observed-across-presets, not declared"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "known_limitations[0]",
+     "what_was_taken": "observed ranges are authoring ranges, a lower bound only"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-107",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.where_bounds_are_absent",
+     "what_was_taken": "never invent, never clamp to observed"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "unknowns[UNK-PS-001], unknowns[UNK-PS-002]",
+     "what_was_taken": "ranges and factory defaults are not declared"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[].observed_min/observed_max",
+     "what_was_taken": "observed-across-presets, not declared"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "known_limitations[0]",
+     "what_was_taken": "observed ranges are authoring ranges, a lower bound only"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-108",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.required_fields[step/coarse_step/fine_step]",
+     "what_was_taken": "required control increments"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].what_the_spec_rewrite_must_cover[4]",
+     "what_was_taken": "scrubbable control incl. AccessKit clamp path"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "class_name_index.TEditSlider / TSliderFixedPoint / THotText",
+     "what_was_taken": "the drag-scrub control classes; no step values declared anywhere"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-109",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[] 255 records, 733 enumerators with integer values",
+     "what_was_taken": "closed sets with stable discriminants"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-110",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry, output_discipline[2]",
+     "what_was_taken": "label heuristics; state unknowns"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-111",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry, output_discipline[2]",
+     "what_was_taken": "label heuristics; state unknowns"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-112",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry, output_discipline[2]",
+     "what_was_taken": "label heuristics; state unknowns"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-001",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-001]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-002",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-002]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-003",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-003]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-004",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-004]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-005",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-005]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-116",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-002].bulk_binary_position",
+     "what_was_taken": "artifact tier, not a second database"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "source_containers[].file_size_bytes (210694478 + ~140MB)",
+     "what_was_taken": "brush tip bitmap scale"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "counts.dcp_total_bytes = 895530990, counts.lcp_total_bytes = 471325407",
+     "what_was_taken": "profile corpus scale"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-006",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-006]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-007",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-007]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-113",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsLayerKind] 24 members",
+     "what_was_taken": "flat layer-kind enum conflating 14 adjustment identities with layer kinds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-114",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsElementPlacement] 5 members",
+     "what_was_taken": "explicit placement enumerators"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-115",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.ArtLayer.properties[Opacity, FillOpacity].constraints; classes.LayerSet.properties[Opacity].constraints",
+     "what_was_taken": "declared 0.0-100.0 hard ranges"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Masks/Flyouts/cxui_mask_modify_flyout.eve] density 0..100, feather 0..10000",
+     "what_was_taken": "declared mask bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-008",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-008]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-009",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-009]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-010",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-010]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-011",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-011]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-117",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsRasterizeType] 6 members, enums[PsMatteType] 7 members",
+     "what_was_taken": "rasterize target and matte sets"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-012",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-012]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-013",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-013]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-014",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-014]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-051",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-051]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-015",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-015]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-016",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-016]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-124",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Masks/Flyouts/cxui_mask_modify_flyout.eve] and [Masks/Flyouts/cxui_adj_brush_mask_modify_flyout.eve]",
+     "what_was_taken": "identical density/feather bounds on both mask hosts"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-017",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-017]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-118",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsSelectionType] 4 members, enums[PsShapeOperation] 4 members",
+     "what_was_taken": "two distinct four-member combine sets"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-018",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-018]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-119",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=tool_presets] entry marqueeRectTool params MrqI.*",
+     "what_was_taken": "constraint mode, aspect pair, fixed size with per-axis units, feather, style, anti-alias"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-120",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[dialogs/selection_modify_dialog.eve] input unit=NumberEditUnit_Pixel decimal_places=decimalPlaces",
+     "what_was_taken": "unit declared, bounds not"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-121",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Masks/Dialogs/refineEdge-2475.exv] 72 controls",
+     "what_was_taken": "complete control set with px/% unit labels and no declared bounds"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Masks/Workspaces/Select-And-Mask/Tools/*]",
+     "what_was_taken": "brush, quick-select, lasso, polygonal lasso and auto-masking tool options inside the surface"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-122",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Masks/Dialogs/refineEdge-2475.exv] 72 controls",
+     "what_was_taken": "complete control set with px/% unit labels and no declared bounds"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Masks/Workspaces/Select-And-Mask/Tools/*]",
+     "what_was_taken": "brush, quick-select, lasso, polygonal lasso and auto-masking tool options inside the surface"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-123",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Fill/Dialogs/skyReplacementDialog.eve] minValue/maxValue on 8 controls",
+     "what_was_taken": "declared hard bounds for the sky composite"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-019",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-019]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-020",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-020]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-021",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-021]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-022",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-022]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-023",
+   "disposition": "RETAINED-IN-PART",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.4 clause [STU-RAS-023]",
+     "what_was_taken": "single-engine, brush-preset and tool-preset statements retained"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 643 entries, 223 distinct params keys",
+     "what_was_taken": "the parameter list and the 0-100 smoothing claim are contradicted and superseded"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema (38 tags) + brushes[] (455)",
+     "what_was_taken": "second brush serialization"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-125",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-126",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-127",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-128",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-129",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-130",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-131",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-132",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-133",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-134",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-135",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-136",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] -> 3 containers, 643 entries, 223 distinct parameter keys",
+     "what_was_taken": "full brush parameter surface and observed spreads"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[] 38 tags, brushes[] 455, counts.brush_classes",
+     "what_was_taken": "second brush serialization, dynamics record and response curves"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Layers/Flyouts/cxui_brush_tip_flyout.eve] size 1..5000, hardness 0..100",
+     "what_was_taken": "the only declared tip bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-165",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "counts.brushes_total 455, .raster 225, .vector 230, .categories 16, .brush_classes",
+     "what_was_taken": "library shape"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "by_family.brushes: 3 containers, 643 entries",
+     "what_was_taken": "second library scale"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-166",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=tool_presets] 3 containers, 63 entries with full option blocks",
+     "what_was_taken": "tool presets carry the whole option block"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-024",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-024]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-137",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsToolType] 16 members",
+     "what_was_taken": "brush-driven tool discriminants"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-138",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] toolOptions.AHBs/AHBt/AHBc, toolOptions.StmA/Imps/Ptrn",
+     "what_was_taken": "art-history and pattern-stamp options"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-026",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-026]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-027",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-027]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-028",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-028]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-139",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] toolOptions.Prs/SmdF/SmdS/MgcE/ErsB",
+     "what_was_taken": "smudge, eraser and stamp option observations"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsToolType]",
+     "what_was_taken": "tool family membership"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-170",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.4 clause [STU-RAS-028] final sentence",
+     "what_was_taken": "prefer the masking route on non-destructive layers"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-025",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-025]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-160",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=gradients] 2 containers, 329 entries, 144 distinct keys",
+     "what_was_taken": "gradient stop model, 0..4096 axis, noise form"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=layer_styles] Lefx.GrFl.Grad.* and Lefx.FrFX.Grad.*",
+     "what_was_taken": "gradient geometry, noise seed, shape-burst type"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-161",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=patterns] 7 containers, 312 entries with width/height/image_mode_name",
+     "what_was_taken": "tile dimensions 1..946 and three colour modes"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-162",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "output_discipline[2]",
+     "what_was_taken": "state the gap rather than filling it"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-167",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "totals + by_family (22 families, 286 containers, 16994 entries)",
+     "what_was_taken": "preset family inventory"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_preset_contents.json",
+     "record": "containers[] 29 propcol containers, totals.presets 6066",
+     "what_was_taken": "second preset container set"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-006]",
+     "what_was_taken": "operator decision: un-merge the preset panels"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-168",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=swatches] 24 containers, 8901 entries with colorspace ids",
+     "what_was_taken": "Lab 3505 / CMYK 3266 / RGB 2004 / HSB 29 / 84 unresolved"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=color_books] 12 containers, 5243 entries with name + code",
+     "what_was_taken": "book entry shape"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-169",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=actions] 11 containers, 149 entries, 1543 steps, 102 distinct event_id values",
+     "what_was_taken": "macro step model and frequency"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-035",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-035]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-036",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-036]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-037",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-037]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-151",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "feature_methods.adjustment (15 methods with typed signatures)",
+     "what_was_taken": "adjustment command signatures"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments[] 25 types with layer_node_types_4cc and adjustment_specific_parameters",
+     "what_was_taken": "second adjustment registry and its parameter tags"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsLayerKind], enums[PsAdjustmentReference]",
+     "what_was_taken": "conflicting discriminants; relative/absolute selective-colour method"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[adjustments/**] 21 dialogs + 23 properties surfaces",
+     "what_was_taken": "declared units and decimal places per adjustment"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-152",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments[Levels].adjustment_specific_parameters observed 0.0-1.0",
+     "what_was_taken": "normalized levels scale"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "feature_methods.adjustment.AdjustLevels(InputRangeStart:VT_I4 ...)",
+     "what_was_taken": "integer 0-255 levels scale"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=contours].entries[].points[].input/output 0..255",
+     "what_was_taken": "curve point scale"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-153",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "adjustments[Invert|OCIO|Normals|ToneStretch].preset_count = 0",
+     "what_was_taken": "unobserved parameter blocks"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_adjustment_parameters.json",
+     "record": "counts.presets_total = 153, counts.adjustments_with_presets = 21",
+     "what_was_taken": "preset coverage"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-031",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-031]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-144",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsChannelType] 4 members",
+     "what_was_taken": "component / masked-area alpha / selected-area alpha / spot"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[channels/dialogs/channel_options_dialog.eve] opacity percent digits=3; files[channels/dialogs/spot_channel_options_dialog.eve] solidity percent digits=3",
+     "what_was_taken": "channel option units"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "feature_methods.adjustment (ApplyImage/Calculations context), classes with Scale/Offset",
+     "what_was_taken": "channel-math parameters"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[adjustments/dialogs/adjustments_apply_image_dialog.eve] opacity=Percent, scale decimal_places=3",
+     "what_was_taken": "apply-image precisions"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-032",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-032]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-145",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsDocumentMode] 8, enums[PsChangeMode] 7, enums[PsNewDocumentMode] 5, enums[PsDocumentFill] 3",
+     "what_was_taken": "the mode/convert asymmetry: duotone present in modes, absent from convert targets"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-146",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsBitmapConversionType] 5, enums[PsBitmapHalfToneType] 6",
+     "what_was_taken": "bitmap conversion methods and dot shapes"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "coclasses/_BitmapConversionOptions.Resolution default 72.0 unit pixels_per_inch, .Method default DiffusionDither",
+     "what_was_taken": "declared defaults"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Modes/Dialogs/bitmapScreen-1890.exv] frequency digits=7",
+     "what_was_taken": "halftone frequency control"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-147",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsPaletteType] 12, enums[PsDitherType] 4, enums[PsForcedColors] 4, enums[PsMatteType] 7",
+     "what_was_taken": "indexed-colour enumerations"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "_IndexedConversionOptions.DitherAmount min 1 max 100; _GIFSaveOptions.DitherAmount default 75; _ExportOptionsSaveForWeb.Colors default 256",
+     "what_was_taken": "declared bounds and defaults"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-148",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "by_family.duotones: 114 container files, 114 entries",
+     "what_was_taken": "duotone preset corpus proving the plate-plus-curve shape"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-033",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-033]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-149",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsBitsPerChannelType] members 1/8/16/32",
+     "what_was_taken": "bit depth set"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.Document.properties[BitsPerChannel]",
+     "what_was_taken": "depth field"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-034",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-034]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-150",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsIntent] 4, enums[PsSourceSpaceType] 2, enums[PsColorProfileType] 3, enums[PsColorSpaceType] 4, enums[PsUnits] 7, enums[PsTypeUnits] 3",
+     "what_was_taken": "colour-management enumerations"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes._RGBColor/_GrayColor/_CMYKColor/_LabColor/_HSBColor properties[].constraints",
+     "what_was_taken": "declared component ranges and defaults"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=layer_styles] Lefx.*.Clr .Rd/.Grn/.Bl float values e.g. 239.996",
+     "what_was_taken": "components are floats, not u8"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-029",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-029]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-141",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsAnchorPosition] 9 members, enums[PsResampleMethod] 9 members",
+     "what_was_taken": "anchor and resample sets"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-142",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "feature_methods.transform (12 methods with typed signatures)",
+     "what_was_taken": "transform command signatures"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsWarpStyle] 16, enums[PsTrimType] 3, enums[PsOffsetUndefinedAreas] 3, enums[PsDirection]",
+     "what_was_taken": "transform enumerations"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[dialogs/rotate_canvas_dialog.eve] angle unit=Degree decimal_places=2; files[dialogs/canvas_size_dialog.eve] width decimal_places=2",
+     "what_was_taken": "declared precisions"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-143",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Fill/Workspaces/Content-Aware-Fill/Panels/contentAwareFill-4190.exv] 111 controls",
+     "what_was_taken": "full control set with no declared numeric bounds"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-030",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-030]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-038",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-038]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-154",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsBlendMode] 28 members, enums[PsColorBlendMode] 29 members",
+     "what_was_taken": "layer vs tool blend sets and their integer values"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] textureBlendMode values BlnM.Hght / BlnM.linearHeight",
+     "what_was_taken": "texture-only height-field modes"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[BlMo] observed 0..21",
+     "what_was_taken": "third, dense blend numbering to be translated on import"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-155",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsBlendMode] 28 members, enums[PsColorBlendMode] 29 members",
+     "what_was_taken": "layer vs tool blend sets and their integer values"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=brushes] textureBlendMode values BlnM.Hght / BlnM.linearHeight",
+     "what_was_taken": "texture-only height-field modes"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_brush_parameters.json",
+     "record": "parameter_schema[BlMo] observed 0..21",
+     "what_was_taken": "third, dense blend numbering to be translated on import"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-039",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-039]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-040",
+   "disposition": "SUPERSEDED-IN-PART",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.4 clause [STU-RAS-040]",
+     "what_was_taken": "effect kind list and style-registry statements retained"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=layer_styles] -> 370 entries; effects keys dropShadowMulti[0..3], innerShadowMulti[0..1], solidFillMulti[0..1], frameFXMulti[0..7], gradientFillMulti[0..7]",
+     "what_was_taken": "multi-instance effect lists contradict the one-instance-per-kind model"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-156",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=layer_styles] 3 containers, 370 entries, 1317 distinct effect keys",
+     "what_was_taken": "per-effect parameter surface and multi-instance lists"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=contours] 42 entries, point_count 2..9",
+     "what_was_taken": "contour point model"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-157",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=layer_styles] 3 containers, 370 entries, 1317 distinct effect keys",
+     "what_was_taken": "per-effect parameter surface and multi-instance lists"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=contours] 42 entries, point_count 2..9",
+     "what_was_taken": "contour point model"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-158",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=layer_styles] 3 containers, 370 entries, 1317 distinct effect keys",
+     "what_was_taken": "per-effect parameter surface and multi-instance lists"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=contours] 42 entries, point_count 2..9",
+     "what_was_taken": "contour point model"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-041",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-041]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-159",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_preset_contents.json",
+     "record": "containers[family=layer_styles] blendOptions.Blnd[].SrcB/Srcl/Srcm/SrcW/DstB/Dstl/Dstt/DstW",
+     "what_was_taken": "eight values per channel, 0..255"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-044",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-044]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-045",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-045]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-046",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-046]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-164",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Filters/Dialogs/denoiseDialog.eve] ai_model_popup, ai_credits_text, partner-model text",
+     "what_was_taken": "metered third-party model shipped behind a filter surface"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-049",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-049]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-163",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.4 clause [STU-RAS-049]",
+     "what_was_taken": "diagnostic surface scope"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "classes.MeasurementScale.properties[PixelLength].constraints unit pixels; classes.ColorSampler/CountItem",
+     "what_was_taken": "sampler and measurement fields"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-042",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-042]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-043",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-043]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-171",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "coclasses/_JPEGSaveOptions, _PNGSaveOptions, _TiffSaveOptions, _PDFSaveOptions, _GIFSaveOptions, _ExportOptionsSaveForWeb properties[].constraints",
+     "what_was_taken": "declared encoder bounds and defaults"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-047",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-047]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-172",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "feature_methods.filter (41 methods with typed signatures)",
+     "what_was_taken": "filter parameter surface handed to 14.9"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_enums.json",
+     "record": "enums[PsNoiseDistribution, PsRadialBlurMethod, PsRadialBlurQuality, PsSmartBlurMode, PsSmartBlurQuality, PsSpherizeMode, PsZigZagType, PsWaveType, PsRippleSize, PsPolarConversionType, PsDisplacementMapType, PsUndefinedAreas, PsLensType, PsDepthMapSource, PsEliminateFields, PsCreateFields]",
+     "what_was_taken": "filter enumerations preserved in the handover"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-048",
+   "disposition": "SUPERSEDED-IN-PART",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.4 clause [STU-RAS-048]",
+     "what_was_taken": "authority direction inverted by [STU-RAS-102]"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].clause_that_is_now_backwards + operator_reinforcement_20260904",
+     "what_was_taken": "corpus is derivation provenance; spec must stand alone"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-050",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.4 lines 198-489, clause [STU-RAS-050]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-001",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-001]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-100",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "counts.develop_parameters_total = 389; counts.parameters_by_panel_heuristic (21 groups)",
+     "what_was_taken": "parameter surface size and group counts"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-101",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters[182] LuminanceAdjustmentYellow.scale_divergence (xmp_abs_max 90.0 vs catalog_abs_max 1.0)",
+     "what_was_taken": "measured scale divergence"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters[194] MaskSubCategoryID.scale_divergence (50008.0 vs 12.0)",
+     "what_was_taken": "second measured divergence"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters[LocalShadows2012].sources",
+     "what_was_taken": "xmp -0.386..0.334 vs catalog -1.0..1.0; both fractional in this corpus"
+    },
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract",
+     "what_was_taken": "conversion layer requirement"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-102",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.always_written_core_set.count = 64",
+     "what_was_taken": "trustworthy defaults"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.sparse_parameters.count = 242",
+     "what_was_taken": "absent-means-default, non-recoverable"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters[].default_classification",
+     "what_was_taken": "per-parameter derivability verdicts"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-103",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "counts.present_in_both_sources 177, .xmp_presets_only 52, .catalog_engine_only 160",
+     "what_was_taken": "two disjoint vocabularies"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "look_table_lut_payloads.count = 336",
+     "what_was_taken": "LUT payloads are data, not parameters"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-104",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "process_versions.in_xmp_presets / .in_catalog_rows; parameters[ProcessVersion|Version|CompatibleVersion|HasSettings]",
+     "what_was_taken": "version fields, observed values and derived defaults"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-105",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters[Enable*] (12 keys) coverage 0.0558 and modal True",
+     "what_was_taken": "per-group enable flags"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-106",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters[GrainSeed]",
+     "what_was_taken": "explicit seed proving the stochastic stage is seeded"
+    },
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.23 [STU-CON-005], [STU-CON-007]",
+     "what_was_taken": "determinism and tolerance rules"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-002",
+   "disposition": "SUPERSEDED-IN-PART",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.12 clause [STU-RAW-002]",
+     "what_was_taken": "authority-storage rule retained"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters[182].scale_divergence and parameters[194].scale_divergence",
+     "what_was_taken": "flat 'translate the incoming parameters' import rule contradicted"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-003",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-003]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-004",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-004]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-005",
+   "disposition": "SUPERSEDED-IN-PART",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "14.12 clause [STU-RAW-005]",
+     "what_was_taken": "group scope retained"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.always_written_core_set (64) and .sparse_parameters (242)",
+     "what_was_taken": "the universal 'explicit unit/range' claim contradicted"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-006",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-006]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-007",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-007]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-008a",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-008a]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-008",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-008]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-009",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-009]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-010",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-010]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-011",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-011]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-012",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-012]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-110",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=basic_whitebalance (7)",
+     "what_was_taken": "kelvin vs incremental split, observed ranges, precisions"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-111",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=basic_tone (16) and panel=basic_presence (6)",
+     "what_was_taken": "current and legacy tone sets with derived defaults 50/25/5"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-112",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=tone_curve (18)",
+     "what_was_taken": "parametric split points and point-curve identity defaults"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-113",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=tone_curve (18)",
+     "what_was_taken": "parametric split points and point-curve identity defaults"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-114",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=detail_sharpening (4) and panel=detail_noise (6)",
+     "what_was_taken": "non-zero sharpening and colour-noise defaults"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "struct_contexts.by_source.xmp_presets.ISODependent",
+     "what_was_taken": "per-ISO default record"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-115",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=hsl_color_mixer (33)",
+     "what_was_taken": "eight bands x three adjustments plus grayscale mix and point colours"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-116",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=color_grading (15)",
+     "what_was_taken": "four wheels, blending default 50, legacy split-toning members"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.colour_grading_key_aliasing",
+     "what_was_taken": "the aliasing hazard"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-117",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=lens_corrections (17)",
+     "what_was_taken": "15 always-written defaults incl. defringe hue windows 30/70 and 40/60"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-118",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=transform_geometry (24)",
+     "what_was_taken": "manual sliders plus the six stored upright transforms"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-119",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=effects (10)",
+     "what_was_taken": "grain and post-crop vignette, seed, unresolved style enum"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-120",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=calibration (7)",
+     "what_was_taken": "primary hue/saturation twists and shadow tint"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-013",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-013]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-125",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "camera_profiles_dcp.correction_model, .tag_presence, .hue_sat_map_dims, .look_table_dims, .calibration_illuminant_pairs, .profile_embed_policy",
+     "what_was_taken": "camera profile structure and lattice dimension spread"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "counts.dcp_files_parsed 4373, .dcp_distinct_unique_camera_models 1429, .dcp_distinct_profile_names 129",
+     "what_was_taken": "corpus scale"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "preset_document_inventory.by_preset_type / .groups; parameters grouped panel=profile (34) and panel=preset_metadata (24)",
+     "what_was_taken": "creative-profile capability flags and amount range"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-126",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "camera_profiles_dcp.correction_model, .tag_presence, .hue_sat_map_dims, .look_table_dims, .calibration_illuminant_pairs, .profile_embed_policy",
+     "what_was_taken": "camera profile structure and lattice dimension spread"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "counts.dcp_files_parsed 4373, .dcp_distinct_unique_camera_models 1429, .dcp_distinct_profile_names 129",
+     "what_was_taken": "corpus scale"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "preset_document_inventory.by_preset_type / .groups; parameters grouped panel=profile (34) and panel=preset_metadata (24)",
+     "what_was_taken": "creative-profile capability flags and amount range"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-127",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "lens_profiles_lcp.correction_model, .model_presence_files, .attribute_vocabulary, .samples_per_file",
+     "what_was_taken": "sampled grid, three CA models, coefficient magnitudes, residuals"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_profiles.json",
+     "record": "counts.lcp_files_parsed 3597, .lcp_distinct_lens_names 2167, .lcp_calibration_samples_total 620327",
+     "what_was_taken": "corpus scale"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-128",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=preset_metadata (24)",
+     "what_was_taken": "preset identity and capability metadata"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "preset_document_inventory.by_cluster and .groups",
+     "what_was_taken": "grouping and clustering"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-014a",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-014a]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-014b",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-014b]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-121",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=masking_local (84)",
+     "what_was_taken": "correction and mask record fields, geometry per source, local slider scale"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "struct_contexts.by_source.*.CorrectionMasks and .MaskGroupBasedCorrections",
+     "what_was_taken": "nested struct field lists"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-122",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=masking_local (84)",
+     "what_was_taken": "correction and mask record fields, geometry per source, local slider scale"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "struct_contexts.by_source.*.CorrectionMasks and .MaskGroupBasedCorrections",
+     "what_was_taken": "nested struct field lists"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-123",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=masking_local (84)",
+     "what_was_taken": "correction and mask record fields, geometry per source, local slider scale"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "struct_contexts.by_source.*.CorrectionMasks and .MaskGroupBasedCorrections",
+     "what_was_taken": "nested struct field lists"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-015",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-015]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-124",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=healing_redeye (62)",
+     "what_was_taken": "retouch record fields plus the pm_* generative-fill telemetry set and fill_method"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-129",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=hdr (9)",
+     "what_was_taken": "HDR edit mode, headroom default 4, SDR sub-stack"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-130",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=lens_blur (1)",
+     "what_was_taken": "structured develop stage"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters[healing_redeye] pm_clio_model_version, fill_method",
+     "what_was_taken": "model-backed path is an adapter"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_dialogs.json",
+     "record": "files[Filters/Dialogs/denoiseDialog.eve]",
+     "what_was_taken": "metered partner-model denoise surface"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-014",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-014]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-131",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "parameters grouped panel=crop_orientation (7)",
+     "what_was_taken": "normalized crop edges and angle precision"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_export_pipeline.json",
+     "record": "counts.still_export_settings_keys 152; still_image_export.value_domains_from_ui_labels.families",
+     "what_was_taken": "raw-side export enumerations"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-016",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-016]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-017",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-017]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-018",
+   "disposition": "RETAINED",
+   "derived_from": [
+    {
+     "capture_file": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "section 14.12 lines 2555-2723, clause [STU-RAW-018]",
+     "what_was_taken": "clause text carried forward with meaning unchanged"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAW-132",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry.validator_focus",
+     "what_was_taken": "name what a reviewer should attack"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "known_limitations",
+     "what_was_taken": "the four hazards the checks are written against"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-173",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "every_microtask_must_carry + the_test",
+     "what_was_taken": "microtask completeness contract"
+    },
+    {
+     "capture_file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[SAD-008].anchor_dependency",
+     "what_was_taken": "spec assigns the anchors microtasks cite"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-RAS-174",
+   "disposition": "NEW",
+   "derived_from": [
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/photoshop/offline/photoshop_parameter_surface.json",
+     "record": "unknowns[]",
+     "what_was_taken": "declared unknowns in the Photoshop surface"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/affinity/offline/affinity_tool_panel_registry.json",
+     "record": "id_to_name_binding = 'unresolved'; counts.distinct_tool_ids 143, .distinct_panel_ids 53",
+     "what_was_taken": "opaque 4CC tool/panel ids"
+    },
+    {
+     "capture_file": "_greenroom_20260903/installed_exports/lightroom_classic/offline/lightroom_develop_parameters.json",
+     "record": "derived_observations.sparse_parameters (242)",
+     "what_was_taken": "non-recoverable develop defaults"
+    }
+   ]
+  }
+ ]
+}

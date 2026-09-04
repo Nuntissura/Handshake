@@ -1,0 +1,66 @@
+{
+ "schema_id": "handshake.reference.studio_spec_reconciliation_brief@1",
+ "file_id": "studio-spec-reconciliation-brief-20260904",
+ "status": "reference_only_not_execution_authority",
+ "purpose": "The shared brief for the proofreading pass. Every agent reconciling a spec module against the derived microtask set follows this, so that fixes made in parallel by different agents come out consistent.",
+
+ "the_operator_acceptance_test": {
+  "verbatim": "i want the master spec to be updated so we could extract the same exact microtasks from the master spec.",
+  "what_it_means": "The Master Spec must be the only input needed to produce the microtask set. If a behaviour is real but the spec does not state it in a form a derivation tool can reach, that behaviour silently disappears from the work. If the spec states something the microtask set does not carry, the spec is making a promise nothing will keep.",
+  "how_it_is_measured": "spec-derive-microtasks.py extracts units from the module text. spec-ledger-reconcile.py compares that count against the module's OWN declared yields total. They must agree."
+ },
+
+ "authority_direction": {
+  "rule": "The spec is authority; the tool reconciles to it. [STU-VEC-199] states this normatively: 'A derivation tool that produces a different total has diverged from this sub-section and MUST be reconciled against it, not the reverse.'",
+  "but": "That does not make every ledger correct. A ledger claiming work the module text does not express in a derivable form is a spec defect, not a tool defect. Judge each delta on the text, not on the number.",
+  "never": "Never close a delta by editing the number alone. If the ledger is right and the text is not derivable, fix the text. If the text is right and the ledger is wrong, fix the ledger and say why."
+ },
+
+ "what_the_deriver_extracts": {
+  "clause": "One microtask per clause, EXCEPT the module's declared non-yielding set. NOT gated on the clause containing MUST or SHALL, because a clause may state a stored contract in the indicative mood.",
+  "parameter_table": "One per table whose header carries at least four of hard_min, hard_max, soft_min, soft_max, default, unit, precision. Rows become acceptance criteria.",
+  "catalogue_row": "One per ROW of a table whose first column names a separate implementable subject: effect, filter, adjustment, generator, tool, shape, operation, transform, brush, format, codec, container, exporter, importer, panel, node, layer, blend mode, primitive, engine, gradient, mask, matte, marker, guide, swatch, palette, font, glyph, scale, space, profile.",
+  "command_table": "One per table, taken whole, when the first column names a command, shortcut, binding, key, menu, action, preset or template. A keyboard binding is not a unit of implementation work and must not be one microtask each.",
+  "enumeration": "One per enumeration table, taken whole. Members become acceptance criteria.",
+  "validator": "One per validation descriptor.",
+  "excluded": "Bookkeeping sub-sections (derivation, supersession, disposition, anchor continuity, change log), pure cross-reference clauses, and clauses restating an obligation that attaches to every microtask."
+ },
+
+ "how_to_close_a_delta": {
+  "declared_greater_than_derived": [
+   "This is the dangerous direction: the module claims work its own text does not express derivably.",
+   "Find which ledger rows have no derivable counterpart. A row reading '362 tool units' or '90 panel identities' is the usual cause: the number is asserted in prose but the tools and panels are never enumerated in a table the deriver can read.",
+   "Fix by ENUMERATING them in the module as a catalogue table whose first column names the subject. That is what makes the work real and derivable. Do not delete the ledger row to make the number agree.",
+   "If a number genuinely cannot be enumerated yet because the capture did not recover the identifiers, say so in the clause, mark it an open item, and give it a single microtask whose first acceptance criterion is recovering the list. Then correct the ledger to that single row."
+  ],
+  "derived_greater_than_declared": [
+   "The deriver is splitting something the module counts as one unit, or the ledger undercounts.",
+   "Check the named traps first: a table with more rows than subjects, a clause where the spawning table is not the first table under it, and a set of categories that deliberately collapse to one implementation.",
+   "If the split is correct, the ledger undercounts and the ledger is fixed. If the split is wrong, state in the clause which table spawns and how many, so the tool can be corrected to match."
+  ],
+  "no_declared_total": [
+   "The module has a derivation sub-section but states no total, or has no derivation sub-section at all.",
+   "Add a yields index table ending in a total row. The reconciler reads the LAST numeric column of the total row, so put the yields count last.",
+   "A total stated in prose as 'yields exactly N microtasks' inside the derivation clause is also accepted."
+  ]
+ },
+
+ "hard_constraints_unchanged": [
+  "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden anywhere, including tests and dev caches.",
+  "handshake_core never gains wgpu, WGSL or any GPU dependency. GPU and compute live in the studio-engine crate behind its traits.",
+  "No new router. Navigation extends the existing address and bus seams.",
+  "Code paths resolve against the WP-KERNEL-012 worktree, never main.",
+  "[STU-SECTION-003]: a source product name is never a Studio tool, command, panel or manual name. Vendor names appear only as provenance.",
+  "Hard and soft bounds are separate fields. A bound the source did not declare is stored as unknown, never mirrored from its opposite. Collapsing them is unrecoverable.",
+  "Adobe generative and AI features are out of scope. Everything else the applications do is in scope."
+ ],
+
+ "output_discipline": [
+  "Markdown and JSON only, and only inside the spec_update/modules directory.",
+  "Never touch anything under .GOV/task_packets.",
+  "Do not renumber an existing anchor. Add new anchors in the module's existing band.",
+  "Do not delete a clause to resolve a problem.",
+  "Clause definitions open a paragraph and use the form **[STU-XX-100] Title.** at line start. Do not let an anchor reference start a line; reflow the paragraph instead, because a line-initial reference reads as a definition to every scanner.",
+  "Where a value is unknown, say so in the spec rather than filling the gap."
+ ]
+}

@@ -1,124 +1,205 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-412",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-412.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-412.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-411",
-      "MT-017",
-      "MT-019"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Raw input scope + native deterministic sensor decode/demosaic [STU-RAW-003]",
-  "spec_anchor": [
-    "STU-RAW-003",
-    "STU-DOC-003",
-    "STU-ARC-002"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-412",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-412.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-412.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-411",
+   "MT-017",
+   "MT-019"
   ],
-  "scope": {
-    "summary": "Implement the raw decode step in studio-engine: accept mosaic Bayer + X-Trans sensor inputs and demosaic through a native deterministic engine (RasterEngine/RenderEngine boundary), accept the documented DNG container, and route non-raw high-bit sources (TIFF/JPEG) through the same develop surface so develop adjustments act as a re-editable filter on non-raw layers. Support inputs to the document raster ceiling; the decode boundary is the API decode step per [STU-DOC-003]; color carries an explicit StudioColorProfile from decode onward with no implicit device color.",
-    "allowed_paths": [
-      "src/studio/raw/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "Bayer/X-Trans + DNG + non-raw high-bit decode deterministic; explicit color from decode"
-    ],
-    "proof_targets": [
-      "deterministic demosaic + color-explicit decode test"
-    ],
-    "code_surfaces": [
-      "studio-engine/src/raw/decode.rs",
-      "studio-engine/src/raw/demosaic.rs",
-      "src/studio/raw/input.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio_engine::raw::decode",
-      "test: Bayer + X-Trans demosaic deterministic under fixed process version",
-      "test: DNG + TIFF/JPEG route into same develop surface as re-editable filter",
-      "test: StudioColorProfile explicit from decode (no implicit device color)"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Raw input scope + native deterministic sensor decode/demosaic [STU-RAW-003]",
+ "spec_anchor": [
+  "STU-RAW-003",
+  "STU-DOC-003",
+  "STU-ARC-002"
+ ],
+ "scope": {
+  "summary": "Implement the raw decode step in studio-engine: accept mosaic Bayer + X-Trans sensor inputs and demosaic through a native deterministic engine (RasterEngine/RenderEngine boundary), accept the documented DNG container, and route non-raw high-bit sources (TIFF/JPEG) through the same develop surface so develop adjustments act as a re-editable filter on non-raw layers. Support inputs to the document raster ceiling; the decode boundary is the API decode step per [STU-DOC-003]; color carries an explicit StudioColorProfile from decode onward with no implicit device color.",
+  "allowed_paths": [
+   "src/studio/raw/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No sensor decode; nothing to develop; implicit device color corrupts pipeline.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Bayer/X-Trans",
+   "DNG",
+   "Non-raw high-bit decode deterministic",
+   "Explicit color from decode"
+  ],
+  "proof_targets": [
+   "deterministic demosaic + color-explicit decode test"
+  ],
+  "code_surfaces": [
+   "studio-engine/src/raw/decode.rs",
+   "studio-engine/src/raw/demosaic.rs",
+   "src/studio/raw/input.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio_engine::raw::decode",
+   "test: Bayer + X-Trans demosaic deterministic under fixed process version",
+   "test: DNG + TIFF/JPEG route into same develop surface as re-editable filter",
+   "test: StudioColorProfile explicit from decode (no implicit device color)"
+  ],
+  "acceptance_criteria_original": [
+   "Bayer/X-Trans + DNG + non-raw high-bit decode deterministic; explicit color from decode"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No sensor decode; nothing to develop; implicit device color corrupts pipeline.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Bayer/X-Trans",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "deterministic demosaic + color-explicit decode test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "DNG",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Non-raw high-bit decode deterministic",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Explicit color from decode",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-RAW-003",
+    "spec_clause_text": "**[STU-RAW-003]** The pipeline MUST accept mosaic raw sensor inputs — both the Bayer and the X-Trans colour-filter-array families, which are sensor-filter architectures and not products — and demosaic them through a native deterministic engine in `studio-engine` (the `RasterEngine`/`RenderEngine` boundary of [STU-ARC-002]). It MUST also accept a documented, publicly specified raw interchange container, and non-raw high-bit-depth still sources, routed through the same develop surface so that develop adjustments are available on non-raw layers as a re-editable filter. The decode boundary is the API decode step per [STU-DOC-003], and colour values carry an explicit `StudioColorProfile` from decode onward with no implicit device colour. The demosaic algorithm MUST be a selectable, receipted parameter, not a hidden constant. Provenance for the two container classes that obligation names, recorded as evidence and never as a Studio tool, command, panel or manual name per [STU-SECTION-003]: the raw interchange container the capture identifies is DNG, and the non-raw high-bit-depth sources are TIFF and JPEG. DNG and TIFF are vendor-owned format specifications and appear here only as interop provenance; JPEG is an open standard. An importer for each is a `StudioImportProfile` (14.13) named for the capability it provides, not for the format's owner."
+   },
+   {
+    "anchor": "STU-DOC-003",
+    "spec_clause_text": "[STU-DOC-003] Unit law: every model-facing and operator-facing Studio surface (measurements, positions, sizes, type sizes) uses explicit typed units — points for typography, pixels for raster document coordinates, and a document-declared unit (mm/in/px/pt) for layout geometry with the unit carried on every length-bearing field. Color values carry an explicit `StudioColorProfile` reference; there is no implicit device color. The conversion boundary MUST be the API decode step. Mixed-unit fields are forbidden."
+   },
+   {
+    "anchor": "STU-ARC-002",
+    "spec_clause_text": "[STU-ARC-002] `handshake_core`'s `Cargo.toml` MUST NOT gain `wgpu`, WGSL, or GPU-compute dependencies for Studio. All GPU/compute code is isolated in the `studio-engine` workspace crate and reached through the `RasterEngine`/`VectorEngine`/`LayoutEngine`/`TextEngine`/`ColorEngine`/`RenderEngine: Send + Sync` trait boundaries defined in `studio-engine/src/lib.rs` (mirrors [TAI-OVR-009])."
+   }
+  ],
+  "spec_clause_count": 3,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

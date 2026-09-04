@@ -1,0 +1,277 @@
+{
+ "schema_id": "handshake.reference.studio_architecture_decisions@1",
+ "file_id": "studio-architecture-decisions-20260904",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "purpose": "Operator-confirmed architecture decisions for the Handshake Studio module, recorded so they are not lost between the green room and the microtask authoring. Every decision names the evidence it was checked against, because several earlier statements in this workstream were wrong until verified.",
+ "authority_note": "These are decisions and verified findings, not authority. Authority lives in Master Spec section 14 and the WP-KERNEL-STUDIO contracts. Where a decision here requires a spec change, it says so.",
+ "decisions": [
+  {
+   "id": "SAD-001",
+   "title": "The reference tree is feat/WP-KERNEL-012, not main",
+   "decision": "All Studio design, code reading, path reconciliation and microtask authoring resolve against the WP-KERNEL-012 worktree at ../wtc-native-editors-v1. main is stale and must not be used as the picture of the codebase.",
+   "operator_statement": "main is stale, use wp kernel 012 that is still in active dev. but much more how main will look like",
+   "verified_2026_09_04": "Storage differs materially between the two trees, so this is not a formality. Reading main would have produced wrong architecture conclusions, and did once in this workstream.",
+   "applies_to": [
+    "all code_surfaces fields in every Studio MT",
+    "all path reconciliation",
+    "all design agents"
+   ]
+  },
+  {
+   "id": "SAD-002",
+   "title": "SurrealDB is the only database; no second store, and Turso is excluded",
+   "decision": "Studio uses Handshake-managed SurrealDB with the EventLedger as sole durable authority. No second database is introduced. Turso is specifically excluded.",
+   "operator_statement": "surrealdb it is then",
+   "turso_finding": "Turso is libSQL, which is a fork of SQLite. Master Spec [STU-OVR-003] states Studio MUST NOT introduce a SQLite dependency anywhere, naming three places explicitly: not in studio-engine, not in tests, not as a development cache, with a no_sqlite_tripwire and a SurrealDB-only startup tripwire enforcing it. Adopting Turso would therefore be a spec amendment, not a preference change.",
+   "verified_in_012": "src/backend/handshake_core/Cargo.toml declares surrealdb = 3.2.0, default-features off, features kv-rocksdb for production and kv-mem for tests. No sqlx, postgres, tokio-postgres, rusqlite, libsql, sea-orm, diesel, sled or redb anywhere in the manifest. The SurrealDB migration is already complete in 012.",
+   "corrects_earlier_claim": "An earlier note in this workstream said Studio's SurrealDB-only clause conflicted with a shipped PostgreSQL control plane from WP-KERNEL-001. That was true of main and is NOT true of 012. The conflict is already resolved.",
+   "embedded_not_served": "kv-rocksdb means SurrealDB runs embedded with no separate database process, which is what the Handshake-native runtime rule requires. Nothing to install, nothing to babysit.",
+   "bulk_binary_position": "Bulk binary is not a database problem and does not justify a second store. Raster tiles, video media, brush tip bitmaps, LUTs and fonts belong in content-addressed artifact storage with SurrealDB holding the records and references. For scale: Affinity alone ships roughly 350 MB of brush tip bitmaps in two containers, and Lightroom ships 854 MB of camera profiles plus 449 MB of lens profiles. None of that wants to live in a document database.",
+   "open_item": "Confirm which artifact/blob tier exists in 012 and bind Studio to it rather than inventing one. Not yet verified in the 012 tree."
+  },
+  {
+   "id": "SAD-003",
+   "title": "No new router; Studio registers into the existing navigation layers",
+   "decision": "Studio adds no routing machinery. It registers its addresses and navigation targets in the layers that already exist.",
+   "operator_statement": "no extra router. i will be merging all routers some day, but that is not a priority now",
+   "existing_layers_verified_in_012": [
+    {
+     "file": "src/frontend/handshake_native/src/loom_address.rs",
+     "role": "Addressing. Every document, rich-text block, canvas node and graph node is addressable as workspace_id + block_id, rendered as a loom:// URI, with parse and format. Content hash is backend-computed and read, never client-patched."
+    },
+    {
+     "file": "src/frontend/handshake_native/src/navigation_bus.rs",
+     "role": "Cross-surface navigation. A typed NavigationTarget enum and a dispatch function mapping each target onto the existing ShellNavigator open_* seams. Its docstring explicitly forbids forking a parallel bus."
+    },
+    {
+     "file": "src/frontend/handshake_native/src/mcp_navigation.rs",
+     "role": "Model-driven navigation over the same primitives, foreground-safe, never calling OS foreground or input APIs."
+    },
+    {
+     "file": "src/frontend/handshake_native/src/module_switcher.rs",
+     "role": "Module rail. STUDIO already exists in the module list alongside MAIN, CKC, INGEST, STAGE and LAB."
+    },
+    {
+     "file": "src/frontend/handshake_native/src/backend_client.rs",
+     "role": "Backend HTTP surface, e.g. GET /workspaces/{ws}/loom/blocks/{id}."
+    },
+    {
+     "file": "src/frontend/handshake_native/src/mcp/",
+     "role": "JSON-RPC dispatch for the model tool surface."
+    }
+   ],
+   "future_operator_intent": "The operator intends to merge the routing layers eventually. That is explicitly NOT a priority now and must not be scoped into Studio work.",
+   "studio_obligation": "Opening a Studio attachment from Notes must be one more NavigationTarget variant, not new machinery."
+  },
+  {
+   "id": "SAD-004",
+   "title": "Everything is Rust, with a two-crate split and a stricter-than-expected text rule",
+   "decision": "Front end and back end are Rust. Third-party code is admitted only as a managed dependency behind Handshake's own boundaries.",
+   "operator_statement": "everything needs to be rust unless a dependency is needed/plug in so front and back end",
+   "spec_specifics": [
+    "[STU-OVR-001] Studio is a Cargo workspace member set in the monorepo, never a separately versioned external crate, so engines and kernel binding are always tested together.",
+    "Two crates: handshake_core::studio is the kernel-bound domain module; studio-engine is a standalone crate with NO handshake_core dependency owning the raster compositor, vector geometry, layout engine, text shaping, colour management and the GPU render path.",
+    "[STU-ARC-002] handshake_core's Cargo.toml MUST NOT gain wgpu, WGSL or GPU-compute dependencies. The boundary is six traits: RasterEngine, VectorEngine, LayoutEngine, TextEngine, ColorEngine, RenderEngine, all Send + Sync.",
+    "[STU-TYP-008] is STRICTER than the operator's general rule and must not be softened: the text shaping stack MUST be native Rust of the cosmic-text / rustybuzz / swash class, and Studio MUST NOT depend on a platform text engine (DirectWrite, Core Text, Pango) even though that would be the easy path. The reason is promotion equivalence: shaping must be deterministic and byte-identical across hosts so model-authored and operator-authored layout agree.",
+    "Front end is egui, wgpu and AccessKit per the canonical native-Rust shell."
+   ],
+   "verified_in_012": "No studio module under handshake_core and no studio-engine crate exist yet. The two-crate split is greenfield, to be created, not reconciled."
+  },
+  {
+   "id": "SAD-005",
+   "title": "Two shipped surfaces are ports of the old React app and must be replaced, not extended",
+   "decision": "Both are recorded as defects to fix, with their causes, so a later implementer does not preserve them out of deference.",
+   "defects": [
+    {
+     "surface": "src/frontend/handshake_native/src/split_layout.rs",
+     "defect": "A hard-coded 2x2 splitter with SplitWeights{vertical,horizontal}, ported verbatim from app/src/App.tsx including the React field names, because the MT-006 acceptance criteria asserted those names by string.",
+     "conflicts_with": "OUI-002: arbitrary editor windows inside the main window, each with tabs, never a fixed number.",
+     "path_forward": "Its own docstring states egui_tiles is the intended engine for free-form docking in the later MTs, and egui_tiles 0.14 is already a dependency. This is a replacement microtask, not a rewrite."
+    },
+    {
+     "surface": "src/frontend/handshake_native/src/module_switcher.rs",
+     "defect": "Switching module REWRITES the active pane's tab list to the module's canonical tab set, a faithful port of the React module model.",
+     "conflicts_with": "OUI-001: pressing the Studio icon swaps the viewport while Stage, Notes, Tailor and every other module keep running in the background.",
+     "path_forward": "Replace tab-list rewriting with a viewport swap over live per-module state. Must be fixed alongside the split, because both trace to the same cause: porting the web app rather than designing for the native shell."
+    },
+    {
+     "surface": "src/frontend/handshake_native/src/module_switcher.rs MODULE_DEFINITIONS[Studio]",
+     "defect": "Studio's module definition is the Lab entry reordered. Verified 2026-09-04 by extracting the table: Studio's default_tab is PaneType::ModelRuntime and its tabs are ModelRuntime, Swarm, InferenceLab, FontManager, KernelDcc, UserManual. Not one creative surface. It was ported verbatim from the React MODULE_DEFINITIONS const so a snapshot test could prove no drift from the web source, which means the placeholder is actively pinned in place by a test.",
+     "conflicts_with": "The entire Studio module. Switching to STUDIO today opens model-runtime tooling.",
+     "path_forward": "Replace with a real Studio definition whose default is a StudioViewport pane type. Because module switching rewrites the active pane's tab list, open Studio documents would be destroyed on any module switch unless the viewport is modelled as a single PaneType::StudioViewport that owns its own document tabs internally.",
+     "note": "The snapshot test pinning it to the React source must be retired in the same change, or it will fail the correct implementation."
+    }
+   ]
+  },
+  {
+   "id": "SAD-006",
+   "title": "Panels un-merge: no consolidation that depends on multi-instance support",
+   "decision": "The Preset Library consolidation is rejected. The 12 vendor preset surfaces stay as separate Studio panels rather than collapsing into one kind-filtered panel.",
+   "operator_statement": "unmerge",
+   "context": "The panel-dock proposal collapsed 595 vendor panel surfaces to 75 distinct Studio panels. Its largest single merge folded swatches, gradients, patterns, shapes, styles, tool presets and the rest into one Preset Library, justified by those surfaces already sharing a tab group in all eight shipped Photoshop workspaces. The agent flagged that the merge is only safe if a panel can be opened more than once simultaneously, and itself recommended un-merging rather than shipping the merge without that support.",
+   "effect": "Distinct panel count rises from 75 to roughly 84. The eight-to-one collapse becomes about seven-to-one, which is still the dominant simplification.",
+   "principle_established": "A consolidation that only works given an unbuilt capability is not a consolidation, it is deferred debt. Merge only where the merged panel is usable as-is.",
+   "applies_beyond_presets": "Every other proposed merge must be re-checked against the same test before authoring: does it require simultaneous visibility of two members? The InDesign Control Panel collapse (34 variants to 2) and the Premiere Titler collapse (5 surfaces plus Graphics to 1) are the next candidates to re-examine."
+  },
+  {
+   "id": "SAD-007",
+   "title": "Studio owns full video: clip editing and VFX, at professional depth",
+   "decision": "Studio includes the complete video capability set. Timeline clip editing for professional editors AND compositing/VFX for visual-effects artists. Nothing from Premiere or After Effects is excluded on scope grounds.",
+   "operator_statement": "full blown video capabilitie for profesional editors and vfx artists.",
+   "supersedes": "[STU-OVR-015], added in Master Spec v02.200, which reads 'video-footage clip-editing out of scope'. That clause is now wrong and must be amended.",
+   "spec_amendment_required": {
+    "clause": "STU-OVR-015",
+    "action": "Retire or invert. Video footage clip editing and compositing are in scope.",
+    "consequential": "Section 14 needs a video/timeline domain and a compositing domain, neither of which exists. The current domain list has 'prototyping/motion' which is not the same thing: motion graphics is not clip assembly and neither is node or layer compositing.",
+    "gate": "CX-405/CX-406 require a Spec Proposal in chat before any Master Spec edit; CX-105A does not list KERNEL_BUILDER as a spec-writing role, so the edit proceeds only on explicit operator instruction using the copy-first versioned bundle path to v02.206."
+   },
+   "capability_effect": {
+    "video_domain_rows": 747,
+    "motion_domain_rows": 343,
+    "existing_microtasks_covering_either": 0,
+    "note": "Both domains had zero existing microtask coverage before the green room. They are now first-class build targets, not additive extras."
+   },
+   "evidence_now_in_scope": [
+    "Premiere: 617 effects with 9,654 parameter rows, 1,541 export presets across 453 parameters and 40 containers, 392 sequence presets with 53 editing modes and their frame-rate/aspect/field constraint lists, 1,491 commands, 492 dialog surfaces, 77 motion-graphics templates with 461 exposed controls, 58 codec and container modules, Lumetri's 98 parameters with hard and soft bounds plus the grading maths recovered from its shaders.",
+    "After Effects: effects catalogue, 26 MB of shipped presets, the layer/property model, the scripting and expression surfaces, panels and dialogs, render and output model, commands and shortcuts, and the text/shape/mask subsystems."
+   ],
+   "open_architecture_fork": {
+    "question": "Layer-based or node-based compositing.",
+    "why_it_matters": "After Effects is layer-based: a composition holds a stack of layers, each with a property tree. High-end VFX is predominantly node-based (Nuke, Fusion): a directed graph of operations. Serving 'VFX artists' properly may mean a node graph, which After Effects does not have and which the green room therefore did not capture. The two models are not a rendering detail; they are different document models with different undo, different parallelism and different model-steerability.",
+    "status": "NOT YET DECIDED. Recorded now so it is not discovered late. The captured After Effects data supports the layer model fully; a node model would need its own reference basis.",
+    "note": "Handshake already has node-graph precedent: the Loom graph surface and the canvas board exist in the 012 shell, and Graphite (Rust, node-based, Vello-rendered) is the closest open-source field reference."
+   }
+  },
+  {
+   "id": "SAD-008",
+   "title": "Sequence: stage microtasks, then rewrite Master Spec section 14, then bind anchors, then activate",
+   "decision": "New microtasks are authored and existing ones patched first. The Master Spec Studio section is then fully updated. Only after that do the microtasks receive real spec anchors and become activatable.",
+   "operator_statement": "after we created the new microtasks and patched existing we will be updateing the master spec. so the studio topic gets a full update.",
+   "why_this_is_not_backwards": "The normal order is spec, then work packet, then microtask, and authoring microtasks first would ordinarily invert authority. It does not here, because both the microtasks and the spec rewrite draw from the same source: the green room. Section 14 was written from vendor help pages and scraped tables of contents; the green room parsed the actual installed applications. You cannot derive microtasks from a specification that does not contain the behaviour. Nothing is committed in the meantime: every authored microtask is staged under fold_back, and none carries a real spec anchor yet.",
+   "anchor_dependency": "Every authored microtask ships spec_anchor_status = 'PROVISIONAL: section 14 anchors must be assigned during activation'. The spec rewrite is precisely what makes those anchors real, so the dependency runs the right way round: no microtask can be activated until the spec update has given it something true to cite.",
+   "ordered_steps": [
+    "1. Finish authoring: new microtasks plus patches for the existing 509, staged only.",
+    "2. Present the Spec Proposal in chat per CX-405 and CX-406, since KERNEL_BUILDER is not on the CX-105A spec-writing role list and proceeds only on explicit operator instruction.",
+    "3. Copy-first bundle: duplicate master-spec-v02.205 to v02.206, edit only the new bundle, update manifest hashes, module spec_version values, the machine-readable changelog and SPEC_CURRENT, and move the superseded bundle under spec_archive.",
+    "4. Bind every staged microtask to real anchors in the new bundle and clear spec_anchor_status.",
+    "5. Register WP-KERNEL-STUDIO in BUILD_ORDER and both traceability registries, which it is currently absent from.",
+    "6. Regenerate activation readiness."
+   ],
+   "what_the_spec_rewrite_must_cover": [
+    "Retire or invert [STU-OVR-015]; video footage clip editing and compositing are in scope per SAD-007.",
+    "Add the domains section 14 lacks: video and timeline, compositing, web authoring, and photo catalog. The current list offers 'prototyping/motion', which is neither clip assembly nor compositing.",
+    "Bind CKC as the asset library and file manager for Studio, Tailor and the future cui-studio. Section 14 names 'the Studio asset library' once, at line 471, with no CKC anchor, while [STU-SECTION-003] forbids double features.",
+    "Carry the parameter contract: hard bounds and soft or UI bounds as SEPARATE fields. After Effects declares both on 833 parameters and they differ on 61 percent of them; collapsing them is irreversible.",
+    "Specify the scrubbable numeric control per OUI-008, including the AccessKit clamp path.",
+    "Specify the menu, dock and tool architecture once the adjudication lands.",
+    "Specify the tooltip and UserManual generation contract, including the honest coverage limit: tool-level prose is at most 59.5 percent recoverable and currently 0 percent mechanically bound.",
+    "Clarify [STU-UNI-002] task modes as named layout presets, changing tool prominence and panel layout only, to close the false conflict with OUI-004.",
+    "Reflect the real capability surface in the per-domain catalogues rather than the help-page-derived feature lists."
+   ],
+   "clause_that_is_now_backwards": {
+    "clause": "[STU-SECTION-002]",
+    "current_text": "The research package is 'non-normative historical provenance only', 'MUST NOT be treated as co-authority', and 'where the corpus and this section disagree, this section wins and the corpus is stale provenance.'",
+    "problem": "That was correct when the corpus was scraped help pages. It is now backwards. The corpus contains parsed behavioural truth read from the installed applications: real parameter ranges, real defaults, real enumerated values, real preset contents, real object models. Section 14 was written from documentation. Where they disagree today, the corpus is more likely to be right.",
+    "recommended_change": "Do not promote the corpus to authority; that would be the sidecar-authority mistake the repo already forbids. Instead state that section 14 is rewritten FROM the corpus, that the corpus remains provenance for how each clause was derived, and that a disagreement between them is a defect in section 14 to be repaired rather than a corpus error to be ignored."
+   },
+   "operator_reinforcement_20260904": {
+    "statement": "handshake master spec is the single source of thruth. no sidecar files can be considered the source. even though we created a lot through the microtasks it should be updated into the master spec before activation of the workpacket gets done.",
+    "meaning": "The green room outputs are evidence, never authority, and never become authority. Everything discovered must be ABSORBED INTO Master Spec section 14 before WP-KERNEL-STUDIO is activated. Referencing the corpus from the spec is not sufficient; the spec must contain the contract itself.",
+    "supersedes_my_earlier_wording": "An earlier note in SAD-008 said section 14 would be 'rewritten FROM the corpus' with 'the corpus remaining provenance'. That is too weak. The corpus remains provenance for HOW a clause was derived, but the spec must stand alone.",
+    "completeness_test": "A capable model with no chat context and no access to the green room must be able to implement Studio from section 14 alone. If it cannot, the spec update is not finished. This is the repo's existing no-context standard ([CX-653B]) applied to the spec rather than to a work artifact.",
+    "granularity_rule": "Not every captured row becomes a clause, and pretending otherwise would produce an unusable document. The registry holds 46,851 rows of which 17,899 are options and 9,665 are preset entries. A preset's NAME is evidence; the normative statement is the contract around it, for example that the brush library ships N categories with this parameter schema, these dynamics, these value ranges and these defaults. The test is loss of CONTRACT, not loss of rows: if an implementer would have to guess a range, a default, an enumerated value or a behaviour, that thing belongs in the spec."
+   },
+   "sizing_evidence_20260904": {
+    "method": "Read the active bundle resolver at .GOV/spec/master-spec-v02.205/INDEX.json, 16 modules.",
+    "studio_today": "14-studio-creative-suite.md is 3,295 lines.",
+    "sibling_creative_module": "13-tailor-cloth-garment-engine.md is 13,697 lines, and Tailor covers cloth and garment simulation. Studio covers nine applications and is a quarter of Tailor's size. Section 14 is undersized on its own terms, independently of anything the green room found.",
+    "largest_modules": "02-system-architecture 18,307 lines; 07-user-experience-and-development 16,652; 12-end-of-file-appendices 15,048; 11-shared-dev-platform 9,826; 10-product-surfaces 8,602.",
+    "conclusion": "A Studio section in the 15,000 to 30,000 line range is normal for this specification, not exceptional. Absorbing the green room is tractable within existing conventions.",
+    "split_precedent": "The bundle already splits one section across modules: 07-user-experience-and-development.md and 07-6-development-roadmap.md. Studio can follow the same pattern, for example a core 14 module plus per-domain sub-modules for raster, vector, layout, typography, colour, effects, video and compositing, web, and design system. Each stays a first-class module in the manifest, so this is not a sidecar; it is the spec's own module mechanism.",
+    "constraint": "[CX-105D] requires every module in an active bundle to carry the same spec_version as the manifest and SPEC_CURRENT, so any new sub-module joins the versioned bundle properly rather than being added loosely."
+   }
+  },
+  {
+   "id": "SAD-009",
+   "title": "UI design adjudicated; settled numbers and vocabulary supersede the three source proposals",
+   "decision": "studio-integrated-ui-design.json is the authority for Studio's operator shell. Where it differs from the menu, panel-dock or tools-tooltips proposals, it wins. Those three predate the After Effects teardown and are superseded on every point the adjudication touched.",
+   "settled_numbers": {
+    "distinct_tools": 362,
+    "tool_families": 22,
+    "distinct_panels": 90,
+    "aftereffects_effects": "635 in 46 categories",
+    "keyframable_parameters": "1,246 of After Effects' 1,573 typed parameters; 327 carry CANNOT_TIME_VARY. This number sizes the keyframe work directly and no proposal had it.",
+    "superseded": "Earlier figures of 353 tools, 21 families, 75 or 84 panels, and 481 or 482 effects are retired."
+   },
+   "vocabulary_settled": "Task mode, workspace and named preset all collapse to LAYOUT PRESET. [STU-UNI-002] is restated as Layout Presets, a clarification rather than a supersession, closing the false conflict with OUI-004.",
+   "resolutions_worth_carrying": [
+    "Tools in the menu: WORKSPACE > Tools > family > tool, 22 family submenus, never a flat list. Both proposals already agreed the menu is the exhaustive index; the disagreement was shape, not reachability.",
+    "Availability: ONE three-valued predicate over the document PROFILE, not a type enum, because a type enum rebuilds the seven-application silo inside one binary. Each surface renders it differently because of what it is: the menu never hides, the tool rail hides only NOT_IN_THIS_DOCUMENT, search never filters. The panel binding rule is not a competitor but a SECOND STAGE running over available candidates only.",
+    "Grey versus hide follows from the above rather than being a compromise: a hidden node has no stable AccessKit address, and an index whose entries disappear is not an index.",
+    "Scrub fine modifier is Ctrl. Each proposal disqualified the other's key by name; claim-at-press resolves the objection.",
+    "Graph editor is a MODE, not a panel, and passes the SAD-006 test. Clip timeline and keyframe timeline are TWO panels, and fail it.",
+    "The composition default layout was wrong in the panel proposal, extrapolated from Premiere. After Effects' own Default and Standard co-tab Effect Controls with Project TOP-LEFT, and the keyframe editor IS the timeline. Five placements corrected."
+   ],
+   "sad_006_retest": {
+    "survives": "InDesign's 34 Control Panel variants collapse to 2. They are 34 layouts of ONE slot, and only one selection exists, so simultaneous visibility is impossible by construction.",
+    "rejected": "Premiere's 5 Titler surfaces plus Graphics collapsing to 1. Styles and properties need simultaneous visibility, and the merge folded a tool set and an on-canvas mode into a panel. It redecomposes to five existing homes plus one panel; it was never a six-to-one merge."
+   },
+   "scrub_control_extension": {
+    "temporal_state": [
+     "Static",
+     "Animated",
+     "Expression",
+     "AnimatedAndExpression"
+    ],
+    "refusal_rule": "Scrubbing an expression-driven field is REFUSED AT PRESS with reason EXPRESSION_DRIVEN. This is the availability predicate applied to a value field rather than a separate mechanism.",
+    "api": "set_param_clamped widens to (author_id, value, time, intent, source).",
+    "accessibility_hole_widened": "UiTreeNode carries a value but no numeric minimum, maximum, step or unit, and now also needs temporal_state, time and keyframed_at_time. Without them a scrub test on an animated property is unfalsifiable, so OUI-008's accessibility clause remains unverifiable until this lands."
+   },
+   "new_blocking_finding": {
+    "id": "shortcut_spine_breach",
+    "detail": "After Effects adds 673 bindings across 32 contexts that were never in the 448-chord union the menu proposal analysed. Ctrl+P, one of the 18 frozen agreeing chords, is contested by After Effects' Puppet tool, plus eleven other visible conflicts.",
+    "effect": "Recomputation of the shortcut spine is a named prerequisite blocking the freeze and nothing else."
+   },
+   "prerequisite_chain": "P-01 through P-22, ordered, in the adjudication. The head is P-01 and P-02 together: replace the Studio module definition, which is currently the Lab entry reordered with a snapshot test actively pinning it, and replace tab-list rewriting with a viewport swap. Then P-03, the unbounded egui_tiles centre, keeping split_layout's clamp constants because gesture arbitration rule 3 depends on them. OQ-A, the layer-versus-node compositing fork, must settle BEFORE P-14, because late resolution is a rebuild rather than a rework.",
+   "twelve_carried_gaps": "Named as prerequisites rather than dissolved. They include the tooltip prose ceiling of 58 percent against 362 tools with 57 proven to have none, the UiTreeNode metadata hole now widened by temporal state, and 142 on_hover_text calls in the crate with zero AccessKit descriptions."
+  }
+ ],
+ "still_open_for_operator": [
+  "Whether disabled menu items stay visible and greyed, as Adobe does, or are hidden when out of context.",
+  "Whether panel layout persists per document type, per project, or per tab.",
+  "The exact coarse and fine modifier keys for the scrubbable value control (OUI-008).",
+  "Confirmation that the Studio scope boundary is by document type rather than by source application (OUI-010).",
+  "Which artifact/blob tier in 012 Studio binds to for bulk binary."
+ ],
+ "must_reach_the_microtasks": [
+  "Every Studio MT's code_surfaces must resolve against ../wtc-native-editors-v1, never main (SAD-001).",
+  "No MT may introduce SQLite, libSQL, Turso, PostgreSQL or a second database (SAD-002).",
+  "No MT may add routing machinery; navigation extends the existing layers (SAD-003).",
+  "No MT may put wgpu, WGSL or GPU dependencies into handshake_core (SAD-004).",
+  "No MT may adopt a platform text engine (SAD-004).",
+  "The split-layout and module-switcher replacements are prerequisites for the Studio viewport work (SAD-005)."
+ ],
+ "known_defects_in_this_green_room": [
+  {
+   "id": "GRD-001",
+   "title": "The cross-app capability registry merges on normalised name alone, conflating unrelated capabilities",
+   "found_by": "the tools-and-tooltips deliberation agent, which rejected the registry's kind=='tool' bucket and rebuilt from per-app sources instead. Verified independently 2026-09-04.",
+   "mechanism": "studio-capability-registry.py add() keys rows by norm(name) across all applications. Two capabilities sharing a display name merge into one row regardless of kind, domain or meaning. The merged row keeps whichever kind arrived first that was more specific than 'capability', and accumulates every contributing app into source_apps.",
+   "worked_example": "All 1,270 rows with kind=='tool' list affinity as a source. Figma contributes 47 of them, but Figma declares no tool palette at all: the names are enum values from its TypeScript unions (Solid, Custom, Hue, Saturation, Inner, Outer, Bevel, Subtract, Darken, Hard Light, Luminosity). Each merged with an identically named Affinity tool or adjustment and inherited its kind.",
+   "what_this_invalidates": [
+    "The kind field on merged registry rows.",
+    "The capabilities_shared_by_n_apps distribution, and every figure quoted from it, including the 1,096 / 327 / 127 / 69 / 29 / 6 sharing counts and the later 'shared across five and six applications' claims. These are inflated by name collisions and must not be cited until the merge is keyed properly.",
+    "Any microtask clustering that leaned on app_count as a signal of genuine cross-app commonality."
+   ],
+   "what_this_does_NOT_invalidate": [
+    "The per-app teardown artifacts, which are parsed directly from the installed applications and never passed through the merge.",
+    "The 38,571 behaviour records, which carry their own app and file provenance.",
+    "The panel deduplication (595 surfaces to 75), which the panel agent derived from per-app registries rather than from this registry.",
+    "The tool deduplication (527 raw to 353), which the tools agent derived after explicitly rejecting this registry's tool bucket and building a 240-entry cross-vendor synonym table instead."
+   ],
+   "fix": "Key the merge on (normalised name, kind, domain) rather than normalised name, and require corroborating evidence before treating two same-named rows from different applications as one capability. The synonym-table approach the tools agent used is the right model: an explicit, auditable mapping rather than an implicit string match.",
+   "status": "FIX IN PROGRESS 2026-09-04: merge key changed to (normalised name, kind, domain) per the same operator instruction to unmerge."
+  }
+ ]
+}

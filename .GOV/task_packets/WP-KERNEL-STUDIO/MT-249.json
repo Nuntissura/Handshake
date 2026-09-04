@@ -1,130 +1,211 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-249",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-249.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-249.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-234",
-      "MT-009"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Soft-proof (proof setup / colors + color-blindness sim) [STU-COL-013,STU-COL-022]",
-  "spec_anchor": [
-    "STU-COL-013",
-    "STU-COL-022",
-    "STU-COL-OBLIG-001"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-249",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-249.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-249.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-234",
+   "MT-009"
   ],
-  "scope": {
-    "summary": "Provide the color-management/prepress surface as one deduped set (this MT owns soft-proof; MT-250..MT-256 deepen the rest). Soft-proof: simulate a chosen output condition on screen using a device StudioColorProfile and a rendering intent WITHOUT converting document values, toggleable on/off, and MUST include color-blindness simulation profiles as proof conditions. The proof state is inspectable via Argus per [STU-COL-OBLIG-001] (PS/AI/ID proof setup + proof colors, deduped). Operator proof controls + model command.",
-    "allowed_paths": [
-      "src/studio/color/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "soft-proof by device profile+intent without converting values; color-blindness sim; Argus-inspectable state"
-    ],
-    "proof_targets": [
-      "soft-proof non-destructive + Argus-inspectable test"
-    ],
-    "code_surfaces": [
-      "studio-engine/src/color/soft_proof.rs",
-      "src/frontend/handshake_native/src/studio/color/proof_control.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio_engine::color::soft_proof",
-      "live: soft-proof simulates device profile + intent on screen WITHOUT changing document values; toggle on/off",
-      "argus: color-blindness proof condition + proof state inspectable"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "proof setup/colors"
-    ],
-    "argus_targets": [
-      "studio.color.soft_proof"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Color / Soft-proofing"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-VIS-002",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Soft-proof (proof setup / colors + color-blindness sim) [STU-COL-013,STU-COL-022]",
+ "spec_anchor": [
+  "STU-COL-013",
+  "STU-COL-022",
+  "STU-COL-250"
+ ],
+ "scope": {
+  "summary": "Provide the color-management/prepress surface as one deduped set (this MT owns soft-proof; MT-250..MT-256 deepen the rest). Soft-proof: simulate a chosen output condition on screen using a device StudioColorProfile and a rendering intent WITHOUT converting document values, toggleable on/off, and MUST include color-blindness simulation profiles as proof conditions. The proof state is inspectable via Argus per [STU-COL-OBLIG-001] (PS/AI/ID proof setup + proof colors, deduped). Operator proof controls + model command.",
+  "allowed_paths": [
+   "src/studio/color/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No soft-proof; output preview + accessibility simulation unmet.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Soft-proof by device profile+intent without converting values",
+   "Color-blindness sim",
+   "Argus-inspectable state"
+  ],
+  "proof_targets": [
+   "soft-proof non-destructive + Argus-inspectable test"
+  ],
+  "code_surfaces": [
+   "studio-engine/src/color/soft_proof.rs",
+   "src/frontend/handshake_native/src/studio/color/proof_control.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio_engine::color::soft_proof",
+   "live: soft-proof simulates device profile + intent on screen WITHOUT changing document values; toggle on/off",
+   "argus: color-blindness proof condition + proof state inspectable"
+  ],
+  "acceptance_criteria_original": [
+   "soft-proof by device profile+intent without converting values; color-blindness sim; Argus-inspectable state"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "proof setup/colors"
+  ],
+  "argus_targets": [
+   "studio.color.soft_proof"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Color / Soft-proofing"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-VIS-002",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No soft-proof; output preview + accessibility simulation unmet.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Soft-proof by device profile+intent without converting values",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "soft-proof non-destructive + Argus-inspectable test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Color-blindness sim",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Argus-inspectable state",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-COL-013",
+    "spec_clause_text": "[STU-COL-013] Studio MUST provide the following color-management and prepress operations as one deduped surface (member operations collapse per-suite variants into one Studio command each): | Operation | Behavior | Provenance (deduped) | |---|---|---| | Soft-proof (proof setup / proof colors) | Simulate an output condition on screen using a device profile and rendering intent WITHOUT converting the document; includes color-blindness simulation profiles | PS/AI/ID proof setup + colors | | Rendering intents | Perceptual, relative colorimetric, saturation, absolute colorimetric, with black-point compensation, selectable on convert and on proof | PS/ID color management | | Gamut warning | Overlay a warning color on pixels/objects outside the target output gamut, with out-of-gamut picking | PS gamut warning + picker warnings | | Separations preview | Per-plate on/off preview, ink-limit view with configurable total-ink threshold, and per-ink coverage readouts | InDesign Separations Preview | | Overprint | Per-object overprint fill / stroke / gap (knock-out vs overprint) with overprint-preview, plus black-overprint policy | AI/ID/AF overprint | | Ink manager | Per-ink spot-to-process conversion, all-spots-to-process, ink aliasing, use-standard-Lab-for-spots, and trap ink type (normal/transparent/opaque/opaque-ignore) with neutral density and sequence | InDesign Ink Manager | | Trapping | Named trap presets (trap/black width, join/end styles, appearance thresholds, image placement) assigned to page ranges | InDesign trap presets; Illustrator/Photoshop trap | | Transparency flattening preview | Highlight areas affected by flattening (rasterized regions, outlined text/strokes) per flattener preset | InDesign Flattener Preview | | Appearance of black | Control whether 100% K displays/prints as rich vs accurate black on RGB devices, per screen and export/print | InDesign Appearance of Black | | Colorize grayscale | Apply a swatch color to grayscale/bitmap image content in place | InDesign colorize grayscale | The following clauses deepen individual operations from the [STU-COL-013] table into independently citeable normative requirements; the table is the overview and these are the binding detail."
+   },
+   {
+    "anchor": "STU-COL-022",
+    "spec_clause_text": "[STU-COL-022] Soft-proof: Studio MUST simulate a chosen output condition on screen using a device `StudioColorProfile` and a rendering intent WITHOUT converting document values, toggleable on/off, and MUST include color-blindness simulation profiles as proof conditions. The proof state is inspectable via Argus per [STU-COL-OBLIG-001] (provenance: Photoshop/Illustrator/InDesign proof setup + proof colors, deduped)."
+   },
+   {
+    "anchor": "STU-COL-250",
+    "spec_clause_text": "See the assembled Master Spec; this anchor replaces a never-assigned citation."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ },
+ "anchor_corrections": [
+  {
+   "removed": "STU-COL-OBLIG-001",
+   "replaced_with": "STU-COL-250",
+   "reason": "STU-COL-OBLIG-001 was never assigned. The Argus inspectability obligation it was cited for is carried by STU-COL-250, the GUI / Argus / UserManual obligation stated once for 14.8.",
+   "approved_by": "ilja040920261532",
+   "at": "2026-09-04"
+  }
+ ]
 }

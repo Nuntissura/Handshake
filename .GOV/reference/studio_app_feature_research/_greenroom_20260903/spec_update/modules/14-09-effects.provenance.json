@@ -1,0 +1,941 @@
+{
+ "schema_id": "handshake.spec.module_provenance@1",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "module_file": "14-09-effects.md",
+ "module_section_id": "14.9",
+ "module_title": "Effects, Filters, Adjustments & the Effect-Parameter Contract",
+ "module_sha256": "2b676704aecfe8c2cd9d27c2add5b274aa23a2b658543dd766379a743a524532",
+ "module_bytes": 435680,
+ "spec_version_target": "v02.206",
+ "authority_note": "The Master Spec module is the sole authority. This file records HOW each clause was derived so a reviewer can re-check it against the green-room captures. It is NOT co-authority and MUST NOT be cited as the source of any contract (SAD-008.operator_reinforcement_20260904; [STU-SECTION-002] as amended). A capable model with no access to these captures must be able to implement the module from the module alone.",
+ "capture_files": [
+  {
+   "capture_id": "AE_EFFECTS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+   "bytes": 6336485,
+   "sha256": "a5dec26c86b5d6e940b5727758b5b16ec207e10f0f6ec4b86adaa5c4f6a0949b"
+  },
+  {
+   "capture_id": "AE_LAYER_PROPS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+   "bytes": 480800,
+   "sha256": "ee7e8531aa844d6fcbc71a73db7d84f9960b03b50b8f175d6bf6e81d0faa87fe"
+  },
+  {
+   "capture_id": "AE_PRESETS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_presets.json",
+   "bytes": 27631037,
+   "sha256": "3c1e07f788717af9531505e41e0b88a2740c28acb316db35a3c695f52c06661b"
+  },
+  {
+   "capture_id": "CONTRACT",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+   "bytes": 12250,
+   "sha256": "2a39aa26eed16abac3d9b8a933fc78e6206bb0c667586e8fde5630396e2e32fc"
+  },
+  {
+   "capture_id": "DECISIONS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+   "bytes": 32133,
+   "sha256": "32bf460f02f9a15e9c111ed37c2a80265b70f08855a33e4db7730cdb9bfeeea2"
+  },
+  {
+   "capture_id": "PR_EFFECTS",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+   "bytes": 4910634,
+   "sha256": "5fa35640eddc62b997b47690b8ab7573cb8cda99c708806ab776b77f0a0873f3"
+  },
+  {
+   "capture_id": "PR_SEQUENCE",
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+   "bytes": 2609000,
+   "sha256": "2dd4de982a25d2e6189fdee126c43fd6be43009240bc9b965129eb0698478d2c"
+  },
+  {
+   "capture_id": "SPEC_14",
+   "path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+   "bytes": 413204,
+   "sha256": "bd661bb6f2453ac4167a668e68aa256d80a969ab88bc1084b25c4ad2f5dfd4ec"
+  }
+ ],
+ "clause_count": 63,
+ "clauses": [
+  {
+   "anchor": "STU-FX-100",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "sub-section 14.9, source lines 1644-2146 of the v02.205 module"
+    },
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-008].operator_reinforcement_20260904.completeness_test"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-101",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "clauses [STU-FX-010], [STU-FX-013], [STU-FX-011], [STU-FX-006b], [STU-FX-035]"
+    },
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[] -- the typed records that the prior prose lacked"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-102",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-008].operator_reinforcement_20260904.statement"
+    },
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SECTION-002]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-103",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[] field set: param_index, param_type, name, valid_min, valid_max, slider_min, slider_max, default, precision, units, display_units, display_flags, param_flags, option_count, default_index, options"
+    },
+    {
+     "capture_id": "CONTRACT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.required_fields"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-104",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[].valid_min / valid_max (833 parameters)"
+    },
+    {
+     "capture_id": "CONTRACT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.required_fields[0]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-105",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[].slider_min (618) / slider_max (722)"
+    },
+    {
+     "capture_id": "CONTRACT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.required_fields[1]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-105a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "computed over effects[].parameters[]: 833 declare valid_min+valid_max; 734 declare at least one slider bound; 606 declare all four, of which 366 differ (60.4%); on the 618-row slider_min base, 378 differ (61.2%). Worked example: effects[display_name='4-Color Gradient'].parameters[param_index=9] name='Blend' valid 5..10000, slider 10..500, default 100, precision 1"
+    },
+    {
+     "capture_id": "CONTRACT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.why_this_matters_most"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-106",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "absence pattern across effects[].parameters[]"
+    },
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "effects[].parameters[] min/max presence"
+    },
+    {
+     "capture_id": "CONTRACT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.where_bounds_are_absent"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-106a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "extraction_summary.parameter_rows_total=9654; rows carrying any bound = 631 (6.5%)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-107",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "CONTRACT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract.irreversible_mistake"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-108",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[].units, .display_units, .display_flags; display_flag_bits {0x1 PERCENT, 0x2 PIXEL, 0x8 REVERSE}"
+    },
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "effects[].parameters[].units, .unit_family"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-108a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-DOC-003]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-109",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[].precision -- present on 506 of 1573 parameters"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-110",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "derived from effects[].parameters[].precision and slider bounds"
+    },
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "still_open_for_operator[2] -- coarse/fine modifier keys"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-110a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "still_open_for_operator[2]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-112",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "param_type_enum (19 codes 0-18)"
+    },
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "parameter_control_type_enum.values (13 codes)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-112a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "param_type_enum codes 16, 17 (RESERVED2/RESERVED3), 13/14 (GROUP_START/GROUP_END)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-113",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "param_flag_bits (8 bits: 0x2, 0x4, 0x20, 0x40, 0x80, 0x100, 0x200, 0x400)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-113a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "param_flag_bits['0x40'] = SUPERVISE"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-115",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "value_kind_notes {fixed_16_16, enum_index_1_based, point_percent_of_layer, argb8}"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-116",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "summary.enumerated_option_lists_recovered=433; effects[].parameters[].options[] with index/label/separator; options_source='pdnm chunk (parsed)'"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-116a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[].options[].index (1-based)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-117",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "param_type_enum codes 13/14; effects[].parameters[].depth"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-118",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[] param_type=COLOR, default_argb; value_kind_notes.argb8"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-119",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[] param_type=POINT/POINT_3D, default_x_percent/default_y_percent"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-120",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[] param_type=LAYER; param_flag_bits['0x100'] LAYER_PARAM_IS_TRACKMATTE"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-120a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[] param_type=PATH"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-121",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "effects[kind=audio_effect].parameters[] normalised_input_slot, default_normalised, normalised_to_value_mapping, declared_expression (172 rows); audio_dialog_manager_sheets (25 sheets); extraction_summary.adm_parameter_rows_added=172, adm_sheets_bound=31"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-123",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "CONTRACT",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+     "record": "the_parameter_contract (validation derived from the required-field list and the irreversible-mistake rule)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-124",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[] field set: match_name, display_name, category, gpu_accelerated, parameters, description, shipped_in_this_install"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-125",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "summary.gpu_accelerated_effects=264; method.counts.gpu_registrations_read=405, gpu_registrations_attached_to_a_registered_effect=110, effects_added_only_by_the_gpu_registry=155, gpu_registry_entries_not_installed_here=154; installed+gpu = 95"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-126",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "summary.effects_by_category (46 categories)"
+    },
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "effect_categories (33 categories)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-126a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "summary.effects_by_category entries Obsolete(22)+OBSOLETE_CATEGORY(3)+Ignored(1), Debug(1), Test(8), Dissolve(14)/DISSOLVE_CATEGORY(1), Slide(9)/SLIDE_CATEGORY(2), Wipe(9)/WIPE_CATEGORY(3), Adjust(2), Color Styles(5), Lights & Blurs(16), Lights & Glows(7), Grunge & Distort(10), Smart Tools(4), Transformers(8), Animation(8), Cinema 4D(1), Boris FX Mocha(1), Photoshop Layer Effects(6)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-127",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "extraction_summary.by_engine {ae_native:337, mediacore:141, dva_audio:138, lumetri:1}; by_kind {video_effect:371, audio_effect:138, preset_pseudo_effect:107, intrinsic:1}"
+    },
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-SECTION-003]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-128",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "summary.effects_total=635, effects_that_exist_in_this_install=482, entries_that_are_registration_only_not_installed=153, effects_shipped_as_plugin_binary=339, preset_only_pseudo_effects=106, effects_with_typed_parameter_records=208, typed_parameter_records_total=1573"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-129",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "summary.effects_with_a_plain_english_description=62; of those, 42 have shipped_in_this_install=true"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-130",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[] filtered to shipped_in_this_install=true or source='PresetEffects.xml (parsed)', grouped by category -- the generated table in 14.9.3"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-131",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[] for the 208 effects carrying typed records -- the generated tables in 14.9.4"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-131a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "effects[].parameters[].param_flags"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-132",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "layer_styles[] (10 styles), method.counts.layer_style_parameters=89"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-132a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_LAYER_PROPS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+     "record": "layer_styles[match_name='dropShadow/enabled'].parameters -- 'Use Global Light' CHECKBOX default false alongside 'Angle' ANGLE default 120; 'Distance' valid 0..30000 with slider_max 100"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-133",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "effects[kind=video_effect] (371) and effects[kind=preset_pseudo_effect] (107)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-133a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "effects[].parameters[] rows carrying min/max or ui_slider_min/ui_slider_max -- 631 rows"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-133b",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "extraction_summary.by_kind.preset_pseudo_effect=107"
+    },
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "summary.preset_only_pseudo_effects=106"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-134",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "extraction_summary.by_kind.audio_effect=138; adm_sheets_bound=31"
+    },
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "decisions[id=SAD-007]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-135",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-FX-001] through [STU-FX-003] applied to audio"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-136",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "effects[kind=audio_effect].parameters[].normalised_to_value_mapping"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-137",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_SEQUENCE",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_sequence_project_model.json",
+     "record": "enum_evidence.audio_master_channel_type {0 mono,1 stereo,2 5.1,3 multichannel/adaptive,4 16-channel}, observed {1:373, 3:19}; sequence_presets[].audio.declared_audio_tracks[] field set (mAssign, mChannelType, mIsSubmix, mAudioSends, mPannerAssignments, mVolume, mPan, mMute, mSolo, mLocked, mSyncLock, mTargeted, mKeyframeMode); population_rollups.audio_sample_rates_hz {48000:386, 32000:6}"
+    },
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "essential_sound_model.audio_channel_layouts.data (Mono/Stereo/5.1 with channellabel lists)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-138",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "essential_sound_model.modes.data.modes (5) and modes_premiere.data.modes (4)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-138a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "essential_sound_model.modes vs modes_premiere disagreement; config_presets.data[0].PresetData.Models.model_loudness {DefaultLoudness:-21, MinLoudness:-42, MaxLoudness:-12, LoudnessStandard: uint32 with no recovered member list}"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-136a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "audio_dialog_manager_sheets[*] constants and effects[].parameters[] with declared_expression -- the generated tables in 14.9.7"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-134a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "effects[kind=audio_effect] grouped by category"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-142",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_PRESETS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_presets.json",
+     "record": "summary.preset_count=621, preset_shapes {effect_preset:293, property_preset:325, empty_or_unrecognised:3}"
+    },
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "extraction_summary.shipped_presets_parsed=379"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-142a",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_PRESETS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_presets.json",
+     "record": "summary.value_streams_total=79014, keyframes_total=3217, expressions_total=42; summary.property_path_match_name_usage['ADBE Effect Parade']=1073 effect instances (1048 distinct instances across presets)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-143",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_PRESETS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_presets.json",
+     "record": "summary.category_counts -- 36 category paths, several nested two deep"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-144",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-FX-039a]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-145",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "9654 parameter rows, 631 bounded (6.5%)"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-146",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "482 installed minus 208 with typed parameter records = 274"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-147",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "PR_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+     "record": "essential_sound_model.config_presets.data[].PresetData.Models.model_loudness.LoudnessStandard -- type std::uint32_t, no member list recovered"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-148",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-FX-037] -- tolerances authored in 14.24, absent today"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-149",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "DECISIONS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+     "record": "still_open_for_operator[2]"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-150",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "AE_EFFECTS",
+     "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+     "record": "summary.effects_with_a_plain_english_description=62 of 635"
+    }
+   ]
+  },
+  {
+   "anchor": "STU-FX-151",
+   "kind": "definition",
+   "derived_from": [
+    {
+     "capture_id": "SPEC_14",
+     "capture_path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+     "record": "[STU-FX-040]"
+    }
+   ]
+  }
+ ],
+ "cross_referenced_anchors_defined_elsewhere": [
+  "STU-ARC-005",
+  "STU-CMP-030",
+  "STU-DOC-003",
+  "STU-DOC-004",
+  "STU-FX-001",
+  "STU-FX-002",
+  "STU-FX-003",
+  "STU-FX-005",
+  "STU-FX-006a",
+  "STU-FX-006b",
+  "STU-FX-010",
+  "STU-FX-011",
+  "STU-FX-012",
+  "STU-FX-013",
+  "STU-FX-018",
+  "STU-FX-025",
+  "STU-FX-026",
+  "STU-FX-032",
+  "STU-FX-035",
+  "STU-FX-037",
+  "STU-FX-038",
+  "STU-FX-039",
+  "STU-FX-039a",
+  "STU-FX-040",
+  "STU-MOT-010",
+  "STU-MOT-030",
+  "STU-MOT-070",
+  "STU-OVR-015",
+  "STU-SECTION-002",
+  "STU-SECTION-003",
+  "STU-VID-001",
+  "STU-VID-012",
+  "STU-VID-020"
+ ],
+ "generated_tables": [
+  {
+   "fragment": "frag_ae_effect_catalogue.md",
+   "capture_id": "AE_EFFECTS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+   "record_selector": "effects[] where shipped_in_this_install=true or source starts with 'PresetEffects', grouped by category; columns from display_name, gpu_accelerated, parameter_count_recovered, description, match_name",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_ae_typed_params.md",
+   "capture_id": "AE_EFFECTS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+   "record_selector": "effects[] where parameters is non-empty (208 effects, 1573 parameter rows); every column is a verbatim field of effects[].parameters[]",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_ae_layer_styles.md",
+   "capture_id": "AE_LAYER_PROPS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+   "record_selector": "layer_styles[] (10 styles, 89 parameters) with verbatim valid_min/valid_max/slider_min/slider_max/default/precision/display_units/options",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_video_effects.md",
+   "capture_id": "PR_EFFECTS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+   "record_selector": "effects[kind='video_effect'] (371) grouped by category",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_bounded_params.md",
+   "capture_id": "PR_EFFECTS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+   "record_selector": "effects[].parameters[] rows carrying min/max or ui_slider_min/ui_slider_max -- 631 rows of 9654",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_pseudo_effects.md",
+   "capture_id": "PR_EFFECTS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+   "record_selector": "effects[kind='preset_pseudo_effect'] (107) grouped by category",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_audio_contracts.md",
+   "capture_id": "PR_EFFECTS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+   "record_selector": "effects[] with a dialog_manager_sheet whose parameters carry normalised_to_value_mapping -- 172 rows across 31 sheets",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  },
+  {
+   "fragment": "frag_prem_audio_effects.md",
+   "capture_id": "PR_EFFECTS",
+   "capture_path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/premiere/offline/premiere_effects_catalogue.json",
+   "record_selector": "effects[kind='audio_effect'] (138) grouped by category",
+   "generation": "mechanical; every cell is a verbatim field value or a stated count, no cell is authored prose"
+  }
+ ]
+}

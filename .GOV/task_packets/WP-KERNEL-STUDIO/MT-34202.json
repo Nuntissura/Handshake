@@ -1,0 +1,94 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-34202",
+ "created_at_utc": "2026-09-04T13:36:13+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-CMP-080#catalogue_row#0_minimax",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.27.7 Channel and compositing arithmetic",
+  "spec_line": 28391,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Minimax (2)",
+ "spec_anchor": [
+  "STU-CMP-080"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "compositing",
+ "scope": {
+  "summary": "**Channel operations are the compositor's primitive arithmetic and Studio ships the full set.** 17 capabilities are recovered as a count; 14 are named below. The three that are recovered but not named are an open item under [STU-CMP-123]. *Derivation: catalogue table, splits per row; yields 14 microtasks, one per channel operation.* | Studio capability | Contract | |---|---| | Channel source selection | Builds a result by choosing which source channel feeds each output channel. | | Channel shift | Shifts channels between slots, including alpha. | | Channel combine | Combines two layers' channels under a stated operator. | | Layer blend | Blends two layers with a stated mode and a ratio. | | Channel arithmetic | Applies a stated operator and operand to a chosen channel. | | Compound arithmetic | Arithmetic between this layer and a second layer. | | Calculations | Combines this layer's chosen channel with a second layer's chosen channel through a blend mode, with per-input inversion and stretching. | | Alpha levels | Adjusts alpha with independent input and output levels. | | Set matte | Sets this layer's matte from another layer's chosen channel, with stretch, invert and premultiply options. | | Minimax | Morphological minimum or maximum on a chosen channel. | | Invert | Inverts a chosen channel or a chosen colour space. | | Solid composite | Composites a solid colour with the s [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Minimax` satisfies the spec's stated studio capability: Minimax",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-CMP-080 catalogue row `Minimax`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`Minimax` satisfies the spec's stated contract: Morphological minimum or maximum on a chosen channel.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-CMP-080 catalogue row `Minimax`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`Minimax` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-CMP-080"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

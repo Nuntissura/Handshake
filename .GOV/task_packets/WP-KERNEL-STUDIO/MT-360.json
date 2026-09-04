@@ -1,120 +1,178 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-360",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-360.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-360.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-358"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Auto-layout alignment + resizing: 9-position + baseline, primary/counter axis, hug/fill/fixed, min/max clamps [STU-DS-041,STU-DS-041a,STU-DS-042,STU-DS-043]",
-  "spec_anchor": [
-    "STU-DS-041",
-    "STU-DS-041a",
-    "STU-DS-042",
-    "STU-DS-043"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-360",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-360.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-360.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-358"
   ],
-  "scope": {
-    "summary": "Implement auto-layout alignment and resizing on StudioAutoLayout: a nine-position child-alignment box plus a separate text-baseline alignment toggle; a primary(flow)-axis vs counter-axis distinction where the primary axis governs packing/distribution (incl. the auto/space-between gap) and the counter axis governs cross-alignment, with grid flow resolving alignment per cell; a per-axis resizing mode (hug-contents, fill-container, fixed); and minimum/maximum width/height clamps bounding hug and fill so components neither collapse nor overgrow.",
-    "allowed_paths": [
-      "src/studio/design_system/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "9-pos+baseline align, primary/counter axis, hug/fill/fixed, min/max clamps solved by LayoutEngine"
-    ],
-    "proof_targets": [
-      "align + axis + hug/fill/fixed + clamp test"
-    ],
-    "code_surfaces": [
-      "src/studio/design_system/auto_layout_align.rs",
-      "studio-engine/src/layout/**"
-    ],
-    "expected_tests": [
-      "cargo test studio::design_system::auto_layout_align",
-      "test: 9-pos + baseline align; primary/counter axis packing vs cross-align; hug/fill/fixed per axis; min/max clamps bound hug+fill"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Auto-layout alignment + resizing: 9-position + baseline, primary/counter axis, hug/fill/fixed, min/max clamps [STU-DS-041,STU-DS-041a,STU-DS-042,STU-DS-043]",
+ "spec_anchor": [
+  "STU-DS-041",
+  "STU-DS-041a",
+  "STU-DS-042",
+  "STU-DS-043"
+ ],
+ "scope": {
+  "summary": "Implement auto-layout alignment and resizing on StudioAutoLayout: a nine-position child-alignment box plus a separate text-baseline alignment toggle; a primary(flow)-axis vs counter-axis distinction where the primary axis governs packing/distribution (incl. the auto/space-between gap) and the counter axis governs cross-alignment, with grid flow resolving alignment per cell; a per-axis resizing mode (hug-contents, fill-container, fixed); and minimum/maximum width/height clamps bounding hug and fill so components neither collapse nor overgrow.",
+  "allowed_paths": [
+   "src/studio/design_system/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No alignment/resizing contract; responsive sizing core missing.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "9-pos+baseline align, primary/counter axis, hug/fill/fixed, min/max clamps solved by LayoutEngine"
+  ],
+  "proof_targets": [
+   "align + axis + hug/fill/fixed + clamp test"
+  ],
+  "code_surfaces": [
+   "src/studio/design_system/auto_layout_align.rs",
+   "studio-engine/src/layout/**"
+  ],
+  "expected_tests": [
+   "cargo test studio::design_system::auto_layout_align",
+   "test: 9-pos + baseline align; primary/counter axis packing vs cross-align; hug/fill/fixed per axis; min/max clamps bound hug+fill"
+  ],
+  "acceptance_criteria_original": [
+   "9-pos+baseline align, primary/counter axis, hug/fill/fixed, min/max clamps solved by LayoutEngine"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No alignment/resizing contract; responsive sizing core missing.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "9-pos+baseline align, primary/counter axis, hug/fill/fixed, min/max clamps solved by LayoutEngine",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "align + axis + hug/fill/fixed + clamp test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 1,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-DS-041",
+    "spec_clause_text": "[STU-DS-041] Child alignment MUST support a nine-position alignment box plus a separate text-baseline alignment toggle for aligning mixed-height text rows."
+   },
+   {
+    "anchor": "STU-DS-041a",
+    "spec_clause_text": "[STU-DS-041a] Alignment MUST distinguish the primary (flow) axis from the counter axis: the primary axis governs packing/distribution (including the auto/space-between gap of [STU-DS-038]) and the counter axis governs cross-alignment; grid flow ([STU-DS-036]) resolves alignment per cell."
+   },
+   {
+    "anchor": "STU-DS-042",
+    "spec_clause_text": "[STU-DS-042] Every auto-layout participant MUST have a per-axis resizing mode: hug-contents (the frame sizes to its children), fill-container (the child stretches to its parent), or fixed. This is the core responsive sizing contract."
+   },
+   {
+    "anchor": "STU-DS-043",
+    "spec_clause_text": "[STU-DS-043] Auto-layout objects MUST accept minimum and maximum width/height clamps that bound hug and fill resizing so responsive components neither collapse nor overgrow."
+   }
+  ],
+  "spec_clause_count": 4,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

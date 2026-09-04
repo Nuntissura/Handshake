@@ -1,0 +1,148 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30709",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-LAY-127#enumeration#0",
+  "unit_kind": "enumeration",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.6.3 Text Frames and Story Threading",
+  "spec_line": 5929,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Anchored-object contract - enumeration",
+ "spec_anchor": [
+  "STU-LAY-127"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "layout",
+ "scope": {
+  "summary": "Anchored-object contract.** SUPERSEDES the informal positioning description of v02.205 [STU-LAY-025] with the captured enumerations and fields. *Derivation: enumeration table, taken whole; yields 1 microtask whose acceptance criteria are its members.* | Field | Kind | Members / bounds | |---|---|---| | `anchored_position` | enumeration | `anchor_position.inline`, `anchor_position.above_line`, `anchor_position.custom` | | `anchor_x_offset` | numeric, `pt` | bounds UNKNOWN | | `anchor_y_offset` | numeric, `pt` | bounds UNKNOWN | | `anchor_space_above` | numeric, `pt` | valid only for `anchor_position.above_line` | | `horizontal_alignment` | enumeration | for `above_line` it is relative to the text area; for `custom` it selects the horizontal reference point. NOT valid for `inline`. | | `horizontal_reference_point` | enumeration | `anchored_relative.column_edge`, `anchored_relative.text_frame`, `anchored_relative.page_margins`, `anchored_relative.page_edge`, `anchored_relative.anchor_location`. Valid only for `custom`. | | `vertical_alignment` | enumeration | valid only for `custom` | | `vertical_reference_point` | enumeration | valid only for `custom` | | `anchor_point` | enumeration | nine-position: `anchor.top_left`, `anchor.top_center`, `anchor.top_right`, `anchor.left_center`, `anchor.center`, `anchor.right_center`, `anchor.bottom_left`, `anchor.bottom_center`, `anchor.bottom [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The enumeration accepts the member `anchored_position` with the exact meaning the spec states: enumeration | `anchor_position.inline`, `anchor_position.above_line`, `anchor_position.custom`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The enumeration accepts the member `anchor_x_offset` with the exact meaning the spec states: numeric, `pt` | bounds UNKNOWN. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The enumeration accepts the member `anchor_y_offset` with the exact meaning the spec states: numeric, `pt` | bounds UNKNOWN. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The enumeration accepts the member `anchor_space_above` with the exact meaning the spec states: numeric, `pt` | valid only for `anchor_position.above_line`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The enumeration accepts the member `horizontal_alignment` with the exact meaning the spec states: enumeration | for `above_line` it is relative to the text area; for `custom` it selects the horizontal reference point. NOT valid for `inline`.. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The enumeration accepts the member `horizontal_reference_point` with the exact meaning the spec states: enumeration | `anchored_relative.column_edge`, `anchored_relative.text_frame`, `anchored_relative.page_margins`, `anchored_relative.page_edge`, `anchored_relative.anchor_location`. Valid only for `custom`.. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The enumeration accepts the member `vertical_alignment` with the exact meaning the spec states: enumeration | valid only for `custom`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The enumeration accepts the member `vertical_reference_point` with the exact meaning the spec states: enumeration | valid only for `custom`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The enumeration accepts the member `anchor_point` with the exact meaning the spec states: enumeration | nine-position: `anchor.top_left`, `anchor.top_center`, `anchor.top_right`, `anchor.left_center`, `anchor.center`, `anchor.right_center`, `anchor.bottom_left`, `anchor.bottom_center`, `anchor.bottom_right`. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The enumeration accepts the member `spine_relative` with the exact meaning the spec states: boolean | mirror the position across facing pages. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The enumeration accepts the member `lock_position` with the exact meaning the spec states: boolean | forbid manual repositioning. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The enumeration accepts the member `pin_position` with the exact meaning the spec states: boolean | keep the object within the text frame's top and bottom. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-LAY-127 enumeration row 12"
+  }
+ ],
+ "acceptance_criteria_count": 12,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

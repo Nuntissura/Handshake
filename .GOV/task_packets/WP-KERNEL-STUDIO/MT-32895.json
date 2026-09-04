@@ -1,0 +1,106 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-32895",
+ "created_at_utc": "2026-09-04T13:36:11+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-FX-020a#catalogue_row#0_wind",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "9. Stylize Family",
+  "spec_line": 18232,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Wind",
+ "spec_anchor": [
+  "STU-FX-020a"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "effects",
+ "scope": {
+  "summary": "The raster Stylize kinds here (edge/relief/exposure) are distinct from the vector Stylize layer-fx of group 13 (shadow/glow/round-corners/scribble) despite the shared source-menu label; they are separate `filter_kind` families and MUST NOT be conflated. Emboss and Extrude produce raster relief; the vector 3D-and-materials effects of group 14 produce true parametric 3D geometry, and the two are not substitutes. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Emboss | R | Opt | Raised/stamped gray relief with angle, height, and color-amount. | | Extrude | R | Opt | 3D block or pyramid extrusion with size, depth, random/level-based depth, solid faces, mask-incomplete option. | | Find Edges | R | No | Outlines significant transitions with dark lines on white; parameterless. | | Glowing Edges | R | Opt | Neon-like glow on detected color edges; cumulatively stackable in the effect gallery. | | Oil Paint | R | Req | GPU painterly effect: stylization, cleanliness, scale, bristle detail, lighting controls. | | Solarize | R | No | Blends negative and positive image like brief exposure during development. | | Tiles | R | Opt | Offsets the image into tiles with a fill choice for the gaps. | | Trace Contour | R | Opt | Outlines brightness-level transitions per channel at a chosen tonal level with upper/lower edge option. | | Wind | R | Opt | Horizontal windblown [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Wind` satisfies the spec's stated studio effect: Wind",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-020a catalogue row `Wind`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`Wind` satisfies the spec's stated targets: R",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-020a catalogue row `Wind`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`Wind` satisfies the spec's stated gpu: Opt",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-020a catalogue row `Wind`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`Wind` satisfies the spec's stated behavior (normative): Horizontal windblown streaks with Wind, Blast, and Stagger methods.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-FX-020a catalogue row `Wind`"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "`Wind` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-FX-020a"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

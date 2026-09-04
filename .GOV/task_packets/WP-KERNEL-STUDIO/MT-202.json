@@ -1,128 +1,201 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-202",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-202.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-202.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-191",
-      "MT-009"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Character controls panel + full attribute set [STU-TYP-012]",
-  "spec_anchor": [
-    "STU-TYP-012"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-202",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-202.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-202.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-191",
+   "MT-009"
   ],
-  "scope": {
-    "summary": "Store character attributes per contiguous character range on StudioTextStory; mixed values across a selection are representable and reported as mixed. Implement the normative control set: font family+style, size (points; Figma dip accepted at decode), leading (absolute or auto-leading %), tracking (1/1000 em, may be negative), kerning (metrics/optical/manual — see MT-205), horizontal/vertical scale, baseline shift, character rotation, case (all-caps/small-caps/title/lower, non-destructive), position (super/subscript synthesized), decoration (underline solid/dotted/wavy + strikethrough — see MT-207), faux bold/italic, per-range language, no-break, fractional widths, vertical trim (leading-trim), anti-alias method, fill/stroke color as StudioColorProfile-tagged/StudioSwatch ref (see MT-204/14.8) incl. partial-selection coloring, and per-range hyperlink (URL or in-document StudioArtboard/StudioPageSpread target). Character panel operator surface + model command.",
-    "allowed_paths": [
-      "src/studio/typography/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "full character attribute set per-range with mixed reporting; character panel + model command; all listed controls present"
-    ],
-    "proof_targets": [
-      "per-range attribute + mixed-value argus test"
-    ],
-    "code_surfaces": [
-      "src/studio/typography/char_attrs.rs",
-      "src/frontend/handshake_native/src/studio/typography/character_panel.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::typography::char_attrs",
-      "live: each attribute applies per-range; mixed-selection reported as mixed",
-      "argus: character panel exposes full attribute set with stable author_ids"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "character panel"
-    ],
-    "argus_targets": [
-      "studio.type.character_panel"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Typography / Character controls"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-VIS-002",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Character controls panel + full attribute set [STU-TYP-012]",
+ "spec_anchor": [
+  "STU-TYP-012"
+ ],
+ "scope": {
+  "summary": "Store character attributes per contiguous character range on StudioTextStory; mixed values across a selection are representable and reported as mixed. Implement the normative control set: font family+style, size (points; Figma dip accepted at decode), leading (absolute or auto-leading %), tracking (1/1000 em, may be negative), kerning (metrics/optical/manual — see MT-205), horizontal/vertical scale, baseline shift, character rotation, case (all-caps/small-caps/title/lower, non-destructive), position (super/subscript synthesized), decoration (underline solid/dotted/wavy + strikethrough — see MT-207), faux bold/italic, per-range language, no-break, fractional widths, vertical trim (leading-trim), anti-alias method, fill/stroke color as StudioColorProfile-tagged/StudioSwatch ref (see MT-204/14.8) incl. partial-selection coloring, and per-range hyperlink (URL or in-document StudioArtboard/StudioPageSpread target). Character panel operator surface + model command.",
+  "allowed_paths": [
+   "src/studio/typography/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No character formatting; core typography unusable.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Full character attribute set per-range with mixed reporting",
+   "Character panel",
+   "Model command",
+   "All listed controls present"
+  ],
+  "proof_targets": [
+   "per-range attribute + mixed-value argus test"
+  ],
+  "code_surfaces": [
+   "src/studio/typography/char_attrs.rs",
+   "src/frontend/handshake_native/src/studio/typography/character_panel.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::typography::char_attrs",
+   "live: each attribute applies per-range; mixed-selection reported as mixed",
+   "argus: character panel exposes full attribute set with stable author_ids"
+  ],
+  "acceptance_criteria_original": [
+   "full character attribute set per-range with mixed reporting; character panel + model command; all listed controls present"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "character panel"
+  ],
+  "argus_targets": [
+   "studio.type.character_panel"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Typography / Character controls"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-VIS-002",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No character formatting; core typography unusable.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Full character attribute set per-range with mixed reporting",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "per-range attribute + mixed-value argus test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Character panel",
+   "evidence_kind": "gui_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Model command",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "All listed controls present",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-TYP-012",
+    "spec_clause_text": "[STU-TYP-012] Character attributes are stored per contiguous character range on the `StudioTextStory`; mixed values across a selection are representable and reported as mixed. The normative character control set is: | Control | Contract / units | Provenance (deduped) | |---|---|---| | Font family + style | Family and named style/instance; resolved via [STU-TYP-030] font management | all five suites | | Size | Points (typographic unit per [STU-DOC-003]); Figma density-independent px accepted at API decode and converted | all five | | Leading (line height) | Absolute (pt/px) or auto-leading percentage of size | PS/AI/ID/AF/Figma | | Tracking | Range letter-spacing in 1/1000 em (numeric or %; may be negative) | all five | | Kerning | `metrics` (font pair table), `optical` (computed from glyph shapes), or `manual` per-pair value | PS/AI/ID/AF | | Horizontal / vertical scale | Per-glyph scale percentages | PS/AI/ID | | Baseline shift | Raise/lower from baseline (manual super/subscript) | PS/AI/ID | | Character rotation | Per-character rotation angle | AI/ID | | Case | All-caps, small-caps (true OpenType or synthesized), title case, lowercase; non-destructive (stored characters unchanged) | PS/AI/ID/AF/Figma | | Position | Superscript / subscript (synthesized) | PS/AI/ID/AF | | Decoration | Underline (solid/dotted/wavy with thickness, offset, skip-ink) and strikethrough, each with custom options | PS/AI/ID/AF/Figma | | Faux style | Faux bold, faux italic (synthesized when the font lacks the real cut) | PS/AI/ID | | Language | Per-range language tag driving hyphenation, spelling, and shaping | AI/ID/AF | | No-break | Prevents chosen characters/words from breaking across lines | PS/ID | | Fractional widths | Sub-pixel fractional vs whole-pixel character advance | PS | | Vertical trim | Leading-trim that removes space above cap height / below baseline so boxes hug glyphs | Figma | | Anti-alias method | Per-story glyph edge rendering (none/sharp/crisp/strong/smooth) for raster output | PS/AI/AF | | Fill / stroke color | Per-range color as a `StudioColorProfile`-tagged value or `StudioSwatch` reference (see 14.8); partial-selection coloring | PS/AI/ID/AF/Figma | | Hyperlink | Per-range link to a URL or an in-document target (`StudioArtboard`/`StudioPageSpread`) | Figma; InDesign |"
+   }
+  ],
+  "spec_clause_count": 1,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

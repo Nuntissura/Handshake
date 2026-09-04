@@ -1,124 +1,222 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-262",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-262.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-262.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-261",
-      "MT-019"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Effect masking, selection-scoping + color-managed / bit-depth evaluation [STU-FX-004,STU-FX-006a,STU-FX-010,STU-FX-012a]",
-  "spec_anchor": [
-    "STU-FX-004",
-    "STU-FX-006a",
-    "STU-FX-010",
-    "STU-FX-012a",
-    "STU-DOC-003"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-262",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-262.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-262.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-261",
+   "MT-019"
   ],
-  "scope": {
-    "summary": "Give each StudioLiveFilter entry its own optional StudioMask (raster mask / vector clip / gradient mask), applied only where opaque with the mask's feather; selection-scoping so a live StudioSelectionSet is captured as the entry's effect-region mask (one deduped rule, no separate filter-selection vs filter-layer mode). Enforce typed unit-bearing parameters (radii/offsets in document px, angles in degrees, color params carry explicit StudioColorProfile); evaluate in the layer's declared working space at 8/16/32-bit; descriptor declares supported depths rather than silently degrading.",
-    "allowed_paths": [
-      "src/studio/effects/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "per-entry StudioMask + selection-scope capture; typed unit-bearing params; 8/16/32-bit color-managed eval; declared supported depths"
-    ],
-    "proof_targets": [
-      "per-entry mask + selection-scope + depth/color-space test"
-    ],
-    "code_surfaces": [
-      "src/studio/effects/mask.rs",
-      "src/studio/effects/params.rs",
-      "studio-engine/src/render/effect_eval.rs"
-    ],
-    "expected_tests": [
-      "test: per-entry mask limits effect to opaque region with feather",
-      "test: live selection captured as re-editable effect-region mask",
-      "test: mixed-unit/implicit-device-color params rejected; 16/32-bit + working-space eval correct"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Effect masking, selection-scoping + color-managed / bit-depth evaluation [STU-FX-004,STU-FX-006a,STU-FX-010,STU-FX-012a]",
+ "spec_anchor": [
+  "STU-FX-004",
+  "STU-FX-006a",
+  "STU-FX-010",
+  "STU-FX-012a",
+  "STU-DOC-003"
+ ],
+ "scope": {
+  "summary": "Give each StudioLiveFilter entry its own optional StudioMask (raster mask / vector clip / gradient mask), applied only where opaque with the mask's feather; selection-scoping so a live StudioSelectionSet is captured as the entry's effect-region mask (one deduped rule, no separate filter-selection vs filter-layer mode). Enforce typed unit-bearing parameters (radii/offsets in document px, angles in degrees, color params carry explicit StudioColorProfile); evaluate in the layer's declared working space at 8/16/32-bit; descriptor declares supported depths rather than silently degrading.",
+  "allowed_paths": [
+   "src/studio/effects/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Effects unmaskable / device-color-unsafe; wrong output outside 8-bit.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Per-entry StudioMask",
+   "Selection-scope capture",
+   "Typed unit-bearing params",
+   "8/16/32-bit color-managed eval",
+   "Declared supported depths"
+  ],
+  "proof_targets": [
+   "per-entry mask + selection-scope + depth/color-space test"
+  ],
+  "code_surfaces": [
+   "src/studio/effects/mask.rs",
+   "src/studio/effects/params.rs",
+   "studio-engine/src/render/effect_eval.rs"
+  ],
+  "expected_tests": [
+   "test: per-entry mask limits effect to opaque region with feather",
+   "test: live selection captured as re-editable effect-region mask",
+   "test: mixed-unit/implicit-device-color params rejected; 16/32-bit + working-space eval correct"
+  ],
+  "acceptance_criteria_original": [
+   "per-entry StudioMask + selection-scope capture; typed unit-bearing params; 8/16/32-bit color-managed eval; declared supported depths"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Effects unmaskable / device-color-unsafe; wrong output outside 8-bit.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Per-entry StudioMask",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "per-entry mask + selection-scope + depth/color-space test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Selection-scope capture",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Typed unit-bearing params",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "8/16/32-bit color-managed eval",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Declared supported depths",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-FX-004",
+    "spec_clause_text": "[STU-FX-004] A `StudioLiveFilter` entry MAY host its own `StudioMask` (raster mask, vector clip, or gradient mask). The effect is applied only where the mask is opaque, feathered by the mask's own falloff. This is the single deduped realization of smart-filter masks, live-filter-layer masks, and effect-region masks; there is no separate masking mechanism per effect family."
+   },
+   {
+    "anchor": "STU-FX-006a",
+    "spec_clause_text": "[STU-FX-006a] Every deterministic filter/effect MUST evaluate correctly across the Studio raster bit depths (8/16/32-bit-per-channel per 14.4/14.12) and MUST evaluate in the layer's declared `StudioColorProfile` working space, not an implicit device space ([STU-DOC-003]); an effect that clips or is undefined outside 8-bit MUST declare its supported depths in its descriptor rather than silently degrading. Color-valued and luminance-driven filters read and write through the color-managed pipeline (14.8)."
+   },
+   {
+    "anchor": "STU-FX-010",
+    "spec_clause_text": "[STU-FX-010] Effect parameters are typed and unit-bearing per [STU-DOC-003]: radii and offsets in document pixels (or the document unit for vector geometry), angles in degrees, and color-valued parameters carry an explicit `StudioColorProfile`. Mixed-unit or implicit-device-color effect parameters are forbidden."
+   },
+   {
+    "anchor": "STU-FX-012a",
+    "spec_clause_text": "[STU-FX-012a] An effect MAY be scoped to the active `StudioSelectionSet` at apply time: with a live selection, the applied `StudioLiveFilter` records the selection as its effect region (equivalent to a captured mask) so the effect touches only the selected pixels/geometry, re-editable afterward as the entry's `StudioMask`. With no selection, the effect applies to the whole layer render. This is one deduped selection-scoping rule; there is no separate \"filter selection\" versus \"filter layer\" mode."
+   },
+   {
+    "anchor": "STU-DOC-003",
+    "spec_clause_text": "[STU-DOC-003] Unit law: every model-facing and operator-facing Studio surface (measurements, positions, sizes, type sizes) uses explicit typed units — points for typography, pixels for raster document coordinates, and a document-declared unit (mm/in/px/pt) for layout geometry with the unit carried on every length-bearing field. Color values carry an explicit `StudioColorProfile` reference; there is no implicit device color. The conversion boundary MUST be the API decode step. Mixed-unit fields are forbidden."
+   }
+  ],
+  "spec_clause_count": 5,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

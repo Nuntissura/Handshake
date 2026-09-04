@@ -1,126 +1,194 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-511",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-511.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-511.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-510",
-      "MT-487",
-      "MT-485"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Plugin scene-node access + node factories + events + quick-run + relaunch [STU-AUT-019]",
-  "spec_anchor": [
-    "STU-AUT-019",
-    "STU-AUT-017"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-511",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:27+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-511.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-511.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-510",
+   "MT-487",
+   "MT-485"
   ],
-  "scope": {
-    "summary": "Give plugins scene-node access ONLY through the typed object model (MT-487) and descriptor path (MT-485) - no privileged private plugin document model; node-factory commands to create new primitives (paths, text, frames, shapes, images, board objects); event subscription (run, selection-change, document-change, view-change, text-review, style-change, drop); typed parameter quick-run gathered from the command surface for headless runs; relaunch entry points pinned onto specific nodes.",
-    "allowed_paths": [
-      "src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "plugin scene access via typed model+descriptor only; factories/events/quick-run/relaunch; no private model"
-    ],
-    "proof_targets": [
-      "node-factory + event + quick-run runtime tests"
-    ],
-    "code_surfaces": [
-      "src/studio/plugin/scene_access.rs",
-      "src/studio/plugin/events.rs",
-      "src/studio/plugin/quick_run.rs"
-    ],
-    "expected_tests": [
-      "live: plugin creates a primitive via node-factory command (promotion-gated)",
-      "test: plugin event subscription fires on document-change",
-      "live: parameter quick-run executes headless",
-      "negative: plugin cannot access a private document model"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Automation / Plugin scene access, factories & events (model layer)"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-QUIET-001",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Plugin scene-node access + node factories + events + quick-run + relaunch [STU-AUT-019]",
+ "spec_anchor": [
+  "STU-AUT-019",
+  "STU-AUT-017"
+ ],
+ "scope": {
+  "summary": "Give plugins scene-node access ONLY through the typed object model (MT-487) and descriptor path (MT-485) - no privileged private plugin document model; node-factory commands to create new primitives (paths, text, frames, shapes, images, board objects); event subscription (run, selection-change, document-change, view-change, text-review, style-change, drop); typed parameter quick-run gathered from the command surface for headless runs; relaunch entry points pinned onto specific nodes.",
+  "allowed_paths": [
+   "src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Plugins get a privileged private model or unreachable extension points.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Plugin scene access via typed model+descriptor only",
+   "Factories/events/quick-run/relaunch",
+   "No private model"
+  ],
+  "proof_targets": [
+   "node-factory + event + quick-run runtime tests"
+  ],
+  "code_surfaces": [
+   "src/studio/plugin/scene_access.rs",
+   "src/studio/plugin/events.rs",
+   "src/studio/plugin/quick_run.rs"
+  ],
+  "expected_tests": [
+   "live: plugin creates a primitive via node-factory command (promotion-gated)",
+   "test: plugin event subscription fires on document-change",
+   "live: parameter quick-run executes headless",
+   "negative: plugin cannot access a private document model"
+  ],
+  "acceptance_criteria_original": [
+   "plugin scene access via typed model+descriptor only; factories/events/quick-run/relaunch; no private model"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Automation / Plugin scene access, factories & events (model layer)"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-QUIET-001",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Plugins get a privileged private model or unreachable extension points.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Plugin scene access via typed model+descriptor only",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "node-factory + event + quick-run runtime tests",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Factories/events/quick-run/relaunch",
+   "evidence_kind": "ledger_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "No private model",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-AUT-019",
+    "spec_clause_text": "[STU-AUT-019] The plugin surface MUST support the deduped extension capabilities below. A plugin capability that the manifest does not declare and consent does not grant is unavailable at runtime and fails closed. | Plugin capability | Behavior | Deduped source provenance | |---|---|---| | Manifest & mode targeting | Declare identity, targeted document/editor modes, and required capabilities | manifest editorType targeting | | Capability & network gating | Request typed command capabilities and whitelisted network domains with reasoning; consent-gated | manifest networkAccess/permissions; capabilities | | Scene-node access | Read/write scene nodes through the typed object model and descriptor path | node/document/page/frame/vector/text node APIs | | Node factories | Create new primitives (paths, text, frames, shapes, images, board objects) as commands | `create*` node factory methods | | Event subscription | Subscribe to run, selection-change, document-change, view-change, text-review, style-change, and drop events | plugin event subscription | | Parameter quick-run | Declare typed input parameters gathered from the command surface for headless quick runs | parameter-driven quick-run | | Relaunch entry points | Pin contextual re-run entry points onto specific nodes | relaunch buttons; setRelaunchData | | Per-node plugin data | Store private and cross-plugin shared key-value data on nodes, travelling with the document | plugin data (private + shared) | | Local client storage | Persist plugin-local key-value data separate from document data | clientStorage persistence | | Codegen extension | Register languages and emit code for the current selection | codegen API / codegen plugins | | Text-review extension | Participate in a text-review pipeline over document text | text-review capability | | Board widget | Ship an interactive board widget with synced multi-user state (whiteboard mode, 14.15) | Widget API model; widgets on boards | | Dev tooling | Typed stubs, hot reload, and a developer console for plugin development | plugin dev tooling (typings/hot reload/console) | | Local registry distribution | Discover, install, update, and remove plugins from a local/native registry | plugins marketplace posture; private plugin distribution |"
+   },
+   {
+    "anchor": "STU-AUT-017",
+    "spec_clause_text": "[STU-AUT-017] Studio MUST provide a Handshake-native **plugin/extension model** so third parties and models can extend Studio, deduplicating the source Plugin API, Widget API, and Dev-Mode plugin concepts into one Studio plugin contract. A plugin declares a **manifest**: identity, the editor/document modes it targets, the command capabilities it requests, any network domains it needs (with stated reasoning), and its extension points (panels/UI, codegen, find/change/text-review participation, board widgets, and relaunch/quick-run entry points). Plugins operate on scene nodes only through the typed command contract of Section 1 — they receive the same typed object-model view ([STU-AUT-006]) and the same descriptor path ([STU-AUT-007]) that operators and model lanes use; there is no privileged private plugin document model."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:27+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

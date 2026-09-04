@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33923",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-MOT-073b#catalogue_row#0_properties",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "3. The identifier surface",
+  "spec_line": 26255,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Properties",
+ "spec_anchor": [
+  "STU-MOT-073b"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "motion",
+ "scope": {
+  "summary": "206 of the 333 identifiers carry no category header on disk.** They form the table's leading block and are real members -- the camera, light, mask, path, velocity, text-style and string surfaces are all in it -- but no category can be attributed to them without inventing one, so none is invented. They are listed as an explicitly uncategorised block below, and categorising them for the operator-facing reference is a documentation task, not a discovery task. *Derivation: catalogue table, splits per row; yields 12 microtasks, one per expression identifier category.* | Category | Count | Identifiers | |---|---|---| | Global | 18 | `comp`, `footage`, `this_comp`, `this_layer`, `this_property`, `thisComp`, `thisProject`, `time`, `color_depth`, `colorDepth`, `posterize_time`, `posterizeTime`, `timeToFrames`, `framesToTime`, `timeToTimecode`, `timeToNTSCTimecode`, `timeToFeetAndFrames`, `timeToCurrentFormat` | | Vector Math | 9 | `add`, `mul`, `clamp`, `dot`, `cross`, `normalize`, `length`, `look_at`, `lookAt` | | Random Numbers | 6 | `seed_random`, `seedRandom`, `random`, `gauss_random`, `gaussRandom`, `noise` | | Interpolation | 6 | `linear`, `ease`, `ease_in`, `ease_out`, `easeIn`, `easeOut` | | Color Conversion | 5 | `rgb_to_hsl`, `hsl_to_rgb`, `rgbToHsl`, `hslToRgb`, `hexToRgb` | | Other Math | 4 | `degrees_to_radians`, `radians_to_degrees`, `degreesToRadians`, `radiansToDegrees` [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`Properties` satisfies the spec's stated category: Properties",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b catalogue row `Properties`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`Properties` satisfies the spec's stated count: 9",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b catalogue row `Properties`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`Properties` satisfies the spec's stated identifiers: `anchor_point`, `anchorPoint`, `scale`, `rotation`, `opacity`, `audio_levels`, `time_remap`, `audioLevels`, `timeRemap`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b catalogue row `Properties`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`Properties` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-MOT-073b"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

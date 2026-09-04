@@ -1,0 +1,298 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-33914",
+ "created_at_utc": "2026-09-04T13:36:12+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-MOT-073b#enumeration#0",
+  "unit_kind": "enumeration",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "3. The identifier surface",
+  "spec_line": 26255,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "206 of the 333 identifiers carry no category header on disk - enumeration",
+ "spec_anchor": [
+  "STU-MOT-073b"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "motion",
+ "scope": {
+  "summary": "206 of the 333 identifiers carry no category header on disk.** They form the table's leading block and are real members -- the camera, light, mask, path, velocity, text-style and string surfaces are all in it -- but no category can be attributed to them without inventing one, so none is invented. They are listed as an explicitly uncategorised block below, and categorising them for the operator-facing reference is a documentation task, not a discovery task. *Derivation: catalogue table, splits per row; yields 12 microtasks, one per expression identifier category.* | Category | Count | Identifiers | |---|---|---| | Global | 18 | `comp`, `footage`, `this_comp`, `this_layer`, `this_property`, `thisComp`, `thisProject`, `time`, `color_depth`, `colorDepth`, `posterize_time`, `posterizeTime`, `timeToFrames`, `framesToTime`, `timeToTimecode`, `timeToNTSCTimecode`, `timeToFeetAndFrames`, `timeToCurrentFormat` | | Vector Math | 9 | `add`, `mul`, `clamp`, `dot`, `cross`, `normalize`, `length`, `look_at`, `lookAt` | | Random Numbers | 6 | `seed_random`, `seedRandom`, `random`, `gauss_random`, `gaussRandom`, `noise` | | Interpolation | 6 | `linear`, `ease`, `ease_in`, `ease_out`, `easeIn`, `easeOut` | | Color Conversion | 5 | `rgb_to_hsl`, `hsl_to_rgb`, `rgbToHsl`, `hslToRgb`, `hexToRgb` | | Other Math | 4 | `degrees_to_radians`, `radians_to_degrees`, `degreesToRadians`, `radiansToDegrees` [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The enumeration accepts the member `1` with the exact meaning the spec states: `percentage = 0.5, t = time` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The enumeration accepts the member `2` with the exact meaning the spec states: `points = [[0,0], [100,0], [100,100], [0,100]], inTangents = [], outTangents = [], isClosed = true` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The enumeration accepts the member `3` with the exact meaning the spec states: `freq, amp, octaves = 1, amp_mult = .5, t = time` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The enumeration accepts the member `4` with the exact meaning the spec states: `width = .2, samples = 5, t = time` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The enumeration accepts the member `5` with the exact meaning the spec states: `type = \"cycle\", numKeyframes = 0` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The enumeration accepts the member `6` with the exact meaning the spec states: `type = \"cycle\", duration = 0` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The enumeration accepts the member `7` with the exact meaning the spec states: `countUp = 1` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The enumeration accepts the member `8` with the exact meaning the spec states: `otherLayer, relIndex` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The enumeration accepts the member `9` with the exact meaning the spec states: `dataPath, t0 = startTime, t1 = endTime` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The enumeration accepts the member `10` with the exact meaning the spec states: `y, x` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 10"
+  },
+  {
+   "id": "AC-011",
+   "criterion": "The enumeration accepts the member `11` with the exact meaning the spec states: `value, exponent` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 11"
+  },
+  {
+   "id": "AC-012",
+   "criterion": "The enumeration accepts the member `12` with the exact meaning the spec states: `value1, value2` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 12"
+  },
+  {
+   "id": "AC-013",
+   "criterion": "The enumeration accepts the member `13` with the exact meaning the spec states: `charIndex, t = time` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 13"
+  },
+  {
+   "id": "AC-014",
+   "criterion": "The enumeration accepts the member `14` with the exact meaning the spec states: `value, s = start index, n = number of characters` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 14"
+  },
+  {
+   "id": "AC-015",
+   "criterion": "The enumeration accepts the member `15` with the exact meaning the spec states: `value, s` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 15"
+  },
+  {
+   "id": "AC-016",
+   "criterion": "The enumeration accepts the member `16` with the exact meaning the spec states: `*` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 16"
+  },
+  {
+   "id": "AC-017",
+   "criterion": "The enumeration accepts the member `17` with the exact meaning the spec states: `+` | --. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 17"
+  },
+  {
+   "id": "AC-018",
+   "criterion": "The enumeration accepts the member `18` with the exact meaning the spec states: `vec1, vec2` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 18"
+  },
+  {
+   "id": "AC-019",
+   "criterion": "The enumeration accepts the member `19` with the exact meaning the spec states: `vec, amount` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 19"
+  },
+  {
+   "id": "AC-020",
+   "criterion": "The enumeration accepts the member `20` with the exact meaning the spec states: `value, limit1, limit2` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 20"
+  },
+  {
+   "id": "AC-021",
+   "criterion": "The enumeration accepts the member `21` with the exact meaning the spec states: `point1, point2` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 21"
+  },
+  {
+   "id": "AC-022",
+   "criterion": "The enumeration accepts the member `22` with the exact meaning the spec states: `fromPoint, atPoint` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 22"
+  },
+  {
+   "id": "AC-023",
+   "criterion": "The enumeration accepts the member `23` with the exact meaning the spec states: `seed, timeless = false` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 23"
+  },
+  {
+   "id": "AC-024",
+   "criterion": "The enumeration accepts the member `24` with the exact meaning the spec states: `minValOrArray, maxValOrArray` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 24"
+  },
+  {
+   "id": "AC-025",
+   "criterion": "The enumeration accepts the member `25` with the exact meaning the spec states: `t, value1, value2` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 25"
+  },
+  {
+   "id": "AC-026",
+   "criterion": "The enumeration accepts the member `26` with the exact meaning the spec states: `t, tMin, tMax, value1, value2` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 26"
+  },
+  {
+   "id": "AC-027",
+   "criterion": "The enumeration accepts the member `27` with the exact meaning the spec states: `point, t = time` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 27"
+  },
+  {
+   "id": "AC-028",
+   "criterion": "The enumeration accepts the member `28` with the exact meaning the spec states: `vec, t = time` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 28"
+  },
+  {
+   "id": "AC-029",
+   "criterion": "The enumeration accepts the member `29` with the exact meaning the spec states: `point, radius = [.5, .5], postEffect = true, t = time` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 29"
+  },
+  {
+   "id": "AC-030",
+   "criterion": "The enumeration accepts the member `30` with the exact meaning the spec states: `t = time + thisComp.displayStartTime, fps = 1.0 / thisComp.frameDuration, isDuration = false` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 30"
+  },
+  {
+   "id": "AC-031",
+   "criterion": "The enumeration accepts the member `31` with the exact meaning the spec states: `frames, fps = 1.0 / thisComp.frameDuration` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 31"
+  },
+  {
+   "id": "AC-032",
+   "criterion": "The enumeration accepts the member `32` with the exact meaning the spec states: `t = time + thisComp.displayStartTime, timecodeBase = 30, isDuration = false` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 32"
+  },
+  {
+   "id": "AC-033",
+   "criterion": "The enumeration accepts the member `33` with the exact meaning the spec states: `t = time + thisComp.displayStartTime, ntscDropFrame = false, isDuration = false` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 33"
+  },
+  {
+   "id": "AC-034",
+   "criterion": "The enumeration accepts the member `34` with the exact meaning the spec states: `t = time + thisComp.displayStartTime, fps = 1.0 / thisComp.frameDuration, framesPerFoot = 16, isDuration = false` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 34"
+  },
+  {
+   "id": "AC-035",
+   "criterion": "The enumeration accepts the member `35` with the exact meaning the spec states: `t = time + thisComp.displayStartTime, fps = 1.0 / thisComp.frameDuration, isDuration = false, ntscDropFrame = thisComp.ntscDropFrame` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 35"
+  },
+  {
+   "id": "AC-036",
+   "criterion": "The enumeration accepts the member `36` with the exact meaning the spec states: `t = time` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 36"
+  },
+  {
+   "id": "AC-037",
+   "criterion": "The enumeration accepts the member `37` with the exact meaning the spec states: `t = time, includeExtents = false` | Space Transforms. No member is added, renamed, or silently mapped onto another.",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-MOT-073b enumeration row 37"
+  }
+ ],
+ "acceptance_criteria_count": 37,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

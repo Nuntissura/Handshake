@@ -1,0 +1,100 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30472",
+ "created_at_utc": "2026-09-04T13:36:03+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-VEC-130#catalogue_row#0_geom_trap",
+  "unit_kind": "catalogue_row",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.5.4 Boolean, Compound, and Geometry Operations",
+  "spec_line": 3534,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "geom.trap",
+ "spec_anchor": [
+  "STU-VEC-130"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "vector",
+ "scope": {
+  "summary": "Canonical geometry-operation enumeration.** SUPERSEDES the ten-row table of v02.205 [STU-VEC-012], which omitted three captured operations (hard mix, soft mix, trap) and gave no operation tokens. The captured operation enumeration has thirteen members; Studio MUST carry all thirteen with these stable identifiers and MUST use the captured token as the wire value: *Derivation: catalogue table, splits per row; yields 13 microtasks, one per geometry operation. Anchors appearing in this table's cells are cross-references to clauses defined as paragraphs elsewhere in this sub-section; they are NOT clause definitions and yield no microtask here.* | Studio operation | Captured token | Result (normative) | |---|---|---| | `geom.union` | `uniteCommand` | Merge selected regions into one combined outline. | | `geom.intersect` | `intersectCommand` | Keep only the overlapping region. | | `geom.exclude` | `excludeCommand` | Keep non-overlapping regions (even-odd result). | | `geom.subtract_front` | `backMinusFrontCommand` | Remove upper region(s) from the lowest. | | `geom.subtract_back` | `frontMinusBackCommand` | Remove lower region(s) from the topmost. | | `geom.divide` | `divideCommand` | Split all overlaps into separate closed regions. | | `geom.trim` | `trimCommand` | Remove hidden overlaps, keeping region boundaries. | | `geom.merge` | `mergeCommand` | Remove hidden overlaps and merge [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "`geom.trap` satisfies the spec's stated studio operation: `geom.trap`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-130 catalogue row `geom.trap`"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "`geom.trap` satisfies the spec's stated captured token: `trapCommand`",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-130 catalogue row `geom.trap`"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "`geom.trap` satisfies the spec's stated result (normative): Generate a prepress trap between adjacent regions ([STU-VEC-132]).",
+   "evidence_kind": "runtime_assertion",
+   "source": "14-studio-creative-suite.md STU-VEC-130 catalogue row `geom.trap`"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "`geom.trap` is reachable from the operator surface with a tooltip, is invocable headlessly for automation, and is named natively rather than after any source product.",
+   "evidence_kind": "gui_and_headless_proof",
+   "source": "14-studio-creative-suite.md STU-VEC-130"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

@@ -1,121 +1,189 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-483",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-483.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-483.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-006",
-      "MT-007"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Non-operator mutation routing through sandbox->validation->PromotionGate [STU-AUT-003,STU-AUT-009]",
-  "spec_anchor": [
-    "STU-AUT-003",
-    "STU-AUT-009"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-483",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:27+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-483.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-483.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-006",
+   "MT-007"
   ],
-  "scope": {
-    "summary": "Enforce that any command invoked by a non-operator caller (plugin, external REST client, model lane) that mutates document authority routes through the kernel sandbox -> StudioValidationDescriptor -> PromotionGate lifecycle and NEVER writes authority rows directly; dry-run and read-only commands are exempt. Operator UI commands follow the same promotion-equivalence lifecycle. A mutation attempted outside the gate is rejected, never applied optimistically.",
-    "allowed_paths": [
-      "src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "all non-operator mutating commands gated; direct authority write rejected; dry-run/read exempt"
-    ],
-    "proof_targets": [
-      "direct-write-outside-gate rejection negative test"
-    ],
-    "code_surfaces": [
-      "src/studio/command/dispatch.rs"
-    ],
-    "expected_tests": [
-      "negative: plugin/REST/model mutation attempting direct authority write is rejected (fails closed)",
-      "live: mutating command routes sandbox->validation->promotion",
-      "test: dry-run/read exempt from gate"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Automation / Promotion lifecycle for scripted callers (model layer)"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-SWARM-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Non-operator mutation routing through sandbox->validation->PromotionGate [STU-AUT-003,STU-AUT-009]",
+ "spec_anchor": [
+  "STU-AUT-003",
+  "STU-AUT-009"
+ ],
+ "scope": {
+  "summary": "Enforce that any command invoked by a non-operator caller (plugin, external REST client, model lane) that mutates document authority routes through the kernel sandbox -> StudioValidationDescriptor -> PromotionGate lifecycle and NEVER writes authority rows directly; dry-run and read-only commands are exempt. Operator UI commands follow the same promotion-equivalence lifecycle. A mutation attempted outside the gate is rejected, never applied optimistically.",
+  "allowed_paths": [
+   "src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Scripted callers bypass validation/promotion; authority corruption.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "All non-operator mutating commands gated",
+   "Direct authority write rejected",
+   "Dry-run/read exempt"
+  ],
+  "proof_targets": [
+   "direct-write-outside-gate rejection negative test"
+  ],
+  "code_surfaces": [
+   "src/studio/command/dispatch.rs"
+  ],
+  "expected_tests": [
+   "negative: plugin/REST/model mutation attempting direct authority write is rejected (fails closed)",
+   "live: mutating command routes sandbox->validation->promotion",
+   "test: dry-run/read exempt from gate"
+  ],
+  "acceptance_criteria_original": [
+   "all non-operator mutating commands gated; direct authority write rejected; dry-run/read exempt"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Automation / Promotion lifecycle for scripted callers (model layer)"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-SWARM-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Scripted callers bypass validation/promotion; authority corruption.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "All non-operator mutating commands gated",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "direct-write-outside-gate rejection negative test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Direct authority write rejected",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Dry-run/read exempt",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-AUT-003",
+    "spec_clause_text": "[STU-AUT-003] A command invoked by any non-operator caller that mutates document authority (a plugin, an external API client, or a model lane) MUST NOT write authority rows directly. It MUST route through the kernel sandbox → `StudioValidationDescriptor` catalog (14.24) → `PromotionGate` lifecycle exactly as a model edit does ([STU-ARC-005]); dry-run and read-only commands are exempt. Operator-initiated commands from the native UI follow the same promotion-equivalence lifecycle as any operator edit. Automation never earns a bypass by virtue of being scripted."
+   },
+   {
+    "anchor": "STU-AUT-009",
+    "spec_clause_text": "[STU-AUT-009] Any command that mutates document authority MUST execute under the transactional/modal-gated boundary of the sandbox → validation → `PromotionGate` lifecycle ([STU-AUT-003]); this is the deduped equivalent of a source runtime's \"modal execution\" gate around every mutation. Reads and dry-runs need no gate; a mutation attempted outside the gate is rejected, never applied optimistically. The object-model domains below are the normative deduped exposure surface. Each row collapses the equivalent per-suite DOM domains into one Studio domain over canonical primitives. | Object-model domain | Exposes (read/write) | Canonical primitive backing | |---|---|---| | Application/session | open documents, active document, preferences, run mode, editor mode, viewport center/zoom | app scope + `StudioDocument` set | | Document | dimensions, resolution, unit, color profile, page/artboard tree, crop/resize/rotate/flatten | `StudioDocument`, `StudioArtboard`, `StudioPageSpread` | | Layer / node graph | kind, name, opacity, blend mode, z-order, parent/child traversal, lock/visibility, scale/transform | `StudioLayer`, `StudioLayerGraph`, `StudioMask` | | Path / vector network | anchors, handles, segments, regions, winding, boolean membership, compound paths | `StudioVectorPath`, `StudioVectorNetwork` | | Text story | characters, ranges, per-range font/size/fill/decoration/OpenType, threaded stories, styles | `StudioTextStory`, `StudioTypeStyle` | | Table | rows, columns, cells, merges, cell fills/strokes, cell content | `StudioLayer` (table kind) | | Color assets | swatches, swatch groups, gradients, gradient stops, spot inks, patterns | `StudioSwatch`, `StudioGradient`, `StudioPattern` | | Design system | components, instances, overrides, swap/detach, variables, collections, modes, styles | `StudioComponent`, `StudioComponentInstance`, `StudioVariable`, `StudioVariableCollection`, `StudioStyleRegistry` | | Placed / raster | linked and embedded placed assets, relink/embed, raster tiles | `StudioLayer` (placed_asset/raster kinds), `StudioRasterTile` | | Export / slice / print | export recipes, per-layer/per-slice settings, render-to-bytes, typed print-job options (paper, marks, color management) | `StudioExportRecipe` | | Long-document | books, XML elements/tags, hyperlinks, bookmarks, cross-references, index topics, sections | `StudioDocument` (long-document fields,"
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:27+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

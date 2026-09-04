@@ -1,135 +1,221 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-044",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-044.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-044.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-017",
-      "MT-032",
-      "MT-039"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "On-device inpaint / object-remove + content-aware move [STU-RAS-026,STU-RAS-030]",
-  "spec_anchor": [
-    "STU-RAS-026",
-    "STU-RAS-030"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-044",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-044.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-044.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-017",
+   "MT-032",
+   "MT-039"
   ],
-  "scope": {
-    "summary": "Implement the ML-backed retouch primitives, native and local-first in studio-engine per STU-RAS-030: Inpaint/object remove (brush over an unwanted region and synthesize a fill from surrounding data using an on-device model) and Content-aware move (move/extend a selected object and content-aware fill the vacated area, with structure/color adaptation and transform-on-drop). Runs offline; any generative/provider variant is an optional §10 adapter (MT-065), never the only implementation.",
-    "allowed_paths": [
-      "src/studio/**",
-      "studio-engine/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "inpaint/object-remove + content-aware move run on-device offline",
-      "baseline is native; adapter optional; structure/color adaptation proven"
-    ],
-    "proof_targets": [
-      "offline inpaint synthesis + content-aware move runtime + snapshot"
-    ],
-    "code_surfaces": [
-      "src/studio/raster/inpaint.rs",
-      "studio-engine/src/raster/inpaint_engine.rs",
-      "src/frontend/handshake_native/src/studio/raster/retouch_tools.rs"
-    ],
-    "expected_tests": [
-      "live: brush over an object and confirm inpaint synthesizes a plausible fill on-device (no network); content-aware move relocates an object and fills the vacated area",
-      "test: inference runs in studio-engine offline; degrades to a clear state if a model asset is absent",
-      "argus: before/after inpaint snapshot + run receipt"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "inpaint/remove tool",
-      "content-aware move tool"
-    ],
-    "argus_targets": [
-      "studio.tool_inpaint",
-      "studio.tool_content_aware_move"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Raster / Inpaint, object remove & content-aware move"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-QUIET-001",
-    "HBR-INT-009"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "On-device inpaint / object-remove + content-aware move [STU-RAS-026,STU-RAS-030]",
+ "spec_anchor": [
+  "STU-RAS-026",
+  "STU-RAS-030"
+ ],
+ "scope": {
+  "summary": "Implement the ML-backed retouch primitives, native and local-first in studio-engine per STU-RAS-030: Inpaint/object remove (brush over an unwanted region and synthesize a fill from surrounding data using an on-device model) and Content-aware move (move/extend a selected object and content-aware fill the vacated area, with structure/color adaptation and transform-on-drop). Runs offline; any generative/provider variant is an optional §10 adapter (MT-065), never the only implementation.",
+  "allowed_paths": [
+   "src/studio/**",
+   "studio-engine/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Object removal becomes a cloud dependency; local-first baseline missing.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Inpaint/object-remove",
+   "Content-aware move run on-device offline",
+   "Baseline is native",
+   "Adapter optional",
+   "Structure/color adaptation proven"
+  ],
+  "proof_targets": [
+   "offline inpaint synthesis + content-aware move runtime + snapshot"
+  ],
+  "code_surfaces": [
+   "src/studio/raster/inpaint.rs",
+   "studio-engine/src/raster/inpaint_engine.rs",
+   "src/frontend/handshake_native/src/studio/raster/retouch_tools.rs"
+  ],
+  "expected_tests": [
+   "live: brush over an object and confirm inpaint synthesizes a plausible fill on-device (no network); content-aware move relocates an object and fills the vacated area",
+   "test: inference runs in studio-engine offline; degrades to a clear state if a model asset is absent",
+   "argus: before/after inpaint snapshot + run receipt"
+  ],
+  "acceptance_criteria_original": [
+   "inpaint/object-remove + content-aware move run on-device offline",
+   "baseline is native; adapter optional; structure/color adaptation proven"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "inpaint/remove tool",
+   "content-aware move tool"
+  ],
+  "argus_targets": [
+   "studio.tool_inpaint",
+   "studio.tool_content_aware_move"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Raster / Inpaint, object remove & content-aware move"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-QUIET-001",
+  "HBR-INT-009"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Object removal becomes a cloud dependency; local-first baseline missing.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Inpaint/object-remove",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "offline inpaint synthesis + content-aware move runtime + snapshot",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Content-aware move run on-device offline",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Baseline is native",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Adapter optional",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "Structure/color adaptation proven",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 5,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-RAS-026",
+    "spec_clause_text": "**[STU-RAS-026]** Studio MUST provide the following deduped retouching family as one primitive group operating on pixel layers and, where the target allows, directly on placed-asset layers: *Derivation: catalogue table, splits per row; yields 9 microtasks, one per retouching tool.* | Tool | Normative behavior | |---|---| | Clone stamp | Paints exact pixel copies from a sampled source point with aligned sampling, sample-layer scope, cross-document sources, and a clone-source overlay. | | Healing brush | Paints from a sampled source or pattern while matching texture, lighting, and shading of the destination. | | Spot/blemish heal | Removes small blemishes by painting or single click, auto-sampling repair texture from the surroundings with no source point. | | Patch | Repairs a drawn or selected region by dragging it over source pixels, in normal or content-aware mode with structure and colour adaptation. | | Content-aware move | Moves or extends a selected object and content-aware fills the vacated area, with structure/colour adaptation and transform-on-drop. | | Inpaint / object remove | Brushes over an unwanted region and synthesizes a fill from surrounding data using an on-device model. | | Red-eye | Removes red flash reflections with pupil-size and darken controls while preserving eye detail. | | Dust and scratches | Removes small defects by radius and threshold; also available as a live filter (14.9). | | Frequency separation | Splits an image into low-frequency colour and high-frequency detail bands for retouching, and recombines them. |"
+   },
+   {
+    "anchor": "STU-RAS-030",
+    "spec_clause_text": "**[STU-RAS-030]** Content-aware operations are native and on-device per [STU-RAS-143]. --- ### 12. Blend Modes"
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

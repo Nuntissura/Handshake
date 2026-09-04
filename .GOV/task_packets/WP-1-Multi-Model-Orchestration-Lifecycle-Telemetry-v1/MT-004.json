@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-004",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T18:49:38.414Z",
+  "updated_at_utc": "2026-09-01T14:32:48.4124551Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-002"
     ],
@@ -26,19 +26,19 @@
     ],
     "active": false,
     "validator_verdict": "PENDING",
-    "claimed_by": "KERNEL_BUILDER-20260814-135053",
-    "claimed_at_utc": "2026-08-14T18:48:38.234Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260814-135053",
-    "ready_for_validation_at_utc": "2026-08-14T18:49:38.414Z",
+    "claimed_by": "KERNEL_BUILDER-20260901-143056",
+    "claimed_at_utc": "2026-09-01T14:31:28.9767688Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": null,
-    "proof_status": "REMEDIATED_V5_PENDING_VALIDATION: product commit 4fc67486; all declared promotion, replay, schema, UserManual and cargo-check proofs passed; exact five-dimensional PromotionGate privacy positive and foreign/mixed-source negatives passed on real PostgreSQL.",
-    "hbr_status": "HBR-PRIV PASS_PENDING_VALIDATOR: PromotionGate proves exact owner account, Principal, authenticated session, AccessSpace, and workspace inheritance into decision, EventLedger, and promoted message; foreign and mixed-scope inputs fail before authority mutation and cannot widen derived scope. HBR-INT, HBR-SWARM, and HBR-MAN declared proofs pass on current source.",
-    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-08-14T18:49:38.414Z",
+    "blocker": "V6 embedded-SurrealDB promotion proof migration is blocked at the shared ModelLane provider boundary. record_context_bundle_artifact_binding and schema_registry_rows still reference the removed self.pool path; navigation consumers required by the tamper matrix remain on the same incomplete path. The provider exposes no narrow test API for promotion projection/EventLedger scope tamper, atomic row-count observation, or exact five-field durable-row inspection, and the shared scope allocator must not be broadened into a raw client/query escape hatch.",
+    "missing_resource": "A compiling embedded ModelLane provider for artifact binding, schema registry, and every promotion navigation consumer, plus feature-gated narrow promotion inspection/tamper operations that preserve the existing atomicity and authority-corruption assertions without exposing general raw query capability.",
+    "proof_status": "BLOCKED_V6_PROVIDER_DEPENDENCY: no replacement test, target rename, Cargo validation, or migration claim was made. The superseded suite remains intact until the complete embedded provider/test seam exists.",
+    "hbr_status": "VALIDATION_PENDING_V6: exact five-field promotion scope, foreign and mixed-source denial, durable decision/event/artifact authority, replay, idempotency, leakage resistance, and atomic failure must be re-proven on embedded SurrealDB.",
+    "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "RESOLVED_TO_CURRENT_WORKTREE",
     "last_recovery_event_ref": "usermanual://model-lane-promotion#recovery",
-    "last_runtime_status_ref": "REMEDIATED_V5 at 4fc67486; canonical PostgreSQL, promotion/replay/schema, manual, cargo-check and adversarial proof gates passed; validator verdict pending",
+    "last_runtime_status_ref": "BLOCKED_ON_DEPENDENCY: incomplete embedded promotion provider/test seam; no Cargo command run in this lane",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-08-14_MULTIPLE_LENSES",
     "adversarial_findings_status": "POST_REVIEW_EXACT_SCOPE_INHERITANCE_FOREIGN_SCOPE_PREMUTATION_DENIAL_MIXED_SCOPE_NONWIDENING_AND_MANUAL_FINDINGS_REPROVEN",
@@ -80,11 +80,11 @@
     ],
     "proof_targets": [
       "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact --nocapture",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact --nocapture",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact --nocapture",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture"
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture"
     ],
     "risk_if_missed": "A swarm can look parallel while still depending on hidden prompt arbitration.",
     "reference_only_paths": [
@@ -108,7 +108,7 @@
     "Use Flight Recorder/EventLedger payloads as bounded events plus artifact refs; do not put unbounded model output, raw secrets, or prompt-only state in event payloads.",
     "If this MT changes any product behavior, storage/event contract, command, IPC/API path, diagnostic surface, model lane, or navigation path, update the in-product UserManual in the same implementation change per HBR-MAN-004.",
     "Product implementation for this MT must be Rust-only: Rust backend plus Rust native egui/Argus surfaces where UI is touched. Legacy app/src, app/src-tauri, React, Tauri/WebView, TypeScript, JavaScript, docs/model-manual, and npm proof targets are reference-only or forbidden and MUST NOT satisfy implementation/proof authority.",
-    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources or an explicit real PostgreSQL URL.",
+    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but embedded SurrealDB/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources.",
     "Each behavior-changing MT must include same-change UserManual coverage for the changed behavior; MT-011 audits coverage and cannot substitute for same-change HBR-MAN-004 proof.",
     "This pre-implementation contract review does not replace post-implementation review. After coding, run adversarial review against the actual diff through the listed lenses and update MT status signaling before handoff."
   ],
@@ -138,7 +138,7 @@
     "post_implementation_adversarial_review_required": true,
     "post_implementation_review_lenses": [
       "runtime_launch_and_model_lane_authority",
-      "postgres_eventledger_crdt_state_recovery",
+      "surreal_eventledger_crdt_state_recovery",
       "rust_native_argus_operator_surface_and_usermanual",
       "spec_realism_negative_guards_and_mt_status_signaling"
     ]
@@ -192,11 +192,6 @@
         "url": "https://www.inkandswitch.com/essay/local-first/"
       },
       {
-        "id": "pgEvent",
-        "name": "PostgreSQL event sourcing reference",
-        "url": "https://github.com/eugene-khyst/postgresql-event-sourcing"
-      },
-      {
         "id": "yjsInternals",
         "name": "Yjs internals state vectors/snapshots",
         "url": "https://github.com/yjs/yjs/blob/main/INTERNALS.md"
@@ -204,7 +199,7 @@
     ],
     "patterns_applied": [
       "Typed multi-agent orchestration becomes ModelLaneRun/ModelLane/ModelLaneMessage records, never peer-to-peer chat authority.",
-      "Durable workflow/replay patterns become PostgreSQL/EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
+      "Durable workflow/replay patterns become embedded SurrealDB/EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
       "CRDT research becomes explicit draft/proposal/update/state-vector/snapshot/stale-base records before promotion.",
       "Trace/span research becomes propagated trace_id/span_id/model_session_id/lane_id correlation across lanes, tools, providers, artifacts, and diagnostics.",
       "Tool protocol research becomes Handshake capability check, consent/projection, Flight Recorder/EventLedger logging, execution, result capture, and recovery."
@@ -213,8 +208,8 @@
       "peer-to-peer model channels outside coordinator-owned ModelLaneMessage records",
       "prompt-only or chat-history-only state transfer",
       "legacy app/src React/Tauri code as runtime authority",
-      "SQLite runtime/test/fixture/cache/fallback authority for this WP",
-      "Flight Recorder-only replay without PostgreSQL/EventLedger authority rows",
+      "alternate database runtime/test/fixture/cache/fallback authority for this WP",
+      "Flight Recorder-only replay without embedded SurrealDB/EventLedger authority rows",
       "manual or markdown prose as product runtime authority"
     ],
     "selected_handshake_translation": "Coordinator routing and promotion must be a deterministic Rust state machine with idempotency keys, stale-base denial, evidence refs, and PromotionGate/ValidationRunner authority boundaries."
@@ -224,7 +219,7 @@
     "product_reference_file_posture": "reference/navigation only; do not override SPEC_CURRENT, master spec, build rules, or product code evidence",
     "proposal_promotion_model": "Models may propose, critique, summarize, and produce artifacts; Handshake validates/promotes deterministically through Rust backend authority surfaces before state becomes authoritative.",
     "durable_authority": [
-      "PostgreSQL",
+      "SurrealDB",
       "EventLedger",
       "ArtifactStore",
       "ContextBundle",
@@ -260,8 +255,8 @@
       ".GOV/codex/Handshake_Codex_v1.4.md"
     ],
     "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
-    "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
-    "basis": "Promotion state machine (advisory -> promotion_requested -> pending_policy|pending_approval) + PromotionGate stale-base/schema/version denial + deterministic reordered-input hash + EventLedger-backed decision artifacts. Proof model_lane_promotion_pg_tests uses knowledge_pg().expect() (fail-closed). Negative test model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation present. Code structurally sound.",
+    "runtime_status": "HISTORICAL_V1_ENVIRONMENT_BLOCKED: the superseded relational validation attempt could not provision its database and produced no current verdict. Its recorded logs are retained only as history and supply no V6 evidence.",
+    "basis": "Promotion state machine (advisory -> promotion_requested -> pending_policy|pending_approval) + PromotionGate stale-base/schema/version denial + deterministic reordered-input hash + EventLedger-backed decision artifacts. The superseded test was structurally fail-closed, but it is not current V6 evidence. Negative test model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation was present.",
     "concerns": [
       "Lifecycle hygiene: lifecycle.claimed_by=null and claimed_at_utc=null while ready_for_validation_by=KERNEL_BUILDER; and proof_status/hbr_status are bare 'PASSED' strings with no evidence (contrast MT-002/003 which cite test counts/SHAs). Code ACs are implemented; recommend Orchestrator require a populated claim record + evidence-bearing proof_status. Not a Spec-Realism failure."
     ]
@@ -280,19 +275,19 @@
     "remediation_plan": [
       "Classify non-shared routing results as advisory with null CRDT authority fields, or atomically persist a real Yjs proposal/update before recording the routing message.",
       "Derive the post-update state vector from persisted bytes and validate every non-null CRDT reference by hash and object identity.",
-      "Add all-six-policy negative tests for missing rows, hash mismatch, stale vectors, duplicates, and replay order against real PostgreSQL."
+      "Add all-six-policy negative tests for missing rows, hash mismatch, stale vectors, duplicates, and replay order against the live embedded durable store."
     ],
     "independent_checks": [
       "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
-      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
+      "Attempted fresh serial app-runtime and superseded relational validation against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   },
   "v5_declared_proof_reverification_2026_08_04": {
-    "context": "Re-executed at the current HEAD, i.e. WITH the HBR-PRIV account-scope substrate (migrations 0363+0364, resource_scope.rs, api/account_scope.rs) in place. That substrate changed the read/write boundary these surfaces sit on and has already been shown to invalidate declared proofs elsewhere in this packet (MT-010 and MT-008 both failed 403 against it and needed repair), so a green recorded before it is not evidence. Managed PostgreSQL at 127.0.0.1:5544.",
+    "context": "Re-executed at the current HEAD with the HBR-PRIV account-scope substrate in place. That substrate changed the read/write boundary these surfaces sit on and had already invalidated declared proofs elsewhere in this packet, so an earlier green was not evidence. The historical run used a superseded relational service.",
     "declared_proofs_reverified": {
-      "model_lane_promotion_pg_tests": "3 passed, 0 failed",
-      "model_lane_schema_pg_tests": "4 passed, 0 failed",
+      "superseded_promotion_target": "3 passed, 0 failed",
+      "superseded_schema_target": "4 passed, 0 failed",
       "user_manual_api_tests": "24 passed, 0 failed"
     },
     "coverage_note": "Every declared proof_target for this MT lives in one of the binaries above; each binary was run IN FULL rather than filtered to the named test, so a sibling regression in the same binary could not hide.",
@@ -328,16 +323,16 @@
       "HBR-PRIV-005"
     ],
     "remediation_plan": [
-      "Add a real-PostgreSQL positive PromotionGate path proving exact owner and AccessSpace inheritance.",
+      "Add a live embedded-store positive PromotionGate path proving exact owner and AccessSpace inheritance.",
       "Add cross-account, cross-session, and widened-derived-scope promotion negatives before authority mutation.",
       "Rerun all declared promotion, replay, schema, manual, and cargo-check commands at one frozen SHA."
     ],
     "proof_observations": [
-      "Fresh PostgreSQL was available at postgres://postgres@127.0.0.1:5544/handshake for applicable external-URL tests.",
+      "A superseded relational test service was available for the historical external-resource checks.",
       "The shared external Cargo target was D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target.",
       "No incomplete or timed-out command was credited as passing or as a code-test failure; the verdict rests on the independent mandatory gate(s) named in failed_gates."
     ],
-    "prior_lifecycle_proof_status": "READY_FOR_VALIDATION_V5: all six declared proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544). model_lane_promotion_pg_tests appends_eventledger_and_replays_decision / rejects_stale_base_schema_mismatch_and_direct_mutation / reordered_inputs_keep_same_decision_hash (3/3), model_lane_schema_persists_and_replays_eventledger_rows, and model_lane_promotion_user_manual_entry_is_current all ok; cargo check --features test-utils clean. Promotion decision cloud-consent seeding fixed and user-manual HBR-INT-009 posture corrected to Flight Recorder/EventLedger WIRED with direct FR emission DEFERRED-with-reason. Built on resolver actor_kind taxonomy fix 644dee55.",
+    "prior_lifecycle_proof_status": "HISTORICAL_READY_V5_SUPERSEDED: all six then-declared targets passed on the former relational authority. The three promotion cases, schema replay case, UserManual case, and feature check were recorded green, but none is current V6 evidence. Promotion decision cloud-consent seeding and HBR-INT-009 posture were corrected in that historical source.",
     "adversarial_review": {
       "DIFF_ATTACK_SURFACES": [
         "Current product diff from main spans storage/migrations, model runtimes, process lifecycle, privacy boundaries, native GUI/Argus, UserManual, and live MicroVM paths.",
@@ -350,7 +345,7 @@
       ],
       "COUNTERFACTUAL_CHECKS": [
         "Historical green output was not accepted as proof of current HEAD.",
-        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, real PostgreSQL, or KVM.",
+        "Deterministic egui_kittest or registry tests were not accepted as substitutes where the contract requires production-socket Argus, pixels, real models, a live durable store, or KVM.",
         "A missing proof or partial/pending HBR row was not converted into PASS merely because source inspection looked fail-closed."
       ],
       "BOUNDARY_PROBES": [
@@ -359,7 +354,7 @@
       ],
       "NEGATIVE_PATH_CHECKS": [
         "Cross-account, revoked-context, missing-scope, mixed-source, and unavailable-live-resource paths were required to fail closed without metadata leakage or authority mutation.",
-        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM/PostgreSQL endpoints where applicable."
+        "Exact unavailable prerequisites were observed for Argus/Palmistry, Candle model artifacts, and KVM or legacy-database endpoints where applicable."
       ],
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."

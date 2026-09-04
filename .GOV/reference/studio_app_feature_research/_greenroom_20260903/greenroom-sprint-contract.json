@@ -1,0 +1,174 @@
+{
+ "schema_id": "handshake.reference.studio_greenroom_sprint_contract@1",
+ "file_id": "studio-greenroom-sprint-contract-20260903",
+ "file_kind": "greenroom_sprint_contract",
+ "status": "reference_only_not_execution_authority",
+ "created_at": "2026-09-03",
+ "updated_at": "2026-09-04",
+ "owner_role": "KERNEL_BUILDER",
+ "wp": "WP-KERNEL-STUDIO",
+ "purpose": "Few-day installed-app green room of Photoshop, Illustrator, InDesign, Affinity, and Figma whose typed outputs deepen WP-KERNEL-STUDIO (509 MT contracts) and Master Spec section 14 to professional-grade workflow quality. Outputs are reference/provenance; authority stays in MT contracts and the Master Spec.",
+ "operator_decisions_20260903": {
+  "adobe_automation_stance": "LLM_AGENT_UI_CRAWLING_APPROVED",
+  "corpus_root": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/",
+  "corpus_root_note": "Operator-chosen; inside the governance kernel worktree. Golden binaries are committed on gov_kernel. Per-file size guard 25 MB; larger fixtures are recorded by manifest hash and stored beside the root under an operator-named sibling folder if ever needed.",
+  "asset_library_owner": "CKC (WP-KERNEL-005, VALIDATED) is the asset library and file manager for WP-KERNEL-STUDIO, WP-KERNEL-010 Tailor, and the future cui-studio (no stub yet).",
+  "kernel_base": "feat/WP-KERNEL-012 (worktree ../wtc-native-editors-v1); stable, not yet merged to main. Studio assumes 012 as base, not main.",
+  "kernel_002_status": "MERGED and Integration-Validator PASS on main (commits 10d5fd02, 618f7398). Task Board row saying BLOCKED is stale record drift.",
+  "repomem": "ignored for this sprint by Operator instruction",
+  "app_scope_expansion_20260903": {
+   "added": [
+    "After Effects",
+    "Premiere Pro",
+    "Lightroom Classic",
+    "Lightroom (CC)",
+    "Dreamweaver"
+   ],
+   "excluded": "Adobe AI / generative features (Firefly, Generative Fill/Expand, Neural Filters, Sensei-driven features) are NOT capture or rebuild targets.",
+   "included": "Everything else: tools, panels, menus, commands, shortcuts, swatches, brushes, gradients, patterns, styles, shapes, tool presets, smart objects, actions, scripting DOM, workspaces, dialogs, file formats, presets, LUTs, effects, transitions, develop presets, catalogs.",
+   "spec_conflict_to_resolve_in_fold_back": "Master Spec 14 [STU-OVR-015] marks video clip editing out of scope; After Effects and Premiere coverage supersedes that clause. Enrichment proposal must add motion/video/timeline domain(s) and photo-catalog/develop domain (Lightroom) or route them to sibling pillars with explicit CKC asset-library binding.",
+   "no_free_trial": "Operator confirms no free trial covers all apps; one paid month funds all 20 Creative Cloud apps.",
+   "dreamweaver_20260904": {
+    "status": "IN_SCOPE_NOT_YET_INSTALLED",
+    "operator_note": "Operator added Dreamweaver to Studio scope on 2026-09-04; download pending.",
+    "domain_impact": "Adds a web-authoring domain that no existing microtask band covers: HTML/CSS/JS authoring surface, live preview, site definition and management, FTP/SFTP publishing, template and library items, CSS designer, code hinting and linting, Git integration, responsive breakpoints, Bootstrap scaffolding, DOM and asset panels.",
+    "spec_impact": "Master Spec section 14 has no web-authoring domain. A 'web' domain band must be added alongside motion, video and catalog when the scope expansion is promoted.",
+    "capture_plan": "Same offline method as the other Adobe apps: registered type library if one exists, plug-in and resource trees, preset and configuration files, string tables, dialog definitions. Dreamweaver ships large JS/HTML configuration trees under Configuration/, which are plain text and should yield the command, menu, panel and dialog surface directly.",
+    "excluded": "Adobe AI features remain out of scope."
+   }
+  }
+ },
+ "supersessions": [
+  {
+   "target": "61-parity-audit-action-register.md ACTION-A3",
+   "prior": "REPLANNED_ONLINE_CAPTURE; installed ExtendScript route retired because no Adobe apps were owned and foregrounding violated quiet law.",
+   "now": "INSTALLED_CAPTURE_REOPENED: Operator funds subscriptions and approves agent-driven UI crawling. Installed exports become the primary capture for command IDs, shortcuts, scripting DOM, presets, and golden files. Foreground launch is disclosed per capture run.",
+   "invariant_kept": "Online-source rows remain the baseline; installed exports enrich and verify them (32-adobe-installed-ui-export-playbook.md status label ONLINE_SOURCE_DISTILLED_WITH_INSTALLED_ID_ENRICHMENT)."
+  },
+  {
+   "target": "08-gap-resolution-notes.md SFR-REMAINING-GAP-014",
+   "now": "Closed by installed capture when photoshop/illustrator/indesign menu and shortcut exports land under installed_exports/."
+  }
+ ],
+ "host_state_20260903": {
+  "installed": [
+   "Adobe Photoshop 2026 27.1.0.17 (COM ProgID Photoshop.Application present)",
+   "Adobe Creative Cloud 6.9.1",
+   "Lightroom Classic",
+   "Lightroom CC",
+   "Acrobat DC",
+   "Chrome"
+  ],
+  "not_installed": [
+   "Illustrator",
+   "InDesign",
+   "Affinity",
+   "Figma desktop"
+  ],
+  "tool_env": "../Handshake_Artifacts/handshake-tool/studio-greenroom-venv (python 3.12, pywinauto 0.6.9, pywin32, uiautomation, comtypes, pillow)",
+  "operator_install_todo": [
+   "Illustrator 2026 and InDesign 2026 via Creative Cloud trial",
+   "Affinity (free, Canva account)",
+   "Figma Professional seat for Dev Mode, libraries, variables"
+  ]
+ },
+ "affinity_findings_20260903": {
+  "package": "Canva.Affinity 3.2.3.4646 MSIX at C:/Program Files/WindowsApps/Canva.Affinity_3.2.3.4646_x64__8a0j1tnjnt4a4 (readable without elevation on this host)",
+  "offline_mirror": "../offline-green-room/affinity-3.2.3.4646 (1000 files, 384 MB; binaries excluded)",
+  "ui_layer": ".NET satellite resource assemblies per locale (Serif.Affinity, Serif.Interop.Persona, Serif.Windows); en-US extraction yielded 17,720 strings across 35 resource sets",
+  "lproj_string_tables": "Apple-style .strings (UTF-16) under App/Resources/Affinity/<locale>.lproj, 19 tables per locale",
+  "scripting": "Affinity 3 ships a JavaScript scripting library (App/Resources/JSLib, ~60 modules, 11 examples, 44 tests) plus a bundled Ace editor; JSLib files carry a BSD 3-Clause header, Copyright (c) 2026 Canva Pty Ltd",
+  "license_ip_note": "BSD-3 permits reuse and derivation with attribution and notice retention. The wrapper source is admissible as design reference for Studio's model-callable API and as sample-corpus tooling; native `affinity:*` modules behind it are compiled and not covered. Record attribution in any derived artifact.",
+  "presets": "Serif KA binary containers (.propcol: raster_brushes 201 MB, vector_brushes 137 MB, objectstyles 6.9 MB, assets 2.4 MB, adjustments 1.5 MB, autocorrect, abbreviations, fills, grid/doc/preflight/livemask/cross-reference presets, macros, tool_settings, tone_map, scripts) and .afstudio workspace presets (9). Magic 00 ff 4b 41; 4CC tags stored reversed. Parser is a later pass; names extractable by string scrape meanwhile.",
+  "other_readable": "Pantone CSV libraries (12), ICC profiles (49), PDF CMaps and Type1 base fonts (PDF engine), dictionaries, JSLib test .afdesign/.af documents (usable as golden-corpus seeds)",
+  "next_live_channels": "UIA crawl of panels/dialogs and agent-driven workflows require launching Affinity (visible); in-app script execution through the bundled JS engine can drive golden-file generation. Both wait for Operator go-ahead per HBR-QUIET-004.",
+  "offline_outputs": {
+   "installed_exports/affinity/offline/ui_strings_dotnet_en-US.json": "17,720 strings (PowerShell ResourceReader extraction)",
+   "installed_exports/affinity/offline/ui_strings_lproj_en-US.json": "2,939 strings, 19 tables",
+   "installed_exports/affinity/offline/scripting_api_surface.json": "62 modules, 415 classes, 19 native modules",
+   "installed_exports/affinity/offline/presets_names_scan.json": "heuristic KA-container scan: 221 raster brushes/14 categories, 242 vector brushes/12, 172 adjustment presets/21 types, 204 fills, 79 tool presets, 44 tone maps, 14 grids, 6 macros, 9 studios; structural tag notes for a later parser",
+   "installed_exports/affinity/offline/{tree_manifest,presets,plugins,workspaces,harvest_record}.json": "tree harvest",
+   "fold_back/affinity-offline-inventory.json": "mechanical inventory (~13k rows by kind: command, tool, panel, dialog, menu, option, primitive, preset, ...)",
+   "fold_back/affinity-offline-delta.json": "token-overlap candidates not matched in corpus (~7k, noisy; needs LLM triage by domain)"
+  },
+  "known_gaps_offline": [
+   "object style names are thumbnail-only in objectstyles.propcol",
+   "document presets (A4 etc.) not in doc_presets.propcol; need live app",
+   "propcol full parser not written (heuristic names only)",
+   "LLM triage of delta candidates deferred: sub-agent lane failed on account session rate limit at 2026-09-03 ~02:30 Brussels, resets 05:40"
+  ]
+ },
+ "capture_channels": {
+  "adobe_com_typelib": "pywin32 gencache over Photoshop.Application / Illustrator.Application / InDesign.Application typelibs -> complete scripting DOM (classes, properties, methods, enums). Headless, deterministic.",
+  "adobe_extendscript_via_com": "app.DoJavaScript from Python: menuBarInfo full menu tree with command IDs, shortcuts, enabled state; preset managers; fonts; document/export option enumerations. Launches the app window.",
+  "adobe_ui_crawl": "pywinauto UIA passive tree dump of panels, dialogs, toolbars; active crawl expands menus and panel flyouts. Agent-driven per Operator decision.",
+  "figma": "REST API (files, components, styles, variables where plan allows) + Plugin API typings + Chrome MCP accessibility snapshots of the web editor (canvas content excluded).",
+  "affinity": "UIA crawl + manual driving; no scripting DOM.",
+  "golden_files": "Scripted document generation per feature (ExtendScript for Adobe, Plugin API for Figma, manual for Affinity) with reference renders (PNG) and source files (PSD, AI, IDML, .fig, .af*)."
+ },
+ "output_layout": {
+  "installed_exports/": "Per-app JSON per 32-adobe-installed-ui-export-playbook.md export_record_schema plus raw dumps (menubar.json, dom_typelib.json, presets.json, fonts.json).",
+  "ui_crawl/": "UIA tree dumps per app/window/state (JSON).",
+  "feature_use_cards/": "studio.feature_use_card.v0 cards as JSON (one file per card), driven by the target registers below.",
+  "golden_corpus/": "manifest.json (sha256, app, version, feature ids, MT ids, render refs) + files.",
+  "behavior_vectors/": "Deterministic conformance cases (inputs, app-observed outputs, tolerance) for engine crates: blend modes, boolean ops, strokes, gradients, composer line breaks, ICC conversions.",
+  "fold_back/": "Machine-readable amendment plan: MT contract patches, new MT proposals, STU-CON-006 resolutions, spec enrichment proposal."
+ },
+ "target_registers": {
+  "59-workflow-needs-register.md": "113 needs; sprint targets every PARTIALLY_COVERED (40) and NOT_COVERED (1) need, BLOCKER criticality first (74 BLOCKER overall).",
+  "58-parity-feature-gap-register.md": "58 gaps; CONFIRMED_MISSING (17) become new or amended MTs; PARTIALLY_COVERED (41) get cards + golden files.",
+  "60-bridge-opportunity-register.md": "86 differentiators; Operator in/out pass during fold-back.",
+  "WP-KERNEL-STUDIO MT-509, MT-545, MT-552..555": "Blocked on STU-CON-006 open contract points; resolve in fold_back.",
+  "50-proprietary-format-fixture-plan.md": "15 native round-trip targets; golden_corpus supplies the fixtures."
+ },
+ "day_plan": [
+  {
+   "day": 0,
+   "scope": "Contract, tool env, Photoshop capture channels proven (this session)."
+  },
+  {
+   "day": 1,
+   "scope": "Photoshop full capture (typelib, menubar, presets, fonts, UIA crawl, shortcut summary); Illustrator and InDesign the same once installed; Figma REST and plugin typings; Affinity UIA crawl."
+  },
+  {
+   "day": 2,
+   "scope": "Feature-use cards for targeted needs and gaps via agent-driven workflows in the apps; behavior vectors."
+  },
+  {
+   "day": 3,
+   "scope": "Golden corpus generation and manifest; render references."
+  },
+  {
+   "day": 4,
+   "scope": "Fold-back: MT patches, new MTs, STU-CON-006 resolutions, spec v02.206 enrichment (CKC binding + parity/bridge promotion), BUILD_ORDER and traceability rows, activation readiness regen."
+  }
+ ],
+ "spec_enrichment_proposal_pending_operator_confirmation": {
+  "codex_gate": "CX-405/CX-406 Spec Proposal presented in chat before any Master Spec edit; KERNEL_BUILDER edits only on explicit Operator instruction (KERNEL_BUILDER_PROTOCOL Spec Resolver Discipline; CX-105A role list does not name KERNEL_BUILDER).",
+  "what": "Add [STU-ASSET-*] clauses to section 14: CKC (KERNEL-005) owns asset storage, browsing, collections, tagging, and file management for Studio, Tailor, and cui-studio; Studio consumes assets through placed_asset links and publishes exports back into CKC; no Studio-owned parallel library. Bind asset-management workflow needs in register 59 to CKC surfaces.",
+  "why": "Section 14 line 471 names 'the Studio asset library' with no CKC anchor; STU-SECTION-003 forbids double features; Operator states CKC is the shared asset library.",
+  "architectural_impact": "New dependency edge WP-KERNEL-STUDIO -> WP-KERNEL-005 surfaces; CKC gains multi-consumer contract obligations (Studio, Tailor, cui-studio); privacy pillar HBR-PRIV applies across the boundary.",
+  "path": "Copy-first bundle v02.205 -> v02.206, manifest/changelog/INDEX/SPEC_CURRENT updates."
+ },
+ "guardrails": [
+  "No new .md files; JSON/JSONL only under this root. index.yaml updated at fold-back.",
+  "Vendor product names are provenance only; Studio names stay Handshake-native (STU-SECTION-003).",
+  "No vendor app becomes a Studio runtime dependency (STU-OVR-002).",
+  "Every foreground app launch is disclosed in chat before it runs (HBR-QUIET-004).",
+  "Captured data is reference; MT and spec amendments happen only in fold_back through governed helpers."
+ ],
+ "architecture_decisions_20260904": {
+  "file": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+  "summary": "Operator-confirmed: 012 not main is the reference tree; SurrealDB only, no second DB, Turso excluded because libSQL is a SQLite fork and STU-OVR-003 bans SQLite anywhere; no new router, Studio registers into the existing navigation layers; Rust front and back with the handshake_core/studio-engine split and a native-Rust-only text stack; split_layout.rs and module_switcher.rs are React ports that must be replaced.",
+  "binding_on": "every WP-KERNEL-STUDIO microtask authored from this green room"
+ },
+ "ui_deliberation_20260904": {
+  "operator_requirements": "_greenroom_20260903/ui_deliberation/operator-ui-requirements.json (OUI-001..010)",
+  "agents_running": [
+   "menu architecture",
+   "panel and dock architecture",
+   "tools and tooltips architecture"
+  ],
+  "adjudication": "a fourth round reconciles the three proposals and folds in After Effects once its teardown lands"
+ }
+}

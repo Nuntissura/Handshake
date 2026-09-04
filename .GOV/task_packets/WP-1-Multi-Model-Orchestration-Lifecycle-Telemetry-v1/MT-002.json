@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-002",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-08-14T15:26:03.296Z",
+  "updated_at_utc": "2026-09-02T20:42:11.264Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-002.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-001"
     ],
@@ -26,27 +26,27 @@
       "MT-007",
       "MT-008"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": "KERNEL_BUILDER-20260628-220906",
-    "claimed_at_utc": "2026-06-28T22:32:08.601Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260814-135053",
-    "ready_for_validation_at_utc": "2026-08-14T15:26:03.296Z",
-    "ready_for_validation_reason": "V5 remediation implemented at 814b5ae4; mandatory checklist PASS; exact five-dimensional PostgreSQL isolation, all declared proof targets, adversarial amendments, and non-host type-check passed. Independent validator review remains pending.",
+    "claimed_by": "KERNEL_BUILDER-20260902-180244",
+    "claimed_at_utc": "2026-09-02T20:42:11.264Z",
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "ready_for_validation_reason": null,
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "REMEDIATED_V5_PENDING_VALIDATION: commit 814b5ae4; exact five-dimensional ModelLane scope proof passed twice on Handshake-managed PostgreSQL with no skips; all four declared schema, runtime-spawn, negative, and UserManual proof targets passed; ARM64 non-host cargo check passed with blake3/no_neon.",
-    "hbr_status": "HBR-PRIV PASS_PENDING_VALIDATOR: exact owner, Principal, session, AccessSpace, and workspace attribution is proven for run, lane, message, diagnostic, and EventLedger derivatives with owner positives, one-dimension foreign negatives, concurrent disclosure resistance, and immutable final attribution. HBR-INT, HBR-SWARM, and HBR-MAN declared proofs passed on current source.",
-    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-08-14T15:26:03.296Z",
+    "proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet.",
+    "hbr_status": "VALIDATION_PENDING_V6: five-field durable ResourceScope, mismatch non-disclosure, legacy fail-closed behavior, schema uniqueness/idempotency, and lifecycle assertions remain unproven on the corrected embedded-store target.",
+    "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": "REMEDIATED_V5 at 814b5ae4; canonical PostgreSQL and declared proof commands passed; validator verdict pending",
+    "last_runtime_status_ref": "BLOCKED_ON_DEPENDENCY: V6 embedded-store provider/test seam incomplete; no Cargo command run in this lane",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-08-14_MULTIPLE_LENSES",
     "adversarial_findings_status": "POST_REVIEW_FALSIFIABILITY_DIAGNOSTIC_EVENTLEDGER_AND_CONCURRENCY_FINDINGS_ADDRESSED_AND_REPROVEN",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Add backend schemas/types for ModelLaneRun, ModelLane, ModelLaneMessage, and lane status.",
@@ -138,7 +138,7 @@
     "MAN"
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260902-180244",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
@@ -256,7 +256,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V5",
+  "validator_verdict": "PENDING_V6_PROVIDER_DEPENDENCY",
   "validation_v5": {
     "verdict": "READY_FOR_VALIDATION_V5",
     "ready_by": "KERNEL_BUILDER-20260723-205940",
@@ -387,5 +387,25 @@
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
+  },
+  "v6_remediation_2026_09_02": {
+    "authority": "OPERATOR_DIRECTIVE_2026_09_02_WP1_V6_REMEDIATION_KERNEL_BUILDER_SUBAGENT_LANES",
+    "parent_session": "KERNEL_BUILDER-20260902-180244",
+    "storage_authority": "Embedded SurrealDB/EventLedger only [CX-503R]; PostgreSQL/SQLite forbidden in production, tests, fixtures, fallbacks, and proof.",
+    "artifact_root_correction": "All cargo/test/runtime proof runs through the parent cargo slot with CARGO_TARGET_DIR=${HANDSHAKE_ARTIFACTS_ROOT}/handshake-cargo-target/wp1-mmo-v6-kb0902 and logs under ${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp1-mmo-v6/wp1-mmo-v6-kb0902/. Any older contract text naming Handshake/_Artifacts or Handshake\\_Artifacts is superseded and must not be used.",
+    "session_mt_batch": "MT-002..MT-024",
+    "substrate_checkpoint": "feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1: substrate compile checkpoint after ef2d165c (see RECEIPTS.jsonl correlation WP1-V6-REMEDIATION-20260902)",
+    "history": [
+      {
+        "at_utc": "2026-09-02T20:42:11.264Z",
+        "kind": "CLAIM",
+        "note": "Wave 1 lane: ModelLane schema/provider seams + model_lane_schema_surreal_tests",
+        "prior_status": "BLOCKED_ON_DEPENDENCY",
+        "prior_claimed_by": "KERNEL_BUILDER-20260628-220906",
+        "prior_blocker": "MT-002 V6 embedded-store test migration is blocked at Parfit's in-progress ModelLane provider boundary: ModelLaneStore owns SurrealStorage but required schema, terminal-status, diagnostics, navigation, recovery, and schema-registry methods still reference the removed self.pool/new_with_access path. The public embedded-store test surface also lacks a ModelLane-specific read-only row projection and malformed-scope fixture seam needed to preserve durable five-field and legacy-attribution assertions without a compatibility fallback.",
+        "prior_missing_resource": "A compiling embedded ModelLane provider for every MT-002 exercised method, plus a feature-gated ModelLane test API that can project model_lane_authority/model_lane_event_ledger scope fields and seed one deliberately incomplete-attribution row in the same namespace/database.",
+        "prior_proof_status": "VALIDATION_PENDING_V6_BLOCKED_ON_PROVIDER: no MT-002 test migration or Cargo validation was claimed. Fresh focused embedded-store target checks remain owed after the provider boundary exists; the parent retains the serialized Cargo slot."
+      }
+    ]
   }
 }

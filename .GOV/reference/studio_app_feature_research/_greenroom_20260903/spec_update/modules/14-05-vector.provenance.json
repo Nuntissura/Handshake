@@ -1,0 +1,2846 @@
+{
+ "schema_id": "handshake.reference.studio_spec_clause_provenance@1",
+ "file_id": "studio-spec-provenance-14-05-vector.md",
+ "generated_at": "2026-09-04",
+ "status": "reference_only_not_execution_authority",
+ "module": "14-05-vector.md",
+ "section_title": "14.5 Studio -- Vector Graphics & Illustration",
+ "authority_note": "This file records HOW each clause was derived. It is NOT authority. Authority is the Master Spec module itself ([STU-SECTION-002]). Where this file and the module disagree, the module wins and this file is stale.",
+ "conventions": {
+  "kind.new": "clause added in v02.206 from a green-room capture",
+  "kind.preserved": "clause carried forward from v02.205 unchanged in meaning",
+  "kind.preserved_and_superseded_in_part": "clause carried forward, with a named part superseded by captured behaviour",
+  "sources[].capture": "key into capture_files",
+  "sources[].record": "the path inside that capture file the clause was read from",
+  "sources[].fields": "the specific parsed fields transcribed",
+  "sources[].note": "a caveat that limits how the record may be used"
+ },
+ "capture_files": {
+  "ai_effects": {
+   "path": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_effects.json",
+   "schema_id": "handshake.studio.illustrator.effects.v1",
+   "channel": "Adobe EVE layout source embedded as plain text in the *UI.aip binaries (dialog widget tree joined to numeric interface ranges), plus %AI9_BeginArtStyles blocks in the shipped .ai libraries",
+   "totals": {
+    "plugins_scanned": 246,
+    "dialog_layouts": 559,
+    "dialog_parameters": 2109,
+    "live_effect_instances": 8304,
+    "distinct_live_effect_filters": 60,
+    "live_effect_parameter_keys": 269,
+    "effect_menu_groups": 9,
+    "effect_menu_items": 68
+   },
+   "warning": "serialized live-effect values are the values present in shipped presets; they are NOT the effect's legal minimum or maximum"
+  },
+  "ai_enums": {
+   "path": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_enums.json",
+   "schema_id": "handshake.studio.illustrator.enums.v1",
+   "channel": "same type library; enumerator names and integer values parsed",
+   "totals": {
+    "enum_groups": 138,
+    "enum_members": 678
+   }
+  },
+  "ai_library": {
+   "path": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_library_contents.json",
+   "schema_id": "handshake.studio.illustrator.library_contents.v1",
+   "channel": ".ai PDF container -> AIPrivateData -> zstd -> legacy PostScript stream; .ase, .acb and .acbl binaries fully parsed",
+   "totals": {
+    "library_files_scanned": 183,
+    "primary_entries_total": 15987,
+    "brushes": 561,
+    "symbols": 884,
+    "graphic_styles": 314,
+    "patterns": 382,
+    "gradients": 659,
+    "swatches": 3155,
+    "colour_book_colours": 10011
+   },
+   "warning": "brush parameter strings were captured verbatim and NOT decoded into fields; colour-book components are raw bytes not scaled to a colour space"
+  },
+  "ai_param": {
+   "path": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_parameter_surface.json",
+   "schema_id": "handshake.studio.illustrator.parameter_surface.v1",
+   "channel": "COM type-library direct walk of the installed scripting-support plug-in; application never launched",
+   "totals": {
+    "classes": 160,
+    "properties": 2100,
+    "methods": 672,
+    "properties_with_range_or_default_hint": 652,
+    "properties_with_range_hint": 106,
+    "properties_with_default_hint": 397
+   }
+  },
+  "contract": {
+   "path": "_greenroom_20260903/fold_back/AUTHORING_CONTRACT.json",
+   "schema_id": "handshake.reference.studio_mt_authoring_contract@1",
+   "channel": "operator-confirmed authoring contract",
+   "totals": {}
+  },
+  "decisions": {
+   "path": "_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+   "schema_id": "handshake.reference.studio_architecture_decisions@1",
+   "channel": "operator-confirmed architecture decisions",
+   "totals": {}
+  },
+  "fig_model": {
+   "path": "_greenroom_20260903/installed_exports/figma/offline/figma_object_model.json",
+   "schema_id": "handshake.reference.figma_object_model@1",
+   "channel": "TypeScript declaration parse of the publicly published plug-in typings packages; no account, browser session or install",
+   "totals": {
+    "node_types": 40,
+    "interfaces": 282,
+    "declared_properties": 1023,
+    "declared_methods": 443,
+    "string_union_enums": 68,
+    "enumerated_values": 932,
+    "mixins": 45
+   }
+  },
+  "id_dom": {
+   "path": "_greenroom_20260903/installed_exports/indesign/offline/indesign_dom_full.json",
+   "schema_id": "handshake.reference.indesign_dom_full@1",
+   "channel": "binary record parser for idrc_SCE2 scripting-element resources read from the installed application; read-only, never launched",
+   "totals": {
+    "resource_files_parsed": 1774,
+    "classes": 516,
+    "properties": 3398,
+    "methods": 783,
+    "enumerations": 526,
+    "enumerators": 3000,
+    "properties_with_explicit_range_or_default_text": 207
+   }
+  },
+  "id_errors": {
+   "path": "_greenroom_20260903/installed_exports/indesign/offline/indesign_error_catalog.json",
+   "schema_id": "handshake.reference.indesign_error_catalog@1",
+   "channel": "binary record parser for idrc_uetb error tables plus English idrc_PMST string pools",
+   "totals": {
+    "distinct_error_codes": 1453,
+    "errors_with_english_message": 1436,
+    "constraint_candidates": 421,
+    "distinct_plugins": 71
+   }
+  },
+  "prior_spec": {
+   "path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+   "schema_id": "handshake.indexed_spec.module@1",
+   "channel": "the superseded v02.205 text of 14.5 (lines 490-895) and 14.6 (lines 896-1239)",
+   "totals": {}
+  },
+  "registry": {
+   "path": "_greenroom_20260903/fold_back/studio-capability-registry.json",
+   "schema_id": "handshake.reference.studio_capability_registry",
+   "channel": "cross-app merge of per-app teardown rows",
+   "totals": {
+    "capabilities_total": 49611,
+    "domain_vector": 3826,
+    "domain_layout": 4609
+   },
+   "warning": "GRD-001: rows merged on normalised name conflate unrelated capabilities. Used in this spec update ONLY as a coverage cross-check, never as a source of a bound, default, unit or enumerated value."
+  }
+ },
+ "counts": {
+  "clauses_total": 156,
+  "clauses_new": 83,
+  "clauses_preserved": 53,
+  "clauses_preserved_and_superseded_in_part": 20,
+  "capture_files_cited": 11
+ },
+ "clauses": {
+  "STU-VEC-001": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-001]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-002": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-002]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-109"
+   ],
+   "reason": "the three informal handle-mirroring member names are replaced by the captured enumeration and its token values"
+  },
+  "STU-VEC-003": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-003]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-004": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-004]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-110"
+   ],
+   "reason": "the informal fill-rule names are replaced by the captured winding enumeration, which has a third member"
+  },
+  "STU-VEC-005": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-005]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-112"
+   ],
+   "reason": "the informal corner-kind list is replaced by the captured six-member enumeration and the corner numeric contract"
+  },
+  "STU-VEC-006": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-006]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-007": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-007]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-008": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-008]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-009": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-009]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-010": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-010]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-127"
+   ],
+   "reason": "the shape table carried no ranges, defaults or units and named a star 'outer radius' parameter no capture carries"
+  },
+  "STU-VEC-011": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-011]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-012": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-012]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-130"
+   ],
+   "reason": "the ten-row operation table omitted hard mix, soft mix and trap, and carried no operation tokens"
+  },
+  "STU-VEC-013": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-013]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-014": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-014]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-015": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-015]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-134"
+   ],
+   "reason": "the five informal fill kinds are replaced by the captured paint-kind enumeration with integer values"
+  },
+  "STU-VEC-016": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-016]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-135",
+    "STU-VEC-136",
+    "STU-VEC-137"
+   ],
+   "reason": "the interpolation control is Classic/Perceptual, not perceptual/linear; the gradient-type set and the stop bounds are captured"
+  },
+  "STU-VEC-017": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-017]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-138"
+   ],
+   "reason": "the captured tile-type set has three members, not five; the two extra members are retained with unknown values"
+  },
+  "STU-VEC-018": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-018]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-139"
+   ],
+   "reason": "image rotation is a free numeric, not a 90-degree step selector"
+  },
+  "STU-VEC-019": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-019]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-020": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-020]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-143",
+    "STU-VEC-144",
+    "STU-VEC-145",
+    "STU-VEC-146",
+    "STU-VEC-147"
+   ],
+   "reason": "the stroke attribute table carried no enumerated values, no bounds and six informal arrowhead names against a captured catalogue of twelve plus eight plus six"
+  },
+  "STU-VEC-021": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-021]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-022": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-022]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-023": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-023]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-024": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-024]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-025": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-025]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-151",
+    "STU-VEC-153"
+   ],
+   "reason": "the canonical blend-mode set was unenumerated and the pass-through requirement contradicted the 'sixteen' formulation used in 14.6"
+  },
+  "STU-VEC-026": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-026]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-162"
+   ],
+   "reason": "the seven-row brush table is replaced by the captured five-kind census plus two declared gaps"
+  },
+  "STU-VEC-027": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-027]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-163"
+   ],
+   "reason": "the four colorisation methods gain their captured integer values"
+  },
+  "STU-VEC-028": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-028]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-029": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-029]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-030": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-030]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-157",
+    "STU-VEC-168",
+    "STU-VEC-169",
+    "STU-VEC-170",
+    "STU-VEC-172"
+   ],
+   "reason": "the transform table carried no parameter contracts"
+  },
+  "STU-VEC-031": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-031]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-171"
+   ],
+   "reason": "the repeat clause carried no defaults; the captured radial radius default is a sentinel and the symmetry default is in radians"
+  },
+  "STU-VEC-032": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-032]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-173"
+   ],
+   "reason": "the blend clause omitted the captured easing ramp and colour-acceleration shift"
+  },
+  "STU-VEC-033": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-033]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-174"
+   ],
+   "reason": "gap detection gains its captured controls and defaults"
+  },
+  "STU-VEC-034": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-034]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-175"
+   ],
+   "reason": "mesh creation gains its captured appearance enumeration"
+  },
+  "STU-VEC-035": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-035]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-176"
+   ],
+   "reason": "the nine-option trace list was materially incomplete and conflated the grey-fidelity slider with the grey-level count"
+  },
+  "STU-VEC-036": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-036]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-037": {
+   "kind": "preserved_and_superseded_in_part",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-037]"
+    }
+   ],
+   "derivation": "carried forward; the named part is superseded by captured behaviour",
+   "superseded_by": [
+    "STU-VEC-125"
+   ],
+   "reason": "the select-same predicate list gains the captured five-predicate default state"
+  },
+  "STU-VEC-038": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-038]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-039": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-039]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-040": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-040]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-041": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-041]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-042": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-042]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-043": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-043]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-044": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-044]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-045": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-045]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-046": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-046]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-047": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-047]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-048": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-048]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-049": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-049]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-050": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-050]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-051": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-051]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-052": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-052]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-053": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-053]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-054": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-054]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-055": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-055]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-056": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-056]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-057": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-057]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-058": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-058]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-059": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-059]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-060": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-060]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-061": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-061]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-062": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-062]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-063": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-063]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-064": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-064]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-065": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-065]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-066": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-066]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-067": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-067]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-068": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-068]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-069": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-069]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-070": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-070]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-071": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-071]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-072": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-072]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-073": {
+   "kind": "preserved",
+   "sources": [
+    {
+     "capture": "prior_spec",
+     "record": "sub-section 14.5 clause [STU-VEC-073]"
+    }
+   ],
+   "derivation": "carried forward from v02.205 without change of meaning"
+  },
+  "STU-VEC-100": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "the_parameter_contract.required_fields"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs.*.layouts.*.parameters[].slider_range and .edit_range",
+     "note": "the hard/soft split is directly observable: 118 parameters declare slider_range, 11 declare a separate edit_range"
+    }
+   ],
+   "derivation": "operator contract + capture shape"
+  },
+  "STU-VEC-101": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs.*.layouts.*.parameters[].unit",
+     "fields": [
+      "NumberEditUnit_Percent",
+      "NumberEditUnit_Degree",
+      "NumberEditUnit_Pixel",
+      "NumberEditUnit_MM",
+      "CurrentDocumentUnit",
+      "ApplicationRulerUnit",
+      "@ruler_units",
+      "@SliderUnits",
+      "@UnitPercent"
+     ]
+    },
+    {
+     "capture": "ai_param",
+     "record": "classes.*.properties.*.units_hint",
+     "fields": [
+      "points",
+      "pixels",
+      "percent",
+      "dpi",
+      "ppi"
+     ]
+    }
+   ],
+   "derivation": "transcribed unit tokens"
+  },
+  "STU-VEC-102": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "the_parameter_contract.irreversible_mistake"
+    }
+   ],
+   "derivation": "operator contract"
+  },
+  "STU-VEC-103": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "the_parameter_contract.required_fields",
+     "fields": [
+      "step",
+      "coarse_step",
+      "fine_step"
+     ]
+    }
+   ],
+   "derivation": "operator contract; derivation rule is Studio-authored and labelled DERIVED"
+  },
+  "STU-VEC-104": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_enums",
+     "record": "enums.*.members[].value"
+    },
+    {
+     "capture": "fig_model",
+     "record": "enums.*"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-105": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "decisions",
+     "record": "known_defects_in_this_green_room.GRD-001"
+    },
+    {
+     "capture": "contract",
+     "record": "hard_rules_from_operator_decisions.GRD-001"
+    }
+   ],
+   "derivation": "operator decision"
+  },
+  "STU-VEC-106": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "method.labelling.observed_values / observed_range"
+    },
+    {
+     "capture": "contract",
+     "record": "the_parameter_contract.where_bounds_are_absent"
+    }
+   ],
+   "derivation": "capture warning + operator contract"
+  },
+  "STU-VEC-107": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "what_is_being_replaced.the_test"
+    },
+    {
+     "capture": "decisions",
+     "record": "decisions.SAD-008.operator_reinforcement_20260904.granularity_rule"
+    }
+   ],
+   "derivation": "operator contract"
+  },
+  "STU-VEC-108": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "fig_model",
+     "record": "interfaces.VectorNetwork / VectorVertex / VectorSegment / VectorRegion / VectorLikeMixin",
+     "fields": [
+      "vertices",
+      "segments",
+      "regions",
+      "start",
+      "end",
+      "tangentStart",
+      "tangentEnd",
+      "windingRule",
+      "loops",
+      "fills",
+      "fillStyleId",
+      "setVectorNetworkAsync",
+      "vectorPaths"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "mixins.GeometryMixin.fillGeometry / MinimalStrokesMixin.strokeGeometry"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-109": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "fig_model",
+     "record": "enums.HandleMirroring",
+     "fields": [
+      "NONE",
+      "ANGLE",
+      "ANGLE_AND_LENGTH"
+     ]
+    },
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiPointType",
+     "fields": [
+      "aiSmooth=1",
+      "aiCorner=2"
+     ]
+    }
+   ],
+   "derivation": "transcribed; two captures reconciled"
+  },
+  "STU-VEC-110": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "fig_model",
+     "record": "enums.WindingRule",
+     "fields": [
+      "EVENODD",
+      "NONZERO"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "interfaces.VectorPath.windingRule",
+     "fields": [
+      "NONE"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-111": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiPolarityValues",
+     "fields": [
+      "aiPositive=1",
+      "aiNegative=-1"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-112": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['corner options'] / ['corner effects']",
+     "fields": [
+      "none",
+      "rounded corner",
+      "inverse rounded corner",
+      "inset corner",
+      "bevel corner",
+      "fancy corner"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/DynamicCorners.aip'].layouts.DynamicCornerPanel.parameters.EditNumberRadius",
+     "fields": [
+      "initial_value=0",
+      "unit=CurrentDocumentUnit",
+      "decimal_places=gAIDimensionDecimalPrecision"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "mixins.CornerMixin",
+     "fields": [
+      "cornerRadius",
+      "cornerSmoothing"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-113": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/OffsetPathUI.aip'].layouts.OffsetPathUI.parameters",
+     "fields": [
+      "joinsSelection options Miter=0/Round=1/Bevel=2",
+      "previewButton"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "serialized_live_effects['Adobe Offset Path'].parameters",
+     "fields": [
+      "ofst",
+      "jntp",
+      "mlim"
+     ],
+     "note": "186 instances; observed only"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-114": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/Simplify.aip'].layouts.SimplifyUI.parameters",
+     "fields": [
+      "CurvePrecisionEdit",
+      "AngleThresholdEdit",
+      "SmoothingPercentage",
+      "StraightLinesCheckBox",
+      "ShowOriginalCheckBox",
+      "previewButton"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PathCoreUI.aip'].layouts.SmoothnerUI.parameters.SmoothingPercentage",
+     "fields": [
+      "option_value=20"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-115": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_param",
+     "record": "classes.PathItem.properties.Width / .Height / .Opacity",
+     "fields": [
+      "range_hint 0.0-16348.0",
+      "range_hint 0.0-100.0"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/TransformUI.aip'].layouts.TransformEachUI.parameters.scaleHorizontalComboSliderAbsolute",
+     "fields": [
+      "edit_range 0-16384"
+     ]
+    }
+   ],
+   "derivation": "transcribed; two captures reconciled"
+  },
+  "STU-VEC-116": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiPathPointSelection",
+     "fields": [
+      "aiNoSelection=1",
+      "aiAnchorPoint=2",
+      "aiLeftDirection=3",
+      "aiRightDirection=4",
+      "aiLeftRightPoint=5"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-117": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_param",
+     "record": "classes.PathItem.properties.Area / .Length",
+     "fields": [
+      "units_hint=points"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-118": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PathCoreUI.aip'].layouts.GeometryToolDialog.parameters",
+     "fields": [
+      "anchorEditPopup",
+      "curveEditPopup",
+      "lineEditPopup",
+      "curveMatchPopup",
+      "lineMatchPopup"
+     ],
+     "note": "popup member lists not recovered"
+    }
+   ],
+   "derivation": "transcribed; gap declared"
+  },
+  "STU-VEC-119": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/SketchingTools.aip'].layouts.PencilToolUI_ / .SmoothToolUI_ / .TouchPencilToolUI_.parameters"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/BrushManagerUI.aip'].layouts.BrushManagerUI_.parameters",
+     "fields": [
+      "fidelity_ComboSlider",
+      "distance_ComboSlider option_value=12 suffix=pixels"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-120": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/CalligraphicBrushTool.aip'].layouts.BlobBrushToolOptions.parameters",
+     "fields": [
+      "fidelity_ComboSlider slider_range 0-4",
+      "diameter_left",
+      "angle_left",
+      "roundness_left",
+      "KeepSelectedCheckBox",
+      "MergeCheckBox"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-121": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/EraserTool.aip'].layouts.EraserToolOptions.parameters",
+     "fields": [
+      "angle_left",
+      "roundness_left",
+      "diameter_left"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-122": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/GlobAdjToolUI.aip'].layouts.WidthPointEditDialog.parameters",
+     "fields": [
+      "adjustAdjoining",
+      "singleWidthOnlyInc",
+      "singleWidthOnlyOut"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "interfaces.VariableWidthPoint",
+     "fields": [
+      "position",
+      "width"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-123": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PlanetXUI.aip'].layouts.MergeToolUI.parameters",
+     "fields": [
+      "gap_detection",
+      "gap_size Small=0/Medium=1/Large=2/Custom=3",
+      "close_open_fill",
+      "split_path",
+      "color_pickup_option",
+      "cursor_swatch_preview",
+      "Straight_Line/Free_Form",
+      "highlight_fill",
+      "hightlight_stroke"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-124": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/VectorSculpting.aip'].layouts.VectorSculpting.parameters",
+     "fields": [
+      "dFactor unit=NumberEditUnit_Percent",
+      "dFactorSlider",
+      "previewButton"
+     ]
+    }
+   ],
+   "derivation": "transcribed; every numeric field a declared gap"
+  },
+  "STU-VEC-125": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/MagicWand.aip'].layouts.MagicWandPanel.parameters",
+     "fields": [
+      "FillColor=True",
+      "StrokeColor=False",
+      "StrokeWeight=False",
+      "Opacity=False",
+      "BlendingMode=False"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-126": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/Cleanup.aip'].layouts.CleanUpUI.parameters",
+     "fields": [
+      "stray_points",
+      "unpainted_objects",
+      "empty_text_paths"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-127": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ShapeCoreUI.aip'].layouts.PolygonPropertiesUI.parameters.PolygonSideCountSlider",
+     "fields": [
+      "slider_range 3-20"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ShapeCoreUI.aip'].layouts.StarPropertiesUI.parameters.StarSideCountSlider",
+     "fields": [
+      "slider_range 3-50"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "properties['number of sides'] / ['inset percentage'] on class 'polygon preference'",
+     "fields": [
+      "Range: 3 to 100",
+      "Range: 0 to 100"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/SimpleTools.aip'].layouts.ArcSegmentTools / .SimpleToolsRect / .SimpleToolsPolar.parameters",
+     "fields": [
+      "Slope slider_range -100..100",
+      "skew slider_range -500..500"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "node_types.StarNode.pointCount / .innerRadius; node_types.PolygonNode.pointCount; interfaces.ArcData"
+    },
+    {
+     "capture": "ai_param",
+     "record": "classes.PathItem.properties.Width/.Height",
+     "fields": [
+      "0.0-16348.0"
+     ]
+    }
+   ],
+   "derivation": "transcribed; captures reconciled under STU-VEC-105"
+  },
+  "STU-VEC-128": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "registry",
+     "record": "capabilities where domain=='vector' and kind=='capability'",
+     "note": "used only to confirm the extended-primitive family exists; no bound taken from it"
+    }
+   ],
+   "derivation": "gap declared"
+  },
+  "STU-VEC-129": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "methods['convert shape'] parameters",
+     "fields": [
+      "given",
+      "number of sides",
+      "inset percentage",
+      "corner radius"
+     ]
+    },
+    {
+     "capture": "id_errors",
+     "record": "errors[kCannotConvertShapeError / kCannotConvertPointToShapeError / kCannotConvertOrthogonalLineToShapeError / kCannotConvertLineToClosedPath]"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-130": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PathfinderUI.aip'].layouts.PathfinderTrapOptions.parameters.operationPopup.options",
+     "fields": [
+      "uniteCommand",
+      "intersectCommand",
+      "excludeCommand",
+      "backMinusFrontCommand",
+      "frontMinusBackCommand",
+      "divideCommand",
+      "trimCommand",
+      "mergeCommand",
+      "cropCommand",
+      "outlineCommand",
+      "hardCommand",
+      "softCommand",
+      "trapCommand"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "node_types.BooleanOperationNode.booleanOperation",
+     "fields": [
+      "UNION",
+      "INTERSECT",
+      "SUBTRACT",
+      "EXCLUDE"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "effect_menu_index.Pathfinder",
+     "fields": [
+      "13 items"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-131": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PathfinderUI.aip'].layouts.PathfinderOptions / .PathfinderTrapOptions.parameters",
+     "fields": [
+      "precisionNumberEdit suffix=points",
+      "removeRedundant",
+      "extractUnpainted"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-132": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PathfinderUI.aip'].layouts.PathfinderTrap.parameters",
+     "fields": [
+      "convertCustomColor",
+      "reverseTrap"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "classes['trap preset']"
+    }
+   ],
+   "derivation": "transcribed; numeric contract delegated to STU-LAY-152"
+  },
+  "STU-VEC-133": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_errors",
+     "record": "errors filtered plugin=='Generic Page Item' and constraint_candidate==true",
+     "fields": [
+      "kPathOPResultEmptyError",
+      "kItemTooSmallError",
+      "kItemTooLargeError",
+      "kIllegalDimensionError",
+      "kIllegalScaleValueError",
+      "kIllegalSkewValueError",
+      "kPathIndexOutOfBounds",
+      "kPointIndexOutOfBounds",
+      "kCannotJoinPathPointsError",
+      "kObjectIsLockedError",
+      "EmptySplineError"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-134": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiColor",
+     "fields": [
+      "aiColorNone=0",
+      "aiColorCMYK=1",
+      "aiColorGray=2",
+      "aiColorRGB=3",
+      "aiColorSpot=4",
+      "aiColorPattern=5",
+      "aiColorGradient=6"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "type_aliases.Paint union",
+     "fields": [
+      "SOLID",
+      "IMAGE",
+      "VIDEO",
+      "PATTERN",
+      "GRADIENT_*"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-135": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiGradientType",
+     "fields": [
+      "aiLinearGradient=1",
+      "aiRadialGradient=2"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "interfaces.GradientPaint.type",
+     "fields": [
+      "GRADIENT_LINEAR",
+      "GRADIENT_RADIAL",
+      "GRADIENT_ANGULAR",
+      "GRADIENT_DIAMOND"
+     ]
+    },
+    {
+     "capture": "ai_param",
+     "record": "classes.MeshItem"
+    }
+   ],
+   "derivation": "transcribed; two captures reconciled"
+  },
+  "STU-VEC-136": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_param",
+     "record": "classes.GradientStop.properties.RampPoint / .MidPoint / .Opacity",
+     "fields": [
+      "0.0-100.0",
+      "13.0-87.0",
+      "0.0-100.0"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "properties.midpoint / .location on class 'gradient stop'",
+     "fields": [
+      "Range: 13 to 87",
+      "Range: 0 to 100"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "interfaces.ColorStop",
+     "fields": [
+      "position",
+      "color"
+     ]
+    }
+   ],
+   "derivation": "transcribed; two applications agree on 13..87"
+  },
+  "STU-VEC-137": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PaintStyle.aip'].layouts.GradientPanel / .GradientControlPanelGroup.parameters",
+     "fields": [
+      "GradientInterpolationPopup Classic=0/Perceptual=1",
+      "DitherChkBx",
+      "PointsRadioButton/CurvesRadioButton"
+     ]
+    }
+   ],
+   "derivation": "transcribed; supersedes prior spec text"
+  },
+  "STU-VEC-138": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_param",
+     "record": "classes._PatternColor.properties",
+     "fields": [
+      "Reflect default false",
+      "ReflectAngle 0.0",
+      "Rotation 0.0",
+      "ShearAngle 0.0",
+      "ShearAxis 0.0",
+      "ShiftAngle 0.0",
+      "ShiftDistance 0.0",
+      "ScaleFactor"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "interfaces.PatternPaint",
+     "fields": [
+      "sourceNodeId",
+      "tileType",
+      "scalingFactor",
+      "spacing",
+      "horizontalAlignment"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-139": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "fig_model",
+     "record": "interfaces.ImagePaint",
+     "fields": [
+      "scaleMode CROP/FILL/FIT/TILE",
+      "imageTransform",
+      "scalingFactor",
+      "rotation",
+      "filters",
+      "opacity",
+      "blendMode"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-140": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PaintStyle.aip'].layouts.AIColorPickerDialog.parameters",
+     "fields": [
+      "hueRadioButton=0..blackRadioButton=5",
+      "hexadecimalValue=FFFFFF",
+      "webColorsCheckbox=False"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-141": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_library",
+     "record": "libraries[family=='Swatches'] and totals.primary_entries_by_kind",
+     "fields": [
+      "118 swatch library files",
+      "3155 swatches",
+      "10011 colours",
+      "659 gradients",
+      "382 patterns",
+      "swatch_kind census"
+     ]
+    }
+   ],
+   "derivation": "transcribed as an inventory contract, not as content"
+  },
+  "STU-VEC-142": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ColorHarmony.aip'].layouts.ColorHarmonyDialog.parameters",
+     "fields": [
+      "global_saturation_slider -100..100",
+      "global_brightness_slider",
+      "global_temperature_slider",
+      "global_luminosity_slider",
+      "brightness_saturation_slider 0..100"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-143": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiStrokeCap / .AiStrokeJoin",
+     "fields": [
+      "aiButtEndCap=1",
+      "aiRoundEndCap=2",
+      "aiProjectingEndCap=3",
+      "aiMiterEndJoin=1",
+      "aiRoundEndJoin=2",
+      "aiBevelEndJoin=3"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "enums.StrokeCap / .StrokeJoin; mixins.MinimalStrokesMixin.strokeAlign",
+     "fields": [
+      "CENTER",
+      "INSIDE",
+      "OUTSIDE"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['end cap'] / ['end join'] / ['stroke alignment']"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-144": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "properties['miter limit'] on class 'page item'",
+     "fields": [
+      "Range: 1 to 500"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "mixins.IndividualStrokesMixin",
+     "fields": [
+      "strokeTopWeight",
+      "strokeBottomWeight",
+      "strokeLeftWeight",
+      "strokeRightWeight"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "interfaces.AutoLayoutMixin.strokesIncludedInLayout"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PaintStyle.aip'].layouts.StrokePanel.parameters.EditNumberWeight / .LimitNumber"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-145": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PaintStyle.aip'].layouts.StrokePanel.parameters",
+     "fields": [
+      "Dash1..Dash3",
+      "Gap1..Gap3",
+      "DashedLineChkBx",
+      "ScaleStartEditNumber",
+      "ScaleEndEditNumber"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "mixins.MinimalStrokesMixin.dashPattern"
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['stroke corner adjustment']",
+     "fields": [
+      "none",
+      "dashes",
+      "gaps",
+      "dashes and gaps"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-146": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_dom",
+     "record": "enumerations['arrow head'] (12 members) and ['arrow head alignment enum']"
+    },
+    {
+     "capture": "id_dom",
+     "record": "properties['left arrow head scale'] / ['right arrow head scale']",
+     "fields": [
+      "Range: 1 to 1000"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "enums.StrokeCap (8) and enums.ConnectorStrokeCap (12)"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "serialized_live_effects['Adobe Add Arrowheads'].parameters",
+     "fields": [
+      "head_arrow",
+      "tail_arrow",
+      "scale"
+     ]
+    }
+   ],
+   "derivation": "transcribed; three captures unioned"
+  },
+  "STU-VEC-147": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "fig_model",
+     "record": "interfaces.VariableWidthPoint / .VariableWidthStrokeProperties / mixins.ComplexStrokesMixin"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-148": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "serialized_live_effects['Adobe Stroke Offset']",
+     "fields": [
+      "StrokeOffsetInside",
+      "DisplayString Inside/Outside",
+      "212 instances"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-149": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "registry",
+     "record": "capabilities where domain=='vector'",
+     "note": "existence only"
+    }
+   ],
+   "derivation": "gap declared"
+  },
+  "STU-VEC-150": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ArtOnPathBrushToolUI.aip'].layouts.ArtBrushOptions.parameters.DependingOnPopup.options",
+     "fields": [
+      "Fixed=0",
+      "Width Points/Profile=1",
+      "Pressure=2",
+      "Stylus Wheel=3",
+      "Tilt=4",
+      "Bearing=5",
+      "Rotation=6"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ScatterBrushToolUI.aip'].layouts.ScatterBrushOptionsUI.parameters.brush_param_type_for_size.options",
+     "fields": [
+      "Fixed=0",
+      "Random=1",
+      "Pressure=2",
+      "Stylus Wheel=3",
+      "Tilt=4",
+      "Bearing=5",
+      "Rotation=6"
+     ]
+    }
+   ],
+   "derivation": "transcribed; value-1 collision recorded"
+  },
+  "STU-VEC-151": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiBlendModes",
+     "fields": [
+      "aiNormalBlend=0 .. aiLuminosity=15"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['blend mode'] (16 members)"
+    },
+    {
+     "capture": "fig_model",
+     "record": "enums.BlendMode (19 members incl. LINEAR_BURN, LINEAR_DODGE, PASS_THROUGH)"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/TransparencyPalette.aip'].layouts.TransparencyPanel.parameters.BlendingModePopup.options"
+    }
+   ],
+   "derivation": "transcribed; three captures reconciled; supersedes prior spec text"
+  },
+  "STU-VEC-152": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/CalligraphicBrushTool.aip'].layouts.CalligraphicBrushOptions.parameters"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ScatterBrushToolUI.aip'].layouts.ScatterBrushToolOptionsUI.parameters",
+     "fields": [
+      "size_left slider 10-1000 edit 1-10000",
+      "spacing_left slider 10-1000 edit 1-10000",
+      "scatter_left slider -1000..1000 edit -10000..10000",
+      "rotation_left slider -180..180 edit -360..360"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ArtOnPathBrushToolUI.aip'].layouts.ArtBrushOptions.parameters",
+     "fields": [
+      "ArtBrushOptionsSizeWidth slider 1-1000",
+      "BrushScaleProportional=0/Stroke=1/Guides=2"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ArtOnPathBrushToolUI.aip'].layouts.PatternOnPathOptionsUI.parameters",
+     "fields": [
+      "ScaleSliderMin/Max slider 1-1000",
+      "FitRadioGp 1/2/4"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/dBrushToolUI.aip'].layouts.dBrushToolUIDialog.parameters",
+     "fields": [
+      "bristleSize default 5 unit MM",
+      "bristleLength 25-300 default 150",
+      "bristleDensity 1-100 default 50",
+      "bristleThickness 1-100 default 50",
+      "bristleOpacity 1-100 default 50",
+      "bristleStiffness 1-100 default 50"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-153": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/TransparencyPalette.aip'].layouts.TransparencyPanel.parameters",
+     "fields": [
+      "Clip",
+      "InvertMask",
+      "IsolateBlending",
+      "KnockoutGroup",
+      "OpacityMaskDefineKnockoutShape",
+      "OpacityValueEditNumber"
+     ]
+    },
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiKnockoutState",
+     "fields": [
+      "aiKnockoutUnknown=-1",
+      "aiDisabled=0",
+      "aiEnabled=1",
+      "aiInherited=2"
+     ]
+    },
+    {
+     "capture": "fig_model",
+     "record": "enums.MaskType",
+     "fields": [
+      "ALPHA",
+      "LUMINANCE",
+      "VECTOR"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-154": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "effect_menu_index (9 groups, 68 items) and effect_menu_runs (21 runs)"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "serialized_live_effects.*.parameters[].type",
+     "fields": [
+      "Int",
+      "Real",
+      "Bool",
+      "String"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-155": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/RoughenUI.aip'].layouts.RoughenUI.parameters",
+     "fields": [
+      "ComboSliderAbsSize slider 0-100 edit 0-7200 unit CurrentDocumentUnit dp 2",
+      "ComboSliderRelSize",
+      "ComboSliderDetail suffix=/in"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ZigZagUI.aip'].layouts.ZigZagUI.parameters"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PunkUI.aip'].layouts.PunkUI.parameters.factor"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/TwirlToolUI.aip'].layouts.TwirlUI"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ScribbleUI.aip'].layouts.tweak.parameters",
+     "fields": [
+      "hslider/vslider slider 0-100 default 10",
+      "modifyAnchor/modifyIn/modifyOut default true"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/DistortUI.aip'].layouts.FreeDistort"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "serialized_live_effects['Adobe Roughen' / 'Adobe Zigzag' / 'Adobe Punk and Bloat' / 'Adobe Twirl' / 'Adobe Scribble and Tweak' / 'Adobe Free Distort'].parameters"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-156": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/DropShadowUI.aip'].layouts.DropShadowUI / .InnerGlowOptionsDialog / .OuterGlowOptionsDialog.parameters"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/FuzzyEffectUI.aip'].layouts.FuzzyEffectUI"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/RoundUI.aip'].layouts.Round"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "serialized_live_effects['Adobe Drop Shadow' / 'Adobe Inner Glow' / 'Adobe Outer Glow' / 'Adobe Fuzzy Mask' / 'Adobe Round Corners'].parameters"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-157": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/TransformUI.aip'].layouts.TransformEachUI.parameters",
+     "fields": [
+      "scaleHorizontalComboSlider slider 0-200 edit -4000..4000 dp 2",
+      "scaleHorizontalComboSliderAbsolute edit 0-16384 dp 4",
+      "moveHorizontalComboSlider slider -100..100 edit -4000..4000 dp 4",
+      "ScaleStrokeAndEffectChkBx",
+      "ScaleCornerRadiiForShapesChkBx",
+      "reflectXCheckBox",
+      "reflectYCheckBox",
+      "randomCheckBox"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "serialized_live_effects['Adobe Transform'].parameters",
+     "fields": [
+      "numCopies",
+      "pinPoint",
+      "rotate_Degrees",
+      "rotate_Radians",
+      "scaleH_Percent",
+      "scaleV_Percent",
+      "moveH_Pts",
+      "moveV_Pts"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-158": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ShapeEffectUI.aip'].layouts.ShapeEffectUI.parameters",
+     "fields": [
+      "ShapePopUp Rectangle/RoundedRectangle/Ellipse",
+      "AbsoluteRadioButton/RelativeRadioButton"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ObjectMosaicUI.aip'].layouts.ObjectMosaicUI.parameters",
+     "fields": [
+      "HorizontalRadio/VerticalRadio",
+      "ColorRadio/GrayRadio",
+      "UsePercentChk",
+      "DeleteRasterChk"
+     ]
+    }
+   ],
+   "derivation": "transcribed; numerics a declared gap"
+  },
+  "STU-VEC-159": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ScribbleFillUI.aip'].layouts.ScribbleFillUI.parameters",
+     "fields": [
+      "PathOverlapEdit -1000..1000 default 0",
+      "PathVariationEdit 0..1000 default 5",
+      "StrokeWidthEdit 0.01..1000 default 3",
+      "CurvinessEdit 0..100 default 5",
+      "CurvinessVariationEdit default 1",
+      "SpacingEdit 0.01..1000 default 5",
+      "SpacingVariationEdit default 0.5"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "serialized_live_effects['Adobe Scribble Fill'].parameters",
+     "fields": "59 instances"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-160": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_param",
+     "record": "classes._RasterEffectOptions.properties",
+     "fields": [
+      "Resolution range 72.0-2400.0 default 300.0 dpi",
+      "Padding default 0.0 points",
+      "AntiAliasing false",
+      "ClippingMask false",
+      "Transparency false",
+      "ConvertSpotColors false",
+      "ColorModel default DefaultColorModel"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-161": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_library",
+     "record": "libraries[family=='Graphic Styles']",
+     "fields": [
+      "12 files",
+      "314 primary entries",
+      "supporting gradients/patterns/swatches/brushes/svg_filters per file"
+     ]
+    }
+   ],
+   "derivation": "transcribed as a contract"
+  },
+  "STU-VEC-162": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_library",
+     "record": "libraries[family=='Brushes'].entries.brushes.items[].brush_kind census",
+     "fields": [
+      "art=238",
+      "scatter=58",
+      "pattern=206",
+      "calligraphic=45",
+      "bristle=14"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-163": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs[ArtOnPathBrushToolUI / ScatterBrushToolUI].layouts.*.parameters.ColorizationPopupID.options",
+     "fields": [
+      "None=0",
+      "Tints=1",
+      "Tints and Shades=2",
+      "Hue Shift=3"
+     ]
+    }
+   ],
+   "derivation": "transcribed; three dialogs agree"
+  },
+  "STU-VEC-164": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_library",
+     "record": "by_family.Brushes and libraries[family=='Brushes'].entries.brush_manager_order",
+     "fields": [
+      "25 files",
+      "561 primary entries",
+      "order list per file"
+     ]
+    }
+   ],
+   "derivation": "transcribed as a contract"
+  },
+  "STU-VEC-165": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_param",
+     "record": "classes.Artboard.properties",
+     "fields": [
+      "RulerPAR range 0.1-10.0",
+      "ShowCenter",
+      "ShowCrossHairs",
+      "ShowSafeAreas",
+      "RulerOrigin",
+      "ArtboardRect"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/CropAreaTool.aip'].layouts.ArtboardOptionDialog.parameters",
+     "fields": [
+      "ArtboardFillPopup White=0/Black=1/Transparent=2/Custom=4",
+      "Fade",
+      "RealTimeUpdate"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "enumerations['ruler origin']",
+     "fields": [
+      "spread origin",
+      "page origin",
+      "spine origin"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-166": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/FWAlignADM.aip'].layouts.AlignControlPanelMaxGroup.parameters.AlignToPopUp.options",
+     "fields": [
+      "Align to Selection=0",
+      "Align to Key Object=1",
+      "Align to Artboard=2"
+     ]
+    },
+    {
+     "capture": "ai_param",
+     "record": "classes.PathItem.properties.PixelAligned"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-167": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/SymbolPalette.aip'].layouts.SymbolOptionsDlg.parameters",
+     "fields": [
+      "DynamicSymbolRadioButton=2",
+      "StaticSymbolRadioButton=1",
+      "CheckEnableGuides=False",
+      "CheckAlignToGrid=False",
+      "PopupSymbolExportType"
+     ]
+    },
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiSymbolRegistrationPoint",
+     "fields": [
+      "1..9"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-168": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "effect_menu_runs[plugin=='Deform'].items",
+     "fields": [
+      "15 warp styles + 11 envelope commands"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/DeformUI.aip'].layouts.WarpOptionsUI.parameters",
+     "fields": [
+      "BendComboSlider -100..100",
+      "HorizontalDistortionComboSlider",
+      "VerticalDistortionComboSlider",
+      "WarpStylePopup default arc"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "serialized_live_effects['Adobe Deform'].parameters",
+     "fields": [
+      "DeformStyle observed 1..12",
+      "DeformValue",
+      "DeformHoriz",
+      "DeformVert",
+      "Rotate"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-169": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/DeformUI.aip'].layouts.EnvelopeOptionsUI / .ResetGridOptionsUI / .CreateGridOptionsUI.parameters",
+     "fields": [
+      "fidelity slider 0-100",
+      "antiAlias",
+      "clippingMask=0/transparency=1",
+      "distortAppearance",
+      "distortLinearGradients",
+      "distortPatternFills",
+      "maintainShapeCheckBox"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-170": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/LiquifyToolUI.aip'].layouts.LiquifyToolUI.parameters",
+     "fields": [
+      "ComboSliderTwirlRate -180..180 default -180.0",
+      "ComboSliderDetail 1-10 default 1",
+      "ComboSliderSimplify 0.2-100 default 0.2",
+      "CheckPen",
+      "CheckDetail",
+      "CheckSimplify",
+      "CheckBrushAnchor",
+      "CheckBrushIn",
+      "CheckBrushOut",
+      "CheckShowSize"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-171": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_param",
+     "record": "classes._RadialRepeatConfig.properties",
+     "fields": [
+      "NumberOfInstances default 8",
+      "Radius default -1.0",
+      "ReverseOverlap default false"
+     ]
+    },
+    {
+     "capture": "ai_param",
+     "record": "classes._GridRepeatConfig.properties",
+     "fields": [
+      "HorizontalSpacing default 10.0",
+      "VerticalSpacing default 10.0",
+      "PatternType/RowFlipType/ColumnFlipType default NoSF"
+     ]
+    },
+    {
+     "capture": "ai_param",
+     "record": "classes._SymmetryRepeatConfig.properties",
+     "fields": [
+      "AxisRotationAngleInRadians default 1.57"
+     ]
+    },
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiRepeatGridShiftFlipType / .AiGridRepeatUpdate / .AiRadialRepeatUpdate / .AiSymmetryRepeatUpdate"
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-172": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PerspectiveUI.aip'].layouts.PerspetiveGridOptions / .PlaneOffset / .Scale"
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ParticleSystemUI.aip'].layouts.ParticleSystemUI.parameters"
+    }
+   ],
+   "derivation": "gap declared"
+  },
+  "STU-VEC-173": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/LiveBlendsUI.aip'].layouts.LiveBlendsUI / .LiveBlendsUIPanel.parameters",
+     "fields": [
+      "spacingPopup default 0",
+      "panelEasingTypePopup",
+      "easingRampSlider percent dp 2",
+      "colorAccelerationSlider percent dp 2"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-174": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/PlanetXUI.aip'].layouts.LivePaintGapOptionsDialog / .LivePaintSelectionOptionDialog.parameters",
+     "fields": [
+      "GapDetectionCheckbox=1",
+      "GapSizePopupId default 3",
+      "GapColorPopup default 9",
+      "selectFillCheckBox=True",
+      "selectStrokeCheckBox=True",
+      "swatchPreviewCheckBox=True",
+      "highlightFrameCheckBox=True",
+      "colorsPopup default 0"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-175": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/SmoothShade.aip'].layouts.CreateMesh.parameters.appearance.options",
+     "fields": [
+      "Flat=0",
+      "To Center=1",
+      "To Edge=2"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-176": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/VectorizeUI.aip'].layouts.VectorizePanel.parameters",
+     "fields": [
+      "VectorizeModePopup Color=0/Grayscale=1/Black and White=2",
+      "AutomaticColorSlider 0-100 default 100",
+      "LimitedColorSlider 2-30 default 30",
+      "FullColorSlider 0-100 default 100",
+      "GrayscaleSlider 0-100",
+      "ThresholdSlider 1-255",
+      "PathSlider 1-100 default 50",
+      "AdvanceCornerSlider 0-100 default 50",
+      "AdvanceNoiseSlider 1-100 default 50 unit Pixel",
+      "SimplifyCurvePrecisionSlider 0-100 default 90",
+      "GradientSlider 1-100 default 100",
+      "CreateFillsCheckBox=True",
+      "CreateStrokeCheckBox=False",
+      "AdvanceSettingsFitLiveShapes",
+      "CreateLiveTextCheckBoxID",
+      "AdvanceSettingsSnapCurvesToLines",
+      "TransparencyCheckBoxID",
+      "RemoveBackgroundCheckBoxID",
+      "AdvanceSettingsIgnoreWhiteCheckBox",
+      "IgnoreColorsCheckBox",
+      "AutoGroupCheckBox",
+      "PreviewPopup 5 view modes"
+     ]
+    },
+    {
+     "capture": "ai_param",
+     "record": "classes.TracingOptions.properties",
+     "fields": [
+      "GrayLevels range 1-256",
+      "Threshold range 1-256",
+      "TracingMode",
+      "TracingMethod",
+      "TracingColorTypeValue",
+      "ViewMode",
+      "ColorFidelity",
+      "CornerFidelity",
+      "PathFidelity",
+      "NoiseFidelity units pixels",
+      "MaxStrokeWeight",
+      "IgnoreWhite",
+      "SnapCurveToLines",
+      "AutoGrouping",
+      "Palette",
+      "ColorGroup",
+      "Fills",
+      "Strokes"
+     ]
+    },
+    {
+     "capture": "ai_enums",
+     "record": "enums.AiTracingModeType / .AiTracingMethodType / .AiTracingColorType / .AiViewType"
+    }
+   ],
+   "derivation": "transcribed; two captures reconciled; supersedes prior spec text"
+  },
+  "STU-VEC-177": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/FlareUI.aip'].layouts.FlareUI.parameters",
+     "fields": [
+      "RaysChkBx=True",
+      "RingsChkBx=True"
+     ]
+    },
+    {
+     "capture": "ai_effects",
+     "record": "dialogs['Plug-ins/Extensions/ParticleSystemUI.aip'].layouts.ParticleSystemUI.parameters",
+     "fields": [
+      "MethodPopUp Average=0/User Defined=1/Random=2",
+      "IntensityModifierPopUp",
+      "ProportionalResizingCheckBox=True",
+      "AffectsDensityCheckBox=True",
+      "ShowBrushCheckBox=True"
+     ]
+    }
+   ],
+   "derivation": "gap declared"
+  },
+  "STU-VEC-178": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "id_errors",
+     "record": "errors[plugin=='Create Outlines']",
+     "fields": [
+      "InvalidSelectionError",
+      "BadCommandDataError",
+      "CreateOnLockedLayerError"
+     ]
+    },
+    {
+     "capture": "id_dom",
+     "record": "methods['create outlines'].description",
+     "fields": [
+      "Each line of text becomes a polygon object"
+     ]
+    }
+   ],
+   "derivation": "transcribed"
+  },
+  "STU-VEC-179": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "decisions",
+     "record": "decisions.SAD-004.spec_specifics"
+    },
+    {
+     "capture": "contract",
+     "record": "hard_rules_from_operator_decisions.SAD-004"
+    }
+   ],
+   "derivation": "operator decision"
+  },
+  "STU-VEC-180": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "every_microtask_must_carry"
+    }
+   ],
+   "derivation": "operator contract"
+  },
+  "STU-VEC-181": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "ai_library",
+     "record": "totals",
+     "fields": [
+      "183 library files",
+      "15987 primary entries",
+      "per-family counts"
+     ]
+    },
+    {
+     "capture": "ai_library",
+     "record": "method.explicit_warning",
+     "fields": [
+      "file counts and entry counts are different numbers"
+     ]
+    }
+   ],
+   "derivation": "transcribed as a contract"
+  },
+  "STU-VEC-199": {
+   "kind": "new",
+   "sources": [
+    {
+     "capture": "contract",
+     "record": "what_is_being_replaced.the_test"
+    },
+    {
+     "capture": "decisions",
+     "record": "decisions.SAD-008.ordered_steps"
+    }
+   ],
+   "derivation": "operator contract"
+  }
+ },
+ "captures_read_but_not_cited": [
+  {
+   "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_panels.json",
+   "reason": "panel catalogue inspected for structure; panel layout is owned by the operator-shell module, not by 14.5. No clause rests on it."
+  },
+  {
+   "capture_file": "_greenroom_20260903/installed_exports/illustrator/offline/illustrator_shortcuts.json",
+   "reason": "shortcut bindings are owned by the operator-shell module. No clause in 14.5 rests on them."
+  }
+ ]
+}

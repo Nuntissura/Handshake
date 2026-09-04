@@ -1,118 +1,177 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-083",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-083.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-083.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-081"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Per-region fill rule + paint-bucket region operation [STU-VEC-004]",
-  "spec_anchor": [
-    "STU-VEC-004",
-    "STU-DOC-004"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-083",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-083.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-083.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-081"
   ],
-  "scope": {
-    "summary": "Implement explicit per-contour/per-region fill rule (non-zero-winding | even-odd) on StudioVectorPath and per-region fill state on StudioVectorNetwork so one vector layer may hold filled and unfilled regions independently, plus a paint-bucket region command that fills or clears one enclosed network region without altering network topology.",
-    "allowed_paths": [
-      "src/studio/vector/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "explicit per-region fill rule + non-topology-altering paint-bucket region op"
-    ],
-    "proof_targets": [
-      "fill-rule + paint-bucket region test"
-    ],
-    "code_surfaces": [
-      "src/studio/vector/region.rs",
-      "studio-engine/src/vector/region.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio::vector::region",
-      "test: even-odd vs winding resolution; per-region fill independence; paint-bucket fills/clears one region and leaves topology byte-identical"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "NO",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Per-region fill rule + paint-bucket region operation [STU-VEC-004]",
+ "spec_anchor": [
+  "STU-VEC-004",
+  "STU-DOC-004"
+ ],
+ "scope": {
+  "summary": "Implement explicit per-contour/per-region fill rule (non-zero-winding | even-odd) on StudioVectorPath and per-region fill state on StudioVectorNetwork so one vector layer may hold filled and unfilled regions independently, plus a paint-bucket region command that fills or clears one enclosed network region without altering network topology.",
+  "allowed_paths": [
+   "src/studio/vector/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No fill-rule/region model; holes and multi-region fills render wrong.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Explicit per-region fill rule",
+   "Non-topology-altering paint-bucket region op"
+  ],
+  "proof_targets": [
+   "fill-rule + paint-bucket region test"
+  ],
+  "code_surfaces": [
+   "src/studio/vector/region.rs",
+   "studio-engine/src/vector/region.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio::vector::region",
+   "test: even-odd vs winding resolution; per-region fill independence; paint-bucket fills/clears one region and leaves topology byte-identical"
+  ],
+  "acceptance_criteria_original": [
+   "explicit per-region fill rule + non-topology-altering paint-bucket region op"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "NO",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No fill-rule/region model; holes and multi-region fills render wrong.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Explicit per-region fill rule",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "fill-rule + paint-bucket region test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Non-topology-altering paint-bucket region op",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 2,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-VEC-004",
+    "spec_clause_text": "**[STU-VEC-004]** Every closed contour and every enclosed network region MUST carry an explicit fill rule, and a `StudioVectorNetwork` MUST support per-region fill state so a single vector layer MAY contain both filled and unfilled regions independently, and MUST support a paint-bucket region operation that fills or clears one enclosed region without altering the network topology."
+   },
+   {
+    "anchor": "STU-DOC-004",
+    "spec_clause_text": "[STU-DOC-004] Studio is a shared-primitives product: a capability exposed in one domain (e.g. a mask, a gradient, a text-on-path, an export slice) is the SAME primitive when used from another domain, exposed through the same typed command contract. The operator UI and the model API are two projections of that single primitive (see 14.16, 14.21); there is no separate model shim and no separate per-domain reimplementation of a shared capability. --- ## 14.4 Raster Imaging & Photo Editing ## 14.4 Raster Imaging & Photo Editing Studio's raster imaging surface is the deduped union of the pixel-editing capability of every source suite in Studio's parity basis, rebuilt as Handshake-native pixel primitives. It is the pixel-editing domain of the unified `StudioDocument`: raster content lives as `StudioLayer` nodes whose `kind` selects a pixel payload, sharing one selection surface, one masking surface, one color pipeline, one history, and one export surface with every other Studio domain (14.3, [STU-DOC-004]). This sub-section is the normative Studio raster feature set and it is self-sufficient: an implementer with no other document MUST be able to build every primitive named here, and to derive the microtask set that builds them, from this sub-section alone. No source-suite product name is a Studio tool, panel, adjustment, or command name. Every raster capability MUST be exposed as a non-destructive primitive wherever a non-destructive form exists: destructive-in-place editing is a mode of a primitive, never the only path. Canonical field-level types, schema ids, event variants, tables, and validation checks for every primitive named here (`StudioLayer`, `StudioRasterTile`, `StudioSelectionSet`, `StudioMask`, `StudioAdjustment`, `StudioLiveFilter`, `StudioBlendMode`, `StudioEffectStack`, `StudioGradient`, `StudioPattern`, `StudioColorProfile`, and the `StudioParameterSpec` added by [STU-RAS-100]) are defined in 14.23; where this sub-section and 14.23 conflict, 14.23 wins. --- ### 0. Replacement, Derivation, and Anchor Disposition"
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

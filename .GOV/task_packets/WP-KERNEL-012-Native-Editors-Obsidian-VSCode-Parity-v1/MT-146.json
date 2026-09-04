@@ -31,15 +31,16 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-144"
     ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260904-050159",
+    "claimed_at_utc": "2026-09-04T05:02:00Z",
     "created_by": "KERNEL_BUILDER-20260903-213930",
     "created_at_utc": "2026-09-03T23:08:27.318Z",
     "creation_reason": "MT-144 restored the handshake_core lib test target, which had been unrunnable since the PostgreSQL removal. Running it revealed six failures in api::memory. Two were MT-118 proof targets and are now green, one recovered on its own once MT-118 landed, and three are genuine defects with no owner. This contract owns those three. They were disclosed at the time rather than silenced, and each one is reproduced here from a measured RED capture, not inferred.",

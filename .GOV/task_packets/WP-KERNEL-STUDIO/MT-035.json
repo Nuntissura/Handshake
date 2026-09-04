@@ -1,136 +1,213 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-035",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-035.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-035.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-032",
-      "MT-017"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "On-device ML selection: object select, Select Subject, Select Sky [STU-RAS-018,STU-RAS-019]",
-  "spec_anchor": [
-    "STU-RAS-018",
-    "STU-RAS-019"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-035",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-035.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-035.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-032",
+   "MT-017"
   ],
-  "scope": {
-    "summary": "Implement the on-device ML selection tools producing StudioSelectionSet, running locally with no cloud dependency per STU-RAS-019: object select (auto-selects a detected object under hover/rectangle/lasso with multi-part component selection and optional matting), one-command Select Subject (dominant subject(s), recordable into a macro/batch), and one-command Select Sky. Inference runs in studio-engine through the RasterEngine boundary; any cloud-accelerated variant is an optional §10 adapter, never a core dependency.",
-    "allowed_paths": [
-      "src/studio/**",
-      "studio-engine/**",
-      "src/frontend/handshake_native/src/studio/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "object/subject/sky selection run on-device offline",
-      "inference in studio-engine; cloud variant optional; results are StudioSelectionSet"
-    ],
-    "proof_targets": [
-      "offline on-device Select-Subject runtime + no-network assertion"
-    ],
-    "code_surfaces": [
-      "src/studio/raster/select_ml.rs",
-      "studio-engine/src/raster/ml_select.rs",
-      "src/frontend/handshake_native/src/studio/raster/select_tools.rs"
-    ],
-    "expected_tests": [
-      "live: Select Subject runs on-device (no network) and produces a plausible subject selection on a test image; object-select isolates a hovered object",
-      "test: no cloud/account call in the code path (offline harness); inference executes in studio-engine",
-      "argus: selection snapshot + receipt of the ML run"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "object-select tool",
-      "select-subject button",
-      "select-sky button"
-    ],
-    "argus_targets": [
-      "studio.tool_object_select",
-      "studio.select_subject",
-      "studio.select_sky"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Raster / Object, Subject & Sky selection (on-device)"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-MAN-001",
-    "HBR-QUIET-001",
-    "HBR-INT-009"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "On-device ML selection: object select, Select Subject, Select Sky [STU-RAS-018,STU-RAS-019]",
+ "spec_anchor": [
+  "STU-RAS-018",
+  "STU-RAS-019"
+ ],
+ "scope": {
+  "summary": "Implement the on-device ML selection tools producing StudioSelectionSet, running locally with no cloud dependency per STU-RAS-019: object select (auto-selects a detected object under hover/rectangle/lasso with multi-part component selection and optional matting), one-command Select Subject (dominant subject(s), recordable into a macro/batch), and one-command Select Sky. Inference runs in studio-engine through the RasterEngine boundary; any cloud-accelerated variant is an optional §10 adapter, never a core dependency.",
+  "allowed_paths": [
+   "src/studio/**",
+   "studio-engine/**",
+   "src/frontend/handshake_native/src/studio/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "ML selection becomes a cloud dependency, violating local-first; core selection workflow breaks offline.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Object/subject/sky selection run on-device offline",
+   "Inference in studio-engine",
+   "Cloud variant optional",
+   "Results are StudioSelectionSet"
+  ],
+  "proof_targets": [
+   "offline on-device Select-Subject runtime + no-network assertion"
+  ],
+  "code_surfaces": [
+   "src/studio/raster/select_ml.rs",
+   "studio-engine/src/raster/ml_select.rs",
+   "src/frontend/handshake_native/src/studio/raster/select_tools.rs"
+  ],
+  "expected_tests": [
+   "live: Select Subject runs on-device (no network) and produces a plausible subject selection on a test image; object-select isolates a hovered object",
+   "test: no cloud/account call in the code path (offline harness); inference executes in studio-engine",
+   "argus: selection snapshot + receipt of the ML run"
+  ],
+  "acceptance_criteria_original": [
+   "object/subject/sky selection run on-device offline",
+   "inference in studio-engine; cloud variant optional; results are StudioSelectionSet"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "object-select tool",
+   "select-subject button",
+   "select-sky button"
+  ],
+  "argus_targets": [
+   "studio.tool_object_select",
+   "studio.select_subject",
+   "studio.select_sky"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Raster / Object, Subject & Sky selection (on-device)"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-MAN-001",
+  "HBR-QUIET-001",
+  "HBR-INT-009"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "ML selection becomes a cloud dependency, violating local-first; core selection workflow breaks offline.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Object/subject/sky selection run on-device offline",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "offline on-device Select-Subject runtime + no-network assertion",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Inference in studio-engine",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Cloud variant optional",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "Results are StudioSelectionSet",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 4,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-RAS-018",
+    "spec_clause_text": "**[STU-RAS-018]** Studio MUST provide the following deduped selection tools/commands. Each row is one primitive. *Derivation: catalogue table, splits per row; yields 12 microtasks, one per selection tool or operation.* | Tool or operation | Normative behavior | |---|---| | Geometric marquee | Rectangular, elliptical, single-row (1px), and single-column (1px) pixel selections with fixed-ratio/fixed-size constraint, draw-from-center, and proportional modifiers. | | Freehand lasso | Freehand-drawn selection boundary. | | Polygonal lasso | Straight-segment click-to-build selection. | | Magnetic lasso | Edge-snapping selection with width, contrast, and frequency controls. | | Quick/selection brush | Painted selection that grows to matching regions and snaps to edges, with add/subtract by stroke and an on-canvas selection overlay. | | Flood select (tolerance) | Selects similar color/tone from a sampled point by tolerance, with contiguous and sample-all-layers options. | | Object select | Auto-selects a detected object under a hover, rectangle, or lasso region using an on-device model, with multi-part component selection and optional matting. | | Subject select | One-command on-device selection of the dominant subject(s), recordable into a macro/batch. | | Sky select | One-command on-device selection of sky regions. | | Tonal-range select | Selects Shadows, Midtones, or Highlights tonal bands. | | Luminosity / alpha select | Builds a selection from a layer's luminosity or content/alpha for luminosity-masking workflows. | | Color-range select | Eyedropper-sampled fuzziness-masked selection by color similarity with a live preview. |"
+   },
+   {
+    "anchor": "STU-RAS-019",
+    "spec_clause_text": "**[STU-RAS-019]** Object-select, subject-select, and sky-select MUST run on-device by default with no cloud dependency; any cloud-accelerated variant is an optional adapter lane per §14 and MUST NOT be a core dependency. On-device ML selection is a native Studio primitive, not a provider feature."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

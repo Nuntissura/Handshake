@@ -69,15 +69,15 @@
     "A green test binary does not prove cleanup; canonical SurrealDB state must be reread independently after process exit."
   ],
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-019"
     ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
-    "claimed_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260901-040415",
+    "claimed_at_utc": "2026-09-01T04:06:02.623Z",
     "ready_for_validation_by": null,
     "ready_for_validation_at_utc": null,
     "completed_by": null,
@@ -91,5 +91,8 @@
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_runtime_status_ref": "DISCOVERED_AFTER_MT019_FULL_SUITES_2026-08-14; 27 captured leaks, 13 independently present, exact cleanup completed, canonical count zero"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260901-040415"
   }
 }

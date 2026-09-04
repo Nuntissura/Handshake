@@ -1,0 +1,551 @@
+{
+ "schema": "handshake.spec_module.provenance@1",
+ "module_id": "14-32",
+ "section_id": "14.32",
+ "spec_module_file": "14-32-tooltips-and-manual.md",
+ "title": "14.32 Tooltips, the Help System, and the Generated UserManual Contract",
+ "generated_at": "2026-09-04",
+ "authority_note": "The Master Spec module is the single source of truth. This file records, for each clause anchor, WHERE that clause was derived from, so a reviewer can audit the derivation. It is provenance ONLY: it is not co-authority, the spec never cites it as a source of contract, and deleting it weakens no clause. Per SAD-008 operator_reinforcement_20260904, a capable model with no chat context and no access to the green room must be able to build the shell, and derive the microtask set, from the spec module alone.",
+ "authority_order": [
+  "1. studio-integrated-ui-design.json (ADJUDICATION) wins over the three source proposals wherever they differ.",
+  "2. operator-ui-requirements.json (OUI-001..010) binds absolutely.",
+  "3. studio-architecture-decisions.json (SAD-001..008, GRD-001) binds absolutely.",
+  "4. studio-menu-architecture.json / studio-panel-dock-architecture.json / studio-tools-tooltips-architecture.json are detail only.",
+  "5. installed_exports/** capture records are measurement; a capture beats a proposal's citation of an earlier revision of that same capture."
+ ],
+ "settled_numbers_used": {
+  "distinct_tools": 362,
+  "tool_families": 22,
+  "distinct_panels": 90,
+  "reused_shell_panes": 9,
+  "effects": 635,
+  "effect_categories": 46,
+  "typed_parameter_records": 1573,
+  "keyframable_parameters": 1246,
+  "explicit_menu_leaves_designed": 1533,
+  "menu_submenus": 203,
+  "menu_only_nodes": 375,
+  "top_level_menus": 19,
+  "approximate_parameter_total": 14681,
+  "tool_prose_ceiling_pct": 58.0,
+  "tools_proven_without_prose": 57,
+  "chord_union_without_the_fifth_table": 448,
+  "fifth_table_bindings": 673,
+  "fifth_table_contexts": 32,
+  "superseded_figures_that_must_not_be_cited": [
+   353,
+   21,
+   75,
+   84,
+   814,
+   1270,
+   481,
+   36,
+   618,
+   2001,
+   24,
+   6247,
+   693,
+   310
+  ]
+ },
+ "sources": {
+  "ADJ": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-integrated-ui-design.json",
+   "role": "ADJUDICATION - the authority. Reconciled the three source proposals, resolved 22 contradictions, folded in the compositing teardown all three predate. Supersedes MENU, PANEL and TOOLS wherever they differ."
+  },
+  "OUI": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/operator-ui-requirements.json",
+   "role": "Operator-stated UI requirements OUI-001..010. Binding."
+  },
+  "SAD": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-architecture-decisions.json",
+   "role": "Operator-confirmed architecture decisions SAD-001..008 plus green-room defect GRD-001. Binding."
+  },
+  "MENU": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-menu-architecture.json",
+   "role": "Source proposal 1 of 3: menu tree. Detail only; never preferred over ADJ."
+  },
+  "PANEL": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-panel-dock-architecture.json",
+   "role": "Source proposal 2 of 3: dock model and panels. Detail only; never preferred over ADJ."
+  },
+  "TOOLS": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/ui_deliberation/studio-tools-tooltips-architecture.json",
+   "role": "Source proposal 3 of 3: tools, tooltips, scrub control. Detail only; never preferred over ADJ."
+  },
+  "AE-CMD": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_commands_shortcuts.json",
+   "role": "Capture record: 1,305 menu items in 227 groups, 673 bindings in 32 contexts, 665 labelled commands in 31 categories, 22 palette tools."
+  },
+  "AE-PAN": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_panels_dialogs.json",
+   "role": "Capture record: 16 factory workspaces with splitter trees, 28 panel ids, 405 control-tree surfaces, 6,137 controls, 144 dialog surfaces."
+  },
+  "AE-FX": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_effects_catalogue.json",
+   "role": "Capture record: 635 effects in 46 categories, 1,573 typed parameter records, 833 hard bounds, 606 soft, 366 differing, 327 cannot-time-vary, 359 support URLs to 225 pages."
+  },
+  "AE-LPM": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_layer_property_model.json",
+   "role": "Capture record: 1,326 match names, 759 containment edges, 13 property group topics, keyframe record format, expression container."
+  },
+  "AE-EXP": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_scripting_expressions.json",
+   "role": "Capture record: 333 expression identifiers in 12 categories, 37 unbound argument signatures, 1,751 scripting members."
+  },
+  "AE-RND": {
+   "path": ".GOV/reference/studio_app_feature_research/_greenroom_20260903/installed_exports/aftereffects/offline/aftereffects_render_output.json",
+   "role": "Capture record: 29 exporters, 35 importers, 32 render/output dialog surfaces carrying 989 controls."
+  },
+  "SPEC205": {
+   "path": ".GOV/spec/master-spec-v02.205/spec-modules/14-studio-creative-suite.md",
+   "role": "v02.205 baseline. Clauses cited here remain in force; this module extends them."
+  },
+  "HS": {
+   "path": "(none)",
+   "role": "handshake_authored - no capture or deliberation source. Authored to make the spec self-standing under the no-context completeness test. Flagged so authored content stays countable."
+  }
+ },
+ "pointer_syntax": "<SOURCE_KEY>#<dotted path, clause id, or measured field within that source>",
+ "derivation_kinds": {
+  "adjudication": "derived from studio-integrated-ui-design.json, the authority",
+  "operator_requirement": "derived from a binding OUI requirement",
+  "architecture_decision": "derived from a binding SAD decision",
+  "baseline_binding": "restates or binds to a v02.205 clause that remains in force",
+  "baseline_clarification": "clarifies a v02.205 clause without superseding it",
+  "declared_spec_debt": "records an unresolved item as debt, not as a decision",
+  "handshake_authored": "no capture or deliberation source; authored to make the spec self-standing"
+ },
+ "clause_count": 46,
+ "microtask_yield_total": 41,
+ "clause_provenance": [
+  {
+   "anchor": "[STU-SHL-230]",
+   "title": "Five disclosure levels",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.levels"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-231]",
+   "title": "L0 contract",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.levels[L0]"
+   ],
+   "note": "Expanded 2026-09-04 to carry the L0 content contract rather than pointing at [STU-SHL-242]."
+  },
+  {
+   "anchor": "[STU-SHL-232]",
+   "title": "L1 contract",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.levels[L1]",
+    "ADJ#integrated_design.tooltips.levels[L1].note",
+    "ADJ#integrated_design.numeric_control.temporal_state"
+   ],
+   "note": "The dimmed-element reason line is what replaces the persona toggle OUI-004 rejects."
+  },
+  {
+   "anchor": "[STU-SHL-233]",
+   "title": "L2 contract",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.levels[L2]",
+    "ADJ#integrated_design.tooltips.levels[L2].prior_art",
+    "AE-FX#359 support URLs resolving to 225 distinct pages"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-234]",
+   "title": "L-status contract",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.levels[L-status]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-235]",
+   "title": "Anti-annoyance rules",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.anti_annoyance",
+    "ADJ#integrated_design.docks.pointer_gesture_arbitration.rule_4_drag_leaves_the_panel",
+    "SPEC205#[STU-QUIET-001]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-236]",
+   "title": "L3 contract",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.levels[L3]"
+   ],
+   "note": "ENUMERATION ADDED 2026-09-04. L3 was the only one of the five disclosure levels with no clause of its own, so it yielded nothing; the level register asserted five and the text carried four."
+  },
+  {
+   "anchor": "[STU-SHL-240]",
+   "title": "One record per addressable element",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.principle",
+    "ADJ#integrated_design.tooltips.data_contract.UiDescriptor_required_fields",
+    "OUI#requirements[OUI-007].generation_principle"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-241]",
+   "title": "extraction_method",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.UiDescriptor_required_fields",
+    "ADJ#integrated_design.tooltips.data_contract.population_pipeline"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-242]",
+   "title": "Shortcuts are resolved, never baked",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.UiDescriptor_required_fields"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-243]",
+   "title": "Ids are never reused",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#contradictions_resolved[CR-13].rules[4]"
+   ],
+   "note": "Expanded 2026-09-04 to carry the id-immutability obligation rather than pointing at [STU-MDL-103]."
+  },
+  {
+   "anchor": "[STU-SHL-244]",
+   "title": "Synchronisation is unrepresentable",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.sync_is_not_synchronised_it_is_unrepresentable"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-245]",
+   "title": "The helper signature makes prose a type error",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#prerequisites_ordered[P-07]",
+    "ADJ#risks[IR-10]",
+    "ADJ#integrated_design.tooltips.data_contract.ci_gates"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-246]",
+   "title": "Localisation",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.sync_is_not_synchronised_it_is_unrepresentable",
+    "ADJ#contradictions_resolved[CR-13].rules[2]"
+   ],
+   "note": "Expanded 2026-09-04 to carry the localisation contract rather than pointing at [STU-SHL-244]."
+  },
+  {
+   "anchor": "[STU-SHL-247]",
+   "title": "The existing product defect this contract repairs",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#carried_gaps[CG-03]",
+    "ADJ#prerequisites_ordered[P-07]",
+    "ADJ#open_questions[OQ-P]"
+   ],
+   "note": "CARRIED GAP CG-03 converted into a NORMATIVE requirement; the 142-site migration scope stays an operator decision."
+  },
+  {
+   "anchor": "[STU-SHL-250]",
+   "title": "Universal command contract",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-CON-007]",
+    "SPEC205#[STU-QUIET-001]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-251]",
+   "title": "Validation descriptors",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#derived from the clauses of this sub-section",
+    "SPEC205#[STU-VAL-001]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-252]",
+   "title": "The naming law applies to every generated string",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#naming_law",
+    "SPEC205#[STU-SECTION-003]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-253]",
+   "title": "Derivation rule",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#derivation rule authored to satisfy the operator acceptance test",
+    "SAD#decisions[SAD-008].operator_reinforcement_20260904.completeness_test"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-254]",
+   "title": "Clauses that yield no microtask",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#derivation rule"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-255]",
+   "title": "An open item still yields a microtask",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#derivation rule",
+    "ADJ#open_questions[OQ-T]",
+    "ADJ#open_questions[OQ-S]",
+    "ADJ#carried_gaps[CG-01]"
+   ]
+  },
+  {
+   "anchor": "[STU-SHL-256]",
+   "title": "Yields index",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#enumerated from the clauses of this sub-section"
+   ],
+   "note": "75 microtasks. Counts enumerated, not estimated."
+  },
+  {
+   "anchor": "[STU-SHL-256A]",
+   "title": "Anchor binding",
+   "derivation_kind": "architecture_decision",
+   "derived_from": [
+    "SAD#decisions[SAD-008].anchor_dependency"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-100]",
+   "title": "The descriptor generator",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.population_pipeline",
+    "ADJ#prerequisites_ordered[P-06]"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-101]",
+   "title": "The generator targets the canonical manual store",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.why_the_generator_emits_manual_rows_directly",
+    "ADJ#prerequisites_ordered[P-06].do_not",
+    "ADJ#risks[IR-09]",
+    "SAD#decisions[SAD-002]"
+   ],
+   "note": "The wrong target is named explicitly because it still compiles and looks correct; rows written there would not appear in manual search, manual tools or the freshness comparator."
+  },
+  {
+   "anchor": "[STU-MAN-102]",
+   "title": "The descriptor row and the manual row are one record",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.why_the_generator_emits_manual_rows_directly",
+    "SPEC205#[STU-MAN-003]"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-103]",
+   "title": "Generation is idempotent and diffable",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.population_pipeline"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-104]",
+   "title": "Captured text is used verbatim",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.population_pipeline"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-105]",
+   "title": "Nothing is invented",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.population_pipeline",
+    "ADJ#carried_gaps[CG-01].residual_after_the_prerequisite"
+   ],
+   "note": "CARRIED GAP CG-01 converted into a NORMATIVE requirement."
+  },
+  {
+   "anchor": "[STU-MAN-106]",
+   "title": "Field sources for summary and manual_anchor",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.field_to_capture_mapping_corrected",
+    "ADJ#contradictions_resolved[CR-06].corrections_that_change_a_design_decision"
+   ],
+   "note": "225 distinct manual pages corrects an earlier reading of 24 - an order of magnitude that changes whether the anchor seed is useful."
+  },
+  {
+   "anchor": "[STU-MAN-107]",
+   "title": "Anchor kinds",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.UiDescriptor_required_fields",
+    "SPEC205#[STU-MAN-004]"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-108]",
+   "title": "Manual entry shape for generated rows",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-MAN-001]",
+    "ADJ#integrated_design.tooltips.data_contract.UiDescriptor_required_fields"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-109]",
+   "title": "Measured coverage",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.coverage_honesty",
+    "ADJ#carried_gaps[CG-01]",
+    "ADJ#prerequisites_ordered[P-05]"
+   ],
+   "note": "At most 58.0% at tool level, currently 0% mechanically bound, and 57 tools PROVEN to have no descriptive sentence."
+  },
+  {
+   "anchor": "[STU-MAN-110]",
+   "title": "The gap ledger",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.population_pipeline",
+    "ADJ#carried_gaps[CG-01].proven_absent"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-111]",
+   "title": "A missing tooltip is a tracked gap",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#carried_gaps[CG-01].residual_after_the_prerequisite",
+    "ADJ#integrated_design.tooltips.coverage_honesty.consequence",
+    "ADJ#risks[IR-10]"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-112]",
+   "title": "CI gates",
+   "derivation_kind": "adjudication",
+   "derived_from": [
+    "ADJ#integrated_design.tooltips.data_contract.ci_gates"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-113]",
+   "title": "Coverage is reported",
+   "derivation_kind": "handshake_authored",
+   "derived_from": [
+    "HS#derived from the CI gate on the gap count and from coverage_honesty",
+    "ADJ#integrated_design.tooltips.coverage_honesty"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-114]",
+   "title": "Searchability extension",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-MAN-004]",
+    "ADJ#integrated_design.tooltips.data_contract.UiDescriptor_required_fields"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-115]",
+   "title": "Same-change currency for generated rows",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-MAN-003]",
+    "ADJ#prerequisites_ordered[P-06].why"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-116]",
+   "title": "Full-tool-surface coverage",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-MAN-002]",
+    "ADJ#integrated_design.menu.the_index_promise",
+    "ADJ#integrated_design.tools.counts"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-117]",
+   "title": "Dual-audience layers at scale",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-MAN-001]",
+    "ADJ#integrated_design.tooltips.coverage_honesty"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-118]",
+   "title": "Diagnostic-posture linkage",
+   "derivation_kind": "baseline_binding",
+   "derived_from": [
+    "SPEC205#[STU-MAN-003]",
+    "SPEC205#[STU-VAL-002]"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-120]",
+   "title": "SD-9 manual entry shape for canvas tools",
+   "derivation_kind": "declared_spec_debt",
+   "derived_from": [
+    "ADJ#open_questions[OQ-T]"
+   ],
+   "note": "Blocks SHL-P-06."
+  },
+  {
+   "anchor": "[STU-MAN-121]",
+   "title": "SD-10 generator manual-version behaviour",
+   "derivation_kind": "declared_spec_debt",
+   "derived_from": [
+    "ADJ#open_questions[OQ-T]",
+    "ADJ#prerequisites_ordered[P-06].why"
+   ],
+   "note": "Blocks SHL-P-06."
+  },
+  {
+   "anchor": "[STU-MAN-122]",
+   "title": "SD-11 the model-invokability floor",
+   "derivation_kind": "declared_spec_debt",
+   "derived_from": [
+    "ADJ#open_questions[OQ-S]",
+    "SPEC205#[STU-CON-007]"
+   ]
+  },
+  {
+   "anchor": "[STU-MAN-123]",
+   "title": "Carried capture gaps affecting prose",
+   "derivation_kind": "declared_spec_debt",
+   "derived_from": [
+    "ADJ#carried_gaps[CG-08]",
+    "ADJ#carried_gaps[CG-09]"
+   ]
+  }
+ ],
+ "derivation_note": "The module's Microtask Derivation sub-section declares this yields total, and the reference deriver extracts exactly this many units from the module text. Declared and derived agree."
+}

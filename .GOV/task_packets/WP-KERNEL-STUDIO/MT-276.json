@@ -1,129 +1,197 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-276",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-276.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-276.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-261",
-      "MT-009",
-      "MT-263"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Effect Gallery browser/workspace [STU-FX-021]",
-  "spec_anchor": [
-    "STU-FX-021",
-    "STU-FX-005"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-276",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-276.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-276.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-261",
+   "MT-009",
+   "MT-263"
   ],
-  "scope": {
-    "summary": "Implement the Effect Gallery browser: single operator surface (deduped filter-gallery/effect-gallery) that applies/stacks the artistic families cumulatively as ordered gallery layers with per-effect previews, reorder, and show/hide, each becoming a StudioLiveFilter entry on commit. Available to raster + vector targets via the live-raster-effect path ([STU-FX-005]) governed by the document raster-effect resolution setting. Foreground/background-color-driven sub-effects preserved as typed parameters. Operator-visible surface with stable Argus author_ids + machine-readable state.",
-    "allowed_paths": [
-      "src/frontend/handshake_native/src/studio/**",
-      "src/studio/effects/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "Effect Gallery workspace applies/stacks artistic effects cumulatively (preview/reorder/show-hide) committing StudioLiveFilter entries; operator-visible + Argus"
-    ],
-    "proof_targets": [
-      "Argus gallery inspect + cumulative-stack test"
-    ],
-    "code_surfaces": [
-      "src/frontend/handshake_native/src/studio/effects/gallery.rs",
-      "src/studio/effects/gallery.rs"
-    ],
-    "expected_tests": [
-      "argus: Effect Gallery reachable with stable author_ids; cumulative stack with reorder/preview/show-hide",
-      "test: gallery layers commit as StudioLiveFilter entries; vector target uses raster-effect resolution setting"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "YES",
-    "gui_creation_required": "YES",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [
-      "effect gallery browser"
-    ],
-    "argus_targets": [
-      "studio.effects.gallery",
-      "studio.effects.gallery_layer"
-    ],
-    "not_applicable_reason": null
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "YES",
-    "manual_version_bump_required": "NO",
-    "target_entries": [
-      "Studio / Effects / Effect Gallery"
-    ],
-    "not_applicable_reason": null
-  },
-  "hbr_obligations": [
-    "HBR-VIS-001",
-    "HBR-VIS-002",
-    "HBR-MAN-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Effect Gallery browser/workspace [STU-FX-021]",
+ "spec_anchor": [
+  "STU-FX-021",
+  "STU-FX-005"
+ ],
+ "scope": {
+  "summary": "Implement the Effect Gallery browser: single operator surface (deduped filter-gallery/effect-gallery) that applies/stacks the artistic families cumulatively as ordered gallery layers with per-effect previews, reorder, and show/hide, each becoming a StudioLiveFilter entry on commit. Available to raster + vector targets via the live-raster-effect path ([STU-FX-005]) governed by the document raster-effect resolution setting. Foreground/background-color-driven sub-effects preserved as typed parameters. Operator-visible surface with stable Argus author_ids + machine-readable state.",
+  "allowed_paths": [
+   "src/frontend/handshake_native/src/studio/**",
+   "src/studio/effects/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "No gallery browser; artistic families lack their cumulative apply surface.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Effect Gallery workspace applies/stacks artistic effects cumulatively (preview/reorder/show-hide) committing StudioLiveFilter entries",
+   "Operator-visible",
+   "Argus"
+  ],
+  "proof_targets": [
+   "Argus gallery inspect + cumulative-stack test"
+  ],
+  "code_surfaces": [
+   "src/frontend/handshake_native/src/studio/effects/gallery.rs",
+   "src/studio/effects/gallery.rs"
+  ],
+  "expected_tests": [
+   "argus: Effect Gallery reachable with stable author_ids; cumulative stack with reorder/preview/show-hide",
+   "test: gallery layers commit as StudioLiveFilter entries; vector target uses raster-effect resolution setting"
+  ],
+  "acceptance_criteria_original": [
+   "Effect Gallery workspace applies/stacks artistic effects cumulatively (preview/reorder/show-hide) committing StudioLiveFilter entries; operator-visible + Argus"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "gui_creation_required": "YES",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [
+   "effect gallery browser"
+  ],
+  "argus_targets": [
+   "studio.effects.gallery",
+   "studio.effects.gallery_layer"
+  ],
+  "not_applicable_reason": null
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES",
+  "manual_version_bump_required": "NO",
+  "target_entries": [
+   "Studio / Effects / Effect Gallery"
+  ],
+  "not_applicable_reason": null
+ },
+ "hbr_obligations": [
+  "HBR-VIS-001",
+  "HBR-VIS-002",
+  "HBR-MAN-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "No gallery browser; artistic families lack their cumulative apply surface.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Effect Gallery workspace applies/stacks artistic effects cumulatively (preview/reorder/show-hide) committing StudioLiveFilter entries",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "Argus gallery inspect + cumulative-stack test",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Operator-visible",
+   "evidence_kind": "gui_proof",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "Argus",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-FX-021",
+    "spec_clause_text": "[STU-FX-021] The artistic families (Artistic, Brush Strokes, Sketch, Texture) are stackable painterly/media-simulation filters. They apply through the **Effect Gallery** browser (the deduped native realization of the filter-gallery / effect-gallery browser): a single surface that applies one or more artistic effects cumulatively as ordered gallery layers with per-effect previews, reorder, and show/hide, each becoming a `StudioLiveFilter` entry on commit. Several draw with the active foreground/background colors and expose texture/relief/light-direction sub-controls, preserved as typed parameters. Available to raster targets and to vector targets via the live-raster-effect path ([STU-FX-005]) governed by the document raster-effect resolution setting (group 14). **Effect Gallery browser** | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Effect Gallery workspace | R,V | Opt | Applies/stacks the artistic gallery effects cumulatively with per-effect layers, reorder, preview, and show/hide inside one surface. | **Artistic** | Studio effect | Behavior (normative) | |---|---| | Colored Pencil | Redraws as colored-pencil crosshatch strokes over a solid background color. | | Cutout | Renders as layered cut colored-paper shapes with posterized regions. | | Dry Brush | Simplifies color range and paints edges between oil and watercolor (dry-brush). | | Film Grain | Grain on shadows/midtones with smoother saturated grain in highlights to unify sources and reduce banding. | | Fresco | Short rounded coarse daubs in a fresco style. | | Neon Glow | Adds configurable colored glows to objects while softening the image. | | Paint Daubs | Painterly effect; brush sizes 1-50, types Simple/Light Rough/Dark Rough/Wide Sharp/Wide Blurry/Sparkle. | | Palette Knife | Reduces detail to a thinly-painted canvas look revealing underlying texture. | | Plastic Wrap | Coats the image in shiny plastic accentuating surface detail. | | Poster Edges | Posterizes colors and draws black edge lines along detected edges. | | Rough Pastels | Pastel chalk strokes over a selectable texture with scaling, relief, light-direction. | | Smudge Stick | Softens with short diagonal smears of darker areas. | | Sponge | Sponge-painting simulation with textured contrasting color areas. | | Underpainting | Paints onto a texture and overlays the final image with texturizing options. | | Wa"
+   },
+   {
+    "anchor": "STU-FX-005",
+    "spec_clause_text": "[STU-FX-005] The same `StudioLiveFilter` kind is applicable from any domain in which it is defined as valid: a blur, a shadow, a distort, or a stylize effect is the SAME primitive whether invoked on a raster layer, a vector layer, a text layer, or a group. The catalog marks each row's valid layer targets (`R` raster, `V` vector, `T` text, `G` group). Where an effect is defined for vector targets, Studio evaluates it on the live geometry (a vector live effect) rather than pre-rasterizing, unless the row is raster-only."
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

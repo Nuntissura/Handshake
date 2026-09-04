@@ -1,120 +1,188 @@
 {
-  "schema_id": "hsk.microtask_contract@1",
-  "schema_version": "microtask_contract_v1",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false
-  },
-  "wp_id": "WP-KERNEL-STUDIO",
-  "mt_id": "MT-274",
-  "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": null,
-  "authority_files": {
-    "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-274.json",
-    "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-274.md",
-    "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
-  },
-  "lifecycle": {
-    "status": "PENDING",
-    "depends_on": [
-      "MT-261",
-      "MT-264"
-    ],
-    "blocks": [],
-    "active": false,
-    "validator_verdict": "PENDING"
-  },
-  "clause": "Sharpen & Detail family [STU-FX-019,STU-FX-019a]",
-  "spec_anchor": [
-    "STU-FX-019",
-    "STU-FX-019a"
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_bound",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "artifact_policy": {
+  "authority_surface": "MACHINE_CONTRACT",
+  "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+  "operator_facing_authority": false,
+  "model_created_markdown_authority_allowed": false
+ },
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-274",
+ "created_at_utc": "2026-07-09T00:00:00Z",
+ "updated_at_utc": "2026-09-04T13:36:26+00:00",
+ "authority_files": {
+  "microtask_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-274.json",
+  "microtask_projection": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-274.md",
+  "packet_contract": ".GOV/task_packets/WP-KERNEL-STUDIO/packet.json"
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [
+   "MT-261",
+   "MT-264"
   ],
-  "scope": {
-    "summary": "Implement sharpen/detail StudioLiveFilter kinds (redistribute existing contrast, do NOT add pixels): Sharpen / Sharpen More (fixed clarity boost), Sharpen Edges (edge-only, parameterless), Unsharp Mask (amount/radius/threshold), Smart Sharpen (algorithm choice, shadow/highlight fade, noise-reduction slider, per-channel + CMYK), Clarity (midtone local contrast), High Pass (edge detail within radius, inverse of gaussian; single deduped kind used as sharpen row AND overlay-sharpen detail extractor, not duplicated across families). ML detail synthesis is the adapter super-resolution row, not here.",
-    "allowed_paths": [
-      "src/studio/effects/**",
-      "studio-engine/**",
-      "tests/studio/**"
-    ],
-    "forbidden_paths": [
-      ".GOV/**",
-      "app/src/** (legacy reference-only)"
-    ],
-    "acceptance_criteria": [
-      "Sharpen/Sharpen More, Sharpen Edges, Unsharp Mask, Smart Sharpen, Clarity, High Pass; contrast-only; High Pass single deduped kind"
-    ],
-    "proof_targets": [
-      "sharpen correctness + High Pass dedup"
-    ],
-    "code_surfaces": [
-      "studio-engine/src/render/sharpen/mod.rs",
-      "src/studio/effects/families/sharpen.rs"
-    ],
-    "expected_tests": [
-      "cargo test studio_engine::render::sharpen",
-      "test: Unsharp Mask amount/radius/threshold; Smart Sharpen per-channel+CMYK; High Pass single kind (no cross-family duplication)"
-    ]
-  },
-  "gui_obligation": {
-    "operator_surface_required": "NO",
-    "gui_creation_required": "NO",
-    "argus_required": "YES",
-    "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
-    "argus_targets": [],
-    "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
-  },
-  "user_manual_obligation": {
-    "required": true,
-    "same_change_update_required": "NO",
-    "manual_version_bump_required": "NO",
-    "target_entries": [],
-    "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
-  },
-  "hbr_obligations": [
-    "HBR-INT-003",
-    "HBR-VIS-001"
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Sharpen & Detail family [STU-FX-019,STU-FX-019a]",
+ "spec_anchor": [
+  "STU-FX-019",
+  "STU-FX-019a"
+ ],
+ "scope": {
+  "summary": "Implement sharpen/detail StudioLiveFilter kinds (redistribute existing contrast, do NOT add pixels): Sharpen / Sharpen More (fixed clarity boost), Sharpen Edges (edge-only, parameterless), Unsharp Mask (amount/radius/threshold), Smart Sharpen (algorithm choice, shadow/highlight fade, noise-reduction slider, per-channel + CMYK), Clarity (midtone local contrast), High Pass (edge detail within radius, inverse of gaussian; single deduped kind used as sharpen row AND overlay-sharpen detail extractor, not duplicated across families). ML detail synthesis is the adapter super-resolution row, not here.",
+  "allowed_paths": [
+   "src/studio/effects/**",
+   "studio-engine/**",
+   "tests/studio/**"
   ],
-  "hbr_int_009_tier_obligations": [
-    {
-      "tier": "flight_recorder",
-      "status": "WIRED",
-      "reason": "FR-EVT-STUDIO-* business event"
-    },
-    {
-      "tier": "internal_diagnostics",
-      "status": "DEFERRED",
-      "reason": "built by WP-KERNEL-012, retrofit WP-KERNEL-016"
-    },
-    {
-      "tier": "palmistry",
-      "status": "DEFERRED",
-      "reason": "external watcher shipped later"
-    }
+  "forbidden_paths": [
+   ".GOV/**",
+   "app/src/** (legacy reference-only)"
   ],
-  "risk_if_missed": "Sharpen/detail set missing; High Pass duplicated.",
-  "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
-    "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+  "acceptance_criteria": [
+   "Sharpen/Sharpen More, Sharpen Edges, Unsharp Mask, Smart Sharpen, Clarity, High Pass",
+   "Contrast-only",
+   "High Pass single deduped kind"
+  ],
+  "proof_targets": [
+   "sharpen correctness + High Pass dedup"
+  ],
+  "code_surfaces": [
+   "studio-engine/src/render/sharpen/mod.rs",
+   "src/studio/effects/families/sharpen.rs"
+  ],
+  "expected_tests": [
+   "cargo test studio_engine::render::sharpen",
+   "test: Unsharp Mask amount/radius/threshold; Smart Sharpen per-channel+CMYK; High Pass single kind (no cross-family duplication)"
+  ],
+  "acceptance_criteria_original": [
+   "Sharpen/Sharpen More, Sharpen Edges, Unsharp Mask, Smart Sharpen, Clarity, High Pass; contrast-only; High Pass single deduped kind"
+  ]
+ },
+ "gui_obligation": {
+  "operator_surface_required": "NO",
+  "gui_creation_required": "NO",
+  "argus_required": "YES",
+  "trace_projection_required_when_non_ui": true,
+  "surfaces": [],
+  "argus_targets": [],
+  "not_applicable_reason": "Headless/backend MT: no operator-visible surface changed."
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "NO",
+  "manual_version_bump_required": "NO",
+  "target_entries": [],
+  "not_applicable_reason": "Non-product-behavior or internal-scaffold MT; UserManual updated by the consuming feature MT."
+ },
+ "hbr_obligations": [
+  "HBR-INT-003",
+  "HBR-VIS-001"
+ ],
+ "hbr_int_009_tier_obligations": [
+  {
+   "tier": "flight_recorder",
+   "status": "WIRED",
+   "reason": "FR-EVT-STUDIO-* business event"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
-      "Domain MT forking a canonical primitive instead of referencing 14.23.",
-      "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
-    ],
-    "minimum_controls": [
-      "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
-      "Reference canonical primitives (14.23); no shadow primitives.",
-      "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
-    ]
+  {
+   "tier": "internal_diagnostics",
+   "status": "WIRED",
+   "reason": "Corrected: internal diagnostics exist in the WP-KERNEL-012 base today, at handshake_core/src/diagnostics and handshake_core/src/api/diagnostics.rs. The earlier reason assumed a later retrofit."
+  },
+  {
+   "tier": "palmistry",
+   "status": "WIRED",
+   "reason": "Corrected: the external watcher exists in the WP-KERNEL-012 base today, at src/frontend/palmistry. The earlier reason assumed it shipped later."
   }
+ ],
+ "risk_if_missed": "Sharpen/detail set missing; High Pass duplicated.",
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null,
+  "review_request_receipt_id": null,
+  "review_response_receipt_id": null
+ },
+ "red_team": {
+  "required": true,
+  "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+  "risks": [
+   "Scaffold-only claim without runtime proof (Spec-Realism Gate).",
+   "Domain MT forking a canonical primitive instead of referencing 14.23.",
+   "PostgreSQL/SQLite creep or a write that bypasses the typed SurrealDB boundary on a studio_* authority path."
+  ],
+  "minimum_controls": [
+   "At least one proof command exercises executable runtime or a Handshake-managed resource boundary.",
+   "Reference canonical primitives (14.23); no shadow primitives.",
+   "no_legacy_database_tripwire plus typed-SurrealDB-boundary proof on every authority write."
+  ]
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "Sharpen/Sharpen More, Sharpen Edges, Unsharp Mask, Smart Sharpen, Clarity, High Pass",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "sharpen correctness + High Pass dedup",
+   "proof_target_status": "carried_from_original",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "Contrast-only",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "High Pass single deduped kind",
+   "evidence_kind": "runtime_assertion",
+   "proof_target": "PROOF TARGET REQUIRED: name the command or check that proves this row. The original contract carried one target for the whole microtask, which cannot prove this row on its own.",
+   "proof_target_status": "REQUIRED",
+   "source": "split from the original acceptance prose, preserved verbatim in scope.acceptance_criteria_original"
+  }
+ ],
+ "acceptance_criteria_count": 3,
+ "implementation_notes": {
+  "spec_clauses": [
+   {
+    "anchor": "STU-FX-019",
+    "spec_clause_text": "[STU-FX-019] Sharpen/detail effects increase local/edge contrast. High-pass is one deduped kind used both as a sharpen row here and as the overlay-sharpening detail extractor; it is not duplicated between families."
+   },
+   {
+    "anchor": "STU-FX-019a",
+    "spec_clause_text": "[STU-FX-019a] The deterministic super-resolution / detail-synthesis capability is split by posture: bicubic/Lanczos and edge-preserving upscale are native resampling owned by 14.4/14.13, while ML detail synthesis is the adapter-backed super-resolution row ([STU-FX-034]); 14.9 sharpen kinds do not add pixels, only redistribute existing contrast. | Studio effect | Targets | GPU | Behavior (normative) | |---|---|---|---| | Sharpen / Sharpen More | R | No | Fixed-strength clarity boost by increasing adjacent-pixel contrast; the \"more\" step is stronger. | | Sharpen Edges | R | No | Sharpens only detected edges, preserving smooth areas; parameterless. | | Unsharp Mask | R | Opt | Edge-contrast sharpening with amount, radius, threshold producing light/dark edge lines. | | Smart Sharpen | R | Opt | Adaptive sharpening with algorithm choice, shadow/highlight fade, noise-reduction slider, per-channel and CMYK support. | | Clarity | R | Opt | Local-contrast (midtone) enhancement. | | High Pass | R,V | Opt | Keeps edge detail within a radius and suppresses low-frequency content (inverse of gaussian); the overlay-sharpen detail extractor. | --- ### 9. Stylize Family"
+   }
+  ],
+  "spec_clause_count": 2,
+  "unresolved_anchors": [],
+  "family_scope_citations": [],
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router.",
+  "worktree": "Code paths resolve against the WP-KERNEL-012 worktree, never main."
+ },
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence in the cited spec clause carried in implementation_notes. A row with no spec basis is a fabrication.",
+  "Reject any row still carrying proof_target_status REQUIRED: it has no proof of its own.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "Where the contract touches numeric parameters, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown, never mirrored."
+ ],
+ "resource_privacy_obligation": {
+  "applies": true,
+  "rule": "Resources this contract reads, derives, caches or exports stay inside the authenticated operator's scope. No cross-identity read path may be introduced."
+ },
+ "patch_provenance": {
+  "patched_by": "handshake.greenroom.mt_patch_legacy.v1",
+  "patched_at": "2026-09-04T13:36:26+00:00",
+  "preserved": "The original acceptance prose is kept verbatim at scope.acceptance_criteria_original. No clause, scope decision, path list or obligation from the original contract was removed.",
+  "spec_basis": "_greenroom_20260903\\spec_update\\proposed-bundle\\master-spec-v02.206\\spec-modules\\14-studio-creative-suite.md"
+ }
 }

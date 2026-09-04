@@ -1,0 +1,212 @@
+{
+ "schema_id": "hsk.microtask_contract@1",
+ "schema_version": "microtask_contract_v3_spec_derived",
+ "contract_authority": "PRIMARY_MACHINE_READABLE",
+ "wp_id": "WP-KERNEL-STUDIO",
+ "mt_id": "MT-30950",
+ "created_at_utc": "2026-09-04T13:36:04+00:00",
+ "generated_by": "handshake.greenroom.spec_derive.v1",
+ "derivation": {
+  "rule": "One microtask per derivation unit declared by the module's own Microtask Derivation sub-section. The Master Spec is the only input.",
+  "derivation_key": "STU-TYP-167#parameter_table#0",
+  "unit_kind": "parameter_table",
+  "spec_module": "14-studio-creative-suite.md",
+  "spec_heading": "14.7.10 Vertical and CJK Typography",
+  "spec_line": 8212,
+  "reproducible": "Re-running spec-derive-microtasks.py against an unchanged spec reproduces this contract with this same mt_id."
+ },
+ "lifecycle": {
+  "status": "PENDING",
+  "depends_on": [],
+  "blocks": [],
+  "active": false,
+  "validator_verdict": "PENDING"
+ },
+ "clause": "Ruby - twenty-eight fields parameter bounds",
+ "spec_anchor": [
+  "STU-TYP-167"
+ ],
+ "spec_anchor_status": "RESOLVED: derived from the assembled Master Spec module, not provisional",
+ "domain": "typography",
+ "scope": {
+  "summary": "Ruby.** Ruby is an attached annotation run, not a separate story. Its record is twenty-eight fields: `ruby_string`, `ruby_flag`, `ruby_type` (`group` | `per_character`), `ruby_alignment` (`left` | `center` | `right` | `full_justify` | `jis` | `equal_aki` | `one_aki`), `ruby_position` (`above_right` | `below_left`), `ruby_parent_spacing` (`no_adjustment` | `both_sides` | `121_aki` | `equal_aki` | `full_justify`), `ruby_parent_overhang_amount` (`none` | `one_ruby` | `half_ruby` | `one_char` | `half_char` | `no_limit`), `ruby_overhang` (bool), `ruby_auto_align` (bool), `ruby_auto_scaling` (bool), `ruby_open_type_pro` (bool), `ruby_auto_tcy_auto_scale` (bool), `ruby_auto_tcy_include_roman` (bool), `ruby_auto_tcy_digits`, `ruby_font`, `ruby_font_style`, `ruby_font_size`, `ruby_x_scale`, `ruby_y_scale`, `ruby_x_offset`, `ruby_y_offset`, `ruby_parent_scaling_percent`, `ruby_fill` (swatch), `ruby_stroke` (swatch), `ruby_tint`, `ruby_stroke_tint`, `ruby_weight`, `ruby_overprint_fill` / `ruby_overprint_stroke` (`auto` | `overprint_on` | `overprint_off`). *Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.* | Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | |---|---|---|---|---|---|---|---| | `ruby_font_size` | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | points | UNKNOWN | | [...]",
+  "spec_text_is_authority": "The clause text above is quoted from the Master Spec. Where this contract and the spec differ, the spec wins and this contract is regenerated."
+ },
+ "acceptance_criteria": [
+  {
+   "id": "AC-001",
+   "criterion": "The parameter `ruby_font_size` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=UNKNOWN, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=points, precision=UNKNOWN. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-167 parameter table row 1"
+  },
+  {
+   "id": "AC-002",
+   "criterion": "The parameter `ruby_x_scale` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=UNKNOWN, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=percent, precision=UNKNOWN. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-167 parameter table row 2"
+  },
+  {
+   "id": "AC-003",
+   "criterion": "The parameter `ruby_y_scale` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=UNKNOWN, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=percent, precision=UNKNOWN. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-167 parameter table row 3"
+  },
+  {
+   "id": "AC-004",
+   "criterion": "The parameter `ruby_x_offset` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=UNKNOWN, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=points, precision=UNKNOWN. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-167 parameter table row 4"
+  },
+  {
+   "id": "AC-005",
+   "criterion": "The parameter `ruby_y_offset` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=UNKNOWN, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=points, precision=UNKNOWN. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-167 parameter table row 5"
+  },
+  {
+   "id": "AC-006",
+   "criterion": "The parameter `ruby_parent_scaling_percent` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=UNKNOWN, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=percent, precision=UNKNOWN. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-167 parameter table row 6"
+  },
+  {
+   "id": "AC-007",
+   "criterion": "The parameter `ruby_tint` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=100, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=percent, precision=UNKNOWN. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "soft_min",
+    "soft_max",
+    "default",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-167 parameter table row 7"
+  },
+  {
+   "id": "AC-008",
+   "criterion": "The parameter `ruby_stroke_tint` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=UNKNOWN, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=percent, precision=UNKNOWN. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-167 parameter table row 8"
+  },
+  {
+   "id": "AC-009",
+   "criterion": "The parameter `ruby_weight` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=0, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=points, precision=UNKNOWN. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default",
+    "precision"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-167 parameter table row 9"
+  },
+  {
+   "id": "AC-010",
+   "criterion": "The parameter `ruby_auto_tcy_digits` accepts and stores every one of its seven declared fields as SEPARATE values, exactly as the spec table states them: hard_min=UNKNOWN, hard_max=UNKNOWN, soft_min=UNKNOWN, soft_max=UNKNOWN, default=UNKNOWN, unit=count, precision=0. A field the spec marks unknown is stored as unknown and is NOT set equal to its opposite bound, because collapsing hard and soft bounds destroys information that cannot be recovered without re-deriving it from the captures.",
+   "evidence_kind": "runtime_assertion",
+   "unknown_fields": [
+    "hard_min",
+    "hard_max",
+    "soft_min",
+    "soft_max",
+    "default"
+   ],
+   "source": "14-studio-creative-suite.md STU-TYP-167 parameter table row 10"
+  }
+ ],
+ "acceptance_criteria_count": 10,
+ "implementation_notes": {
+  "extracted_behaviour": [],
+  "behaviour_record_count": 0,
+  "naming": "Vendor product names are provenance only. Studio ships Handshake-native names per [STU-SECTION-003].",
+  "database": "SurrealDB with the EventLedger is the only durable authority. SQLite, libSQL, Turso and PostgreSQL are forbidden, including in tests and dev caches.",
+  "engine_split": "GPU, WGSL and compute live in the studio-engine crate behind its traits. handshake_core must never gain a GPU dependency.",
+  "routing": "Navigation extends the existing address and bus seams. No new router."
+ },
+ "gui_obligation": {
+  "operator_surface_required": "YES",
+  "argus_required": "YES"
+ },
+ "user_manual_obligation": {
+  "required": true,
+  "same_change_update_required": "YES"
+ },
+ "resource_privacy_obligation": {
+  "applies": true
+ },
+ "hbr_obligations": [
+  "HBR-INT-001",
+  "HBR-INT-003",
+  "HBR-INT-009",
+  "HBR-VIS-001",
+  "HBR-VIS-003",
+  "HBR-MAN-001",
+  "HBR-MAN-004",
+  "HBR-PRIV-001"
+ ],
+ "validator_focus": [
+  "Confirm every acceptance row traces to a sentence or table row in the cited spec clause. A row with no spec basis is a fabrication and fails the contract.",
+  "Reject scaffold-only proof: at least one proof command must drive the executable runtime rather than a fixture the implementer authored.",
+  "For a parameter row, confirm hard and soft bounds are stored as separate values and an unknown bound is stored as unknown rather than mirrored from its opposite."
+ ],
+ "handoff": {
+  "coder_session": null,
+  "wp_validator_session": null
+ }
+}

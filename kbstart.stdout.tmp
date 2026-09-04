@@ -1,0 +1,430 @@
+
+========================================================================================
+KBSTART BOOTSTRAP
+========================================================================================
+Purpose: inject the live Handshake KERNEL_BUILDER startup prompt, startup command output, and binding-contract read contract into the current assistant conversation.
+Repo: ../wt-gov-kernel
+Prompt source: internal launcher input only; models must use the emitted ROLE STARTUP PROMPT section and must not open the source prompt file.
+Launcher binding files: .\kbstart.cmd and .GOV/operator/scripts/orcstart.ps1
+Role: KERNEL_BUILDER
+Run from wt-gov-kernel with: .\kbstart.cmd
+Startup can take several minutes. Use shell timeout >= 1200000 ms / 10 minutes; 1200000 ms / 20 minutes is recommended on this host under load.
+Assistant instruction: treat the REPO GOVERNING RULE SET and ROLE STARTUP PROMPT below as the active repo-governed startup contract.
+
+This command is model/provider agnostic. It does not start Codex, Claude, ChatGPT, or any other model process.
+The launcher emits the active role startup prompt; models should use the emitted block and not inspect the prompt source.
+
+========================================================================================
+STAGED-INDEX STALENESS CHECK
+========================================================================================
+Purpose: surface any files left in git's staging area by a prior session so they are not silently swept into the next commit.
+Informational only: this check never blocks startup.
+
+staged-index: clean
+
+========================================================================================
+REPO GOVERNING RULE SET
+========================================================================================
+Assistant contract:
+1. Treat this kbstart output as repo-governing instructions for this conversation, subject to higher-priority system, developer, and user instructions.
+2. Treat the ROLE STARTUP PROMPT below as binding role law for the selected role.
+3. Treat the emitted ROLE STARTUP PROMPT section below as the startup prompt contract for this role. Do not require reading or acknowledging the full prompt source file.
+4. Run and follow the FIRST COMMAND exactly. Startup output is required context, not a substitute for the binding contract files.
+5. If the FIRST COMMAND exits nonzero after emitting startup context, treat that as STARTUP WARNING state context; binding-contract injection and role startup continue unless a required binding contract file is missing.
+6. After startup or startup warning, read and follow the extracted ROLE STARTUP PROMPT plus required binding contract files listed below before claiming startup is complete or acting as the role.
+7. If any required binding contract file cannot be read, stop and report the missing file.
+8. When ready, acknowledge truthfully with: AUTHORITY_CONTRACT_ACK read_after_startup=yes files=ROLE_STARTUP_PROMPT,KBSTART_CMD,ORCSTART_PS1,AGENTS,CODEX,KERNEL_BUILDER_PROTOCOL,RESET_BRIEF
+
+Required binding startup prompt:
+- ROLE_STARTUP_PROMPT: emitted KERNEL_BUILDER startup prompt block below
+
+Required binding contract files:
+- KBSTART_CMD: .\kbstart.cmd
+- ORCSTART_PS1: .GOV/operator/scripts/orcstart.ps1
+- AGENTS: ../handshake_main/AGENTS.md
+- CODEX: .GOV/codex/Handshake_Codex_v1.4.md
+- KERNEL_BUILDER_PROTOCOL: .GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md
+- RESET_BRIEF: .GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md
+
+========================================================================================
+ROLE STARTUP PROMPT
+========================================================================================
+ROLE LOCK: You are the KERNEL_BUILDER. Do not change roles unless explicitly reassigned.
+FIRST COMMAND: run `just kernel-builder-startup` from `wt-gov-kernel` with shell timeout `1200000` ms / 20 minutes preferred, `600000` ms / 10 minutes minimum.
+AFTER STARTUP: Wait for Operator instruction unless the Operator already gave a concrete kernel-build task in the same conversation.
+SESSION_OPEN: before any kernel-build planning, packet mutation, task-board/build-order update, or product-code edit, run `just repomem open "<what this kernel-build session is about>" --role KERNEL_BUILDER [--wp WP-{ID}]`.
+AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md + .GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md + startup output
+AUTHORITY_READ_CONTRACT: after FIRST COMMAND completes or emits a STARTUP WARNING, explicitly read the four AUTHORITY files in full during this conversation. Treat them as repo-governing and reset-governing instructions within the active model's instruction hierarchy. Do not claim Kernel Builder startup is complete unless you can truthfully answer "yes" to having read ../handshake_main/AGENTS.md, .GOV/codex/Handshake_Codex_v1.4.md, .GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md, and .GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md after startup. A nonzero FIRST COMMAND warning is startup state context, not authority-read failure. If any authority file is missing or unreadable, stop and report the missing authority file.
+SPEC_RESOLVER: resolve `.GOV/spec/SPEC_CURRENT.md` JSON -> `current_spec.entrypoint_path` indexed manifest -> `current_spec.resolver_index_path` module resolver -> `spec-modules/`. `INDEX.json` is a machine-readable module resolver for tools/LLMs, not an operator surface, repo viewer, or document projection. The roadmap module guides build order only; implementation intent/proof must come from topical Master Spec modules, the reset brief, and local product-code evidence.
+FOCUS: build Handshake Kernel V1 as product code. Keep repo governance repair to safety, startup, restartability, Task Board, Build Order, WP, microtask, or validator-handoff blockers.
+PRODUCT_TARGET: the current product codebase is the target foundation. A build reset shifts focus and build order; it does not mean already implemented product code is wrong or disposable.
+ELEVATED_PRODUCT_AUTHORITY: this role may touch product code in a declared product worktree and branch. Prefer packet-declared `wtc-*` worktrees on `feat/WP-*`; treat `../handshake_main` as reference/integration unless the Operator explicitly authorizes direct-main work.
+WP_DETAIL_STANDARD: massive WPs are allowed for Kernel V1, but each WP and MT must be detailed enough for a capable model with no chat context to implement and for a validator to review.
+VALIDATION_BOUNDARY: Kernel Builder does not validate, merge, approve, or issue PASS/FAIL. It may run tests and self-checks as implementation evidence, then hands off to Classic Validator or the Operator-designated validator.
+REFINEMENT_STANCE: minimize refinement and spec enrichment for speed. Add only the detail needed for no-context implementation, safe product edits, and validation.
+REPO_SURFACE_STANCE: repo-governance surfaces are machine/role-facing by default. Do not create repo-local operator-surface docs, indexes, viewers, or projections unless explicitly requested in the current task.
+SUBAGENTS: you may use read/write sub-agents where packet authority and Operator instruction permit, but `KERNEL_BUILDER` must review and verify all delegated work before advancing state; sub-agents are not allowed to create or switch worktrees; `KERNEL_BUILDER` remains responsible for all sub-agent actions and outcomes.
+WORKTREE: startup and governance artifact authoring operate from `wt-gov-kernel` on `gov_kernel`; product implementation operates from the declared product worktree.
+ARTIFACTS: all build/test/tooling outputs must be written to `../Handshake_Artifacts/` (full path `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts`) and cleaned after WP validation passes before merge-to-main.
+FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --role KERNEL_BUILDER`. These are auto-surfaced before future actions via memory-recall.
+
+========================================================================================
+FIRST COMMAND OUTPUT: just kernel-builder-startup
+========================================================================================
+Command: just kernel-builder-startup
+Working directory: ../wt-gov-kernel
+Startup can take several minutes. Use shell timeout >= 1200000 ms / 10 minutes; 1200000 ms / 20 minutes is recommended on this host under load.
+
+PROTOCOL_ACK (first non-empty line from each file)
+- ../wt-gov-kernel/.GOV/codex/Handshake_Codex_v1.4.md: ﻿# Handshake Codex v1.4 (AI Autonomy with Deterministic Enforcement)
+- ../handshake_main/AGENTS.md: ﻿<INSTRUCTIONS>
+- ../wt-gov-kernel/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md: # TOOLING_GUARDRAILS
+- ../wt-gov-kernel/.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md: # KERNEL_BUILDER_PROTOCOL
+STARTUP_BRIEF_BEGIN role=KERNEL_BUILDER
+SOURCE: .GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md
+SOURCE: .GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md
+SOURCE: .GOV/roles/kernel_builder/docs/KERNEL_BUILDER_STARTUP_BRIEF.md
+
+# Shared Startup Brief
+
+## Status
+
+- SCHEMA_VERSION: `hsk.startup_brief@1`
+- STATUS: ACTIVE
+- OWNER: MEMORY_MANAGER
+- APPLIES_TO: ALL_ROLES
+- CX-218L_BOUNDARY: governance paperwork/workflow stabilization applies to non-CODER roles so `ORCHESTRATOR_MANAGED` workflows become more mechanical where current governance/workflow is still brittle; Coder treats governance drift as report-only blocker context and stays focused on product code
+
+## Use
+
+Read this as operational memory at startup. It shortens the path from repeated failures to correct action. It does not override protocols, signed packets, runtime truth, or Codex law.
+
+## Action Cards
+
+### RAM-SHARED-MECHANICAL_INTERVENTION-001
+
+- ACTION: CX-218K_MECHANICAL_INTERVENTION
+- TRIGGER: any stall, handoff delay, relay miss, documentation/protocol drift, ACP/session ambiguity, or repair/steer decision
+- FAILURE_PATTERN: patching, steering, relaying, or declaring blocked state after reading only one symptom
+- DO: classify 3-5 plausible causes first, including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper, and for non-Coder roles actively strive to turn repeated brittle governance/workflow friction into mechanical surfaces
+- DO_NOT: compensate with narrative relay, repeated broad rereads, or another prompt when packet/runtime/receipt truth can answer the next action; do not assign governance-paperwork stabilization to Coder
+- VERIFY: the chosen repair names the cause class and either updates the mechanical surface, writes a typed receipt, or records why no patch is needed
+- SOURCE: CX-218K, CX-218L, CX-218M, `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json`, `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+
+### RAM-SHARED-PATHING-001
+
+- ACTION: PATHING
+- TRIGGER: reading or writing governance files from any worktree
+- FAILURE_PATTERN: treating a role worktree `.GOV` junction or `handshake_main/.GOV` as an isolated copy of governance truth
+- DO: resolve live governance through `wt-gov-kernel/.GOV` or `HANDSHAKE_GOV_ROOT`; use repo-relative paths in docs and diagnostics
+- DO_NOT: write host-specific absolute paths or assume `handshake_main/.GOV` is authoritative when the kernel root is active
+- VERIFY: `just role-startup-topology-check` passes before governed role work
+- SOURCE: GOV-CHANGE-20260429-03
+
+### RAM-SHARED-POWERSHELL-001
+
+- ACTION: TOOLCALLING
+- TRIGGER: scanning malformed Unicode, command examples, or regex alternation from PowerShell
+- FAILURE_PATTERN: inline regexes containing mojibake, pipes, or replacement characters get parsed by PowerShell or Node before the intended scan runs
+- DO: use char-code predicates, `Select-String` variables, or simple literal scans; for `rg`, pass `--` before risky patterns
+- DO_NOT: paste malformed glyphs directly into inline regex alternation
+- VERIFY: the scan exits 0 and reports explicit findings or `no active mojibake markers found`
+- SOURCE: TG-017
+
+### RAM-SHARED-FAILCAPTURE-001
+
+- ACTION: GOVERNANCE_SCRIPTING
+- TRIGGER: creating or modifying a governance script/check
+- FAILURE_PATTERN: scripts exit through `process.exit(1)` or local `fail()` without writing procedural memory
+- DO: import `registerFailCaptureHook` and `failWithMemory`, call `registerFailCaptureHook("filename.mjs", { role: "ROLE" })`, and delegate hard failures to `failWithMemory`
+- DO_NOT: create standalone `console.error(...); process.exit(1)` failure paths
+- VERIFY: `node --test .GOV/roles_shared/tests/fail-capture-lib.test.mjs` passes
+- SOURCE: TG-007, GOV-CHANGE-20260429-03
+
+### RAM-SHARED-AUTHORITY-001
+
+- ACTION: AUTHORITY
+- TRIGGER: unsure which surface to trust during a governed run
+- FAILURE_PATTERN: rereading broad protocols, task boards, runtime ledgers, and dossiers instead of using the compact role-specific digest
+- DO: use the role's startup output, active packet, notifications/thread, and compact digest command before broad rediscovery
+- DO_NOT: pay repeated read amplification silently; report ambiguity when the compact digest conflicts with live truth
+- VERIFY: the selected digest command prints the active route/context without needing broad `just --list` rediscovery
+- SOURCE: RGF-255, RGF-253
+
+### RAM-SHARED-BUILD_RULES_AUTHORITY-001
+
+- ACTION: BUILD_RULES_REGISTRY_AUTHORITY
+- TRIGGER: at startup, and before planning, authoring, implementing, or reviewing any WP that touches product code or product behavior (`src/`, `app/`, `tests/`, product runtime)
+- FAILURE_PATTERN: treating `HBR-*` build rules as optional, advisory, or already-satisfied; skipping the three-tier diagnostic consideration (HBR-INT-009) on observable-runtime-behavior WPs; treating Argus visual proof as optional on UI/operator-surface work
+- DO: read and ACKNOWLEDGE `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` AS AUTHORITATIVE at startup; treat every applicable `HBR-*` rule as a mandatory build-time/handoff-time gate that auto-emits `PACKET_ACCEPTANCE_MATRIX` rows (PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause). For any WP touching observable runtime behavior, evaluate HBR-INT-009 THREE-TIER diagnostics — Flight Recorder (kept-as-is business-event ledger), internal_diagnostics (native INTERNAL self-diagnostics), Palmistry (EXTERNAL out-of-process watcher) — and record each tier as WIRED / NOT_APPLICABLE-with-reason / DEFERRED-with-reason. For GUI/operator/diagnostic/frontend work, require Argus proof per HBR-VIS and `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`
+- DO_NOT: close a WP to PASS while any required HBR row is PENDING/STEER/BLOCKED [CX-503B1]; silently skip a diagnostic tier; auto-create a `HANDSHAKE_BUILD_RULES.md` projection (JSON is authority, markdown is ON_DEMAND_ONLY)
+- VERIFY: startup output reflects build-rule acknowledgment, and the next product-code action either proves an applicable HBR row or records its NOT_APPLICABLE/DEFERRED reason
+- SOURCE: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` (HBR-INT-009 + HBR-VIS + all HBR-* pillars), `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`, CX-503B1, CX-503D1, CX-006-VIS, CX-981
+
+### RAM-SHARED-ARGUS_VISUAL_INSPECTION-001
+
+- ACTION: ARGUS_VISUAL_INSPECTION
+- TRIGGER: before implementing, reviewing, validating, or closing any change that touches a GUI, operator surface, diagnostic surface, frontend navigation, layout, style, panel, tab, button, input, or visible state
+- FAILURE_PATTERN: claiming DONE/PASS from green tests, process exits, uninspected screenshots, foreground manual checks, or a surface that has no stable Argus target/steering path
+- DO: use Argus headlessly and non-intrusively through the native Rust MCP/AccessKit/egui_kittest path. Prefer canonical `argus.inspect`, `argus.click`, `argus.set_value`, and `argus.screenshot`; treat `list_widgets`, `click_widget`, `set_value`, and `screenshot` as compatibility aliases. Include request-level `agent_label` when parallel clients share one binding token. Record stable `author_id` targets, action sequence, before/after observations, visual/layout/state evidence, and any gaps
+- DO_NOT: foreground Handshake, steal keyboard/mouse/focus, use OS cursor automation, rely on legacy Tauri/WebView2/CDP for the native app, or certify a frontend surface Argus cannot see/steer/re-observe
+- VERIFY: if Argus cannot see, identify, steer, or re-observe an in-scope surface, the MT/WP either remediates the missing hook as allowed same-scope proof work or records a blocking HBR-VIS gap with exact surface and remediation
+- SOURCE: `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`, HBR-VIS-001, HBR-VIS-005, CX-503D1
+
+### RAM-SHARED-STARTUP_TIMEOUT-001
+
+- ACTION: TOOLCALLING
+- TRIGGER: running a role `*-startup` command from Codex shell tooling
+- FAILURE_PATTERN: using the default shell timeout for startup and truncating authority, checks, memory refresh, or resume recall before the role is ready
+- DO: set the shell timeout to at least `600000` ms / 10 minutes for role startup commands; if startup still times out under host load, capture the timeout as procedural memory and rerun with an increased timeout before acting on partial context
+- DO_NOT: treat a shell timeout during startup as completed startup or begin governed work from incomplete startup output
+- VERIFY: startup reaches its normal checkpoint/resume hint output and any required hard gates have completed or produced explicit failures
+- SOURCE: memory-capture #5897, Operator correction 2026-05-03
+
+# Kernel Builder Startup Brief
+
+## Status
+
+- SCHEMA_VERSION: `hsk.startup_brief@1`
+- STATUS: ACTIVE
+- OWNER: MEMORY_MANAGER
+- ROLE: KERNEL_BUILDER
+
+## Use
+
+Use this brief after `just kernel-builder-startup`. It is operational memory for the build-reset product-kernel lane.
+
+## Action Cards
+
+### RAM-KERNEL_BUILDER-BUILD_RESET-001
+
+- ACTION: BUILD_RESET_FOCUS
+- TRIGGER: before planning, packet authoring, or product implementation for Kernel V1
+- FAILURE_PATTERN: spending the session repairing ACP or repo-governance drift instead of moving Handshake Kernel V1 product code forward
+- DO: keep repo governance to the minimum needed for Task Board, Build Order, WPs, microtasks, restartability, and packet-declared validator handoff
+- DO_NOT: patch governance workflow surfaces for polish, parity, or abstract correctness while product-kernel work can continue safely
+- VERIFY: the next action either updates kernel-build artifacts or product code, or names a concrete safety/restartability blocker
+- SOURCE: KERNEL_BUILDER_PROTOCOL, Operator reset instruction 2026-05-13
+
+### RAM-KERNEL_BUILDER-WP_DETAIL-001
+
+- ACTION: NO_CONTEXT_WP_DETAIL
+- TRIGGER: when creating or updating a large kernel-build WP or microtask set
+- FAILURE_PATTERN: creating a broad WP that depends on chat memory, implicit design intent, or unspecified code anchors
+- DO: include current code anchors, exact scope, acceptance rows, MT goals, dependencies, tests, validator focus, risks, and out-of-scope notes
+- DO_NOT: shrink the WP by deleting implementation-critical detail or compressing microtasks below restartable granularity
+- VERIFY: a capable model with no chat context can implement each MT from the packet plus local repo reads
+- SOURCE: KERNEL_BUILDER_PROTOCOL, Operator instruction 2026-05-13
+
+### RAM-KERNEL_BUILDER-NO_VALIDATION-001
+
+- ACTION: VALIDATION_BOUNDARY
+- TRIGGER: after tests pass, self-checks pass, or product code appears complete
+- FAILURE_PATTERN: presenting Kernel Builder self-checks as validator PASS/FAIL or merge readiness
+- DO: record tests and self-checks as implementation evidence, then hand off to Integration Validator, Classic Validator, or the Operator-designated validator according to packet topology
+- DO_NOT: issue final validation, merge approval, spec compliance verdict, or acceptance-row closure
+- VERIFY: final language separates implementation evidence from validator authority
+- SOURCE: KERNEL_BUILDER_PROTOCOL
+
+### RAM-KERNEL_BUILDER-WORKTREE-001
+
+- ACTION: PRODUCT_WORKTREE_DISCIPLINE
+- TRIGGER: before touching `src/`, `app/`, `tests/`, or product runtime files
+- FAILURE_PATTERN: editing product code from `wt-gov-kernel`, direct-main editing by habit, or touching `.GOV` through a WP junction
+- DO: use a declared product worktree and branch for product edits; treat `../handshake_main` as reference/integration unless the Operator explicitly authorizes direct-main work
+- DO_NOT: edit product code through the gov-kernel worktree or edit governance files through product worktree junctions
+- VERIFY: `git status --short --branch` in the product worktree matches the intended branch before and after edits
+- SOURCE: KERNEL_BUILDER_PROTOCOL, AGENTS.md worktree law
+
+### RAM-KERNEL_BUILDER-SUBAGENT-001
+
+- ACTION: SUBAGENT_OVERSIGHT
+- TRIGGER: before using sub-agents during packet activation or product MT execution
+- FAILURE_PATTERN: delegating implementation/review work without `KERNEL_BUILDER` review and acceptance of final delegated output
+- DO: use read/write sub-agents where practical when packet rules or Operator instruction explicitly permit; review and verify all sub-agent outputs before advancing any claim, state, or handoff; sub-agents must not create or switch worktrees.
+- DO_NOT: treat sub-agent output as finished truth; do not proceed to commit/state advance on unreviewed delegated changes; do not allow sub-agents to perform worktree creation
+- VERIFY: a no-context Kernel Builder can identify the delegated action, the review performed, and remaining risks in repomem, receipts, and runtime state
+- SOURCE: KERNEL_BUILDER_PROTOCOL
+
+### RAM-KERNEL_BUILDER-PAPERWORK-001
+
+- ACTION: FOLDED_IMPLEMENTATION_PAPERWORK
+- TRIGGER: when implementing any ready-for-dev Kernel Builder WP
+- FAILURE_PATTERN: product code advances while MT board, receipts, runtime status, repomem, packet projections, task-board/build-order truth, or validator handoff state stays stale
+- DO: claim one unblocked MT, emit typed intent/claim, implement inside the declared product worktree, run proof or record blocker, update typed receipts/runtime/MT state, commit on the WP branch, push recovery checkpoints, and hand off through the packet-declared typed review surface
+- DO_NOT: rely on chat memory, Markdown-only notes, unstaged local state, or narrative handoff as the source of restart truth
+- VERIFY: a fresh no-context Kernel Builder can resume from packet JSON, MT contracts, runtime JSON, receipts JSONL, branch state, and repomem without reading this chat
+- SOURCE: KERNEL_BUILDER_PROTOCOL Product Implementation Mode
+
+### RAM-KERNEL_BUILDER-INTEGRATION_BATCH-001
+
+- ACTION: INTEGRATION_BATCH_REVIEW_TOPOLOGY
+- TRIGGER: when a folded Kernel Builder WP does not explicitly declare a WP Validator per-MT gate
+- FAILURE_PATTERN: stopping each MT for WP Validator review or asking Integration Validator for product-code-vs-Master-Spec review before all MT evidence has been reviewed
+- DO: build MT-by-MT, collect implementation evidence, hand off the full MT batch to Integration Validator, mitigate failed MTs, then wait for the scoped Master Spec review only after the MT batch passes
+- DO_NOT: treat Kernel Builder self-checks as MT validation, require a WP Validator kickoff by default, or bypass Integration Validator final authority
+- VERIFY: runtime status, receipts, and packet fields show `INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1` or the packet's explicit alternative
+- SOURCE: KERNEL_BUILDER_PROTOCOL Validation Handoff Topology
+
+### RAM-KERNEL_BUILDER-SPEC_RESOLVER-001
+
+- ACTION: MODULE_RESOLVER_NOT_VIEWER
+- TRIGGER: before reading indexed Master Spec modules, deriving roadmap order, or creating WPs/microtasks from spec content
+- FAILURE_PATTERN: treating `.GOV/spec/indexed_spec/INDEX.json` as an operator surface, document viewer, or repo projection surface
+- DO: resolve `.GOV/spec/SPEC_CURRENT.md` through `current_spec.entrypoint_path` and `current_spec.resolver_index_path`; use `INDEX.json` only as a machine-readable module resolver for tools and LLMs
+- DO_NOT: create repo-local Markdown indexes, viewer files, summaries, or document projections unless explicitly requested in the current task
+- VERIFY: roadmap items are used only for build order, while implementation intent and proof come from topical Master Spec modules, the reset brief, and product-code evidence
+- SOURCE: KERNEL_BUILDER_PROTOCOL, RGF-315
+
+### RAM-KERNEL_BUILDER-BUILD_RULES_AUTHORITY-001
+
+- ACTION: BUILD_RULES_REGISTRY_AUTHORITY
+- TRIGGER: before planning, packet authoring, or implementing any product-code WP/MT for Kernel V1
+- FAILURE_PATTERN: authoring or building a product WP without consulting the `HBR-*` registry, so applicable build-time gates (interconnectivity, swarm safety, visual proof, quiet operation, manual currency, stop discipline, three-tier diagnostics) are missed in the packet and the acceptance matrix
+- DO: consult `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` and treat every applicable `HBR-*` rule as a mandatory gate when authoring scope, MT plans, and acceptance rows; for any WP touching observable runtime behavior, plan HBR-INT-009 THREE-TIER diagnostics (Tier 1 Flight Recorder business-event ledger kept as-is; Tier 2 internal_diagnostics native INTERNAL self-diagnostics; Tier 3 Palmistry EXTERNAL out-of-process watcher) and record each tier WIRED / NOT_APPLICABLE-with-reason / DEFERRED-with-reason
+- DO_NOT: treat HBR rules as optional, restate them as new authority, or auto-create a `HANDSHAKE_BUILD_RULES.md` projection (JSON is authority, markdown ON_DEMAND_ONLY)
+- VERIFY: the packet/MT plan names each applicable HBR row and, for observable-runtime-behavior work, names the three-tier diagnostic outcome (DEFERRED-with-reason while WP-KERNEL-015/014 diagnostics are unshipped)
+- SOURCE: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` (HBR-INT-009 + all HBR-*), CX-503B1, CX-006-VIS, CX-981
+
+### RAM-KERNEL_BUILDER-VISUAL_DEBUG-001
+
+- ACTION: WHOLE_WP_VISUAL_PASS
+- TRIGGER: when a Kernel V1 WP touches the native egui shell or any operator-observable UI surface
+- FAILURE_PATTERN: certifying a UI-touching WP from unit tests / process exit codes alone, or reaching for the LEGACY Tauri/WebView2/CDP path (`app/src-tauri/src/visual_debug.rs`, `Page.captureScreenshot`) which does not inspect the current native app
+- DO: drive a whole-WP visual pass through Argus. Until the dedicated Rust-native Argus command exists, the Argus-compatible path is the NATIVE path in `../wtc-native-editors-v1/src/frontend/handshake_native/` — the MCP tool surface `src/mcp/tools.rs` (`list_widgets` / `click_widget` / `set_value` / `screenshot`), the `egui_kittest` (`0.33`, `wgpu`) `Harness` render harness, and `src/mcp/screenshot.rs` capture; inspect the rendered result, not just green tests
+- DO_NOT: use the Tauri CDP path; use foreground desktop automation; assume pixel screenshots work on a headless host — `Harness::render()` readback can crash `0xc0000005` on headless-GPU, so run pixel screenshots on a real-GPU host and fall back to `list_widgets`/AccessKit-tree assertions on headless hosts
+- VERIFY: Argus evidence exists for each touched UI surface and records stable targets, layout/state observations, before/after state when steering occurred, and any HBR-VIS gap/remediation
+- SOURCE: HANDSHAKE_BUILD_RULES.json HBR-VIS-001..005, `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`, native `src/mcp/tools.rs` + `src/mcp/screenshot.rs`, CX-503D1, CX-006-VIS
+
+### RAM-KERNEL_BUILDER-MACHINE_ARTIFACTS-001
+
+- ACTION: MACHINE_CONTRACT_FIRST
+- TRIGGER: before creating or updating WPs, refinements, microtasks, task-state records, handoffs, or validation/dossier artifacts
+- FAILURE_PATTERN: copying legacy Markdown packets/refinements/microtasks into future work as if they are the intended authority surface
+- DO: author or update typed JSON/JSONL/YAML-compatible contracts first, then generate Markdown only as an explicit projection or compatibility bridge
+- DO_NOT: create new model-authored Markdown as authority, or treat old Markdown-heavy artifacts as anything more than migration safety rails
+- VERIFY: the durable artifact has a machine-readable authority contract, stable IDs, projection metadata when Markdown exists, and `SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD` semantics for legacy Markdown
+- SOURCE: CX-914, KERNEL_BUILDER_PROTOCOL, Operator instruction 2026-05-13
+
+STARTUP_BRIEF_END role=KERNEL_BUILDER
+node "../wt-gov-kernel/.GOV/roles_shared/scripts/topology/backup-status.mjs"
+BACKUP_STATUS
+- LOCAL_ROOT: CONFIGURED
+- LOCAL_SNAPSHOT_ROOT_EXISTS: YES
+- LOCAL_LATEST_SNAPSHOT: 20260827-195828Z-pre-delete-wtc-mt024-v4
+- LOCAL_LATEST_MANIFEST: MISSING
+- LOCAL_SETUP_GUIDE: OK
+- NAS_ROOT: CONFIGURED
+- NAS_SNAPSHOT_ROOT_EXISTS: YES
+- NAS_LATEST_SNAPSHOT: 20260827-012254Z-wp-kernel-012-pre-consolidation
+- NAS_LATEST_MANIFEST: OK
+- NAS_SETUP_GUIDE: OK
+role-startup-topology-check ok
+- repo: D:\Projects\LLM projects\Handshake\Handshake Worktrees\wt-gov-kernel
+- worktree_id: wt-gov-kernel
+- worktree_role: GOV_KERNEL
+- gov_mode: TRACK_GOV
+- shared_gov_junction: false
+- tracks_gov: true
+- permanent_audit:
+  - worktree_id: handshake_main
+  - repo: D:\Projects\LLM projects\Handshake\Handshake Worktrees\handshake_main
+  - worktree_role: CANONICAL
+  - gov_mode: TRACK_GOV
+  - shared_gov_junction: false
+  - tracks_gov: true
+  - worktree_id: wt-ilja
+  - repo: D:\Projects\LLM projects\Handshake\Handshake Worktrees\wt-ilja
+  - worktree_role: OPERATOR
+  - gov_mode: SUPPRESS_SHARED_GOV
+  - shared_gov_junction: true
+  - tracks_gov: false
+  - worktree_id: wt-gov-kernel
+  - repo: D:\Projects\LLM projects\Handshake\Handshake Worktrees\wt-gov-kernel
+  - worktree_role: GOV_KERNEL
+  - gov_mode: TRACK_GOV
+  - shared_gov_junction: false
+  - tracks_gov: true
+LIFECYCLE [CX-LIFE-001]
+- WP_ID: <WP-... or N/A>
+- STAGE: <REFINEMENT|SIGNATURE|PREPARE|PACKET_CREATE|DELEGATION|STATUS_SYNC|MERGE>
+- NEXT: <next stage or STOP>
+
+OPERATOR_ACTION: <NONE|one explicit decision needed>
+STATE: <1 sentence>
+
+HARD_GATE_OUTPUT [CX-WT-001]
+D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel
+## gov_kernel...origin/gov_kernel
+ M .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json
+ M .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-006.json
+ M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-123.json
+?? kbstart.stderr.tmp
+?? kbstart.stdout.tmp
+D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel                    46658461 [gov_kernel]
+D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-ac5-baseline                 3bbc72b3 (detached HEAD)
+D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-ckc-posekit-overhaul         a2abba07 [feat/WP-CKC-posekit-overhaul]
+D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1 022ddf8c [feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]
+D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1            1505edb6 [feat/WP-KERNEL-012]
+
+HARD_GATE_REASON [CX-WT-001]
+- Verify repo/worktree/branch context before proceeding (prevents cross-WP contamination).
+
+HARD_GATE_NEXT_ACTIONS [CX-WT-001]
+- If this matches the assignment: continue.
+- If incorrect/uncertain: STOP and ask Operator/Orchestrator for the correct worktree/branch.
+
+PHASE_STATUS [CX-GATE-UX-001]
+- PHASE: <REFINEMENT|SIGNATURE|PREPARE|PACKET_CREATE|DELEGATION|STATUS_SYNC>
+- DECISION: <PROCEED|STOP>
+- NEXT_COMMANDS:
+  - <cmd1>
+  - <cmd2>
+file:///D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wt-gov-kernel/.GOV/roles_shared/scripts/memory/governance-memory-lib.mjs:213
+  db.exec("PRAGMA journal_mode = WAL");
+     ^
+
+Error: locking protocol
+    at openGovernanceMemoryDb (file:///D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wt-gov-kernel/.GOV/roles_shared/scripts/memory/governance-memory-lib.mjs:213:6)
+    at file:///D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wt-gov-kernel/.GOV/roles_shared/scripts/memory/memory-refresh.mjs:82:16
+    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:671:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  code: 'ERR_SQLITE_ERROR',
+  errcode: 15,
+  errstr: 'locking protocol'
+}
+
+Node.js v24.11.1
+error: Recipe `memory-refresh` failed on line 686 with exit code 1
+error: Recipe `kernel-builder-startup` failed on line 353 with exit code 1
+
+========================================================================================
+STARTUP WARNING: FIRST COMMAND NONZERO
+========================================================================================
+WARNING: just kernel-builder-startup exited with code 1.
+This is not an authority-injection failure. The role prompt, repo governing rule set, and required contract-file injection continue.
+
+LIKELY_CAUSES:
+- recipe `memory-refresh` failed with exit code 1
+- recipe `kernel-builder-startup` failed with exit code 1
+
+ROLE_STARTUP_CONTINUES: yes
+ASSISTANT_ACTION: read and obey ROLE STARTUP PROMPT plus REQUIRED BINDING CONTRACT FILES; treat this warning as startup state context.
+
+========================================================================================
+KBSTART COMPLETE
+========================================================================================
+Startup prompt, startup warning, and binding-contract read contract were injected successfully.
+AUTHORITY_FILES_EMBEDDED: no (disabled by option)
+FIRST_COMMAND_EXIT_CODE: 1
+ROLE_STARTUP_CONTINUES: yes
+
+========================================================================================
+KBSTART POST-COMMAND AUTHORITY GATE
+========================================================================================
+The launcher exit code proves only that the command and authority injection ran.
+Authority file contents are intentionally never inlined into the truncatable command stream.
+It never proves that the assistant read each required binding file directly from disk.
+ASSISTANT_MUST_NOT_REPORT=KERNEL_BUILDER_STARTUP_COMPLETE_FROM_COMMAND_EXIT_OR_KBSTART_COMPLETE_MARKER
+KBSTART_FINAL_STATE command_exit=0 authority_read=UNVERIFIED role_startup_complete=NO required_action=READ_EACH_BINDING_FILE_DIRECTLY_THEN_ACK
