@@ -177,6 +177,15 @@ impl SurrealStorage {
             .await
             .map_err(StorageError::from)?;
         let owned_id = id.to_owned();
+        // WP-KERNEL-012 MT-146 D-146-1. SurrealDB gives snapshot isolation with write-write
+        // conflict detection only, so a proposal insert racing this delete writes disjoint keys
+        // and nothing aborts: the insert's `record::exists` assert reads a stale snapshot that
+        // still holds the workspace, while this delete's REFERENCE cascade is a snapshot-bound
+        // scan that cannot see the insert's reference key. Both commit and the proposal outlives
+        // its workspace. Taking the FEMS mutation lock orders the two snapshots, so either the
+        // insert lands first and the cascade below sees it, or this delete lands first and the
+        // insert fails closed with NotFound. Held only for the delete itself.
+        let _serial = crate::storage::fems_memory::lock_fems_mutations().await;
         let deleted = self
             .with_data_operation(move |database| {
                 Box::pin(async move { database.delete_workspace_record(&owned_id).await })

@@ -296,6 +296,16 @@ async fn project_commit_event(
     workspace_id: &str,
     event: FlightRecorderEvent,
 ) -> Result<(), ApiError> {
+    // WP-KERNEL-012 MT-146 D-146-3. The pending listing now reports every durable un-published
+    // commit-outbox row, so the causal rule that a pack-built event never precedes its commit
+    // event is enforced here. Skipping is not a delivery failure: the row keeps its attempt
+    // count and stays visible as pending rather than being driven toward quarantine.
+    if !fems_memory::commit_event_dispatch_ready(&state.surreal, workspace_id, event.event_id)
+        .await
+        .map_err(storage_error)?
+    {
+        return Ok(());
+    }
     if let Err(error) = record_review_event_idempotent(state, event.clone()).await {
         fems_memory::record_memory_commit_event_failure(
             &state.surreal,
@@ -1247,16 +1257,35 @@ async fn create_memory_proposal(
                     // from "this workspace is gone", so the provenance rejection is
                     // normalized to 400 here. Fail-closed behavior is unchanged -
                     // nothing is stored either way; only the status contract is fixed.
-                    let loom_block = state
+                    let loom_block = match state
                         .storage
                         .get_loom_block(&workspace_id, document_id)
                         .await
-                        .map_err(|error| match error {
-                            StorageError::NotFound(_) => bad_request(
+                    {
+                        Ok(block) => block,
+                        Err(StorageError::NotFound(_)) => {
+                            // WP-KERNEL-012 MT-146 D-146-1. Provenance can also fail to resolve
+                            // because the route workspace was deleted while this request was in
+                            // flight: the cascade takes the workspace's rich documents, code
+                            // sources and Loom blocks with it, so every provenance lookup above
+                            // misses. That is the route resource disappearing, not bad
+                            // provenance, and this handler's contract answers a missing workspace
+                            // with 404. Re-check before falling back to the 400.
+                            if state
+                                .storage
+                                .get_workspace(&workspace_id)
+                                .await
+                                .map_err(storage_error)?
+                                .is_none()
+                            {
+                                return Err(storage_error(StorageError::NotFound("workspace")));
+                            }
+                            return Err(bad_request(
                                 "proposal provenance document_id does not resolve to a rich document, a canonical code source, or a Loom block in this workspace",
-                            ),
-                            other => storage_error(other),
-                        })?;
+                            ));
+                        }
+                        Err(other) => return Err(storage_error(other)),
+                    };
                     let canonical_ref = format!("loom://{document_id}");
                     if loom_block.workspace_id != workspace_id
                         || request.source_document_content.is_some()

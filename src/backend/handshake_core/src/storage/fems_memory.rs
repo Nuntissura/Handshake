@@ -1564,6 +1564,37 @@ const COMMIT_OUTBOX_TABLE: &str = "fems_memory_commit_fr_outbox";
 
 static FEMS_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
 
+/// Acquire the FEMS mutation lock from outside this module.
+///
+/// WP-KERNEL-012 MT-146 D-146-1. SurrealDB 3.2.0 on RocksDB runs
+/// `OptimisticTransactionDB` with `set_snapshot(true)` and performs WRITE-WRITE
+/// conflict detection only — `get_for_update` is never called anywhere in
+/// `surrealdb-core`, so there is no read-set tracking and no serializable
+/// (SSI) guarantee. Two consequences bite a workspace delete racing a proposal
+/// insert, and neither is detectable at commit because the two transactions
+/// write disjoint keys:
+///
+/// 1. `ASSERT record::exists($value)` on `fems_memory_proposals.workspace_id`
+///    resolves through the inserting transaction's own snapshot, so it still
+///    sees a workspace that a concurrent transaction has already deleted.
+/// 2. `REFERENCE ON DELETE CASCADE` is a snapshot-bound range scan over the
+///    reference keys of the target record, so it cannot see a reference key
+///    written by a transaction that had not committed when the delete took its
+///    snapshot.
+///
+/// Either interleaving leaves a proposal row pointing at a deleted workspace.
+/// Serializing workspace deletion against FEMS proposal mutations orders the
+/// two snapshots so exactly one of the two safe outcomes happens: the insert
+/// lands first and the cascade sees it, or the delete lands first and the
+/// insert's existence check fails closed.
+///
+/// This is deliberately the FEMS mutation lock and not a workspace-wide lock:
+/// workspace deletion is a rare, already-heavy teardown, so it does not
+/// serialize ordinary workspace writes.
+pub async fn lock_fems_mutations() -> tokio::sync::MutexGuard<'static, ()> {
+    FEMS_MUTATION_LOCK.lock().await
+}
+
 #[derive(SurrealValue)]
 struct WorkspaceBinding {
     workspace: RecordId,
@@ -1585,6 +1616,17 @@ struct WorkspaceLimitBinding {
 struct OutboxListBinding {
     workspace: Option<RecordId>,
     limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct OutboxEventBinding {
+    workspace: RecordId,
+    event_id: String,
+}
+
+#[derive(SurrealValue)]
+struct OutboxReadyRow {
+    value: bool,
 }
 
 #[derive(SurrealValue)]
@@ -1892,6 +1934,9 @@ async fn run_proposal_insert_transaction(
                 database
                     .query_values_at(
                         "BEGIN TRANSACTION; \
+                         IF !record::exists($proposal.workspace_id) { \
+                            THROW 'HSK-MEM-WORKSPACE-MISSING'; \
+                         }; \
                          CREATE $proposal_record CONTENT { \
                             proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
                             workspace_id: $proposal.workspace_id, document_id: $proposal.document_id, \
@@ -1920,13 +1965,26 @@ async fn run_proposal_insert_transaction(
                          }; \
                          COMMIT TRANSACTION;",
                         bindings,
-                        1,
+                        // `take(index)` counts BEGIN TRANSACTION as statement 0, so the
+                        // in-transaction workspace-existence guard above shifts the proposal
+                        // CREATE from index 1 to index 2.
+                        2,
                     )
                     .await
             })
         })
         .await
-        .map_err(StorageError::from)?;
+        .map_err(|error| {
+            // WP-KERNEL-012 MT-146 D-146-1. The guard fires when the workspace was deleted
+            // before this transaction took its snapshot. That is the same condition the route
+            // already answers with 404 when it can see the deletion up front, so it must not
+            // surface as an opaque 500.
+            if error.to_string().contains("HSK-MEM-WORKSPACE-MISSING") {
+                StorageError::NotFound("workspace")
+            } else {
+                StorageError::from(error)
+            }
+        })?;
     if rows.len() == 1 {
         Ok(())
     } else {
@@ -2108,10 +2166,19 @@ pub async fn list_memory_proposals(
             Box::pin(async move {
                 database
                     .query_values(
+                        // WP-KERNEL-012 MT-146 D-146-2. The actionable projection is what
+                        // crash-safe commit recovery walks, so an approved proposal must lead a
+                        // newer pending one. `status_rank` is computed in SurrealQL rather than
+                        // sorted in Rust afterwards: ORDER BY has to run before LIMIT, otherwise
+                        // a bounded read would truncate on recency and then reorder the survivors.
+                        // Ranking is explicit (approved, then pending_review, then anything else)
+                        // rather than relying on the alphabetical accident of the status strings,
+                        // and created_at DESC + proposal_id ASC keep ties deterministic.
                         "SELECT proposal_id, request_id, workspace_id, document_id, selection_start, \
-                         selection_end, content_hash, memory_class, status, review_gated, created_at, proposal \
+                         selection_end, content_hash, memory_class, status, review_gated, created_at, proposal, \
+                         IF status = 'approved' THEN 0 ELSE IF status = 'pending_review' THEN 1 ELSE 2 END AS status_rank \
                          FROM fems_memory_proposals WHERE workspace_id = $workspace \
-                         ORDER BY created_at DESC, proposal_id ASC LIMIT $limit;",
+                         ORDER BY status_rank ASC, created_at DESC, proposal_id ASC LIMIT $limit;",
                         bindings,
                     )
                     .await
@@ -2429,6 +2496,46 @@ pub async fn recover_missing_memory_commit_outbox_events(
         }
     }
     Ok(recovered)
+}
+
+/// Whether a pending commit-outbox event may be published yet.
+///
+/// WP-KERNEL-012 MT-146 D-146-3. A pack-built event (FR-EVT-MEM-004) must never
+/// reach the Flight Recorder before the commit event (FR-EVT-MEM-003) it
+/// belongs to, otherwise a failed or quarantined commit projection would leave
+/// a pack-built event in the stream with no commit behind it. That rule used to
+/// be enforced by hiding the row from `list_commit_rows`, which also hid
+/// durable un-published evidence from every observer. It is enforced here
+/// instead, so the row stays visible as pending while remaining undeliverable.
+///
+/// A row that no longer exists is not dispatchable.
+pub async fn commit_event_dispatch_ready(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    event_id: uuid::Uuid,
+) -> StorageResult<bool> {
+    let bindings = OutboxEventBinding {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+        event_id: event_id.to_string(),
+    };
+    let rows: Vec<OutboxReadyRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT (event_code != 'FR-EVT-MEM-004' OR commit_id IN \
+                            (SELECT VALUE commit_id FROM fems_memory_commit_fr_outbox \
+                             WHERE event_code = 'FR-EVT-MEM-003' AND published_at != NONE)) AS value \
+                         FROM fems_memory_commit_fr_outbox \
+                         WHERE workspace_id = $workspace AND event_id = $event_id LIMIT 1;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    Ok(rows.first().is_some_and(|row| row.value))
 }
 
 pub async fn mark_memory_commit_event_published(
@@ -2764,14 +2871,27 @@ async fn list_commit_rows(
             Box::pin(async move {
                 database
                     .query_values(
+                        // WP-KERNEL-012 MT-146 D-146-3. This lists the durable pending set: every
+                        // un-published, non-quarantined commit-outbox row.
+                        //
+                        // It previously also hid an FR-EVT-MEM-004 whose FR-EVT-MEM-003 sibling
+                        // was not yet published. That enforced the right causal rule in the wrong
+                        // place. The commit transaction writes both rows together, un-published,
+                        // so during the crash window the pack-built event is durable evidence that
+                        // no surface could observe -- and because a quarantined FR-EVT-MEM-003 can
+                        // never become published and has no requeue path (unlike the lifecycle
+                        // outbox), its sibling was stranded invisibly and permanently.
+                        //
+                        // The ordering guarantee is preserved at dispatch instead, by
+                        // `commit_event_dispatch_ready`, which still refuses to publish a
+                        // pack-built event before its commit event. `event_code ASC` keeps
+                        // FR-EVT-MEM-003 ahead of FR-EVT-MEM-004 within a pass, so the normal
+                        // path publishes both in one drain rather than across two.
                         "SELECT event_id, workspace_id, proposal_id, commit_id, event_code, event, \
                          event_hash, created_at, published_at, attempt_count, last_error, \
                          last_error_at, quarantined_at FROM fems_memory_commit_fr_outbox \
                          WHERE published_at = NONE AND quarantined_at = NONE \
                          AND ($workspace = NONE OR workspace_id = $workspace) \
-                         AND (event_code = 'FR-EVT-MEM-003' OR commit_id IN \
-                            (SELECT VALUE commit_id FROM fems_memory_commit_fr_outbox \
-                             WHERE event_code = 'FR-EVT-MEM-003' AND published_at != NONE)) \
                          ORDER BY created_at ASC, event_code ASC, event_id ASC LIMIT $limit;",
                         bindings,
                     )
