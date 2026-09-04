@@ -48,7 +48,40 @@
     "created_at_utc": "2026-09-03T23:37:02.315Z",
     "creation_reason": "RC-004 of the KERNEL_BUILDER ready checklist asks for a cross-platform build check, and it is the sole remaining blocker on MT-118 and MT-144, both of which are otherwise complete and proven. It cannot be satisfied locally: cargo check for aarch64-pc-windows-msvc dies in the DuckDB C++ build under clang-cl because the MSVC install carries no ARM64 compiler, and x86_64-unknown-linux-musl has no musl C sysroot on this host so ring cannot compile. Branch CI is the only remaining path, and ten of its eleven jobs were failing for infrastructure reasons that had nothing to do with the product code, so there was no run to cite. This contract repairs the pipeline.",
     "origin": "Created 2026-09-04 by KERNEL_BUILDER-20260903-213930 under a direct Operator instruction to stop producing governance artifacts and drive a microtask to READY_FOR_VALIDATION. Every cause below was read from the failing log of run 33666580708, not inferred.",
-    "corrects_earlier_claim": "An earlier blocker note on MT-118 and MT-144 said this work required Operator authorization because the workflow files are main-only. That was wrong and was retracted in commit 85c8dd2a. ci.yml declares on.push.branches [\"**\"], so it already runs on feat/WP-KERNEL-012 and a fix committed to the branch takes effect on the next push."
+    "corrects_earlier_claim": "An earlier blocker note on MT-118 and MT-144 said this work required Operator authorization because the workflow files are main-only. That was wrong and was retracted in commit 85c8dd2a. ci.yml declares on.push.branches [\"**\"], so it already runs on feat/WP-KERNEL-012 and a fix committed to the branch takes effect on the next push.",
+    "pnpm_fix_note": {
+      "at_utc": "2026-09-04T00:11:35.507Z",
+      "note": "The first attempt at D-147-1 moved corepack enable ahead of setup-node and was not enough: app/package.json declares no packageManager field, so corepack has no version to install and pnpm still never appears on PATH. The working fix is pnpm/action-setup pinned to 9, matching lockfileVersion 9.0 in app/pnpm-lock.yaml. Recorded because the first attempt is in the branch history and a reader should know why it changed."
+    },
+    "cross_platform_proof_2026_09_04": {
+      "schema_id": "hsk.mt_cross_platform_proof@1",
+      "recorded_by": "KERNEL_BUILDER-20260903-213930",
+      "recorded_at_utc": "2026-09-04T00:44:31.812Z",
+      "run_id": "33819481804",
+      "job": "cross-platform-build",
+      "job_id": "100858813968",
+      "runner": "ubuntu-latest",
+      "product_commit": "817fca6f",
+      "product_branch": "feat/WP-KERNEL-012",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Cross-platform build check (Linux)",
+          "command": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib --bins --all-features",
+          "conclusion": "success",
+          "observed": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 22m 51s"
+        },
+        {
+          "name": "Cross-platform in-crate test-layer compile (Linux)",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --all-features --no-run",
+          "conclusion": "success",
+          "observed": "Finished `test` profile [unoptimized + debuginfo] target(s) in 26m 05s; Executable unittests src/lib.rs (handshake_core-85daceaa598ae038)"
+        }
+      ],
+      "what_it_establishes": "handshake_core compiles on Linux with all features, both as a library and as the in-crate test target. That is a platform this Windows host cannot build for: aarch64-pc-windows-msvc dies in the DuckDB C++ build under clang-cl because the MSVC install carries no ARM64 compiler, and x86_64-unknown-linux-musl has no musl C sysroot here so ring cannot compile. The second step matters specifically for MT-118 and MT-144, whose work is the in-crate cfg(test) layer: it is now proven to compile on a second platform.",
+      "scope_honesty": "This proves the build, not the tests. The tests are not executed by this job, and the crate's out-of-crate integration tree under tests/ is deliberately excluded because it does not compile at all (see the MT-141 disclosure). Nothing here should be read as a claim that the test suite passes on Linux.",
+      "evidence_ref": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-cross-platform-build.log"
+    }
   },
   "scope": {
     "summary": "Repair .github/workflows/ci.yml on feat/WP-KERNEL-012 so the pipeline runs the jobs it claims to run, and add a job that answers the cross-platform build question directly. The pipeline is product CI: nine of its eleven jobs test product code, and only the governance and traceability jobs are repo governance.",
@@ -124,6 +157,49 @@
         "cause": "Not yet determined. Both steps go install a pinned tool version under Go 1.22.4 and fail before any cargo invocation, so this is independent of every other defect in this contract. Recorded as unknown rather than guessed.",
         "status": "CARRIED_NOT_FIXED",
         "fix": "Diagnose from the completed run log and either fix in this microtask or hand to a named owner under AC-147-6. Must not be left unattributed."
+      },
+      {
+        "id": "D-147-7",
+        "observed": "validate fails at the step Docs check. The step asserts five governance documents directly under .GOV/roles_shared/: START_HERE.md, SPEC_CURRENT.md, ARCHITECTURE.md, RUNBOOK_DEBUG.md and PAST_WORK_INDEX.md.",
+        "jobs": [
+          "validate"
+        ],
+        "cause": "None of the five lives at that path any more. START_HERE, ARCHITECTURE and RUNBOOK_DEBUG moved to .GOV/roles_shared/docs/, SPEC_CURRENT to .GOV/spec/, and PAST_WORK_INDEX to .GOV/reference/. The step had been unreachable behind the pnpm failure for as long as that failure existed, so the stale paths were never surfaced. Verified against the branch tree, not the working directory, because .GOV is a junction locally.",
+        "fix": "Point each assertion at the path the document actually occupies on the branch.",
+        "status": "FIXED"
+      },
+      {
+        "id": "D-147-8",
+        "observed": "error: target `mex_tests` in package `handshake_core` requires the features: `duckdb-flight-recorder`, `test-utils`",
+        "jobs": [
+          "secret_scan",
+          "vuln_scan",
+          "sbom_generate",
+          "license_scan"
+        ],
+        "cause": "All four supply-chain jobs invoke the mex_tests target without the features it declares, so cargo refuses before compiling or running anything. In the baseline this was hidden behind the dbus and go install failures in three of the four jobs.",
+        "fix": "Pass --features duckdb-flight-recorder,test-utils on each of the four invocations.",
+        "status": "FIXED"
+      },
+      {
+        "id": "D-147-9",
+        "observed": "backend-storage killed by the runner with exit code 143 and the message: The runner has received a shutdown signal. Reproduced in two consecutive runs, 33818193204 and 33819481804, both around thirty minutes into compiling and before any assertion ran.",
+        "jobs": [
+          "backend-storage"
+        ],
+        "cause": "The invocation is --tests storage_conformance, which builds every integration test binary in the crate and only then filters by name. The crate has 393 integration test targets, so the job was compiling the whole tests/ tree, including targets that do not compile at all, until the runner died. This also explains why the job never reached a test result in any historical run.",
+        "fix": "Use --test storage_conformance and --test mcp_e2e_tests, singular, so each job builds exactly the one target it needs. The set of tests that actually run is unchanged.",
+        "status": "FIXED"
+      },
+      {
+        "id": "D-147-10",
+        "observed": "error: target `storage_conformance` in package `handshake_core` requires the features: `test-utils`, exit code 101, in run 33820723714.",
+        "jobs": [
+          "backend-storage"
+        ],
+        "cause": "Cargo.toml declares required-features for both targets this job runs: storage_conformance needs test-utils, and mcp_e2e_tests needs duckdb-flight-recorder and test-utils. Neither invocation passed them. This was invisible until D-147-9 was fixed, because the job had been dying at the runner before cargo got as far as checking the target's features.",
+        "fix": "Pass the declared features on both invocations.",
+        "status": "FIXED"
       }
     ],
     "acceptance_criteria": [
@@ -146,7 +222,34 @@
       "Do not touch sandbox-cross-platform-gating-check.yml, which is a separate gating surface.",
       "The shared .git/info/exclude lists /.github, so staging ci.yml prints an ignore hint. The file is tracked and stages correctly; the hint is not an error."
     ],
-    "risk_if_missed": "RC-004 stays unsatisfiable for every backend microtask in this packet, so MT-118 and MT-144 sit at BLOCKED_ON_DEPENDENCY with complete, proven code, and MT-145 and MT-146 would land in the same state on completion. The pipeline also stays uniformly red, which destroys its signal value: a real regression would be indistinguishable from the standing infrastructure noise."
+    "risk_if_missed": "RC-004 stays unsatisfiable for every backend microtask in this packet, so MT-118 and MT-144 sit at BLOCKED_ON_DEPENDENCY with complete, proven code, and MT-145 and MT-146 would land in the same state on completion. The pipeline also stays uniformly red, which destroys its signal value: a real regression would be indistinguishable from the standing infrastructure noise.",
+    "carried_failures_not_owned_by_mt_147": {
+      "note": "Recorded under AC-147-6: every job still failing after the repair fails for a stated reason with a named owner, rather than for an unattributed infrastructure reason.",
+      "items": [
+        {
+          "job": "governance (ubuntu-latest) and governance (windows-latest)",
+          "failure": "just gov-check exits 1 at justfile line 82, after the binary builds successfully.",
+          "attribution": "A genuine governance-content failure, not CI infrastructure. Reproduced locally on this host at the same commit: gov-check reports 12 failing checks, including packet-truth-bundle-check, mt-packet-scope-alignment-check, kb-ready-checklist-coverage-check, hbr-matrix-check and topology-bundle-check. The kb-ready-checklist-coverage-check failures are entirely WP-KERNEL-004 microtasks, and the packet-truth drift names WP-1 and WP-KERNEL-009 packets. None of it originates in WP-KERNEL-012.",
+          "evidence": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt147-govcheck-local.log",
+          "owner": "Repo governance, outside this packet. MT-147 is confined to .github/workflows/ci.yml and must not edit governance content to turn a red check green.",
+          "progress_made": "The dbus fix did move this job forward: on the Ubuntu leg it previously died in _ensure-handshake-bin at justfile line 74 while building the handshake binary, and now reaches and runs the governance check itself."
+        },
+        {
+          "job": "dependency_audit",
+          "failure": "pnpm audit fails with ERR_SOCKET_TIMEOUT posting to https://registry.npmjs.org/-/npm/v1/security/audits, after three attempts.",
+          "attribution": "Transient network failure reaching the npm audit endpoint, not a vulnerability finding. No advisory was reported. The job otherwise cleared every step this microtask fixed: Setup pnpm, Setup Node.js and Install frontend deps are all green, which is the proof that D-147-1 is closed.",
+          "owner": "Carried. If it recurs across runs it warrants a retry wrapper, but a single socket timeout is not a defect to fix blind."
+        },
+        {
+          "job": "validate, step Codex checks",
+          "failure": "The first sub-check, \"Disallow direct fetch in app/src (outside lib/api.ts)\", matches and the step exits 1.",
+          "attribution": "A genuine product-code violation of an existing governance rule, not a CI defect. app/src/lib/editor/embed_assets.ts:383 calls globalThis.fetch(url, init) directly, and export_formats.ts:214 defaults to globalThis.fetch, both outside lib/api.ts. Several other matches are comments and test fixtures containing the literal string, so the check is also broader than its stated intent, but at least two matches are real.",
+          "owner": "Frontend product code, or whoever owns the Codex check's precision. MT-147 is confined to .github/workflows/ci.yml. Editing app/src is forbidden by this contract, and loosening the check's regex inside ci.yml would change a governance rule's meaning to make a red check green, which AC-147-6 and the red-team profile both forbid.",
+          "progress_made": "This step was previously unreachable: validate died at Setup Node.js in the baseline, then at Docs check once pnpm was fixed. Reaching Codex checks and failing on real content is the pipeline working as intended.",
+          "evidence": "GitHub Actions run 33820723714, job validate, job id 100862602004."
+        }
+      ]
+    }
   },
   "gui_obligation": {
     "operator_surface_required": false,
@@ -203,5 +306,5 @@
     "review_response_receipt_id": null,
     "baseline_failing_run": "33666580708"
   },
-  "updated_at_utc": "2026-09-03T23:38:16.901Z"
+  "updated_at_utc": "2026-09-04T00:44:31.812Z"
 }
