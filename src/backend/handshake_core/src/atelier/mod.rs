@@ -67,12 +67,15 @@ pub mod bulk;
 pub mod collections;
 pub mod comfy;
 pub mod command_corpus;
+pub mod contact_sheet;
 pub mod core;
 pub mod dcc_flight_recorder;
 pub mod documents;
 pub mod downloader;
 pub mod editable_surface_authority;
 pub mod exports;
+pub mod facial;
+pub mod facial_native;
 pub mod filesystem_health;
 pub mod image_import;
 pub mod intake;
@@ -82,11 +85,15 @@ pub mod model_lease;
 pub mod model_manual_merge;
 pub mod moodboards;
 pub mod pose;
+pub mod prompt_feedback;
+pub mod refs;
 pub mod relationships;
 pub mod scripts;
 pub mod search;
 pub mod settings;
 pub mod sheet;
+pub mod sheet_artifacts;
+pub mod sheet_templates;
 pub mod source_evidence;
 pub mod sourcing;
 pub mod state_probe;
@@ -109,7 +116,8 @@ pub use self::image_import::{
     ClipboardImageImportRequest, ImageImportRecord, UrlImageImportRequest,
 };
 pub use self::media::{
-    BulkMediaReviewMetadataResult, MediaAsset, MediaDerivative, MediaDerivativeFailure,
+    BulkMediaReviewMetadataResult, MediaAsset, MediaAssetBytes, MediaAssetBytesError,
+    MediaDerivative, MediaDerivativeFailure,
     MediaDerivativeGenerated, MediaDerivativeKind, MediaDerivativeRequest, MediaDerivativeStatus,
     MediaReviewMetadata, MediaReviewMetadataUpdate, MediaSidecar, MediaSidecarRelationKind,
     MediaSourceProvenanceRefs, NewMediaAsset, NewMediaSidecarRelation,

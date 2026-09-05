@@ -215,6 +215,9 @@ idna = "1"
 caseless = "0.2"
 bytes = { version = "1", features = ["serde"] }
 globset = "0.4"
+# WP-CKC-posekit-overhaul Facial native lane: optional ONNX inference for facial identity /
+# quality plugins (feature `facial-onnx-runtime`); absent by default so the kernel build stays lean.
+tract-onnx = { version = "0.21", optional = true }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 tree-sitter = "0.24"
 tree-sitter-rust = "0.23"
@@ -273,6 +276,7 @@ swarm_ipc = []
 candle-runtime-engine = ["dep:candle-core", "dep:candle-nn", "dep:candle-transformers", "dep:tokenizers"]
 llama-cpp-runtime-engine = ["dep:llama-cpp-2", "dep:llama-cpp-sys-2"]
 model-runtime-engines = ["llama-cpp-runtime-engine", "candle-runtime-engine"]
+facial-onnx-runtime = ["dep:tract-onnx"]
 app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
@@ -755,4 +759,9 @@ required-features = ["surreal-test-support", "test-utils"]
 [[test]]
 name = "atelier_core_data_tests"
 path = "tests/atelier_core_data_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
+[[test]]
+name = "atelier_media_bytes_api_tests"
+path = "tests/atelier_media_bytes_api_tests.rs"
 required-features = ["surreal-test-support", "test-utils"]

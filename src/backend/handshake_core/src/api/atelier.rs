@@ -13,7 +13,8 @@
 
 use axum::{
     extract::{Path, State},
-    http::{HeaderMap, StatusCode},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
+    response::{IntoResponse, Response},
     routing::{get, post, put},
     Json, Router,
 };
@@ -31,13 +32,21 @@ use crate::atelier::search::{
 };
 use crate::atelier::stealth_window::ResolvedContentRef;
 use crate::atelier::{
-    AtelierStore, BulkOperationReceipt, ClipboardImageImportRequest, DeletionArchiveRequest,
-    DeletionImpactPreview, DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetRef,
-    ImageImportRecord, UrlImageImportRequest,
+    AtelierError, AtelierStore, BulkOperationReceipt, ClipboardImageImportRequest,
+    DeletionArchiveRequest, DeletionImpactPreview, DeletionImpactPreviewRequest,
+    DeletionRestoreRequest, DeletionTargetRef, ImageImportRecord, MediaAssetBytesError,
+    UrlImageImportRequest,
 };
 use crate::AppState;
 
-const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
+pub(crate) const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
+/// Response header carrying the native ArtifactStore payload ref the served bytes came from, so a
+/// consumer (Studio placed-asset link, CKC viewport) can record `artifact_manifest_id` without a
+/// second catalog round-trip.
+const HSK_HEADER_ARTIFACT_REF: &str = "x-hsk-artifact-ref";
+/// Response header carrying the bare lowercase sha256 hex of the served payload (the value a Studio
+/// placed-asset link stores as `resolved_content_hash`).
+const HSK_HEADER_CONTENT_SHA256: &str = "x-hsk-content-sha256";
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -99,7 +108,84 @@ pub fn routes(state: AppState) -> Router {
             "/atelier/stealth/windows/:window_ref_id/refs/:ref_id",
             get(resolve_stealth_ref),
         )
+        .route(
+            "/atelier/media-assets/:asset_id/bytes",
+            get(get_media_asset_bytes),
+        )
         .with_state(state)
+}
+
+/// GET /atelier/media-assets/:asset_id/bytes — return the raw payload bytes of a catalog media asset,
+/// read from the native ArtifactStore payload its `artifact_ref` points at, with the catalog row's
+/// MIME as `Content-Type`. This is the byte-fetch READ path the ArtifactStore was missing over HTTP
+/// (it was write-only), the route the Posekit source viewport consumes, and the byte resolver the
+/// Studio placed-asset link ([STU-ASSET-005] / `asset.resolve_bytes`) binds to.
+///
+/// Fail-closed, never fabricated: an unknown asset or a missing payload is 404; a row whose
+/// `artifact_ref` is not a native ArtifactStore payload is 400; a catalog-vs-manifest hash/size
+/// mismatch, a bundle payload, or a payload-vs-manifest hash/size mismatch is a hard 500 — never a
+/// partial or empty 200 body. All integrity checks live in
+/// `AtelierStore::read_media_asset_bytes`; this handler only maps outcomes to HTTP.
+///
+/// Response headers: `Content-Type` (catalog MIME), `Content-Length`, `ETag` (`"sha256-<hex>"`),
+/// `Cache-Control: private, immutable` (UUID-addressed payloads are write-once, so a client may cache
+/// by `asset_id` + ETag), `x-hsk-artifact-ref`, `x-hsk-content-sha256`.
+async fn get_media_asset_bytes(
+    State(state): State<AppState>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let resolved = match store.read_media_asset_bytes(asset_id).await {
+        Ok(Some(resolved)) => resolved,
+        Ok(None) => {
+            return Err(atelier_error(AtelierError::NotFound(format!(
+                "media asset_id={asset_id}"
+            ))));
+        }
+        Err(MediaAssetBytesError::PayloadMissing) => {
+            tracing::error!(
+                target: "handshake_core::atelier",
+                %asset_id,
+                "media asset catalog row exists but its ArtifactStore payload/manifest is missing"
+            );
+            return Err(atelier_error(AtelierError::NotFound(
+                "media artifact payload".to_owned(),
+            )));
+        }
+        Err(MediaAssetBytesError::Validation(detail)) => {
+            return Err(atelier_error(AtelierError::Validation(detail)));
+        }
+        Err(MediaAssetBytesError::Store(err)) => return Err(atelier_error(err)),
+        Err(other) => return Err(internal_error(other)),
+    };
+
+    let content_hash = resolved.manifest.content_hash.to_ascii_lowercase();
+    let mime = resolved.asset.mime.trim().to_owned();
+    let artifact_ref = resolved.asset.artifact_ref.clone();
+    let mut response = resolved.bytes.into_response();
+    let headers = response.headers_mut();
+    // application/octet-stream by default from Vec<u8>; override with the catalog-authoritative MIME
+    // so the consumer decodes the real type. A non-encodable MIME degrades to octet-stream rather
+    // than failing the response.
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(&mime)
+            .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
+    );
+    if let Ok(etag) = HeaderValue::from_str(&format!("\"sha256-{content_hash}\"")) {
+        headers.insert(header::ETAG, etag);
+    }
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("private, immutable"),
+    );
+    if let Ok(value) = HeaderValue::from_str(&artifact_ref) {
+        headers.insert(HSK_HEADER_ARTIFACT_REF, value);
+    }
+    if let Ok(value) = HeaderValue::from_str(&content_hash) {
+        headers.insert(HSK_HEADER_CONTENT_SHA256, value);
+    }
+    Ok(response)
 }
 
 /// Curated atelier tables surfaced by the overview row-count projection. This is
@@ -170,7 +256,10 @@ fn overview_count_statement(table: &str) -> &'static str {
     }
 }
 
-fn atelier_store(state: &AppState) -> AtelierStore {
+/// Shared by the CKC lane routers (`api::atelier_ckc_*`), which is why these helpers are
+/// `pub(crate)`: one store constructor, one error envelope, one actor-header contract across
+/// every Atelier route regardless of which file declares it.
+pub(crate) fn atelier_store(state: &AppState) -> AtelierStore {
     AtelierStore::with_observability(
         state.surreal.clone(),
         state.storage.clone(),
@@ -179,14 +268,14 @@ fn atelier_store(state: &AppState) -> AtelierStore {
 }
 
 /// Cap on list endpoints so a React panel never pulls an unbounded result set.
-const LIST_CAP: i64 = 200;
+pub(crate) const LIST_CAP: i64 = 200;
 
 #[derive(Debug, Serialize)]
-struct ErrorResponse {
-    error: &'static str,
+pub(crate) struct ErrorResponse {
+    pub(crate) error: &'static str,
 }
 
-fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorResponse>) {
+pub(crate) fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorResponse>) {
     tracing::error!(target: "handshake_core::atelier", error = %err, "db_error");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -194,7 +283,22 @@ fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorRespons
     )
 }
 
-fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+/// Map an ArtifactStore read failure for a byte route: a payload/manifest that is not on disk is
+/// 404 (the catalog row may exist, the bytes do not); every other failure, including a content
+/// hash or size mismatch, is a hard 500 — never a partial or empty 200 body.
+pub(crate) fn artifact_byte_read_error(
+    err: crate::storage::artifacts::ArtifactError,
+) -> (StatusCode, Json<ErrorResponse>) {
+    use crate::storage::artifacts::ArtifactError;
+    match err {
+        ArtifactError::Io(io_err) if io_err.kind() == std::io::ErrorKind::NotFound => {
+            atelier_error(AtelierError::NotFound("artifact payload".to_owned()))
+        }
+        other => internal_error(other),
+    }
+}
+
+pub(crate) fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
     headers
         .get(name)
         .and_then(|value| value.to_str().ok())
@@ -202,7 +306,9 @@ fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
         .filter(|value| !value.is_empty())
 }
 
-fn calling_actor(headers: &HeaderMap) -> Result<String, (StatusCode, Json<ErrorResponse>)> {
+pub(crate) fn calling_actor(
+    headers: &HeaderMap,
+) -> Result<String, (StatusCode, Json<ErrorResponse>)> {
     header_str(headers, HSK_HEADER_ACTOR_ID)
         .map(ToOwned::to_owned)
         .ok_or((
@@ -218,8 +324,9 @@ fn calling_actor(headers: &HeaderMap) -> Result<String, (StatusCode, Json<ErrorR
 /// 400, and infra/storage failures are 500. (Malformed `Path<Uuid>` / JSON body
 /// inputs are already rejected with a 400 by Axum's extractors before a handler
 /// runs.) The body never leaks internals — it is a fixed `&'static str` code.
-fn atelier_error(err: crate::atelier::AtelierError) -> (StatusCode, Json<ErrorResponse>) {
-    use crate::atelier::AtelierError;
+pub(crate) fn atelier_error(
+    err: crate::atelier::AtelierError,
+) -> (StatusCode, Json<ErrorResponse>) {
     match err {
         AtelierError::NotFound(detail) => {
             tracing::warn!(target: "handshake_core::atelier", %detail, "not_found");

@@ -587,6 +587,10 @@ pub mod artifacts {
         InvalidSha256Hex { field: String },
         #[error("content hash mismatch")]
         ContentHashMismatch,
+        #[error("payload exceeds the ingest size limit: limit={limit_bytes} observed>={observed_bytes}")]
+        SizeLimitExceeded { limit_bytes: u64, observed_bytes: u64 },
+        #[error("payload stream failed: {0}")]
+        Stream(String),
         #[error("io error: {0}")]
         Io(#[from] io::Error),
         #[error("serialization error: {0}")]
@@ -681,15 +685,62 @@ pub mod artifacts {
         pub bytes: Vec<u8>,
     }
 
+    /// Environment override for the workspace root the ArtifactStore lives under.
+    pub const HANDSHAKE_WORKSPACE_ROOT_ENV: &str = "HANDSHAKE_WORKSPACE_ROOT";
+
+    /// Resolve the workspace root at RUNTIME, never from a path baked into the binary.
+    ///
+    /// Order: (1) `HANDSHAKE_WORKSPACE_ROOT`; (2) the nearest ancestor of the current working
+    /// directory that already contains a `.handshake/` workspace directory; (3) the nearest
+    /// ancestor that is a git checkout root (`.git` file or directory), which is what development
+    /// and test processes run inside; (4) a hard error naming the two ways to fix it.
+    ///
+    /// The previous fallback embedded `CARGO_MANIFEST_DIR` at compile time, so a binary carried the
+    /// build host's drive and worktree with it: run from another worktree it opened THAT worktree's
+    /// artifact store, and moved to another disk it pointed at a path that did not exist. Both
+    /// break the disk-agnostic rule [CX-109B]; a runtime-discovered root cannot.
     pub fn resolve_workspace_root() -> Result<PathBuf, ArtifactError> {
-        if let Ok(value) = std::env::var("HANDSHAKE_WORKSPACE_ROOT") {
+        if let Ok(value) = std::env::var(HANDSHAKE_WORKSPACE_ROOT_ENV) {
             let trimmed = value.trim();
             if !trimmed.is_empty() {
                 return Ok(PathBuf::from(trimmed));
             }
         }
-        crate::capability_registry_workflow::repo_root_from_manifest_dir()
-            .map_err(|e| ArtifactError::WorkspaceRootResolve(e.to_string()))
+        let cwd = std::env::current_dir().map_err(|err| {
+            ArtifactError::WorkspaceRootResolve(format!(
+                "{HANDSHAKE_WORKSPACE_ROOT_ENV} is unset and the current directory is unreadable: {err}"
+            ))
+        })?;
+        if let Some(root) = discover_workspace_root_from(&cwd) {
+            return Ok(root);
+        }
+        Err(ArtifactError::WorkspaceRootResolve(format!(
+            "{HANDSHAKE_WORKSPACE_ROOT_ENV} is unset and no ancestor of {} contains a `.handshake/` \
+             workspace directory or a git checkout root; set {HANDSHAKE_WORKSPACE_ROOT_ENV} to the \
+             workspace that owns `.handshake/artifacts`",
+            cwd.display()
+        )))
+    }
+
+    /// Runtime workspace-root discovery used by [`resolve_workspace_root`]: the nearest ancestor of
+    /// `start` (inclusive) holding a `.handshake/` directory wins; failing that, the nearest ancestor
+    /// that is a git checkout root. Pure function over the filesystem, no environment reads.
+    pub fn discover_workspace_root_from(start: &Path) -> Option<PathBuf> {
+        let mut cursor: Option<&Path> = Some(start);
+        while let Some(dir) = cursor {
+            if dir.join(HANDSHAKE_DIR).is_dir() {
+                return Some(dir.to_path_buf());
+            }
+            cursor = dir.parent();
+        }
+        let mut cursor: Option<&Path> = Some(start);
+        while let Some(dir) = cursor {
+            if dir.join(".git").exists() {
+                return Some(dir.to_path_buf());
+            }
+            cursor = dir.parent();
+        }
+        None
     }
 
     pub fn artifact_store_root(workspace_root: &Path) -> PathBuf {
@@ -716,10 +767,65 @@ pub mod artifacts {
         )
     }
 
-    fn sha256_hex(bytes: &[u8]) -> String {
+    /// Canonical sha256 -> bare lowercase hex. This is THE crate-level helper; the ~40 private
+    /// copies across the crate are being folded onto it (see `normalize_sha256_hex_ref` for the
+    /// three ref spellings in use).
+    pub fn sha256_hex(bytes: &[u8]) -> String {
         let mut h = Sha256::new();
         h.update(bytes);
         hex::encode(h.finalize())
+    }
+
+    /// The three content-hash spellings the tree has accumulated. `Bare` is canonical for storage
+    /// columns and manifests; the two prefixed forms are accepted on input and emitted only where a
+    /// consumer contract demands them (`artifact://sha256/<hex>` is the Flight Recorder / memory
+    /// artifact-ref contract; `sha256-<hex>` appears in ETags and legacy aggregate ids;
+    /// `sha256:<hex>` is the Atelier row spelling).
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Sha256RefFormat {
+        Bare,
+        ColonPrefixed,
+        DashPrefixed,
+        ArtifactUrl,
+    }
+
+    /// Accept any of the known spellings and return the bare lowercase 64-hex digest plus the
+    /// format it arrived in; `None` when the digest is not 64 hex characters.
+    pub fn normalize_sha256_hex_ref(value: &str) -> Option<(String, Sha256RefFormat)> {
+        let trimmed = value.trim();
+        let (hex_part, format) = if let Some(rest) = trimmed.strip_prefix("artifact://sha256/") {
+            (rest, Sha256RefFormat::ArtifactUrl)
+        } else if let Some(rest) = trimmed.strip_prefix("sha256:") {
+            (rest, Sha256RefFormat::ColonPrefixed)
+        } else if let Some(rest) = trimmed.strip_prefix("sha256-") {
+            (rest, Sha256RefFormat::DashPrefixed)
+        } else {
+            (trimmed, Sha256RefFormat::Bare)
+        };
+        if hex_part.len() != 64 || !hex_part.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return None;
+        }
+        Some((hex_part.to_ascii_lowercase(), format))
+    }
+
+    /// Render a bare digest in one of the known spellings.
+    pub fn format_sha256_ref(bare_hex: &str, format: Sha256RefFormat) -> String {
+        match format {
+            Sha256RefFormat::Bare => bare_hex.to_ascii_lowercase(),
+            Sha256RefFormat::ColonPrefixed => format!("sha256:{}", bare_hex.to_ascii_lowercase()),
+            Sha256RefFormat::DashPrefixed => format!("sha256-{}", bare_hex.to_ascii_lowercase()),
+            Sha256RefFormat::ArtifactUrl => {
+                format!("artifact://sha256/{}", bare_hex.to_ascii_lowercase())
+            }
+        }
+    }
+
+    /// True when two content hashes in any known spelling name the same digest.
+    pub fn sha256_refs_match(left: &str, right: &str) -> bool {
+        match (normalize_sha256_hex_ref(left), normalize_sha256_hex_ref(right)) {
+            (Some((l, _)), Some((r, _))) => l == r,
+            _ => false,
+        }
     }
 
     fn normalize_rel_path(input: &str) -> String {
@@ -967,6 +1073,177 @@ pub mod artifacts {
         Ok(())
     }
 
+    /// Inputs for a streaming single-file artifact write whose content hash and size are NOT known
+    /// up front (an HTTP upload, a video file, a render being produced). Everything the manifest
+    /// needs except `content_hash` / `size_bytes` / `created_at`, plus the ingest ceiling.
+    #[derive(Debug, Clone)]
+    pub struct StreamingFileArtifactSpec {
+        pub artifact_id: Uuid,
+        pub layer: ArtifactLayer,
+        pub mime: String,
+        pub filename_hint: Option<String>,
+        pub created_by_job_id: Option<Uuid>,
+        pub source_entity_refs: Vec<EntityRef>,
+        pub source_artifact_refs: Vec<ArtifactHandle>,
+        pub classification: ArtifactClassification,
+        pub exportable: bool,
+        pub retention_ttl_days: Option<u32>,
+        pub pinned: Option<bool>,
+        /// Hard ceiling in bytes. The write aborts (and leaves nothing behind) the moment the
+        /// stream would exceed it; there is no unbounded-ingest path on this store.
+        pub max_bytes: u64,
+    }
+
+    /// Streaming, size-capped counterpart of [`write_file_artifact`]: bytes are hashed and counted
+    /// as they arrive and written to a temp file inside the artifact root, so peak memory is one
+    /// chunk, not the payload. The manifest is written only after the payload is fsynced and
+    /// renamed into place, so an interrupted upload leaves at most a `.hsk_tmp_*` file that
+    /// [`remove_file_artifact`] / GC can sweep, never a manifest without bytes. The same
+    /// write-once, hash-addressed contract as the buffered writer holds: an existing `payload` is
+    /// never overwritten, and the returned manifest's `content_hash` is the sha256 of exactly the
+    /// bytes on disk. This is the ingest primitive the Studio placed-asset binding needs for video
+    /// and other bulk binary ([STU-ASSET-008]).
+    pub async fn write_file_artifact_streaming<S, B, E>(
+        workspace_root: &Path,
+        spec: StreamingFileArtifactSpec,
+        mut stream: S,
+    ) -> Result<ArtifactManifest, ArtifactError>
+    where
+        S: futures_util::Stream<Item = Result<B, E>> + Unpin,
+        B: AsRef<[u8]>,
+        E: std::fmt::Display,
+    {
+        use tokio::io::AsyncWriteExt;
+
+        if matches!(spec.classification, ArtifactClassification::High)
+            && spec.retention_ttl_days.is_none()
+        {
+            return Err(ArtifactError::MissingRetentionTtlDays {
+                artifact_id: spec.artifact_id,
+                kind: ArtifactPayloadKind::File,
+            });
+        }
+        if spec.max_bytes == 0 {
+            return Err(ArtifactError::SizeLimitExceeded {
+                limit_bytes: 0,
+                observed_bytes: 0,
+            });
+        }
+
+        let artifact_root = artifact_root_dir(workspace_root, spec.layer, spec.artifact_id);
+        fs::create_dir_all(&artifact_root)?;
+        let artifact_root_canon = fs::canonicalize(&artifact_root)?;
+        let payload_path = artifact_root_canon.join("payload");
+        if payload_path.exists() {
+            return Err(ArtifactError::Io(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                "artifact payload already exists (write-once store)",
+            )));
+        }
+        ensure_root_escape_blocked(&artifact_root_canon, &payload_path)?;
+
+        let tmp_path = artifact_root_canon.join(format!(".hsk_tmp_{}", Uuid::now_v7()));
+        let mut tmp_file = tokio::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp_path)
+            .await?;
+
+        let mut hasher = Sha256::new();
+        let mut observed: u64 = 0;
+        let outcome: Result<(), ArtifactError> = async {
+            while let Some(chunk) = futures_util::StreamExt::next(&mut stream).await {
+                let chunk = chunk.map_err(|err| ArtifactError::Stream(err.to_string()))?;
+                let bytes = chunk.as_ref();
+                let next = observed.saturating_add(bytes.len() as u64);
+                if next > spec.max_bytes {
+                    return Err(ArtifactError::SizeLimitExceeded {
+                        limit_bytes: spec.max_bytes,
+                        observed_bytes: next,
+                    });
+                }
+                hasher.update(bytes);
+                tmp_file.write_all(bytes).await?;
+                observed = next;
+            }
+            if observed == 0 {
+                return Err(ArtifactError::Io(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "empty payload stream",
+                )));
+            }
+            tmp_file.sync_all().await?;
+            Ok(())
+        }
+        .await;
+        drop(tmp_file);
+        if let Err(err) = outcome {
+            let _ = fs::remove_file(&tmp_path);
+            let _ = fs::remove_dir(&artifact_root_canon);
+            return Err(err);
+        }
+
+        if let Err(err) = fs::rename(&tmp_path, &payload_path) {
+            let _ = fs::remove_file(&tmp_path);
+            let _ = fs::remove_dir(&artifact_root_canon);
+            return Err(ArtifactError::Io(err));
+        }
+        if let Ok(dir_handle) = fs::File::open(&artifact_root_canon) {
+            let _ = dir_handle.sync_all();
+        }
+
+        let manifest = ArtifactManifest {
+            artifact_id: spec.artifact_id,
+            layer: spec.layer,
+            kind: ArtifactPayloadKind::File,
+            mime: spec.mime,
+            filename_hint: spec.filename_hint,
+            created_at: Utc::now(),
+            created_by_job_id: spec.created_by_job_id,
+            source_entity_refs: spec.source_entity_refs,
+            source_artifact_refs: spec.source_artifact_refs,
+            content_hash: hex::encode(hasher.finalize()),
+            size_bytes: observed,
+            classification: spec.classification,
+            exportable: spec.exportable,
+            retention_ttl_days: spec.retention_ttl_days,
+            pinned: spec.pinned,
+            hash_basis: None,
+            hash_exclude_paths: Vec::new(),
+        };
+        if let Err(err) = write_artifact_manifest_atomic(&artifact_root_canon, &manifest) {
+            // A payload without its manifest is not an artifact; do not leave a half-written one.
+            let _ = fs::remove_file(&payload_path);
+            let _ = fs::remove_dir(&artifact_root_canon);
+            return Err(err);
+        }
+        Ok(manifest)
+    }
+
+    /// Remove one artifact (payload + manifest + its directory). This is the compensating action a
+    /// caller takes when the catalog write that should have referenced a freshly written artifact
+    /// fails or dedups to an existing row, so the blob tier never accumulates unreferenced
+    /// payloads from the blob-then-row ordering. Refuses anything outside the artifact store root.
+    pub fn remove_file_artifact(
+        workspace_root: &Path,
+        layer: ArtifactLayer,
+        artifact_id: Uuid,
+    ) -> Result<(), ArtifactError> {
+        let store_root = fs::canonicalize(artifact_store_root(workspace_root))?;
+        let artifact_root = artifact_root_dir(workspace_root, layer, artifact_id);
+        if !artifact_root.exists() {
+            return Ok(());
+        }
+        let artifact_root_canon = fs::canonicalize(&artifact_root)?;
+        if !artifact_root_canon.starts_with(&store_root) {
+            return Err(ArtifactError::RootEscape {
+                path: artifact_root_canon.to_string_lossy().to_string(),
+            });
+        }
+        fs::remove_dir_all(&artifact_root_canon)?;
+        Ok(())
+    }
+
     pub fn write_dir_artifact(
         workspace_root: &Path,
         manifest: &ArtifactManifest,
@@ -1021,6 +1298,58 @@ pub mod artifacts {
         let raw = fs::read_to_string(&manifest_path)?;
         let manifest: ArtifactManifest = serde_json::from_str(&raw)?;
         Ok(manifest)
+    }
+
+    /// Read the raw payload bytes of a single-file artifact, fail-closed on a missing payload or a
+    /// content-hash / size mismatch against the manifest. This is the byte-fetch READ counterpart to
+    /// [`write_file_artifact`]: it reuses the same manifest-vs-payload validation as
+    /// [`validate_artifact_content_hash`] (file case) but returns the verified bytes so a runtime
+    /// surface (the Posekit source-image viewport, the Studio placed-asset resolver, the CKC asset
+    /// viewport) can display the REAL stored payload. Directory (bundle) artifacts are rejected
+    /// here — this reader serves the single `payload` file case only; callers needing bundle bytes
+    /// must enumerate the payload directory themselves. Never returns a fabricated or partial body:
+    /// any hash/size drift is a hard [`ArtifactError::ContentHashMismatch`].
+    ///
+    /// Ported from `feat/WP-CKC-posekit-overhaul` (MT-043) onto the SurrealDB tree; the function is
+    /// storage-agnostic and identical in contract to the reference implementation.
+    pub fn read_file_artifact(
+        workspace_root: &Path,
+        layer: ArtifactLayer,
+        artifact_id: Uuid,
+    ) -> Result<Vec<u8>, ArtifactError> {
+        let manifest = read_artifact_manifest(workspace_root, layer, artifact_id)?;
+        read_file_artifact_with_manifest(workspace_root, &manifest)
+    }
+
+    /// Same contract as [`read_file_artifact`] for a caller that already holds the manifest and must
+    /// not pay a second manifest read (the media byte route cross-checks the manifest against the
+    /// catalog row before deciding whether to touch the payload at all).
+    pub fn read_file_artifact_with_manifest(
+        workspace_root: &Path,
+        manifest: &ArtifactManifest,
+    ) -> Result<Vec<u8>, ArtifactError> {
+        let artifact_root = artifact_root_dir(workspace_root, manifest.layer, manifest.artifact_id);
+        let payload_path = artifact_root.join("payload");
+        let meta = fs::metadata(&payload_path)?;
+        if !meta.is_file() {
+            // A directory (bundle) payload, symlink, or other non-file target is not a byte-servable
+            // single-file artifact. Fail closed rather than guessing a body.
+            return Err(ArtifactError::InvalidRelPath {
+                path: payload_path.to_string_lossy().to_string(),
+            });
+        }
+        if meta.len() != manifest.size_bytes {
+            // Cheap pre-check: refuse before reading a payload whose on-disk size already disagrees
+            // with the manifest (a torn write or truncated copy). The full hash check below still
+            // runs for the equal-size case.
+            return Err(ArtifactError::ContentHashMismatch);
+        }
+
+        let bytes = fs::read(&payload_path)?;
+        if sha256_hex(&bytes) != manifest.content_hash || bytes.len() as u64 != manifest.size_bytes {
+            return Err(ArtifactError::ContentHashMismatch);
+        }
+        Ok(bytes)
     }
 
     pub fn validate_artifact_content_hash(

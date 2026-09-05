@@ -3,8 +3,9 @@
 //! filesystem paths and never in `.GOV`. Identity is stable across file moves.
 
 use crate::storage::artifacts::{
-    artifact_root_rel, read_artifact_manifest, resolve_workspace_root,
-    validate_artifact_content_hash, ArtifactLayer,
+    artifact_root_rel, read_artifact_manifest, read_file_artifact_with_manifest,
+    resolve_workspace_root, validate_artifact_content_hash, ArtifactError, ArtifactLayer,
+    ArtifactManifest, ArtifactPayloadKind,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,35 @@ use super::{
     atelier_event_sql, event_family, reject_legacy_runtime_ref, AtelierError, AtelierResult,
     AtelierStore, BulkOperationReceipt,
 };
+
+/// A media asset's catalog row together with its verified payload bytes and the ArtifactStore
+/// manifest the bytes were validated against. Produced only by
+/// [`AtelierStore::read_media_asset_bytes`]; a value of this type is proof that the catalog row,
+/// the manifest, and the on-disk payload all agree on content hash and size.
+#[derive(Clone, Debug)]
+pub struct MediaAssetBytes {
+    pub asset: MediaAsset,
+    pub manifest: ArtifactManifest,
+    pub bytes: Vec<u8>,
+}
+
+/// Why a media asset's bytes could not be served. Distinguished so an HTTP surface can map a missing
+/// payload to 404 while every integrity failure stays a hard 500 (never a partial or empty 200).
+#[derive(Debug, thiserror::Error)]
+pub enum MediaAssetBytesError {
+    #[error("media asset row is not bound to a native ArtifactStore payload: {0}")]
+    Validation(String),
+    #[error("media asset payload or manifest is missing from ArtifactStore")]
+    PayloadMissing,
+    #[error("media asset row content_hash does not match the ArtifactStore manifest")]
+    CatalogManifestMismatch,
+    #[error("media asset payload is a bundle, not a byte-servable single file")]
+    NotSingleFile,
+    #[error("media asset payload failed ArtifactStore integrity validation: {0}")]
+    Artifact(ArtifactError),
+    #[error(transparent)]
+    Store(AtelierError),
+}
 
 pub const MEDIA_ARTIFACT_MANIFEST_SCHEMA: &str = "hsk.atelier.media_artifact_manifest@1";
 pub const MEDIA_ORIGINAL_RETENTION_CLASS: &str = "atelier.media.original.retained";
@@ -817,7 +847,7 @@ fn validate_artifact_ref(artifact_ref: &str) -> AtelierResult<()> {
     Ok(())
 }
 
-fn normalized_sha256_hex(content_hash: &str) -> AtelierResult<&str> {
+pub(crate) fn normalized_sha256_hex(content_hash: &str) -> AtelierResult<&str> {
     let hash = content_hash.trim();
     if hash != content_hash {
         return Err(AtelierError::Validation(
@@ -837,7 +867,7 @@ fn validate_sha256_content_hash(content_hash: &str) -> AtelierResult<()> {
     normalized_sha256_hex(content_hash).map(|_| ())
 }
 
-fn canonical_sha256_content_hash(content_hash: &str) -> AtelierResult<String> {
+pub(crate) fn canonical_sha256_content_hash(content_hash: &str) -> AtelierResult<String> {
     Ok(normalized_sha256_hex(content_hash)?.to_ascii_lowercase())
 }
 
@@ -1157,7 +1187,7 @@ fn build_invalid_artifact_store_binding_manifest(
     )
 }
 
-fn parse_native_artifact_payload_ref(artifact_ref: &str) -> AtelierResult<(ArtifactLayer, Uuid)> {
+pub(crate) fn parse_native_artifact_payload_ref(artifact_ref: &str) -> AtelierResult<(ArtifactLayer, Uuid)> {
     let body = artifact_ref.strip_prefix("artifact://").ok_or_else(|| {
         AtelierError::Validation("artifact_ref missing artifact:// scheme".into())
     })?;
@@ -1188,7 +1218,7 @@ fn parse_native_artifact_payload_ref(artifact_ref: &str) -> AtelierResult<(Artif
     Ok((layer, artifact_id))
 }
 
-fn is_native_artifact_payload_ref(artifact_ref: &str) -> bool {
+pub(crate) fn is_native_artifact_payload_ref(artifact_ref: &str) -> bool {
     parse_native_artifact_payload_ref(artifact_ref).is_ok()
         && !artifact_ref.to_ascii_lowercase().contains(".gov")
 }
@@ -1589,6 +1619,102 @@ impl AtelierStore {
         // Embedded SurrealDB is bootstrapped at the current schema and has no
         // PostgreSQL upgrade lineage to repair.
         Ok(())
+    }
+
+    /// Fetch one catalog row by `asset_id`. `None` when no such asset exists.
+    pub async fn get_media_asset(&self, asset_id: Uuid) -> AtelierResult<Option<MediaAsset>> {
+        let bindings = AssetIdBinding {
+            asset_id: asset_id.into(),
+        };
+        let row: Option<MediaAssetRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        concat!(
+                            "SELECT ",
+                            media_asset_select!(),
+                            " FROM atelier_media_asset WHERE asset_id = $asset_id LIMIT 1;"
+                        ),
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(row.map(Into::into))
+    }
+
+    /// The canonical verified READ path for a media asset's bytes (the counterpart of
+    /// [`Self::materialize_media_asset`]). Resolution order, every step fail-closed:
+    ///
+    /// 1. catalog row by `asset_id` (`None` when absent — the caller decides 404);
+    /// 2. the row's `artifact_ref` must be a native `artifact://.handshake/artifacts/<layer>/<uuid>/payload`;
+    /// 3. the ArtifactStore manifest is read and its `content_hash` must equal the catalog row's
+    ///    `content_hash` (both normalised to bare lowercase hex) — a drifted or corrupt row can never
+    ///    serve mismatched bytes;
+    /// 4. the manifest must describe a single-file payload;
+    /// 5. the payload is read and re-hashed against the manifest.
+    ///
+    /// This lives on the store, not the HTTP layer, so every consumer (the Atelier byte route, the
+    /// Studio placed-asset resolver, exports) shares one integrity contract.
+    pub async fn read_media_asset_bytes(
+        &self,
+        asset_id: Uuid,
+    ) -> Result<Option<MediaAssetBytes>, MediaAssetBytesError> {
+        let Some(asset) = self
+            .get_media_asset(asset_id)
+            .await
+            .map_err(MediaAssetBytesError::Store)?
+        else {
+            return Ok(None);
+        };
+        let (layer, artifact_id) = parse_native_artifact_payload_ref(&asset.artifact_ref)
+            .map_err(|err| MediaAssetBytesError::Validation(err.to_string()))?;
+        let workspace_root = resolve_media_artifact_root()
+            .map_err(|err| MediaAssetBytesError::Validation(err.to_string()))?;
+        let manifest = match read_artifact_manifest(&workspace_root, layer, artifact_id) {
+            Ok(manifest) => manifest,
+            Err(ArtifactError::Io(io_err)) if io_err.kind() == std::io::ErrorKind::NotFound => {
+                return Err(MediaAssetBytesError::PayloadMissing);
+            }
+            Err(other) => return Err(MediaAssetBytesError::Artifact(other)),
+        };
+        if manifest.artifact_id != artifact_id || manifest.layer != layer {
+            return Err(MediaAssetBytesError::Artifact(
+                ArtifactError::ContentHashMismatch,
+            ));
+        }
+        let row_hash = canonical_sha256_content_hash(&asset.content_hash)
+            .map_err(|err| MediaAssetBytesError::Validation(err.to_string()))?;
+        if !manifest.content_hash.eq_ignore_ascii_case(&row_hash)
+            || manifest.size_bytes != asset.byte_len as u64
+        {
+            tracing::error!(
+                target: "handshake_core::atelier",
+                %asset_id,
+                "media artifact content_hash/size mismatch between catalog row and ArtifactStore manifest"
+            );
+            return Err(MediaAssetBytesError::CatalogManifestMismatch);
+        }
+        if manifest.kind != ArtifactPayloadKind::File {
+            return Err(MediaAssetBytesError::NotSingleFile);
+        }
+        let bytes = match read_file_artifact_with_manifest(&workspace_root, &manifest) {
+            Ok(bytes) => bytes,
+            Err(ArtifactError::Io(io_err)) if io_err.kind() == std::io::ErrorKind::NotFound => {
+                return Err(MediaAssetBytesError::PayloadMissing);
+            }
+            Err(ArtifactError::InvalidRelPath { .. }) => {
+                return Err(MediaAssetBytesError::NotSingleFile);
+            }
+            Err(other) => return Err(MediaAssetBytesError::Artifact(other)),
+        };
+        Ok(Some(MediaAssetBytes {
+            asset,
+            manifest,
+            bytes,
+        }))
     }
 
     pub async fn get_media_asset_by_hash(
