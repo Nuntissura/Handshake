@@ -30,19 +30,19 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-136",
       "MT-137",
       "MT-138"
     ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260905-213403",
     "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks.",
-    "claimed_at_utc": null,
+    "claimed_at_utc": "2026-09-05T21:34:03.000Z",
     "field_evidence_disclosure_2026_09_04": {
       "schema_id": "hsk.mt_field_evidence_note@1",
       "recorded_by": "KERNEL_BUILDER-20260903-213930",
@@ -67,6 +67,47 @@
       "not_a_judgement_on_the_work": "This says nothing about the quality of what that session did. It is a liveness action only, so an unresponsive claim stops blocking the work packet from reaching a ready state.",
       "blocked_until_mt_148": "CORRECTED 2026-09-05T21:27:33.229Z: the compile blocker is ALREADY REPAIRED in the branch. MT-148 committed the tempfile fix at product 6d5d705f - tests/atelier_surreal_support/mod.rs now uses an OwnedTempRoot adopting directory.keep() instead of the removed TempDir::from_path. Verified in the working tree. What remains open on MT-148 is only its PROOF (PT-148-2 and PT-148-3), not the repair. So MT-141 is staffable now and does not have to wait: an earlier note here said it did, and that was true when written and is no longer.",
       "staffing_note": "Its declared depends_on (MT-136, MT-137, MT-138) are satisfied. The real remaining predecessor is MT-148, which is recorded here rather than added to depends_on because MT-148 postdates this contract and the dependency is environmental rather than contractual."
+    },
+    "blocker": {
+      "schema_id": "hsk.mt_blocker@1",
+      "recorded_by": "KERNEL_BUILDER-20260905-213403",
+      "recorded_at_utc": "2026-09-05T23:26:29.020Z",
+      "summary": "7 of 392 checked integration targets cannot compile because product read-model accessors they assert through were dropped or gated during the SurrealDB port. Every remediation lands in src/backend/handshake_core/src/**, which MT-141 scope.forbidden_paths forbids. The tests were NOT deleted or weakened to reach a green compile; that is the failure mode this microtask exists to prevent.",
+      "missing_dependencies": [
+        {
+          "target": "knowledge_code_index_tests",
+          "missing": "SurrealDatabase::{get_open_knowledge_code_repair, list_knowledge_code_repairs, resolve_knowledge_code_repair, record_knowledge_scip_import, list_knowledge_scip_imports}",
+          "evidence": "Added by WP-KERNEL-009 (MT-108 repair queue, MT-105 SCIP ledger); removed by product commit b1802e5d 'SurrealDB control plane boots'. git log -S confirms both transitions.",
+          "behaviour_still_exists": "YES. schema.surql still defines knowledge_code_repair_queue and knowledge_code_scip_imports, and knowledge_code_index/engine.rs still enqueues repairs via SurrealQL. Only the read accessors and the SCIP record/list path are absent.",
+          "blocked_tests": [
+            "mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful",
+            "mt105_scip_import_ledger_records_outcomes"
+          ],
+          "impact": "These are the acceptance proofs for WP-KERNEL-009 MT-108 and MT-105. Deleting them would silently destroy two other microtasks' evidence."
+        },
+        {
+          "target": "kernel_kb003_authority_boundary_runtime_tests, kernel_kb003_promotion_failure_matrix_tests, kernel_kb003_restart_replay_tests",
+          "missing": "handshake_core::storage::kb003_storage::InMemoryKb003Storage is #[cfg(test)]-gated, so it is not reachable from integration tests; Kb003Storage also gained load_run_for_replay, which three test-local impls do not implement.",
+          "evidence": "src/storage/kb003_storage.rs:214 is preceded by '#[cfg(test)]' and the comment 'In-memory backend is unit-test-only. Production has no volatile fallback.'",
+          "preferred_remediation": "Port these three targets onto the real embedded kb003 store (src/storage/surreal/kb003_store.rs). That is the AC-141-3-aligned outcome because AC-141-3 forbids proving durability against mocks. It is a substantive port, not an import fix."
+        },
+        {
+          "target": "mt_scheduler_tests",
+          "missing": "MicroTaskJob::starvation_watermark_at_utc",
+          "behaviour_still_exists": "YES. WATERMARK_CLAIM_QUERY in src/mt_executor/scheduler.rs writes starvation_watermark_at_utc, and this test file's own header records that MT-187 owns that column. Only the Rust read model omits the field."
+        },
+        {
+          "target": "role_mailbox_repo_tests",
+          "missing": "role_mailbox_v1::RoleMailboxMessage::audit_reason",
+          "behaviour_still_exists": "YES. src/role_mailbox_v1/repo.rs sets 'audit_reason = $reason' when dead-lettering; only the read model omits the field."
+        },
+        {
+          "target": "user_manual_api_tests",
+          "missing": "SurrealStorage::query_values is private (E0624)"
+        }
+      ],
+      "why_not_worked_around": "Asserting these through the surreal-test-support inspector would require adding surreal-test-support to those targets' required-features in src/backend/handshake_core/Cargo.toml, which is also outside scope.allowed_paths (tests/ only).",
+      "routing": "Needs an MT that owns src/backend/handshake_core/src/** to restore the read-model accessors and un-gate or replace the kb003 test backend. MT-141 can then finish AC-141-2 and run AC-141-4."
     }
   },
   "scope": {
@@ -143,7 +184,127 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "coder_session": "KERNEL_BUILDER-20260901-MT141-ORCH"
+    "coder_session": "KERNEL_BUILDER-20260905-213403"
   },
-  "updated_at_utc": "2026-09-05T21:27:33.229Z"
+  "updated_at_utc": "2026-09-05T23:26:29.020Z",
+  "implementation_result_2026_09_06": {
+    "schema_id": "hsk.mt_implementation_result@1",
+    "session": "KERNEL_BUILDER-20260905-213403",
+    "recorded_at_utc": "2026-09-05T23:26:29.020Z",
+    "worktree": "../wtc-native-editors-v1",
+    "branch": "feat/WP-KERNEL-012",
+    "commit": "4cdf201a6eb07f86561528aca0d1173d85ba119d",
+    "tree": "566f019da77ea36b6a87dc62f210782fd642d631",
+    "base_commit": "6d5d705f",
+    "builds_on": "7f279596, the recovery checkpoint of the released KERNEL_BUILDER-20260901-MT141-ORCH claim. That work is on the branch; this session continued it rather than restarting.",
+    "files_touched": 29,
+    "files_scope": "src/backend/handshake_core/tests/ only",
+    "mt148_boundary_respected": "tests/atelier_surreal_support/mod.rs and .gitattributes were NOT modified; verified by git status before staging. All staging was by explicit path.",
+    "ac_status": {
+      "AC-141-1": {
+        "verdict": "MET",
+        "evidence": "PT-141-1. Repo-wide scan of the tree for sqlx|postgres|psql|PL/pgSQL|sqlite|PG DSN env vars returns 25 files (21 .rs + 4 JSON fixtures). Every one was opened and is a deliberate detection tripwire: negative assertions, scanner input fixtures, concat!(\"sql\",\"ite\") split literals, the product's own no_sqlite_tripwire module, or retirement records naming superseded postgres tests. model_registry_tests.rs carries the explicit comment 'Intentional forbidden-technology tripwire: these legacy persistence tokens are retained only so this test detects their reintroduction.'"
+      },
+      "AC-141-2": {
+        "verdict": "PARTIAL",
+        "evidence": "cargo check --tests --features app-runtime,test-utils,surreal-test-support,win-native-integration --keep-going went from 34 failing targets / 156 errors to 7 failing targets / 9 errors. 385 of 392 checked targets compile. No assertion was weakened or deleted to reach that state.",
+        "gap": "7 targets remain blocked; see lifecycle.blocker."
+      },
+      "AC-141-3": {
+        "verdict": "MET_FOR_COMPILING_TARGETS",
+        "evidence": "Process ledger, session checkpoint, CRDT persistence and EventLedger durability run real close_for_reopen() -> open_existing(data_dir) cycles (reopen_embedded_store / reopen_embedded_backend helpers; atelier_event_ledger_tests, terminal_event_ledger_tests, kernel_crdt_persistence_tests, mt137_restart_recovery_tests, crash_recovery_e2e). This session also repaired a durability defect in atelier_core_data_tests where a close/reopen test kept using the pre-reopen handle for ten calls after the move; those now run against the reopened store.",
+        "gap": "The three kernel_kb003_* targets still reference a mock backend and are blocked; porting them to the real embedded kb003 store is the AC-141-3-aligned remediation."
+      },
+      "AC-141-4": {
+        "verdict": "NOT_MET",
+        "evidence": "NOT RUN. The suite was never linked or executed this session, so there is no per-binary executed count. Reporting anything else would be an unproven claim.",
+        "reason": "AC-141-2 is a hard predecessor: 7 targets do not compile, so a full per-binary suite run cannot be complete. Linking ~392 debug test binaries also needs host headroom that was not available (a concurrent MT-148 lane held up to 5 link.exe processes at ~12 GB each)."
+      }
+    },
+    "proof_targets": {
+      "PT-141-1": "PRODUCED. Scan result and enumerated tripwire exceptions recorded under ac_status.AC-141-1.",
+      "PT-141-2": "NOT PRODUCED. Suite not run; see AC-141-4.",
+      "PT-141-3": "PRODUCED. See disposition_table_2026_09_06."
+    },
+    "target_dir_note": "CARGO_TARGET_DIR=${HANDSHAKE_ARTIFACTS_ROOT}/handshake-cargo-target/k12/m141, per-owner scoped per CX-984-002. The suggested warm seed from k12-kb0902 was abandoned: at 96 GB it advanced only 1.7 GB in ~10 minutes behind the concurrent lane's disk load, so a cold build was faster. Only processes this session started were stopped."
+  },
+  "disposition_table_2026_09_06": {
+    "schema_id": "hsk.mt_disposition_table@1",
+    "recorded_by": "KERNEL_BUILDER-20260905-213403",
+    "note": "PT-141-3. Retirements are recorded in-code as machine-checkable tables with non-vacuity tests, so a validator can re-derive this from the tree rather than trusting this projection.",
+    "in_code_disposition_tables": [
+      {
+        "file": "tests/session_checkpoint_tests.rs",
+        "symbol": "MT141_SESSION_CHECKPOINT_REPLACEMENTS",
+        "entries": 5,
+        "guard": "mt141_session_checkpoint_replacements_map_every_renamed_test",
+        "origin": "pre-existing (recovery checkpoint 7f279596)"
+      },
+      {
+        "file": "tests/knowledge_migration_tests.rs",
+        "symbol": "RETIRED_TESTS",
+        "entries": 2,
+        "guard": "mt141_knowledge_migration_retirements_are_exact_and_non_vacuous",
+        "note": "The sanctioned MT-139 SEVER retirements: every_knowledge_migration_ships_a_down_file and scratch_schema_apply_rollback_reapply, each naming MT-139 PT-139-2/PT-139-3 as superseding proof.",
+        "origin": "pre-existing (recovery checkpoint 7f279596)"
+      },
+      {
+        "file": "tests/parallel_swarm_state_recovery_tests.rs",
+        "symbol": "RETIRED_TESTS",
+        "entries": 44,
+        "note": "Most entries name themselves as successor (pure port, name preserved); the genuinely renamed ones are the postgres -> embedded/surrealdb pairs.",
+        "origin": "pre-existing (recovery checkpoint 7f279596)"
+      },
+      {
+        "file": "tests/bitemporal_indexing_tests.rs",
+        "symbol": "RETIRED_BEHAVIOR_MAPPINGS",
+        "entries": 5,
+        "origin": "pre-existing (recovery checkpoint 7f279596)"
+      },
+      {
+        "file": "tests/crash_recovery_e2e/mod.rs",
+        "symbol": "RETIRED_EXTERNAL_BACKEND_NON_TEST_DISPOSITIONS",
+        "origin": "pre-existing (recovery checkpoint 7f279596)"
+      },
+      {
+        "file": "tests/mt_scheduler_tests.rs",
+        "symbol": "MT141_MT_SCHEDULER_REPLACEMENTS",
+        "entries": 3,
+        "guard": "mt141_mt_scheduler_replacements_name_a_successor_for_every_retirement",
+        "origin": "ADDED THIS SESSION",
+        "rationale": "claim_next_priority_sql was replaced by claim_next_priority_surql, and the embedded scheduler no longer ranks inside the claiming statement (see the DISCLOSED NARROWING note on FairScheduler::claim_next_priority). The tier CASE and fairness INTERVAL therefore have no referent in the statement text. The exclusivity guarantee those tests defended survives and is asserted by the new mt_187_claim_next_priority_surql_admits_exactly_one_winner; the ranking behaviour they proxied is proven directly against FairScheduler::priority by mt_187_hardgate_dominates_regardless_of_age, mt_187_tier_tie_break_is_fifo_on_created_at, mt_187_very_old_t7b_outweighs_fresh_t32b, mt_187_fairness_penalty_caps_at_minus_200 and mt_187_fairness_penalty_does_not_cross_wp, plus the live claim test mt_187_claim_next_priority_picks_old_t32b_over_fresh_fleet."
+      }
+    ],
+    "tests_deleted_this_session": 0,
+    "assertions_weakened_this_session": 0
+  },
+  "red_team_findings_2026_09_06": {
+    "schema_id": "hsk.mt_red_team_findings@1",
+    "recorded_by": "KERNEL_BUILDER-20260905-213403",
+    "findings": [
+      {
+        "id": "RT-141-A",
+        "lens": "vacuous-proof / 0-coverage green",
+        "finding": "225 'SKIP ...' early-return branches across the tree looked like silent passes that would let a binary report success while asserting nothing.",
+        "disposition": "PROVEN_SAFE",
+        "evidence": "Both guard helpers are unconditional: atelier_core_data_tests::embedded_backend_marker returns Some(\"embedded-surreal\") always, and knowledge_ingestion_support::open_embedded_store panics on setup failure and never returns None. Its doc comment states the None shape is retained only for call-site diff shape. The SKIP branches are unreachable dead code.",
+        "residual_risk": "Dead skip branches are a maintenance hazard: making a marker conditional later would silently re-enable vacuous passes. Worth a follow-up cleanup MT; not an AC-141 violation."
+      },
+      {
+        "id": "RT-141-B",
+        "lens": "forbidden-technology survivors a token scan cannot see",
+        "finding": "PostgreSQL language can survive as SQL idioms rather than the tokens AC-141-1 enumerates. Scanned for jsonb, ON CONFLICT, RETURNING, SERIAL, information_schema, pg_catalog, LATERAL, FOR UPDATE and SKIP LOCKED.",
+        "disposition": "PROVEN_SAFE with one disclosure",
+        "evidence": "FOR UPDATE SKIP LOCKED survives in src/ only inside doc comments describing what was replaced. metadata_jsonb is a product struct field name in src/ (out of scope to rename). ON CONFLICT appears only inside human-readable assertion messages describing idempotency. TEST_SERIAL_LOCK and pdf_fixtures::text_pdf were false positives.",
+        "disclosure": "knowledge_code_index_tests.rs:265 holds a MIGRATION_SQL constant containing PostgreSQL DDL (BIGSERIAL, public. schema). It is a PARSER CORPUS FIXTURE fed to the code indexer to exercise SQL symbol extraction, not a storage dependency. It is reported as its own category rather than stretched into the AC-141-1 tripwire exemption, because it is input data for a language parser rather than a detection tripwire. Operator/validator judgement is invited on whether AC-141-1 should cover it."
+      },
+      {
+        "id": "RT-141-C",
+        "lens": "durability proof integrity",
+        "finding": "atelier_bracket_links_and_backlinks_rebuild_without_touching_source_text moved its store into reopen_store() and then made ten further calls against the pre-reopen handle.",
+        "disposition": "FIXED",
+        "evidence": "Post-reopen calls now target the reopened handle, which is what a close-and-reopen proof requires; this strengthens rather than weakens the assertion."
+      }
+    ]
+  }
 }
