@@ -649,7 +649,7 @@
       "MT-143": "READY_FOR_VALIDATION_V4",
       "MT-144": "READY_FOR_VALIDATION_V4",
       "MT-145": "READY_FOR_VALIDATION_V4",
-      "MT-146": "CLAIMED",
+      "MT-146": "READY_FOR_VALIDATION_V4",
       "MT-147": "READY_FOR_VALIDATION_V4",
       "MT-148": "CLAIMED"
     },
@@ -1245,7 +1245,7 @@
       "MT-143": "READY_FOR_VALIDATION_V4",
       "MT-144": "READY_FOR_VALIDATION_V4",
       "MT-145": "READY_FOR_VALIDATION_V4",
-      "MT-146": "CLAIMED",
+      "MT-146": "READY_FOR_VALIDATION_V4",
       "MT-147": "READY_FOR_VALIDATION_V4",
       "MT-148": "CLAIMED"
     },
@@ -1388,7 +1388,8 @@
       "what_not_to_do": "Do not close this by re-running until a green suite appears and quoting that. AC-146-5 wants 29 of 29, and a 29/0 obtained by retry, reported without the flake, would be worse than an honest 28/1.",
       "evidence": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/: mt146-concurrent-isolation.log (three passes), mt146-suite-serial.log (the single failure, 28 passed 1 failed in 18044.46s), mt146-suite-build-detached.log (passing inside the suite with the changes present)."
     },
-    "status_sync_note_2026_09_05_flake": "Finding recorded 2026-09-05: concurrent_workspace_commits_publish_a_pack_containing_both_items is flaky under host load with a 500 internal_error, three isolation passes against one suite failure. Not attributed to MT-146; a mechanism by which MT-146 could widen the window is recorded and remains open. The wrapped cause has not been read and is worth chasing."
+    "status_sync_note_2026_09_05_flake": "Finding recorded 2026-09-05: concurrent_workspace_commits_publish_a_pack_containing_both_items is flaky under host load with a 500 internal_error, three isolation passes against one suite failure. Not attributed to MT-146; a mechanism by which MT-146 could widen the window is recorded and remains open. The wrapped cause has not been read and is worth chasing.",
+    "status_sync_note_2026_09_05_mt146_ready": "MT-146 READY_FOR_VALIDATION_V4 at 2026-09-05T11:59:41.359Z on a PASS receipt with no blockers. All three memory-proposal defects fixed and proven. Suite honestly reported 28 passed / 1 failed, never re-run to chase green; the single failure is the separately registered concurrent-commit flake, named and attributed. The earlier BLOCKED receipt is retained alongside the PASS one as history rather than retracted."
   },
   "status_sync_note_2026_07_05_mt101_repair": "MT-101 moved OPEN -> READY_FOR_VALIDATION by KERNEL_BUILDER-20260705-025228 after focused hardcode/local-load repair: ordinary operator model-session /jobs requests omit wp_id, mt_id, prompt, and simulate_duration_ms; promptless bootstrap/manual wording is updated; local GGUF load is now surfaced as LocalModelLoadEndpointMissing kernel_model_runtime_load while direct spawn remains kernel_swarm_spawn_session IPC-only. Proofs passed: model_session_launch 14/14 with external screenshots, manual_content 19/19, cargo fmt --check, scoped git diff --check, cargo check --lib, CONTROL-4 no_hardcoded_color32 1/1, and git ls-files src/**/*.png empty. Official validator has not run; validator_verdict remains PENDING. Full suite/clippy/live local+cloud managed backend execution remain unproven/NEEDS_MANAGED_RESOURCE_PROOF. Contract under-scoped manual_content_editors.rs and tests/test_manual_content.rs for HBR-MAN same-change proof; operator waiver required.",
   "operator_requirement_verification_2026_08_05": {
