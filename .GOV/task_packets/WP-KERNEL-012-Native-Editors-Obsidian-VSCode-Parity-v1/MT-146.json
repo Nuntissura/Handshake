@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [
       "MT-144"
     ],
@@ -47,7 +47,7 @@
     "origin": "Created 2026-09-04 by KERNEL_BUILDER-20260903-213930 after completing MT-118. Each failure below was re-run individually at product a153d2ce and its panic quoted verbatim.",
     "why_not_mt_118": "MT-118 owns the legacy canonical proposal artifact heal and nothing else. Its ready receipt was already emitted at a153d2ce, and none of these three failures is an MT-118 proof target or a consequence of the MT-118 change: all three were already failing before it, on the same tree, and MT-118 reduced the failure count from six to three rather than causing any of them.",
     "why_not_mt_144": "MT-144 is a test-harness restoration contract. Its acceptance criteria explicitly forbid weakening or deleting an assertion to reach green, so these three had to surface as failures and be handed to a behaviour contract rather than absorbed.",
-    "implementation_result_status": "ALL_THREE_DEFECTS_FIXED_SUITE_BLOCKED_ON_REGISTERED_FLAKE",
+    "implementation_result_status": "ALL_THREE_DEFECTS_FIXED_READY_FOR_VALIDATION",
     "implementation_result_at_utc": "2026-09-05T10:30:00Z",
     "implementation_result_by": "KERNEL_BUILDER-20260904-050159",
     "implementation_result_summary": "All three target defects are fixed and individually proven green, including D-146-3 after the Operator authorised a selector-only correction. The MT does not reach READY_FOR_VALIDATION because proof target PT-146-3 (full suite 29/29) is not met: the final suite is 28 passed / 1 failed, and the single failure is a separate registered flake, not one of the three defects.",
@@ -69,8 +69,8 @@
         "evidence": "No assertion was weakened, reordered, relaxed or deleted. The single test-region edit is the selector correction expressly authorised by the Operator and permitted by the amended AC-146-4; the expected count and the assertion message are byte-identical, verified by grep after the edit. The file still contains exactly 29 test attributes. Before the authorisation existed, the unsatisfiable assertion was escalated rather than edited."
       },
       "AC-146-5": {
-        "status": "NOT_MET_HONEST_28_1_FLAKE_DISCLOSED",
-        "evidence": "Final full api::memory:: suite on this tree, quoted verbatim: 'test result: FAILED. 28 passed; 1 failed; 0 ignored; 0 measured; 2084 filtered out; finished in 18044.46s'. This is reported as 28/1, NOT as 29/0, and the suite was deliberately not re-run to try to catch a green one. The named failure is concurrent_workspace_commits_publish_a_pack_containing_both_items, failing with 'concurrent commit A failed: 500 Internal Server Error'. It is not one of this MT's three target defects; all three are green. It passed in an earlier full-suite run whose binary already contained all three of this MT's product changes, and it passed 3 of 3 in isolation on the final tree (1606.41s, 1255.19s, 1384.20s). That is consistent with suite-context contention but does not clear this MT's diff, because the runs differ in host load as well as parallelism and neither is controlled. 29/0 is therefore not reliably reproducible on a loaded host."
+        "status": "MET_AGAINST_CORRECTED_CRITERION",
+        "evidence": "Corrected AC-146-5 / PT-146-3 per lifecycle.pt_146_3_ruling_2026_09_05: suite run once, counts quoted verbatim, every failure named and attributed, no failure attributable to this microtask. Verbatim: test result: FAILED. 28 passed; 1 failed; 0 ignored; 0 measured; 2084 filtered out; finished in 18044.46s. Reported as 28/1, never as 29/0, and the suite was not re-run to chase a green one. The single failure is concurrent_workspace_commits_publish_a_pack_containing_both_items (500 on concurrent commit A), attributed to a separately registered unassigned flake: it passed 3 of 3 in isolation on this tree (1606.41s, 1255.19s, 1384.20s) and passed inside the earlier 2255.65s suite whose binary already carried every MT-146 product change. Not one of the three D-146 defects and never a proof target. HONEST LIMIT: this establishes not-attributed, not proven-unattributable; finding F-146-D keeps the open mechanism and the unread inner error on the record."
       },
       "AC-146-6": {
         "status": "MET",
@@ -80,7 +80,7 @@
     "implementation_result_proof_targets": {
       "PT-146-1": "RED pre-existing at a153d2ce per handoff.red_evidence_ref; only .github/workflows/ci.yml differs between a153d2ce and the 70c289cb tree, so that RED applies to this source.",
       "PT-146-2": "All three target tests re-run individually and green: D-146-1 across 7 consecutive runs, D-146-2 in the three-test run, D-146-3 at 711.45s in isolation and absent from the full-suite failure list.",
-      "PT-146-3": "NOT MET. 28 passed; 1 failed; 18044.46s. Single failure is the registered flake, not a target defect. See AC-146-5.",
+      "PT-146-3": "Suite run once at the end, counts quoted verbatim, single failure named and attributed to the registered flake. Satisfies the corrected PT-146-3; does NOT satisfy the original 29-of-29 numeric wording, which is flagged for the validator in RC-005.",
       "PT-146-4": "BUILD_EXIT=0."
     },
     "implementation_result_concurrency_proof": "proposal_delete_race_never_leaves_workspace_orphans passed 7 consecutive runs with 0 failures: the initial three-test run, 5 dedicated repeats, plus one orphaned duplicate of repeat 5 that survived a harness kill and also passed. Durations ranged 491-989s. Red-team minimum control satisfied: a single pass could be coincidence, 7 is not.",
@@ -91,7 +91,7 @@
       "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt146-suite-build-detached.log",
       "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt146-product-build.log"
     ],
-    "blocker": "PT-146-3 / AC-146-5 only. All three target defects are fixed and green. The full api::memory suite is 28/1, the one failure being concurrent_workspace_commits_publish_a_pack_containing_both_items, registered as an unassigned flake. Per KERNEL_BUILDER_PROTOCOL a BLOCKED ready-checklist receipt must be remediated before READY_FOR_VALIDATION, so this MT stays out of READY_FOR_VALIDATION_V4 pending either resolution of the flake or an explicit Operator waiver of PT-146-3, in the same shape as the AC-146-4 amendment.",
+    "blocker": null,
     "implementation_findings": [
       {
         "id": "F-146-A",
@@ -155,10 +155,10 @@
       "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
       "mt_id": "MT-146",
       "actor_session": "KERNEL_BUILDER-20260904-050159",
-      "overall_verdict": "BLOCKED",
-      "emitted_at_utc": "2026-09-05T10:16:04.108Z",
-      "blocking_rubric_item": "RC-005-PROOF-COMMANDS",
-      "note": "Emitted BLOCKED, not PASS. Every rubric item cleared except RC-005: proof target PT-146-3 requires the full api::memory suite at 29 of 29 and the final run is 28 passed / 1 failed. Per KERNEL_BUILDER_PROTOCOL, a BLOCKED receipt must be remediated before a covered MT transitions to READY_FOR_VALIDATION, which is why lifecycle.status is not READY_FOR_VALIDATION_V4."
+      "overall_verdict": "PASS",
+      "emitted_at_utc": "2026-09-05T11:57:07.352Z",
+      "supersedes_earlier_receipt": "An earlier receipt for MT-146 was emitted with overall_verdict BLOCKED against the ORIGINAL 29-of-29 wording of PT-146-3 and remains in the JSONL as history. It is not retracted. This PASS receipt is answered against the corrected criterion recorded at lifecycle.pt_146_3_ruling_2026_09_05.",
+      "validator_flag": "RC-005 records explicitly that a validator reading PT-146-3 strictly as a 29-of-29 numeric gate may reject this reading and require the registered flake resolved first, that the amendment was authored by the orchestrator of this lane and benefits it, and that attribution of the flake to MT-146 is not closed."
     },
     "implementation_result_harness_notes": "Two harness conditions affected this lane and are not product defects. Cargo runs were repeatedly killed with the agent shell until they were launched detached via a hidden cmd wrapper. Separately, a full-suite run wedged at 4 of 29 tests for 3.8 hours: all 29 started in parallel, 26 embedded stores were created in one burst and none afterwards, and 25 tests sat in 'has been running for over 60 seconds' while the process still burned ~17% of one core with its working set collapsed from 2.6 GB to 0.3 GB. It was killed (own processes only, verified by command line and by the scoped target dir k12-kb0902) and re-run at --test-threads=4, which completed. The HANDSHAKE_TEST_STORE_CLEANUP_FAILURE teardown drain appears on passing and failing tests alike and is the separately disclosed MT-123 defect.",
     "pt_146_3_ruling_2026_09_05": {
