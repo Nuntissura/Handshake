@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-144"
     ],
@@ -47,10 +47,10 @@
     "origin": "Created 2026-09-04 by KERNEL_BUILDER-20260903-213930 after completing MT-118. Each failure below was re-run individually at product a153d2ce and its panic quoted verbatim.",
     "why_not_mt_118": "MT-118 owns the legacy canonical proposal artifact heal and nothing else. Its ready receipt was already emitted at a153d2ce, and none of these three failures is an MT-118 proof target or a consequence of the MT-118 change: all three were already failing before it, on the same tree, and MT-118 reduced the failure count from six to three rather than causing any of them.",
     "why_not_mt_144": "MT-144 is a test-harness restoration contract. Its acceptance criteria explicitly forbid weakening or deleting an assertion to reach green, so these three had to surface as failures and be handed to a behaviour contract rather than absorbed.",
-    "implementation_result_status": "IMPLEMENTED_WITH_ONE_AC_BLOCKED_ON_OPERATOR_DECISION",
-    "implementation_result_at_utc": "2026-09-04T16:20:00Z",
+    "implementation_result_status": "ALL_THREE_DEFECTS_FIXED_SUITE_BLOCKED_ON_REGISTERED_FLAKE",
+    "implementation_result_at_utc": "2026-09-05T10:30:00Z",
     "implementation_result_by": "KERNEL_BUILDER-20260904-050159",
-    "implementation_result_summary": "D-146-1 and D-146-2 fixed and proven green. D-146-3 is not a product defect in the form the contract assumed: the assertion is unsatisfiable without editing either a forbidden path or the test itself, so it is raised as a finding under AC-146-4 and left for the Operator.",
+    "implementation_result_summary": "All three target defects are fixed and individually proven green, including D-146-3 after the Operator authorised a selector-only correction. The MT does not reach READY_FOR_VALIDATION because proof target PT-146-3 (full suite 29/29) is not met: the final suite is 28 passed / 1 failed, and the single failure is a separate registered flake, not one of the three defects.",
     "implementation_result_acs": {
       "AC-146-1": {
         "status": "MET",
@@ -61,16 +61,16 @@
         "evidence": "list_proposals_is_bounded_deterministic_and_workspace_scoped green, including its bounded-limit and workspace-scoping assertions. Cause code-verified: ORDER BY had no status-priority term. Fixed with a SurrealQL-computed status_rank ordered ahead of created_at DESC, proposal_id ASC, so ORDER BY still precedes LIMIT and no Rust-side sort is used."
       },
       "AC-146-3": {
-        "status": "BLOCKED_ON_OPERATOR_DECISION",
-        "evidence": "Two compounding causes. (1) list_commit_rows withheld the un-published FR-EVT-MEM-004 until its FR-EVT-MEM-003 sibling was published; fixed by moving that causal rule to dispatch time via commit_event_dispatch_ready. (2) DECISIVE: the test filters pending events on event.payload proposal_id, but validate_memory_pack_built_payload at src/backend/handshake_core/src/flight_recorder/mod.rs:4307 calls require_allowed_keys with a closed 10-key allowlist and an empty optional list, and proposal_id is absent from it; the builder calls validate(), so adding the key would fail every commit. FR-EVT-MEM-004 instead carries its proposal linkage in activity_span_id, as fems-memory-proposal followed by the proposal id. pending_outbox == 2 is therefore unsatisfiable without editing flight_recorder/mod.rs (outside allowed_paths) or the test filter (forbidden by AC-146-4). Raised as a finding; the Orchestrator independently verified it and is routing the decision to the Operator, recommending the filter use activity_span_id while leaving the assertion count and message untouched."
+        "status": "MET",
+        "evidence": "Fixed and proven twice. In isolation: 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2112 filtered out; finished in 711.45s'. In full-suite context it no longer appears among the failures. Root cause was two compounding defects. (1) list_commit_rows withheld an un-published FR-EVT-MEM-004 until its FR-EVT-MEM-003 sibling was published; the causal rule was moved to dispatch time via commit_event_dispatch_ready so the listing now reports the true durable pending set while a pack-built event still cannot precede its commit event. (2) The test selected pending events on payload proposal_id, which FR-EVT-MEM-004 cannot carry because validate_memory_pack_built_payload enforces a closed key allowlist omitting it. Operator authorised a SELECTOR-ONLY correction (lifecycle.operator_authorisation_2026_09_04). The authorisation named activity_span_id but required verifying first that BOTH events carry it; verification showed only the pack builder sets it and FlightRecorderEvent::new defaults it to None, so selecting on it alone would have dropped FR-EVT-MEM-003 and been wrong in the opposite direction. The selector used is trace_id, which both events genuinely share by construction: the commit event is built with stable_uuid('fems-memory-proposal:{proposal_id}') as its trace_id and the pack event copies that same value. Expected count of 2 and the assertion message are unchanged, and flight_recorder/mod.rs was not touched."
       },
       "AC-146-4": {
         "status": "MET",
-        "evidence": "No assertion in any of the three tests was weakened, reordered, relaxed or deleted. Every api/memory.rs hunk lies between lines 299 and 1290; the tests module begins at line 1752 and the three tests at 2763 and beyond. The file still contains exactly 29 test attributes, so none was added or removed. The one assertion that could not be satisfied was escalated rather than edited."
+        "evidence": "No assertion was weakened, reordered, relaxed or deleted. The single test-region edit is the selector correction expressly authorised by the Operator and permitted by the amended AC-146-4; the expected count and the assertion message are byte-identical, verified by grep after the edit. The file still contains exactly 29 test attributes. Before the authorisation existed, the unsatisfiable assertion was escalated rather than edited."
       },
       "AC-146-5": {
-        "status": "NOT_MET_UNREACHABLE_PENDING_AC-146-3",
-        "evidence": "Full api::memory:: suite run once on the final tree: test result: FAILED. 28 passed; 1 failed; 0 ignored; 0 measured; 2084 filtered out; finished in 2255.65s. The single failure is the known D-146-3 test; the suite failure list contains only commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits, so nothing regressed. 29/0 is unreachable while AC-146-3 stands, and 28/1 is NOT presented as a pass."
+        "status": "NOT_MET_HONEST_28_1_FLAKE_DISCLOSED",
+        "evidence": "Final full api::memory:: suite on this tree, quoted verbatim: 'test result: FAILED. 28 passed; 1 failed; 0 ignored; 0 measured; 2084 filtered out; finished in 18044.46s'. This is reported as 28/1, NOT as 29/0, and the suite was deliberately not re-run to try to catch a green one. The named failure is concurrent_workspace_commits_publish_a_pack_containing_both_items, failing with 'concurrent commit A failed: 500 Internal Server Error'. It is not one of this MT's three target defects; all three are green. It passed in an earlier full-suite run whose binary already contained all three of this MT's product changes, and it passed 3 of 3 in isolation on the final tree (1606.41s, 1255.19s, 1384.20s). That is consistent with suite-context contention but does not clear this MT's diff, because the runs differ in host load as well as parallelism and neither is controlled. 29/0 is therefore not reliably reproducible on a loaded host."
       },
       "AC-146-6": {
         "status": "MET",
@@ -79,8 +79,8 @@
     },
     "implementation_result_proof_targets": {
       "PT-146-1": "RED pre-existing at a153d2ce per handoff.red_evidence_ref; only .github/workflows/ci.yml differs between a153d2ce and the 70c289cb tree, so that RED applies to this source.",
-      "PT-146-2": "D-146-1 and D-146-2 green and quoted. D-146-3 still red at the same assertion (memory.rs:4701 equals original 4672 plus the 29 lines this MT added above it), left 1 right 2.",
-      "PT-146-3": "28 passed; 1 failed. Not 29/29. See AC-146-5.",
+      "PT-146-2": "All three target tests re-run individually and green: D-146-1 across 7 consecutive runs, D-146-2 in the three-test run, D-146-3 at 711.45s in isolation and absent from the full-suite failure list.",
+      "PT-146-3": "NOT MET. 28 passed; 1 failed; 18044.46s. Single failure is the registered flake, not a target defect. See AC-146-5.",
       "PT-146-4": "BUILD_EXIT=0."
     },
     "implementation_result_concurrency_proof": "proposal_delete_race_never_leaves_workspace_orphans passed 7 consecutive runs with 0 failures: the initial three-test run, 5 dedicated repeats, plus one orphaned duplicate of repeat 5 that survived a harness kill and also passed. Durations ranged 491-989s. Red-team minimum control satisfied: a single pass could be coincidence, 7 is not.",
@@ -91,7 +91,7 @@
       "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt146-suite-build-detached.log",
       "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/mt146-product-build.log"
     ],
-    "blocker": "AC-146-3 / AC-146-5: pending_outbox == 2 in commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits is unsatisfiable within allowed_paths. Requires an Operator decision: either authorise the test filter to use activity_span_id (leaving the assertion count and message untouched), or authorise changing the FR-EVT-MEM-004 payload allowlist in flight_recorder/mod.rs, which is outside this MT allowed_paths.",
+    "blocker": "PT-146-3 / AC-146-5 only. All three target defects are fixed and green. The full api::memory suite is 28/1, the one failure being concurrent_workspace_commits_publish_a_pack_containing_both_items, registered as an unassigned flake. Per KERNEL_BUILDER_PROTOCOL a BLOCKED ready-checklist receipt must be remediated before READY_FOR_VALIDATION, so this MT stays out of READY_FOR_VALIDATION_V4 pending either resolution of the flake or an explicit Operator waiver of PT-146-3, in the same shape as the AC-146-4 amendment.",
     "implementation_findings": [
       {
         "id": "F-146-A",
@@ -110,6 +110,12 @@
         "severity": "OBSERVATION",
         "summary": "Changing an outbox event payload is durable-evidence-affecting.",
         "detail": "ensure_commit_outbox compares row.event_hash against a re-derived event_json_hash, so altering the FR-EVT-MEM-004 payload shape would make pre-existing rows conflict on retry with the message about commit outbox identity being bound to different evidence. Any Operator decision to add proposal_id to that payload must account for existing rows; cold-genesis stores are unaffected."
+      },
+      {
+        "id": "F-146-D",
+        "severity": "OPEN_FLAKE",
+        "summary": "concurrent_workspace_commits_publish_a_pack_containing_both_items intermittently returns 500 on concurrent commit A under full-suite load.",
+        "detail": "Registered as unassigned. Three points stay open. Attribution to MT-146 is neither established nor cleared: the test passed on a binary already containing all three of this MT's product changes, and passed 3/3 in isolation, but no controlled comparison was run. The mechanism by which this MT could widen the window without causing it remains open: reconcile_workspace_memory_commit_events is workspace-scoped, so concurrent commits reconcile the same rows, and the listing-gate removal returns FR-EVT-MEM-004 alongside its FR-EVT-MEM-003 in the same pass rather than deferring it, increasing rows contended per pass; a project_commit_event failure propagates through reconcile(...)? and surfaces as exactly this 500. Nobody has yet read what the 500 actually wrapped: internal_error is the outer wrapper from storage_error, and the inner StorageError is only emitted to tracing as fems_memory_api_internal_error, which the test harness does not capture. Reading that inner error is the highest-value next step. The decisive controlled experiment, not yet run because it costs two recompiles, is to revert this MT's three product files and run the test repeatedly to compare failure rates."
       }
     ],
     "implementation_result_product_commit": "7d4982c6",
@@ -142,7 +148,19 @@
         "third_route_correctly_refused": "The implementer did not add activity_span_id to the commit builder, which would have looked like the obvious fix. That is a product change to a hashed event, and ensure_commit_outbox compares event_hash, so it would have reintroduced the exact durable-evidence hazard (F-146-C) that got the payload route rejected.",
         "unchanged": "Expected count still 2. Assertion message byte-identical. flight_recorder/mod.rs untouched. One line of behaviour changed."
       }
-    }
+    },
+    "ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "schema": ".GOV/roles_shared/schemas/KB_READY_CHECKLIST_RECEIPT.schema.json",
+      "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
+      "mt_id": "MT-146",
+      "actor_session": "KERNEL_BUILDER-20260904-050159",
+      "overall_verdict": "BLOCKED",
+      "emitted_at_utc": "2026-09-05T10:16:04.108Z",
+      "blocking_rubric_item": "RC-005-PROOF-COMMANDS",
+      "note": "Emitted BLOCKED, not PASS. Every rubric item cleared except RC-005: proof target PT-146-3 requires the full api::memory suite at 29 of 29 and the final run is 28 passed / 1 failed. Per KERNEL_BUILDER_PROTOCOL, a BLOCKED receipt must be remediated before a covered MT transitions to READY_FOR_VALIDATION, which is why lifecycle.status is not READY_FOR_VALIDATION_V4."
+    },
+    "implementation_result_harness_notes": "Two harness conditions affected this lane and are not product defects. Cargo runs were repeatedly killed with the agent shell until they were launched detached via a hidden cmd wrapper. Separately, a full-suite run wedged at 4 of 29 tests for 3.8 hours: all 29 started in parallel, 26 embedded stores were created in one burst and none afterwards, and 25 tests sat in 'has been running for over 60 seconds' while the process still burned ~17% of one core with its working set collapsed from 2.6 GB to 0.3 GB. It was killed (own processes only, verified by command line and by the scoped target dir k12-kb0902) and re-run at --test-threads=4, which completed. The HANDSHAKE_TEST_STORE_CLEANUP_FAILURE teardown drain appears on passing and failing tests alike and is the separately disclosed MT-123 defect."
   },
   "scope": {
     "summary": "Fix three defects in the memory proposal surface that the restored in-crate test layer exposed: workspace deletion leaves an orphan proposal under a concurrent insert, the proposal list does not put approved proposals first, and the commit outbox restart-recovery path does not reach its expected state. All three are pre-existing behaviour, not regressions from the test restoration.",
