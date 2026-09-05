@@ -56,7 +56,7 @@ const HSK_HEADER_SOURCE_PROVENANCE: &str = "x-hsk-source-provenance";
 /// Optional request header carrying the original filename for the manifest `filename_hint`.
 const HSK_HEADER_FILENAME_HINT: &str = "x-hsk-filename-hint";
 
-pub(crate) /// Bytes of a REJECTED request body we are willing to read and discard so the client actually
+/// Bytes of a REJECTED request body we are willing to read and discard so the client actually
 /// receives the status response. A server that answers early and stops reading makes the peer see a
 /// connection reset (WinSock 10053) instead of the 413, because it is still writing. Draining is
 /// bounded on purpose: an absurdly large declared upload is abandoned rather than absorbed, and
