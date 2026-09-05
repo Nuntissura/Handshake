@@ -58,6 +58,7 @@ Entry format (recommended):
 - `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
 
 - **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [ACTIVE] - branch: feat/WP-KERNEL-012 - coder: KERNEL_BUILDER/Codex - last_sync: 2026-07-01
+- **[WP-CKC-posekit-overhaul]** - [ACTIVE] - branch: feat/WP-CKC-posekit-overhaul-surreal - coder: KERNEL_BUILDER/Claude - last_sync: 2026-09-05
 
 
 ## Current Focus (2026-04-05)
