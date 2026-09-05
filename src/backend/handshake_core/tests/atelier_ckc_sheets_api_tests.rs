@@ -12,7 +12,7 @@
 
 mod atelier_surreal_support;
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use async_trait::async_trait;
 use atelier_surreal_support::AtelierSurrealHarness;
@@ -117,7 +117,21 @@ impl LlmClient for NoopLlmClient {
     }
 }
 
+/// Route the lane's `tracing::error!(.., "db_error")` / `warn!` lines (which carry the real
+/// `AtelierError` text the HTTP body deliberately hides) into the captured test output, once per
+/// test binary, so a 500 in a proof names its cause.
+fn init_tracing() {
+    static INIT: OnceLock<()> = OnceLock::new();
+    INIT.get_or_init(|| {
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter("handshake_core::atelier=warn")
+            .with_test_writer()
+            .try_init();
+    });
+}
+
 fn app_state(harness: &AtelierSurrealHarness) -> AppState {
+    init_tracing();
     let recorder = Arc::new(NoopRecorder);
     AppState {
         storage: harness.database.clone(),

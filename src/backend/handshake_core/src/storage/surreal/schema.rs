@@ -3163,7 +3163,7 @@ mod tests {
             )));
         }
         assert!(SCHEMA.contains(
-            "record::exists(type::record('atelier_source_evidence_record', [$this.matrix_id, $value]))"
+            "($value = type::record('atelier_source_evidence_record', [$this.matrix_id, record::id($value)[1]]))"
         ));
         assert!(SCHEMA.contains("cascade_atelier_source_evidence_record"));
         assert!(!SCHEMA.contains("apply_state = 'applying'"));

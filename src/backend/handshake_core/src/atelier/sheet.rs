@@ -1985,10 +1985,10 @@ const SHEET_STALE_HEAD_THROW: &str = "HSK-SHEET-STALE-HEAD";
 const APPEND_SHEET_STATEMENT: &str = concat!(
     "RETURN { LET $head = (SELECT id, seq FROM atelier_sheet_version WHERE character_internal_id = $domain.character ORDER BY seq DESC LIMIT 1)[0]; LET $head_id = IF $head = NONE { NONE } ELSE { $head.id }; IF $domain.enforce_head AND $head_id != $domain.expected_head { THROW 'HSK-SHEET-STALE-HEAD'; }; LET $next_seq = IF $head = NONE { 1 } ELSE { $head.seq + 1 }; CREATE $domain.version_record CONTENT { version_id: $domain.version_id, character_internal_id: $domain.character, parent_version_id: $head_id, seq: $next_seq, raw_text: $domain.raw_text, author: $domain.author, tool: $domain.tool } RETURN NONE; FOR $row IN $domain.projection_rows { CREATE $row.record CONTENT { projection_id: $row.projection_id, field_id: $row.field_id, value: $row.value, character_internal_id: $domain.character, sheet_version_id: $domain.version_record } RETURN NONE; }; ",
     atelier_event_sql!(),
-    " RETURN (SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM $domain.version_record)[0]; };"
+    " RETURN (SELECT version_id, record::id(character_internal_id) AS character_internal_id, IF parent_version_id = NONE { NONE } ELSE { record::id(parent_version_id) } AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM $domain.version_record)[0]; };"
 );
 
-const SELECT_SHEET_VERSION_BY_ID: &str = "SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;";
+const SELECT_SHEET_VERSION_BY_ID: &str = "SELECT version_id, record::id(character_internal_id) AS character_internal_id, IF parent_version_id = NONE { NONE } ELSE { record::id(parent_version_id) } AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;";
 
 /// Newest-first projection rows for one Field ID. `sheet_version_id` keys are
 /// UUID v7, so the secondary sort is time-ordered within one instant.
@@ -2000,7 +2000,7 @@ const WRITE_PARSE_SNAPSHOT_STATEMENT: &str = concat!(
     " RETURN $row; };"
 );
 
-const BULK_APPEND_SHEETS_STATEMENT: &str = "BEGIN TRANSACTION; RETURN { FOR $item IN $rows { LET $head = (SELECT VALUE id FROM atelier_sheet_version WHERE character_internal_id = $item.character ORDER BY seq DESC LIMIT 1)[0]; IF $head != $item.expected_head { THROW 'HSK-SHEET-BULK-STALE-HEAD'; }; }; FOR $item IN $rows { CREATE $item.version_record CONTENT { version_id: $item.version_id, character_internal_id: $item.character, parent_version_id: $item.expected_head, seq: $item.seq, raw_text: $item.raw_text, author: $item.author, tool: $item.tool } RETURN NONE; FOR $row IN $item.projection_rows { CREATE $row.record CONTENT { projection_id: $row.projection_id, field_id: $row.field_id, value: $row.value, character_internal_id: $item.character, sheet_version_id: $item.version_record } RETURN NONE; }; }; FOR $event IN $events { LET $existing = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; IF $existing IS NONE { CREATE $event.ledger_id CONTENT { event_id: $event.kernel_event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.kernel_aggregate_type, aggregate_id: $event.kernel_aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.ledger_payload, created_at: $event.created_at } RETURN NONE; }; LET $ledger = (SELECT event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; CREATE $event.atelier_id CONTENT { event_id: $event.atelier_event_uuid, event_family: $event.event_family, aggregate_type: $event.kernel_aggregate_type, aggregate_id: $event.kernel_aggregate_id, kernel_event_id: $ledger.event_id, kernel_event_sequence: $ledger.event_sequence, payload: $event.atelier_payload } RETURN NONE; }; CREATE $receipt_record CONTENT { receipt_id: $receipt_id, operation: $operation, requested_by: $requested_by, target_count: $target_count, mutation_count: $mutation_count, status: 'applied', payload: $receipt_payload } RETURN NONE; RETURN { versions: (SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id IN $version_ids), receipt: (SELECT receipt_id, operation, requested_by, target_count, mutation_count, status, payload, created_at_utc FROM $receipt_record)[0], ledgers: (SELECT idempotency_key, event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key IN $event_idempotency_keys) }; }; COMMIT TRANSACTION;";
+const BULK_APPEND_SHEETS_STATEMENT: &str = "BEGIN TRANSACTION; RETURN { FOR $item IN $rows { LET $head = (SELECT VALUE id FROM atelier_sheet_version WHERE character_internal_id = $item.character ORDER BY seq DESC LIMIT 1)[0]; IF $head != $item.expected_head { THROW 'HSK-SHEET-BULK-STALE-HEAD'; }; }; FOR $item IN $rows { CREATE $item.version_record CONTENT { version_id: $item.version_id, character_internal_id: $item.character, parent_version_id: $item.expected_head, seq: $item.seq, raw_text: $item.raw_text, author: $item.author, tool: $item.tool } RETURN NONE; FOR $row IN $item.projection_rows { CREATE $row.record CONTENT { projection_id: $row.projection_id, field_id: $row.field_id, value: $row.value, character_internal_id: $item.character, sheet_version_id: $item.version_record } RETURN NONE; }; }; FOR $event IN $events { LET $existing = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; IF $existing IS NONE { CREATE $event.ledger_id CONTENT { event_id: $event.kernel_event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.kernel_aggregate_type, aggregate_id: $event.kernel_aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.ledger_payload, created_at: $event.created_at } RETURN NONE; }; LET $ledger = (SELECT event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; CREATE $event.atelier_id CONTENT { event_id: $event.atelier_event_uuid, event_family: $event.event_family, aggregate_type: $event.kernel_aggregate_type, aggregate_id: $event.kernel_aggregate_id, kernel_event_id: $ledger.event_id, kernel_event_sequence: $ledger.event_sequence, payload: $event.atelier_payload } RETURN NONE; }; CREATE $receipt_record CONTENT { receipt_id: $receipt_id, operation: $operation, requested_by: $requested_by, target_count: $target_count, mutation_count: $mutation_count, status: 'applied', payload: $receipt_payload } RETURN NONE; RETURN { versions: (SELECT version_id, record::id(character_internal_id) AS character_internal_id, IF parent_version_id = NONE { NONE } ELSE { record::id(parent_version_id) } AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id IN $version_ids), receipt: (SELECT receipt_id, operation, requested_by, target_count, mutation_count, status, payload, created_at_utc FROM $receipt_record)[0], ledgers: (SELECT idempotency_key, event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key IN $event_idempotency_keys) }; }; COMMIT TRANSACTION;";
 
 impl AtelierStore {
     async fn record_sheet_field_edit_rejection(
@@ -2268,7 +2268,7 @@ impl AtelierStore {
         );
         let row: Option<SheetVersionRow> = self
             .with_data(move |ctx| Box::pin(async move {
-                ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE character_internal_id = $character ORDER BY seq DESC LIMIT 1;", CharacterSheetBinding { character }).await
+                ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, IF parent_version_id = NONE { NONE } ELSE { record::id(parent_version_id) } AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE character_internal_id = $character ORDER BY seq DESC LIMIT 1;", CharacterSheetBinding { character }).await
             }))
             .await?;
         Ok(row.map(version_from_row))
@@ -2285,7 +2285,7 @@ impl AtelierStore {
         );
         let rows: Vec<SheetVersionRow> = self
             .with_data(move |ctx| Box::pin(async move {
-                ctx.query_values("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE character_internal_id = $character ORDER BY seq ASC;", CharacterSheetBinding { character }).await
+                ctx.query_values("SELECT version_id, record::id(character_internal_id) AS character_internal_id, IF parent_version_id = NONE { NONE } ELSE { record::id(parent_version_id) } AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE character_internal_id = $character ORDER BY seq ASC;", CharacterSheetBinding { character }).await
             }))
             .await?;
         Ok(rows.into_iter().map(version_from_row).collect())
@@ -2307,7 +2307,7 @@ impl AtelierStore {
         }
         let source: Option<SheetVersionRow> = self
             .with_data(move |ctx| Box::pin(async move {
-                ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: version_id.into() }).await
+                ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, IF parent_version_id = NONE { NONE } ELSE { record::id(parent_version_id) } AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: version_id.into() }).await
             }))
             .await?;
         let raw_text = source
@@ -2392,7 +2392,7 @@ impl AtelierStore {
         request: &SheetFieldEditRequest,
     ) -> AtelierResult<SheetFieldEditResult> {
         let source_row: Option<SheetVersionRow> = self
-            .with_data({ let version_id = request.version_id; move |ctx| Box::pin(async move { ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: version_id.into() }).await }) })
+            .with_data({ let version_id = request.version_id; move |ctx| Box::pin(async move { ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, IF parent_version_id = NONE { NONE } ELSE { record::id(parent_version_id) } AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: version_id.into() }).await }) })
             .await?;
         let source_row = source_row.ok_or_else(|| {
             super::AtelierError::NotFound(format!(
@@ -2550,7 +2550,7 @@ impl AtelierStore {
         for request in requests {
             let version_id = request.version_id;
             let source_row: Option<SheetVersionRow> = self
-                .with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: version_id.into() }).await }))
+                .with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, IF parent_version_id = NONE { NONE } ELSE { record::id(parent_version_id) } AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: version_id.into() }).await }))
                 .await?;
             let source_row = source_row.ok_or_else(|| {
                 super::AtelierError::NotFound(format!(
@@ -2791,7 +2791,7 @@ impl AtelierStore {
         }
         let target_version_id = request.target_version_id;
         let target_row: Option<SheetVersionRow> = self
-            .with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: target_version_id.into() }).await }))
+            .with_data(move |ctx| Box::pin(async move { ctx.query_first("SELECT version_id, record::id(character_internal_id) AS character_internal_id, IF parent_version_id = NONE { NONE } ELSE { record::id(parent_version_id) } AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;", SheetVersionBinding { version_id: target_version_id.into() }).await }))
             .await?;
         let target = target_row
             .map(version_from_row)

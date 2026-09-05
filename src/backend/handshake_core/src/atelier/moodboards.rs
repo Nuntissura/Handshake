@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 use super::documents::CharacterDocumentType;
 use super::{
-    atelier_event_sql, event_ref_for_text, uuid_from_record_link, AtelierError, AtelierResult,
+    atelier_event_sql, event_ref_for_text, AtelierError, AtelierResult,
     AtelierStore,
 };
 
@@ -1082,7 +1082,9 @@ struct ExportLookupBinding {
 #[derive(SurrealValue)]
 struct DocumentHeadRow {
     doc_type: String,
-    current_version_id: Option<RecordId>,
+    /// `atelier_character_document.current_version_id` is `option<uuid>` in the
+    /// schema (the document row stores the version key, not a record link).
+    current_version_id: Option<SurrealUuid>,
 }
 
 #[derive(Clone, SurrealValue)]
@@ -1292,16 +1294,19 @@ impl AtelierStore {
                 new.document_id
             )));
         }
-        let document_version_link = doc_row.current_version_id.ok_or_else(|| {
-            AtelierError::Validation(format!(
-                "moodboard document {} has no current version",
-                new.document_id
-            ))
-        })?;
-        let document_version_id = uuid_from_record_link(
-            "atelier_character_document.current_version_id",
-            &document_version_link,
-        )?;
+        let document_version_id: Uuid = doc_row
+            .current_version_id
+            .ok_or_else(|| {
+                AtelierError::Validation(format!(
+                    "moodboard document {} has no current version",
+                    new.document_id
+                ))
+            })?
+            .into();
+        let document_version_link = RecordId::new(
+            "atelier_character_document_version",
+            SurrealUuid::from(document_version_id),
+        );
         if let Some(expected_document_version_id) = new.expected_document_version_id {
             if document_version_id != expected_document_version_id {
                 return Err(AtelierError::Conflict(format!(

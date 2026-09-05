@@ -282,7 +282,7 @@ const CLAIM_LEASE_STATEMENT: &str = concat!(
            lease_state: 'active', \
            claimed_at_utc: $now, \
            ttl_seconds: $ttl_seconds, \
-           lease_expires_at_utc: $now + duration::from::secs($ttl_seconds), \
+           lease_expires_at_utc: $now + duration::from_secs($ttl_seconds), \
            prior_claim_id: $prior, \
            linked_work_packet_id: $linked_work_packet_id, \
            linked_micro_task_id: $linked_micro_task_id \
@@ -347,7 +347,7 @@ const GET_LEASE_STATEMENT: &str = concat!(
 const RENEW_LEASE_STATEMENT: &str = concat!(
     "RETURN { \
        LET $updated = (UPDATE atelier_model_coordination_lease SET \
-           lease_expires_at_utc = time::now() + duration::from::secs($extend_seconds), \
+           lease_expires_at_utc = time::now() + duration::from_secs($extend_seconds), \
            ttl_seconds = $extend_seconds \
          WHERE claim_id = $claim_id AND actor_id = $actor_id \
            AND lease_state = 'active' AND time::now() < lease_expires_at_utc \

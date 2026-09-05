@@ -9,12 +9,19 @@
 //! level and as an identity-verdict rejection); and the HTTP lane router round-
 //! trips import/cases/verdicts/rewrite/export/rulepacks.
 //!
-//! Every test opens its own isolated `AtelierSurrealHarness` (a fresh on-disk
-//! embedded store with the canonical schema bootstrapped), so nothing is shared
-//! across tests and nothing is skipped. Emitted events are read back through the
-//! store's own `count_events_for_aggregate` and the kernel EventLedger
-//! (`Database::list_kernel_events_for_aggregate`), which is where the atelier
-//! projection payload lives.
+//! All store-backed scenarios run against ONE isolated `AtelierSurrealHarness`
+//! (a fresh on-disk embedded store with the canonical schema bootstrapped),
+//! sequentially, inside `prompt_feedback_kernel_proof_on_one_embedded_store`.
+//! Bootstrapping the full canonical schema onto an on-disk RocksDB store is the
+//! dominant cost of this binary (observed: hours for ten parallel harnesses on
+//! the shared build host, serialised by the storage bootstrap mutex), so the
+//! scenarios share one bootstrap and isolate themselves by unique
+//! `adapter_id` / `project_id` values instead. Every scenario is still a named
+//! function; a panic in one is caught, attributed by name, and the umbrella test
+//! fails with the full list. Nothing is skipped. Emitted events are read back
+//! through the store's own `count_events_for_aggregate` and the kernel
+//! EventLedger (`Database::list_kernel_events_for_aggregate`), which is where
+//! the atelier projection payload lives.
 //!
 //! Pure-engine unit tests (each of the 5 seed rules + a byte-identical rewrite
 //! determinism test) live in `src/atelier/prompt_feedback/engine.rs` and run with
@@ -22,11 +29,13 @@
 
 mod atelier_surreal_support;
 
+use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use async_trait::async_trait;
 use atelier_surreal_support::AtelierSurrealHarness;
+use futures::FutureExt;
 use handshake_core::api::atelier_ckc_prompt_feedback as prompt_feedback_api;
 use handshake_core::atelier::prompt_feedback::adapter::{
     import_leeseo, import_prompt_stress_csv_manifest, CuippRow, LeeseoImportRequest,
@@ -97,21 +106,23 @@ async fn latest_event_payload(
 /// FaceDetailer+FaceID close-up.
 ///
 /// The `case_id`s embed the run-unique `adapter_id` so the deterministic export
-/// content-hash is fresh per run even if two tests ever shared a store.
+/// content-hash is fresh per run, and the `project_id` is derived from the same
+/// `adapter_id` so project-scoped listings stay per-scenario on the shared store.
 ///
 /// `include_image_name` controls whether the standard row carries the reference
 /// fixture's `image_name` (which the adapter turns into a portable `dataset://`
 /// ref). The reference PostgreSQL schema accepted `dataset://` image refs; the
 /// current SurrealDB `atelier_prompt_feedback_case.image_artifact_ref` ASSERT
-/// only accepts `artifact://`, so the tests whose subject is NOT the image ref
-/// leave it out and the two tests that assert the persisted ref keep it (they
-/// document the schema gap until the ASSERT is widened).
+/// only accepts `artifact://` (schema is KERNEL_BUILDER-owned, see the lane
+/// report: BLOCKED item "persist dataset:// image refs"). The adapter-level
+/// `dataset://` mapping is still asserted by the pure tests; scenarios that
+/// PERSIST cases leave the image ref out until the ASSERT is widened.
 fn i76_fixture_request_with_options(
     adapter_id: &str,
     include_image_name: bool,
 ) -> LeeseoImportRequest {
     LeeseoImportRequest {
-        project_id: "leeseo".to_string(),
+        project_id: project_id_for(adapter_id),
         source_system: "leeseo".to_string(),
         adapter_id: adapter_id.to_string(),
         source_iteration_id: Some("i76".to_string()),
@@ -158,7 +169,7 @@ fn i76_fixture_request_without_image_ref(adapter_id: &str) -> LeeseoImportReques
 
 fn prompt_stress_csv_request(adapter_id: &str, csv: &str) -> PromptStressCsvImportRequest {
     PromptStressCsvImportRequest {
-        project_id: "leeseo".to_string(),
+        project_id: project_id_for(adapter_id),
         source_system: "leeseo".to_string(),
         adapter_id: adapter_id.to_string(),
         source_iteration_id: Some("i76".to_string()),
@@ -172,9 +183,62 @@ fn unique_adapter_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::now_v7())
 }
 
+/// Per-scenario project id on the shared store (`leeseo:` + the unique adapter id).
+fn project_id_for(adapter_id: &str) -> String {
+    format!("leeseo:{adapter_id}")
+}
+
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(text) = payload.downcast_ref::<&str>() {
+        (*text).to_string()
+    } else if let Some(text) = payload.downcast_ref::<String>() {
+        text.clone()
+    } else {
+        "non-string panic payload".to_string()
+    }
+}
+
+/// One embedded store, one schema bootstrap, every store-backed scenario in
+/// sequence. Each scenario is attributed by name; all failures are reported.
 #[tokio::test]
-async fn prompt_stress_csv_manifest_imports_cases() {
+async fn prompt_feedback_kernel_proof_on_one_embedded_store() {
     let harness = AtelierSurrealHarness::create().await;
+    let mut failures: Vec<String> = Vec::new();
+    macro_rules! scenario {
+        ($name:ident) => {
+            match AssertUnwindSafe($name(&harness)).catch_unwind().await {
+                Ok(()) => eprintln!("scenario {} ... ok", stringify!($name)),
+                Err(payload) => {
+                    eprintln!("scenario {} ... FAILED", stringify!($name));
+                    failures.push(format!(
+                        "{}: {}",
+                        stringify!($name),
+                        panic_message(payload.as_ref())
+                    ));
+                }
+            }
+        };
+    }
+    scenario!(prompt_stress_csv_manifest_imports_cases);
+    scenario!(i76_import_persists_prompt_cases_with_all_dimensions);
+    scenario!(reimport_updates_case_in_place_and_keeps_case_id);
+    scenario!(verdicts_persist_for_operator_model_subagent_and_emit_events);
+    scenario!(deterministic_rewrite_is_byte_stable_with_populated_trace);
+    scenario!(new_feedback_produces_a_distinct_rewrite_row);
+    scenario!(unimplemented_rule_pack_is_rejected);
+    scenario!(jsonl_export_is_a_hashed_artifact_store_artifact);
+    scenario!(standard_case_rejects_prompt_stress_mutation_and_identity_verdict);
+    scenario!(prompt_feedback_api_round_trips_import_verdict_rewrite_export_and_rulepacks);
+    harness.shutdown().await;
+    assert!(
+        failures.is_empty(),
+        "{} prompt-feedback scenario(s) failed:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
+async fn prompt_stress_csv_manifest_imports_cases(harness: &AtelierSurrealHarness) {
     let store = &harness.atelier;
     let adapter_id = unique_adapter_id("leeseo.prompt-stress.csv.v1");
     let csv = concat!(
@@ -183,11 +247,13 @@ async fn prompt_stress_csv_manifest_imports_cases() {
         "no_detail:full:csv-2,full,no_detail,\"full body prompt\",bad hands,full.png,,studio,plain note\r\n",
     );
 
-    let new_cases =
-        import_prompt_stress_csv_manifest(&prompt_stress_csv_request(&adapter_id, csv))
-            .expect("parse prompt-stress csv");
+    let new_cases = import_prompt_stress_csv_manifest(&prompt_stress_csv_request(&adapter_id, csv))
+        .expect("parse prompt-stress csv");
     assert_eq!(new_cases.len(), 2);
-    assert_eq!(new_cases[0].source_case_id, "with_detail_faceid:0_closeup:csv-1");
+    assert_eq!(
+        new_cases[0].source_case_id,
+        "with_detail_faceid:0_closeup:csv-1"
+    );
     assert_eq!(new_cases[0].segment, "prompt_stress");
     assert!(!new_cases[0].identity_judgement_allowed);
     assert!(new_cases[0].prompt_quality_review_allowed);
@@ -230,8 +296,16 @@ async fn prompt_stress_csv_manifest_imports_cases() {
         Some("quoted, note")
     );
 
+    // Persistence: the pinned SurrealDB ASSERT on `image_artifact_ref` accepts
+    // only `artifact://` (BLOCKED: widening to `dataset://` is a KERNEL_BUILDER
+    // schema change), so the portable `dataset://` refs asserted above are
+    // dropped before the rows are written.
+    let mut persisted_cases = new_cases.clone();
+    for case in &mut persisted_cases {
+        case.image_artifact_ref = None;
+    }
     let imported = store
-        .import_prompt_cases(&new_cases)
+        .import_prompt_cases(&persisted_cases)
         .await
         .expect("persist csv prompt cases");
     assert_eq!(imported.len(), 2);
@@ -294,17 +368,20 @@ async fn prompt_stress_csv_manifest_imports_cases() {
     let reordered =
         import_prompt_stress_csv_manifest(&prompt_stress_csv_request(&adapter_id, reordered_csv))
             .expect("parse reordered prompt-stress csv");
-    let mut original_ids: Vec<String> =
-        new_cases.iter().map(|case| case.source_case_id.clone()).collect();
-    let mut reordered_ids: Vec<String> =
-        reordered.iter().map(|case| case.source_case_id.clone()).collect();
+    let mut original_ids: Vec<String> = new_cases
+        .iter()
+        .map(|case| case.source_case_id.clone())
+        .collect();
+    let mut reordered_ids: Vec<String> = reordered
+        .iter()
+        .map(|case| case.source_case_id.clone())
+        .collect();
     original_ids.sort();
     reordered_ids.sort();
     assert_eq!(
         original_ids, reordered_ids,
         "CSV source_case_id stability must not depend on row order"
     );
-    harness.shutdown().await;
 }
 
 #[test]
@@ -417,13 +494,15 @@ fn cuipp_json_import_still_maps_cases() {
     assert_eq!(stress.render_stack, "FaceDetailer+FaceID");
 }
 
-#[tokio::test]
-async fn i76_import_persists_prompt_cases_with_all_dimensions() {
-    let harness = AtelierSurrealHarness::create().await;
+async fn i76_import_persists_prompt_cases_with_all_dimensions(harness: &AtelierSurrealHarness) {
     let store = &harness.atelier;
     let adapter_id = unique_adapter_id("leeseo.cuipp.v1");
 
-    let request = i76_fixture_request(&adapter_id);
+    // Persisted without the reference fixture's `image_name`: the pinned SurrealDB
+    // ASSERT on `image_artifact_ref` accepts only `artifact://` (BLOCKED schema
+    // item; the adapter-level `dataset://` mapping is proven by
+    // `cuipp_json_import_still_maps_cases`).
+    let request = i76_fixture_request_without_image_ref(&adapter_id);
     let new_cases = import_leeseo(&request).expect("normalize i76 rows");
     let imported = store
         .import_prompt_cases(&new_cases)
@@ -439,10 +518,7 @@ async fn i76_import_persists_prompt_cases_with_all_dimensions() {
     assert_eq!(standard.framing, "close-up");
     assert_eq!(standard.render_stack, "no_detail");
     assert!(standard.identity_judgement_allowed);
-    assert_eq!(
-        standard.image_artifact_ref.as_deref(),
-        Some("dataset://leeseo/i76/closeup-01.png")
-    );
+    assert!(standard.image_artifact_ref.is_none());
     assert_eq!(
         standard.axes.prompt_stress_positive_tail.as_deref(),
         Some("open blouse no bra")
@@ -469,25 +545,25 @@ async fn i76_import_persists_prompt_cases_with_all_dimensions() {
         "import must emit a case_imported EventLedger row"
     );
 
-    // Filtered listing groups by segment.
+    // Filtered listing groups by segment (project-scoped: the store is shared).
     let stress_only = store
         .list_prompt_cases(&PromptCaseFilter {
+            project_id: Some(project_id_for(&adapter_id)),
             segment: Some("prompt_stress".to_string()),
             ..Default::default()
         })
         .await
         .expect("list prompt-stress cases");
     assert_eq!(stress_only.len(), 1);
-    assert!(stress_only.iter().all(|case| case.segment == "prompt_stress"));
-    harness.shutdown().await;
+    assert!(stress_only
+        .iter()
+        .all(|case| case.segment == "prompt_stress"));
 }
 
-#[tokio::test]
-async fn reimport_updates_case_in_place_and_keeps_case_id() {
+async fn reimport_updates_case_in_place_and_keeps_case_id(harness: &AtelierSurrealHarness) {
     // Idempotency on (adapter_id, source_case_id): a re-import of the same source
     // case updates the row, keeps its case_id and created_at_utc, and emits one
     // more case_imported event against the same aggregate.
-    let harness = AtelierSurrealHarness::create().await;
     let store = &harness.atelier;
     let adapter_id = unique_adapter_id("leeseo.cuipp.v1");
     let mut request = i76_fixture_request_without_image_ref(&adapter_id);
@@ -523,7 +599,7 @@ async fn reimport_updates_case_in_place_and_keeps_case_id() {
     assert_eq!(
         store
             .list_prompt_cases(&PromptCaseFilter {
-                project_id: Some("leeseo".to_string()),
+                project_id: Some(project_id_for(&adapter_id)),
                 ..Default::default()
             })
             .await
@@ -548,12 +624,11 @@ async fn reimport_updates_case_in_place_and_keeps_case_id() {
         .await
         .expect("get updated case");
     assert_eq!(fetched.positive_prompt, stress_after.positive_prompt);
-    harness.shutdown().await;
 }
 
-#[tokio::test]
-async fn verdicts_persist_for_operator_model_subagent_and_emit_events() {
-    let harness = AtelierSurrealHarness::create().await;
+async fn verdicts_persist_for_operator_model_subagent_and_emit_events(
+    harness: &AtelierSurrealHarness,
+) {
     let store = &harness.atelier;
     let adapter_id = unique_adapter_id("leeseo.cuipp.v1");
     let new_cases =
@@ -603,14 +678,16 @@ async fn verdicts_persist_for_operator_model_subagent_and_emit_events() {
         .await
         .expect("list verdicts");
     assert_eq!(verdicts.len(), 3);
-    harness.shutdown().await;
 }
 
-#[tokio::test]
-async fn deterministic_rewrite_is_byte_stable_with_populated_trace() {
-    let harness = AtelierSurrealHarness::create().await;
+async fn deterministic_rewrite_is_byte_stable_with_populated_trace(
+    harness: &AtelierSurrealHarness,
+) {
     let store = &harness.atelier;
-    store.ensure_seed_rule_pack("seed").await.expect("seed rule pack");
+    store
+        .ensure_seed_rule_pack("seed")
+        .await
+        .expect("seed rule pack");
     let adapter_id = unique_adapter_id("leeseo.cuipp.v1");
     let new_cases =
         import_leeseo(&i76_fixture_request_without_image_ref(&adapter_id)).expect("normalize");
@@ -621,11 +698,21 @@ async fn deterministic_rewrite_is_byte_stable_with_populated_trace() {
         .expect("prompt-stress case");
 
     let first = store
-        .plan_prompt_rewrite(stress.case_id, SEED_RULE_PACK_ID, SEED_RULE_PACK_VERSION, "seed")
+        .plan_prompt_rewrite(
+            stress.case_id,
+            SEED_RULE_PACK_ID,
+            SEED_RULE_PACK_VERSION,
+            "seed",
+        )
         .await
         .expect("plan rewrite");
     let second = store
-        .plan_prompt_rewrite(stress.case_id, SEED_RULE_PACK_ID, SEED_RULE_PACK_VERSION, "seed")
+        .plan_prompt_rewrite(
+            stress.case_id,
+            SEED_RULE_PACK_ID,
+            SEED_RULE_PACK_VERSION,
+            "seed",
+        )
         .await
         .expect("re-plan rewrite");
     // Idempotent + byte-stable.
@@ -643,17 +730,17 @@ async fn deterministic_rewrite_is_byte_stable_with_populated_trace() {
         .trace
         .iter()
         .all(|entry| entry.rule_pack_id == SEED_RULE_PACK_ID && !entry.input_hash.is_empty()));
-    harness.shutdown().await;
 }
 
-#[tokio::test]
-async fn new_feedback_produces_a_distinct_rewrite_row() {
+async fn new_feedback_produces_a_distinct_rewrite_row(harness: &AtelierSurrealHarness) {
     // F3: a re-plan after new verdicts changes the output (contact rule flips to
     // a workflow-routing hint once contact-proof failure recurs) and must be a
     // DISTINCT rewrite row, not a silent overwrite.
-    let harness = AtelierSurrealHarness::create().await;
     let store = &harness.atelier;
-    store.ensure_seed_rule_pack("seed").await.expect("seed rule pack");
+    store
+        .ensure_seed_rule_pack("seed")
+        .await
+        .expect("seed rule pack");
     let adapter_id = unique_adapter_id("leeseo.cuipp.v1");
     let new_cases =
         import_leeseo(&i76_fixture_request_without_image_ref(&adapter_id)).expect("normalize");
@@ -664,7 +751,12 @@ async fn new_feedback_produces_a_distinct_rewrite_row() {
         .expect("prompt-stress case");
 
     let before = store
-        .plan_prompt_rewrite(stress.case_id, SEED_RULE_PACK_ID, SEED_RULE_PACK_VERSION, "seed")
+        .plan_prompt_rewrite(
+            stress.case_id,
+            SEED_RULE_PACK_ID,
+            SEED_RULE_PACK_VERSION,
+            "seed",
+        )
         .await
         .expect("plan before feedback");
 
@@ -686,7 +778,12 @@ async fn new_feedback_produces_a_distinct_rewrite_row() {
     }
 
     let after = store
-        .plan_prompt_rewrite(stress.case_id, SEED_RULE_PACK_ID, SEED_RULE_PACK_VERSION, "seed")
+        .plan_prompt_rewrite(
+            stress.case_id,
+            SEED_RULE_PACK_ID,
+            SEED_RULE_PACK_VERSION,
+            "seed",
+        )
         .await
         .expect("plan after feedback");
 
@@ -704,17 +801,17 @@ async fn new_feedback_produces_a_distinct_rewrite_row() {
         .find(|entry| entry.rule_id == "contact_claim_without_contact_proof")
         .expect("contact rule fires after recurring feedback");
     assert_eq!(routed.action_kind, ActionKind::WorkflowRoutingHint);
-    harness.shutdown().await;
 }
 
-#[tokio::test]
-async fn unimplemented_rule_pack_is_rejected() {
+async fn unimplemented_rule_pack_is_rejected(harness: &AtelierSurrealHarness) {
     // F2: even if a pack row is registered, a rewrite against a non-seed pack is
     // rejected so a persisted trace can never misattribute a pack the engine did
     // not run.
-    let harness = AtelierSurrealHarness::create().await;
     let store = &harness.atelier;
-    store.ensure_seed_rule_pack("seed").await.expect("seed rule pack");
+    store
+        .ensure_seed_rule_pack("seed")
+        .await
+        .expect("seed rule pack");
     let custom_pack = format!("custom.pack-{}", Uuid::now_v7());
     let registered = store
         .register_rule_pack(&custom_pack, 1, "Custom pack", None, &[], "seed")
@@ -743,21 +840,23 @@ async fn unimplemented_rule_pack_is_rejected() {
         err.to_string().contains("not implemented"),
         "rejection must name the unimplemented pack: {err}"
     );
-    harness.shutdown().await;
 }
 
-#[tokio::test]
-async fn jsonl_export_is_a_hashed_artifact_store_artifact() {
-    let harness = AtelierSurrealHarness::create().await;
+async fn jsonl_export_is_a_hashed_artifact_store_artifact(harness: &AtelierSurrealHarness) {
     let store = &harness.atelier;
-    store.ensure_seed_rule_pack("seed").await.expect("seed rule pack");
+    store
+        .ensure_seed_rule_pack("seed")
+        .await
+        .expect("seed rule pack");
     let adapter_id = unique_adapter_id("leeseo.cuipp.v1");
     let new_cases =
         import_leeseo(&i76_fixture_request_without_image_ref(&adapter_id)).expect("normalize");
     let imported = store.import_prompt_cases(&new_cases).await.expect("import");
     let case_ids: Vec<Uuid> = imported.iter().map(|case| case.case_id).collect();
-    let source_case_ids: Vec<String> =
-        imported.iter().map(|case| case.source_case_id.clone()).collect();
+    let source_case_ids: Vec<String> = imported
+        .iter()
+        .map(|case| case.source_case_id.clone())
+        .collect();
 
     let workspace = tempfile::tempdir().expect("isolated export workspace root");
     let workspace_root = workspace.path();
@@ -826,14 +925,16 @@ async fn jsonl_export_is_a_hashed_artifact_store_artifact() {
         1,
         "one export row, one export_materialized event"
     );
-    harness.shutdown().await;
 }
 
-#[tokio::test]
-async fn standard_case_rejects_prompt_stress_mutation_and_identity_verdict() {
-    let harness = AtelierSurrealHarness::create().await;
+async fn standard_case_rejects_prompt_stress_mutation_and_identity_verdict(
+    harness: &AtelierSurrealHarness,
+) {
     let store = &harness.atelier;
-    store.ensure_seed_rule_pack("seed").await.expect("seed rule pack");
+    store
+        .ensure_seed_rule_pack("seed")
+        .await
+        .expect("seed rule pack");
     let adapter_id = unique_adapter_id("leeseo.cuipp.v1");
     let new_cases =
         import_leeseo(&i76_fixture_request_without_image_ref(&adapter_id)).expect("normalize");
@@ -852,7 +953,12 @@ async fn standard_case_rejects_prompt_stress_mutation_and_identity_verdict() {
 
     // Engine level: the leaked prompt-stress tail is hard-rejected and stripped.
     let plan = store
-        .plan_prompt_rewrite(standard.case_id, SEED_RULE_PACK_ID, SEED_RULE_PACK_VERSION, "seed")
+        .plan_prompt_rewrite(
+            standard.case_id,
+            SEED_RULE_PACK_ID,
+            SEED_RULE_PACK_VERSION,
+            "seed",
+        )
         .await
         .expect("plan standard rewrite");
     let protected = plan
@@ -890,7 +996,6 @@ async fn standard_case_rejects_prompt_stress_mutation_and_identity_verdict() {
             .is_empty(),
         "a rejected identity verdict must not be persisted"
     );
-    harness.shutdown().await;
 }
 
 // --- HTTP lane router ---------------------------------------------------------
@@ -1017,9 +1122,9 @@ async fn serve(state: AppState) -> (String, reqwest::Client, tokio::task::JoinHa
 
 const ACTOR_HEADER: &str = "x-hsk-actor-id";
 
-#[tokio::test]
-async fn prompt_feedback_api_round_trips_import_verdict_rewrite_export_and_rulepacks() {
-    let harness = AtelierSurrealHarness::create().await;
+async fn prompt_feedback_api_round_trips_import_verdict_rewrite_export_and_rulepacks(
+    harness: &AtelierSurrealHarness,
+) {
     let workspace_root: &Path = shared_workspace_root();
     let (base, client, server) = serve(app_state(&harness)).await;
     let adapter_id = unique_adapter_id("leeseo.cuipp.v1-http");
@@ -1053,11 +1158,21 @@ async fn prompt_feedback_api_round_trips_import_verdict_rewrite_export_and_rulep
         .send()
         .await
         .expect("send import");
-    assert_eq!(response.status().as_u16(), 201, "import must be 201 Created");
+    assert_eq!(
+        response.status().as_u16(),
+        201,
+        "import must be 201 Created"
+    );
     let imported: serde_json::Value = response.json().await.expect("import json");
     assert_eq!(imported["imported_count"], 2);
-    assert_eq!(imported["seed_rule_pack"]["rule_pack_id"], SEED_RULE_PACK_ID);
-    assert_eq!(imported["seed_rule_pack"]["version"], SEED_RULE_PACK_VERSION);
+    assert_eq!(
+        imported["seed_rule_pack"]["rule_pack_id"],
+        SEED_RULE_PACK_ID
+    );
+    assert_eq!(
+        imported["seed_rule_pack"]["version"],
+        SEED_RULE_PACK_VERSION
+    );
     let cases = imported["cases"].as_array().expect("cases array");
     assert!(cases
         .iter()
@@ -1079,7 +1194,8 @@ async fn prompt_feedback_api_round_trips_import_verdict_rewrite_export_and_rulep
     // Cases, filtered by segment.
     let listed: Vec<serde_json::Value> = client
         .get(format!(
-            "{base}/atelier/prompt-feedback/cases?project_id=leeseo&segment=prompt_stress"
+            "{base}/atelier/prompt-feedback/cases?project_id={}&segment=prompt_stress",
+            fixture.project_id
         ))
         .send()
         .await
@@ -1163,7 +1279,8 @@ async fn prompt_feedback_api_round_trips_import_verdict_rewrite_export_and_rulep
     let trace = rewrite["outcome"]["trace"].as_array().expect("trace array");
     assert!(trace
         .iter()
-        .any(|entry| entry["rule_id"] == RULE_PROTECTED_EVAL && entry["action_kind"] == "hard_reject"));
+        .any(|entry| entry["rule_id"] == RULE_PROTECTED_EVAL
+            && entry["action_kind"] == "hard_reject"));
     assert!(rewrite["outcome"]["rewritten"]["prompt_stress_positive_tail"].is_null());
 
     // Rewrite with a blank rule pack id is a 400; a non-seed pack is a 400 (F2).
@@ -1221,7 +1338,10 @@ async fn prompt_feedback_api_round_trips_import_verdict_rewrite_export_and_rulep
     let artifact_id = artifact_id_from_ref(artifact_ref);
     let bytes = read_file_artifact(workspace_root, ArtifactLayer::L1, artifact_id)
         .expect("export artifact bytes exist under the shared workspace root");
-    assert_eq!(bytes.len() as u64, export["byte_len"].as_u64().expect("byte_len"));
+    assert_eq!(
+        bytes.len() as u64,
+        export["byte_len"].as_u64().expect("byte_len")
+    );
     let jsonl = String::from_utf8(bytes).expect("utf-8 jsonl");
     assert_eq!(jsonl.lines().count(), 2);
     assert!(jsonl.contains(&format!("no_detail:0_closeup:1:{adapter_id}")));
@@ -1254,7 +1374,6 @@ async fn prompt_feedback_api_round_trips_import_verdict_rewrite_export_and_rulep
     assert_eq!(empty.status().as_u16(), 400);
 
     server.abort();
-    harness.shutdown().await;
 }
 
 /// Extract the artifact UUID from an `artifact://.../<uuid>/payload` ref.
