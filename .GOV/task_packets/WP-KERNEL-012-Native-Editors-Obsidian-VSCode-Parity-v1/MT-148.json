@@ -31,20 +31,27 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "depends_on": [],
     "blocks": [
       "MT-141",
       "MT-142"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260904-233444",
     "created_by": "KERNEL_BUILDER-20260903-213930",
     "created_at_utc": "2026-09-04T23:31:02.888Z",
     "creation_reason": "Two independent defects each make a freshly created worktree unable to do its job, and both were found the hard way during the MT-145 and MT-147 lanes rather than by anyone reading the code. Neither belongs to an existing microtask: MT-145's allowed paths are two cfg(test) modules, MT-147's is a workflow file, and MT-146's is the memory surface. They are grouped here because they share one acceptance surface -- can a new worktree build and test at all -- and because fixing one without the other still leaves a new worktree broken.",
-    "relationship_to_mt_141": "Defect B lives in src/backend/handshake_core/tests/**, which MT-141 owns. This contract deliberately takes only the dependency-API repair that makes that tree COMPILE, and touches nothing else in it. MT-141's own scope is porting the suite off sqlx onto the embedded store; it is currently CLAIMED and blocked by exactly this compile failure, so repairing it here unblocks MT-141 rather than competing with it. If the Operator would rather MT-141 absorb this, close MT-148 and hand it over -- but it should not sit unowned, because it blocks every integration target in the crate."
+    "relationship_to_mt_141": "Defect B lives in src/backend/handshake_core/tests/**, which MT-141 owns. This contract deliberately takes only the dependency-API repair that makes that tree COMPILE, and touches nothing else in it. MT-141's own scope is porting the suite off sqlx onto the embedded store; it is currently CLAIMED and blocked by exactly this compile failure, so repairing it here unblocks MT-141 rather than competing with it. If the Operator would rather MT-141 absorb this, close MT-148 and hand it over -- but it should not sit unowned, because it blocks every integration target in the crate.",
+    "claimed_at_utc": "2026-09-04T23:47:58.159Z",
+    "ac_148_3_correction_2026_09_05": {
+      "at_utc": "2026-09-05T10:19:16.651Z",
+      "by": "KERNEL_BUILDER-20260903-213930 (orchestrator, contract author)",
+      "reason": "I wrote AC-148-3 as --all-targets --all-features. The implementer pointed out that llama-cpp-sys-2 is optional behind the llama-cpp-runtime-engine feature, so the literal --all-features form drags a native llama.cpp C++ build into a criterion whose actual purpose is that the tests tree compiles with no E0599. A third-party native build failing is neither proof nor blocker for this microtask. This is the same drafting error I have now made three times in this packet: writing a criterion broader than its intent and having the implementer find it unsatisfiable or irrelevant on the edge.",
+      "also": "Accepted the implementer addition of PT-148-2b. The original PT-148-2 proves a store bootstraps in a fresh worktree, which is the D-148-1 proof, but it never exercises open_existing or close_for_reopen - the code D-148-2 actually rewrote. Without 2b the tempfile repair could be wrong and every declared proof would still pass. That gap was mine and the implementer found it."
+    }
   },
   "scope": {
     "summary": "Repair the two defects that stop a fresh worktree from building and testing: .surql files that arrive with CRLF and break the compiled-manifest hash, and an integration-test helper calling a tempfile API that no longer exists.",
@@ -81,7 +88,7 @@
     "acceptance_criteria": [
       "AC-148-1: git check-attr text eol on a .surql file reports eol=lf, and the committed bytes of the .surql files are LF.",
       "AC-148-2: a brand-new worktree created from the branch can bootstrap an embedded store -- proved by running one storage-touching test in a FRESH worktree, not the one the work was done in. This is the only acceptance surface that actually proves D-148-1, because the working worktree is unaffected by construction.",
-      "AC-148-3: cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features completes with no E0599 and no could-not-compile error from the tests tree.",
+      "AC-148-3: the integration test tree compiles. The criterion is satisfied by cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets completing with no E0599 and no could-not-compile error originating in tests/**. The --all-features variant is a SECONDARY, best-effort run: --all-features enables llama-cpp-runtime-engine, which drags in the optional third-party llama-cpp-sys-2 native C++ build, and a failure inside that build says nothing about whether the tests tree compiles. If the --all-features run fails inside a third-party native build, record it as such and satisfy this criterion from the --all-targets run instead. Do not treat an unrelated native dependency as a blocker on this microtask.",
       "AC-148-4: no file outside the two allowed paths is modified. In particular nothing under src/backend/handshake_core/src/** and no other file under tests/**, which MT-141 owns.",
       "AC-148-5: the compiled-manifest hashes still match after renormalisation, and no test that passed before now fails for a schema reason.",
       "AC-148-6: if the tempfile repair changes what open_existing does rather than only how it says it, that behaviour change is stated explicitly rather than folded in silently."
@@ -90,7 +97,8 @@
       "PT-148-1: git check-attr output before and after, plus evidence the committed bytes changed from CRLF to LF.",
       "PT-148-2: one storage-touching test run green in a FRESH worktree created after the fix. A pass in the working worktree proves nothing here and must not be offered as evidence.",
       "PT-148-3: cargo check --all-targets --all-features output, quoted, showing the tests tree compiling.",
-      "PT-148-4: the diff, showing only .gitattributes and the one helper file changed."
+      "PT-148-4: the diff, showing only .gitattributes and the one helper file changed.",
+      "PT-148-2b: a runtime proof of D-148-2 specifically - run an integration target that exercises the open_existing / close_for_reopen path that was rewritten, for example atelier_core_data_tests. Added on the implementer initiative: the original PT-148-2 proves the store bootstraps but never touches the code D-148-2 actually changed, so it could pass while the tempfile repair was wrong."
     ],
     "execution_constraints": [
       "CARGO_TARGET_DIR must be an owner-scoped child of Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target/ with a SHORT slug. Sibling artifact roots are forbidden, including Handshake/Handshake_Artifacts and Handshake Worktrees/handshake-cargo-target. Bundled DuckDB C++ headers hit the MSVC 260-character path limit and fail with C1083 if the target path is long.",
@@ -150,9 +158,10 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260904-233444",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
-  }
+  },
+  "updated_at_utc": "2026-09-05T10:19:16.651Z"
 }
