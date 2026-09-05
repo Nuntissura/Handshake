@@ -62,7 +62,7 @@ async fn insert_loom_block(
 
 #[tokio::test]
 async fn mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_embedded_store() {
-    let store = embedded_store_or_return!();
+    let store = embedded_or_skip!();
     let workspace_id = store.create_workspace().await;
     let ctx = WriteContext::human(None);
 

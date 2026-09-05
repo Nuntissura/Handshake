@@ -16,6 +16,9 @@
 //! production Ollama/OpenAI-compat adapter uses — there is no separate test-only
 //! code path in the job runner). The no-model negative uses `DisabledLlmClient`
 //! (the real startup path when no provider is configured).
+#[path = "knowledge_ingestion_support.rs"]
+mod knowledge_ingestion_support;
+
 
 use handshake_core::kernel::crdt::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
 use handshake_core::llm::ollama::InMemoryLlmClient;
@@ -30,7 +33,8 @@ use handshake_core::storage::loom_ai::{
     get_loom_ai_suggestion, list_loom_ai_suggestions, LoomAiJobKind,
 };
 use handshake_core::storage::{
-    LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomEdgeType, NewLoomBlock, WriteContext,
+    Database, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomEdgeType, NewLoomBlock,
+    WriteContext,
 };
 use knowledge_ingestion_support::{open_embedded_store, EmbeddedKnowledgeStore};
 use uuid::Uuid;
@@ -124,7 +128,7 @@ async fn count_events(
     );
     events
         .iter()
-        .filter(|event| event.event_type.to_string() == event_type)
+        .filter(|event| event.event_type.as_str() == event_type)
         .count() as i64
 }
 
@@ -141,7 +145,7 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
 
     let llm = llm_for_test("roadmap");
     let result = run_loom_ai_job(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &llm,
         LoomAiJobRequest {
@@ -178,7 +182,7 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
 
     // NEGATIVE: no edge / tag exists yet on the source block.
     let edges_before = backend
-        .database
+        .database()
         .get_outgoing_edges(&ws, &n1.block_id)
         .await
         .expect("edges before");
@@ -186,7 +190,7 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
 
     // ACCEPT -> promote.
     let outcome = accept_loom_ai_suggestion(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &suggestion.suggestion_id,
         &operator(),
@@ -222,7 +226,7 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
 
     // Real TAG edge now exists on the source block, created_by=ai.
     let edges_after = backend
-        .database
+        .database()
         .get_outgoing_edges(&ws, &n1.block_id)
         .await
         .expect("edges after");
@@ -235,7 +239,7 @@ async fn auto_tag_pending_then_accept_promotes_to_real_edge() {
 
     // Knowledge bridge exists for the source block (MT-177).
     let bridge = backend
-        .database
+        .database()
         .get_loom_block_knowledge_bridge(&ws, &n1.block_id)
         .await
         .expect("bridge read");
@@ -253,7 +257,7 @@ async fn reject_leaves_authority_untouched() {
 
     let llm = llm_for_test("draft");
     let result = run_loom_ai_job(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &llm,
         LoomAiJobRequest {
@@ -271,7 +275,7 @@ async fn reject_leaves_authority_untouched() {
     let suggestion = result.suggestions[0].clone();
 
     let outcome = reject_loom_ai_suggestion(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &suggestion.suggestion_id,
         &operator(),
@@ -292,7 +296,7 @@ async fn reject_leaves_authority_untouched() {
 
     // No edge created.
     let edges = backend
-        .database
+        .database()
         .get_outgoing_edges(&ws, &n1.block_id)
         .await
         .expect("edges");
@@ -315,7 +319,7 @@ async fn non_operator_confirm_denied_with_receipt() {
 
     let llm = llm_for_test("note");
     let result = run_loom_ai_job(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &llm,
         LoomAiJobRequest {
@@ -334,7 +338,7 @@ async fn non_operator_confirm_denied_with_receipt() {
 
     // A MODEL actor (not operator/validator) tries to confirm.
     let outcome = accept_loom_ai_suggestion(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &suggestion.suggestion_id,
         &model_actor(),
@@ -372,7 +376,7 @@ async fn non_operator_confirm_denied_with_receipt() {
         .expect("row");
     assert_eq!(row.review_state, "pending");
     assert!(backend
-        .database
+        .database()
         .get_outgoing_edges(&ws, &n1.block_id)
         .await
         .expect("edges")
@@ -394,7 +398,7 @@ async fn no_model_declines_with_zero_rows() {
         "HSK-409: no model configured".to_string(),
     );
     let err = run_loom_ai_job(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &disabled,
         LoomAiJobRequest {
@@ -432,7 +436,7 @@ async fn auto_caption_accept_writes_derived_field_with_provenance() {
 
     let llm = llm_for_test("A vivid sunset over the harbor.");
     let result = run_loom_ai_job(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &llm,
         LoomAiJobRequest {
@@ -451,14 +455,14 @@ async fn auto_caption_accept_writes_derived_field_with_provenance() {
 
     // Negative: no caption yet on the block.
     let before = backend
-        .database
+        .database()
         .get_loom_block(&ws, &n1.block_id)
         .await
         .expect("block");
     assert!(before.derived.auto_caption.is_none());
 
     accept_loom_ai_suggestion(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &suggestion.suggestion_id,
         &validator(),
@@ -470,7 +474,7 @@ async fn auto_caption_accept_writes_derived_field_with_provenance() {
     .expect("accept caption");
 
     let after = backend
-        .database
+        .database()
         .get_loom_block(&ws, &n1.block_id)
         .await
         .expect("block");
@@ -497,7 +501,7 @@ async fn link_suggest_accept_promotes_ai_suggested_edge() {
     // The model picks "Beta" as the related note for "Alpha".
     let llm = llm_for_test("Beta");
     let result = run_loom_ai_job(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &llm,
         LoomAiJobRequest {
@@ -526,7 +530,7 @@ async fn link_suggest_accept_promotes_ai_suggested_edge() {
     );
 
     accept_loom_ai_suggestion(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &n1_suggestion.suggestion_id,
         &operator(),
@@ -538,7 +542,7 @@ async fn link_suggest_accept_promotes_ai_suggested_edge() {
     .expect("accept link");
 
     let edges = backend
-        .database
+        .database()
         .get_outgoing_edges(&ws, &n1.block_id)
         .await
         .expect("edges");
@@ -569,7 +573,7 @@ async fn rerun_is_idempotent_per_value() {
     for _ in 0..2 {
         let llm = llm_for_test("stable");
         let result = run_loom_ai_job(
-            backend.database.as_ref(),
+            backend.database().as_ref(),
             &backend.storage,
             &llm,
             LoomAiJobRequest {
@@ -616,7 +620,7 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
     // One job over TWO blocks => two auto_tag suggestions under ONE job_id.
     let llm = llm_for_test("roadmap");
     let result = run_loom_ai_job(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &llm,
         LoomAiJobRequest {
@@ -640,7 +644,7 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
 
     // (1) NON-OPERATOR accept-all promotes NOTHING.
     let denied_outcome = accept_all_loom_ai_suggestions(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &ws,
         &job_id,
@@ -660,13 +664,13 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
 
     // Authority untouched: no edges, all rows still pending.
     assert!(backend
-        .database
+        .database()
         .get_outgoing_edges(&ws, &n1.block_id)
         .await
         .expect("edges n1")
         .is_empty());
     assert!(backend
-        .database
+        .database()
         .get_outgoing_edges(&ws, &n2.block_id)
         .await
         .expect("edges n2")
@@ -683,7 +687,7 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
 
     // (2) OPERATOR accept-all promotes ALL of the kind.
     let promoted_outcome = accept_all_loom_ai_suggestions(
-        backend.database.as_ref(),
+        backend.database().as_ref(),
         &backend.storage,
         &ws,
         &job_id,
@@ -705,7 +709,7 @@ async fn accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_
     // Real TAG edges now exist on BOTH source blocks, created_by=ai.
     for block_id in [&n1.block_id, &n2.block_id] {
         let edges = backend
-            .database
+            .database()
             .get_outgoing_edges(&ws, block_id)
             .await
             .expect("edges after");

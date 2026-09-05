@@ -51,7 +51,7 @@ fn new_session(session_id: &str) -> NewModelSession {
 #[tokio::test]
 async fn mt142_model_session_survives_restart_with_close_metadata() {
     let session_id = format!("mt142-session-{}", Uuid::new_v4());
-    let data_dir;
+    let mut data_dir;
 
     // Phase 1: create the durable session, then close the real store entirely.
     {

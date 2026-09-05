@@ -155,7 +155,7 @@ async fn replay_context_bundle_from_trace_reconstructs_plan_evidence_and_receipt
     let setup = span_replay_setup("positive")
         .await
         .expect("embedded replay fixture");
-    let replay = replay_context_bundle_from_trace(&setup.fx.store.db, &setup.stored_trace.trace_id)
+    let replay = replay_context_bundle_from_trace(&setup.fx.store.db, &setup.fx.store.storage, &setup.stored_trace.trace_id)
         .await
         .expect("replay");
 
@@ -307,7 +307,7 @@ async fn replay_context_bundle_from_trace_fails_without_eventledger_receipts() {
         None,
     )
     .await;
-    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &missing_build_trace.trace_id)
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &setup.fx.store.storage, &missing_build_trace.trace_id)
         .await
         .expect_err("missing build receipt must fail replay");
     assert!(
@@ -322,7 +322,7 @@ async fn replay_context_bundle_from_trace_fails_without_eventledger_receipts() {
         None,
     )
     .await;
-    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &missing_trace_receipt.trace_id)
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &setup.fx.store.storage, &missing_trace_receipt.trace_id)
         .await
         .expect_err("missing trace receipt must fail replay");
     assert!(
@@ -349,7 +349,7 @@ async fn replay_context_bundle_from_trace_fails_on_receipt_aggregate_id_mismatch
         Some(trace_receipt_event_id),
     )
     .await;
-    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &trace.trace_id)
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &setup.fx.store.storage, &trace.trace_id)
         .await
         .expect_err("wrong aggregate_id must fail replay");
     assert!(
@@ -385,7 +385,7 @@ async fn replay_context_bundle_from_trace_fails_on_wrong_receipt_type_and_worksp
         Some(wrong_event.event_id),
     )
     .await;
-    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &wrong_type_trace.trace_id)
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &setup.fx.store.storage, &wrong_type_trace.trace_id)
         .await
         .expect_err("wrong receipt event type must fail replay");
     assert!(
@@ -402,7 +402,7 @@ async fn replay_context_bundle_from_trace_fails_on_wrong_receipt_type_and_worksp
         setup.stored_trace.trace_receipt_event_id.clone(),
     )
     .await;
-    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &workspace_drift_trace.trace_id)
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &setup.fx.store.storage, &workspace_drift_trace.trace_id)
         .await
         .expect_err("trace/bundle workspace drift must fail replay");
     assert!(
@@ -425,7 +425,7 @@ async fn replay_context_bundle_from_trace_fails_when_selected_trace_items_are_mi
         None,
     )
     .await;
-    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &trace.trace_id)
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &setup.fx.store.storage, &trace.trace_id)
         .await
         .expect_err("empty selected trace must fail replay");
     assert!(
@@ -448,7 +448,7 @@ async fn replay_context_bundle_from_trace_fails_when_selected_candidate_is_missi
         None,
     )
     .await;
-    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &trace.trace_id)
+    let err = replay_context_bundle_from_trace(&setup.fx.store.db, &setup.fx.store.storage, &trace.trace_id)
         .await
         .expect_err("selected evidence missing its ranked candidate must fail replay");
     assert!(
@@ -524,7 +524,7 @@ async fn replay_context_bundle_from_trace_reconstructs_executor_passage_span_anc
         .expect("traces")
         .pop()
         .expect("trace");
-    let replay = replay_context_bundle_from_trace(&fx.store.db, &stored_trace.trace_id)
+    let replay = replay_context_bundle_from_trace(&fx.store.db, &fx.store.storage, &stored_trace.trace_id)
         .await
         .expect("passage replay");
     let passage_item: &KnowledgeContextBundleItem = replay
@@ -594,7 +594,7 @@ async fn replay_context_bundle_from_trace_reconstructs_executor_graph_edge_span_
         .expect("traces")
         .pop()
         .expect("trace");
-    let replay = replay_context_bundle_from_trace(&fx.store.db, &stored_trace.trace_id)
+    let replay = replay_context_bundle_from_trace(&fx.store.db, &fx.store.storage, &stored_trace.trace_id)
         .await
         .expect("graph edge replay");
     let graph_item: &KnowledgeContextBundleItem = replay

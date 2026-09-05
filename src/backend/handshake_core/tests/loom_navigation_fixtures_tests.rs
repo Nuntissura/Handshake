@@ -94,7 +94,7 @@ impl<'a> Db<'a> {
 /// The full MT-192 navigation fixture in one scenario.
 #[tokio::test]
 async fn loom_navigation_fixture_exercises_every_path() {
-    let store = embedded_store_or_return!();
+    let store = embedded_or_skip!();
     let ws = store.create_workspace().await;
     let db = Db(&store.db, ws.clone());
     let ctx = WriteContext::human(None);

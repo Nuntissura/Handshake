@@ -143,23 +143,11 @@ async fn fresh_asset(store: &AtelierStore) -> Uuid {
 }
 
 fn artifact_payload_path(artifact: &atelier_surreal_support::NativeMediaArtifact) -> PathBuf {
-    artifact
-        .workspace_root
-        .join(".handshake")
-        .join("artifacts")
-        .join("L1")
-        .join(artifact.artifact_id.to_string())
-        .join("payload")
+    artifact.payload_path.clone()
 }
 
 fn artifact_manifest_path(artifact: &atelier_surreal_support::NativeMediaArtifact) -> PathBuf {
-    artifact
-        .workspace_root
-        .join(".handshake")
-        .join("artifacts")
-        .join("L1")
-        .join(artifact.artifact_id.to_string())
-        .join("artifact.json")
+    artifact.manifest_path.clone()
 }
 
 fn similarity_png_bytes() -> Vec<u8> {
@@ -662,10 +650,7 @@ async fn atelier_filesystem_health_detects_missing_generated_thumbnail_artifact_
         .record_media_derivative_generated_with_artifact(&MediaDerivativeGenerated {
             derivative_id: requested.derivative_id,
             artifact_ref: thumbnail_artifact.artifact_ref.clone(),
-            artifact_manifest_ref: format!(
-                "artifact://.handshake/artifacts/L1/{}/artifact.json",
-                thumbnail_artifact.artifact_id
-            ),
+            artifact_manifest_ref: thumbnail_artifact.artifact_ref.replace("/payload", "/artifact.json"),
             mime: "image/png".to_string(),
             byte_len: thumbnail_artifact.byte_len,
             updated_by: "mt-023-thumbnail-worker".to_string(),
@@ -747,10 +732,7 @@ async fn atelier_filesystem_health_does_not_mark_generated_thumbnail_payload_unt
         .record_media_derivative_generated_with_artifact(&MediaDerivativeGenerated {
             derivative_id: requested.derivative_id,
             artifact_ref: thumbnail_artifact.artifact_ref.clone(),
-            artifact_manifest_ref: format!(
-                "artifact://.handshake/artifacts/L1/{}/artifact.json",
-                thumbnail_artifact.artifact_id
-            ),
+            artifact_manifest_ref: thumbnail_artifact.artifact_ref.replace("/payload", "/artifact.json"),
             mime: "image/png".to_string(),
             byte_len: thumbnail_artifact.byte_len,
             updated_by: "mt-023-healthy-thumbnail-worker".to_string(),
@@ -4324,7 +4306,7 @@ async fn atelier_bracket_links_and_backlinks_rebuild_without_touching_source_tex
     }
 
     let tab_label_raw_marker = format!("[[story:{}|\tTabbed Label\t]]", story.document_id);
-    let tab_label_note = store
+    let tab_label_note = reconnected
         .create_character_document(&NewCharacterDocument {
             character_internal_id: source_character.internal_id,
             doc_type: CharacterDocumentType::Note,
@@ -4335,7 +4317,7 @@ async fn atelier_bracket_links_and_backlinks_rebuild_without_touching_source_tex
         })
         .await
         .expect("create tab-label source note");
-    let tab_label_rebuilt = store
+    let tab_label_rebuilt = reconnected
         .rebuild_bracket_links_for_character_document(tab_label_note.document_id)
         .await
         .expect("rebuild tab-label projection");
@@ -4345,7 +4327,7 @@ async fn atelier_bracket_links_and_backlinks_rebuild_without_touching_source_tex
     );
 
     let blank_label_raw_marker = format!("[[story:{}|\t \t]]", story.document_id);
-    let blank_label_note = store
+    let blank_label_note = reconnected
         .create_character_document(&NewCharacterDocument {
             character_internal_id: source_character.internal_id,
             doc_type: CharacterDocumentType::Note,
@@ -4356,14 +4338,14 @@ async fn atelier_bracket_links_and_backlinks_rebuild_without_touching_source_tex
         })
         .await
         .expect("create blank-label source note");
-    let blank_label_rebuilt = store
+    let blank_label_rebuilt = reconnected
         .rebuild_bracket_links_for_character_document(blank_label_note.document_id)
         .await
         .expect("rebuild blank-label projection");
     assert_eq!(blank_label_rebuilt[0].target_label, None);
 
     let bracket_label_raw_marker = format!("[[story:{}|Act [draft]]", story.document_id);
-    let bracket_label_note = store
+    let bracket_label_note = reconnected
         .create_character_document(&NewCharacterDocument {
             character_internal_id: source_character.internal_id,
             doc_type: CharacterDocumentType::Note,
@@ -4374,7 +4356,7 @@ async fn atelier_bracket_links_and_backlinks_rebuild_without_touching_source_tex
         })
         .await
         .expect("create bracket-label source note");
-    let bracket_label_rebuilt = store
+    let bracket_label_rebuilt = reconnected
         .rebuild_bracket_links_for_character_document(bracket_label_note.document_id)
         .await
         .expect("rebuild bracket-label projection");
@@ -4384,7 +4366,7 @@ async fn atelier_bracket_links_and_backlinks_rebuild_without_touching_source_tex
     );
 
     let malformed_current_first_marker = format!("[[story:{}]]", story.document_id);
-    let _malformed_version = store
+    let _malformed_version = reconnected
         .append_character_document_version(
             note.document_id,
             &AppendCharacterDocumentVersion {
@@ -4399,19 +4381,19 @@ async fn atelier_bracket_links_and_backlinks_rebuild_without_touching_source_tex
         )
         .await
         .expect("append malformed source text version");
-    let malformed_rebuild = store
+    let malformed_rebuild = reconnected
         .rebuild_bracket_links_for_character_document(note.document_id)
         .await;
     assert!(
         malformed_rebuild.is_err(),
         "malformed bracket-like source text must reject before deleting prior projections"
     );
-    let outbound_after_malformed = store
+    let outbound_after_malformed = reconnected
         .list_bracket_links_from_document(note.document_id)
         .await
         .expect("list outbound links after malformed rebuild attempt");
     assert_eq!(outbound_after_malformed, outbound_after);
-    let rebuild_events_after_malformed = store
+    let rebuild_events_after_malformed = reconnected
         .count_events_for_aggregate(
             links_event_family::BRACKET_LINKS_REBUILT,
             "atelier_character_document",
@@ -4697,7 +4679,7 @@ async fn atelier_character_relationships_crud_endpoint_validation_and_graph_proj
         ] {
             assert!(
                 !payload_text.contains(&raw_value),
-                "relationship event payload must not leak raw value {raw_value:?}: {payload}"
+                "relationship event payload must not leak raw value {raw_value:?}: {payload_text}"
             );
         }
     }

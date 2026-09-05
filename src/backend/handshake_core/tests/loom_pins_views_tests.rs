@@ -7,7 +7,7 @@
 //! loom_edges. No parallel store.
 
 #[path = "knowledge_ingestion_support.rs"]
-mod embedded_knowledge_support;
+mod knowledge_ingestion_support;
 
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomEdgeCreatedBy,
@@ -299,7 +299,7 @@ async fn mt258_bookmark_add_remove_persists_to_embedded_authority() {
         .find(|event| event.event_id == bridge.index_event_id)
         .expect("bridge receipt is present in the typed EventLedger read");
     assert_eq!(
-        receipt.event_type.to_string(),
+        receipt.event_type.as_str(),
         "KNOWLEDGE_LOOM_BLOCK_INDEXED"
     );
     assert_eq!(receipt.aggregate_type, "knowledge_loom_block");

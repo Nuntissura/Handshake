@@ -257,7 +257,7 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
         .expect("open embedded backend for MT-106");
     let workspace_id = index_fixture(&backend).await;
     let state = app_state_for(&backend.db).await;
-    let (base, server) = start_server(state).await;
+    let (base, server) = start_server(nav_api::routes(state)).await;
     let http = reqwest::Client::new();
 
     // --- Missing identity headers -> 400 (receipt law) ------------------------
@@ -524,7 +524,7 @@ async fn mt106_nav_api_flags_stale_symbols_on_every_route() {
         .expect("mark stale");
 
     let state = app_state_for(&backend.db).await;
-    let (base, server) = start_server(state).await;
+    let (base, server) = start_server(nav_api::routes(state)).await;
     let http = reqwest::Client::new();
 
     // Look up `add` -> it must now be flagged marked_stale, not served as fresh.

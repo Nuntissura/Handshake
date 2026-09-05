@@ -569,6 +569,7 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
         return Ok(());
     };
     let store = AtelierStore::new(state.surreal.clone());
+    let count_storage = state.surreal.clone();
     let artifact = atelier_surreal_support::write_native_media_artifact(b"mt-025 api clipboard");
     let url_source = format!(
         "https://example.com/api-import/{}.png?token=api-secret#fragment",

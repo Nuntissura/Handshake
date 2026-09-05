@@ -200,7 +200,7 @@ mod mt_055_spans {
             .test_mutator()
             .duplicate_row(
                 &spans,
-                &span.span_id,
+                &*span.span_id,
                 invalid_span_id,
                 &[
                     TestFieldMutation::new(span_id, TestMutationValue::string(invalid_span_id)),
@@ -531,7 +531,7 @@ mod mt_054_edges {
             .upsert_knowledge_entity(mk_entity(
                 KnowledgeEntityKind::Symbol,
                 "kernel::KernelEventType",
-                &span.span_id,
+                &*span.span_id,
             ))
             .await
             .expect("source entity");

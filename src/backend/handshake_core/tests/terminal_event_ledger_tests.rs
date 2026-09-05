@@ -79,9 +79,7 @@ async fn terminal_capture_session_receipts_land_in_surreal_event_ledger() {
     sink.feed(b"terminal-ledger-proof\n").await;
     sink.close(0).await;
 
-    drop(sink);
     drop(runtime);
-    drop(recorder);
     drop(db);
     let (reopened, reopened_db) = reopen_embedded_store(&backend).await;
     let events = reopened_db

@@ -12,6 +12,9 @@
 //! avoid cross-run collisions. Only `handshake_core` + `tokio` + `uuid` +
 //! `serde_json` (+ std) are used.
 
+#[allow(dead_code)]
+mod atelier_surreal_support;
+
 use chrono::Duration;
 use handshake_core::atelier::comfy::{
     comfy_event_family, scrub_provenance, ComfyBridgeFakeAdapterV1,

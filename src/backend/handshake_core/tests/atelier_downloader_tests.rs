@@ -14,6 +14,9 @@
 //! prerequisites. Only `handshake_core` + `tokio` + `uuid` + `serde_json` (+
 //! std) are used.
 
+#[allow(dead_code)]
+mod atelier_surreal_support;
+
 use handshake_core::atelier::downloader::{
     self, AuthMode, EmitSessionReceipt, EnqueueItem, MaterializationMode, OpenDownloadSession,
     RecordCheckpoint, RegisterAuthContext, SessionStage, SetAllowlistPolicy, SetOutputRootConfig,

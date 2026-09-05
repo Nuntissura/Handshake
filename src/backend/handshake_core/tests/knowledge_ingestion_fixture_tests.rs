@@ -11,7 +11,7 @@
 //! run lifecycle events.
 
 #[path = "knowledge_ingestion_support.rs"]
-mod embedded_knowledge_support;
+mod knowledge_ingestion_support;
 
 use std::path::{Path, PathBuf};
 

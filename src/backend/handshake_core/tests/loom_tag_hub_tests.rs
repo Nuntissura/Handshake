@@ -105,7 +105,6 @@ async fn updated_at_for(
     db.get_loom_block(workspace_id, block_id)
         .await
         .expect("read Loom block")
-        .expect("member Loom block must exist")
         .updated_at
 }
 

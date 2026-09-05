@@ -49,7 +49,7 @@ async fn mt239_freshness_detects_same_count_page_child_tampering() {
         .test_mutator()
         .update_row(
             &section_table,
-            &section.section_id,
+            &*section.section_id,
             &[
                 TestFieldMutation::new(
                     section_title,

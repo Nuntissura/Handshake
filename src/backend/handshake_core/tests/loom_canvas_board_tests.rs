@@ -418,9 +418,22 @@ async fn board_placements_viewport_and_visual_edges_round_trip() {
         .expect("add visual edge");
 
     // Persist a new viewport.
+    // The embedded board carries an optimistic-concurrency token: the caller
+    // must present the event id it last observed, so a stale writer loses.
+    let board_before_viewport = store
+        .db
+        .get_canvas_board(&ws, &canvas_id)
+        .await
+        .expect("read canvas board before viewport update");
     store
         .db
-        .update_canvas_board_state(&ctx, &ws, &canvas_id, board_state(120.5, -40.0, 1.75))
+        .update_canvas_board_state(
+            &ctx,
+            &ws,
+            &canvas_id,
+            board_state(120.5, -40.0, 1.75),
+            &board_before_viewport.board.event_ledger_event_id,
+        )
         .await
         .expect("update viewport");
 
@@ -1232,7 +1245,7 @@ async fn stage_canvas_compensation_first_makes_waiting_and_later_logical_writers
         .place_block_on_canvas(
             &ctx,
             NewLoomCanvasPlacement {
-                canvas_block_id: canvas_id,
+                canvas_block_id: canvas_id.clone(),
                 workspace_id: ws.clone(),
                 placed_block_id: receipt.placed_block_id.clone(),
                 x: 40.0,

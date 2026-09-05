@@ -815,10 +815,7 @@ async fn media_derivative_skeleton_tracks_thumbnail_proxy_and_retry_states() {
             &handshake_core::atelier::MediaDerivativeGenerated {
                 derivative_id: thumb.derivative_id,
                 artifact_ref: thumbnail_artifact.artifact_ref.clone(),
-                artifact_manifest_ref: format!(
-                    "artifact://.handshake/artifacts/L1/{}/artifact.json",
-                    thumbnail_artifact.artifact_id
-                ),
+                artifact_manifest_ref: thumbnail_artifact.artifact_ref.replace("/payload", "/artifact.json"),
                 mime: "image/png".to_string(),
                 byte_len: thumbnail_artifact.byte_len,
                 updated_by: "mt-017-worker".to_string(),
@@ -1154,10 +1151,7 @@ async fn media_derivative_terminal_states_cannot_be_overwritten() {
             &handshake_core::atelier::MediaDerivativeGenerated {
                 derivative_id: derivative.derivative_id,
                 artifact_ref: artifact.artifact_ref.clone(),
-                artifact_manifest_ref: format!(
-                    "artifact://.handshake/artifacts/L1/{}/artifact.json",
-                    artifact.artifact_id
-                ),
+                artifact_manifest_ref: artifact.artifact_ref.replace("/payload", "/artifact.json"),
                 mime: "image/png".to_string(),
                 byte_len: artifact.byte_len,
                 updated_by: "mt-017-worker".to_string(),
@@ -1226,10 +1220,7 @@ async fn media_derivative_duplicate_request_is_idempotent_after_generation() {
             &handshake_core::atelier::MediaDerivativeGenerated {
                 derivative_id: derivative.derivative_id,
                 artifact_ref: artifact.artifact_ref.clone(),
-                artifact_manifest_ref: format!(
-                    "artifact://.handshake/artifacts/L1/{}/artifact.json",
-                    artifact.artifact_id
-                ),
+                artifact_manifest_ref: artifact.artifact_ref.replace("/payload", "/artifact.json"),
                 mime: "image/png".to_string(),
                 byte_len: artifact.byte_len,
                 updated_by: "mt-017-worker".to_string(),
@@ -1384,10 +1375,7 @@ async fn media_derivative_generated_rejects_mime_format_mismatch() {
             &handshake_core::atelier::MediaDerivativeGenerated {
                 derivative_id: derivative.derivative_id,
                 artifact_ref: artifact.artifact_ref.clone(),
-                artifact_manifest_ref: format!(
-                    "artifact://.handshake/artifacts/L1/{}/artifact.json",
-                    artifact.artifact_id
-                ),
+                artifact_manifest_ref: artifact.artifact_ref.replace("/payload", "/artifact.json"),
                 mime: "image/png".to_string(),
                 byte_len: artifact.byte_len,
                 updated_by: "mt-017-worker".to_string(),
@@ -1524,13 +1512,7 @@ async fn media_materialization_rejects_gov_local_network_and_bad_metadata() {
     let identity_mismatch =
         atelier_surreal_support::write_native_media_artifact(b"mt-016 manifest identity mismatch");
     let identity_mismatch_hash = identity_mismatch.content_hash.clone();
-    let manifest_path = identity_mismatch
-        .workspace_root
-        .join(artifact_root_rel(
-            ArtifactLayer::L1,
-            identity_mismatch.artifact_id,
-        ))
-        .join("artifact.json");
+    let manifest_path = identity_mismatch.manifest_path.clone();
     let mut manifest_json: serde_json::Value = serde_json::from_slice(
         &std::fs::read(&manifest_path).expect("read native ArtifactStore manifest"),
     )

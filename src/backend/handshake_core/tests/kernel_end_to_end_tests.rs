@@ -15,7 +15,7 @@ use handshake_core::storage::surreal::{
 };
 use handshake_core::storage::{
     tests::{embedded_test_backend, EmbeddedTestBackend},
-    Database, SessionMessageRole,
+    Database, SessionMessageRole, StorageError,
 };
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::{capabilities::CapabilityRegistry, AppState};

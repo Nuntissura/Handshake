@@ -16,6 +16,7 @@
 mod user_manual_support;
 
 use std::sync::Arc;
+use sha2::{Digest, Sha256};
 
 use handshake_core::kernel::KernelActor;
 use handshake_core::knowledge_code_index::engine::{CodeIndexContext, CodeIndexEngine};

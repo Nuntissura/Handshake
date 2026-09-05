@@ -105,6 +105,8 @@ async fn known_entity_plans_direct_load_and_records_skip_reason() {
     let trace = RetrievalTrace::for_plan(&planned.plan);
     let stored = record_retrieval_trace(
         &fx.store.db,
+        &fx.store.db,
+        &fx.store.storage,
         &fx.workspace_id,
         &planned.plan,
         &trace,

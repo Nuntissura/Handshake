@@ -2156,9 +2156,20 @@ async fn swarm_dashboard_projection_api_exposes_embedded_eventledger_read_model(
     assert_eq!(body["projection_contract"]["projection_only"], true);
     assert_eq!(body["totals"]["claims"].as_u64(), Some(1));
     assert_eq!(body["claims"][0]["claim_id"], claim.claim_id);
+    // The durable record and the claim outcome are distinct types on the
+    // embedded store; assert the recovered set is exactly this one claim by
+    // the identity, status, and receipt the outcome reports.
+    let recovered_claims = inspect_workspace(&store, &workspace).await.claims;
     assert_eq!(
-        inspect_workspace(&store, &workspace).await.claims,
-        vec![claim]
+        recovered_claims.len(),
+        1,
+        "exactly one durable claim must survive for the workspace: {recovered_claims:?}"
+    );
+    assert_eq!(recovered_claims[0].claim_id, claim.claim_id);
+    assert_eq!(recovered_claims[0].status, claim.status);
+    assert_eq!(
+        recovered_claims[0].event_ledger_event_id,
+        claim.event_ledger_event_id
     );
     assert_eq!(
         inspector_row_count(&backend.storage, "kernel_event_ledger", RowFilter::All).await,

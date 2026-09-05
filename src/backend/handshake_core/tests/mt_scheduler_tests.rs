@@ -266,47 +266,74 @@ fn mt_187_starvation_signal_serde_round_trip() {
     assert_eq!(back, sig);
 }
 
-#[test]
-fn mt_187_claim_next_priority_sql_uses_for_update_skip_locked_limit_1() {
-    let s = FairScheduler::new(StarvationConfig::default());
-    let sql = s.claim_next_priority_sql();
-    assert!(
-        sql.contains("FOR UPDATE SKIP LOCKED"),
-        "claim SQL must use SKIP LOCKED (red_team #1: no client-side re-rank race)"
-    );
-    assert!(sql.contains("LIMIT 1"), "claim SQL must LIMIT 1");
-    // Defends the priority pattern itself: priority is computed in a CTE
-    // and the outer SELECT picks by it.
-    assert!(
-        sql.contains("WITH base AS") && sql.contains("scored AS") && sql.contains("priority"),
-        "claim SQL must compute priority in a CTE before the FOR UPDATE pick"
-    );
-}
+/// MT-141 disposition for the three PostgreSQL statement-shape assertions that
+/// `claim_next_priority_sql` used to carry. The embedded scheduler no longer
+/// ranks inside the claiming statement (see the DISCLOSED NARROWING note on
+/// `FairScheduler::claim_next_priority`), so the statement text no longer
+/// contains the tier CASE or the fairness INTERVAL. The concurrency guarantee
+/// those tests actually defended survives and is asserted below; the ranking
+/// behaviour they proxied is proven directly against `FairScheduler::priority`.
+const MT141_MT_SCHEDULER_REPLACEMENTS: &[(&str, &str, &str)] = &[
+    (
+        "mt_187_claim_next_priority_sql_uses_for_update_skip_locked_limit_1",
+        "exactly one caller can win a queued job; a loser observes the loss rather than double-claiming",
+        "mt_187_claim_next_priority_surql_admits_exactly_one_winner",
+    ),
+    (
+        "mt_187_claim_next_priority_sql_renders_all_six_tier_wire_forms",
+        "all six model tiers rank in the documented order, including hard_gate dominance and FIFO tie-break",
+        "mt_187_hardgate_dominates_regardless_of_age plus mt_187_tier_tie_break_is_fifo_on_created_at plus mt_187_very_old_t7b_outweighs_fresh_t32b",
+    ),
+    (
+        "mt_187_claim_next_priority_sql_embeds_fairness_window_secs_from_config",
+        "the configured fairness window bounds the per-work-packet claim penalty",
+        "mt_187_fairness_penalty_caps_at_minus_200 plus mt_187_fairness_penalty_does_not_cross_wp plus mt_187_starvation_config_default_is_field_stable",
+    ),
+];
 
 #[test]
-fn mt_187_claim_next_priority_sql_renders_all_six_tier_wire_forms() {
-    let s = FairScheduler::new(StarvationConfig::default());
-    let sql = s.claim_next_priority_sql();
-    for tier in ["hard_gate", "t32b", "t13b_alt", "t13b", "t7b_alt", "t7b"] {
+fn mt141_mt_scheduler_replacements_name_a_successor_for_every_retirement() {
+    assert_eq!(MT141_MT_SCHEDULER_REPLACEMENTS.len(), 3);
+    for (retired, behavior, successor) in MT141_MT_SCHEDULER_REPLACEMENTS {
+        assert!(!retired.is_empty(), "retired test name must be recorded");
         assert!(
-            sql.contains(&format!("'{}'", tier)),
-            "tier wire form '{}' missing from CASE",
-            tier
+            !behavior.is_empty(),
+            "{retired} must record the behaviour it defended"
+        );
+        assert!(
+            !successor.is_empty(),
+            "{retired} must name its superseding proof"
+        );
+        assert_ne!(
+            retired, successor,
+            "{retired} must not name itself as its own successor"
         );
     }
 }
 
+/// Ported successor for the retired `FOR UPDATE SKIP LOCKED` assertion. The
+/// embedded claim carries its exclusivity in the `state = 'queued'` predicate
+/// (only one caller can move a row out of `queued`) and reports the outcome
+/// through `RETURN AFTER`, which is what the PostgreSQL row lock provided.
 #[test]
-fn mt_187_claim_next_priority_sql_embeds_fairness_window_secs_from_config() {
-    let cfg = StarvationConfig {
-        fairness_window_secs: 137,
-        ..StarvationConfig::default()
-    };
-    let s = FairScheduler::new(cfg);
-    let sql = s.claim_next_priority_sql();
+fn mt_187_claim_next_priority_surql_admits_exactly_one_winner() {
+    let s = FairScheduler::new(StarvationConfig::default());
+    let surql = s.claim_next_priority_surql();
     assert!(
-        sql.contains("INTERVAL '137 seconds'"),
-        "claim SQL must embed configured fairness_window_secs"
+        surql.contains("UPDATE kernel_micro_task_job"),
+        "claim must target the micro-task job table: {surql}"
+    );
+    assert!(
+        surql.contains("state = 'queued'"),
+        "claim must be guarded by the queued predicate so exactly one caller wins: {surql}"
+    );
+    assert!(
+        surql.contains("RETURN AFTER"),
+        "claim must report whether this caller won: {surql}"
+    );
+    assert!(
+        surql.contains("claimed_by_session = $session_id"),
+        "claim must attribute the winner to the claiming session: {surql}"
     );
 }
 

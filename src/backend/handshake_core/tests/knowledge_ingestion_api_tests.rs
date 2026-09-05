@@ -9,7 +9,7 @@
 //! EventLedger receipts carrying the actor/session/correlation headers.
 
 #[path = "knowledge_ingestion_support.rs"]
-mod embedded_knowledge_support;
+mod knowledge_ingestion_support;
 
 use std::path::Path;
 use std::sync::Arc;

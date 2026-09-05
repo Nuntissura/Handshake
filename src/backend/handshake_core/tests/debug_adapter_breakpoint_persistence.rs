@@ -44,7 +44,11 @@ async fn breakpoints_round_trip_with_real_event_ledger_receipt() {
         .await
         .expect("create breakpoint workspace")
         .id;
-    let doc = db
+    // `create_knowledge_rich_document` lives on `KnowledgeStore`, which the
+    // `dyn Database` handle does not carry; use the concrete embedded store.
+    let knowledge_db =
+        handshake_core::storage::surreal::SurrealDatabase::new(backend.storage.clone());
+    let doc = knowledge_db
         .create_knowledge_rich_document(rich_doc(&workspace_id))
         .await
         .expect("create rich document");

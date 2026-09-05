@@ -2,13 +2,13 @@
 //! embedded store over a quiet loopback listener.
 
 #[path = "knowledge_ingestion_support.rs"]
-mod embedded_knowledge_support;
+mod knowledge_ingestion_support;
 #[allow(dead_code)]
 mod user_manual_support;
 
 use handshake_core::api;
 use handshake_core::storage::{
-    LoomBlockContentType, LoomViewFilters, LoomViewResponse, LoomViewType,
+    Database, LoomBlockContentType, LoomViewFilters, LoomViewResponse, LoomViewType,
 };
 use knowledge_ingestion_support::EmbeddedKnowledgeStore;
 use serde_json::{json, Value};
@@ -22,7 +22,7 @@ struct ApiFixture {
 }
 
 async fn fixture() -> Option<ApiFixture> {
-    let store = embedded_knowledge_support::open_embedded_store().await?;
+    let store = knowledge_ingestion_support::open_embedded_store().await?;
     let state = app_state_for(&store.db).await;
     let (base, server) = start_server(api::loom::routes(state)).await;
     Some(ApiFixture {

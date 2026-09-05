@@ -18,7 +18,7 @@
 //!      node on save/reload — the host never absorbs the source body.
 
 #[path = "knowledge_ingestion_support.rs"]
-mod embedded_knowledge_support;
+mod knowledge_ingestion_support;
 
 use std::sync::Arc;
 
