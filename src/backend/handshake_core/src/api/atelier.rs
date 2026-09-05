@@ -56,6 +56,28 @@ const HSK_HEADER_SOURCE_PROVENANCE: &str = "x-hsk-source-provenance";
 /// Optional request header carrying the original filename for the manifest `filename_hint`.
 const HSK_HEADER_FILENAME_HINT: &str = "x-hsk-filename-hint";
 
+pub(crate) /// Bytes of a REJECTED request body we are willing to read and discard so the client actually
+/// receives the status response. A server that answers early and stops reading makes the peer see a
+/// connection reset (WinSock 10053) instead of the 413, because it is still writing. Draining is
+/// bounded on purpose: an absurdly large declared upload is abandoned rather than absorbed, and
+/// that client may still observe a reset. 16 MiB covers a realistic over-limit attempt.
+const REJECTED_BODY_DRAIN_BUDGET_BYTES: u64 = 16 * 1024 * 1024;
+
+/// Read and discard up to `budget` bytes of a body we have already decided to reject.
+async fn drain_rejected_body<S, B, E>(stream: &mut S, budget: u64)
+where
+    S: futures_util::Stream<Item = Result<B, E>> + Unpin,
+    B: AsRef<[u8]>,
+{
+    let mut seen: u64 = 0;
+    while seen < budget {
+        match futures_util::StreamExt::next(stream).await {
+            Some(Ok(chunk)) => seen = seen.saturating_add(chunk.as_ref().len() as u64),
+            _ => break,
+        }
+    }
+}
+
 pub(crate) fn media_ingest_max_bytes() -> u64 {
     std::env::var(HSK_MEDIA_INGEST_MAX_BYTES_ENV)
         .ok()
@@ -189,10 +211,13 @@ async fn ingest_media_asset_bytes(
             }),
         ))?;
     let max_bytes = media_ingest_max_bytes();
+    let mut stream = body.into_data_stream();
     if let Some(declared) = header_str(&headers, header::CONTENT_LENGTH.as_str())
         .and_then(|value| value.parse::<u64>().ok())
     {
         if declared > max_bytes {
+            // Nothing is written to disk, but the peer is mid-upload: drain before answering.
+            drain_rejected_body(&mut stream, REJECTED_BODY_DRAIN_BUDGET_BYTES).await;
             return Err((
                 StatusCode::PAYLOAD_TOO_LARGE,
                 Json(ErrorResponse {
@@ -224,9 +249,12 @@ async fn ingest_media_asset_bytes(
         max_bytes,
     };
     let manifest =
-        match write_file_artifact_streaming(&workspace_root, spec, body.into_data_stream()).await {
+        match write_file_artifact_streaming(&workspace_root, spec, &mut stream).await {
             Ok(manifest) => manifest,
             Err(ArtifactError::SizeLimitExceeded { .. }) => {
+                // The writer stopped reading at the ceiling and removed its temp file; drain the
+                // rest so the client sees 413 rather than a reset.
+                drain_rejected_body(&mut stream, REJECTED_BODY_DRAIN_BUDGET_BYTES).await;
                 return Err((
                     StatusCode::PAYLOAD_TOO_LARGE,
                     Json(ErrorResponse {

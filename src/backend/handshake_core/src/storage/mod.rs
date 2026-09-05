@@ -1103,6 +1103,12 @@ pub mod artifacts {
     /// never overwritten, and the returned manifest's `content_hash` is the sha256 of exactly the
     /// bytes on disk. This is the ingest primitive the Studio placed-asset binding needs for video
     /// and other bulk binary ([STU-ASSET-008]).
+    ///
+    /// On [`ArtifactError::SizeLimitExceeded`] this stops reading at the ceiling. An HTTP caller
+    /// should pass `&mut stream` (a `&mut S` is itself a `Stream` when `S: Stream + Unpin`) so it
+    /// keeps the body and can drain a bounded remainder before answering 413 — a server that stops
+    /// reading and responds immediately makes the peer observe a connection reset instead of the
+    /// status.
     pub async fn write_file_artifact_streaming<S, B, E>(
         workspace_root: &Path,
         spec: StreamingFileArtifactSpec,
