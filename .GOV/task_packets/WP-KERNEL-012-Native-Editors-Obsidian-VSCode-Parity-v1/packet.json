@@ -644,7 +644,7 @@
       "MT-138": "READY_FOR_VALIDATION_V4",
       "MT-139": "READY_FOR_VALIDATION_V4",
       "MT-140": "READY_FOR_VALIDATION_V4",
-      "MT-141": "READY_FOR_DEV",
+      "MT-141": "BLOCKED_ON_DEPENDENCY",
       "MT-142": "READY_FOR_DEV",
       "MT-143": "READY_FOR_VALIDATION_V4",
       "MT-144": "READY_FOR_VALIDATION_V4",
@@ -1240,7 +1240,7 @@
       "MT-138": "READY_FOR_VALIDATION_V4",
       "MT-139": "READY_FOR_VALIDATION_V4",
       "MT-140": "READY_FOR_VALIDATION_V4",
-      "MT-141": "READY_FOR_DEV",
+      "MT-141": "BLOCKED_ON_DEPENDENCY",
       "MT-142": "READY_FOR_DEV",
       "MT-143": "READY_FOR_VALIDATION_V4",
       "MT-144": "READY_FOR_VALIDATION_V4",
@@ -1418,7 +1418,31 @@
       "deliberate_non_action": "MT-141 and MT-142 are NOT being staffed right now. The host is carrying roughly two dozen cargo and rustc processes across this session and two foreign ones, and MT-148 is the lane closest to done. Adding lanes into that would slow the one that is nearly finished and buy nothing. Staffing resumes when MT-148 closes and load drops.",
       "known_gap_for_the_validator": "55 microtasks at a READY_FOR_VALIDATION status carry no ready-checklist receipt pointer. They predate the requirement and the governed coverage check already flags the class. Not introduced by this run, but a validator working the batch will find most of it lacks the evidence link the recent microtasks have."
     },
-    "status_sync_note_2026_09_05_mt141_release": "MT-141 stale claim released 2026-09-05: claimed 2026-09-01, no implementation_result, session inactive. Liveness action only. Blocked behind MT-148 regardless, since its allowed path is the tests tree and that tree does not compile until the tempfile repair lands."
+    "status_sync_note_2026_09_05_mt141_release": "MT-141 stale claim released 2026-09-05: claimed 2026-09-01, no implementation_result, session inactive. Liveness action only. Blocked behind MT-148 regardless, since its allowed path is the tests tree and that tree does not compile until the tempfile repair lands.",
+    "finding_2026_09_06_dropped_accessors": {
+      "schema_id": "hsk.packet_finding@1",
+      "recorded_by": "KERNEL_BUILDER-20260903-213930 (orchestrator)",
+      "recorded_at_utc": "2026-09-05T23:33:03.428Z",
+      "severity": "AN_EARLIER_MT_IN_THIS_PACKET_BROKE_TWO_OTHERS_EVIDENCE",
+      "owner": "UNASSIGNED - needs a microtask owning src/**",
+      "finding": "Seven backend test targets cannot compile because accessors they assert through no longer exist in src/**. The MT-141 implementer traced them to commit b1802e5d, an earlier microtask in THIS work packet, which reworked the knowledge_* API modules and the flight recorder emitter. In every case the durable column or behaviour still exists - only the accessor or its visibility was dropped.",
+      "why_it_is_serious": "knowledge_code_index_tests carries the acceptance proofs for MT-108 and MT-105. Deleting those tests to reach a green compile would have bought the compile by destroying two other microtasks evidence, inside the same packet, without anyone noticing. The MT-141 implementer identified that and refused, which is the only reason it is visible.",
+      "what_must_be_restored": "The five SurrealDatabase repair and SCIP accessors; InMemoryKb003Storage un-gated or replaced; and starvation_watermark_at_utc, audit_reason and query_values re-exposed.",
+      "why_mt_141_cannot_do_it": "MT-141 forbidden_paths exclude src/backend/handshake_core/src/**. The fix is product code, not test code. MT-141 is correctly BLOCKED_ON_DEPENDENCY rather than reaching for it.",
+      "disclosure_not_laundered": "The implementer also flagged knowledge_code_index_tests.rs:265, which holds PostgreSQL DDL as a parser corpus fixture for the code indexer. It is not a storage dependency, but it is not a detection tripwire either, so it refused to claim the AC-141-1 tripwire exemption for it and raised it instead. Operator decision on whether AC-141-1 should cover parser fixtures.",
+      "evidence": "Product commit 4cdf201a (MT-141 port, 0 files outside the tests tree, 0 MT-148-owned files touched, verified by the orchestrator). Commit b1802e5d reworking api/knowledge_code_nav.rs, knowledge_documents.rs, knowledge_memory.rs, knowledge_retrieval.rs and flight_recorder/fr_emitter.rs."
+    },
+    "finding_2026_09_06_cargo_check_undercounts": {
+      "schema_id": "hsk.packet_finding@1",
+      "recorded_by": "KERNEL_BUILDER-20260903-213930 (orchestrator)",
+      "recorded_at_utc": "2026-09-05T23:33:03.428Z",
+      "severity": "MEASUREMENT_TRAP_UNDER_REPORTS_WORK_BY_5X",
+      "owner": "INFORMATIONAL - no fix needed, but it must be known",
+      "finding": "Plain cargo check stops scheduling further targets once errors appear. Two successive runs each reported 2 failing targets when the real number was 34. Only --keep-going revealed the true count.",
+      "why_it_matters": "Anyone sizing a compile-repair job without --keep-going will under-report it by a large factor and will believe they are nearly done when they are not. A related effect: 65 of the 156 errors in this tree were one cascade from a single mod/use name mismatch, so raw error counts overstate the work as badly as target counts understate it.",
+      "evidence": "MT-141 implementer measurement, 2026-09-06: 34 failing targets and 156 errors under --keep-going, reduced to 7 failing and 9 errors, with 385 of 392 targets compiling."
+    },
+    "status_sync_note_2026_09_06_mt141": "MT-141 advanced 34 -> 7 failing backend test targets (385/392 compile), AC-141-1 and PT-141-3 met, zero tests deleted and zero assertions weakened. Left BLOCKED_ON_DEPENDENCY: the suite was never linked or run so AC-141-4 and PT-141-2 are unmet, and the last 7 failures need src/** accessors the contract forbids it from touching. No ready receipt emitted, correctly."
   },
   "status_sync_note_2026_07_05_mt101_repair": "MT-101 moved OPEN -> READY_FOR_VALIDATION by KERNEL_BUILDER-20260705-025228 after focused hardcode/local-load repair: ordinary operator model-session /jobs requests omit wp_id, mt_id, prompt, and simulate_duration_ms; promptless bootstrap/manual wording is updated; local GGUF load is now surfaced as LocalModelLoadEndpointMissing kernel_model_runtime_load while direct spawn remains kernel_swarm_spawn_session IPC-only. Proofs passed: model_session_launch 14/14 with external screenshots, manual_content 19/19, cargo fmt --check, scoped git diff --check, cargo check --lib, CONTROL-4 no_hardcoded_color32 1/1, and git ls-files src/**/*.png empty. Official validator has not run; validator_verdict remains PENDING. Full suite/clippy/live local+cloud managed backend execution remain unproven/NEEDS_MANAGED_RESOURCE_PROOF. Contract under-scoped manual_content_editors.rs and tests/test_manual_content.rs for HBR-MAN same-change proof; operator waiver required.",
   "operator_requirement_verification_2026_08_05": {
