@@ -12,9 +12,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-058",
   "title": "Express CKC migrations 0337-0344 as schema.surql END STATE (revision 158) and re-pin the four schema hashes",
-  "status": "CLAIMED",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-05T15:55:07.155Z",
+  "updated_at_utc": "2026-09-05T20:23:43.593Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -29,12 +29,13 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-058.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": true,
     "depends_on": [],
     "claimed_by": "KERNEL_BUILDER-20260904-213453",
     "claimed_at_utc": "2026-09-05T01:05:00.438Z",
-    "completed_by": null
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-09-05T19:59:27.765Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-surreal",
@@ -85,7 +86,7 @@
     "proof_commands": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -- storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::schema_contract_is_wave_scoped_and_identity_safe storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin --nocapture"
     ],
-    "proof_status": "Pins recomputed and applied; RECORD_ID_ALIAS_ASSERTION_COUNT 225->237 (11 new tables, rule_pack contributes 2); pre-existing stale assertion fixed; full 4-test pin run in progress (handshake-tool/wp-ckc-surreal/schema-tests5.log).",
+    "proof_status": "PROVEN 2026-09-05: cargo test --lib --features surreal-test-support,test-utils over the four pin tests => test result: ok. 4 passed; 0 failed (log handshake-tool/wp-ckc-surreal/pins.log, preceded by cargo check --lib CARGO_EXIT 0 in check6.log). Applied values: SCHEMA_REVISION 158; GENERATED_SURREALQL_SHA256 9d3b830c78ffb4ac04b5af0cbdac510b29483decd076acb3e8ea81d194da4c8f; DECLARATIVE_SCHEMA_CATALOG_SHA256 8d72ae48dd23fab0d4f13a750da8daad46e156a276aca207bec665016163fb27; EXPECTED_SCHEMA_INFO_SHA256 047b1decfd076e9237d5aa5d6f8836801cbba38038ec9d84a278ebe5b69a275e; EXPECTED_ATELIER_CATALOG_SHA256 f14a7778809d15a07fbdeae930002637af15ea42d8945b6c9636dc2d15ff274c; TABLE_DEFINITION_COUNT 292; INDEX_DEFINITION_COUNT 831; REFERENCE_FIELD_COUNT 419; RECORD_ID_ALIAS_ASSERTION_COUNT 237. Fresh-engine INFO fingerprint and the canonical Atelier catalog fingerprint both regenerate to the pinned values, so an embedded store bootstraps the eleven new CKC tables without drift.",
     "pre_existing_test_drift_fixed": "schema_contract_is_wave_scoped_and_identity_safe asserted the literal `record::exists(type::record(atelier_source_evidence_record, [$this.matrix_id, $value]))`, which is absent from schema.surql at the base commit 1d47363f and at the current feat/WP-KERNEL-012 HEAD (6d5d705f); the live line is `($value = type::record(atelier_source_evidence_record, [$this.matrix_id, record::id($value)[1]]))`. The assertion string was updated to the live form (same intent: anchor verification source_id bound to the same matrix). Not a regression of this port; recorded so the 012 lane can pick it up."
   },
   "hbr_obligations": {
@@ -122,9 +123,19 @@
     "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1"
   },
   "handoff": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "note": "Blocking predecessor for MT-059..MT-063 tests."
   },
-  "validator_verdict": "PENDING"
+  "validator_verdict": "PENDING",
+  "pending_schema_change_requests": [
+    {
+      "from": "MT-063 prompt_feedback lane",
+      "surface": "atelier_prompt_feedback_case.image_artifact_ref (and sheet_artifact_ref only if needed)",
+      "change": "widen the ASSERT to accept dataset:// alongside artifact://, keeping the trimmed / no-space / no-.gov floor",
+      "reason": "reference PG schema accepted dataset://; the adapter maps image_name -> dataset://leeseo/i76/<file> and that mapping is proven, but persisting drops the ref",
+      "cost": "schema.surql edit forces a recompute of the four hash pins",
+      "status": "BATCHED - apply with any other lane schema requests in one pass"
+    }
+  ]
 }
