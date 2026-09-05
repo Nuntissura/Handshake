@@ -904,7 +904,7 @@ fn shared_workspace_root() -> &'static PathBuf {
     ROOT.get_or_init(|| {
         let root = tempfile::tempdir()
             .expect("create isolated prompt-feedback workspace root")
-            .into_path();
+            .keep();
         std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", &root);
         root
     })

@@ -38,7 +38,7 @@ pub struct NativeMediaArtifact {
 pub fn write_native_media_artifact(payload: &[u8]) -> NativeMediaArtifact {
     let workspace_root = tempfile::tempdir()
         .expect("create isolated native artifact workspace")
-        .into_path();
+        .keep();
     write_native_media_artifact_in_workspace(&workspace_root, payload)
 }
 
@@ -93,7 +93,11 @@ pub struct AtelierSurrealHarness {
     pub atelier: AtelierStore,
     pub database: Arc<dyn Database>,
     pub storage: SurrealStorage,
-    _directory: tempfile::TempDir,
+    /// `Some` while this harness owns a fresh temp dir (dropped with the harness); `None` when it
+    /// re-opened a directory kept alive across a close/reopen proof, in which case the caller owns
+    /// the path. tempfile 3.27 has no `TempDir::from_path`, so re-adoption is tracked by path.
+    _directory: Option<tempfile::TempDir>,
+    data_dir: PathBuf,
 }
 
 /// A test-owned store plus its backing harness. The wrapper keeps the
@@ -115,18 +119,20 @@ impl std::ops::Deref for ConnectedAtelier {
 impl AtelierSurrealHarness {
     pub async fn create() -> Self {
         let directory = tempfile::tempdir().expect("create isolated Atelier SurrealDB root");
-        Self::open_directory(directory).await
+        let data_dir = directory.path().to_path_buf();
+        Self::open_directory(Some(directory), data_dir).await
     }
 
     /// Re-open an existing on-disk store for a real close/reopen durability
-    /// proof. Ownership of the directory remains with the returned harness.
+    /// proof. The directory was kept alive by `close_for_reopen`; the caller
+    /// owns it and cleans it up after the final harness is shut down.
     pub async fn open_existing(data_dir: PathBuf) -> Self {
-        Self::open_directory(tempfile::TempDir::from_path(data_dir)).await
+        Self::open_directory(None, data_dir).await
     }
 
-    async fn open_directory(directory: tempfile::TempDir) -> Self {
+    async fn open_directory(directory: Option<tempfile::TempDir>, data_dir: PathBuf) -> Self {
         let storage = SurrealStorage::open(
-            SurrealStorageConfig::for_data_dir(directory.path())
+            SurrealStorageConfig::for_data_dir(&data_dir)
                 .expect("configure isolated Atelier SurrealDB"),
         )
         .await
@@ -145,6 +151,7 @@ impl AtelierSurrealHarness {
             database,
             storage,
             _directory: directory,
+            data_dir,
         }
     }
 
@@ -156,7 +163,10 @@ impl AtelierSurrealHarness {
             .shutdown()
             .await
             .expect("close isolated Atelier SurrealDB");
-        self._directory.into_path()
+        match self._directory {
+            Some(directory) => directory.keep(),
+            None => self.data_dir,
+        }
     }
 
     pub async fn shutdown(self) {

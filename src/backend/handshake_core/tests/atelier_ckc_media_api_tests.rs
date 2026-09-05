@@ -46,7 +46,7 @@ fn shared_workspace_root() -> &'static PathBuf {
     ROOT.get_or_init(|| {
         let root = tempfile::tempdir()
             .expect("create isolated ckc-media workspace root")
-            .into_path();
+            .keep();
         std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", &root);
         root
     })
@@ -299,7 +299,10 @@ async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs() {
     )
     .await;
     assert_eq!(status, reqwest::StatusCode::CREATED, "{created_album}");
-    let album_id = created_album["collection_id"].as_str().expect("album id").to_owned();
+    let album_id = created_album["collection_id"]
+        .as_str()
+        .expect("album id")
+        .to_owned();
     let expected_collection_ref = format!("atelier://collection/{album_id}");
     assert_eq!(
         created_album["character_ref"].as_str(),
@@ -400,7 +403,10 @@ async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs() {
         Some(format!("atelier://media/{hero_asset}").as_str())
     );
     assert_eq!(members[0]["content_type"].as_str(), Some("image/png"));
-    assert!(!members[0]["file_name"].as_str().unwrap_or_default().is_empty());
+    assert!(!members[0]["file_name"]
+        .as_str()
+        .unwrap_or_default()
+        .is_empty());
     assert_eq!(
         members[0]["source_path_ref"].as_str(),
         Some("atelier://folder/reference-set-a"),
@@ -433,7 +439,11 @@ async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs() {
     assert_eq!(status, reqwest::StatusCode::OK, "{page}");
     assert_eq!(page["member_count"].as_i64(), Some(2));
     assert!(page["members_next_offset"].is_null());
-    assert_eq!(page["limit"].as_i64(), Some(200), "over-large limits are capped at LIST_CAP");
+    assert_eq!(
+        page["limit"].as_i64(),
+        Some(200),
+        "over-large limits are capped at LIST_CAP"
+    );
     let page_members = page["members"].as_array().expect("paged album members");
     assert_eq!(page_members.len(), 1);
     assert_eq!(
@@ -699,7 +709,11 @@ async fn atelier_ckc_media_album_unlink_reorder_and_link_ref_edit() {
     let mut album_ids = Vec::new();
     for (name, notes, tags) in [
         ("MT-034 album one", "primary album", vec!["mt034"]),
-        ("MT-034 album two", "secondary album", vec!["mt034", "secondary"]),
+        (
+            "MT-034 album two",
+            "secondary album",
+            vec!["mt034", "secondary"],
+        ),
     ] {
         let (status, album) = json_of(
             with_operator(client.post(format!(
@@ -717,7 +731,12 @@ async fn atelier_ckc_media_album_unlink_reorder_and_link_ref_edit() {
         )
         .await;
         assert_eq!(status, reqwest::StatusCode::CREATED, "{album}");
-        album_ids.push(album["collection_id"].as_str().expect("album id").to_owned());
+        album_ids.push(
+            album["collection_id"]
+                .as_str()
+                .expect("album id")
+                .to_owned(),
+        );
     }
     let album_one_id = album_ids[0].clone();
     let album_two_id = album_ids[1].clone();
@@ -824,7 +843,10 @@ async fn atelier_ckc_media_album_unlink_reorder_and_link_ref_edit() {
         cleared_hero["source_path_ref_origin"].as_str(),
         Some("asset_fallback")
     );
-    assert_eq!(cleared_hero["link_source_path_ref_status"].as_str(), Some("none"));
+    assert_eq!(
+        cleared_hero["link_source_path_ref_status"].as_str(),
+        Some("none")
+    );
     assert_eq!(
         cleared_hero["asset_source_path_ref_status"].as_str(),
         Some("present")
@@ -1154,7 +1176,10 @@ async fn atelier_ckc_media_rows_preserve_actor_attribution() {
     )
     .await;
     assert_eq!(status, reqwest::StatusCode::CREATED, "{created_album}");
-    let album_id = created_album["collection_id"].as_str().expect("album id").to_owned();
+    let album_id = created_album["collection_id"]
+        .as_str()
+        .expect("album id")
+        .to_owned();
     assert_eq!(created_album["created_by"].as_str(), Some(actor_a));
     assert_eq!(created_album["updated_by"].as_str(), Some(actor_a));
 
@@ -1375,7 +1400,11 @@ async fn atelier_ckc_source_refs_are_validated_and_link_scoped() {
 
     let mut album_ids = Vec::new();
     for (name, notes, tags) in [
-        ("MT-035 album one", "primary source ref proof", vec!["mt035"]),
+        (
+            "MT-035 album one",
+            "primary source ref proof",
+            vec!["mt035"],
+        ),
         (
             "MT-035 album two",
             "secondary source ref proof",
@@ -1398,7 +1427,12 @@ async fn atelier_ckc_source_refs_are_validated_and_link_scoped() {
         )
         .await;
         assert_eq!(status, reqwest::StatusCode::CREATED, "{album}");
-        album_ids.push(album["collection_id"].as_str().expect("album id").to_owned());
+        album_ids.push(
+            album["collection_id"]
+                .as_str()
+                .expect("album id")
+                .to_owned(),
+        );
     }
     let album_one_id = album_ids[0].clone();
     let album_two_id = album_ids[1].clone();
@@ -1424,7 +1458,10 @@ async fn atelier_ckc_source_refs_are_validated_and_link_scoped() {
         .iter()
         .find(|member| member["asset_id"].as_str() == Some(hero_asset_id.as_str()))
         .expect("hero linked in primary album");
-    assert_eq!(primary_hero["source_path_ref_kind"].as_str(), Some("folder"));
+    assert_eq!(
+        primary_hero["source_path_ref_kind"].as_str(),
+        Some("folder")
+    );
     assert_eq!(
         primary_hero["source_url_ref_kind"].as_str(),
         Some("source_url")
@@ -1560,8 +1597,12 @@ async fn atelier_ckc_media_album_large_library_pagination() {
             .header("x-hsk-actor-id", "operator")
             .header("x-hsk-actor-kind", "operator")
     };
-    let character_internal_id =
-        fresh_character(&store, "mt033-large-media-char", "MT-033 Large Media Character").await;
+    let character_internal_id = fresh_character(
+        &store,
+        "mt033-large-media-char",
+        "MT-033 Large Media Character",
+    )
+    .await;
 
     let mut album_ids = Vec::new();
     for idx in 0..3 {
@@ -1581,7 +1622,12 @@ async fn atelier_ckc_media_album_large_library_pagination() {
         )
         .await;
         assert_eq!(status, reqwest::StatusCode::CREATED, "{created_album}");
-        album_ids.push(created_album["collection_id"].as_str().expect("album id").to_owned());
+        album_ids.push(
+            created_album["collection_id"]
+                .as_str()
+                .expect("album id")
+                .to_owned(),
+        );
     }
     let large_album_id = album_ids[0].clone();
 
@@ -1602,7 +1648,10 @@ async fn atelier_ckc_media_album_large_library_pagination() {
     )
     .await;
     assert_eq!(status, reqwest::StatusCode::OK, "{add_items}");
-    assert_eq!(add_items["inserted"].as_i64(), Some(LARGE_MEMBER_COUNT as i64));
+    assert_eq!(
+        add_items["inserted"].as_i64(),
+        Some(LARGE_MEMBER_COUNT as i64)
+    );
     assert_eq!(
         add_items["member_count"].as_i64(),
         Some(LARGE_MEMBER_COUNT as i64),
@@ -1628,7 +1677,10 @@ async fn atelier_ckc_media_album_large_library_pagination() {
     .await;
     assert_eq!(status, reqwest::StatusCode::OK, "{default_page}");
     assert_eq!(default_page["limit"].as_i64(), Some(200));
-    assert_eq!(default_page["member_count"].as_i64(), Some(LARGE_MEMBER_COUNT as i64));
+    assert_eq!(
+        default_page["member_count"].as_i64(),
+        Some(LARGE_MEMBER_COUNT as i64)
+    );
     assert_eq!(default_page["members_next_offset"].as_i64(), Some(200));
     let first_page_ids = member_asset_ids(&default_page);
     assert_eq!(first_page_ids.len(), 200);
@@ -1685,7 +1737,12 @@ async fn atelier_ckc_media_album_large_library_pagination() {
     assert_eq!(page_one_albums.len(), 2);
     let page_one_album_ids = page_one_albums
         .iter()
-        .map(|album| album["collection_id"].as_str().unwrap_or_default().to_owned())
+        .map(|album| {
+            album["collection_id"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned()
+        })
         .collect::<Vec<_>>();
 
     let (_, page_one_repeat) = json_of(
@@ -1702,7 +1759,12 @@ async fn atelier_ckc_media_album_large_library_pagination() {
         .as_array()
         .expect("album repeat page object")
         .iter()
-        .map(|album| album["collection_id"].as_str().unwrap_or_default().to_owned())
+        .map(|album| {
+            album["collection_id"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned()
+        })
         .collect::<Vec<_>>();
     assert_eq!(
         page_one_repeat_ids, page_one_album_ids,
@@ -1723,13 +1785,20 @@ async fn atelier_ckc_media_album_large_library_pagination() {
     assert_eq!(page_two["offset"].as_i64(), Some(2));
     assert_eq!(page_two["album_count"].as_i64(), Some(3));
     assert!(page_two["albums_next_offset"].is_null());
-    let page_two_albums = page_two["albums"].as_array().expect("album page two object");
+    let page_two_albums = page_two["albums"]
+        .as_array()
+        .expect("album page two object");
     assert_eq!(page_two_albums.len(), 1);
 
     let paged_album_ids = page_one_albums
         .iter()
         .chain(page_two_albums.iter())
-        .map(|album| album["collection_id"].as_str().unwrap_or_default().to_owned())
+        .map(|album| {
+            album["collection_id"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned()
+        })
         .collect::<Vec<_>>();
     assert_eq!(paged_album_ids.len(), 3);
     assert_eq!(
@@ -1769,7 +1838,10 @@ async fn atelier_ckc_media_album_large_library_pagination() {
     assert_eq!(status, reqwest::StatusCode::OK, "{member_page}");
     assert_eq!(member_page["offset"].as_i64(), Some(1));
     assert_eq!(member_page["limit"].as_i64(), Some(1));
-    assert_eq!(member_page["member_count"].as_i64(), Some(LARGE_MEMBER_COUNT as i64));
+    assert_eq!(
+        member_page["member_count"].as_i64(),
+        Some(LARGE_MEMBER_COUNT as i64)
+    );
     assert_eq!(member_page["members_next_offset"].as_i64(), Some(2));
     assert_eq!(
         member_asset_ids(&member_page),
@@ -1838,7 +1910,10 @@ async fn atelier_ckc_media_album_concurrent_reorders_never_tear_the_order() {
     )
     .await;
     assert_eq!(status, reqwest::StatusCode::CREATED, "{album}");
-    let album_id = album["collection_id"].as_str().expect("album id").to_owned();
+    let album_id = album["collection_id"]
+        .as_str()
+        .expect("album id")
+        .to_owned();
 
     let mut assets = Vec::new();
     for idx in 0..6 {
@@ -1875,12 +1950,16 @@ async fn atelier_ckc_media_album_concurrent_reorders_never_tear_the_order() {
         })
     };
     let request_a = client
-        .patch(format!("{base_url}/atelier/media-albums/{album_id}/items/reorder"))
+        .patch(format!(
+            "{base_url}/atelier/media-albums/{album_id}/items/reorder"
+        ))
         .header("x-hsk-actor-id", "race-writer-a")
         .json(&payload_for(&order_a))
         .send();
     let request_b = client
-        .patch(format!("{base_url}/atelier/media-albums/{album_id}/items/reorder"))
+        .patch(format!(
+            "{base_url}/atelier/media-albums/{album_id}/items/reorder"
+        ))
         .header("x-hsk-actor-id", "race-writer-b")
         .json(&payload_for(&order_b))
         .send();
@@ -1919,7 +1998,11 @@ async fn atelier_ckc_media_album_concurrent_reorders_never_tear_the_order() {
         .iter()
         .map(|member| member["sort_order"].as_i64().expect("sort_order"))
         .collect();
-    assert_eq!(final_sort_orders, (0..6).collect::<Vec<i64>>(), "order stays dense");
+    assert_eq!(
+        final_sort_orders,
+        (0..6).collect::<Vec<i64>>(),
+        "order stays dense"
+    );
     let winner = if final_ids == expected_a {
         "race-writer-a"
     } else {
@@ -2004,7 +2087,9 @@ async fn atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes
 
     let (status, body) = json_of(
         client
-            .post(format!("{base_url}/atelier/media-albums/{album_uuid}/items"))
+            .post(format!(
+                "{base_url}/atelier/media-albums/{album_uuid}/items"
+            ))
             .header("x-hsk-actor-id", &actor)
             .json(&serde_json::json!({ "asset_ids": [hero_asset, decoy_asset] }))
             .send()
@@ -2061,7 +2146,10 @@ async fn atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes
         Some("Use this tag for LoRA-approved CKC image sets only.")
     );
     assert_eq!(tag_note["updated_by"].as_str(), Some(actor.as_str()));
-    let first_note_id = tag_note["tag_note_id"].as_str().expect("tag note id").to_owned();
+    let first_note_id = tag_note["tag_note_id"]
+        .as_str()
+        .expect("tag note id")
+        .to_owned();
     // Same (tag, scope) again is an update of the same note row, not a second row.
     let (status, tag_note_again) = json_of(
         client
@@ -2267,10 +2355,10 @@ async fn atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes
         "rich scoped tag notes must be returned with matching CKC search hits: {media_hit}"
     );
     assert!(
-        notes
-            .iter()
-            .any(|note| note["note"].as_str() == Some("Global training-tag guidance.")
-                && note["scope_ref"].is_null()),
+        notes.iter().any(
+            |note| note["note"].as_str() == Some("Global training-tag guidance.")
+                && note["scope_ref"].is_null()
+        ),
         "global tag notes accompany every hit carrying the tag: {media_hit}"
     );
 
@@ -2315,7 +2403,10 @@ async fn atelier_ckc_search_degrades_without_embedding_model() {
     )
     .await;
     assert_eq!(status, reqwest::StatusCode::CREATED, "{album}");
-    let album_id = album["collection_id"].as_str().expect("album id").to_owned();
+    let album_id = album["collection_id"]
+        .as_str()
+        .expect("album id")
+        .to_owned();
     let (status, body) = json_of(
         client
             .post(format!("{base_url}/atelier/media-albums/{album_id}/items"))
@@ -2361,11 +2452,7 @@ async fn atelier_ckc_search_degrades_without_embedding_model() {
         .all(|mode| mode.as_str() != Some("vector")));
     assert_eq!(
         harness
-            .row_count_by_field(
-                "atelier_ckc_search_projection",
-                "target_kind",
-                "media",
-            )
+            .row_count_by_field("atelier_ckc_search_projection", "target_kind", "media",)
             .await,
         0,
         "no embedding rows are fabricated when the runtime has no embedding endpoint"

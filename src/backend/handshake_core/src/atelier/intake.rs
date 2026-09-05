@@ -25,7 +25,6 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -38,6 +37,7 @@ use super::{
     media::MEDIA_ORIGINAL_RETENTION_CLASS, reject_legacy_runtime_ref, search::normalize_tag,
     AtelierError, AtelierResult, AtelierStore, PreparedAtelierEvent, RecordEventBindings,
 };
+use crate::storage::artifacts::sha256_hex;
 
 struct IntakeRow(serde_json::Map<String, serde_json::Value>);
 
@@ -635,10 +635,6 @@ fn image_mime_for_path(path: &Path) -> Option<&'static str> {
         "webp" => Some("image/webp"),
         _ => None,
     }
-}
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    hex::encode(Sha256::digest(bytes))
 }
 
 fn checked_usize_to_i64(field: &str, value: usize) -> AtelierResult<i64> {

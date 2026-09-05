@@ -223,14 +223,9 @@ impl TryFrom<ModelLeaseRow> for ModelLeaseRecord {
     }
 }
 
-/// The lease read projection: stored fields plus the store-clock TTL view.
-/// (The former SQL computed the same two fields with `NOW()`.)
-const LEASE_READ_COLUMNS: &str =
-    "claim_id, thread_id, executor_kind, actor_id, session_id, claim_mode, lease_state, \
-     claimed_at_utc, ttl_seconds, lease_expires_at_utc, released_at_utc, taken_over_at_utc, \
-     takeover_reason, prior_claim_id, linked_work_packet_id, linked_micro_task_id, \
-     math::max([0, duration::secs(time::now() - claimed_at_utc)]) AS lease_age_seconds, \
-     (time::now() >= lease_expires_at_utc) AS lease_expired";
+// The lease read projection (stored fields plus the store-clock TTL view
+// `lease_age_seconds` / `lease_expired`) is inlined in every statement below because
+// `concat!` only accepts literals; keep the five copies identical.
 
 #[derive(Clone, SurrealValue)]
 struct ClaimLeaseBindings {
