@@ -5,8 +5,8 @@
 //! visual review artifact and lineage record that agents can inspect without
 //! pulling a large dataset onto the UI thread.
 
+use crate::storage::artifacts::sha256_hex;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 pub const CONTACT_SHEET_EXPORT_SCHEMA_ID: &str = "hsk.atelier.contact_sheet_export@1";
 
@@ -331,12 +331,6 @@ fn xml_escape(value: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
-}
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
 }
 
 #[cfg(test)]

@@ -216,6 +216,8 @@ async fn mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_embedded_st
             actor_kind: "agent".to_string(),
             actor_id: actor_id.clone(),
             session_id: session_ref.clone(),
+            thread_id: String::new(),
+            lease_claim_id: None,
             params: json!({ "query": "smoke-path", "limit": 5 }),
             started_at_utc: started_at,
             completed_at_utc: Utc::now(),

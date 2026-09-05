@@ -28,10 +28,16 @@ use std::collections::HashMap;
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
+use super::refs::{
+    character_ref, collection_ref, media_asset_ref, parse_character_ref, parse_collection_ref,
+    parse_media_asset_ref, parse_sheet_version_ref, parse_tag_ref, sheet_version_ref, tag_ref,
+};
 use super::{
     atelier_event_sql, event_ref_for_text, reject_legacy_runtime_ref, AtelierError, AtelierResult,
     AtelierStore, BulkTagRequest,
 };
+use crate::llm::{EmbeddingRequest, LlmClient};
+use std::collections::{BTreeSet, HashSet};
 
 /// Event families emitted by the search/tags/similarity submodule (MT-005).
 ///
@@ -66,9 +72,12 @@ pub mod search_event_family {
     pub const SAVED_SEARCH_UPSERTED: &str = "atelier.search.saved_search_upserted";
     /// A saved search was deleted.
     pub const SAVED_SEARCH_DELETED: &str = "atelier.search.saved_search_deleted";
+    /// A rich CKC tag note was created or updated (WP-CKC-posekit-overhaul MT-011).
+    pub const TAG_NOTE_UPSERTED: &str = "atelier.tag.note_upserted";
 
     /// All search/tags/similarity event families (parity / coverage checks).
     pub const ALL: &[&str] = &[
+        TAG_NOTE_UPSERTED,
         CHARACTER_TAGGED,
         CHARACTER_UNTAGGED,
         TAG_RULE_UPSERTED,
@@ -2259,6 +2268,1408 @@ impl AtelierStore {
         });
         hits.truncate(cap as usize);
         Ok(hits)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// WP-CKC-posekit-overhaul MT-011 on SurrealDB: CKC search (fuzzy / vector /
+// combined over characters, sheets, albums, media, tags) and rich tag notes.
+//
+// The PostgreSQL reference ran one UNION query scored with pg_trgm and ranked
+// pgvector `<=>` distances in SQL. Neither exists on the embedded store, so the
+// catalog rows are read through bound SurrealQL and the candidate assembly,
+// trigram scoring and cosine ranking run deterministically in Rust, the same
+// split `storage::surreal::search_store` uses for LoomSearchV2. Embeddings are
+// persisted on `atelier_ckc_search_projection` (typed `array<float>` of the
+// canonical dimensionality) keyed by the typed target ref.
+// ---------------------------------------------------------------------------
+
+/// Embedding dimensionality pinned by the `atelier_ckc_search_projection`
+/// schema (`array::len(embedding) = 768`), the same canonical width LoomSearchV2
+/// uses.
+pub const CKC_SEARCH_EMBEDDING_DIM: usize = 768;
+
+/// Trigram similarity floor below which a candidate is not a fuzzy match
+/// (mirrors the reference `atelier_trgm_similarity(...) > 0.08`).
+const CKC_FUZZY_THRESHOLD: f64 = 0.08;
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CkcTagNote {
+    pub tag_note_id: Uuid,
+    pub tag_id: Uuid,
+    pub tag_ref: String,
+    pub tag_text: String,
+    /// `None` is the global note; the store keeps `''` for it so the
+    /// `(tag_id, scope_ref)` UNIQUE index never depends on NONE semantics.
+    pub scope_ref: Option<String>,
+    pub note: String,
+    pub updated_by: String,
+    pub created_at_utc: DateTime<Utc>,
+    pub updated_at_utc: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UpsertCkcTagNote {
+    pub tag_text: String,
+    pub scope_ref: Option<String>,
+    pub note: String,
+    pub updated_by: String,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CkcSearchMode {
+    Fuzzy,
+    Vector,
+    Combined,
+}
+
+impl CkcSearchMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Fuzzy => "fuzzy",
+            Self::Vector => "vector",
+            Self::Combined => "combined",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Option<Self> {
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "fuzzy" | "text" | "keyword" => Some(Self::Fuzzy),
+            "vector" | "semantic" => Some(Self::Vector),
+            "combined" | "combo" | "hybrid" => Some(Self::Combined),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct CkcSearchRequest {
+    pub query: String,
+    pub modes: Vec<CkcSearchMode>,
+    pub tags: Vec<String>,
+    pub character_internal_id: Option<Uuid>,
+    pub collection_id: Option<Uuid>,
+    pub media_asset_id: Option<Uuid>,
+    pub similar_to_asset_id: Option<Uuid>,
+    pub similar_to_dhash_hex: Option<String>,
+    pub limit: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CkcSearchResponse {
+    pub query: String,
+    pub search_modes: Vec<String>,
+    pub semantic_available: bool,
+    pub vector_source: String,
+    pub result_count: usize,
+    pub results: Vec<CkcSearchHit>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CkcSearchHit {
+    pub target_kind: String,
+    pub target_ref: String,
+    pub title: String,
+    pub snippet: String,
+    pub character_ref: Option<String>,
+    pub sheet_version_ref: Option<String>,
+    pub collection_ref: Option<String>,
+    pub media_ref: Option<String>,
+    pub tag_ref: Option<String>,
+    pub tags: Vec<String>,
+    pub tag_notes: Vec<CkcTagNoteHit>,
+    pub match_modes: Vec<String>,
+    pub fuzzy_score: f64,
+    pub vector_score: f64,
+    pub similarity_distance: Option<i32>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CkcTagNoteHit {
+    pub tag_ref: String,
+    pub tag_text: String,
+    pub scope_ref: Option<String>,
+    pub note: String,
+}
+
+#[derive(Clone, Debug)]
+struct CkcSearchCandidate {
+    target_kind: &'static str,
+    target_ref: String,
+    title: String,
+    search_text: String,
+    fuzzy_score: f64,
+    character_internal_id: Option<Uuid>,
+    sheet_version_id: Option<Uuid>,
+    collection_id: Option<Uuid>,
+    asset_id: Option<Uuid>,
+    tag_id: Option<Uuid>,
+    tags: Vec<String>,
+}
+
+fn normalize_search_modes(modes: &[CkcSearchMode]) -> Vec<CkcSearchMode> {
+    if modes.is_empty() {
+        return vec![CkcSearchMode::Fuzzy];
+    }
+    let mut out = Vec::new();
+    for mode in modes {
+        if !out.contains(mode) {
+            out.push(*mode);
+        }
+    }
+    out
+}
+
+fn mode_strings(modes: &[CkcSearchMode]) -> Vec<String> {
+    modes.iter().map(|mode| mode.as_str().to_owned()).collect()
+}
+
+fn wants_vector(modes: &[CkcSearchMode]) -> bool {
+    modes
+        .iter()
+        .any(|mode| matches!(mode, CkcSearchMode::Vector | CkcSearchMode::Combined))
+}
+
+fn wants_fuzzy(modes: &[CkcSearchMode]) -> bool {
+    modes
+        .iter()
+        .any(|mode| matches!(mode, CkcSearchMode::Fuzzy | CkcSearchMode::Combined))
+}
+
+fn wants_combined(modes: &[CkcSearchMode]) -> bool {
+    modes.iter().any(|mode| *mode == CkcSearchMode::Combined)
+}
+
+fn text_snippet(text: &str, query: &str) -> String {
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if text.len() <= 220 {
+        return text;
+    }
+    let lower = text.to_ascii_lowercase();
+    let needle = query.trim().to_ascii_lowercase();
+    let start = if needle.is_empty() {
+        0
+    } else {
+        lower
+            .find(&needle)
+            .map(|idx| idx.saturating_sub(60))
+            .unwrap_or(0)
+    };
+    let end = (start + 220).min(text.len());
+    let mut start = start;
+    while start > 0 && !text.is_char_boundary(start) {
+        start -= 1;
+    }
+    let mut end = end;
+    while end < text.len() && !text.is_char_boundary(end) {
+        end += 1;
+    }
+    text[start..end].to_owned()
+}
+
+fn normalized_search_tags(tags: &[String]) -> Vec<String> {
+    let mut out = Vec::new();
+    for tag in tags {
+        let normalized = normalize_tag(tag);
+        if !normalized.is_empty() && !out.iter().any(|existing| existing == &normalized) {
+            out.push(normalized);
+        }
+    }
+    out.sort();
+    out
+}
+
+fn merged_tag_sets(sets: &[&[String]]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for set in sets {
+        for tag in set.iter() {
+            let normalized = normalize_tag(tag);
+            if !normalized.is_empty() && !out.contains(&normalized) {
+                out.push(normalized);
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+fn contains_all_tags(actual: &[String], required: &[String]) -> bool {
+    required
+        .iter()
+        .all(|required| actual.iter().any(|tag| tag == required))
+}
+
+fn ckc_query_terms(query: &str) -> Vec<String> {
+    let mut terms = Vec::new();
+    for term in query
+        .to_ascii_lowercase()
+        .split(|ch: char| !ch.is_alphanumeric())
+        .map(str::trim)
+        .filter(|term| !term.is_empty())
+    {
+        if !terms.iter().any(|existing| existing == term) {
+            terms.push(term.to_owned());
+        }
+    }
+    terms
+}
+
+fn ckc_candidate_matches_query_terms(candidate: &CkcSearchCandidate, terms: &[String]) -> bool {
+    if terms.is_empty() {
+        return true;
+    }
+    let haystack = format!("{}\n{}", candidate.title, candidate.search_text).to_ascii_lowercase();
+    terms.iter().all(|term| haystack.contains(term))
+}
+
+/// pg_trgm-shaped trigrams: each alphanumeric word is padded with two leading
+/// and one trailing blank before windowing, so word starts weigh more than word
+/// interiors exactly as the PostgreSQL extension scores them.
+fn ckc_trigrams(value: &str) -> HashSet<String> {
+    value
+        .to_lowercase()
+        .split(|ch: char| !ch.is_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .flat_map(|word| {
+            let padded = format!("  {word} ").chars().collect::<Vec<_>>();
+            padded
+                .windows(3)
+                .map(|window| window.iter().collect::<String>())
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+/// Jaccard similarity over trigram sets, the `similarity()` definition of
+/// pg_trgm (the reference `atelier_trgm_similarity` SQL function).
+fn ckc_trigram_similarity(left: &str, right: &str) -> f64 {
+    let left = ckc_trigrams(left);
+    let right = ckc_trigrams(right);
+    if left.is_empty() || right.is_empty() {
+        return 0.0;
+    }
+    let common = left.intersection(&right).count();
+    common as f64 / (left.len() + right.len() - common) as f64
+}
+
+/// The reference `fuzzy_score`: the greatest of trigram similarity against the
+/// search text, trigram similarity against the title, and 1.0 for a literal
+/// case-insensitive containment in either.
+fn ckc_fuzzy_score(title: &str, search_text: &str, query: &str) -> f64 {
+    if query.is_empty() {
+        return 0.0;
+    }
+    let lower_query = query.to_ascii_lowercase();
+    let mut score = ckc_trigram_similarity(search_text, query)
+        .max(ckc_trigram_similarity(title, query));
+    if search_text.to_ascii_lowercase().contains(&lower_query)
+        || title.to_ascii_lowercase().contains(&lower_query)
+    {
+        score = score.max(1.0);
+    }
+    score
+}
+
+fn cosine_similarity_stored(stored: &[f64], query: &[f32]) -> f64 {
+    if stored.len() != query.len() || stored.is_empty() {
+        return 0.0;
+    }
+    let mut dot = 0.0_f64;
+    let mut left = 0.0_f64;
+    let mut right = 0.0_f64;
+    for (a, b) in stored.iter().zip(query.iter()) {
+        let b = f64::from(*b);
+        dot += a * b;
+        left += a * a;
+        right += b * b;
+    }
+    if left <= 0.0 || right <= 0.0 {
+        return 0.0;
+    }
+    dot / (left.sqrt() * right.sqrt())
+}
+
+async fn embed_ckc_text(llm: &dyn LlmClient, text: &str) -> AtelierResult<Option<Vec<f32>>> {
+    if text.trim().is_empty() {
+        return Ok(None);
+    }
+    let model_id = llm.profile().model_id.clone();
+    let req = EmbeddingRequest::new(Uuid::now_v7(), text.to_owned(), model_id);
+    match llm.embedding(req).await {
+        Ok(response) => {
+            if response.vector.len() != CKC_SEARCH_EMBEDDING_DIM {
+                return Err(AtelierError::Validation(format!(
+                    "CKC search embedding dimensionality mismatch: expected {}, got {}",
+                    CKC_SEARCH_EMBEDDING_DIM,
+                    response.vector.len()
+                )));
+            }
+            if response.vector.iter().any(|value| !value.is_finite()) {
+                return Err(AtelierError::Validation(
+                    "CKC search embedding values must be finite".to_owned(),
+                ));
+            }
+            Ok(Some(response.vector))
+        }
+        // Any typed LLM error means no embedding model is available: degrade
+        // to fuzzy/dHash, never fabricate a vector.
+        Err(_) => Ok(None),
+    }
+}
+
+fn candidate_scope_refs(candidate: &CkcSearchCandidate) -> Vec<String> {
+    let mut refs = vec![candidate.target_ref.clone()];
+    if let Some(id) = candidate.character_internal_id {
+        refs.push(character_ref(id));
+    }
+    if let Some(id) = candidate.collection_id {
+        refs.push(collection_ref(id));
+    }
+    if let (Some(character_id), Some(version_id)) =
+        (candidate.character_internal_id, candidate.sheet_version_id)
+    {
+        refs.push(sheet_version_ref(character_id, version_id));
+    }
+    if let Some(id) = candidate.asset_id {
+        refs.push(media_asset_ref(id));
+    }
+    if let Some(id) = candidate.tag_id {
+        refs.push(tag_ref(id));
+    }
+    refs.sort();
+    refs.dedup();
+    refs
+}
+
+fn join_search_text(parts: &[Option<&str>]) -> String {
+    parts
+        .iter()
+        .filter_map(|part| part.map(str::trim).filter(|part| !part.is_empty()))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn tags_text(tags: &[String]) -> Option<String> {
+    if tags.is_empty() {
+        None
+    } else {
+        serde_json::to_string(tags).ok()
+    }
+}
+
+fn tag_note_scope_from_stored(scope_ref: String) -> Option<String> {
+    if scope_ref.is_empty() {
+        None
+    } else {
+        Some(scope_ref)
+    }
+}
+
+#[derive(SurrealValue)]
+struct CkcCharacterRow {
+    internal_id: SurrealUuid,
+    public_id: String,
+    display_name: String,
+}
+
+#[derive(SurrealValue)]
+struct CkcSheetRow {
+    version_id: SurrealUuid,
+    character_internal_id: SurrealUuid,
+    seq: i64,
+    raw_text: String,
+}
+
+#[derive(SurrealValue)]
+struct CkcCharacterTagRow {
+    character_internal_id: SurrealUuid,
+    text: String,
+}
+
+#[derive(SurrealValue)]
+struct CkcCollectionRow {
+    collection_id: SurrealUuid,
+    name: String,
+    notes: String,
+    tags_json: Vec<String>,
+    character_internal_id: Option<SurrealUuid>,
+    sheet_version_id: Option<SurrealUuid>,
+}
+
+#[derive(SurrealValue)]
+struct CkcCollectionItemRow {
+    collection_id: SurrealUuid,
+    asset_id: SurrealUuid,
+    content_hash: String,
+    mime: String,
+    source_provenance: Option<String>,
+    artifact_ref: String,
+}
+
+#[derive(SurrealValue)]
+struct CkcReviewRow {
+    asset_id: SurrealUuid,
+    notes: Option<String>,
+    review_status: String,
+}
+
+#[derive(SurrealValue)]
+struct CkcMediaTagRow {
+    asset_id: SurrealUuid,
+    text: String,
+}
+
+#[derive(SurrealValue)]
+struct CkcTagDictRow {
+    tag_id: SurrealUuid,
+    text: String,
+}
+
+#[derive(SurrealValue)]
+struct CkcTagNoteRow {
+    tag_note_id: SurrealUuid,
+    tag_id: SurrealUuid,
+    tag_text: String,
+    scope_ref: String,
+    note: String,
+    updated_by: String,
+    created_at_utc: Datetime,
+    updated_at_utc: Datetime,
+}
+
+impl From<CkcTagNoteRow> for CkcTagNote {
+    fn from(row: CkcTagNoteRow) -> Self {
+        let tag_id: Uuid = row.tag_id.into();
+        Self {
+            tag_note_id: row.tag_note_id.into(),
+            tag_id,
+            tag_ref: tag_ref(tag_id),
+            tag_text: row.tag_text,
+            scope_ref: tag_note_scope_from_stored(row.scope_ref),
+            note: row.note,
+            updated_by: row.updated_by,
+            created_at_utc: row.created_at_utc.into(),
+            updated_at_utc: row.updated_at_utc.into(),
+        }
+    }
+}
+
+#[derive(SurrealValue)]
+struct CkcProjectionStateRow {
+    target_ref: String,
+    search_text_hash: String,
+    embedding_model: Option<String>,
+    has_embedding: bool,
+}
+
+#[derive(SurrealValue)]
+struct CkcProjectionEmbeddingRow {
+    target_ref: String,
+    embedding: Vec<f64>,
+}
+
+#[derive(SurrealValue)]
+struct TargetRefsBinding {
+    target_refs: Vec<String>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct UpsertCkcProjectionBindings {
+    rid: RecordId,
+    target_ref: String,
+    target_kind: String,
+    search_text_hash: String,
+    embedding: Vec<f64>,
+    embedding_model: String,
+}
+
+#[derive(SurrealValue)]
+struct TagNoteLookupBindings {
+    tag_text: String,
+    scope_ref: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct UpsertCkcTagNoteBindings {
+    tag_rid: RecordId,
+    tag_id: SurrealUuid,
+    tag_text: String,
+    note_rid: RecordId,
+    tag_note_id: SurrealUuid,
+    scope_ref: String,
+    note: String,
+    updated_by: String,
+}
+
+#[derive(SurrealValue)]
+struct SheetScopeBindings {
+    version_rid: RecordId,
+    character_ref: RecordId,
+}
+
+macro_rules! ckc_tag_note_select {
+    () => {
+        "tag_note_id, record::id(tag_id) AS tag_id, tag_id.text AS tag_text, scope_ref, note, \
+         updated_by, created_at_utc, updated_at_utc"
+    };
+}
+
+const CKC_CHARACTERS_STATEMENT: &str =
+    "SELECT internal_id, public_id, display_name FROM atelier_character;";
+const CKC_SHEETS_STATEMENT: &str =
+    "SELECT version_id, record::id(character_internal_id) AS character_internal_id, seq, raw_text \
+     FROM atelier_sheet_version;";
+const CKC_CHARACTER_TAGS_STATEMENT: &str =
+    "SELECT record::id(character_internal_id) AS character_internal_id, tag_id.text AS text \
+     FROM atelier_character_tag;";
+const CKC_COLLECTIONS_STATEMENT: &str =
+    "SELECT collection_id, name, notes, tags_json, \
+       IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } \
+         AS character_internal_id, \
+       IF sheet_version_id = NONE { NONE } ELSE { record::id(sheet_version_id) } \
+         AS sheet_version_id \
+     FROM atelier_collection WHERE character_internal_id != NONE;";
+const CKC_COLLECTION_ITEMS_STATEMENT: &str =
+    "SELECT record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
+       asset_id.content_hash AS content_hash, asset_id.mime AS mime, \
+       asset_id.source_provenance AS source_provenance, asset_id.artifact_ref AS artifact_ref \
+     FROM atelier_collection_item ORDER BY sort_order ASC, asset_id ASC;";
+const CKC_REVIEW_STATEMENT: &str =
+    "SELECT record::id(asset_id) AS asset_id, notes, review_status FROM atelier_media_review_metadata;";
+const CKC_MEDIA_TAGS_STATEMENT: &str =
+    "SELECT record::id(asset_id) AS asset_id, tag_id.text AS text FROM atelier_media_asset_tag;";
+const CKC_TAG_DICT_STATEMENT: &str = "SELECT tag_id, text FROM atelier_tag ORDER BY text ASC;";
+const CKC_TAG_NOTES_STATEMENT: &str = concat!(
+    "SELECT ",
+    ckc_tag_note_select!(),
+    " FROM atelier_tag_note;"
+);
+const CKC_PROJECTION_STATE_STATEMENT: &str =
+    "SELECT target_ref, search_text_hash, embedding_model, embedding != NONE AS has_embedding \
+     FROM atelier_ckc_search_projection WHERE target_ref IN $target_refs;";
+const CKC_PROJECTION_EMBEDDINGS_STATEMENT: &str =
+    "SELECT target_ref, embedding FROM atelier_ckc_search_projection \
+     WHERE embedding != NONE AND target_ref IN $target_refs;";
+const UPSERT_CKC_PROJECTION_STATEMENT: &str =
+    "UPSERT $rid SET target_ref = $target_ref, target_kind = $target_kind, \
+       search_text_hash = $search_text_hash, embedding = $embedding, \
+       embedding_model = $embedding_model, indexed_at_utc = time::now() RETURN NONE;";
+const CKC_TAG_NOTE_LOOKUP_STATEMENT: &str = concat!(
+    "SELECT ",
+    ckc_tag_note_select!(),
+    " FROM atelier_tag_note WHERE tag_id.text = $tag_text AND scope_ref = $scope_ref LIMIT 1;"
+);
+const SHEET_SCOPE_EXISTS_STATEMENT: &str =
+    "RETURN count(SELECT id FROM atelier_sheet_version \
+                  WHERE id = $version_rid AND character_internal_id = $character_ref) > 0;";
+const RECORD_EXISTS_STATEMENT: &str = "RETURN record::exists($value);";
+
+/// Tag dictionary row (created on demand) + tag note upsert + event in ONE
+/// statement, so a rejected write never leaves an orphan tag. `note_rid` is the
+/// existing note's id when the caller found one, otherwise a fresh id; a note
+/// that appeared for the same `(tag, scope)` in between throws so the unique
+/// index is never raced.
+const UPSERT_CKC_TAG_NOTE_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $existing_tag = (SELECT VALUE id FROM atelier_tag WHERE text = $domain.tag_text LIMIT 1); \
+       IF $existing_tag = [] { \
+         CREATE $domain.tag_rid CONTENT { tag_id: $domain.tag_id, text: $domain.tag_text }; \
+       }; \
+       LET $tag_ref = (SELECT VALUE id FROM atelier_tag WHERE text = $domain.tag_text LIMIT 1)[0]; \
+       LET $existing_note = (SELECT VALUE id FROM atelier_tag_note \
+                             WHERE tag_id = $tag_ref AND scope_ref = $domain.scope_ref LIMIT 1)[0]; \
+       IF $existing_note != NONE AND $existing_note != $domain.note_rid { \
+         THROW 'ckc_tag_note_concurrent_create'; \
+       }; ",
+    atelier_event_sql!(),
+    " IF $existing_note = NONE { \
+         CREATE $domain.note_rid CONTENT { tag_note_id: $domain.tag_note_id, tag_id: $tag_ref, \
+           scope_ref: $domain.scope_ref, note: $domain.note, updated_by: $domain.updated_by }; \
+       } ELSE { \
+         UPDATE $domain.note_rid SET note = $domain.note, updated_by = $domain.updated_by, \
+           updated_at_utc = time::now(); \
+       }; \
+       RETURN (SELECT ",
+    ckc_tag_note_select!(),
+    " FROM $domain.note_rid); };"
+);
+
+impl AtelierStore {
+    async fn ckc_record_exists(&self, record: RecordId) -> AtelierResult<bool> {
+        let exists: Option<bool> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(RECORD_EXISTS_STATEMENT, RecordBinding { value: record })
+                        .await
+                })
+            })
+            .await?;
+        Ok(exists.unwrap_or(false))
+    }
+
+    /// A tag note scope must be a typed atelier ref whose target exists:
+    /// `atelier://character`, `atelier://sheet` (version must belong to the
+    /// named character), `atelier://collection`, `atelier://media`, or
+    /// `atelier://tag`.
+    async fn validate_ckc_tag_note_scope_ref(&self, scope_ref: &str) -> AtelierResult<()> {
+        let exists = if let Some(id) = parse_character_ref(scope_ref) {
+            self.ckc_record_exists(RecordId::new("atelier_character", SurrealUuid::from(id)))
+                .await?
+        } else if let Some((character_id, version_id)) = parse_sheet_version_ref(scope_ref) {
+            let bindings = SheetScopeBindings {
+                version_rid: RecordId::new("atelier_sheet_version", SurrealUuid::from(version_id)),
+                character_ref: RecordId::new("atelier_character", SurrealUuid::from(character_id)),
+            };
+            let exists: Option<bool> = self
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(async move { ctx.query_first(SHEET_SCOPE_EXISTS_STATEMENT, bindings).await })
+                })
+                .await?;
+            exists.unwrap_or(false)
+        } else if let Some(id) = parse_collection_ref(scope_ref) {
+            self.ckc_record_exists(RecordId::new("atelier_collection", SurrealUuid::from(id)))
+                .await?
+        } else if let Some(id) = parse_media_asset_ref(scope_ref) {
+            self.ckc_record_exists(RecordId::new("atelier_media_asset", SurrealUuid::from(id)))
+                .await?
+        } else if let Some(id) = parse_tag_ref(scope_ref) {
+            self.ckc_record_exists(RecordId::new("atelier_tag", SurrealUuid::from(id)))
+                .await?
+        } else {
+            return Err(AtelierError::Validation(
+                "tag note scope_ref must be a valid atelier://character, atelier://sheet, atelier://collection, atelier://media, or atelier://tag ref".into(),
+            ));
+        };
+        if !exists {
+            return Err(AtelierError::Validation(
+                "tag note scope_ref target does not exist".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Create or update the rich note for `(tag, scope)`. The tag dictionary
+    /// row is created on demand inside the same statement as the note and its
+    /// `TAG_NOTE_UPSERTED` event; every validation (including scope-target
+    /// existence) happens before any write.
+    pub async fn upsert_ckc_tag_note(&self, input: &UpsertCkcTagNote) -> AtelierResult<CkcTagNote> {
+        let tag_text = normalize_tag(&input.tag_text);
+        if tag_text.is_empty() {
+            return Err(AtelierError::Validation(
+                "tag note tag_text must not be empty".into(),
+            ));
+        }
+        let scope_ref = match input.scope_ref.as_deref() {
+            Some(raw) => {
+                let trimmed = raw.trim();
+                if trimmed.is_empty() || trimmed != raw {
+                    return Err(AtelierError::Validation(
+                        "tag note scope_ref must not be empty or padded".into(),
+                    ));
+                }
+                reject_legacy_runtime_ref("tag note scope_ref", raw)?;
+                if !raw.starts_with("atelier://") {
+                    return Err(AtelierError::Validation(
+                        "tag note scope_ref must be an atelier:// typed ref".into(),
+                    ));
+                }
+                self.validate_ckc_tag_note_scope_ref(raw).await?;
+                Some(raw.to_owned())
+            }
+            None => None,
+        };
+        let note = input.note.trim();
+        if note.is_empty() || note != input.note {
+            return Err(AtelierError::Validation(
+                "tag note must not be empty or padded".into(),
+            ));
+        }
+        let updated_by = input.updated_by.trim();
+        if updated_by.is_empty() || updated_by != input.updated_by {
+            return Err(AtelierError::Validation(
+                "tag note updated_by must not be empty or padded".into(),
+            ));
+        }
+        let stored_scope = scope_ref.clone().unwrap_or_default();
+
+        let lookup = TagNoteLookupBindings {
+            tag_text: tag_text.clone(),
+            scope_ref: stored_scope.clone(),
+        };
+        let existing: Option<CkcTagNoteRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move { ctx.query_first(CKC_TAG_NOTE_LOOKUP_STATEMENT, lookup).await })
+            })
+            .await?;
+        let tag_note_id: Uuid = existing
+            .map(|row| row.tag_note_id.into())
+            .unwrap_or_else(Uuid::now_v7);
+        let candidate_tag_id = Uuid::now_v7();
+        let bindings = UpsertCkcTagNoteBindings {
+            tag_rid: RecordId::new("atelier_tag", SurrealUuid::from(candidate_tag_id)),
+            tag_id: SurrealUuid::from(candidate_tag_id),
+            tag_text: tag_text.clone(),
+            note_rid: RecordId::new("atelier_tag_note", SurrealUuid::from(tag_note_id)),
+            tag_note_id: SurrealUuid::from(tag_note_id),
+            scope_ref: stored_scope,
+            note: note.to_owned(),
+            updated_by: updated_by.to_owned(),
+        };
+        let row: Option<CkcTagNoteRow> = self
+            .write_with_event(
+                UPSERT_CKC_TAG_NOTE_STATEMENT,
+                bindings,
+                search_event_family::TAG_NOTE_UPSERTED,
+                "atelier_tag_note",
+                &tag_note_id.to_string(),
+                serde_json::json!({
+                    "tag_note_id": tag_note_id,
+                    "tag_text": tag_text,
+                    "scope_ref": scope_ref,
+                    "updated_by": updated_by,
+                }),
+            )
+            .await
+            .map_err(|error| {
+                let text = error.to_string();
+                if text.contains("ckc_tag_note_concurrent_create")
+                    || text.contains("uq_atelier_tag_note_tag_scope")
+                {
+                    AtelierError::Conflict(format!(
+                        "tag note for tag_text={tag_text:?} scope_ref={scope_ref:?} was created concurrently; retry"
+                    ))
+                } else {
+                    error
+                }
+            })?;
+        row.map(CkcTagNote::from).ok_or_else(|| {
+            AtelierError::Internal("upserting a tag note returned no row".to_owned())
+        })
+    }
+
+    /// Every tag note, newest catalog order irrelevant: callers filter by tag
+    /// text and scope.
+    async fn load_ckc_tag_notes(&self) -> AtelierResult<Vec<CkcTagNote>> {
+        let rows: Vec<CkcTagNoteRow> = self
+            .store()
+            .with_data_operation(|ctx| {
+                Box::pin(async move { ctx.query_values(CKC_TAG_NOTES_STATEMENT, EmptyBindings {}).await })
+            })
+            .await?;
+        let mut notes: Vec<CkcTagNote> = rows.into_iter().map(Into::into).collect();
+        notes.sort_by(|a, b| {
+            a.tag_text
+                .cmp(&b.tag_text)
+                .then_with(|| a.scope_ref.cmp(&b.scope_ref))
+        });
+        Ok(notes)
+    }
+
+    async fn ckc_rows<R>(&self, statement: &'static str) -> AtelierResult<Vec<R>>
+    where
+        R: SurrealValue + Send + 'static,
+    {
+        Ok(self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move { ctx.query_values(statement, EmptyBindings {}).await })
+            })
+            .await?)
+    }
+
+    /// Assemble the CKC candidate set (characters, sheets, character-scoped
+    /// albums, album media, tags) from the catalog rows and score it. This is
+    /// the reference UNION query executed in Rust: every table is read through
+    /// bound SurrealQL and joined by id here, the trigram score is computed per
+    /// candidate, and the same containment / similarity pre-filter and
+    /// `prefetch_limit` cap apply.
+    async fn ckc_search_candidates(
+        &self,
+        request: &CkcSearchRequest,
+        modes: &[CkcSearchMode],
+        prefetch_limit: usize,
+    ) -> AtelierResult<Vec<CkcSearchCandidate>> {
+        let query = request.query.trim();
+        let allow_vector_scan = wants_vector(modes);
+
+        let characters: Vec<CkcCharacterRow> = self.ckc_rows(CKC_CHARACTERS_STATEMENT).await?;
+        let sheets: Vec<CkcSheetRow> = self.ckc_rows(CKC_SHEETS_STATEMENT).await?;
+        let character_tag_rows: Vec<CkcCharacterTagRow> =
+            self.ckc_rows(CKC_CHARACTER_TAGS_STATEMENT).await?;
+        let collections: Vec<CkcCollectionRow> = self.ckc_rows(CKC_COLLECTIONS_STATEMENT).await?;
+        let items: Vec<CkcCollectionItemRow> = self.ckc_rows(CKC_COLLECTION_ITEMS_STATEMENT).await?;
+        let reviews: Vec<CkcReviewRow> = self.ckc_rows(CKC_REVIEW_STATEMENT).await?;
+        let media_tag_rows: Vec<CkcMediaTagRow> = self.ckc_rows(CKC_MEDIA_TAGS_STATEMENT).await?;
+        let tag_dict: Vec<CkcTagDictRow> = self.ckc_rows(CKC_TAG_DICT_STATEMENT).await?;
+        let tag_notes = self.load_ckc_tag_notes().await?;
+
+        let mut character_tags: HashMap<Uuid, Vec<String>> = HashMap::new();
+        for row in character_tag_rows {
+            character_tags
+                .entry(row.character_internal_id.into())
+                .or_default()
+                .push(row.text);
+        }
+        for tags in character_tags.values_mut() {
+            *tags = merged_tag_sets(&[tags.as_slice()]);
+        }
+        let mut media_tags: HashMap<Uuid, Vec<String>> = HashMap::new();
+        for row in media_tag_rows {
+            media_tags
+                .entry(row.asset_id.into())
+                .or_default()
+                .push(row.text);
+        }
+        for tags in media_tags.values_mut() {
+            *tags = merged_tag_sets(&[tags.as_slice()]);
+        }
+        let reviews: HashMap<Uuid, CkcReviewRow> = reviews
+            .into_iter()
+            .map(|row| (Uuid::from(row.asset_id), row))
+            .collect();
+        let characters: HashMap<Uuid, CkcCharacterRow> = characters
+            .into_iter()
+            .map(|row| (Uuid::from(row.internal_id), row))
+            .collect();
+        let mut latest_sheet: HashMap<Uuid, &CkcSheetRow> = HashMap::new();
+        for sheet in &sheets {
+            let character_id: Uuid = sheet.character_internal_id.into();
+            match latest_sheet.get(&character_id) {
+                Some(current) if current.seq >= sheet.seq => {}
+                _ => {
+                    latest_sheet.insert(character_id, sheet);
+                }
+            }
+        }
+        let collections_by_id: HashMap<Uuid, &CkcCollectionRow> = collections
+            .iter()
+            .map(|row| (Uuid::from(row.collection_id), row))
+            .collect();
+        let empty_tags: Vec<String> = Vec::new();
+
+        let mut candidates: Vec<CkcSearchCandidate> = Vec::new();
+
+        for (character_id, character) in &characters {
+            let tags = character_tags.get(character_id).unwrap_or(&empty_tags);
+            let sheet = latest_sheet.get(character_id);
+            let tags_json = tags_text(tags);
+            candidates.push(CkcSearchCandidate {
+                target_kind: "character",
+                target_ref: character_ref(*character_id),
+                title: character.display_name.clone(),
+                search_text: join_search_text(&[
+                    Some(&character.display_name),
+                    Some(&character.public_id),
+                    sheet.map(|sheet| sheet.raw_text.as_str()),
+                    tags_json.as_deref(),
+                ]),
+                fuzzy_score: 0.0,
+                character_internal_id: Some(*character_id),
+                sheet_version_id: sheet.map(|sheet| sheet.version_id.into()),
+                collection_id: None,
+                asset_id: None,
+                tag_id: None,
+                tags: tags.clone(),
+            });
+        }
+
+        for sheet in &sheets {
+            let character_id: Uuid = sheet.character_internal_id.into();
+            let Some(character) = characters.get(&character_id) else {
+                continue;
+            };
+            let version_id: Uuid = sheet.version_id.into();
+            let tags = character_tags.get(&character_id).unwrap_or(&empty_tags);
+            let tags_json = tags_text(tags);
+            candidates.push(CkcSearchCandidate {
+                target_kind: "sheet",
+                target_ref: sheet_version_ref(character_id, version_id),
+                title: format!("{} sheet v{}", character.display_name, sheet.seq),
+                search_text: join_search_text(&[
+                    Some(&character.display_name),
+                    Some(&character.public_id),
+                    Some(&sheet.raw_text),
+                    tags_json.as_deref(),
+                ]),
+                fuzzy_score: 0.0,
+                character_internal_id: Some(character_id),
+                sheet_version_id: Some(version_id),
+                collection_id: None,
+                asset_id: None,
+                tag_id: None,
+                tags: tags.clone(),
+            });
+        }
+
+        for collection in &collections {
+            let Some(character_id) = collection.character_internal_id.map(Uuid::from) else {
+                continue;
+            };
+            let collection_id: Uuid = collection.collection_id.into();
+            let character = characters.get(&character_id);
+            let sheet = latest_sheet.get(&character_id);
+            let char_tags = character_tags.get(&character_id).unwrap_or(&empty_tags);
+            let collection_tags_json = tags_text(&collection.tags_json);
+            let char_tags_json = tags_text(char_tags);
+            candidates.push(CkcSearchCandidate {
+                target_kind: "album",
+                target_ref: collection_ref(collection_id),
+                title: collection.name.clone(),
+                search_text: join_search_text(&[
+                    Some(&collection.name),
+                    Some(&collection.notes),
+                    collection_tags_json.as_deref(),
+                    character.map(|character| character.display_name.as_str()),
+                    sheet.map(|sheet| sheet.raw_text.as_str()),
+                    char_tags_json.as_deref(),
+                ]),
+                fuzzy_score: 0.0,
+                character_internal_id: Some(character_id),
+                sheet_version_id: collection.sheet_version_id.map(Uuid::from),
+                collection_id: Some(collection_id),
+                asset_id: None,
+                tag_id: None,
+                tags: merged_tag_sets(&[collection.tags_json.as_slice(), char_tags.as_slice()]),
+            });
+        }
+
+        // The same asset linked into several character albums is one search
+        // target: the first (album-ordered) membership supplies the title and
+        // every membership contributes its album context to the search text.
+        let mut media_index: HashMap<Uuid, usize> = HashMap::new();
+        for item in &items {
+            let collection_id: Uuid = item.collection_id.into();
+            let Some(collection) = collections_by_id.get(&collection_id) else {
+                continue;
+            };
+            let Some(character_id) = collection.character_internal_id.map(Uuid::from) else {
+                continue;
+            };
+            let asset_id: Uuid = item.asset_id.into();
+            let character = characters.get(&character_id);
+            let sheet = latest_sheet.get(&character_id);
+            let char_tags = character_tags.get(&character_id).unwrap_or(&empty_tags);
+            let asset_tags = media_tags.get(&asset_id).unwrap_or(&empty_tags);
+            let review = reviews.get(&asset_id);
+            let media_tags_json = tags_text(asset_tags);
+            let collection_tags_json = tags_text(&collection.tags_json);
+            let char_tags_json = tags_text(char_tags);
+            let context_text = join_search_text(&[
+                Some(&collection.name),
+                Some(&collection.notes),
+                collection_tags_json.as_deref(),
+                character.map(|character| character.display_name.as_str()),
+                sheet.map(|sheet| sheet.raw_text.as_str()),
+                char_tags_json.as_deref(),
+            ]);
+            let merged_tags = merged_tag_sets(&[
+                asset_tags.as_slice(),
+                collection.tags_json.as_slice(),
+                char_tags.as_slice(),
+            ]);
+            if let Some(index) = media_index.get(&asset_id) {
+                let existing = &mut candidates[*index];
+                if !context_text.is_empty() {
+                    existing.search_text.push('\n');
+                    existing.search_text.push_str(&context_text);
+                }
+                existing.tags = merged_tag_sets(&[existing.tags.as_slice(), merged_tags.as_slice()]);
+                continue;
+            }
+            let title_source = item
+                .source_provenance
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+                .unwrap_or_else(|| item.content_hash.chars().take(16).collect());
+            media_index.insert(asset_id, candidates.len());
+            candidates.push(CkcSearchCandidate {
+                target_kind: "media",
+                target_ref: media_asset_ref(asset_id),
+                title: format!("{title_source} / {}", collection.name),
+                search_text: join_search_text(&[
+                    Some(&item.content_hash),
+                    Some(&item.mime),
+                    item.source_provenance.as_deref(),
+                    Some(&item.artifact_ref),
+                    review.and_then(|review| review.notes.as_deref()),
+                    review.map(|review| review.review_status.as_str()),
+                    media_tags_json.as_deref(),
+                    Some(&context_text),
+                ]),
+                fuzzy_score: 0.0,
+                character_internal_id: Some(character_id),
+                sheet_version_id: collection.sheet_version_id.map(Uuid::from),
+                collection_id: Some(collection_id),
+                asset_id: Some(asset_id),
+                tag_id: None,
+                tags: merged_tags,
+            });
+        }
+
+        for tag in &tag_dict {
+            let tag_id: Uuid = tag.tag_id.into();
+            let mut parts: Vec<Option<&str>> = vec![Some(tag.text.as_str())];
+            for note in tag_notes.iter().filter(|note| note.tag_id == tag_id) {
+                parts.push(Some(note.note.as_str()));
+                parts.push(note.scope_ref.as_deref());
+            }
+            candidates.push(CkcSearchCandidate {
+                target_kind: "tag",
+                target_ref: tag_ref(tag_id),
+                title: tag.text.clone(),
+                search_text: join_search_text(&parts),
+                fuzzy_score: 0.0,
+                character_internal_id: None,
+                sheet_version_id: None,
+                collection_id: None,
+                asset_id: None,
+                tag_id: Some(tag_id),
+                tags: vec![normalize_tag(&tag.text)],
+            });
+        }
+
+        let lower_query = query.to_ascii_lowercase();
+        let mut scored: Vec<CkcSearchCandidate> = candidates
+            .into_iter()
+            .filter(|candidate| {
+                request
+                    .character_internal_id
+                    .map_or(true, |id| candidate.character_internal_id == Some(id))
+                    && request
+                        .collection_id
+                        .map_or(true, |id| candidate.collection_id == Some(id))
+                    && request
+                        .media_asset_id
+                        .map_or(true, |id| candidate.asset_id == Some(id))
+            })
+            .map(|mut candidate| {
+                candidate.fuzzy_score =
+                    ckc_fuzzy_score(&candidate.title, &candidate.search_text, query);
+                candidate
+            })
+            .filter(|candidate| {
+                query.is_empty()
+                    || allow_vector_scan
+                    || candidate.search_text.to_ascii_lowercase().contains(&lower_query)
+                    || candidate.title.to_ascii_lowercase().contains(&lower_query)
+                    || candidate.fuzzy_score > CKC_FUZZY_THRESHOLD
+            })
+            .collect();
+        scored.sort_by(|a, b| {
+            b.fuzzy_score
+                .partial_cmp(&a.fuzzy_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.target_kind.cmp(b.target_kind))
+                .then_with(|| a.target_ref.cmp(&b.target_ref))
+        });
+        scored.truncate(prefetch_limit);
+        Ok(scored)
+    }
+
+    /// Bring the semantic projection of every candidate up to date: a row whose
+    /// `search_text_hash` and `embedding_model` already match is left alone,
+    /// everything else is (re)embedded through the configured model runtime.
+    async fn refresh_ckc_semantic_projections(
+        &self,
+        candidates: &[CkcSearchCandidate],
+        llm: &dyn LlmClient,
+    ) -> AtelierResult<()> {
+        if candidates.is_empty() {
+            return Ok(());
+        }
+        let embedding_model = llm.profile().model_id.clone();
+        let target_refs: Vec<String> = candidates
+            .iter()
+            .map(|candidate| candidate.target_ref.clone())
+            .collect();
+        let state_rows: Vec<CkcProjectionStateRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        CKC_PROJECTION_STATE_STATEMENT,
+                        TargetRefsBinding { target_refs },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        let state: HashMap<String, CkcProjectionStateRow> = state_rows
+            .into_iter()
+            .map(|row| (row.target_ref.clone(), row))
+            .collect();
+        for candidate in candidates {
+            let search_text_hash = event_ref_for_text(&candidate.search_text);
+            let is_current = state.get(&candidate.target_ref).is_some_and(|row| {
+                row.search_text_hash == search_text_hash
+                    && row.embedding_model.as_deref() == Some(embedding_model.as_str())
+                    && row.has_embedding
+            });
+            if is_current {
+                continue;
+            }
+            let Some(embedding) = embed_ckc_text(llm, &candidate.search_text).await? else {
+                continue;
+            };
+            let bindings = UpsertCkcProjectionBindings {
+                rid: RecordId::new("atelier_ckc_search_projection", candidate.target_ref.clone()),
+                target_ref: candidate.target_ref.clone(),
+                target_kind: candidate.target_kind.to_owned(),
+                search_text_hash,
+                embedding: embedding.iter().map(|value| f64::from(*value)).collect(),
+                embedding_model: embedding_model.clone(),
+            };
+            self.store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(async move {
+                        ctx.execute_returning(UPSERT_CKC_PROJECTION_STATEMENT, bindings)
+                            .await
+                    })
+                })
+                .await?;
+        }
+        Ok(())
+    }
+
+    /// Cosine similarity of the query embedding against every stored candidate
+    /// projection, clamped at zero (the reference `GREATEST(0, 1 - <=>)`).
+    async fn ckc_semantic_scores_for_candidates(
+        &self,
+        candidates: &[CkcSearchCandidate],
+        query_embedding: &[f32],
+    ) -> AtelierResult<HashMap<String, f64>> {
+        if candidates.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let target_refs: Vec<String> = candidates
+            .iter()
+            .map(|candidate| candidate.target_ref.clone())
+            .collect();
+        let rows: Vec<CkcProjectionEmbeddingRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        CKC_PROJECTION_EMBEDDINGS_STATEMENT,
+                        TargetRefsBinding { target_refs },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                let score = cosine_similarity_stored(&row.embedding, query_embedding).max(0.0);
+                (row.target_ref, score)
+            })
+            .collect())
+    }
+
+    fn ckc_tag_notes_for_candidate(
+        candidate: &CkcSearchCandidate,
+        tag_notes: &[CkcTagNote],
+    ) -> Vec<CkcTagNoteHit> {
+        if candidate.tags.is_empty() {
+            return Vec::new();
+        }
+        let scope_refs = candidate_scope_refs(candidate);
+        tag_notes
+            .iter()
+            .filter(|note| candidate.tags.iter().any(|tag| tag == &note.tag_text))
+            .filter(|note| match note.scope_ref.as_deref() {
+                None => true,
+                Some(scope) => scope_refs.iter().any(|candidate_scope| candidate_scope == scope),
+            })
+            .map(|note| CkcTagNoteHit {
+                tag_ref: note.tag_ref.clone(),
+                tag_text: note.tag_text.clone(),
+                scope_ref: note.scope_ref.clone(),
+                note: note.note.clone(),
+            })
+            .collect()
+    }
+
+    /// Fuzzy / vector / combined CKC search. `llm` supplies the embedding
+    /// runtime for the vector leg; `None` (or a runtime without an embedding
+    /// endpoint) degrades to trigram + dHash similarity with
+    /// `semantic_available = false`, never a fabricated vector.
+    pub async fn ckc_search(
+        &self,
+        request: CkcSearchRequest,
+        llm: Option<&dyn LlmClient>,
+    ) -> AtelierResult<CkcSearchResponse> {
+        let modes = normalize_search_modes(&request.modes);
+        let query = request.query.trim().to_owned();
+        let vector_requested = wants_vector(&modes);
+        let limit = request.limit.clamp(1, 100);
+        let prefetch_limit = if vector_requested {
+            5_000
+        } else {
+            (limit * 8).clamp(50, 500)
+        } as usize;
+        let required_tags = normalized_search_tags(&request.tags);
+        let query_terms = ckc_query_terms(&query);
+        let tag_notes = self.load_ckc_tag_notes().await?;
+        let mut candidates = self
+            .ckc_search_candidates(&request, &modes, prefetch_limit)
+            .await?;
+
+        if !required_tags.is_empty() {
+            candidates.retain(|candidate| contains_all_tags(&candidate.tags, &required_tags));
+        }
+
+        let mut similarity_distances: HashMap<Uuid, i32> = HashMap::new();
+        let target_hash = if let Some(hash) = request.similar_to_dhash_hex.as_deref() {
+            Some(hash.trim().to_ascii_lowercase())
+        } else if let Some(asset_id) = request.similar_to_asset_id {
+            self.get_similarity_projection(asset_id)
+                .await?
+                .and_then(|projection| projection.dhash_hex)
+        } else {
+            None
+        };
+        if let Some(hash) = target_hash.as_deref() {
+            for hit in self
+                .find_similar_assets(hash, 16, 100, request.similar_to_asset_id)
+                .await?
+            {
+                similarity_distances.insert(hit.asset_internal_id, hit.distance);
+            }
+            if let Some(asset_id) = request.similar_to_asset_id {
+                similarity_distances.insert(asset_id, 0);
+            }
+        }
+
+        let query_embedding = if vector_requested {
+            match llm {
+                Some(llm) => embed_ckc_text(llm, &query).await?,
+                None => None,
+            }
+        } else {
+            None
+        };
+        let semantic_available = query_embedding.is_some();
+        let semantic_scores = if let (Some(llm), Some(query_embedding)) = (llm, &query_embedding) {
+            self.refresh_ckc_semantic_projections(&candidates, llm)
+                .await?;
+            self.ckc_semantic_scores_for_candidates(&candidates, query_embedding)
+                .await?
+        } else {
+            HashMap::new()
+        };
+        let vector_source = match (vector_requested, semantic_available, target_hash.is_some()) {
+            (true, true, true) => "llm_embedding+surreal_vector_projection+dhash_similarity",
+            (true, true, false) => "llm_embedding+surreal_vector_projection",
+            (true, false, true) => "semantic_unavailable_no_embedding_model+dhash_similarity",
+            (true, false, false) => "semantic_unavailable_no_embedding_model",
+            (false, _, true) => "dhash_similarity",
+            (false, _, false) => "not_requested",
+        }
+        .to_owned();
+
+        let mut scored = Vec::new();
+        for candidate in candidates {
+            let token_match = ckc_candidate_matches_query_terms(&candidate, &query_terms);
+            let fuzzy_matched =
+                query.is_empty() || token_match || candidate.fuzzy_score > CKC_FUZZY_THRESHOLD;
+            let fuzzy_score = if token_match && !query.is_empty() {
+                candidate.fuzzy_score.max(0.75)
+            } else {
+                candidate.fuzzy_score
+            };
+            let semantic_score = semantic_scores
+                .get(&candidate.target_ref)
+                .copied()
+                .unwrap_or(0.0);
+            let similarity_distance = candidate
+                .asset_id
+                .and_then(|asset_id| similarity_distances.get(&asset_id).copied());
+            let similarity_score = similarity_distance
+                .map(|distance| 1.0 - (f64::from(distance.clamp(0, 64)) / 64.0))
+                .unwrap_or(0.0);
+            let vector_score = semantic_score.max(similarity_score);
+            let mut match_modes = BTreeSet::new();
+            if wants_fuzzy(&modes) && fuzzy_matched {
+                match_modes.insert("fuzzy".to_owned());
+            }
+            if vector_requested && semantic_score > 0.0 {
+                match_modes.insert("vector".to_owned());
+            }
+            if vector_requested && similarity_distance.is_some() {
+                match_modes.insert("image_similarity".to_owned());
+            }
+            if wants_combined(&modes) {
+                match_modes.insert("combined".to_owned());
+            }
+            if wants_combined(&modes) && !query.is_empty() && !fuzzy_matched {
+                continue;
+            }
+            if wants_combined(&modes) && similarity_distance.is_none() && target_hash.is_some() {
+                continue;
+            }
+            if wants_combined(&modes)
+                && target_hash.is_none()
+                && semantic_available
+                && semantic_score <= 0.0
+            {
+                continue;
+            }
+            if modes.as_slice() == [CkcSearchMode::Vector]
+                && semantic_score <= 0.0
+                && similarity_distance.is_none()
+            {
+                continue;
+            }
+            let tag_note_hits = Self::ckc_tag_notes_for_candidate(&candidate, &tag_notes);
+            scored.push(CkcSearchHit {
+                target_kind: candidate.target_kind.to_owned(),
+                target_ref: candidate.target_ref.clone(),
+                title: candidate.title.clone(),
+                snippet: text_snippet(&candidate.search_text, &query),
+                character_ref: candidate.character_internal_id.map(character_ref),
+                sheet_version_ref: candidate.sheet_version_id.and_then(|version_id| {
+                    candidate
+                        .character_internal_id
+                        .map(|character_id| sheet_version_ref(character_id, version_id))
+                }),
+                collection_ref: candidate.collection_id.map(collection_ref),
+                media_ref: candidate.asset_id.map(media_asset_ref),
+                tag_ref: candidate.tag_id.map(tag_ref),
+                tags: candidate.tags.clone(),
+                tag_notes: tag_note_hits,
+                match_modes: match_modes.into_iter().collect(),
+                fuzzy_score,
+                vector_score,
+                similarity_distance,
+            });
+        }
+
+        scored.sort_by(|a, b| {
+            let a_score = a.fuzzy_score + a.vector_score;
+            let b_score = b.fuzzy_score + b.vector_score;
+            b_score
+                .partial_cmp(&a_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.target_kind.cmp(&b.target_kind))
+                .then_with(|| a.target_ref.cmp(&b.target_ref))
+        });
+        scored.truncate(limit as usize);
+
+        Ok(CkcSearchResponse {
+            query,
+            search_modes: mode_strings(&modes),
+            semantic_available,
+            vector_source,
+            result_count: scored.len(),
+            results: scored,
+        })
     }
 }
 

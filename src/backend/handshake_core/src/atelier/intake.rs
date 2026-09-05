@@ -641,13 +641,6 @@ fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
-fn advisory_lock_key(scope: &str) -> i64 {
-    let digest = Sha256::digest(scope.as_bytes());
-    let mut bytes = [0_u8; 8];
-    bytes.copy_from_slice(&digest[..8]);
-    i64::from_be_bytes(bytes)
-}
-
 fn checked_usize_to_i64(field: &str, value: usize) -> AtelierResult<i64> {
     i64::try_from(value).map_err(|_| AtelierError::Validation(format!("{field} exceeds i64 range")))
 }
@@ -1456,6 +1449,30 @@ const WRITE_RESET_STATEMENT: &str = concat!(
 // instead of a PG deadlock is retried a bounded number of times
 // (MT-056 INTAKE_DEADLOCK_RETRY).
 // ---------------------------------------------------------------------------
+
+/// Upper bound on attempts for one classification apply when the embedded
+/// store reports an optimistic write-write conflict. The first attempt counts,
+/// so at most two retries follow it.
+const INTAKE_WRITE_CONFLICT_MAX_ATTEMPTS: u32 = 3;
+
+/// Bounded backoff between conflict retries: 25 ms, then 50 ms.
+fn intake_write_conflict_backoff(attempt: u32) -> Duration {
+    Duration::from_millis(25 * u64::from(attempt.max(1)))
+}
+
+/// SurrealDB surfaces a serialisation failure between two concurrent writers as
+/// a retryable transaction error rather than a PostgreSQL deadlock. Only that
+/// family is retried; validation, not-found and invariant errors are final.
+fn is_retryable_write_conflict(err: &AtelierError) -> bool {
+    let AtelierError::Database(storage_err) = err else {
+        return false;
+    };
+    let text = storage_err.to_string().to_ascii_lowercase();
+    text.contains("read or write conflict")
+        || text.contains("can be retried")
+        || text.contains("transaction conflict")
+        || text.contains("resource busy")
+}
 
 fn normalize_metadata_text(
     field: &str,
@@ -3180,7 +3197,11 @@ impl AtelierStore {
             .map(|row| row.as_ref().map(batch_from_row))
     }
 
-    async fn get_intake_batch_by_id(&self, batch_id: Uuid) -> AtelierResult<Option<IntakeBatch>> {
+    /// Fetch a single batch by its id.
+    pub async fn get_intake_batch_by_id(
+        &self,
+        batch_id: Uuid,
+    ) -> AtelierResult<Option<IntakeBatch>> {
         let binding = BatchRefBinding {
             batch_ref: RecordId::new("atelier_intake_batch", SurrealUuid::from(batch_id)),
         };
@@ -3751,104 +3772,103 @@ impl AtelierStore {
 
     /// Apply an intake lane decision to the media workflow. Accepted decisions
     /// resolve the item's `content_hash` to an existing media asset and attach
-    /// that asset to the batch target collection when configured. All writes
-    /// happen in one transaction so invalid targets roll back the lane change.
+    /// that asset to the batch target collection when configured. Every write
+    /// (lane change, collection membership, rejection audit, dataset-mining
+    /// metadata) and every event it emits land in ONE statement, so invalid
+    /// targets leave nothing behind. A SurrealDB write-write conflict raised by a
+    /// concurrent writer is retried a bounded number of times (MT-056
+    /// INTAKE_DEADLOCK_RETRY: the PostgreSQL deadlock retry, re-expressed for an
+    /// optimistic embedded store).
     pub async fn apply_intake_classification(
         &self,
         request: &ApplyIntakeClassificationRequest,
     ) -> AtelierResult<IntakeClassificationApplyResult> {
-        let normalized_reason = normalize_lane_reason(request.lane, request.reason.as_deref())?;
-        let existing = self
-            .get_intake_item_by_id(request.item_id)
-            .await?
-            .ok_or_else(|| AtelierError::NotFound(format!("intake item {}", request.item_id)))?;
-        let batch = self
-            .get_intake_batch_by_id(existing.batch_id)
-            .await?
-            .ok_or_else(|| AtelierError::NotFound(format!("intake batch {}", existing.batch_id)))?;
-
-        let mut asset_id = None;
-        let mut collection_id = None;
-        let mut collection_inserted = false;
-        if request.lane == IntakeLane::Accepted {
-            let content_hash = existing.content_hash.as_deref().ok_or_else(|| {
-                AtelierError::Validation(
-                    "accepted intake item requires target media asset content_hash".into(),
-                )
-            })?;
-            let resolved_asset_id: Option<Uuid> = self
-                .with_data({
-                    let content_hash = content_hash.to_owned();
-                    move |ctx| {
-                        Box::pin(async move {
-                            ctx.query_first(
-                                "SELECT VALUE asset_id FROM atelier_media_asset \
-                                 WHERE content_hash = $content_hash LIMIT 1;",
-                                ContentHashBinding { content_hash },
-                            )
-                            .await
-                        })
-                    }
-                })
-                .await?;
-            let resolved_asset_id = resolved_asset_id.ok_or_else(|| {
-                AtelierError::NotFound(format!(
-                    "target media asset for intake item {}",
-                    existing.item_id
-                ))
-            })?;
-            asset_id = Some(resolved_asset_id);
-
-            if let Some(target_collection_id) = batch.target_collection_id {
-                let inserted = self
-                    .add_images_to_collection(target_collection_id, &[resolved_asset_id])
-                    .await?;
-                collection_id = Some(target_collection_id);
-                collection_inserted = inserted > 0;
+        let mut attempt = 0u32;
+        loop {
+            attempt += 1;
+            match self.apply_intake_classification_once(request).await {
+                Err(err)
+                    if attempt < INTAKE_WRITE_CONFLICT_MAX_ATTEMPTS
+                        && is_retryable_write_conflict(&err) =>
+                {
+                    tracing::warn!(
+                        target: "handshake_core::atelier",
+                        item_id = %request.item_id,
+                        attempt,
+                        error = %err,
+                        "intake classification hit a write conflict; retrying"
+                    );
+                    tokio::time::sleep(intake_write_conflict_backoff(attempt)).await;
+                }
+                other => return other,
             }
         }
+    }
 
-        let mut item = existing.clone();
-        let changed = existing.lane != request.lane || existing.lane_reason != normalized_reason;
-        if changed {
-            let bindings = ItemClassificationBindings {
-                item_ref: RecordId::new("atelier_intake_item", SurrealUuid::from(request.item_id)),
-                batch_ref: RecordId::new(
-                    "atelier_intake_batch",
-                    SurrealUuid::from(existing.batch_id),
-                ),
-                lane: request.lane.as_str().to_owned(),
-                lane_reason: normalized_reason.clone(),
-            };
-            let row: Option<serde_json::Value> = self
-                .write_with_event(
-                    CLASSIFY_ITEM_STATEMENT,
-                    bindings,
-                    intake_event_family::INTAKE_ITEM_CLASSIFIED,
-                    "atelier_intake_item",
-                    &request.item_id.to_string(),
-                    serde_json::json!({
-                        "batch_id": existing.batch_id,
-                        "lane": request.lane,
-                        "reason": normalized_reason,
-                        "source_path_ref": event_ref_for_text(&existing.source_path),
-                        "asset_id": asset_id,
-                        "collection_id": collection_id,
-                        "apply_workflow": true,
-                    }),
-                )
-                .await?;
-            item = item_from_row(&intake_row(row.ok_or_else(|| {
-                AtelierError::Internal("applying intake classification returned no row".to_owned())
-            })?)?)?;
-            self.insert_rejection_audit(&item).await?;
+    /// Apply a classification plan to the canonical persisted item set for one
+    /// batch. Loaded UI rows may provide per-item overrides, but the backend
+    /// owns the full item enumeration so large batches are never limited to the
+    /// currently rendered or expanded subset. The whole plan commits in one
+    /// statement or not at all; write-write conflicts are retried a bounded
+    /// number of times (MT-056 INTAKE_DEADLOCK_RETRY).
+    pub async fn apply_intake_batch_classifications(
+        &self,
+        request: &ApplyIntakeBatchClassificationsRequest,
+    ) -> AtelierResult<IntakeBatchClassificationApplyResult> {
+        let requested_by = request.requested_by.trim();
+        if requested_by.is_empty() || requested_by != request.requested_by {
+            return Err(AtelierError::Validation(
+                "requested_by must not be empty or padded".into(),
+            ));
         }
-        Ok(IntakeClassificationApplyResult {
-            item,
-            asset_id,
-            collection_id,
-            collection_inserted,
-        })
+        reject_legacy_runtime_ref("requested_by", requested_by)?;
+
+        let request_metadata = request.metadata.as_ref().ok_or_else(|| {
+            AtelierError::Validation(
+                "metadata with request_id and batch_id is required for batch intake classification"
+                    .into(),
+            )
+        })?;
+        if request_metadata.batch_id.is_none() {
+            return Err(AtelierError::Validation(
+                "metadata.batch_id is required for batch intake classification".into(),
+            ));
+        }
+        let (_preflight_metadata, preflight_request_id) = normalize_classification_metadata(
+            request.metadata.as_ref(),
+            Some(request.batch_id),
+            None,
+            true,
+        )?;
+        if preflight_request_id.is_none() {
+            return Err(AtelierError::Validation(
+                "metadata.request_id is required for batch intake classification".into(),
+            ));
+        }
+
+        let mut attempt = 0u32;
+        loop {
+            attempt += 1;
+            match self
+                .apply_intake_batch_classifications_once(request, requested_by)
+                .await
+            {
+                Err(err)
+                    if attempt < INTAKE_WRITE_CONFLICT_MAX_ATTEMPTS
+                        && is_retryable_write_conflict(&err) =>
+                {
+                    tracing::warn!(
+                        target: "handshake_core::atelier",
+                        batch_id = %request.batch_id,
+                        attempt,
+                        error = %err,
+                        "intake batch classification hit a write conflict; retrying"
+                    );
+                    tokio::time::sleep(intake_write_conflict_backoff(attempt)).await;
+                }
+                other => return other,
+            }
+        }
     }
 
     /// Per-lane counts for the sorter header.

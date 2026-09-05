@@ -2634,7 +2634,13 @@ fn validate_pose_sidecar_artifact_payload(new: &NewPoseSidecar) -> AtelierResult
     Ok(())
 }
 
-fn parse_pose_sidecar_artifact_handle(artifact_ref: &str) -> AtelierResult<(ArtifactLayer, Uuid)> {
+/// Split a native ArtifactStore payload ref
+/// (`artifact://.handshake/artifacts/<layer>/<uuid>/payload`) into its layer and
+/// artifact id. Shared with the Posekit byte route so both sides accept exactly
+/// the same ref grammar.
+pub fn parse_pose_sidecar_artifact_handle(
+    artifact_ref: &str,
+) -> AtelierResult<(ArtifactLayer, Uuid)> {
     let path = artifact_ref
         .strip_prefix("artifact://.handshake/artifacts/")
         .and_then(|value| value.strip_suffix("/payload"))

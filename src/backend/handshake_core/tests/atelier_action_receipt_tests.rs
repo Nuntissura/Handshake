@@ -3,6 +3,10 @@
 //! Generic model-visible action receipts persist only parameter hashes plus
 //! actor/session/timing/status/refs, then mirror the receipt through the
 //! canonical Atelier EventLedger family.
+//!
+//! WP-CKC-posekit-overhaul MT-022/MT-062: receipts recorded under a
+//! model-operation lease carry `thread_id` + `lease_claim_id` lineage, and that
+//! lineage must agree with the referenced lease (actor, session, thread).
 
 mod atelier_surreal_support;
 
@@ -10,6 +14,10 @@ use atelier_surreal_support::AtelierSurrealHarness;
 use chrono::Utc;
 use handshake_core::atelier::action_receipt::{
     action_receipt_event_family, ActionReceiptStatus, NewActionReceipt,
+};
+use handshake_core::atelier::model_lease::NewModelLeaseClaim;
+use handshake_core::kernel::role_mailbox_claim_lease::{
+    RoleMailboxClaimMode, RoleMailboxExecutorKind,
 };
 use handshake_core::kernel::KernelEventType;
 use serde_json::json;
@@ -21,6 +29,8 @@ fn valid_receipt() -> NewActionReceipt {
         actor_kind: "agent".to_string(),
         actor_id: format!("test-agent-{}", Uuid::new_v4()),
         session_id: format!("test-session-{}", Uuid::new_v4()),
+        thread_id: String::new(),
+        lease_claim_id: None,
         params: json!({
             "query": "super-secret-raw-param",
             "limit": 25,
@@ -34,6 +44,82 @@ fn valid_receipt() -> NewActionReceipt {
         error_class: None,
         recovery_hint: None,
     }
+}
+
+#[tokio::test]
+async fn action_receipt_lease_lineage_must_match_referenced_claim() {
+    let harness = AtelierSurrealHarness::create().await;
+    let store = &harness.atelier;
+    let unique = Uuid::new_v4();
+    let thread_id = format!("atelier.test.receipt-lineage.{unique}");
+    let actor_id = format!("receipt-agent-{unique}");
+    let session_id = format!("receipt-session-{unique}");
+    let lease = store
+        .claim_model_lease(&NewModelLeaseClaim {
+            thread_id: thread_id.clone(),
+            executor_kind: RoleMailboxExecutorKind::LocalLargeModel,
+            actor_id: actor_id.clone(),
+            session_id: session_id.clone(),
+            claim_mode: RoleMailboxClaimMode::ExclusiveLease,
+            ttl_seconds: 900,
+            linked_work_packet_id: "WP-CKC-posekit-overhaul".to_owned(),
+            linked_micro_task_id: "MT-022".to_owned(),
+        })
+        .await
+        .expect("claim receipt lineage lease");
+
+    let mut receipt = valid_receipt();
+    receipt.actor_id = actor_id;
+    receipt.session_id = session_id;
+    receipt.thread_id = thread_id;
+    receipt.lease_claim_id = Some(lease.claim_id);
+    let persisted = store
+        .record_action_receipt(&receipt)
+        .await
+        .expect("matching receipt lineage persists");
+    assert_eq!(persisted.lease_claim_id, Some(lease.claim_id));
+    assert_eq!(persisted.thread_id, lease.thread_id);
+
+    let reloaded = store
+        .get_action_receipt(persisted.receipt_id)
+        .await
+        .expect("reload lineage receipt");
+    assert_eq!(reloaded, persisted, "lineage fields must round-trip");
+
+    let mut mismatched = receipt.clone();
+    mismatched.session_id = format!("wrong-session-{unique}");
+    let err = store
+        .record_action_receipt(&mismatched)
+        .await
+        .expect_err("mismatched receipt session must be rejected");
+    assert!(
+        err.to_string().contains("lease lineage mismatch"),
+        "lineage mismatch rejection must name lease lineage: {err}"
+    );
+
+    let mut unknown_lease = receipt.clone();
+    unknown_lease.lease_claim_id = Some(Uuid::now_v7());
+    let err = store
+        .record_action_receipt(&unknown_lease)
+        .await
+        .expect_err("a receipt citing a non-existent lease must be rejected");
+    assert!(
+        matches!(err, handshake_core::atelier::AtelierError::NotFound(_)),
+        "unknown lease must surface as NotFound, got {err:?}"
+    );
+
+    let mut padded_thread = valid_receipt();
+    padded_thread.thread_id = " legacy ".to_owned();
+    let err = store
+        .record_action_receipt(&padded_thread)
+        .await
+        .expect_err("padded thread_id on a legacy receipt must be rejected");
+    assert!(
+        err.to_string().contains("thread_id"),
+        "padded thread_id rejection must name the field: {err}"
+    );
+
+    harness.shutdown().await;
 }
 
 #[tokio::test]

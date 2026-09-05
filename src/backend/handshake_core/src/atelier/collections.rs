@@ -14,7 +14,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
@@ -296,6 +296,36 @@ const THROW_REORDER_MEMBERSHIP_CHANGED: &str = "ckc_reorder_membership_changed";
 /// Sentinel thrown when the media asset a notes/tags save targets is gone.
 const THROW_MEDIA_ASSET_MISSING: &str = "ckc_media_asset_missing";
 
+/// Concurrency policy tokens reported on album mutations. The PostgreSQL
+/// reference took a `FOR UPDATE` row lock on the collection and read the
+/// members inside that lock; the embedded store gives the same guarantee as
+/// one optimistic single-statement transaction that re-verifies its
+/// preconditions and retries a lost race, so the tokens name that mechanism.
+pub const ALBUM_MUTATION_CONCURRENCY_POLICY: &str =
+    "collection_single_statement_transaction_snapshot";
+pub const ALBUM_REORDER_CONCURRENCY_POLICY: &str =
+    "collection_single_statement_transaction_full_dense_membership_verified";
+
+/// `atelier_collection.scoped_name_key` is UNIQUE per `(character scope, name)`;
+/// the store reports a duplicate album name as a typed `Conflict` rather than
+/// leaking the index violation as a database error.
+fn map_scoped_name_conflict(
+    error: AtelierError,
+    name: &str,
+    character_internal_id: Option<Uuid>,
+) -> AtelierError {
+    let text = error.to_string();
+    if text.contains("ux_atelier_collection_scoped_name") {
+        return AtelierError::Conflict(match character_internal_id {
+            Some(character_internal_id) => format!(
+                "collection name {name:?} already exists for character_internal_id={character_internal_id}"
+            ),
+            None => format!("global collection name {name:?} already exists"),
+        });
+    }
+    error
+}
+
 const SURREAL_TRANSACTION_MAX_ATTEMPTS: usize = 10;
 const SURREAL_TRANSACTION_BACKOFF_CAP_MS: u64 = 32;
 
@@ -397,6 +427,88 @@ fn require_collection_ref_text<'a>(field: &str, value: &'a str) -> AtelierResult
     Ok(trimmed)
 }
 
+/// Actor written onto `created_by` / `updated_by` / `linked_by`. Same shape as
+/// a ref text: non-empty, unpadded, never a machine-local runtime ref.
+fn require_collection_actor<'a>(field: &str, value: &'a str) -> AtelierResult<&'a str> {
+    require_collection_ref_text(field, value)
+}
+
+fn collection_actor_or_system<'a>(field: &str, value: Option<&'a str>) -> AtelierResult<&'a str> {
+    match value {
+        Some(raw) => require_collection_actor(field, raw),
+        None => Ok(SYSTEM_COLLECTION_ACTOR),
+    }
+}
+
+/// Canonical review-status tokens accepted by `atelier_media_review_metadata`.
+const MEDIA_REVIEW_STATUS_TOKENS: &[&str] = &["unreviewed", "review", "approved", "rejected", "deferred"];
+
+fn require_media_review_status(value: &str) -> AtelierResult<&str> {
+    if MEDIA_REVIEW_STATUS_TOKENS.contains(&value) {
+        Ok(value)
+    } else {
+        Err(AtelierError::Validation(format!(
+            "unsupported review_status: {value}"
+        )))
+    }
+}
+
+/// Split the dense `(asset_id, sort_order)` reorder request the same way the
+/// HTTP layer validates it, so a store caller cannot bypass the contract:
+/// non-empty, no duplicate assets, no duplicate positions, positions dense
+/// from 0.
+fn validate_collection_reorder(items: &[CollectionItemReorder]) -> AtelierResult<Vec<Uuid>> {
+    if items.is_empty() {
+        return Err(AtelierError::Validation(
+            "reorder items must not be empty".to_owned(),
+        ));
+    }
+    let mut seen_assets = HashSet::new();
+    let mut seen_orders = HashSet::new();
+    let mut asset_ids = Vec::with_capacity(items.len());
+    for item in items {
+        if item.sort_order < 0 {
+            return Err(AtelierError::Validation(format!(
+                "sort_order for asset_id={} must be >= 0",
+                item.asset_id
+            )));
+        }
+        if !seen_assets.insert(item.asset_id) {
+            return Err(AtelierError::Validation(format!(
+                "duplicate asset_id={} in reorder request",
+                item.asset_id
+            )));
+        }
+        if !seen_orders.insert(item.sort_order) {
+            return Err(AtelierError::Validation(format!(
+                "duplicate sort_order={} in reorder request",
+                item.sort_order
+            )));
+        }
+        asset_ids.push(item.asset_id);
+    }
+    for expected in 0..items.len() as i64 {
+        if !seen_orders.contains(&expected) {
+            return Err(AtelierError::Validation(format!(
+                "reorder sort_order values must be dense from 0; missing {expected}"
+            )));
+        }
+    }
+    Ok(asset_ids)
+}
+
+fn collection_record(collection_id: Uuid) -> RecordId {
+    RecordId::new("atelier_collection", SurrealUuid::from(collection_id))
+}
+
+fn media_asset_record(asset_id: Uuid) -> RecordId {
+    RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id))
+}
+
+fn collection_item_pair_key(collection_id: Uuid, asset_id: Uuid) -> Vec<SurrealUuid> {
+    vec![SurrealUuid::from(collection_id), SurrealUuid::from(asset_id)]
+}
+
 #[derive(SurrealValue)]
 struct CollectionRow {
     collection_id: SurrealUuid,
@@ -453,6 +565,173 @@ impl From<CollectionMemberRow> for CollectionMember {
             added_at_utc: row.added_at_utc.into(),
         }
     }
+}
+
+#[derive(SurrealValue)]
+struct CollectionMemberDetailRow {
+    collection_id: SurrealUuid,
+    asset_id: SurrealUuid,
+    content_hash: String,
+    mime: String,
+    source_provenance: Option<String>,
+    sort_order: i64,
+    added_at_utc: Datetime,
+    linked_by: String,
+    updated_by: String,
+    updated_at_utc: Datetime,
+    source_path_ref: Option<String>,
+    source_url_ref: Option<String>,
+}
+
+impl From<CollectionMemberDetailRow> for CollectionMemberDetail {
+    fn from(row: CollectionMemberDetailRow) -> Self {
+        Self {
+            collection_id: row.collection_id.into(),
+            asset_id: row.asset_id.into(),
+            content_hash: row.content_hash,
+            mime: row.mime,
+            source_provenance: row.source_provenance,
+            sort_order: row.sort_order,
+            added_at_utc: row.added_at_utc.into(),
+            linked_by: row.linked_by,
+            updated_by: row.updated_by,
+            updated_at_utc: row.updated_at_utc.into(),
+            source_path_ref: row.source_path_ref,
+            source_url_ref: row.source_url_ref,
+        }
+    }
+}
+
+#[derive(SurrealValue)]
+struct CollectionItemUnlinkReceiptRow {
+    unlink_receipt_id: SurrealUuid,
+    collection_id: SurrealUuid,
+    asset_id: SurrealUuid,
+    prior_sort_order: i64,
+    prior_source_path_ref: Option<String>,
+    prior_source_url_ref: Option<String>,
+    linked_by: String,
+    member_updated_by: String,
+    member_updated_at_utc: Datetime,
+    unlinked_by: String,
+    unlinked_at_utc: Datetime,
+}
+
+impl From<CollectionItemUnlinkReceiptRow> for CollectionItemUnlinkReceipt {
+    fn from(row: CollectionItemUnlinkReceiptRow) -> Self {
+        Self {
+            unlink_receipt_id: row.unlink_receipt_id.into(),
+            collection_id: row.collection_id.into(),
+            asset_id: row.asset_id.into(),
+            prior_sort_order: row.prior_sort_order,
+            prior_source_path_ref: row.prior_source_path_ref,
+            prior_source_url_ref: row.prior_source_url_ref,
+            linked_by: row.linked_by,
+            member_updated_by: row.member_updated_by,
+            member_updated_at_utc: row.member_updated_at_utc.into(),
+            unlinked_by: row.unlinked_by,
+            unlinked_at_utc: row.unlinked_at_utc.into(),
+        }
+    }
+}
+
+/// Per-asset review metadata / tags / asset-global provenance for one page of
+/// album members, fetched as three batched statements instead of one round
+/// trip per member (MT-056 F1: LIST_CAP members must not mean 3 x LIST_CAP
+/// queries).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MediaAlbumMemberEnrichment {
+    pub asset_id: Uuid,
+    pub metadata: Option<MediaReviewMetadata>,
+    /// Direct tag texts on the asset, ascending.
+    pub tags: Vec<String>,
+    pub provenance: Option<MediaSourceProvenanceRefs>,
+}
+
+#[derive(SurrealValue)]
+struct MemberReviewMetadataRow {
+    asset_id: SurrealUuid,
+    favorite: bool,
+    rating: i64,
+    frontpage: bool,
+    carousel: bool,
+    notes: Option<String>,
+    review_status: String,
+    updated_by: String,
+    updated_at_utc: Datetime,
+}
+
+impl TryFrom<MemberReviewMetadataRow> for MediaReviewMetadata {
+    type Error = AtelierError;
+
+    fn try_from(row: MemberReviewMetadataRow) -> AtelierResult<Self> {
+        Ok(Self {
+            asset_id: row.asset_id.into(),
+            favorite: row.favorite,
+            rating: i16::try_from(row.rating).map_err(|_| {
+                AtelierError::Internal(format!(
+                    "media review rating {} does not fit the i16 contract",
+                    row.rating
+                ))
+            })?,
+            frontpage: row.frontpage,
+            carousel: row.carousel,
+            notes: row.notes,
+            review_status: row.review_status,
+            updated_by: row.updated_by,
+            updated_at_utc: row.updated_at_utc.into(),
+        })
+    }
+}
+
+#[derive(SurrealValue)]
+struct MemberTagTextRow {
+    asset_id: SurrealUuid,
+    text: String,
+}
+
+#[derive(SurrealValue)]
+struct MemberProvenanceRow {
+    asset_id: SurrealUuid,
+    source_url_ref: Option<String>,
+    source_path_ref: Option<String>,
+    source_note_ref: Option<String>,
+    contact_sheet_ref: Option<String>,
+    task_ref: Option<String>,
+    run_ref: Option<String>,
+    updated_by: String,
+    updated_at_utc: Datetime,
+}
+
+impl From<MemberProvenanceRow> for MediaSourceProvenanceRefs {
+    fn from(row: MemberProvenanceRow) -> Self {
+        Self {
+            asset_id: row.asset_id.into(),
+            source_url_ref: row.source_url_ref,
+            source_path_ref: row.source_path_ref,
+            source_note_ref: row.source_note_ref,
+            contact_sheet_ref: row.contact_sheet_ref,
+            task_ref: row.task_ref,
+            run_ref: row.run_ref,
+            updated_by: row.updated_by,
+            updated_at_utc: row.updated_at_utc.into(),
+        }
+    }
+}
+
+/// Snapshot returned by the notes/tags statement: the review row after the
+/// write, the asset's tag texts, and the provenance row if one exists.
+#[derive(SurrealValue)]
+struct MediaNotesTagsSnapshotRow {
+    metadata: Vec<MemberReviewMetadataRow>,
+    tags: Vec<String>,
+    provenance: Vec<MemberProvenanceRow>,
+}
+
+#[derive(SurrealValue)]
+struct CollectionItemsAddedRow {
+    inserted: i64,
+    updated_refs: i64,
 }
 
 #[derive(SurrealValue)]
@@ -716,7 +995,28 @@ macro_rules! collection_select {
 macro_rules! collection_member_select {
     () => {
         "record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
-         asset_id.content_hash AS content_hash, sort_order, linked_by, updated_by, ${nl}         updated_at_utc, added_at_utc"
+         asset_id.content_hash AS content_hash, sort_order, linked_by, updated_by, \
+         updated_at_utc, added_at_utc"
+    };
+}
+
+/// Membership row joined with the asset fields and the link-scoped refs the
+/// CKC media-album pages render (`CollectionMemberDetail`).
+macro_rules! collection_member_detail_select {
+    () => {
+        "record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
+         asset_id.content_hash AS content_hash, asset_id.mime AS mime, \
+         asset_id.source_provenance AS source_provenance, sort_order, added_at_utc, \
+         linked_by, updated_by, updated_at_utc, source_path_ref, source_url_ref"
+    };
+}
+
+macro_rules! unlink_receipt_select {
+    () => {
+        "unlink_receipt_id, record::id(collection_id) AS collection_id, \
+         record::id(asset_id) AS asset_id, prior_sort_order, prior_source_path_ref, \
+         prior_source_url_ref, linked_by, member_updated_by, member_updated_at_utc, \
+         unlinked_by, unlinked_at_utc"
     };
 }
 
@@ -747,6 +1047,102 @@ struct CreateCollectionBindings {
     tags_json: Vec<String>,
     character_ref: Option<RecordId>,
     sheet_version_ref: Option<RecordId>,
+    actor: String,
+}
+
+#[derive(SurrealValue)]
+struct CharacterCollectionPageBindings {
+    character_ref: RecordId,
+    limit: i64,
+    offset: i64,
+}
+
+#[derive(SurrealValue)]
+struct CharacterRefBinding {
+    character_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct CollectionMemberPageBindings {
+    collection_ref: RecordId,
+    limit: i64,
+    offset: i64,
+}
+
+#[derive(SurrealValue)]
+struct AssetRefsBinding {
+    asset_refs: Vec<RecordId>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct UnlinkAlbumItemBindings {
+    collection_ref: RecordId,
+    member_key: Vec<SurrealUuid>,
+    receipt_rid: RecordId,
+    unlink_receipt_id: SurrealUuid,
+    actor: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct UpdateAlbumItemLinkRefsBindings {
+    collection_ref: RecordId,
+    member_key: Vec<SurrealUuid>,
+    set_source_path_ref: bool,
+    source_path_ref: Option<String>,
+    set_source_url_ref: bool,
+    source_url_ref: Option<String>,
+    actor: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ReorderItemInput {
+    member_key: Vec<SurrealUuid>,
+    sort_order: i64,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ReorderAlbumItemsBindings {
+    collection_ref: RecordId,
+    expected_asset_ids: Vec<SurrealUuid>,
+    items: Vec<ReorderItemInput>,
+    actor: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct NotesTagCandidate {
+    tag_rid: RecordId,
+    tag_id: SurrealUuid,
+    text: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ApplyMediaNotesTagsBindings {
+    asset_ref: RecordId,
+    metadata_rid: RecordId,
+    provenance_rid: RecordId,
+    replace_tags: bool,
+    added_tags: Vec<NotesTagCandidate>,
+    removed_tags: Vec<String>,
+    tag_source: String,
+    favorite: bool,
+    rating: i64,
+    frontpage: bool,
+    carousel: bool,
+    notes: Option<String>,
+    review_status: String,
+    write_provenance: bool,
+    source_url_ref: Option<String>,
+    source_path_ref: Option<String>,
+    source_note_ref: Option<String>,
+    contact_sheet_ref: Option<String>,
+    task_ref: Option<String>,
+    run_ref: Option<String>,
+    actor: String,
+}
+
+#[derive(SurrealValue)]
+struct UnlinkReceiptIdBinding {
+    unlink_receipt_id: SurrealUuid,
 }
 
 #[derive(SurrealValue)]
@@ -765,6 +1161,7 @@ struct UpdateCollectionBindings {
     name: Option<String>,
     notes: Option<String>,
     tags_json: Option<Vec<String>>,
+    actor: String,
 }
 
 #[derive(Clone, SurrealValue)]
@@ -779,12 +1176,25 @@ struct AddImagesBindings {
     collection_ref: RecordId,
     asset_refs: Vec<RecordId>,
     items: Vec<CollectionItemInput>,
+    source_path_ref: Option<String>,
+    source_url_ref: Option<String>,
+    actor: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RemoveImageInput {
+    asset_ref: RecordId,
+    pair_key: Vec<SurrealUuid>,
+    receipt_rid: RecordId,
+    unlink_receipt_id: SurrealUuid,
 }
 
 #[derive(Clone, SurrealValue)]
 struct RemoveImagesBindings {
     collection_ref: RecordId,
     asset_refs: Vec<RecordId>,
+    items: Vec<RemoveImageInput>,
+    actor: String,
 }
 
 #[derive(SurrealValue)]
@@ -896,10 +1306,174 @@ const CREATE_COLLECTION_STATEMENT: &str = concat!(
     " CREATE $rid CONTENT { \
          collection_id: $domain.collection_id, name: $domain.name, notes: $domain.notes, \
          tags_json: $domain.tags_json, character_internal_id: $domain.character_ref, \
-         sheet_version_id: $domain.sheet_version_ref \
+         sheet_version_id: $domain.sheet_version_ref, \
+         created_by: $domain.actor, updated_by: $domain.actor \
        }; RETURN (SELECT ",
     collection_select!(),
     " FROM $rid); };"
+);
+
+const COUNT_CHARACTER_COLLECTIONS_STATEMENT: &str =
+    "RETURN count(SELECT id FROM atelier_collection WHERE character_internal_id = $character_ref);";
+
+/// Album pages are ordered by immutable keys (MT-056 F4): `created_at_utc`
+/// never moves once written and `collection_id` breaks ties, so two reads of
+/// the same offset return the same rows even while other albums are edited.
+const LIST_CHARACTER_COLLECTIONS_PAGE_STATEMENT: &str = concat!(
+    "SELECT ",
+    collection_select!(),
+    " FROM atelier_collection WHERE character_internal_id = $character_ref \
+      ORDER BY created_at_utc DESC, collection_id ASC LIMIT $limit START $offset;"
+);
+
+const COUNT_COLLECTION_MEMBERS_STATEMENT: &str =
+    "RETURN count(SELECT id FROM atelier_collection_item WHERE collection_id = $collection_ref);";
+
+/// Member pages are ordered by `sort_order` then `asset_id` (immutable tie
+/// break, MT-056 F4).
+const LIST_COLLECTION_MEMBER_PAGE_STATEMENT: &str = concat!(
+    "SELECT ",
+    collection_member_detail_select!(),
+    " FROM atelier_collection_item WHERE collection_id = $collection_ref \
+      ORDER BY sort_order ASC, asset_id ASC LIMIT $limit START $offset;"
+);
+
+const LIST_COLLECTION_MEMBER_ASSET_IDS_STATEMENT: &str =
+    "SELECT VALUE record::id(asset_id) FROM atelier_collection_item \
+     WHERE collection_id = $collection_ref ORDER BY sort_order ASC, asset_id ASC;";
+
+const MEMBER_REVIEW_METADATA_BATCH_STATEMENT: &str =
+    "SELECT record::id(asset_id) AS asset_id, favorite, rating, frontpage, carousel, notes, \
+     review_status, updated_by, updated_at_utc FROM atelier_media_review_metadata \
+     WHERE asset_id IN $asset_refs;";
+
+const MEMBER_TAGS_BATCH_STATEMENT: &str =
+    "SELECT record::id(asset_id) AS asset_id, tag_id.text AS text FROM atelier_media_asset_tag \
+     WHERE asset_id IN $asset_refs ORDER BY text ASC;";
+
+const MEMBER_PROVENANCE_BATCH_STATEMENT: &str =
+    "SELECT record::id(asset_id) AS asset_id, source_url_ref, source_path_ref, source_note_ref, \
+     contact_sheet_ref, task_ref, run_ref, updated_by, updated_at_utc \
+     FROM atelier_media_source_provenance_ref WHERE asset_id IN $asset_refs;";
+
+/// Unlink ONE membership: copy the row into the receipt table, delete the
+/// membership, bump the collection, all with the event in one statement. The
+/// asset row is never touched. A vanished membership throws the sentinel so
+/// the caller answers 404 instead of writing a receipt for nothing.
+const UNLINK_ALBUM_ITEM_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $member_rid = type::record('atelier_collection_item', $domain.member_key); \
+       IF !record::exists($member_rid) { THROW 'ckc_album_member_missing'; }; \
+       LET $member = (SELECT * FROM ONLY $member_rid); ",
+    atelier_event_sql!(),
+    " CREATE $domain.receipt_rid CONTENT { \
+         unlink_receipt_id: $domain.unlink_receipt_id, collection_id: $member.collection_id, \
+         asset_id: $member.asset_id, prior_sort_order: $member.sort_order, \
+         prior_source_path_ref: $member.source_path_ref, \
+         prior_source_url_ref: $member.source_url_ref, linked_by: $member.linked_by, \
+         member_updated_by: $member.updated_by, member_updated_at_utc: $member.updated_at_utc, \
+         unlinked_by: $domain.actor \
+       }; \
+       DELETE $member_rid; \
+       UPDATE $domain.collection_ref SET updated_by = $domain.actor, updated_at_utc = time::now(); \
+       RETURN (SELECT ",
+    unlink_receipt_select!(),
+    " FROM $domain.receipt_rid); };"
+);
+
+const GET_UNLINK_RECEIPT_STATEMENT: &str = concat!(
+    "SELECT ",
+    unlink_receipt_select!(),
+    " FROM atelier_collection_item_unlink_receipt WHERE unlink_receipt_id = $unlink_receipt_id \
+      LIMIT 1;"
+);
+
+/// Edit the link-scoped refs of ONE membership. A `set_*` flag false leaves the
+/// stored ref alone; true writes the (possibly NONE = cleared) value.
+const UPDATE_ALBUM_ITEM_LINK_REFS_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $member_rid = type::record('atelier_collection_item', $domain.member_key); \
+       IF !record::exists($member_rid) { THROW 'ckc_album_member_missing'; }; ",
+    atelier_event_sql!(),
+    " UPDATE $member_rid SET \
+         source_path_ref = IF $domain.set_source_path_ref { $domain.source_path_ref } \
+                           ELSE { source_path_ref }, \
+         source_url_ref = IF $domain.set_source_url_ref { $domain.source_url_ref } \
+                          ELSE { source_url_ref }, \
+         updated_by = $domain.actor, updated_at_utc = time::now(); \
+       UPDATE $domain.collection_ref SET updated_by = $domain.actor, updated_at_utc = time::now(); \
+       RETURN 1; };"
+);
+
+/// Full dense reorder. The membership set is re-verified INSIDE the statement:
+/// if a concurrent link/unlink changed it between the caller's pre-flight and
+/// this write, the sentinel throws and nothing is written (MT-056 F5/F9).
+const REORDER_ALBUM_ITEMS_STATEMENT: &str = concat!(
+    "RETURN { \
+       LET $current = (SELECT VALUE record::id(asset_id) FROM atelier_collection_item \
+                       WHERE collection_id = $domain.collection_ref); \
+       IF array::len($current) != array::len($domain.expected_asset_ids) \
+          OR array::len(array::complement($domain.expected_asset_ids, $current)) != 0 { \
+         THROW 'ckc_reorder_membership_changed'; \
+       }; ",
+    atelier_event_sql!(),
+    " FOR $item IN $domain.items { \
+         LET $rid = type::record('atelier_collection_item', $item.member_key); \
+         IF !record::exists($rid) { THROW 'ckc_reorder_membership_changed'; }; \
+         UPDATE $rid SET sort_order = $item.sort_order, updated_by = $domain.actor, \
+                         updated_at_utc = time::now(); \
+       }; \
+       UPDATE $domain.collection_ref SET updated_by = $domain.actor, updated_at_utc = time::now(); \
+       RETURN array::len($domain.items); };"
+);
+
+/// The CKC notes/tags save as ONE statement: review metadata upsert (carrying
+/// forward favorite/rating/frontpage/carousel), tag set replacement (dictionary
+/// rows created on demand, link rows keyed `[asset, tag]`), optional
+/// asset-global provenance upsert, then a snapshot of all three. The event
+/// fragment records `MEDIA_REVIEW_METADATA_UPDATED`; the per-tag and
+/// provenance events are appended after commit by the caller.
+const APPLY_MEDIA_NOTES_TAGS_STATEMENT: &str = concat!(
+    "RETURN { \
+       IF !record::exists($domain.asset_ref) { THROW 'ckc_media_asset_missing'; }; ",
+    atelier_event_sql!(),
+    " UPSERT $domain.metadata_rid SET asset_id = $domain.asset_ref, \
+         favorite = $domain.favorite, rating = $domain.rating, frontpage = $domain.frontpage, \
+         carousel = $domain.carousel, notes = $domain.notes, \
+         review_status = $domain.review_status, updated_by = $domain.actor, \
+         updated_at_utc = time::now(); \
+       IF $domain.replace_tags { \
+         LET $removed_refs = (SELECT VALUE id FROM atelier_tag WHERE text IN $domain.removed_tags); \
+         DELETE atelier_media_asset_tag WHERE asset_id = $domain.asset_ref \
+                                          AND tag_id IN $removed_refs; \
+         FOR $tag IN $domain.added_tags { \
+           LET $existing = (SELECT VALUE id FROM atelier_tag WHERE text = $tag.text LIMIT 1); \
+           IF $existing = [] { CREATE $tag.tag_rid CONTENT { tag_id: $tag.tag_id, text: $tag.text }; }; \
+           LET $tag_ref = (SELECT VALUE id FROM atelier_tag WHERE text = $tag.text LIMIT 1)[0]; \
+           LET $link_rid = type::record('atelier_media_asset_tag', \
+                                        [record::id($domain.asset_ref), record::id($tag_ref)]); \
+           UPSERT $link_rid SET asset_id = $domain.asset_ref, tag_id = $tag_ref, \
+                                source = $domain.tag_source; \
+         }; \
+       }; \
+       IF $domain.write_provenance { \
+         UPSERT $domain.provenance_rid SET asset_id = $domain.asset_ref, \
+           source_url_ref = $domain.source_url_ref, source_path_ref = $domain.source_path_ref, \
+           source_note_ref = $domain.source_note_ref, \
+           contact_sheet_ref = $domain.contact_sheet_ref, task_ref = $domain.task_ref, \
+           run_ref = $domain.run_ref, updated_by = $domain.actor, updated_at_utc = time::now(); \
+       }; \
+       RETURN { \
+         metadata: (SELECT record::id(asset_id) AS asset_id, favorite, rating, frontpage, \
+                           carousel, notes, review_status, updated_by, updated_at_utc \
+                    FROM $domain.metadata_rid), \
+         tags: (SELECT VALUE tag_id.text FROM atelier_media_asset_tag \
+                WHERE asset_id = $domain.asset_ref), \
+         provenance: (SELECT record::id(asset_id) AS asset_id, source_url_ref, source_path_ref, \
+                             source_note_ref, contact_sheet_ref, task_ref, run_ref, updated_by, \
+                             updated_at_utc \
+                      FROM $domain.provenance_rid) \
+       }; };"
 );
 
 const GET_COLLECTION_STATEMENT: &str = concat!(
@@ -918,17 +1492,25 @@ const UPDATE_COLLECTION_STATEMENT: &str = concat!(
     "RETURN { LET $rid = $domain.collection_rid; ",
     atelier_event_sql!(),
     " UPDATE $rid SET name = $domain.name ?? name, notes = $domain.notes ?? notes, \
-         tags_json = $domain.tags_json ?? tags_json, updated_at_utc = time::now(); \
+         tags_json = $domain.tags_json ?? tags_json, updated_by = $domain.actor, \
+         updated_at_utc = time::now(); \
        RETURN (SELECT ",
     collection_select!(),
     " FROM $rid); };"
 );
 
+/// Append memberships. New rows are appended after the current max
+/// `sort_order` carrying the link-scoped refs and the actor; an existing
+/// membership is left alone unless a ref was supplied that differs from the
+/// stored one, in which case only that ref (and `updated_by`) changes and the
+/// row counts toward `updated_refs`. Membership rows and the event commit as
+/// one statement (MT-056 F10).
 const ADD_IMAGES_STATEMENT: &str = concat!(
     "RETURN { \
-       LET $existing = count(SELECT id FROM atelier_collection_item \
-                            WHERE collection_id = $domain.collection_ref \
-                              AND asset_id IN $domain.asset_refs); \
+       LET $existing_refs = (SELECT VALUE asset_id FROM atelier_collection_item \
+                             WHERE collection_id = $domain.collection_ref \
+                               AND asset_id IN $domain.asset_refs); \
+       LET $existing_count = array::len($existing_refs); \
        LET $next_order = (array::max((SELECT VALUE sort_order FROM atelier_collection_item \
                                      WHERE collection_id = $domain.collection_ref)) ?? -1) + 1; ",
     atelier_event_sql!(),
@@ -936,23 +1518,54 @@ const ADD_IMAGES_STATEMENT: &str = concat!(
          LET $rid = type::record('atelier_collection_item', $item.pair_key); \
          IF !record::exists($rid) { \
            CREATE $rid CONTENT { collection_id: $domain.collection_ref, \
-             asset_id: $item.asset_ref, sort_order: $next_order + $item.order_offset }; \
+             asset_id: $item.asset_ref, sort_order: $next_order + $item.order_offset, \
+             source_path_ref: $domain.source_path_ref, source_url_ref: $domain.source_url_ref, \
+             linked_by: $domain.actor, updated_by: $domain.actor }; \
          }; \
        }; \
-       LET $inserted = array::len($domain.items) - $existing; \
-       IF $inserted > 0 { UPDATE $domain.collection_ref SET updated_at_utc = time::now(); }; \
-       RETURN $inserted; };"
+       LET $updated_refs = IF $domain.source_path_ref != NONE OR $domain.source_url_ref != NONE { \
+         array::len((UPDATE atelier_collection_item SET \
+             source_path_ref = $domain.source_path_ref ?? source_path_ref, \
+             source_url_ref = $domain.source_url_ref ?? source_url_ref, \
+             updated_by = $domain.actor, updated_at_utc = time::now() \
+           WHERE collection_id = $domain.collection_ref AND asset_id IN $existing_refs \
+             AND (($domain.source_path_ref != NONE AND source_path_ref != $domain.source_path_ref) \
+                  OR ($domain.source_url_ref != NONE AND source_url_ref != $domain.source_url_ref)) \
+           RETURN AFTER)) \
+       } ELSE { 0 }; \
+       LET $inserted = array::len($domain.items) - $existing_count; \
+       IF $inserted > 0 OR $updated_refs > 0 { \
+         UPDATE $domain.collection_ref SET updated_by = $domain.actor, updated_at_utc = time::now(); \
+       }; \
+       RETURN { inserted: $inserted, updated_refs: $updated_refs }; };"
 );
 
+/// Remove memberships, writing one unlink receipt per removed row so the prior
+/// order / link refs / attribution stay auditable (MT-036 receipt half).
 const REMOVE_IMAGES_STATEMENT: &str = concat!(
     "RETURN { \
        LET $removed = count(SELECT id FROM atelier_collection_item \
                             WHERE collection_id = $domain.collection_ref \
                               AND asset_id IN $domain.asset_refs); ",
     atelier_event_sql!(),
-    " DELETE atelier_collection_item WHERE collection_id = $domain.collection_ref \
-           AND asset_id IN $domain.asset_refs; \
-       IF $removed > 0 { UPDATE $domain.collection_ref SET updated_at_utc = time::now(); }; \
+    " FOR $item IN $domain.items { \
+         LET $rid = type::record('atelier_collection_item', $item.pair_key); \
+         IF record::exists($rid) { \
+           LET $member = (SELECT * FROM ONLY $rid); \
+           CREATE $item.receipt_rid CONTENT { \
+             unlink_receipt_id: $item.unlink_receipt_id, collection_id: $member.collection_id, \
+             asset_id: $member.asset_id, prior_sort_order: $member.sort_order, \
+             prior_source_path_ref: $member.source_path_ref, \
+             prior_source_url_ref: $member.source_url_ref, linked_by: $member.linked_by, \
+             member_updated_by: $member.updated_by, \
+             member_updated_at_utc: $member.updated_at_utc, unlinked_by: $domain.actor \
+           }; \
+           DELETE $rid; \
+         }; \
+       }; \
+       IF $removed > 0 { \
+         UPDATE $domain.collection_ref SET updated_by = $domain.actor, updated_at_utc = time::now(); \
+       }; \
        RETURN $removed; };"
 );
 
@@ -1083,16 +1696,35 @@ impl AtelierStore {
     /// are trimmed and de-duplicated. Optional character/sheet links are FK
     /// validated by the database.
     pub async fn create_collection(&self, new: &NewCollection) -> AtelierResult<Collection> {
+        self.create_collection_inner(new, None).await
+    }
+
+    /// Create a named collection attributed to the requesting actor
+    /// (`created_by` / `updated_by` and the EventLedger payload).
+    pub async fn create_collection_attributed(
+        &self,
+        new: &NewCollection,
+        requested_by: &str,
+    ) -> AtelierResult<Collection> {
+        self.create_collection_inner(new, Some(requested_by)).await
+    }
+
+    async fn create_collection_inner(
+        &self,
+        new: &NewCollection,
+        requested_by: Option<&str>,
+    ) -> AtelierResult<Collection> {
         let name = new.name.trim();
         if name.is_empty() {
             return Err(AtelierError::Validation(
                 "collection name must not be empty".into(),
             ));
         }
+        let actor = collection_actor_or_system("collection actor", requested_by)?;
         let tags = clean_tags(&new.tags);
         let collection_id = Uuid::now_v7();
         let bindings = CreateCollectionBindings {
-            collection_rid: RecordId::new("atelier_collection", SurrealUuid::from(collection_id)),
+            collection_rid: collection_record(collection_id),
             collection_id: SurrealUuid::from(collection_id),
             name: name.to_owned(),
             notes: new.notes.clone(),
@@ -1103,6 +1735,7 @@ impl AtelierStore {
             sheet_version_ref: new
                 .sheet_version_id
                 .map(|id| RecordId::new("atelier_sheet_version", SurrealUuid::from(id))),
+            actor: actor.to_owned(),
         };
         let row: Option<CollectionRow> = self
             .write_with_event(
@@ -1115,12 +1748,214 @@ impl AtelierStore {
                     "name": name,
                     "tags": tags,
                     "character_scoped": new.character_internal_id.is_some(),
+                    "requested_by": actor,
                 }),
             )
-            .await?;
+            .await
+            .map_err(|error| map_scoped_name_conflict(error, name, new.character_internal_id))?;
         row.map(Collection::from).ok_or_else(|| {
             AtelierError::Internal("creating a collection returned no row".to_owned())
         })
+    }
+
+    /// One page of the collections bound to a CKC character, newest first,
+    /// plus the canonical total so the caller can compute `next_offset` from
+    /// the real row count rather than the rendered subset (MT-056 F2/F3).
+    pub async fn list_character_collections_page(
+        &self,
+        character_internal_id: Uuid,
+        offset: i64,
+        limit: i64,
+    ) -> AtelierResult<CollectionPage> {
+        if offset < 0 {
+            return Err(AtelierError::Validation("offset must be >= 0".to_owned()));
+        }
+        if limit < 1 {
+            return Err(AtelierError::Validation("limit must be >= 1".to_owned()));
+        }
+        let character_ref = RecordId::new("atelier_character", SurrealUuid::from(character_internal_id));
+        let count_bindings = CharacterRefBinding {
+            character_ref: character_ref.clone(),
+        };
+        let total_count: Option<i64> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(COUNT_CHARACTER_COLLECTIONS_STATEMENT, count_bindings)
+                        .await
+                })
+            })
+            .await?;
+        let page_bindings = CharacterCollectionPageBindings {
+            character_ref,
+            limit,
+            offset,
+        };
+        let rows: Vec<CollectionRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_CHARACTER_COLLECTIONS_PAGE_STATEMENT, page_bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(CollectionPage {
+            collections: rows.into_iter().map(Collection::from).collect(),
+            total_count: total_count.unwrap_or(0).max(0),
+        })
+    }
+
+    /// One page of album members with the asset fields and link-scoped refs,
+    /// ordered by `sort_order, asset_id`, plus the canonical member count.
+    pub async fn list_collection_member_page(
+        &self,
+        collection_id: Uuid,
+        offset: i64,
+        limit: i64,
+    ) -> AtelierResult<CollectionMemberPage> {
+        if offset < 0 {
+            return Err(AtelierError::Validation("offset must be >= 0".to_owned()));
+        }
+        if limit < 1 {
+            return Err(AtelierError::Validation("limit must be >= 1".to_owned()));
+        }
+        let total_count = self.count_collection_members(collection_id).await?;
+        let page_bindings = CollectionMemberPageBindings {
+            collection_ref: collection_record(collection_id),
+            limit,
+            offset,
+        };
+        let rows: Vec<CollectionMemberDetailRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_COLLECTION_MEMBER_PAGE_STATEMENT, page_bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(CollectionMemberPage {
+            members: rows.into_iter().map(CollectionMemberDetail::from).collect(),
+            total_count,
+        })
+    }
+
+    /// Canonical member count of a collection (the number the API reports,
+    /// never the size of a rendered page).
+    pub async fn count_collection_members(&self, collection_id: Uuid) -> AtelierResult<i64> {
+        let bindings = CollectionRefBinding {
+            collection_ref: collection_record(collection_id),
+        };
+        let count: Option<i64> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(COUNT_COLLECTION_MEMBERS_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(count.unwrap_or(0).max(0))
+    }
+
+    /// Current member asset ids of a collection in album order.
+    pub async fn list_collection_member_asset_ids(
+        &self,
+        collection_id: Uuid,
+    ) -> AtelierResult<Vec<Uuid>> {
+        let bindings = CollectionRefBinding {
+            collection_ref: collection_record(collection_id),
+        };
+        let ids: Vec<SurrealUuid> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(LIST_COLLECTION_MEMBER_ASSET_IDS_STATEMENT, bindings)
+                        .await
+                })
+            })
+            .await?;
+        Ok(ids.into_iter().map(Into::into).collect())
+    }
+
+    /// Review metadata, direct tags and asset-global provenance for a set of
+    /// assets in three batched statements. Assets with no rows come back with
+    /// `None` / empty tags so the caller can render every member uniformly.
+    pub async fn media_album_member_enrichment(
+        &self,
+        asset_ids: &[Uuid],
+    ) -> AtelierResult<Vec<MediaAlbumMemberEnrichment>> {
+        if asset_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let asset_refs: Vec<RecordId> = asset_ids.iter().copied().map(media_asset_record).collect();
+        let review_bindings = AssetRefsBinding {
+            asset_refs: asset_refs.clone(),
+        };
+        let review_rows: Vec<MemberReviewMetadataRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(MEMBER_REVIEW_METADATA_BATCH_STATEMENT, review_bindings)
+                        .await
+                })
+            })
+            .await?;
+        let tag_bindings = AssetRefsBinding {
+            asset_refs: asset_refs.clone(),
+        };
+        let tag_rows: Vec<MemberTagTextRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(MEMBER_TAGS_BATCH_STATEMENT, tag_bindings)
+                        .await
+                })
+            })
+            .await?;
+        let provenance_bindings = AssetRefsBinding { asset_refs };
+        let provenance_rows: Vec<MemberProvenanceRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(MEMBER_PROVENANCE_BATCH_STATEMENT, provenance_bindings)
+                        .await
+                })
+            })
+            .await?;
+
+        let mut metadata_by_asset: HashMap<Uuid, MediaReviewMetadata> = HashMap::new();
+        for row in review_rows {
+            let metadata: MediaReviewMetadata = row.try_into()?;
+            metadata_by_asset.insert(metadata.asset_id, metadata);
+        }
+        let mut tags_by_asset: HashMap<Uuid, Vec<String>> = HashMap::new();
+        for row in tag_rows {
+            tags_by_asset
+                .entry(row.asset_id.into())
+                .or_default()
+                .push(row.text);
+        }
+        let mut provenance_by_asset: HashMap<Uuid, MediaSourceProvenanceRefs> = HashMap::new();
+        for row in provenance_rows {
+            let provenance: MediaSourceProvenanceRefs = row.into();
+            provenance_by_asset.insert(provenance.asset_id, provenance);
+        }
+        Ok(asset_ids
+            .iter()
+            .map(|asset_id| {
+                let mut tags = tags_by_asset.remove(asset_id).unwrap_or_default();
+                tags.sort();
+                tags.dedup();
+                MediaAlbumMemberEnrichment {
+                    asset_id: *asset_id,
+                    metadata: metadata_by_asset.remove(asset_id),
+                    tags,
+                    provenance: provenance_by_asset.remove(asset_id),
+                }
+            })
+            .collect())
     }
 
     /// Fetch a collection by id.
@@ -1168,10 +2003,11 @@ impl AtelierStore {
         self.get_collection(collection_id).await?;
         let tags_cleaned = tags.map(clean_tags);
         let bindings = UpdateCollectionBindings {
-            collection_rid: RecordId::new("atelier_collection", SurrealUuid::from(collection_id)),
+            collection_rid: collection_record(collection_id),
             name: name.map(|value| value.trim().to_owned()),
             notes: notes.map(ToOwned::to_owned),
             tags_json: tags_cleaned.clone(),
+            actor: SYSTEM_COLLECTION_ACTOR.to_owned(),
         };
         let row: Option<CollectionRow> = self
             .write_with_event(
@@ -1198,6 +2034,67 @@ impl AtelierStore {
         collection_id: Uuid,
         asset_ids: &[Uuid],
     ) -> AtelierResult<i64> {
+        Ok(self
+            .add_images_to_collection_inner(collection_id, asset_ids, None, None, None)
+            .await?
+            .inserted)
+    }
+
+    /// Append media assets and record the requesting actor on the membership
+    /// rows and in the EventLedger payload.
+    pub async fn add_images_to_collection_attributed(
+        &self,
+        collection_id: Uuid,
+        asset_ids: &[Uuid],
+        requested_by: &str,
+    ) -> AtelierResult<i64> {
+        Ok(self
+            .add_images_to_collection_inner(collection_id, asset_ids, Some(requested_by), None, None)
+            .await?
+            .inserted)
+    }
+
+    /// Append media assets and persist optional link-scoped provenance on the
+    /// collection membership (never on the asset identity). Pre-existing
+    /// memberships whose stored ref differs from a supplied ref are updated in
+    /// place and counted in `updated_refs`.
+    pub async fn add_images_to_collection_with_link_refs_attributed(
+        &self,
+        collection_id: Uuid,
+        asset_ids: &[Uuid],
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+        requested_by: &str,
+    ) -> AtelierResult<CollectionItemsAdded> {
+        self.add_images_to_collection_inner(
+            collection_id,
+            asset_ids,
+            Some(requested_by),
+            source_path_ref,
+            source_url_ref,
+        )
+        .await
+    }
+
+    async fn add_images_to_collection_inner(
+        &self,
+        collection_id: Uuid,
+        asset_ids: &[Uuid],
+        requested_by: Option<&str>,
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+    ) -> AtelierResult<CollectionItemsAdded> {
+        let source_path_ref = normalize_optional_ckc_source_ref(
+            CkcSourceRefKind::Folder,
+            "source_path_ref",
+            &source_path_ref.map(ToOwned::to_owned),
+        )?;
+        let source_url_ref = normalize_optional_ckc_source_ref(
+            CkcSourceRefKind::SourceUrl,
+            "source_url_ref",
+            &source_url_ref.map(ToOwned::to_owned),
+        )?;
+        let actor = collection_actor_or_system("collection item actor", requested_by)?;
         // Validate the collection exists (clear error vs. an FK violation).
         self.get_collection(collection_id).await?;
         let mut unique = Vec::new();
@@ -1206,49 +2103,104 @@ impl AtelierStore {
                 unique.push(*asset_id);
             }
         }
-        let collection_ref = RecordId::new("atelier_collection", SurrealUuid::from(collection_id));
-        let asset_refs: Vec<RecordId> = unique
-            .iter()
-            .map(|id| RecordId::new("atelier_media_asset", SurrealUuid::from(*id)))
+        // Reject unknown assets with a typed NotFound naming them, instead of
+        // leaking the schema's record-link assertion as a 500.
+        if !unique.is_empty() {
+            let bindings = AssetIdsBinding {
+                asset_ids: unique.iter().copied().map(SurrealUuid::from).collect(),
+            };
+            let rows: Vec<AssetHashRow> = self
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(
+                        async move { ctx.query_values(ASSET_HASHES_STATEMENT, bindings).await },
+                    )
+                })
+                .await?;
+            if rows.len() != unique.len() {
+                let existing: HashSet<Uuid> =
+                    rows.into_iter().map(|row| row.asset_id.into()).collect();
+                let missing: Vec<String> = unique
+                    .iter()
+                    .filter(|asset_id| !existing.contains(asset_id))
+                    .map(Uuid::to_string)
+                    .collect();
+                return Err(AtelierError::NotFound(format!(
+                    "collection media targets missing from atelier_media_asset: {}",
+                    missing.join(", ")
+                )));
+            }
+        }
+        // Offsets are assigned only to assets that are not members yet so the
+        // appended block stays dense; the statement re-checks existence so a
+        // concurrent link cannot duplicate a membership.
+        let current_members: HashSet<Uuid> = self
+            .list_collection_member_asset_ids(collection_id)
+            .await?
+            .into_iter()
             .collect();
+        let collection_ref = collection_record(collection_id);
+        let asset_refs: Vec<RecordId> = unique.iter().copied().map(media_asset_record).collect();
+        let mut next_offset = 0_i64;
         let items = unique
             .iter()
             .zip(asset_refs.iter())
-            .enumerate()
-            .map(|(offset, (asset_id, asset_ref))| CollectionItemInput {
-                asset_ref: asset_ref.clone(),
-                pair_key: vec![
-                    SurrealUuid::from(collection_id),
-                    SurrealUuid::from(*asset_id),
-                ],
-                order_offset: offset as i64,
+            .map(|(asset_id, asset_ref)| {
+                let order_offset = if current_members.contains(asset_id) {
+                    0
+                } else {
+                    let offset = next_offset;
+                    next_offset += 1;
+                    offset
+                };
+                CollectionItemInput {
+                    asset_ref: asset_ref.clone(),
+                    pair_key: collection_item_pair_key(collection_id, *asset_id),
+                    order_offset,
+                }
             })
             .collect();
         let bindings = AddImagesBindings {
             collection_ref,
             asset_refs,
             items,
+            source_path_ref: source_path_ref.clone(),
+            source_url_ref: source_url_ref.clone(),
+            actor: actor.to_owned(),
         };
-        let inserted: Option<i64> = self
-            .write_with_event(
-                ADD_IMAGES_STATEMENT,
-                bindings,
-                collections_event_family::COLLECTION_IMAGES_ADDED,
-                "atelier_collection",
-                &collection_id.to_string(),
-                serde_json::json!({
-                    "requested": asset_ids.len(),
-                    "unique_requested": unique.len(),
-                }),
-            )
-            .await?;
-        inserted.ok_or_else(|| {
+        let aggregate_id = collection_id.to_string();
+        let payload = serde_json::json!({
+            "requested": asset_ids.len(),
+            "unique_requested": unique.len(),
+            "source_path_ref": source_path_ref,
+            "source_url_ref": source_url_ref,
+            "requested_by": actor,
+        });
+        let result: Option<CollectionItemsAddedRow> = self
+            .run_album_mutation_with_retry(collection_id, || {
+                self.write_with_event(
+                    ADD_IMAGES_STATEMENT,
+                    bindings.clone(),
+                    collections_event_family::COLLECTION_IMAGES_ADDED,
+                    "atelier_collection",
+                    &aggregate_id,
+                    payload.clone(),
+                )
+            })
+            .await
+            .map_err(|error| map_album_mutation_error(error, collection_id, None))?;
+        let result = result.ok_or_else(|| {
             AtelierError::Internal("adding collection images returned no count".to_owned())
+        })?;
+        Ok(CollectionItemsAdded {
+            inserted: result.inserted,
+            updated_refs: result.updated_refs,
         })
     }
 
-    /// Remove media assets from a collection. Returns the number removed. Bumps
-    /// `updated_at_utc` when anything was removed.
+    /// Remove media assets from a collection, writing one unlink receipt per
+    /// removed membership (attributed to the system actor). Returns the number
+    /// removed. Bumps `updated_at_utc` when anything was removed.
     pub async fn remove_images_from_collection(
         &self,
         collection_id: Uuid,
@@ -1261,12 +2213,30 @@ impl AtelierStore {
                 unique.push(*asset_id);
             }
         }
+        let items: Vec<RemoveImageInput> = unique
+            .iter()
+            .map(|asset_id| {
+                let unlink_receipt_id = Uuid::now_v7();
+                RemoveImageInput {
+                    asset_ref: media_asset_record(*asset_id),
+                    pair_key: collection_item_pair_key(collection_id, *asset_id),
+                    receipt_rid: RecordId::new(
+                        "atelier_collection_item_unlink_receipt",
+                        SurrealUuid::from(unlink_receipt_id),
+                    ),
+                    unlink_receipt_id: SurrealUuid::from(unlink_receipt_id),
+                }
+            })
+            .collect();
+        let unlink_receipt_ids: Vec<Uuid> = items
+            .iter()
+            .map(|item| item.unlink_receipt_id.into())
+            .collect();
         let bindings = RemoveImagesBindings {
-            collection_ref: RecordId::new("atelier_collection", SurrealUuid::from(collection_id)),
-            asset_refs: unique
-                .iter()
-                .map(|id| RecordId::new("atelier_media_asset", SurrealUuid::from(*id)))
-                .collect(),
+            collection_ref: collection_record(collection_id),
+            asset_refs: unique.iter().copied().map(media_asset_record).collect(),
+            items,
+            actor: SYSTEM_COLLECTION_ACTOR.to_owned(),
         };
         let removed: Option<i64> = self
             .write_with_event(
@@ -1278,11 +2248,482 @@ impl AtelierStore {
                 serde_json::json!({
                     "requested": asset_ids.len(),
                     "unique_requested": unique.len(),
+                    "removed_by": SYSTEM_COLLECTION_ACTOR,
+                    "unlink_receipt_ids": unlink_receipt_ids,
                 }),
             )
             .await?;
         removed.ok_or_else(|| {
             AtelierError::Internal("removing collection images returned no count".to_owned())
+        })
+    }
+
+    /// Retry an album mutation whose statement lost an optimistic transaction
+    /// race (two writers on one album, MT-056 F5/F9). Every other error, and an
+    /// exhausted budget, is returned to the caller unchanged.
+    async fn run_album_mutation_with_retry<T, F, Fut>(
+        &self,
+        seed: Uuid,
+        mut attempt: F,
+    ) -> AtelierResult<T>
+    where
+        F: FnMut() -> Fut,
+        Fut: std::future::Future<Output = AtelierResult<T>>,
+    {
+        let mut failed_attempts = 0_usize;
+        loop {
+            match attempt().await {
+                Ok(value) => return Ok(value),
+                Err(error)
+                    if is_surreal_retryable_transaction_conflict(&error)
+                        && failed_attempts + 1 < SURREAL_TRANSACTION_MAX_ATTEMPTS =>
+                {
+                    failed_attempts += 1;
+                    tokio::time::sleep(surreal_transaction_retry_delay(seed, failed_attempts)).await;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
+
+    /// Unlink ONE membership from a CKC media album: the membership row is
+    /// copied into `atelier_collection_item_unlink_receipt` and deleted, the
+    /// collection is bumped, and `MEDIA_ALBUM_ITEM_UNLINKED` is recorded, all
+    /// in one statement. The media asset row, its notes, tags and asset-global
+    /// provenance are untouched. A non-member is `NotFound`.
+    pub async fn unlink_media_album_item(
+        &self,
+        collection_id: Uuid,
+        asset_id: Uuid,
+        requested_by: &str,
+    ) -> AtelierResult<CollectionItemUnlinkReceipt> {
+        let actor = require_collection_actor("collection item actor", requested_by)?;
+        self.get_collection(collection_id).await?;
+        let unlink_receipt_id = Uuid::now_v7();
+        let bindings = UnlinkAlbumItemBindings {
+            collection_ref: collection_record(collection_id),
+            member_key: collection_item_pair_key(collection_id, asset_id),
+            receipt_rid: RecordId::new(
+                "atelier_collection_item_unlink_receipt",
+                SurrealUuid::from(unlink_receipt_id),
+            ),
+            unlink_receipt_id: SurrealUuid::from(unlink_receipt_id),
+            actor: actor.to_owned(),
+        };
+        let aggregate_id = collection_id.to_string();
+        let payload = serde_json::json!({
+            "mutation": "unlink",
+            "requested_by": actor,
+            "collection_id": collection_id,
+            "asset_id": asset_id,
+            "removed": 1,
+            "removed_by": actor,
+            "unlink_receipt_id": unlink_receipt_id,
+            "concurrency_policy": ALBUM_MUTATION_CONCURRENCY_POLICY,
+            "asset_preserved": true,
+        });
+        let row: Option<CollectionItemUnlinkReceiptRow> = self
+            .run_album_mutation_with_retry(collection_id, || {
+                self.write_with_event(
+                    UNLINK_ALBUM_ITEM_STATEMENT,
+                    bindings.clone(),
+                    collections_event_family::MEDIA_ALBUM_ITEM_UNLINKED,
+                    "atelier_collection",
+                    &aggregate_id,
+                    payload.clone(),
+                )
+            })
+            .await
+            .map_err(|error| map_album_mutation_error(error, collection_id, Some(asset_id)))?;
+        row.map(CollectionItemUnlinkReceipt::from).ok_or_else(|| {
+            AtelierError::Internal("unlinking an album item returned no receipt".to_owned())
+        })
+    }
+
+    /// Fetch one unlink receipt by id.
+    pub async fn get_collection_item_unlink_receipt(
+        &self,
+        unlink_receipt_id: Uuid,
+    ) -> AtelierResult<Option<CollectionItemUnlinkReceipt>> {
+        let bindings = UnlinkReceiptIdBinding {
+            unlink_receipt_id: SurrealUuid::from(unlink_receipt_id),
+        };
+        let row: Option<CollectionItemUnlinkReceiptRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move { ctx.query_first(GET_UNLINK_RECEIPT_STATEMENT, bindings).await })
+            })
+            .await?;
+        Ok(row.map(Into::into))
+    }
+
+    /// Edit the link-scoped provenance on ONE membership. Returns the number
+    /// of membership rows updated (always 1; a non-member is `NotFound`).
+    pub async fn update_media_album_item_link_refs(
+        &self,
+        collection_id: Uuid,
+        asset_id: Uuid,
+        update: &CollectionItemLinkRefUpdate,
+        requested_by: &str,
+    ) -> AtelierResult<i64> {
+        let actor = require_collection_actor("collection item actor", requested_by)?;
+        if !update.set_source_path_ref && !update.set_source_url_ref {
+            return Err(AtelierError::Validation(
+                "at least one link-scoped provenance field must be set or cleared".to_owned(),
+            ));
+        }
+        let source_path_ref = if update.set_source_path_ref {
+            normalize_optional_ckc_source_ref(
+                CkcSourceRefKind::Folder,
+                "source_path_ref",
+                &update.source_path_ref,
+            )?
+        } else {
+            None
+        };
+        let source_url_ref = if update.set_source_url_ref {
+            normalize_optional_ckc_source_ref(
+                CkcSourceRefKind::SourceUrl,
+                "source_url_ref",
+                &update.source_url_ref,
+            )?
+        } else {
+            None
+        };
+        self.get_collection(collection_id).await?;
+        let bindings = UpdateAlbumItemLinkRefsBindings {
+            collection_ref: collection_record(collection_id),
+            member_key: collection_item_pair_key(collection_id, asset_id),
+            set_source_path_ref: update.set_source_path_ref,
+            source_path_ref: source_path_ref.clone(),
+            set_source_url_ref: update.set_source_url_ref,
+            source_url_ref: source_url_ref.clone(),
+            actor: actor.to_owned(),
+        };
+        let aggregate_id = collection_id.to_string();
+        let payload = serde_json::json!({
+            "mutation": "link_ref_edit",
+            "requested_by": actor,
+            "collection_id": collection_id,
+            "asset_id": asset_id,
+            "set_source_path_ref": update.set_source_path_ref,
+            "source_path_ref": source_path_ref,
+            "set_source_url_ref": update.set_source_url_ref,
+            "source_url_ref": source_url_ref,
+            "concurrency_policy": ALBUM_MUTATION_CONCURRENCY_POLICY,
+            "global_asset_provenance_preserved": true,
+        });
+        let updated: Option<i64> = self
+            .run_album_mutation_with_retry(collection_id, || {
+                self.write_with_event(
+                    UPDATE_ALBUM_ITEM_LINK_REFS_STATEMENT,
+                    bindings.clone(),
+                    collections_event_family::MEDIA_ALBUM_ITEM_LINK_REFS_UPDATED,
+                    "atelier_collection",
+                    &aggregate_id,
+                    payload.clone(),
+                )
+            })
+            .await
+            .map_err(|error| map_album_mutation_error(error, collection_id, Some(asset_id)))?;
+        updated.ok_or_else(|| {
+            AtelierError::Internal("editing an album item link returned no count".to_owned())
+        })
+    }
+
+    /// Apply an explicit full dense reorder to a CKC media album. The request
+    /// must name every current member exactly once with positions `0..n`; a
+    /// set that does not match the album is `Validation` (wrong size) or
+    /// `NotFound` (foreign asset), and a set that stops matching while the
+    /// write is in flight is `Conflict`. Returns the number of rows reordered.
+    pub async fn reorder_media_album_items(
+        &self,
+        collection_id: Uuid,
+        items: &[CollectionItemReorder],
+        requested_by: &str,
+    ) -> AtelierResult<i64> {
+        let actor = require_collection_actor("collection item actor", requested_by)?;
+        let asset_ids = validate_collection_reorder(items)?;
+        self.get_collection(collection_id).await?;
+        let current_members = self.list_collection_member_asset_ids(collection_id).await?;
+        if current_members.len() != asset_ids.len() {
+            return Err(AtelierError::Validation(format!(
+                "reorder must include every current album member for collection_id={collection_id}; current={} requested={}",
+                current_members.len(),
+                asset_ids.len()
+            )));
+        }
+        let current_set: HashSet<Uuid> = current_members.into_iter().collect();
+        let missing: Vec<String> = asset_ids
+            .iter()
+            .filter(|asset_id| !current_set.contains(asset_id))
+            .map(Uuid::to_string)
+            .collect();
+        if !missing.is_empty() {
+            return Err(AtelierError::NotFound(format!(
+                "album reorder targets missing from collection_id={collection_id}: {}",
+                missing.join(", ")
+            )));
+        }
+        let bindings = ReorderAlbumItemsBindings {
+            collection_ref: collection_record(collection_id),
+            expected_asset_ids: asset_ids.iter().copied().map(SurrealUuid::from).collect(),
+            items: items
+                .iter()
+                .map(|item| ReorderItemInput {
+                    member_key: collection_item_pair_key(collection_id, item.asset_id),
+                    sort_order: item.sort_order,
+                })
+                .collect(),
+            actor: actor.to_owned(),
+        };
+        let aggregate_id = collection_id.to_string();
+        let payload = serde_json::json!({
+            "mutation": "reorder",
+            "requested_by": actor,
+            "collection_id": collection_id,
+            "requested": items.len(),
+            "changed": items.len(),
+            "concurrency_policy": ALBUM_REORDER_CONCURRENCY_POLICY,
+            "items": items
+                .iter()
+                .map(|item| serde_json::json!({
+                    "asset_id": item.asset_id,
+                    "sort_order": item.sort_order,
+                }))
+                .collect::<Vec<_>>(),
+        });
+        let changed: Option<i64> = self
+            .run_album_mutation_with_retry(collection_id, || {
+                self.write_with_event(
+                    REORDER_ALBUM_ITEMS_STATEMENT,
+                    bindings.clone(),
+                    collections_event_family::MEDIA_ALBUM_ITEMS_REORDERED,
+                    "atelier_collection",
+                    &aggregate_id,
+                    payload.clone(),
+                )
+            })
+            .await
+            .map_err(|error| map_album_mutation_error(error, collection_id, None))?;
+        changed.ok_or_else(|| {
+            AtelierError::Internal("reordering album items returned no count".to_owned())
+        })
+    }
+
+    /// The CKC "notes/tags" save for one media asset. Every input is validated
+    /// (including the merged asset-global refs) BEFORE any write, so a rejected
+    /// request leaves notes, tags and provenance exactly as they were. The
+    /// review-metadata upsert, the tag-set replacement and the optional
+    /// provenance upsert then commit in one statement together with the
+    /// `MEDIA_REVIEW_METADATA_UPDATED` event; the per-tag and provenance events
+    /// are appended after that commit.
+    pub async fn apply_media_notes_tags(
+        &self,
+        update: &MediaNotesTagsUpdate,
+    ) -> AtelierResult<MediaNotesTagsResult> {
+        let actor = require_collection_actor("media notes actor", &update.updated_by)?;
+        let asset_id = update.asset_id;
+        let requested_path_ref = normalize_optional_ckc_source_ref(
+            CkcSourceRefKind::Folder,
+            "source_path_ref",
+            &update.source_path_ref,
+        )?;
+        let requested_url_ref = normalize_optional_ckc_source_ref(
+            CkcSourceRefKind::SourceUrl,
+            "source_url_ref",
+            &update.source_url_ref,
+        )?;
+        let desired_tags = update.tags.as_deref().map(normalize_media_tags);
+
+        if self.get_media_asset(asset_id).await?.is_none() {
+            return Err(AtelierError::NotFound(format!("media asset_id={asset_id}")));
+        }
+        let existing_metadata = self.get_media_review_metadata(asset_id).await?;
+        let existing_tags: Vec<String> = self
+            .list_media_asset_tags(asset_id)
+            .await?
+            .into_iter()
+            .map(|tag| tag.text)
+            .collect();
+        let existing_provenance = self.get_media_source_provenance_refs(asset_id).await?;
+
+        let notes = update
+            .notes
+            .clone()
+            .or_else(|| existing_metadata.as_ref().and_then(|row| row.notes.clone()));
+        let review_status = match update.review_status.as_deref() {
+            Some(status) => require_media_review_status(status)?.to_owned(),
+            None => existing_metadata
+                .as_ref()
+                .map(|row| row.review_status.clone())
+                .unwrap_or_else(|| "unreviewed".to_owned()),
+        };
+        let (added_tags, removed_tags) = match &desired_tags {
+            Some(desired) => (
+                desired
+                    .iter()
+                    .filter(|tag| !existing_tags.contains(tag))
+                    .cloned()
+                    .collect::<Vec<_>>(),
+                existing_tags
+                    .iter()
+                    .filter(|tag| !desired.contains(tag))
+                    .cloned()
+                    .collect::<Vec<_>>(),
+            ),
+            None => (Vec::new(), Vec::new()),
+        };
+
+        let write_provenance = requested_path_ref.is_some() || requested_url_ref.is_some();
+        let final_url_ref = requested_url_ref
+            .clone()
+            .or_else(|| existing_provenance.as_ref().and_then(|row| row.source_url_ref.clone()));
+        let final_path_ref = requested_path_ref
+            .clone()
+            .or_else(|| existing_provenance.as_ref().and_then(|row| row.source_path_ref.clone()));
+        let source_note_ref = existing_provenance.as_ref().and_then(|row| row.source_note_ref.clone());
+        let contact_sheet_ref = existing_provenance.as_ref().and_then(|row| row.contact_sheet_ref.clone());
+        let task_ref = existing_provenance.as_ref().and_then(|row| row.task_ref.clone());
+        let run_ref = existing_provenance.as_ref().and_then(|row| row.run_ref.clone());
+        if write_provenance {
+            // The merged row must pass the same rules as a fresh write: a stored
+            // ref that drifted invalid cannot be re-persisted alongside the edit.
+            normalize_optional_ckc_source_ref(CkcSourceRefKind::SourceUrl, "source_url_ref", &final_url_ref)?;
+            normalize_optional_ckc_source_ref(CkcSourceRefKind::Folder, "source_path_ref", &final_path_ref)?;
+            for (field, value) in [
+                ("source_note_ref", &source_note_ref),
+                ("contact_sheet_ref", &contact_sheet_ref),
+                ("task_ref", &task_ref),
+                ("run_ref", &run_ref),
+            ] {
+                if let Some(raw) = value.as_deref() {
+                    require_collection_ref_text(field, raw)?;
+                }
+            }
+        }
+
+        let tag_candidates: Vec<NotesTagCandidate> = added_tags
+            .iter()
+            .map(|text| {
+                let tag_id = Uuid::now_v7();
+                NotesTagCandidate {
+                    tag_rid: RecordId::new("atelier_tag", SurrealUuid::from(tag_id)),
+                    tag_id: SurrealUuid::from(tag_id),
+                    text: text.clone(),
+                }
+            })
+            .collect();
+        let bindings = ApplyMediaNotesTagsBindings {
+            asset_ref: media_asset_record(asset_id),
+            metadata_rid: RecordId::new("atelier_media_review_metadata", SurrealUuid::from(asset_id)),
+            provenance_rid: RecordId::new(
+                "atelier_media_source_provenance_ref",
+                SurrealUuid::from(asset_id),
+            ),
+            replace_tags: desired_tags.is_some(),
+            added_tags: tag_candidates,
+            removed_tags: removed_tags.clone(),
+            tag_source: actor.to_owned(),
+            favorite: existing_metadata.as_ref().map(|row| row.favorite).unwrap_or(false),
+            rating: existing_metadata.as_ref().map(|row| i64::from(row.rating)).unwrap_or(0),
+            frontpage: existing_metadata.as_ref().map(|row| row.frontpage).unwrap_or(false),
+            carousel: existing_metadata.as_ref().map(|row| row.carousel).unwrap_or(false),
+            notes: notes.clone(),
+            review_status: review_status.clone(),
+            write_provenance,
+            source_url_ref: final_url_ref.clone(),
+            source_path_ref: final_path_ref.clone(),
+            source_note_ref: source_note_ref.clone(),
+            contact_sheet_ref: contact_sheet_ref.clone(),
+            task_ref: task_ref.clone(),
+            run_ref: run_ref.clone(),
+            actor: actor.to_owned(),
+        };
+        let snapshot: Option<MediaNotesTagsSnapshotRow> = self
+            .write_with_event(
+                APPLY_MEDIA_NOTES_TAGS_STATEMENT,
+                bindings,
+                event_family::MEDIA_REVIEW_METADATA_UPDATED,
+                "atelier_media_review_metadata",
+                &asset_id.to_string(),
+                serde_json::json!({
+                    "asset_id": asset_id,
+                    "favorite": existing_metadata.as_ref().map(|row| row.favorite).unwrap_or(false),
+                    "rating": existing_metadata.as_ref().map(|row| row.rating).unwrap_or(0),
+                    "frontpage": existing_metadata.as_ref().map(|row| row.frontpage).unwrap_or(false),
+                    "carousel": existing_metadata.as_ref().map(|row| row.carousel).unwrap_or(false),
+                    "review_status": review_status,
+                    "notes_present": notes.is_some(),
+                    "notes_ref": notes.as_deref().map(event_ref_for_text),
+                    "requested_by": actor,
+                }),
+            )
+            .await
+            .map_err(|error| map_album_mutation_error(error, asset_id, Some(asset_id)))?;
+        let snapshot = snapshot.ok_or_else(|| {
+            AtelierError::Internal("saving media notes/tags returned no snapshot".to_owned())
+        })?;
+        let metadata: MediaReviewMetadata = snapshot
+            .metadata
+            .into_iter()
+            .next()
+            .ok_or_else(|| {
+                AtelierError::Internal("saving media notes/tags returned no review row".to_owned())
+            })?
+            .try_into()?;
+        let mut tags = snapshot.tags;
+        tags.sort();
+        tags.dedup();
+        let provenance = snapshot.provenance.into_iter().next().map(Into::into);
+
+        for text in &removed_tags {
+            self.record_event(
+                collections_event_family::MEDIA_ASSET_UNTAGGED,
+                "atelier_media_asset_tag",
+                &event_ref_for_text(&format!("media-asset-untag:{asset_id}:{text}")),
+                serde_json::json!({ "asset_id": asset_id, "text": text }),
+            )
+            .await?;
+        }
+        for text in &added_tags {
+            self.record_event(
+                collections_event_family::MEDIA_ASSET_TAGGED,
+                "atelier_media_asset_tag",
+                &event_ref_for_text(&format!("media-asset-tag:{asset_id}:{text}")),
+                serde_json::json!({
+                    "asset_id": asset_id,
+                    "text": text,
+                    "tag_source_ref": event_ref_for_text(actor),
+                }),
+            )
+            .await?;
+        }
+        if write_provenance {
+            self.record_event(
+                event_family::MEDIA_SOURCE_PROVENANCE_REFS_SET,
+                "atelier_media_asset",
+                &asset_id.to_string(),
+                serde_json::json!({
+                    "asset_id": asset_id,
+                    "source_url_ref": final_url_ref,
+                    "source_path_ref": final_path_ref,
+                    "source_note_ref": source_note_ref,
+                    "contact_sheet_ref": contact_sheet_ref,
+                    "task_ref": task_ref,
+                    "run_ref": run_ref,
+                    "updated_by": actor,
+                }),
+            )
+            .await?;
+        }
+
+        Ok(MediaNotesTagsResult {
+            metadata,
+            tags,
+            provenance,
+            added_tags,
+            removed_tags,
         })
     }
 

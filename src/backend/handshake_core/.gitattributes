@@ -1,0 +1,3 @@
+# Embedded SurrealDB schema sources are hash-pinned by include_str!; a CRLF checkout changes the bytes
+# and fails bootstrap with HANDSHAKE_SURREAL_SCHEMA_COMPILED_MANIFEST_DRIFT. Force LF on every platform.
+*.surql text eol=lf

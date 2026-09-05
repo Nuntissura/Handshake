@@ -13,8 +13,8 @@ use super::facial_native::{
     FacialNativeRunItem, FacialNativeRunReport, FacialNativeRunRequest,
 };
 use super::facial_native::{identity, landmarks, models};
+use crate::storage::artifacts::sha256_hex;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -832,12 +832,6 @@ fn json_sha256(value: &serde_json::Value) -> Result<String, String> {
 
 fn stable_hash(value: &str) -> String {
     sha256_hex(value.as_bytes())
-}
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
 }
 
 #[cfg(test)]

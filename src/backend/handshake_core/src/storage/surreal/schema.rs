@@ -27,17 +27,17 @@ const PREDECESSOR_SCHEMA_INFO_SHA256: &str =
 const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
     "1f8443486cd7101babb56dd6264ffcf08538a1eae24016d2155b19d5eb6370b4";
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "b4bcdbd16ffbbb3d9543f164f4226d3d952c841e80a7bd9c302b82cb15e3d4f9";
+    "9d3b830c78ffb4ac04b5af0cbdac510b29483decd076acb3e8ea81d194da4c8f";
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "565bfab7128401b822ce2465e2c70d803be65bec951be2537d202fbdd9fae153";
+    "8d72ae48dd23fab0d4f13a750da8daad46e156a276aca207bec665016163fb27";
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "f51ef10d8ebc0c728a075e7a5efe4a19503cd46dea2cfa0f1bfe59332f2e34fa";
 /// Fresh-engine STRUCTURE fingerprint captured with the product-locked SurrealDB 3.2.0
 /// engine family after applying the generated schema to an absent RocksDB path.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "685bc539ddd8864c773bb8bb599768570faa66a4ff17ee7ab24e10d6e2b2db41";
+    "047b1decfd076e9237d5aa5d6f8836801cbba38038ec9d84a278ebe5b69a275e";
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "e44e7cceecf2c0d980999e4b66391c2459512a3f3f07155e5cf68d48dedd553e";
+    "f14a7778809d15a07fbdeae930002637af15ea42d8945b6c9636dc2d15ff274c";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -168,7 +168,7 @@ const SOURCE_NAMED_INDEX_COUNT: usize = 563;
 const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 267;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
-const REFERENCE_FIELD_COUNT: usize = 404;
+const REFERENCE_FIELD_COUNT: usize = 419;
 const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 225;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());

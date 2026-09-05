@@ -19,6 +19,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
@@ -42,7 +43,8 @@ pub mod model_lease_event_family {
     ];
 }
 
-fn executor_kind_token(kind: RoleMailboxExecutorKind) -> &'static str {
+/// Wire token for an executor kind (shared with the model-ops HTTP surface).
+pub fn executor_kind_token(kind: RoleMailboxExecutorKind) -> &'static str {
     match kind {
         RoleMailboxExecutorKind::LocalSmallModel => "local_small_model",
         RoleMailboxExecutorKind::LocalLargeModel => "local_large_model",
@@ -69,7 +71,8 @@ fn executor_kind_from_token(token: &str) -> AtelierResult<RoleMailboxExecutorKin
     }
 }
 
-fn claim_mode_token(mode: RoleMailboxClaimMode) -> &'static str {
+/// Wire token for a claim mode (shared with the model-ops HTTP surface).
+pub fn claim_mode_token(mode: RoleMailboxClaimMode) -> &'static str {
     match mode {
         RoleMailboxClaimMode::ExclusiveLease => "exclusive_lease",
         RoleMailboxClaimMode::SharedObserver => "shared_observer",
@@ -391,6 +394,23 @@ const LIST_LEASES_FOR_THREAD_STATEMENT: &str = concat!(
      ORDER BY created_at_utc DESC;"
 );
 
+/// Process-local serialization point for exclusive lease claims.
+///
+/// The PostgreSQL reference took `pg_advisory_xact_lock(5023022, hashtext(thread_id))`
+/// inside the claim transaction. The embedded SurrealDB store has no advisory
+/// locks, and its optimistic RocksDB transactions only detect write-write
+/// conflicts, so two concurrent first claims on the same thread could both read
+/// an empty holder set and both commit. The embedded store is owned by exactly
+/// one kernel process, so an in-process async mutex around the claim statement
+/// is the equivalent (and sufficient) serialization guarantee: exactly one of N
+/// concurrent exclusive claimants wins, the rest observe the committed holder
+/// and fail with a typed conflict.
+static EXCLUSIVE_CLAIM_SERIALIZER: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
+
+fn exclusive_claim_serializer() -> &'static tokio::sync::Mutex<()> {
+    EXCLUSIVE_CLAIM_SERIALIZER.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
 impl AtelierStore {
     /// Claim a coordination thread. Exclusive leases and handoff
     /// reservations enforce one active unexpired claimant per thread; a
@@ -409,6 +429,14 @@ impl AtelierStore {
             input.claim_mode,
             RoleMailboxClaimMode::ExclusiveLease | RoleMailboxClaimMode::HandoffReservation
         );
+        // WP-CKC MT-022/MT-062: serialize exclusive claims per process so
+        // concurrent first claimants cannot both observe "no active holder"
+        // (the reference used a PostgreSQL advisory lock keyed by thread_id).
+        let claim_guard = if exclusive {
+            Some(exclusive_claim_serializer().lock().await)
+        } else {
+            None
+        };
 
         let bindings = ClaimLeaseBindings {
             record_id: RecordId::new(
@@ -427,13 +455,17 @@ impl AtelierStore {
             exclusive,
             takeover_reason: format!("lease TTL expired; taken over by {}", input.actor_id),
         };
-        let outcome: Option<ClaimLeaseOutcome> = self
+        let outcome = self
             .store()
             .with_data_operation(move |ctx| {
-                Box::pin(async move { ctx.query_first(CLAIM_LEASE_STATEMENT, bindings).await })
+                Box::pin(async move {
+                    ctx.query_first::<ClaimLeaseOutcome, _>(CLAIM_LEASE_STATEMENT, bindings)
+                        .await
+                })
             })
-            .await?;
-        let outcome = outcome.ok_or_else(|| {
+            .await;
+        drop(claim_guard);
+        let outcome = outcome?.ok_or_else(|| {
             AtelierError::Internal("claiming a model lease returned no outcome".to_owned())
         })?;
 

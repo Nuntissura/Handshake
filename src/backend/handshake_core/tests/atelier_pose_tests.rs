@@ -10,13 +10,24 @@
 //! guard, secret redaction in stored provenance, head-pose upsert stability,
 //! and per-mutation event emission via `count_events`. Tables persist between
 //! runs, so all source refs / hashes / public ids are made unique per run via
-//! `Uuid::new_v4()`. Only `handshake_core` + `tokio` + `uuid` + `serde_json`
-//! (+ std) are used.
+//! `Uuid::new_v4()`.
+//!
+//! WP-CKC-posekit-overhaul (SurrealDB port, MT-062): native Posekit OpenPose
+//! export proofs (procedural + rig-keypoint projection, marker edits, framing,
+//! determinism), sidecar registration against REAL ArtifactStore payloads, and
+//! the `POST /atelier/posekit/openpose-export` + `GET /atelier/posekit/openpose-png/bytes`
+//! routes driven over loopback against the CKC ops lane router.
 
 mod atelier_surreal_support;
 
+use std::path::PathBuf;
+use std::sync::{Arc, OnceLock};
+
+use async_trait::async_trait;
+use handshake_core::api::atelier_ckc_ops as ops_api;
 use handshake_core::atelier::collections::NewCollection;
 use handshake_core::atelier::pose::{
+    generate_posekit_openpose_export, generate_posekit_openpose_export_from_keypoints,
     pose_event_family, CalibrationHandKind, CalibrationHandRow, CalibrationMarkerColors,
     CalibrationMarkerVisibility, CalibrationState, CanvasSize, DetectorStatus, IdentityCropBox,
     IdentityCropLandmark, IdentityProfileKind, NewIdentityCropArtifact, NewIdentityProfile,
@@ -24,16 +35,164 @@ use handshake_core::atelier::pose::{
     NewPoseWorkspaceRouteTarget, PoseContextKind, PoseOpenPoseSidecarStripItem, PoseRig,
     PoseSidecarGalleryProjection, PoseSidecarKind, PoseSidecarStatus, PoseSourceImageStripItem,
     PoseWorkspaceKeyboardAction, PoseWorkspaceKeyboardActionRequest, PoseWorkspaceRigState,
-    UpdateIdentityProfile, BODY_KEYPOINT_COUNT, FACE_KEYPOINT_COUNT, HAND_KEYPOINT_COUNT,
+    PosekitExportFraming, PosekitFramingPreset, PosekitMarkerEdit, PosekitMarkerEditAction,
+    PosekitMarkerFamily, PosekitOpenPoseExportRequest, UpdateIdentityProfile, BODY_KEYPOINT_COUNT,
+    FACE_KEYPOINT_COUNT, HAND_KEYPOINT_COUNT, POSEKIT_OPENPOSE_EXPORT_HEIGHT,
+    POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID, POSEKIT_OPENPOSE_EXPORT_WIDTH,
 };
 use handshake_core::atelier::{AtelierStore, NewCharacter, NewMediaAsset};
+use handshake_core::capabilities::CapabilityRegistry;
+use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
+use handshake_core::flight_recorder::{
+    EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
+};
+use handshake_core::llm::{
+    CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
+};
+use handshake_core::storage::artifacts::{
+    artifact_root_rel, read_file_artifact, validate_artifact_content_hash, write_file_artifact,
+    ArtifactClassification, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
+};
+use handshake_core::storage::surreal::{TestFieldMutation, TestMutationValue};
 use handshake_core::storage::Database;
+use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
+use handshake_core::AppState;
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 /// Create the shared isolated embedded-store preamble every test runs against.
 async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
     let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
     (harness.atelier.clone(), harness)
+}
+
+/// One ArtifactStore workspace root for the whole test binary. `HANDSHAKE_WORKSPACE_ROOT` is
+/// process-global and tests run on parallel threads, so every test writes its own artifacts
+/// (distinct UUIDs) into this single root instead of racing on the env var. Sidecar registration
+/// and the Posekit routes resolve the root through `resolve_workspace_root()`, i.e. this env var.
+fn shared_workspace_root() -> &'static PathBuf {
+    static ROOT: OnceLock<PathBuf> = OnceLock::new();
+    ROOT.get_or_init(|| {
+        let root = tempfile::tempdir()
+            .expect("create isolated pose-test workspace root")
+            .into_path();
+        std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", &root);
+        root
+    })
+}
+
+/// Write a native media artifact into the shared workspace root (the root the store resolves).
+fn shared_media_artifact(payload: &[u8]) -> atelier_surreal_support::NativeMediaArtifact {
+    atelier_surreal_support::write_native_media_artifact_in_workspace(
+        shared_workspace_root(),
+        payload,
+    )
+}
+
+#[derive(Default)]
+struct NoopRecorder;
+
+#[async_trait]
+impl FlightRecorder for NoopRecorder {
+    async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        Ok(())
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+
+    async fn list_events(
+        &self,
+        _filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(Vec::new())
+    }
+}
+
+#[async_trait]
+impl DiagnosticsStore for NoopRecorder {
+    async fn record_diagnostic(
+        &self,
+        _diag: Diagnostic,
+    ) -> Result<(), handshake_core::storage::StorageError> {
+        Ok(())
+    }
+
+    async fn list_problems(
+        &self,
+        _filter: DiagFilter,
+    ) -> Result<Vec<ProblemGroup>, handshake_core::storage::StorageError> {
+        Ok(Vec::new())
+    }
+
+    async fn get_diagnostic(
+        &self,
+        _id: Uuid,
+    ) -> Result<Diagnostic, handshake_core::storage::StorageError> {
+        Err(handshake_core::storage::StorageError::NotFound(
+            "diagnostic",
+        ))
+    }
+
+    async fn list_diagnostics(
+        &self,
+        _filter: DiagFilter,
+    ) -> Result<Vec<Diagnostic>, handshake_core::storage::StorageError> {
+        Ok(Vec::new())
+    }
+}
+
+struct NoopLlmClient {
+    profile: ModelProfile,
+}
+
+#[async_trait]
+impl LlmClient for NoopLlmClient {
+    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        Ok(CompletionResponse {
+            text: String::new(),
+            usage: TokenUsage {
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+            },
+            latency_ms: 0,
+        })
+    }
+
+    fn profile(&self) -> &ModelProfile {
+        &self.profile
+    }
+}
+
+fn app_state(harness: &atelier_surreal_support::AtelierSurrealHarness) -> AppState {
+    let recorder = Arc::new(NoopRecorder);
+    AppState {
+        storage: harness.database.clone(),
+        surreal: harness.storage.clone(),
+        flight_recorder: recorder.clone(),
+        diagnostics: recorder,
+        llm_client: Arc::new(NoopLlmClient {
+            profile: ModelProfile::new("mt062-posekit-route-test".to_string(), 4096),
+        }),
+        capability_registry: Arc::new(CapabilityRegistry::new()),
+        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+    }
+}
+
+/// Serve the CKC ops lane router (the owner of the Posekit routes) on loopback.
+async fn serve_ops(state: AppState) -> (String, reqwest::Client, tokio::task::JoinHandle<()>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind loopback listener");
+    let addr = listener.local_addr().expect("listener address");
+    let server = tokio::spawn(async move {
+        axum::serve(listener, ops_api::routes(state))
+            .await
+            .expect("CKC ops lane API server");
+    });
+    (format!("http://{addr}"), reqwest::Client::new(), server)
 }
 
 /// Materialize a fresh, run-unique character and return its internal_id. Pose
@@ -62,12 +221,202 @@ fn valid_keypoints() -> serde_json::Value {
     })
 }
 
+fn visible_source_body_keypoints() -> serde_json::Value {
+    let mut keypoints = valid_keypoints();
+    keypoints["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(384.0);
+    keypoints["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(120.0);
+    keypoints["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(0.95);
+    keypoints["people"][0]["pose_keypoints_2d"][3] = serde_json::json!(384.0);
+    keypoints["people"][0]["pose_keypoints_2d"][4] = serde_json::json!(220.0);
+    keypoints["people"][0]["pose_keypoints_2d"][5] = serde_json::json!(0.94);
+    keypoints["people"][0]["pose_keypoints_2d"][6] = serde_json::json!(260.0);
+    keypoints["people"][0]["pose_keypoints_2d"][7] = serde_json::json!(240.0);
+    keypoints["people"][0]["pose_keypoints_2d"][8] = serde_json::json!(0.91);
+    keypoints
+}
+
+fn posekit_export_request(yaw_deg: f32) -> PosekitOpenPoseExportRequest {
+    PosekitOpenPoseExportRequest {
+        source_ref: "atelier://media/mira-demo/pose-source.png".to_string(),
+        rig_id: None,
+        yaw_deg,
+        pitch_deg: 0.0,
+        zoom: 1.0,
+        include_face: true,
+        include_body: true,
+        include_hands: true,
+        marker_edits: Vec::new(),
+        framing: PosekitExportFraming::default(),
+    }
+}
+
+fn posekit_export_request_with_pose(
+    yaw_deg: f32,
+    pitch_deg: f32,
+    zoom: f32,
+) -> PosekitOpenPoseExportRequest {
+    let mut request = posekit_export_request(yaw_deg);
+    request.pitch_deg = pitch_deg;
+    request.zoom = zoom;
+    request
+}
+
+fn artifact_id_from_payload_ref(artifact_ref: &str) -> Uuid {
+    let rest = artifact_ref
+        .strip_prefix("artifact://.handshake/artifacts/L1/")
+        .expect("ArtifactStore payload ref must use the native L1 prefix");
+    let artifact_id = rest
+        .strip_suffix("/payload")
+        .expect("ArtifactStore payload ref must end with /payload");
+    Uuid::parse_str(artifact_id).expect("ArtifactStore payload ref carries a UUID artifact id")
+}
+
+fn assert_native_posekit_artifact_response(
+    response: &serde_json::Value,
+    field: &str,
+    expected_mime: &str,
+    expected_hash: &str,
+) -> Uuid {
+    let row = response.get(field).expect("artifact response field");
+    let artifact_ref = row["artifact_ref"].as_str().expect("artifact_ref string");
+    let manifest_ref = row["manifest_ref"].as_str().expect("manifest_ref string");
+    assert!(
+        artifact_ref.starts_with("artifact://.handshake/artifacts/L1/"),
+        "{field}.artifact_ref must be a native ArtifactStore payload handle: {artifact_ref}"
+    );
+    assert!(
+        !artifact_ref.starts_with("preview://"),
+        "{field}.artifact_ref must not be a preview handle: {artifact_ref}"
+    );
+    assert_eq!(
+        manifest_ref,
+        artifact_ref.replace("/payload", "/artifact.json")
+    );
+    assert_eq!(row["mime"], serde_json::json!(expected_mime));
+    assert_eq!(row["content_hash"], serde_json::json!(expected_hash));
+    artifact_id_from_payload_ref(artifact_ref)
+}
+
+fn read_l1_artifact_payload_json(
+    workspace_root: &std::path::Path,
+    artifact_id: Uuid,
+) -> serde_json::Value {
+    let payload_path = workspace_root
+        .join(artifact_root_rel(ArtifactLayer::L1, artifact_id))
+        .join("payload");
+    let bytes = std::fs::read(&payload_path)
+        .unwrap_or_else(|err| panic!("read ArtifactStore JSON payload at {payload_path:?}: {err}"));
+    serde_json::from_slice(&bytes).unwrap_or_else(|err| {
+        panic!("decode ArtifactStore JSON payload at {payload_path:?}: {err}")
+    })
+}
+
+fn assert_openpose_payload_shape(payload: &serde_json::Value) {
+    let person = payload["people"][0]
+        .as_object()
+        .expect("OpenPose payload has people[0] object");
+    assert_eq!(
+        person["pose_keypoints_2d"]
+            .as_array()
+            .expect("body keypoints array")
+            .len(),
+        BODY_KEYPOINT_COUNT * 3
+    );
+    assert_eq!(
+        person["face_keypoints_2d"]
+            .as_array()
+            .expect("face keypoints array")
+            .len(),
+        FACE_KEYPOINT_COUNT * 3
+    );
+    assert_eq!(
+        person["hand_left_keypoints_2d"]
+            .as_array()
+            .expect("left hand keypoints array")
+            .len(),
+        HAND_KEYPOINT_COUNT * 3
+    );
+    assert_eq!(
+        person["hand_right_keypoints_2d"]
+            .as_array()
+            .expect("right hand keypoints array")
+            .len(),
+        HAND_KEYPOINT_COUNT * 3
+    );
+}
+
+struct NativePoseSidecarArtifact {
+    artifact_ref: String,
+    content_hash: String,
+    byte_len: i64,
+    stored_payload: Vec<u8>,
+}
+
+/// Write a REAL sidecar payload (OpenPose JSON or PNG bytes) into the shared ArtifactStore root
+/// with a verified manifest. `record_pose_sidecar` re-validates the payload against the manifest
+/// and decodes it as the claimed kind, so fixtures must be genuine payloads, not placeholder bytes.
+fn write_pose_sidecar_artifact(
+    stored_payload: &[u8],
+    mime: &str,
+    filename_hint: &str,
+) -> NativePoseSidecarArtifact {
+    let workspace_root = shared_workspace_root();
+    let artifact_id = Uuid::now_v7();
+    let content_hash = sha256_hex(stored_payload);
+    let manifest = ArtifactManifest {
+        artifact_id,
+        layer: ArtifactLayer::L1,
+        kind: ArtifactPayloadKind::File,
+        mime: mime.to_string(),
+        filename_hint: Some(filename_hint.to_string()),
+        created_at: chrono::Utc::now(),
+        created_by_job_id: None,
+        source_entity_refs: Vec::new(),
+        source_artifact_refs: Vec::new(),
+        content_hash: content_hash.clone(),
+        size_bytes: stored_payload.len() as u64,
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: Some(true),
+        hash_basis: None,
+        hash_exclude_paths: Vec::new(),
+    };
+    write_file_artifact(workspace_root, &manifest, stored_payload)
+        .expect("write Posekit sidecar ArtifactStore payload");
+    validate_artifact_content_hash(workspace_root, ArtifactLayer::L1, artifact_id)
+        .expect("validate Posekit sidecar ArtifactStore payload hash");
+    NativePoseSidecarArtifact {
+        artifact_ref: format!(
+            "artifact://{}/payload",
+            artifact_root_rel(ArtifactLayer::L1, artifact_id)
+        ),
+        content_hash,
+        byte_len: stored_payload.len() as i64,
+        stored_payload: stored_payload.to_vec(),
+    }
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
+
 fn artifact_manifest_ref(artifact_ref: &str) -> String {
     artifact_ref.replace("/payload", "/artifact.json")
 }
 
 /// Ingest a fresh, run-unique rig for a character and return it.
 async fn fresh_rig(store: &AtelierStore, character_internal_id: Uuid) -> PoseRig {
+    fresh_rig_with_keypoints(store, character_internal_id, valid_keypoints()).await
+}
+
+async fn fresh_rig_with_keypoints(
+    store: &AtelierStore,
+    character_internal_id: Uuid,
+    keypoints_json: serde_json::Value,
+) -> PoseRig {
     store
         .ingest_pose_rig(&NewPoseRig {
             character_internal_id,
@@ -86,7 +435,7 @@ async fn fresh_rig(store: &AtelierStore, character_internal_id: Uuid) -> PoseRig
             confidence_available: true,
             detector_status: DetectorStatus::Detected,
             error_reason: None,
-            keypoints_json: valid_keypoints(),
+            keypoints_json,
             sidecar_ref: Some(format!("artifact://atelier/pose/{}", Uuid::new_v4())),
         })
         .await
@@ -128,8 +477,7 @@ async fn expect_pose_source_ref_rejected(
 async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
     let (store, harness) = connected_store().await;
     let character = fresh_character(&store).await;
-    let source_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-087-source-image");
+    let source_artifact = shared_media_artifact(b"mt-087-source-image");
     let source_asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: source_artifact.content_hash.clone(),
@@ -572,16 +920,1184 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
     );
 }
 
+#[test]
+fn posekit_openpose_export_generates_real_png_and_full_payload_shape() {
+    let export = generate_posekit_openpose_export(&posekit_export_request(0.0))
+        .expect("generate native Posekit OpenPose export");
+    assert_eq!(export.schema_id, POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID);
+    assert_eq!(export.width, POSEKIT_OPENPOSE_EXPORT_WIDTH);
+    assert_eq!(export.height, POSEKIT_OPENPOSE_EXPORT_HEIGHT);
+    assert_eq!(export.yaw_deg, 0);
+    assert_eq!(export.zoom_percent, 100);
+    assert!(export
+        .receipt_ref
+        .starts_with("preview://atelier/posekit/openpose/"));
+    assert_eq!(export.openpose_json["version"], serde_json::json!(1.3));
+    assert_eq!(
+        export.openpose_json["handshake_schema"],
+        serde_json::json!(POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID)
+    );
+    assert_openpose_payload_shape(&export.openpose_json);
+
+    let decoded =
+        image::load_from_memory(&export.openpose_png_bytes).expect("Posekit export PNG decodes");
+    assert_eq!(decoded.width(), POSEKIT_OPENPOSE_EXPORT_WIDTH as u32);
+    assert_eq!(decoded.height(), POSEKIT_OPENPOSE_EXPORT_HEIGHT as u32);
+    let nonblack_pixels = decoded
+        .to_rgba8()
+        .pixels()
+        .filter(|pixel| pixel.0[0] != 0 || pixel.0[1] != 0 || pixel.0[2] != 0)
+        .count();
+    assert!(
+        nonblack_pixels > 1000,
+        "OpenPose PNG must contain a visible skeleton, got {nonblack_pixels} nonblack pixels"
+    );
+    assert_eq!(export.openpose_json_sha256.len(), 64);
+    assert_eq!(export.openpose_png_sha256.len(), 64);
+    assert_eq!(export.content_hash.len(), 64);
+    assert_eq!(
+        export.openpose_json_sha256,
+        sha256_hex(&export.openpose_json_bytes),
+        "openpose_json_sha256 must be the bare sha256 of the JSON bytes"
+    );
+    assert_eq!(
+        export.openpose_png_sha256,
+        sha256_hex(&export.openpose_png_bytes),
+        "openpose_png_sha256 must be the bare sha256 of the PNG bytes"
+    );
+}
+
+#[test]
+fn posekit_openpose_export_can_use_stored_rig_keypoints() {
+    let mut keypoints = valid_keypoints();
+    keypoints["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(123.4);
+    keypoints["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(456.7);
+    keypoints["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(0.99);
+    let export =
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(0.0), &keypoints)
+            .expect("generate Posekit export from stored rig keypoints");
+    let body = export.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("body keypoints array");
+    assert!((body[0].as_f64().expect("body x") - 123.4).abs() < 0.001);
+    assert!((body[1].as_f64().expect("body y") - 456.7).abs() < 0.001);
+    assert_eq!(
+        export.openpose_json["source_keypoints_ref"],
+        serde_json::json!("atelier_pose_rig.keypoints_json")
+    );
+    assert_eq!(
+        export.openpose_json["pose_state"]["yaw_deg"],
+        serde_json::json!(0)
+    );
+    assert_eq!(
+        export.openpose_json["pose_state"]["source_keypoint_projection"]["mode"],
+        serde_json::json!("native-rig-to-openpose")
+    );
+    assert_openpose_payload_shape(&export.openpose_json);
+}
+
+#[test]
+fn posekit_openpose_export_renders_png_from_stored_rig_keypoints() {
+    let mut keypoints = valid_keypoints();
+    keypoints["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(123.0);
+    keypoints["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(456.0);
+    keypoints["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(0.99);
+    keypoints["people"][0]["pose_keypoints_2d"][3] = serde_json::json!(205.0);
+    keypoints["people"][0]["pose_keypoints_2d"][4] = serde_json::json!(456.0);
+    keypoints["people"][0]["pose_keypoints_2d"][5] = serde_json::json!(0.99);
+
+    let export =
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(0.0), &keypoints)
+            .expect("generate Posekit export from stored rig keypoints");
+    let decoded =
+        image::load_from_memory(&export.openpose_png_bytes).expect("Posekit export PNG decodes");
+    let rgba = decoded.to_rgba8();
+    let source_point_rendered = (118..=128).any(|x| {
+        (451..=461).any(|y| {
+            let pixel = rgba.get_pixel(x, y).0;
+            pixel[0] != 0 || pixel[1] != 0 || pixel[2] != 0
+        })
+    });
+    assert!(
+        source_point_rendered,
+        "rig-backed OpenPose PNG must render the stored keypoint at 123,456"
+    );
+
+    let procedural = generate_posekit_openpose_export(&posekit_export_request(45.0))
+        .expect("generate procedural Posekit export");
+    assert_ne!(
+        export.openpose_png_sha256, procedural.openpose_png_sha256,
+        "rig-backed PNG hash must differ when stored keypoints differ from procedural pose"
+    );
+}
+
+#[test]
+fn posekit_stored_rig_rotation_rerenders_coordinates_and_png() {
+    let keypoints = visible_source_body_keypoints();
+
+    let yaw0 =
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(0.0), &keypoints)
+            .expect("generate yaw 0 source-backed export");
+    let yaw90 =
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(90.0), &keypoints)
+            .expect("generate yaw 90 source-backed export");
+    let yaw180 =
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(180.0), &keypoints)
+            .expect("generate yaw 180 source-backed export");
+
+    let body0 = yaw0.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("yaw0 body");
+    let body90 = yaw90.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("yaw90 body");
+    let body180 = yaw180.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("yaw180 body");
+    assert!((body0[0].as_f64().expect("yaw0 x") - 384.0).abs() < 0.001);
+    assert!(
+        body90[0].as_f64().expect("yaw90 x") > body0[0].as_f64().expect("yaw0 x"),
+        "yaw 90 must project stored rig keypoints, not only record metadata"
+    );
+    assert!(
+        body180[0].as_f64().expect("yaw180 x") > body90[0].as_f64().expect("yaw90 x"),
+        "yaw 180 must project farther than yaw 90"
+    );
+    assert_ne!(yaw0.openpose_png_sha256, yaw90.openpose_png_sha256);
+    assert_ne!(yaw90.openpose_png_sha256, yaw180.openpose_png_sha256);
+    assert_eq!(
+        yaw90.openpose_json["pose_state"]["source_keypoint_projection"]["mode"],
+        serde_json::json!("native-rig-to-openpose")
+    );
+}
+
+#[test]
+fn posekit_stored_rig_pitch_and_zoom_rerender_coordinates_and_png() {
+    let keypoints = visible_source_body_keypoints();
+
+    let base = generate_posekit_openpose_export_from_keypoints(
+        &posekit_export_request_with_pose(0.0, 0.0, 1.0),
+        &keypoints,
+    )
+    .expect("generate base source-backed export");
+    let pitched = generate_posekit_openpose_export_from_keypoints(
+        &posekit_export_request_with_pose(0.0, 30.0, 1.0),
+        &keypoints,
+    )
+    .expect("generate pitched source-backed export");
+    let zoomed = generate_posekit_openpose_export_from_keypoints(
+        &posekit_export_request_with_pose(0.0, 0.0, 1.5),
+        &keypoints,
+    )
+    .expect("generate zoomed source-backed export");
+
+    let base_body = base.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("base body");
+    let pitched_body = pitched.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("pitched body");
+    let zoomed_body = zoomed.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("zoomed body");
+    assert!(
+        pitched_body[1].as_f64().expect("pitched y") > base_body[1].as_f64().expect("base y"),
+        "pitch must project stored rig keypoint y coordinates, not only update metadata"
+    );
+    assert!(
+        zoomed_body[6].as_f64().expect("zoomed x") < base_body[6].as_f64().expect("base x"),
+        "zoom must project off-center stored rig keypoint x coordinates, not only update metadata"
+    );
+    assert_ne!(base.openpose_png_sha256, pitched.openpose_png_sha256);
+    assert_ne!(base.openpose_png_sha256, zoomed.openpose_png_sha256);
+    assert_eq!(
+        pitched.openpose_json["pose_state"]["source_keypoint_projection"]["pitch_deg"],
+        serde_json::json!(30)
+    );
+    assert_eq!(
+        zoomed.openpose_json["pose_state"]["source_keypoint_projection"]["zoom_percent"],
+        serde_json::json!(150)
+    );
+}
+
+#[test]
+fn posekit_openpose_export_is_deterministic_and_rotation_changes_state() {
+    let first = generate_posekit_openpose_export(&posekit_export_request(90.0))
+        .expect("generate first Posekit export");
+    let repeat = generate_posekit_openpose_export(&posekit_export_request(90.0))
+        .expect("generate repeated Posekit export");
+    assert_eq!(first.content_hash, repeat.content_hash);
+    assert_eq!(first.openpose_json_bytes, repeat.openpose_json_bytes);
+    assert_eq!(first.openpose_png_bytes, repeat.openpose_png_bytes);
+
+    let mut hashes = std::collections::BTreeSet::new();
+    for yaw in [-180.0_f32, -90.0, 0.0, 90.0, 180.0] {
+        let export = generate_posekit_openpose_export(&posekit_export_request(yaw))
+            .expect("generate yaw export");
+        hashes.insert(export.content_hash);
+        assert_eq!(
+            export.openpose_json["pose_state"]["yaw_deg"],
+            serde_json::json!(yaw as i32)
+        );
+    }
+    assert_eq!(
+        hashes.len(),
+        5,
+        "the full -180..=180 rotation span must rerender distinct OpenPose state"
+    );
+}
+
+#[test]
+fn posekit_openpose_export_rejects_invisible_or_invalid_requests() {
+    let mut blank_source = posekit_export_request(0.0);
+    blank_source.source_ref = " ".to_string();
+    assert!(
+        generate_posekit_openpose_export(&blank_source).is_err(),
+        "blank source_ref must be rejected"
+    );
+
+    let mut padded_source = posekit_export_request(0.0);
+    padded_source.source_ref = " atelier://media/padded ".to_string();
+    assert!(
+        generate_posekit_openpose_export(&padded_source).is_err(),
+        "padded source_ref must be rejected"
+    );
+
+    let mut all_off = posekit_export_request(0.0);
+    all_off.include_face = false;
+    all_off.include_body = false;
+    all_off.include_hands = false;
+    assert!(
+        generate_posekit_openpose_export(&all_off).is_err(),
+        "all marker layers off would produce an invisible export and must be rejected"
+    );
+
+    let out_of_range = posekit_export_request(270.0);
+    assert!(
+        generate_posekit_openpose_export(&out_of_range).is_err(),
+        "yaw outside the -180..=180 full-rotation span must be rejected"
+    );
+
+    let mut nan_yaw = posekit_export_request(0.0);
+    nan_yaw.yaw_deg = f32::NAN;
+    assert!(
+        generate_posekit_openpose_export(&nan_yaw).is_err(),
+        "NaN yaw must be rejected"
+    );
+
+    let mut bad_source_coordinate = valid_keypoints();
+    bad_source_coordinate["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(-20.0);
+    bad_source_coordinate["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(120.0);
+    bad_source_coordinate["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(0.9);
+    assert!(
+        generate_posekit_openpose_export_from_keypoints(
+            &posekit_export_request(180.0),
+            &bad_source_coordinate
+        )
+        .is_err(),
+        "visible source rig points outside the export canvas must fail before projection clamps them"
+    );
+
+    let mut bad_source_confidence = visible_source_body_keypoints();
+    bad_source_confidence["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(1.4);
+    assert!(
+        generate_posekit_openpose_export_from_keypoints(
+            &posekit_export_request(0.0),
+            &bad_source_confidence
+        )
+        .is_err(),
+        "source rig confidence outside 0..=1 must fail before projection normalizes it"
+    );
+}
+
+#[test]
+fn posekit_marker_edits_apply_to_export_and_fail_closed() {
+    let mut edited = posekit_export_request(0.0);
+    edited.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Face,
+        index: 12,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(321.0),
+        y: Some(222.0),
+        confidence: Some(0.87),
+    });
+    let export = generate_posekit_openpose_export(&edited)
+        .expect("facial marker placement edit should produce an export");
+    assert_eq!(export.applied_marker_edit_count, 1);
+    assert_eq!(
+        export.openpose_json["pose_state"]["marker_edits"][0]["family"],
+        serde_json::json!("face")
+    );
+    let face = export.openpose_json["people"][0]["face_keypoints_2d"]
+        .as_array()
+        .expect("face keypoints");
+    let offset = 12 * 3;
+    assert_eq!(face[offset], serde_json::json!(321.0));
+    assert_eq!(face[offset + 1], serde_json::json!(222.0));
+    assert_eq!(face[offset + 2], serde_json::json!(0.87));
+
+    let mut removed = posekit_export_request(0.0);
+    removed.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Body,
+        index: 10,
+        action: PosekitMarkerEditAction::Remove,
+        x: None,
+        y: None,
+        confidence: None,
+    });
+    let removed_export = generate_posekit_openpose_export(&removed)
+        .expect("body marker removal should zero one marker without changing cardinality");
+    let body = removed_export.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("body keypoints");
+    assert_eq!(body.len(), BODY_KEYPOINT_COUNT * 3);
+    assert_eq!(body[30], serde_json::json!(0.0));
+    assert_eq!(body[31], serde_json::json!(0.0));
+    assert_eq!(body[32], serde_json::json!(0.0));
+
+    let mut keypoints = valid_keypoints();
+    keypoints["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(120.0);
+    keypoints["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(420.0);
+    keypoints["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(0.9);
+    keypoints["people"][0]["pose_keypoints_2d"][3] = serde_json::json!(180.0);
+    keypoints["people"][0]["pose_keypoints_2d"][4] = serde_json::json!(420.0);
+    keypoints["people"][0]["pose_keypoints_2d"][5] = serde_json::json!(0.9);
+    let mut occupied_keypoints = keypoints.clone();
+    occupied_keypoints["people"][0]["hand_left_keypoints_2d"][6] = serde_json::json!(260.0);
+    occupied_keypoints["people"][0]["hand_left_keypoints_2d"][7] = serde_json::json!(380.0);
+    occupied_keypoints["people"][0]["hand_left_keypoints_2d"][8] = serde_json::json!(0.66);
+    let mut add_hand = posekit_export_request(0.0);
+    add_hand.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::LeftHand,
+        index: 2,
+        action: PosekitMarkerEditAction::Add,
+        x: Some(280.0),
+        y: Some(380.0),
+        confidence: Some(0.72),
+    });
+    let occupied_err =
+        generate_posekit_openpose_export_from_keypoints(&add_hand, &occupied_keypoints)
+            .expect_err("add marker into occupied stored-rig slot must fail closed");
+    assert!(
+        occupied_err
+            .to_string()
+            .contains("Posekit marker add can only fill an empty zero-confidence slot"),
+        "unexpected occupied-slot add error: {occupied_err}"
+    );
+
+    keypoints["people"][0]["hand_left_keypoints_2d"][6] = serde_json::json!(0.0);
+    keypoints["people"][0]["hand_left_keypoints_2d"][7] = serde_json::json!(0.0);
+    keypoints["people"][0]["hand_left_keypoints_2d"][8] = serde_json::json!(0.0);
+    let add_export = generate_posekit_openpose_export_from_keypoints(&add_hand, &keypoints)
+        .expect("add marker should fill a zero slot without changing OpenPose cardinality");
+    let left_hand = add_export.openpose_json["people"][0]["hand_left_keypoints_2d"]
+        .as_array()
+        .expect("left hand keypoints");
+    assert_eq!(left_hand[6], serde_json::json!(280.0));
+    assert_eq!(left_hand[7], serde_json::json!(380.0));
+    assert_eq!(left_hand[8], serde_json::json!(0.72));
+
+    let mut invalid_index = posekit_export_request(0.0);
+    invalid_index.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Face,
+        index: FACE_KEYPOINT_COUNT,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(20.0),
+        y: Some(20.0),
+        confidence: Some(0.9),
+    });
+    assert!(
+        generate_posekit_openpose_export(&invalid_index).is_err(),
+        "invalid marker index must fail closed before corrupting output"
+    );
+
+    let mut bad_confidence = posekit_export_request(0.0);
+    bad_confidence.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Face,
+        index: 1,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(20.0),
+        y: Some(20.0),
+        confidence: Some(1.4),
+    });
+    assert!(
+        generate_posekit_openpose_export(&bad_confidence).is_err(),
+        "invalid confidence must fail closed before rendering"
+    );
+
+    let mut disabled_layer = posekit_export_request(0.0);
+    disabled_layer.include_hands = false;
+    disabled_layer.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::RightHand,
+        index: 0,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(20.0),
+        y: Some(20.0),
+        confidence: Some(0.9),
+    });
+    let disabled_err = generate_posekit_openpose_export(&disabled_layer)
+        .expect_err("editing a marker family whose layer is off must fail closed");
+    assert!(
+        disabled_err
+            .to_string()
+            .contains("disabled by marker layers"),
+        "unexpected disabled-layer error: {disabled_err}"
+    );
+}
+
+#[test]
+fn posekit_framing_metadata_changes_pixels_and_keeps_points_visible() {
+    let base = generate_posekit_openpose_export(&posekit_export_request(0.0))
+        .expect("base Posekit export");
+    let mut framed = posekit_export_request(0.0);
+    framed.framing = PosekitExportFraming {
+        preset: PosekitFramingPreset::FullBodyWithFeet,
+        lens_mm: 24,
+        padding_top_px: 48,
+        padding_right_px: 32,
+        padding_bottom_px: 96,
+        padding_left_px: 32,
+    };
+    framed.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Face,
+        index: 12,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(321.0),
+        y: Some(222.0),
+        confidence: Some(0.87),
+    });
+    let export = generate_posekit_openpose_export(&framed)
+        .expect("framed Posekit export should produce nonblank output");
+
+    assert_ne!(base.openpose_png_sha256, export.openpose_png_sha256);
+    assert_eq!(export.framing, framed.framing);
+    assert_eq!(export.applied_marker_edit_count, 1);
+    assert_eq!(
+        export.openpose_json["pose_state"]["framing"]["preset"],
+        serde_json::json!("full_body_with_feet")
+    );
+    assert_eq!(
+        export.openpose_json["pose_state"]["framing"]["padding_bottom_px"],
+        serde_json::json!(96)
+    );
+    assert_eq!(
+        export.openpose_json["pose_state"]["marker_edits"][0]["family"],
+        serde_json::json!("face")
+    );
+    let face = export.openpose_json["people"][0]["face_keypoints_2d"]
+        .as_array()
+        .expect("face keypoints");
+    let face_offset = 12 * 3;
+    assert_eq!(face[face_offset], serde_json::json!(321.0));
+    assert_eq!(face[face_offset + 1], serde_json::json!(222.0));
+    assert_eq!(face[face_offset + 2], serde_json::json!(0.87));
+
+    let body = export.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("body keypoints");
+    let visible_points = body
+        .chunks(3)
+        .filter_map(|triple| {
+            let x = triple[0].as_f64()?;
+            let y = triple[1].as_f64()?;
+            let confidence = triple[2].as_f64()?;
+            (confidence > 0.0).then_some((x, y))
+        })
+        .collect::<Vec<_>>();
+    assert!(!visible_points.is_empty());
+    assert!(visible_points.iter().all(|(x, y)| {
+        *x >= 32.0
+            && *x <= (POSEKIT_OPENPOSE_EXPORT_WIDTH - 32) as f64
+            && *y >= 48.0
+            && *y <= (POSEKIT_OPENPOSE_EXPORT_HEIGHT - 96) as f64
+    }));
+
+    // Framing bounds are fail-closed: lens outside 18..=120 and padding outside 0..=256 are
+    // rejected before any rendering happens.
+    let mut short_lens = posekit_export_request(0.0);
+    short_lens.framing.lens_mm = 17;
+    assert!(
+        generate_posekit_openpose_export(&short_lens).is_err(),
+        "lens_mm below 18 must be rejected"
+    );
+    let mut wide_padding = posekit_export_request(0.0);
+    wide_padding.framing.padding_left_px = 257;
+    assert!(
+        generate_posekit_openpose_export(&wide_padding).is_err(),
+        "padding above 256px must be rejected"
+    );
+    // 256px on both sides of one axis leaves exactly 256px of content, which is still legal.
+    let mut max_padding = posekit_export_request(0.0);
+    max_padding.framing.padding_left_px = 256;
+    max_padding.framing.padding_right_px = 256;
+    generate_posekit_openpose_export(&max_padding)
+        .expect("maximum legal padding still renders a non-blank export");
+}
+
+#[tokio::test]
+async fn atelier_posekit_generated_openpose_export_records_real_sidecars() {
+    let (store, harness) = connected_store().await;
+    let character = fresh_character(&store).await;
+    let rig = fresh_rig(&store, character).await;
+    let export = generate_posekit_openpose_export(&posekit_export_request(90.0))
+        .expect("generate native Posekit export");
+
+    let json_artifact = write_pose_sidecar_artifact(
+        &export.openpose_json_bytes,
+        "application/json",
+        "posekit-openpose.json",
+    );
+    let png_artifact = write_pose_sidecar_artifact(
+        &export.openpose_png_bytes,
+        "image/png",
+        "posekit-openpose.png",
+    );
+    image::load_from_memory(&png_artifact.stored_payload)
+        .expect("generated OpenPose PNG sidecar payload decodes");
+
+    // The batch path the export route uses: both rows or neither.
+    let recorded = store
+        .record_pose_sidecars(&[
+            NewPoseSidecar {
+                rig_id: rig.rig_id,
+                kind: PoseSidecarKind::OpenPoseJson,
+                artifact_ref: json_artifact.artifact_ref.clone(),
+                manifest_ref: artifact_manifest_ref(&json_artifact.artifact_ref),
+                content_hash: json_artifact.content_hash.clone(),
+                byte_len: json_artifact.byte_len,
+                mime: "application/json".to_string(),
+                width: export.width,
+                height: export.height,
+                status: PoseSidecarStatus::Rendered,
+                error_message: None,
+            },
+            NewPoseSidecar {
+                rig_id: rig.rig_id,
+                kind: PoseSidecarKind::OpenPosePng,
+                artifact_ref: png_artifact.artifact_ref.clone(),
+                manifest_ref: artifact_manifest_ref(&png_artifact.artifact_ref),
+                content_hash: png_artifact.content_hash.clone(),
+                byte_len: png_artifact.byte_len,
+                mime: "image/png".to_string(),
+                width: export.width,
+                height: export.height,
+                status: PoseSidecarStatus::Rendered,
+                error_message: None,
+            },
+        ])
+        .await
+        .expect("record generated OpenPose JSON + PNG sidecars");
+    assert_eq!(recorded.len(), 2);
+    let json_sidecar = &recorded[0];
+    let png_sidecar = &recorded[1];
+
+    let sidecars = store
+        .list_pose_sidecars(rig.rig_id)
+        .await
+        .expect("list generated Posekit sidecars");
+    assert_eq!(
+        sidecars
+            .iter()
+            .map(|sidecar| sidecar.kind)
+            .collect::<Vec<_>>(),
+        vec![PoseSidecarKind::OpenPoseJson, PoseSidecarKind::OpenPosePng],
+        "generated export sidecars should list in deterministic OpenPose JSON/PNG order"
+    );
+    assert_eq!(json_sidecar.width, POSEKIT_OPENPOSE_EXPORT_WIDTH);
+    assert_eq!(json_sidecar.height, POSEKIT_OPENPOSE_EXPORT_HEIGHT);
+    assert_eq!(png_sidecar.width, POSEKIT_OPENPOSE_EXPORT_WIDTH);
+    assert_eq!(png_sidecar.height, POSEKIT_OPENPOSE_EXPORT_HEIGHT);
+    assert_eq!(png_sidecar.content_hash, png_artifact.content_hash);
+    assert!(export.receipt_ref.contains(export.content_hash.as_str()));
+    assert!(export.receipt_ref.ends_with("/receipt"));
+    assert_openpose_payload_shape(&export.openpose_json);
+
+    // Reverse lookup by payload ref is what authorises the PNG byte route.
+    let by_ref = store
+        .get_pose_sidecar_by_artifact_ref(&png_artifact.artifact_ref)
+        .await
+        .expect("lookup sidecar by artifact_ref")
+        .expect("PNG sidecar is bound to its payload ref");
+    assert_eq!(by_ref.sidecar_id, png_sidecar.sidecar_id);
+    assert_eq!(by_ref.kind, PoseSidecarKind::OpenPosePng);
+    let unbound = store
+        .get_pose_sidecar_by_artifact_ref(&format!(
+            "artifact://.handshake/artifacts/L1/{}/payload",
+            Uuid::now_v7()
+        ))
+        .await
+        .expect("lookup unknown artifact_ref");
+    assert!(unbound.is_none(), "an unbound payload ref has no sidecar");
+
+    // A batch whose second member is invalid must not leave the first member behind.
+    let other_rig = fresh_rig(&store, character).await;
+    let batch_err = store
+        .record_pose_sidecars(&[
+            NewPoseSidecar {
+                rig_id: other_rig.rig_id,
+                kind: PoseSidecarKind::OpenPoseJson,
+                artifact_ref: json_artifact.artifact_ref.clone(),
+                manifest_ref: artifact_manifest_ref(&json_artifact.artifact_ref),
+                content_hash: json_artifact.content_hash.clone(),
+                byte_len: json_artifact.byte_len,
+                mime: "application/json".to_string(),
+                width: export.width,
+                height: export.height,
+                status: PoseSidecarStatus::Rendered,
+                error_message: None,
+            },
+            NewPoseSidecar {
+                rig_id: other_rig.rig_id,
+                kind: PoseSidecarKind::OpenPosePng,
+                artifact_ref: png_artifact.artifact_ref.clone(),
+                manifest_ref: artifact_manifest_ref(&png_artifact.artifact_ref),
+                content_hash: format!("{:0>64}", "1"),
+                byte_len: png_artifact.byte_len,
+                mime: "image/png".to_string(),
+                width: export.width,
+                height: export.height,
+                status: PoseSidecarStatus::Rendered,
+                error_message: None,
+            },
+        ])
+        .await
+        .expect_err("a batch with a hash-drifted member must fail closed");
+    assert!(
+        batch_err.to_string().contains("content_hash"),
+        "batch rejection must name the drifted field: {batch_err}"
+    );
+    let other_sidecars = store
+        .list_pose_sidecars(other_rig.rig_id)
+        .await
+        .expect("list sidecars after failed batch");
+    assert!(
+        other_sidecars.is_empty(),
+        "no partial sidecar pair may survive a failed batch"
+    );
+
+    harness.shutdown().await;
+}
+
+#[tokio::test]
+async fn atelier_posekit_openpose_export_route_returns_real_artifact_refs() {
+    let workspace_root = shared_workspace_root().clone();
+    let (store, harness) = connected_store().await;
+    let character = fresh_character(&store).await;
+    let rig = fresh_rig_with_keypoints(&store, character, visible_source_body_keypoints()).await;
+
+    let (base, client, server) = serve_ops(app_state(&harness)).await;
+    let mut request = posekit_export_request_with_pose(90.0, 30.0, 1.5);
+    request.source_ref = rig.source_ref.clone();
+    request.rig_id = Some(rig.rig_id);
+    request.include_hands = false;
+    request.framing = PosekitExportFraming {
+        preset: PosekitFramingPreset::FullBodyWithFeet,
+        lens_mm: 24,
+        padding_top_px: 48,
+        padding_right_px: 32,
+        padding_bottom_px: 96,
+        padding_left_px: 32,
+    };
+    request.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Face,
+        index: 12,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(321.0),
+        y: Some(222.0),
+        confidence: Some(0.87),
+    });
+
+    // A bare actor without the operator kind (and without a lease) is refused before any write.
+    let actor_only = client
+        .post(format!("{base}/atelier/posekit/openpose-export"))
+        .header("x-hsk-actor-id", "posekit-agent")
+        .json(&request)
+        .send()
+        .await
+        .expect("send actor-only Posekit export");
+    assert_eq!(
+        actor_only.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "model-operation guarded export must not accept a bare actor-only call"
+    );
+    let actor_only_body: serde_json::Value = actor_only.json().await.expect("actor-only body");
+    assert_eq!(actor_only_body["error"], serde_json::json!("bad_request"));
+    assert_eq!(
+        actor_only_body["required_headers"],
+        serde_json::json!(["x-hsk-actor-id", "x-hsk-session-id", "x-hsk-model-lease-id"])
+    );
+
+    // A rig/source mismatch is a typed 400 (never a silent export against the wrong source).
+    let mut mismatched = request.clone();
+    mismatched.source_ref = "atelier://media/other-source.png".to_string();
+    let mismatch = client
+        .post(format!("{base}/atelier/posekit/openpose-export"))
+        .header("x-hsk-actor-id", "operator")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&mismatched)
+        .send()
+        .await
+        .expect("send mismatched Posekit export");
+    assert_eq!(mismatch.status(), reqwest::StatusCode::BAD_REQUEST);
+
+    let response = client
+        .post(format!("{base}/atelier/posekit/openpose-export"))
+        .header("x-hsk-actor-id", "operator")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&request)
+        .send()
+        .await
+        .expect("send Posekit OpenPose export route request");
+    let status = response.status();
+    let text = response.text().await.expect("read Posekit route response");
+    server.abort();
+    assert!(
+        status.is_success(),
+        "Posekit route must return success, got {status}: {text}"
+    );
+    let body: serde_json::Value = serde_json::from_str(&text).expect("Posekit route response JSON");
+
+    assert_eq!(
+        body["schema_id"],
+        serde_json::json!(POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID)
+    );
+    assert_eq!(body["source_ref"], serde_json::json!(rig.source_ref));
+    assert_eq!(body["rig_id"], serde_json::json!(rig.rig_id));
+    assert_eq!(body["yaw_deg"], serde_json::json!(90));
+    assert_eq!(body["pitch_deg"], serde_json::json!(30));
+    assert_eq!(body["zoom_percent"], serde_json::json!(150));
+    assert_eq!(
+        body["openpose_json"]["pose_state"]["source_keypoint_projection"]["mode"],
+        serde_json::json!("native-rig-to-openpose")
+    );
+    assert_eq!(
+        body["openpose_json"]["pose_state"]["source_keypoint_projection"]["pitch_deg"],
+        serde_json::json!(30)
+    );
+    assert_eq!(
+        body["openpose_json"]["pose_state"]["source_keypoint_projection"]["zoom_percent"],
+        serde_json::json!(150)
+    );
+    assert_eq!(body["applied_marker_edit_count"], serde_json::json!(1));
+    assert_eq!(
+        body["framing"]["preset"],
+        serde_json::json!("full_body_with_feet")
+    );
+    assert_eq!(body["framing"]["lens_mm"], serde_json::json!(24));
+    assert_eq!(
+        body["openpose_json"]["pose_state"]["marker_edits"][0]["family"],
+        serde_json::json!("face")
+    );
+    let route_marker_confidence = body["openpose_json"]["pose_state"]["marker_edits"][0]
+        ["confidence"]
+        .as_f64()
+        .expect("route marker confidence");
+    assert!(
+        (route_marker_confidence - 0.87).abs() < 0.000_001,
+        "route marker confidence must preserve the staged value, got {route_marker_confidence}"
+    );
+
+    let png_artifact_id = assert_native_posekit_artifact_response(
+        &body,
+        "openpose_png_artifact",
+        "image/png",
+        body["openpose_png_sha256"]
+            .as_str()
+            .expect("openpose_png_sha256 string"),
+    );
+    let json_artifact_id = assert_native_posekit_artifact_response(
+        &body,
+        "openpose_json_artifact",
+        "application/json",
+        body["openpose_json_sha256"]
+            .as_str()
+            .expect("openpose_json_sha256 string"),
+    );
+    validate_artifact_content_hash(&workspace_root, ArtifactLayer::L1, png_artifact_id)
+        .expect("route-produced OpenPose PNG artifact validates");
+    validate_artifact_content_hash(&workspace_root, ArtifactLayer::L1, json_artifact_id)
+        .expect("route-produced OpenPose JSON artifact validates");
+    let stored_openpose_json = read_l1_artifact_payload_json(&workspace_root, json_artifact_id);
+    assert_eq!(
+        stored_openpose_json["pose_state"]["marker_edits"][0]["index"],
+        serde_json::json!(12)
+    );
+    assert_eq!(
+        stored_openpose_json["pose_state"]["framing"]["padding_bottom_px"],
+        serde_json::json!(96)
+    );
+
+    let receipt_ref = body["receipt_ref"]
+        .as_str()
+        .expect("Posekit route receipt_ref string");
+    assert!(
+        receipt_ref.starts_with("artifact://.handshake/artifacts/L1/"),
+        "route receipt_ref must be a native ArtifactStore payload handle: {receipt_ref}"
+    );
+    assert!(
+        !receipt_ref.starts_with("preview://"),
+        "route receipt_ref must not be a preview handle: {receipt_ref}"
+    );
+    validate_artifact_content_hash(
+        &workspace_root,
+        ArtifactLayer::L1,
+        artifact_id_from_payload_ref(receipt_ref),
+    )
+    .expect("route-produced Posekit receipt artifact validates");
+    let stored_receipt =
+        read_l1_artifact_payload_json(&workspace_root, artifact_id_from_payload_ref(receipt_ref));
+    assert_eq!(
+        stored_receipt["marker_edits"][0]["family"],
+        serde_json::json!("face")
+    );
+    assert_eq!(
+        stored_receipt["framing"]["preset"],
+        serde_json::json!("full_body_with_feet")
+    );
+    assert_eq!(
+        stored_receipt["applied_marker_edit_count"],
+        serde_json::json!(1)
+    );
+    assert_eq!(
+        stored_receipt["openpose_png_artifact_ref"],
+        body["openpose_png_artifact"]["artifact_ref"]
+    );
+
+    let sidecars = body["sidecars"]
+        .as_array()
+        .expect("Posekit route sidecars array");
+    assert_eq!(sidecars.len(), 2);
+    assert!(sidecars.iter().any(|sidecar| {
+        sidecar["artifact_ref"] == body["openpose_json_artifact"]["artifact_ref"]
+            && sidecar["kind"] == serde_json::json!("openpose_json")
+    }));
+    assert!(sidecars.iter().any(|sidecar| {
+        sidecar["artifact_ref"] == body["openpose_png_artifact"]["artifact_ref"]
+            && sidecar["kind"] == serde_json::json!("openpose_png")
+    }));
+
+    // The catalog agrees with the route response: two rendered sidecar rows on the rig.
+    let stored_sidecars = store
+        .list_pose_sidecars(rig.rig_id)
+        .await
+        .expect("list route-recorded sidecars");
+    assert_eq!(stored_sidecars.len(), 2);
+    assert!(stored_sidecars
+        .iter()
+        .all(|sidecar| sidecar.status == PoseSidecarStatus::Rendered));
+
+    harness.shutdown().await;
+}
+
+#[tokio::test]
+async fn posekit_artifact_bytes_route_returns_exact_exported_png() {
+    let workspace_root = shared_workspace_root().clone();
+    let (store, harness) = connected_store().await;
+    let character = fresh_character(&store).await;
+    let rig = fresh_rig_with_keypoints(&store, character, visible_source_body_keypoints()).await;
+
+    let (base, client, server) = serve_ops(app_state(&harness)).await;
+    let mut request = posekit_export_request_with_pose(45.0, 12.0, 1.25);
+    request.source_ref = rig.source_ref.clone();
+    request.rig_id = Some(rig.rig_id);
+
+    let export_response = client
+        .post(format!("{base}/atelier/posekit/openpose-export"))
+        .header("x-hsk-actor-id", "operator")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&request)
+        .send()
+        .await
+        .expect("send Posekit export for byte-route proof");
+    let export_status = export_response.status();
+    let export_text = export_response
+        .text()
+        .await
+        .expect("read Posekit export response");
+    assert!(
+        export_status.is_success(),
+        "Posekit export must succeed before byte fetch, got {export_status}: {export_text}"
+    );
+    let body: serde_json::Value =
+        serde_json::from_str(&export_text).expect("Posekit export JSON response");
+    let png_artifact_ref = body["openpose_png_artifact"]["artifact_ref"]
+        .as_str()
+        .expect("png artifact_ref string");
+    let json_artifact_ref = body["openpose_json_artifact"]["artifact_ref"]
+        .as_str()
+        .expect("json artifact_ref string");
+    let png_sidecar_id = body["sidecars"]
+        .as_array()
+        .expect("sidecars array")
+        .iter()
+        .find(|sidecar| sidecar["kind"] == serde_json::json!("openpose_png"))
+        .and_then(|sidecar| sidecar["sidecar_id"].as_str())
+        .and_then(|value| Uuid::parse_str(value).ok())
+        .expect("PNG sidecar id in export response");
+    let png_artifact_id = artifact_id_from_payload_ref(png_artifact_ref);
+    let expected_bytes = read_file_artifact(&workspace_root, ArtifactLayer::L1, png_artifact_id)
+        .expect("read verified exported OpenPose PNG ArtifactStore bytes");
+    let expected_content_hash = sha256_hex(&expected_bytes);
+
+    let bytes_response = client
+        .get(format!("{base}/atelier/posekit/openpose-png/bytes"))
+        .query(&[("artifact_ref", png_artifact_ref)])
+        .send()
+        .await
+        .expect("send Posekit PNG byte fetch");
+    let bytes_status = bytes_response.status();
+    let headers = bytes_response.headers().clone();
+    let actual_bytes = bytes_response
+        .bytes()
+        .await
+        .expect("read Posekit PNG bytes response");
+    assert!(
+        bytes_status.is_success(),
+        "Posekit PNG byte route must succeed, got {bytes_status}"
+    );
+    let content_type = headers
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    assert!(
+        content_type.starts_with("image/png"),
+        "Posekit PNG byte route must return image/png, got {content_type}"
+    );
+    assert_eq!(
+        headers
+            .get("x-hsk-artifact-ref")
+            .and_then(|v| v.to_str().ok()),
+        Some(png_artifact_ref),
+        "byte route must echo the served payload ref"
+    );
+    assert_eq!(
+        headers
+            .get("x-hsk-content-sha256")
+            .and_then(|v| v.to_str().ok()),
+        Some(expected_content_hash.as_str()),
+        "byte route must echo the served payload hash"
+    );
+    assert_eq!(
+        headers
+            .get(reqwest::header::ETAG)
+            .and_then(|v| v.to_str().ok()),
+        Some(format!("\"sha256-{expected_content_hash}\"").as_str())
+    );
+    assert_eq!(
+        actual_bytes.as_ref(),
+        expected_bytes.as_slice(),
+        "Posekit PNG byte route must return the exact stored ArtifactStore payload"
+    );
+    image::load_from_memory(actual_bytes.as_ref())
+        .expect("Posekit PNG byte route returns decodable PNG bytes");
+
+    let malformed_status = client
+        .get(format!("{base}/atelier/posekit/openpose-png/bytes"))
+        .query(&[("artifact_ref", "file:///C:/anything.png")])
+        .send()
+        .await
+        .expect("send malformed Posekit PNG byte fetch")
+        .status();
+    assert_eq!(
+        malformed_status,
+        reqwest::StatusCode::BAD_REQUEST,
+        "non-native artifact refs must be rejected as 400"
+    );
+
+    let unknown_ref = format!(
+        "artifact://.handshake/artifacts/L1/{}/payload",
+        Uuid::now_v7()
+    );
+    let unknown_status = client
+        .get(format!("{base}/atelier/posekit/openpose-png/bytes"))
+        .query(&[("artifact_ref", unknown_ref.as_str())])
+        .send()
+        .await
+        .expect("send unknown Posekit PNG byte fetch")
+        .status();
+    assert_eq!(
+        unknown_status,
+        reqwest::StatusCode::NOT_FOUND,
+        "unknown Posekit PNG artifact refs must fail closed as 404"
+    );
+
+    let json_status = client
+        .get(format!("{base}/atelier/posekit/openpose-png/bytes"))
+        .query(&[("artifact_ref", json_artifact_ref)])
+        .send()
+        .await
+        .expect("send JSON artifact to Posekit PNG byte route")
+        .status();
+    assert_eq!(
+        json_status,
+        reqwest::StatusCode::BAD_REQUEST,
+        "Posekit PNG byte route must reject non-PNG Posekit artifacts"
+    );
+
+    let orphan_artifact_id = Uuid::now_v7();
+    let orphan_manifest = ArtifactManifest {
+        artifact_id: orphan_artifact_id,
+        layer: ArtifactLayer::L1,
+        kind: ArtifactPayloadKind::File,
+        mime: "image/png".to_owned(),
+        filename_hint: Some("posekit-openpose.png".to_owned()),
+        created_at: chrono::Utc::now(),
+        created_by_job_id: None,
+        source_entity_refs: Vec::new(),
+        source_artifact_refs: Vec::new(),
+        content_hash: expected_content_hash.clone(),
+        size_bytes: expected_bytes.len() as u64,
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: Some(true),
+        hash_basis: Some(format!(
+            "{POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID}:orphan-sidecar-regression"
+        )),
+        hash_exclude_paths: Vec::new(),
+    };
+    write_file_artifact(&workspace_root, &orphan_manifest, &expected_bytes)
+        .expect("write orphan Posekit-shaped OpenPose PNG artifact");
+    let orphan_ref = format!(
+        "artifact://{}/payload",
+        artifact_root_rel(ArtifactLayer::L1, orphan_artifact_id)
+    );
+    let orphan_status = client
+        .get(format!("{base}/atelier/posekit/openpose-png/bytes"))
+        .query(&[("artifact_ref", orphan_ref.as_str())])
+        .send()
+        .await
+        .expect("send orphan Posekit PNG byte fetch")
+        .status();
+    assert_eq!(
+        orphan_status,
+        reqwest::StatusCode::NOT_FOUND,
+        "Posekit-shaped PNG artifacts without a rendered Posekit sidecar binding must fail closed"
+    );
+
+    // Drift the catalog row (controlled test mutation, schema assertions still run): the
+    // sidecar no longer agrees with the manifest, so the route must refuse to serve bytes.
+    let inspector = harness.storage.test_inspector();
+    let sidecar_table = inspector
+        .table_selector("atelier_pose_sidecar")
+        .await
+        .expect("select atelier_pose_sidecar table");
+    let content_hash_field = sidecar_table
+        .field("content_hash")
+        .expect("atelier_pose_sidecar.content_hash field");
+    harness
+        .storage
+        .test_mutator()
+        .update_row(
+            &sidecar_table,
+            png_sidecar_id,
+            &[TestFieldMutation::new(
+                content_hash_field.clone(),
+                TestMutationValue::string(
+                    "0000000000000000000000000000000000000000000000000000000000000000",
+                ),
+            )],
+        )
+        .await
+        .expect("drift Posekit PNG sidecar content_hash for fail-closed proof");
+    let drift_status = client
+        .get(format!("{base}/atelier/posekit/openpose-png/bytes"))
+        .query(&[("artifact_ref", png_artifact_ref)])
+        .send()
+        .await
+        .expect("send drifted Posekit PNG byte fetch")
+        .status();
+    assert_eq!(
+        drift_status,
+        reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+        "sidecar metadata drift must fail closed instead of serving bytes"
+    );
+
+    harness
+        .storage
+        .test_mutator()
+        .update_row(
+            &sidecar_table,
+            png_sidecar_id,
+            &[TestFieldMutation::new(
+                content_hash_field,
+                TestMutationValue::string(expected_content_hash.clone()),
+            )],
+        )
+        .await
+        .expect("restore Posekit PNG sidecar content_hash before payload corruption proof");
+    let restored_status = client
+        .get(format!("{base}/atelier/posekit/openpose-png/bytes"))
+        .query(&[("artifact_ref", png_artifact_ref)])
+        .send()
+        .await
+        .expect("send restored Posekit PNG byte fetch")
+        .status();
+    assert!(
+        restored_status.is_success(),
+        "restoring the sidecar hash must make the bytes servable again, got {restored_status}"
+    );
+
+    let payload_path = workspace_root
+        .join(artifact_root_rel(ArtifactLayer::L1, png_artifact_id))
+        .join("payload");
+    std::fs::write(&payload_path, b"corrupted exported PNG payload").unwrap_or_else(|err| {
+        panic!("corrupt ArtifactStore PNG payload at {payload_path:?}: {err}")
+    });
+    let corrupt_status = client
+        .get(format!("{base}/atelier/posekit/openpose-png/bytes"))
+        .query(&[("artifact_ref", png_artifact_ref)])
+        .send()
+        .await
+        .expect("send corrupted Posekit PNG byte fetch")
+        .status();
+    assert_eq!(
+        corrupt_status,
+        reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+        "payload-vs-manifest hash drift must fail closed instead of serving bytes"
+    );
+
+    std::fs::remove_file(&payload_path).expect("delete corrupted PNG payload");
+    let missing_status = client
+        .get(format!("{base}/atelier/posekit/openpose-png/bytes"))
+        .query(&[("artifact_ref", png_artifact_ref)])
+        .send()
+        .await
+        .expect("send Posekit PNG byte fetch for deleted payload")
+        .status();
+    server.abort();
+    assert_eq!(
+        missing_status,
+        reqwest::StatusCode::NOT_FOUND,
+        "a catalogued sidecar whose payload vanished from disk is 404, never an empty 200"
+    );
+
+    harness.shutdown().await;
+}
+
 #[tokio::test]
 async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts() {
     let (store, harness) = connected_store().await;
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
 
-    let json_artifact = atelier_surreal_support::write_native_media_artifact(b"openpose-json");
-    let preview_png = atelier_surreal_support::write_native_media_artifact(b"openpose-preview-png");
-    let conditioning_png =
-        atelier_surreal_support::write_native_media_artifact(b"openpose-conditioning-png");
+    let export = generate_posekit_openpose_export(&posekit_export_request(0.0))
+        .expect("generate test OpenPose export");
+    let json_artifact = write_pose_sidecar_artifact(
+        &export.openpose_json_bytes,
+        "application/json",
+        "posekit-openpose.json",
+    );
+    let preview_png = write_pose_sidecar_artifact(
+        &export.openpose_png_bytes,
+        "image/png",
+        "posekit-openpose-preview.png",
+    );
+    let conditioning_png = write_pose_sidecar_artifact(
+        &export.openpose_png_bytes,
+        "image/png",
+        "posekit-conditioning.png",
+    );
 
     let json_sidecar = store
         .record_pose_sidecar(&NewPoseSidecar {
@@ -592,8 +2108,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
             content_hash: json_artifact.content_hash.clone(),
             byte_len: json_artifact.byte_len,
             mime: "application/json".to_string(),
-            width: rig.canvas.width,
-            height: rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Rendered,
             error_message: None,
         })
@@ -608,8 +2124,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
             content_hash: preview_png.content_hash.clone(),
             byte_len: preview_png.byte_len,
             mime: "image/png".to_string(),
-            width: rig.canvas.width,
-            height: rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Rendered,
             error_message: None,
         })
@@ -624,8 +2140,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
             content_hash: conditioning_png.content_hash.clone(),
             byte_len: conditioning_png.byte_len,
             mime: "image/png".to_string(),
-            width: rig.canvas.width,
-            height: rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Rendered,
             error_message: None,
         })
@@ -669,8 +2185,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
     assert_eq!(conditioning_sidecar.mime, "image/png");
     assert_eq!(preview_sidecar.source_ref, rig.source_ref);
     assert_eq!(preview_sidecar.source_asset_id, rig.source_asset_id);
-    assert_eq!(preview_sidecar.width, rig.canvas.width);
-    assert_eq!(preview_sidecar.height, rig.canvas.height);
+    assert_eq!(preview_sidecar.width, export.width);
+    assert_eq!(preview_sidecar.height, export.height);
     assert_eq!(preview_sidecar.status, PoseSidecarStatus::Rendered);
     assert_eq!(preview_sidecar.error_message, None);
 
@@ -683,8 +2199,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
             content_hash: format!("sha256-{}", Uuid::new_v4()),
             byte_len: preview_png.byte_len,
             mime: "image/jpeg".to_string(),
-            width: rig.canvas.width,
-            height: rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Rendered,
             error_message: None,
         })
@@ -701,8 +2217,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
             content_hash: format!("sha256-{}", Uuid::new_v4()),
             byte_len: conditioning_png.byte_len,
             mime: "image/png".to_string(),
-            width: rig.canvas.width,
-            height: rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Rendered,
             error_message: None,
         })
@@ -719,8 +2235,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
             content_hash: format!("sha256-{}", Uuid::new_v4()),
             byte_len: conditioning_png.byte_len,
             mime: "image/png".to_string(),
-            width: rig.canvas.width,
-            height: rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Rendered,
             error_message: Some("should not persist on rendered sidecar".to_string()),
         })
@@ -769,24 +2285,34 @@ async fn atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection() 
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
 
+    let export = generate_posekit_openpose_export(&posekit_export_request(0.0))
+        .expect("generate lookup OpenPose export");
     for (kind, mime, payload) in [
         (
             PoseSidecarKind::OpenPoseJson,
             "application/json",
-            "lookup-openpose-json",
+            export.openpose_json_bytes.as_slice(),
         ),
         (
             PoseSidecarKind::OpenPosePng,
             "image/png",
-            "lookup-openpose-preview",
+            export.openpose_png_bytes.as_slice(),
         ),
         (
             PoseSidecarKind::ConditioningPng,
             "image/png",
-            "lookup-conditioning-png",
+            export.openpose_png_bytes.as_slice(),
         ),
     ] {
-        let artifact = atelier_surreal_support::write_native_media_artifact(payload.as_bytes());
+        let artifact = write_pose_sidecar_artifact(
+            payload,
+            mime,
+            match kind {
+                PoseSidecarKind::OpenPoseJson => "posekit-lookup-openpose.json",
+                PoseSidecarKind::OpenPosePng => "posekit-lookup-openpose.png",
+                PoseSidecarKind::ConditioningPng => "posekit-lookup-conditioning.png",
+            },
+        );
         store
             .record_pose_sidecar(&NewPoseSidecar {
                 rig_id: rig.rig_id,
@@ -796,8 +2322,8 @@ async fn atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection() 
                 content_hash: artifact.content_hash,
                 byte_len: artifact.byte_len,
                 mime: mime.to_string(),
-                width: rig.canvas.width,
-                height: rig.canvas.height,
+                width: export.width,
+                height: export.height,
                 status: PoseSidecarStatus::Rendered,
                 error_message: None,
             })
@@ -848,8 +2374,7 @@ async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecar
     let (store, _harness) = connected_store().await;
     let character = fresh_character(&store).await;
 
-    let media_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"strip-source-image");
+    let media_artifact = shared_media_artifact(b"strip-source-image");
     let media = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: media_artifact.content_hash.clone(),
@@ -888,24 +2413,34 @@ async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecar
         .expect("ingest strip source-linked rig");
     let fallback_rig = fresh_rig(&store, character).await;
 
+    let export = generate_posekit_openpose_export(&posekit_export_request(0.0))
+        .expect("generate strip OpenPose export");
     for (kind, mime, payload) in [
         (
             PoseSidecarKind::OpenPoseJson,
             "application/json",
-            "strip-json",
+            export.openpose_json_bytes.as_slice(),
         ),
         (
             PoseSidecarKind::OpenPosePng,
             "image/png",
-            "strip-openpose-png",
+            export.openpose_png_bytes.as_slice(),
         ),
         (
             PoseSidecarKind::ConditioningPng,
             "image/png",
-            "strip-conditioning-png",
+            export.openpose_png_bytes.as_slice(),
         ),
     ] {
-        let artifact = atelier_surreal_support::write_native_media_artifact(payload.as_bytes());
+        let artifact = write_pose_sidecar_artifact(
+            payload,
+            mime,
+            match kind {
+                PoseSidecarKind::OpenPoseJson => "posekit-strip-openpose.json",
+                PoseSidecarKind::OpenPosePng => "posekit-strip-openpose.png",
+                PoseSidecarKind::ConditioningPng => "posekit-strip-conditioning.png",
+            },
+        );
         store
             .record_pose_sidecar(&NewPoseSidecar {
                 rig_id: rig.rig_id,
@@ -915,16 +2450,19 @@ async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecar
                 content_hash: artifact.content_hash,
                 byte_len: artifact.byte_len,
                 mime: mime.to_string(),
-                width: rig.canvas.width,
-                height: rig.canvas.height,
+                width: export.width,
+                height: export.height,
                 status: PoseSidecarStatus::Rendered,
                 error_message: None,
             })
             .await
             .expect("record strip sidecar");
     }
-    let failed_json_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"strip-json-failed");
+    let failed_json_artifact = write_pose_sidecar_artifact(
+        &export.openpose_json_bytes,
+        "application/json",
+        "posekit-strip-openpose-failed.json",
+    );
     let failed_json_message = "openpose renderer unavailable";
     store
         .record_pose_sidecar(&NewPoseSidecar {
@@ -935,8 +2473,8 @@ async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecar
             content_hash: failed_json_artifact.content_hash,
             byte_len: failed_json_artifact.byte_len,
             mime: "application/json".to_string(),
-            width: fallback_rig.canvas.width,
-            height: fallback_rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Failed,
             error_message: Some(failed_json_message.to_string()),
         })
@@ -1032,8 +2570,7 @@ async fn atelier_pose_context_state_switches_without_deleting_rigs_media_or_link
     let character = fresh_character(&store).await;
     let workspace_ref = format!("pose-workspace://{}", Uuid::new_v4());
 
-    let media_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"context-source-image");
+    let media_artifact = shared_media_artifact(b"context-source-image");
     let media = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: media_artifact.content_hash.clone(),
@@ -2239,8 +3776,7 @@ async fn atelier_identity_crop_artifact_links_profile_version_and_manifest() {
         .expect("bump profile version before crop registration");
     assert_eq!(profile.version, 2);
 
-    let crop_payload =
-        atelier_surreal_support::write_native_media_artifact(b"mt-099-face-crop-512");
+    let crop_payload = shared_media_artifact(b"mt-099-face-crop-512");
     let crop = store
         .record_identity_crop_artifact(&NewIdentityCropArtifact {
             profile_id: profile.profile_id,

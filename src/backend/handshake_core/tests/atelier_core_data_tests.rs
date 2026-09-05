@@ -1933,6 +1933,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: accepted_item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("accepted into target collection".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("apply accepted classification to media target");
@@ -1956,6 +1958,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: accepted_item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("accepted into target collection".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("reapply accepted classification idempotently");
@@ -1984,6 +1988,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: rejected_item.item_id,
             lane: IntakeLane::Rejected,
             reason: Some("operator rejected".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("apply rejected classification");
@@ -2024,6 +2030,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: invalid_item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("invalid target should rollback".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect_err("accepted apply with missing target media asset must reject");
@@ -7608,6 +7616,8 @@ async fn mt067_core_data_integration_smoke_path() {
             item_id: item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("mt-067 accepted into target collection".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("apply accepted intake classification");
