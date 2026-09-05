@@ -405,6 +405,8 @@ struct CollectionRow {
     tags_json: Vec<String>,
     character_internal_id: Option<SurrealUuid>,
     sheet_version_id: Option<SurrealUuid>,
+    created_by: String,
+    updated_by: String,
     created_at_utc: Datetime,
     updated_at_utc: Datetime,
 }
@@ -418,6 +420,8 @@ impl From<CollectionRow> for Collection {
             tags: row.tags_json,
             character_internal_id: row.character_internal_id.map(Into::into),
             sheet_version_id: row.sheet_version_id.map(Into::into),
+            created_by: row.created_by,
+            updated_by: row.updated_by,
             created_at_utc: row.created_at_utc.into(),
             updated_at_utc: row.updated_at_utc.into(),
         }
@@ -430,6 +434,9 @@ struct CollectionMemberRow {
     asset_id: SurrealUuid,
     content_hash: String,
     sort_order: i64,
+    linked_by: String,
+    updated_by: String,
+    updated_at_utc: Datetime,
     added_at_utc: Datetime,
 }
 
@@ -440,6 +447,9 @@ impl From<CollectionMemberRow> for CollectionMember {
             asset_id: row.asset_id.into(),
             content_hash: row.content_hash,
             sort_order: row.sort_order,
+            linked_by: row.linked_by,
+            updated_by: row.updated_by,
+            updated_at_utc: row.updated_at_utc.into(),
             added_at_utc: row.added_at_utc.into(),
         }
     }
@@ -699,14 +709,14 @@ macro_rules! collection_select {
            AS character_internal_id, \
          IF sheet_version_id = NONE { NONE } ELSE { record::id(sheet_version_id) } \
            AS sheet_version_id, \
-         created_at_utc, updated_at_utc"
+         created_by, updated_by, created_at_utc, updated_at_utc"
     };
 }
 
 macro_rules! collection_member_select {
     () => {
         "record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
-         asset_id.content_hash AS content_hash, sort_order, added_at_utc"
+         asset_id.content_hash AS content_hash, sort_order, linked_by, updated_by, ${nl}         updated_at_utc, added_at_utc"
     };
 }
 

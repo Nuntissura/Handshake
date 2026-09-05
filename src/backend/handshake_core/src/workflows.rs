@@ -13035,11 +13035,7 @@ fn build_context_compile_payload_v1(
     })
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut h = Sha256::new();
-    h.update(bytes);
-    hex::encode(h.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 fn sha256_hex_str(value: &str) -> String {
     sha256_hex(value.as_bytes())

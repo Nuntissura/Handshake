@@ -439,9 +439,7 @@ fn composite_id(prefix: &str, components: &[&str]) -> String {
     format!("{prefix}-{}", &hex::encode(hash.finalize())[..32])
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    hex::encode(Sha256::digest(bytes))
-}
+use crate::storage::artifacts::sha256_hex;
 
 fn authority_str(authority: CrdtStorageAuthorityPosture) -> &'static str {
     match authority {

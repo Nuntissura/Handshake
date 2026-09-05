@@ -1635,11 +1635,7 @@ fn compute_catalog_hash(entries: &[String]) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 #[cfg(test)]
 fn generated_collection_subtype_field_count(schema: &str) -> usize {

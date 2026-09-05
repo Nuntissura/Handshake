@@ -4821,11 +4821,7 @@ pub(crate) fn canonical_json_sha256_hex(value: &Value) -> String {
     sha256_hex(&canonical_json_bytes(value))
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 fn canonical_json_bytes(value: &Value) -> Vec<u8> {
     let mut out = String::new();

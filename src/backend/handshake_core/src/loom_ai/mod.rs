@@ -21,7 +21,6 @@ pub mod promotion;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::kernel::crdt::actor_site::KnowledgeActorIdV1;
@@ -67,11 +66,7 @@ impl From<StorageError> for LoomAiJobError {
     }
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 /// Stable idempotency hash over the suggestion's identifying tuple.
 fn value_hash(kind: LoomAiJobKind, block_id: &str, target: Option<&str>, value: &Value) -> String {

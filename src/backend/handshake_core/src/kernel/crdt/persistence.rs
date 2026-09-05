@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use super::identity::CrdtWorkspaceIdentityV1;
 
@@ -156,11 +155,7 @@ pub fn new_crdt_update_record(input: CrdtUpdateRecordInputV1<'_>) -> CrdtUpdateR
     }
 }
 
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+pub use crate::storage::artifacts::sha256_hex;
 
 pub fn kernel_crdt_surreal_update_log_contract() -> CrdtSurrealUpdateLogContractV1 {
     CrdtSurrealUpdateLogContractV1 {

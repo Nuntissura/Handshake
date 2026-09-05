@@ -2,7 +2,6 @@ use chrono::{DateTime, SecondsFormat, Timelike, Utc};
 use duckdb::Connection as DuckDbConnection;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::{
     fmt, fs,
     path::PathBuf,
@@ -326,11 +325,7 @@ pub struct SpecSessionLogEntry {
     pub linked_artifacts: Vec<ArtifactHandle>,
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 fn sha256_hex_utf8(value: &str) -> String {
     sha256_hex(value.as_bytes())

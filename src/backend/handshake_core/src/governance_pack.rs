@@ -845,11 +845,7 @@ fn template_volume_slice(spec_text: &str) -> String {
     spec_text[begin..end].to_string()
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 fn spec_current_bold_re() -> Result<&'static Regex, GovernancePackExportError> {
     match SPEC_CURRENT_BOLD_RE.as_ref() {

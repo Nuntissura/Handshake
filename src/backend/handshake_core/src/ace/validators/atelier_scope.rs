@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 const SELECTION_SCHEMA_V1: &str = "hsk.selection_range@v1";
 const DOC_PATCHSET_SCHEMA_V1: &str = "hsk.doc_patchset@v1";
@@ -54,11 +53,7 @@ pub enum PatchOpV1 {
     },
 }
 
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    let mut h = Sha256::new();
-    h.update(bytes);
-    hex::encode(h.finalize())
-}
+pub use crate::storage::artifacts::sha256_hex;
 
 fn is_sha256_hex(value: &str) -> bool {
     let value = value.trim();

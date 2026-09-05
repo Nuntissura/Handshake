@@ -228,9 +228,4 @@ fn app_router(state: AppState) -> Router {
         .layer(cors)
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;

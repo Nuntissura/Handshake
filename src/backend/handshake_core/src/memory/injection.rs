@@ -6,7 +6,6 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -396,11 +395,7 @@ fn escape_xml(value: &str) -> String {
     escaped
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 /// Object-safe abstraction over the capsule injection surface so that
 /// `LocalModelRuntimeLlmClient` (and any future runtime dispatcher) can hold

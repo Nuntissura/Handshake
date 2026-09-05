@@ -8,7 +8,6 @@
 //! `Kb003ArtifactClass::SandboxDiff` (content-hash policy).
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::kernel::kb003_artifact_classes::Kb003ArtifactClass;
 
@@ -32,17 +31,7 @@ impl DiffArtifact {
     }
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    let out = hasher.finalize();
-    let mut s = String::with_capacity(out.len() * 2);
-    for b in out.iter() {
-        use std::fmt::Write as _;
-        let _ = write!(s, "{:02x}", b);
-    }
-    s
-}
+use crate::storage::artifacts::sha256_hex;
 
 #[cfg(test)]
 mod tests {

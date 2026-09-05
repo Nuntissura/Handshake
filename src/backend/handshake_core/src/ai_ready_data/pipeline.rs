@@ -1349,11 +1349,7 @@ fn deterministic_uuid_for_str(value: &str) -> Uuid {
     Uuid::from_bytes(bytes)
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut h = Sha256::new();
-    h.update(bytes);
-    hex::encode(h.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 fn redundancy_score_from_results(
     results: &[crate::ai_ready_data::retrieval::HybridSearchResult],

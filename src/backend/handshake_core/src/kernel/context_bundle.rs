@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 use super::{KernelError, KernelResult};
 
@@ -42,11 +41,7 @@ impl ContextBundle {
     }
 }
 
-pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+pub(crate) use crate::storage::artifacts::sha256_hex;
 
 pub(crate) fn canonical_json_bytes(value: &Value) -> Vec<u8> {
     let mut output = String::new();

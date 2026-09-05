@@ -1813,6 +1813,14 @@ fn map_artifact_error(err: ArtifactError) -> BundleExportError {
         ArtifactError::WorkspaceRootResolve(message) => {
             BundleExportError::ExportFailed(format!("workspace root resolve failed: {message}"))
         }
+        ArtifactError::SizeLimitExceeded { limit_bytes, observed_bytes } => {
+            BundleExportError::Validation(format!(
+                "payload exceeds the ingest size limit: limit={limit_bytes} observed>={observed_bytes}"
+            ))
+        }
+        ArtifactError::Stream(message) => {
+            BundleExportError::ExportFailed(format!("payload stream failed: {message}"))
+        }
         ArtifactError::Serialization(source) => {
             BundleExportError::ExportFailed(format!("serialization error: {source}"))
         }

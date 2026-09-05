@@ -1069,6 +1069,11 @@ struct ItemRefBinding {
 }
 
 #[derive(SurrealValue)]
+struct ItemRefsBinding {
+    item_refs: Vec<RecordId>,
+}
+
+#[derive(SurrealValue)]
 struct ItemLookupBinding {
     batch_ref: RecordId,
     source_path: String,

@@ -39,7 +39,6 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use surrealdb::types::{RecordId, SurrealValue};
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
@@ -2518,11 +2517,7 @@ fn truncate_snippet(text: &str) -> String {
     }
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
 fn perf_sample_json(sample: &PerfSample, budget: &CodeIndexBudget) -> Value {
     json!({

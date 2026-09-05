@@ -13,7 +13,6 @@ pub mod registry;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
@@ -338,11 +337,7 @@ impl LlmClient for DisabledLlmClient {
 // Canonical JSON + Hashing Helpers (Spec §2.6.6.7.0)
 // =============================================================================
 
-pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+pub(crate) use crate::storage::artifacts::sha256_hex;
 
 pub(crate) fn canonical_json_bytes_nfc(value: &Value) -> Vec<u8> {
     let mut out = String::new();
