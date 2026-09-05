@@ -164,10 +164,15 @@ struct MediaAssetIngestResponse {
 /// then catalog row. If the row write fails or dedups to an existing asset, the just-written
 /// artifact is removed (`remove_file_artifact`) so the blob tier never accumulates payloads with no
 /// catalog row. The reverse failure (row committed, blob missing) cannot happen on this path because
-/// `materialize_media_asset` re-verifies the ArtifactStore binding before it commits. A crash
-/// between blob rename and row commit leaves an orphan artifact directory; that orphan is
-/// unreferenced, hash-addressed, and swept by the existing artifact GC — it is never served, because
-/// serving always starts from a catalog row.
+/// `materialize_media_asset` re-verifies the ArtifactStore binding before it commits.
+///
+/// A hard crash strictly between the payload rename and the row commit leaves an orphan L1 artifact
+/// directory. It is never served (serving always starts from a catalog row) and re-ingesting the
+/// same bytes dedups on `content_hash` rather than compounding, but it is NOT reclaimed
+/// automatically: `storage::retention` scans only `ArtifactLayer::L3` and only prunes manifests
+/// that carry `retention_ttl_days`, and `atelier::filesystem_health` reports an
+/// `UntrackedOriginal` finding without ever deleting or repairing. Reclaiming orphan L1 payloads is
+/// declared debt, not a solved case.
 async fn ingest_media_asset_bytes(
     State(state): State<AppState>,
     headers: HeaderMap,
