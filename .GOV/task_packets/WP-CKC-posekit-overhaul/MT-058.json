@@ -14,7 +14,7 @@
   "title": "Express CKC migrations 0337-0344 as schema.surql END STATE (revision 158) and re-pin the four schema hashes",
   "status": "CLAIMED",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-05T01:05:00.438Z",
+  "updated_at_utc": "2026-09-05T01:24:32.636Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -85,7 +85,7 @@
     "proof_commands": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -- storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::schema_contract_is_wave_scoped_and_identity_safe storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin --nocapture"
     ],
-    "proof_status": "schema.surql/schema.rs edited and checkpointed; hash-pin test run in progress at contract time (log handshake-tool/wp-ckc-surreal/schema-tests.log). Until the four pins match, embedded bootstrap fails closed with HANDSHAKE_SURREAL_SCHEMA_COMPILED_MANIFEST_DRIFT — every lane test depends on this MT."
+    "proof_status": "schema.surql/schema.rs compile (check4 exit 0). Hash-pin recompute run in progress (log handshake-tool/wp-ckc-surreal/schema-tests2.log); pins not yet updated."
   },
   "hbr_obligations": {
     "HBR-INT-001": "PROVE: every mutation emits its atelier event in the same transaction (write_with_event / BEGIN..COMMIT)",

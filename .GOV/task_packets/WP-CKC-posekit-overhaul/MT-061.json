@@ -14,7 +14,7 @@
   "title": "CKC intake/facial lane on SurrealDB: batch classification metadata, contact sheets, Facial native registry/review/receipts",
   "status": "PENDING",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-05T01:05:00.438Z",
+  "updated_at_utc": "2026-09-05T01:24:32.636Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -54,8 +54,8 @@
     "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal-intake/run-cargo.cmd",
     "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`.",
     "resume_state": {
-      "status": "PARTIAL_UNCOMPILED_CHECKPOINTED",
-      "detail": "Lane agent terminated by API limit after a partial write to intake.rs (+1187); contact_sheet.rs, facial.rs, facial_native, router and tests not started; nothing compiled.",
+      "status": "PARTIAL_UNCOMPILED_CHECKPOINTED_THEN_MADE_COMPILABLE",
+      "detail": "Lane agent terminated by API limit after a partial write to intake.rs (+1187); contact_sheet.rs, facial.rs, facial_native, router and tests not started; nothing compiled. KERNEL_BUILDER then made the whole tree compile (check4 exit 0) by finishing CollectionRow/CollectionMemberRow + select macros (media) and adding ItemRefsBinding (intake); functional completeness of each lane is still unknown until its routes and tests exist.",
       "next_action": "Reopen the lane with the implementation_brief below; diff the checkpointed files against the reference to see what is already ported; finish; cargo check; port tests; run them."
     }
   },
