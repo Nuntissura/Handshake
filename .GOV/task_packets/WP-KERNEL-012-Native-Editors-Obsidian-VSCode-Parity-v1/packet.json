@@ -644,7 +644,7 @@
       "MT-138": "READY_FOR_VALIDATION_V4",
       "MT-139": "READY_FOR_VALIDATION_V4",
       "MT-140": "READY_FOR_VALIDATION_V4",
-      "MT-141": "CLAIMED",
+      "MT-141": "READY_FOR_DEV",
       "MT-142": "READY_FOR_DEV",
       "MT-143": "READY_FOR_VALIDATION_V4",
       "MT-144": "READY_FOR_VALIDATION_V4",
@@ -1240,7 +1240,7 @@
       "MT-138": "READY_FOR_VALIDATION_V4",
       "MT-139": "READY_FOR_VALIDATION_V4",
       "MT-140": "READY_FOR_VALIDATION_V4",
-      "MT-141": "CLAIMED",
+      "MT-141": "READY_FOR_DEV",
       "MT-142": "READY_FOR_DEV",
       "MT-143": "READY_FOR_VALIDATION_V4",
       "MT-144": "READY_FOR_VALIDATION_V4",
@@ -1403,7 +1403,22 @@
       "suggested_scope": "backup-push should either restore the original upstream after pushing, or use a push refspec that does not set tracking at all. Neither the backup nor the working branch needs the upstream changed for the backup to be created.",
       "evidence": "backup-push.mjs run output on 2026-09-05 creating backup/WP-KERNEL-012-wtc-dirt-20260905; the subsequent git rev-parse --abbrev-ref @{u} failures; git config --get-all remote.origin.fetch showing the single gov_kernel refspec."
     },
-    "status_sync_note_2026_09_05_backup": "Backup branch backup/WP-KERNEL-012-wtc-dirt-20260905 pushed at 6d5d705f. Finding recorded: backup-push repoints the working branch upstream at the backup branch, so a later bare push would land work on the backup ref and report success. Upstream restored by direct config write."
+    "status_sync_note_2026_09_05_backup": "Backup branch backup/WP-KERNEL-012-wtc-dirt-20260905 pushed at 6d5d705f. Finding recorded: backup-push repoints the working branch upstream at the backup branch, so a later bare push would land work on the backup ref and report success. Upstream restored by direct config write.",
+    "wp_readiness_gap_2026_09_05": {
+      "schema_id": "hsk.packet_readiness@1",
+      "recorded_by": "KERNEL_BUILDER-20260903-213930 (orchestrator)",
+      "recorded_at_utc": "2026-09-05T21:12:53.263Z",
+      "statement": "What still stands between this work packet and a fully ready-for-validation state, as of 2026-09-05.",
+      "remaining": [
+        "MT-148 - CLAIMED and in flight. Repairs the two defects that stop a fresh worktree working at all. Its D-148-1 evidence is already obtained; PT-148-2 and PT-148-3 are re-running after failing on host contention rather than on the change.",
+        "MT-141 - claim released today, READY_FOR_DEV, unstaffed. Cannot start until MT-148 lands: its whole allowed path is the tests tree, and that tree does not compile until the tempfile repair is in.",
+        "MT-142 - READY_FOR_DEV, unstaffed, independent of the other two."
+      ],
+      "everything_else": "All 145 other microtasks are at a PASS or READY_FOR_VALIDATION status. 63 sit at READY_FOR_VALIDATION_V4 and 3 at READY_FOR_VALIDATION.",
+      "deliberate_non_action": "MT-141 and MT-142 are NOT being staffed right now. The host is carrying roughly two dozen cargo and rustc processes across this session and two foreign ones, and MT-148 is the lane closest to done. Adding lanes into that would slow the one that is nearly finished and buy nothing. Staffing resumes when MT-148 closes and load drops.",
+      "known_gap_for_the_validator": "55 microtasks at a READY_FOR_VALIDATION status carry no ready-checklist receipt pointer. They predate the requirement and the governed coverage check already flags the class. Not introduced by this run, but a validator working the batch will find most of it lacks the evidence link the recent microtasks have."
+    },
+    "status_sync_note_2026_09_05_mt141_release": "MT-141 stale claim released 2026-09-05: claimed 2026-09-01, no implementation_result, session inactive. Liveness action only. Blocked behind MT-148 regardless, since its allowed path is the tests tree and that tree does not compile until the tempfile repair lands."
   },
   "status_sync_note_2026_07_05_mt101_repair": "MT-101 moved OPEN -> READY_FOR_VALIDATION by KERNEL_BUILDER-20260705-025228 after focused hardcode/local-load repair: ordinary operator model-session /jobs requests omit wp_id, mt_id, prompt, and simulate_duration_ms; promptless bootstrap/manual wording is updated; local GGUF load is now surfaced as LocalModelLoadEndpointMissing kernel_model_runtime_load while direct spawn remains kernel_swarm_spawn_session IPC-only. Proofs passed: model_session_launch 14/14 with external screenshots, manual_content 19/19, cargo fmt --check, scoped git diff --check, cargo check --lib, CONTROL-4 no_hardcoded_color32 1/1, and git ls-files src/**/*.png empty. Official validator has not run; validator_verdict remains PENDING. Full suite/clippy/live local+cloud managed backend execution remain unproven/NEEDS_MANAGED_RESOURCE_PROOF. Contract under-scoped manual_content_editors.rs and tests/test_manual_content.rs for HBR-MAN same-change proof; operator waiver required.",
   "operator_requirement_verification_2026_08_05": {

@@ -30,19 +30,19 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_DEV",
     "depends_on": [
       "MT-136",
       "MT-137",
       "MT-138"
     ],
     "blocks": [],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": "KERNEL_BUILDER-20260901-MT141-ORCH",
+    "claimed_by": null,
     "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks.",
-    "claimed_at_utc": "2026-09-01T16:46:22.087Z",
+    "claimed_at_utc": null,
     "field_evidence_disclosure_2026_09_04": {
       "schema_id": "hsk.mt_field_evidence_note@1",
       "recorded_by": "KERNEL_BUILDER-20260903-213930",
@@ -57,6 +57,16 @@
       "effect_on_mt_147": "The MT-147 cross-platform job was rescoped to --lib --bins plus a --lib --no-run test compile, so it proves the crate surface MT-118 and MT-144 depend on without reporting this defect as its own. The rescope is recorded in commit 817fca6f.",
       "owner_question": "MT-141 owns tests/**. This needs either a tempfile pin or a migration to TempDir::new_in plus keep(), and it should be decided inside MT-141 rather than patched from an adjacent microtask.",
       "suggested_migration": "tempfile 3.27 removed TempDir::from_path and deprecated TempDir::into_path in favour of keep(). The helper needs either a pin to a tempfile version that still has from_path, or a rewrite of open_existing that does not try to wrap an already-existing directory in a TempDir at all. The second is likely correct: open_existing takes ownership of a caller-supplied path for a close-and-reopen durability proof, which is not what TempDir is for."
+    },
+    "claim_released_2026_09_05": {
+      "at_utc": "2026-09-05T21:12:27.567Z",
+      "by": "KERNEL_BUILDER-20260903-213930 (orchestrator)",
+      "released_claim": "KERNEL_BUILDER-20260901-MT141-ORCH",
+      "claimed_at": "2026-09-01T16:46:22.087Z",
+      "reason": "Stale claim released so the microtask can be staffed. It was claimed 2026-09-01 and has carried no implementation_result since, and that session has been inactive for the whole of this remediation run. Nothing is lost: its only product artefact is the recovery checkpoint committed at 7f279596, which stays on the branch and is referenced here.",
+      "not_a_judgement_on_the_work": "This says nothing about the quality of what that session did. It is a liveness action only, so an unresponsive claim stops blocking the work packet from reaching a ready state.",
+      "blocked_until_mt_148": "MT-141 could not have progressed anyway. Its allowed path is src/backend/handshake_core/tests/, and that entire tree fails to compile because tempfile resolves to 3.27.0 where TempDir::from_path no longer exists. MT-148 is repairing exactly that and is in flight. Do not staff MT-141 until MT-148 lands, or the first thing the new session hits is a compile error it is not scoped to fix.",
+      "staffing_note": "Its declared depends_on (MT-136, MT-137, MT-138) are satisfied. The real remaining predecessor is MT-148, which is recorded here rather than added to depends_on because MT-148 postdates this contract and the dependency is environmental rather than contractual."
     }
   },
   "scope": {
@@ -135,5 +145,5 @@
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "coder_session": "KERNEL_BUILDER-20260901-MT141-ORCH"
   },
-  "updated_at_utc": "2026-09-03T23:53:37.848Z"
+  "updated_at_utc": "2026-09-05T21:12:27.567Z"
 }
