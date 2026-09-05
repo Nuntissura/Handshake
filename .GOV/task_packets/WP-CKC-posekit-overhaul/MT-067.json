@@ -1,0 +1,121 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-067",
+  "title": "Studio <-> CKC binding proposal: canonical blob tier, read-path contract, crash-consistency rule, size/eviction, viewport and widget ids; spec amendment recommendations for 14-studio-creative-suite STU-ASSET-004/005/007/008/012-014/025",
+  "status": "CLAIMED",
+  "created_at_utc": "2026-09-05T01:05:00.438Z",
+  "updated_at_utc": "2026-09-05T01:05:00.438Z",
+  "product_edit_allowed": true,
+  "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-067.json",
+    "microtask_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-067.md",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-067.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-067.json"
+  },
+  "lifecycle": {
+    "status": "CLAIMED",
+    "active": true,
+    "depends_on": [],
+    "claimed_by": "KERNEL_BUILDER-20260904-213453",
+    "claimed_at_utc": "2026-09-05T01:05:00.438Z",
+    "completed_by": null
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-surreal",
+    "product_branch": "feat/WP-CKC-posekit-overhaul-surreal",
+    "base_commit": "1d47363fb171590f4eb05d4e5891b08aaec95552",
+    "base_branch": "feat/WP-KERNEL-012",
+    "reference_worktree": "../wtc-ckc-posekit-overhaul",
+    "reference_branch": "feat/WP-CKC-posekit-overhaul",
+    "checkpoint_commits": {
+      "read_path": "83bef9a7",
+      "skeleton": "09febeb8",
+      "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
+    },
+    "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+    "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal/run-cargo.cmd",
+    "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`."
+  },
+  "scope": {
+    "summary": "Deliverable 3 of the mission. The proposal is delivered in the KERNEL_BUILDER report and recorded here as typed fields so it survives the chat. .GOV/spec is NOT edited by this WP (Operator constraint; CX-105A); the recommendations below are what the spec should say and are handed to the spec-writing role.",
+    "owned_files": [
+      "(none: proposal only)"
+    ]
+  },
+  "hbr_obligations": {
+    "HBR-INT-001": "PROVE: every mutation emits its atelier event in the same transaction (write_with_event / BEGIN..COMMIT)",
+    "HBR-INT-008": "PROVE: Uuid::now_v7() at every new mint site",
+    "HBR-INT-009": "DEFERRED-with-reason: Flight Recorder emit via AtelierStore observability is WIRED; internal_diagnostics and Palmistry are not in this base (WP-KERNEL-012 MT-127 lane), record DEFERRED per tier",
+    "HBR-SWARM-005": "PROVE: per-owner CARGO_TARGET_DIR wp-ckc-surreal[-lane]",
+    "HBR-SWARM-006": "PROVE: owner cleans its scoped dir; KERNEL_BUILDER backstop",
+    "HBR-VIS-004": "PROVE: non-UI lanes record TraceProjection/route evidence; UI proof belongs to MT-065",
+    "HBR-MAN-004": "DEFERRED to MT-066 (UserManual same-change duty batched for the coherent lane batch; typed mapping required)",
+    "HBR-STOP-001..005": "PROVE: no capacity reasoning in receipts; API rate-limit termination is an external blocker, recorded as such",
+    "HBR-PRIV-001..008": "DEFERRED-with-reason: see resource_privacy_obligation"
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "status": "DEFERRED_TO_MT-066",
+    "reason": "Lane batch shares one UserManual update; typed per-MT mapping is recorded in MT-066 when applied."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": "DEFERRED",
+    "resources_touched": [
+      "atelier_media_asset rows",
+      "ArtifactStore payloads under <workspace>/.handshake/artifacts",
+      "CKC catalog tables listed in scope"
+    ],
+    "expected_evidence": [
+      "DEFERRED-with-reason: ResourceBroker / LocalAccount / Principal / AccessSpace do not exist in the WP-KERNEL-012 base (verified 2026-09-05 by grep: no ResourceBroker symbol). Reads and writes are attributed via x-hsk-actor-id and the KernelActor on events; default-deny enforcement is WP-KERNEL-006/007 scope. Record the STU-ASSET-007 `unauthorized` state as not yet producible."
+    ],
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1"
+  },
+  "handoff": {
+    "status": "CLAIMED",
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification."
+  },
+  "validator_verdict": "PENDING",
+  "studio_binding_proposal": {
+    "canonical_blob_tier": "ArtifactStore (UUID-addressed, manifest per file, atomic write, hash-verified, GC). Loom blobs (<root>/data/workspaces/<ws>/assets/<tier>/<hash>) are the non-canonical second tier and become a migration target: new Studio/CKC bytes never go there.",
+    "why": "ArtifactStore already has the invariants the spec demands (manifest = PRIM-ArtifactManifest, write-once, refuses content_hash != sha256(payload), GC, layers L1-L4, retention TTL); Loom blobs have no manifest, no verification on read, no GC, and a row->blob ordering with no compensation. Choosing Loom would mean rebuilding all of that; choosing ArtifactStore means only porting a READ path (done) and a streaming WRITE path (done).",
+    "read_path_contract": {
+      "catalog_identity": "PRIM-Asset = atelier_media_asset.asset_id (uuid v7)",
+      "manifest_identity": "PRIM-ArtifactManifest = artifact://.handshake/artifacts/<layer>/<uuid>/artifact.json; the placed-asset link's artifact_manifest_id is that ref (or the (layer, uuid) pair)",
+      "resolve_bytes": "GET /atelier/media-assets/{asset_id}/bytes -> 200 bytes with Content-Type (catalog MIME), Content-Length, ETag \"sha256-<hex>\", Cache-Control private,immutable, x-hsk-artifact-ref, x-hsk-content-sha256; 404 unknown asset or missing payload; 400 non-native artifact_ref; 500 any integrity mismatch (row vs manifest, manifest vs payload). Store-level equivalent: AtelierStore::read_media_asset_bytes. The link's resolved_content_hash is x-hsk-content-sha256; link state: resolved when it equals the stored resolved_content_hash, modified when it differs, missing on 404-unknown, unresolved before first call. unauthorized cannot be produced yet: no ResourceBroker in the base (WP-KERNEL-006/007); until then the route is actor-attributed (x-hsk-actor-id) but not authorization-enforced and the spec should say so explicitly instead of implying the state exists.",
+      "streaming": "Read is currently buffered (whole payload in memory once, hash-verified before the first byte is sent, so a client never receives partial bytes on integrity failure). Proposed follow-up: HTTP Range + streamed body with the hash verified by a pre-pass per artifact and cached, so video seeking works; the buffered route stays the fail-closed default for images. Write IS streaming: POST /atelier/media-assets streams the raw body into the ArtifactStore with sha256+size computed on the fly and a hard ceiling."
+    },
+    "crash_consistency_rule": "Order is blob -> verify -> catalog row (the Atelier pattern), never row -> blob (the Loom pattern). If the row write fails or dedups, the writer removes the blob it just wrote (compensation); a crash between blob rename and row commit leaves an unreferenced, hash-addressed artifact that is never served (serving starts from a row) and is swept by artifact GC. A catalog row whose blob is missing is a 404 on read and is reported by filesystem_health; it is never auto-deleted. Rows and their EventLedger event must commit in one SurrealDB transaction (the stage_artifacts.rs BEGIN/COMMIT pattern); the reference branch's post-commit event writes (MT-056 F10) must not be ported as-is.",
+    "size_limits_and_eviction": "Ingest ceiling HANDSHAKE_MEDIA_INGEST_MAX_BYTES (default 4 GiB) enforced while streaming; the JSON/base64 Loom import is bounded by Axum's 2 MiB body limit plus the same decoded cap and is not a bulk path. Eviction today covers only L3 TTL artifacts and excludes media originals (retention_class atelier.media.original.retained); Studio assets ingested through this route are L1 originals and are therefore never evicted automatically. Proposed: derived previews/proxies for Studio go to L3 with TTL; originals stay pinned; a Studio document's linked originals count as referenced for any future GC of unreferenced L1 payloads.",
+    "viewport": "CKC's Atelier panel IS Studio's asset viewport: Studio opens it as the CKC module in the module rail (or a workbench pane) with a target ref (atelier://media/<asset_id>, atelier://collection/<id>, atelier://character/<id>) and gets back placed-asset picks through the typed drag payload / asset.place command. What it shows: character-scoped albums, media grid with real bytes via the byte route, tags/notes/ratings, Posekit/OpenPose, intake batches, search. Models drive it through the 128 stable atelier-ckc-* AccessKit ids (Argus list_widgets/click_widget/set_value/screenshot); MT-065 ports them verbatim and the report lists them.",
+    "spec_should_say": [
+      "STU-ASSET-025 close: the artifact tier is storage::artifacts (ArtifactStore): UUID-addressed under <workspace>/.handshake/artifacts/<layer>/<uuid>/{payload,artifact.json}; manifest = PRIM-ArtifactManifest; write-once, hash-verified on write and read; GC; layers L1-L4; API = write_file_artifact / write_file_artifact_streaming / read_file_artifact / read_artifact_manifest / remove_file_artifact plus HTTP GET /atelier/media-assets/{id}/bytes and POST /atelier/media-assets; transactional relationship: blob before row, compensation on row failure, row+event in one SurrealDB transaction.",
+      "STU-ASSET-004: name Loom blobs as the existing violation and require consolidation onto the ArtifactStore (migration WP), not a retroactive ban.",
+      "STU-ASSET-005: artifact_manifest_id is the ArtifactStore manifest ref; resolved_content_hash is bare lowercase sha256 hex (the x-hsk-content-sha256 header).",
+      "STU-ASSET-007: state that `unauthorized` is producible only once WP-KERNEL-006/007 ship ResourceBroker; until then resolution is attributed, not authorized, and MUST NOT be reported as `missing`.",
+      "STU-ASSET-008: bulk binary MUST ingest through the streaming route with the ceiling; base64/JSON ingest is forbidden for Studio assets.",
+      "STU-ASSET-012..014: export-back = POST /atelier/media-assets (streamed) + catalog row + derivation edge; the edge record does not exist yet in CKC (no atelier derivation table) and MUST be added before export-back is claimed."
+    ]
+  }
+}

@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-07-08T15:45:55Z",
+  "updated_at_utc": "2026-09-05T01:05:00.438Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -79,11 +79,17 @@
     }
   },
   "source_control": {
-    "work_branch": "feat/WP-CKC-posekit-overhaul",
-    "worktree_dir": "../wtc-ckc-posekit-overhaul",
+    "work_branch": "feat/WP-CKC-posekit-overhaul-surreal",
+    "worktree_dir": "../wtc-ckc-surreal",
     "source_branch": "feat/WP-KERNEL-012",
     "source_worktree_dir": "../wtc-native-editors-v1",
-    "source_head": "6bb8cfb4f81a06c4718403826f3b30433f74a426"
+    "source_head": "1d47363fb171590f4eb05d4e5891b08aaec95552",
+    "reference_branch": "feat/WP-CKC-posekit-overhaul",
+    "reference_worktree_dir": "../wtc-ckc-posekit-overhaul",
+    "reference_role": "REFERENCE_IMPLEMENTATION_NOT_MERGE_SOURCE",
+    "superseded_work_branch": "feat/WP-CKC-posekit-overhaul",
+    "superseded_worktree_dir": "../wtc-ckc-posekit-overhaul",
+    "superseded_reason": "PostgreSQL/sqlx storage layer removed from the kernel; 327 commits behind feat/WP-KERNEL-012 at fork time."
   },
   "communications": {
     "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul",
@@ -109,7 +115,12 @@
     "main_containment_verified_at_utc": "N/A",
     "risk_tier": "HIGH",
     "user_signature": "operator-live-2026-06-28",
-    "claim_notes": "Operator requested setup and future ad hoc MT execution in a hotfix copy of the active native editors worktree."
+    "claim_notes": "Operator requested setup and future ad hoc MT execution in a hotfix copy of the active native editors worktree.",
+    "surreal_port": {
+      "started_at_utc": "2026-09-05T01:05:00.438Z",
+      "by": "KERNEL_BUILDER-20260904-213453",
+      "summary": "Operator-directed forward port onto SurrealDB. PG-era MT verdicts (V1/V2) preserved as history; MT-004..MT-055 reopened; MT-057..MT-067 added."
+    }
   },
   "operator_standing_directives": {
     "recorded_at_utc": "2026-07-01T18:26:04.591Z",
@@ -197,10 +208,10 @@
     "enforcement_profile": "HOTFIX_ADHOC_MICROTASK_WITH_RECOVERY_POINTERS"
   },
   "microtasks": {
-    "active_id": null,
+    "active_id": "MT-057",
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "count": 55,
+    "count": 67,
     "declared_ids": [
       "MT-001",
       "MT-002",
@@ -256,15 +267,27 @@
       "MT-052",
       "MT-053",
       "MT-054",
-      "MT-055"
+      "MT-055",
+      "MT-056",
+      "MT-057",
+      "MT-058",
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-065",
+      "MT-066",
+      "MT-067"
     ],
-    "next_id": null,
+    "next_id": "MT-058",
     "latest_completed_id": null,
     "latest_completed_artifact": null,
     "latest_ready_for_validation_id": "MT-055",
     "latest_ready_for_validation_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-055.json",
-    "active_claimed_by": null,
-    "active_claimed_at_utc": null
+    "active_claimed_by": "KERNEL_BUILDER-20260904-213453",
+    "active_claimed_at_utc": "2026-09-05T01:05:00.438Z"
   },
   "research_basis": {
     "sources_checked": [
@@ -366,9 +389,9 @@
   ],
   "execution": {
     "last_state_update": {
-      "at_utc": "2026-07-05T10:51:35.782Z",
-      "by": "KERNEL_BUILDER-20260705-102913-STATUS-RECOVERY",
-      "summary": "Recovered WP-CKC-posekit-overhaul RFV governance drift: added missing MT backlinks/evidence summaries, fixed MT-041 CKC/Posekit menu drift with targeted proof, and reconciled MT-044 embedded child statuses to READY_FOR_VALIDATION/PENDING. No official validation claimed."
+      "at_utc": "2026-09-05T01:05:00.438Z",
+      "by": "KERNEL_BUILDER-20260904-213453",
+      "summary": "SurrealDB port lane opened: branch feat/WP-CKC-posekit-overhaul-surreal from feat/WP-KERNEL-012@1d47363f in ../wtc-ckc-surreal. Landed READ path (83bef9a7), skeleton (09febeb8), WIP checkpoint of five lane ports terminated by API limit. MT-057..MT-067 created; MT-004..MT-055 reopened for re-proof."
     }
   },
   "wp_validation_v1": {

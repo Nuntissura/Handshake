@@ -1,0 +1,110 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-057",
+  "title": "ArtifactStore READ path: read_file_artifact + GET /atelier/media-assets/:asset_id/bytes (Studio blocker)",
+  "status": "CLAIMED",
+  "created_at_utc": "2026-09-05T01:05:00.438Z",
+  "updated_at_utc": "2026-09-05T01:05:00.438Z",
+  "product_edit_allowed": true,
+  "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-057.json",
+    "microtask_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-057.md",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-057.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-057.json"
+  },
+  "lifecycle": {
+    "status": "CLAIMED",
+    "active": true,
+    "depends_on": [],
+    "claimed_by": "KERNEL_BUILDER-20260904-213453",
+    "claimed_at_utc": "2026-09-05T01:05:00.438Z",
+    "completed_by": null
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-surreal",
+    "product_branch": "feat/WP-CKC-posekit-overhaul-surreal",
+    "base_commit": "1d47363fb171590f4eb05d4e5891b08aaec95552",
+    "base_branch": "feat/WP-KERNEL-012",
+    "reference_worktree": "../wtc-ckc-posekit-overhaul",
+    "reference_branch": "feat/WP-CKC-posekit-overhaul",
+    "checkpoint_commits": {
+      "read_path": "83bef9a7",
+      "skeleton": "09febeb8",
+      "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
+    },
+    "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+    "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal/run-cargo.cmd",
+    "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`."
+  },
+  "scope": {
+    "summary": "Port read_file_artifact (storage-agnostic, from reference MT-043) and land the verified media byte route on SurrealDB. Store-level AtelierStore::read_media_asset_bytes owns the integrity contract (row -> native ref -> manifest -> row/manifest hash+size cross-check -> single-file -> payload re-hash); HTTP maps outcomes (404 unknown/missing payload, 400 non-native ref, 500 integrity).",
+    "owned_files": [
+      "src/backend/handshake_core/src/storage/mod.rs (artifacts::read_file_artifact, read_file_artifact_with_manifest)",
+      "src/backend/handshake_core/src/atelier/media.rs (get_media_asset, read_media_asset_bytes, MediaAssetBytes, MediaAssetBytesError)",
+      "src/backend/handshake_core/src/api/atelier.rs (get_media_asset_bytes route + pub(crate) helpers)",
+      "src/backend/handshake_core/tests/atelier_media_bytes_api_tests.rs"
+    ],
+    "acceptance_criteria": [
+      "AC1 exact stored bytes served with catalog MIME, Content-Length, ETag \"sha256-<hex>\", Cache-Control private,immutable, x-hsk-artifact-ref, x-hsk-content-sha256",
+      "AC2 unknown asset 404; payload deleted after cataloguing 404; tampered payload 500 and never the tampered bytes",
+      "AC3 embedded SurrealDB harness only, no PG, no skip paths"
+    ],
+    "commit": "83bef9a7 on feat/WP-CKC-posekit-overhaul-surreal",
+    "proof_status": "COMMITTED; cargo check --lib PASS (exit 0, log handshake-tool/wp-ckc-surreal/check2.log); integration test binary NOT yet executed at contract time"
+  },
+  "hbr_obligations": {
+    "HBR-INT-001": "PROVE: every mutation emits its atelier event in the same transaction (write_with_event / BEGIN..COMMIT)",
+    "HBR-INT-008": "PROVE: Uuid::now_v7() at every new mint site",
+    "HBR-INT-009": "DEFERRED-with-reason: Flight Recorder emit via AtelierStore observability is WIRED; internal_diagnostics and Palmistry are not in this base (WP-KERNEL-012 MT-127 lane), record DEFERRED per tier",
+    "HBR-SWARM-005": "PROVE: per-owner CARGO_TARGET_DIR wp-ckc-surreal[-lane]",
+    "HBR-SWARM-006": "PROVE: owner cleans its scoped dir; KERNEL_BUILDER backstop",
+    "HBR-VIS-004": "PROVE: non-UI lanes record TraceProjection/route evidence; UI proof belongs to MT-065",
+    "HBR-MAN-004": "DEFERRED to MT-066 (UserManual same-change duty batched for the coherent lane batch; typed mapping required)",
+    "HBR-STOP-001..005": "PROVE: no capacity reasoning in receipts; API rate-limit termination is an external blocker, recorded as such",
+    "HBR-PRIV-001..008": "DEFERRED-with-reason: see resource_privacy_obligation"
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "status": "DEFERRED_TO_MT-066",
+    "reason": "Lane batch shares one UserManual update; typed per-MT mapping is recorded in MT-066 when applied."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": "DEFERRED",
+    "resources_touched": [
+      "atelier_media_asset rows",
+      "ArtifactStore payloads under <workspace>/.handshake/artifacts",
+      "CKC catalog tables listed in scope"
+    ],
+    "expected_evidence": [
+      "DEFERRED-with-reason: ResourceBroker / LocalAccount / Principal / AccessSpace do not exist in the WP-KERNEL-012 base (verified 2026-09-05 by grep: no ResourceBroker symbol). Reads and writes are attributed via x-hsk-actor-id and the KernelActor on events; default-deny enforcement is WP-KERNEL-006/007 scope. Record the STU-ASSET-007 `unauthorized` state as not yet producible."
+    ],
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1"
+  },
+  "handoff": {
+    "status": "CLAIMED",
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "note": "Transition to READY_FOR_VALIDATION only after `cargo test --test atelier_media_bytes_api_tests` passes on the committed tree."
+  },
+  "validator_verdict": "PENDING"
+}

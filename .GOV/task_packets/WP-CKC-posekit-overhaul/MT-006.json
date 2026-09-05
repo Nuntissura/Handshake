@@ -16,9 +16,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-006",
   "title": "Promote Atelier to the main filling panel with CKC, Posekit, and Ingest sibling tabs",
-  "status": "PASS_V1",
+  "status": "REOPENED_FOR_SURREAL_PORT",
   "created_at_utc": "2026-06-28T16:49:48.833Z",
-  "updated_at_utc": "2026-07-01T23:16:41.315Z",
+  "updated_at_utc": "2026-09-05T01:05:00.438Z",
   "started_at_utc": "2026-06-28T16:56:35.333Z",
   "ready_for_validation_at_utc": "2026-07-01T23:16:41.315Z",
   "product_commit": "565c6102",
@@ -81,7 +81,7 @@
     "generator": "manual-kernel-builder-hotfix-projection"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "REOPENED_FOR_SURREAL_PORT",
     "active": false,
     "reopened_at_utc": "2026-07-01T18:34:39.251Z",
     "depends_on": [
@@ -334,5 +334,17 @@
   },
   "status_v1": "PASS_V1",
   "validator_verdict": "PASS_V1",
-  "status_before_v1": "READY_FOR_VALIDATION"
+  "status_before_v1": "READY_FOR_VALIDATION",
+  "surreal_port_reopen": {
+    "reopened_at_utc": "2026-09-05T01:05:00.438Z",
+    "reopened_by": "KERNEL_BUILDER-20260904-213453",
+    "prior_lifecycle_status": "PASS_V1",
+    "prior_top_level_status": "PASS_V1",
+    "prior_validator_verdict": "PASS_V1",
+    "reason": "Acceptance was proven on the PostgreSQL/sqlx reference branch feat/WP-CKC-posekit-overhaul. The Operator directed a forward port onto SurrealDB (branch feat/WP-CKC-posekit-overhaul-surreal from feat/WP-KERNEL-012 @ 1d47363f); every product behaviour of this MT must be re-proven there. PG-era verdicts are preserved above as history, not as current acceptance.",
+    "reproof_via": [
+      "MT-065",
+      "MT-066"
+    ]
+  }
 }

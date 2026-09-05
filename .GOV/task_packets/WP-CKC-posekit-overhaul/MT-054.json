@@ -13,9 +13,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-054",
   "title": "Expose Facial montage/export content readouts and numeric parse notes",
-  "status": "PASS_V2",
+  "status": "REOPENED_FOR_SURREAL_PORT",
   "created_at_utc": "2026-07-05T00:47:00.588Z",
-  "updated_at_utc": "2026-07-08T15:41:34Z",
+  "updated_at_utc": "2026-09-05T01:05:00.438Z",
   "started_at_utc": "2026-07-05T07:42:50.990Z",
   "product_edit_allowed": true,
   "origin": "MT-044 D12/D13 split: Facial montage/export content details require chained artifact reads, and numeric fields silently coerce invalid input to defaults.",
@@ -30,7 +30,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-054.json"
   },
   "lifecycle": {
-    "status": "PASS_V2",
+    "status": "REOPENED_FOR_SURREAL_PORT",
     "active": false,
     "depends_on": [
       "MT-030",
@@ -214,5 +214,17 @@
     ],
     "supersedes": "validation_v1 (FAIL_V1)"
   },
-  "status_v2": "PASS_V2"
+  "status_v2": "PASS_V2",
+  "surreal_port_reopen": {
+    "reopened_at_utc": "2026-09-05T01:05:00.438Z",
+    "reopened_by": "KERNEL_BUILDER-20260904-213453",
+    "prior_lifecycle_status": "PASS_V2",
+    "prior_top_level_status": "PASS_V2",
+    "prior_validator_verdict": "PASS_V2",
+    "reason": "Acceptance was proven on the PostgreSQL/sqlx reference branch feat/WP-CKC-posekit-overhaul. The Operator directed a forward port onto SurrealDB (branch feat/WP-CKC-posekit-overhaul-surreal from feat/WP-KERNEL-012 @ 1d47363f); every product behaviour of this MT must be re-proven there. PG-era verdicts are preserved above as history, not as current acceptance.",
+    "reproof_via": [
+      "MT-065",
+      "MT-066"
+    ]
+  }
 }

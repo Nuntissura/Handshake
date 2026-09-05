@@ -1,0 +1,135 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-059",
+  "title": "CKC sheets lane on SurrealDB: characters, sheet versions, sheet artifact links, bundled templates, field suggestions, documents, moodboard snapshots",
+  "status": "PENDING",
+  "created_at_utc": "2026-09-05T01:05:00.438Z",
+  "updated_at_utc": "2026-09-05T01:05:00.438Z",
+  "product_edit_allowed": true,
+  "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-059.json",
+    "microtask_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-059.md",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-059.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-059.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-058"
+    ],
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "completed_by": null
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-surreal",
+    "product_branch": "feat/WP-CKC-posekit-overhaul-surreal",
+    "base_commit": "1d47363fb171590f4eb05d4e5891b08aaec95552",
+    "base_branch": "feat/WP-KERNEL-012",
+    "reference_worktree": "../wtc-ckc-posekit-overhaul",
+    "reference_branch": "feat/WP-CKC-posekit-overhaul",
+    "checkpoint_commits": {
+      "read_path": "83bef9a7",
+      "skeleton": "09febeb8",
+      "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
+    },
+    "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal-sheets",
+    "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal-sheets/run-cargo.cmd",
+    "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`.",
+    "resume_state": {
+      "status": "PARTIAL_UNCOMPILED_CHECKPOINTED",
+      "detail": "Lane agent terminated by API limit after partial writes to core.rs (+181), sheet.rs (+353), sheet_artifacts.rs (+839), sheet_templates.rs (+167), documents.rs (+162), moodboards.rs (+12), model_manual_merge.rs (+1); router and tests not started; nothing compiled.",
+      "next_action": "Reopen the lane with the implementation_brief below; diff the checkpointed files against the reference to see what is already ported; finish; cargo check; port tests; run them."
+    }
+  },
+  "scope": {
+    "summary": "CKC sheets lane on SurrealDB: characters, sheet versions, sheet artifact links, bundled templates, field suggestions, documents, moodboard snapshots",
+    "owned_files": [
+      "src/backend/handshake_core/src/atelier/core.rs",
+      "sheet.rs",
+      "sheet_artifacts.rs",
+      "sheet_templates.rs",
+      "documents.rs",
+      "moodboards.rs",
+      "editable_surface_authority.rs",
+      "validator_first_pass.rs",
+      "visual_steer_feedback.rs",
+      "state_probe.rs",
+      "model_manual_merge.rs",
+      "src/backend/handshake_core/src/api/atelier_ckc_sheets.rs",
+      "tests/atelier_ckc_sheets_api_tests.rs",
+      "tests/atelier_sheet_artifact_link_tests.rs",
+      "tests/atelier_moodboard_tests.rs"
+    ],
+    "router_module": "src/backend/handshake_core/src/api/atelier_ckc_sheets.rs (skeleton exists, merged in api/mod.rs)",
+    "proof_commands": [
+      "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test <lane test file stem>"
+    ],
+    "forbidden": [
+      "editing api/atelier.rs, api/mod.rs, atelier/mod.rs, Cargo.toml, Cargo.lock, schema.surql, schema.rs, storage/mod.rs, model_manual/*, user_manual/*, src/frontend/*",
+      "sqlx / PostgreSQL / SQLite / migrations",
+      "git write operations; worktree creation; cargo build of binaries; whole-suite test runs"
+    ]
+  },
+  "hbr_obligations": {
+    "HBR-INT-001": "PROVE: every mutation emits its atelier event in the same transaction (write_with_event / BEGIN..COMMIT)",
+    "HBR-INT-008": "PROVE: Uuid::now_v7() at every new mint site",
+    "HBR-INT-009": "DEFERRED-with-reason: Flight Recorder emit via AtelierStore observability is WIRED; internal_diagnostics and Palmistry are not in this base (WP-KERNEL-012 MT-127 lane), record DEFERRED per tier",
+    "HBR-SWARM-005": "PROVE: per-owner CARGO_TARGET_DIR wp-ckc-surreal[-lane]",
+    "HBR-SWARM-006": "PROVE: owner cleans its scoped dir; KERNEL_BUILDER backstop",
+    "HBR-VIS-004": "PROVE: non-UI lanes record TraceProjection/route evidence; UI proof belongs to MT-065",
+    "HBR-MAN-004": "DEFERRED to MT-066 (UserManual same-change duty batched for the coherent lane batch; typed mapping required)",
+    "HBR-STOP-001..005": "PROVE: no capacity reasoning in receipts; API rate-limit termination is an external blocker, recorded as such",
+    "HBR-PRIV-001..008": "DEFERRED-with-reason: see resource_privacy_obligation"
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "status": "DEFERRED_TO_MT-066",
+    "reason": "Lane batch shares one UserManual update; typed per-MT mapping is recorded in MT-066 when applied."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": "DEFERRED",
+    "resources_touched": [
+      "atelier_media_asset rows",
+      "ArtifactStore payloads under <workspace>/.handshake/artifacts",
+      "CKC catalog tables listed in scope"
+    ],
+    "expected_evidence": [
+      "DEFERRED-with-reason: ResourceBroker / LocalAccount / Principal / AccessSpace do not exist in the WP-KERNEL-012 base (verified 2026-09-05 by grep: no ResourceBroker symbol). Reads and writes are attributed via x-hsk-actor-id and the KernelActor on events; default-deny enforcement is WP-KERNEL-006/007 scope. Record the STU-ASSET-007 `unauthorized` state as not yet producible."
+    ],
+    "not_applicable_reason": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1"
+  },
+  "handoff": {
+    "status": "PENDING",
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification."
+  },
+  "validator_verdict": "PENDING",
+  "implementation_brief": {
+    "common": "# CKC -> SurrealDB port: common lane brief (KERNEL_BUILDER sub-agent lane)\n\nYou are a read/write implementation sub-agent working for KERNEL_BUILDER on work packet\nWP-CKC-posekit-overhaul. You port ONE lane of the CKC (CastKit Codex) feature set from a\nPostgreSQL/sqlx reference branch onto the current SurrealDB kernel tree. You do NOT validate,\nmerge, commit, push, or mark anything PASS. You implement, self-check, and report.\n\n## Worktrees (absolute paths; never create or switch worktrees)\n\n- TARGET (edit here only): `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-ckc-surreal`\n  branch `feat/WP-CKC-posekit-overhaul-surreal`, forked from `feat/WP-KERNEL-012` @ `1d47363f`.\n- REFERENCE (read only, never build, never edit): `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-ckc-posekit-overhaul`\n  branch `feat/WP-CKC-posekit-overhaul`. Its storage layer is sqlx/PostgreSQL. Treat it as a\n  reference implementation of behaviour, NOT as a merge source. Do not `git cherry-pick`.\n  You may `git -C <target> show feat/WP-CKC-posekit-overhaul:<path>` or read the reference files.\n- Do NOT touch `../handshake_main`, `../wt-gov-kernel`, `../wtc-native-editors-v1`, or any `.GOV/`\n  path (the `.GOV` dir inside the target worktree is a live junction to governance; never edit it).\n\n## Hard rules\n\n1. Storage authority is the embedded SurrealDB store via `AtelierStore` (`src/backend/handshake_core/src/atelier/mod.rs`).\n   No sqlx, no PostgreSQL, no SQLite, no `pool()`, no `information_schema`, no migrations\n   directory. Every `sqlx::query(...)` in the reference becomes a SurrealQL statement executed\n   through `self.store().with_data_operation(|ctx| ...)` with `#[derive(SurrealValue)]` binding\n   structs, exactly as the existing modules do. Study these before writing anything:\n   - `src/backend/handshake_core/src/atelier/collections.rs` (`impl AtelierStore` ~line 867: `create_collection`, `get_collection`, statement consts, row structs, `write_with_event`)\n   - `src/backend/handshake_core/src/atelier/media.rs` (`materialize_media_asset`, `get_media_asset`, `read_media_asset_bytes`, binding structs, `media_asset_select!` macro)\n   - `src/backend/handshake_core/src/atelier/mod.rs` (`write_with_event`, `atelier_event_sql`, `event_ref_for_text`, `uuid_from_record_link`, `AtelierError`, `event_family`)\n   - `src/backend/handshake_core/src/storage/stage_artifacts.rs` (`INSERT_TRANSACTION`: the ONLY sanctioned pattern for committing a domain row and its event-ledger row in one `BEGIN TRANSACTION; ... COMMIT TRANSACTION;` with a post-commit re-verify). Use it for any write that must be atomic with an event.\n   - `src/backend/handshake_core/src/storage/surreal.rs` (`SurrealDataContext`: `query_first`, `create_one`, `select_one`, etc.)\n2. The schema is ALREADY written and hash-pinned by KERNEL_BUILDER. The tables for this port are in\n   `src/backend/handshake_core/src/storage/surreal/schema.surql` (search for \"WP-CKC-posekit-overhaul on SurrealDB (MT-058)\",\n   and the in-place additions on `atelier_collection`, `atelier_collection_item`, `atelier_action_receipt`).\n   Read the exact field names, types, DEFAULTs, ASSERTs and stored discriminator fields\n   (`scoped_name_key`, `active_link_key`) and code against them. You MUST NOT edit `schema.surql`\n   or `storage/surreal/schema.rs`. If the schema is missing something you need, STOP that item and\n   report the exact DEFINE lines you need; do not work around it with FLEXIBLE or `any`.\n   Note the deliberate mappings: `atelier_tag_note.scope_ref` stores `''` for the global note\n   (Rust `Option<String>` maps `None <-> ''`); `atelier_collection` uniqueness is\n   `(character scope, name)` via `scoped_name_key`; composite PG keys are array record ids\n   (`record::id($this.id)[0]`), see `atelier_prompt_feedback_rule_pack`.\n3. Files you may edit are listed in your lane section, and ONLY those. Shared files are owned by\n   KERNEL_BUILDER and are off limits: `api/atelier.rs`, `api/mod.rs`, `atelier/mod.rs`, `Cargo.toml`,\n   `Cargo.lock`, `schema.surql`, `schema.rs`, `storage/mod.rs`, `model_manual/*`, `user_manual/*`,\n   anything under `src/frontend/`. Your HTTP handlers go in your lane router file\n   `src/backend/handshake_core/src/api/atelier_ckc_<lane>.rs` (a skeleton exists; replace it).\n   It is already merged into the app router. Import shared helpers from `super::atelier`:\n   `atelier_store`, `atelier_error`, `internal_error`, `calling_actor`, `header_str`,\n   `artifact_byte_read_error`, `ErrorResponse`, `LIST_CAP`, `HSK_HEADER_ACTOR_ID`.\n   Public types your lane adds live in YOUR module files; export them with `pub` there and import\n   them as `crate::atelier::<module>::Type`. Do not add `pub use` lines to `atelier/mod.rs`\n   (report the ones you would like re-exported; KERNEL_BUILDER adds them).\n   If you need a NEW event-family constant in `atelier::event_family::ALL`, define the constant in\n   your own `<module>_event_family` mod (pattern: `collections_event_family`) and REPORT the names\n   to be appended to `ALL`; do not edit `mod.rs`.\n4. Artifact bytes: the ArtifactStore (`storage::artifacts`, UUID-addressed, manifest per file,\n   atomic write, hash-verified) is the canonical blob tier for CKC. Refs are\n   `artifact://.handshake/artifacts/<layer>/<uuid>/payload` (manifest: `.../artifact.json`).\n   Use `write_file_artifact` / `read_artifact_manifest` / `read_file_artifact` /\n   `read_file_artifact_with_manifest` / `validate_artifact_content_hash`. Never write bytes to ad hoc\n   paths, never to `.GOV`, never a second blob tier, never a base64 payload column.\n   Resolve the workspace root ONLY via `storage::artifacts::resolve_workspace_root()`.\n   Content hashes: bare lowercase 64-hex sha256 in new code; accept `sha256:<hex>` on input via\n   the existing `media.rs` normalisers (`normalized_sha256_hex` / `canonical_sha256_content_hash`\n   are `pub(crate)` if you need them; if they are not yet, report it and use a local copy).\n   Do not add another `fn sha256_hex`; use `sha2` inline or an existing pub helper.\n5. UUIDs: `Uuid::now_v7()` for every new id (HBR-INT-008). Timestamps `chrono::Utc::now()`.\n6. Tests: port the reference tests for your lane onto the embedded SurrealDB harness\n   `tests/atelier_surreal_support/mod.rs` (`AtelierSurrealHarness::create()`, `harness.atelier`,\n   `harness.database`, `harness.storage`, `write_native_media_artifact_in_workspace`). For HTTP\n   route tests copy the `app_state` + `serve` shape from `tests/atelier_media_bytes_api_tests.rs`\n   (NoopRecorder/NoopLlmClient + `axum::serve` on `127.0.0.1:0`). Tests that need\n   `HANDSHAKE_WORKSPACE_ROOT` must set it ONCE per test binary via a `OnceLock` (see that file).\n   Reference tests that use `atelier_pg_support` / `database_url()` / SKIP-when-PG-unavailable are\n   PG-era: rewrite them so they always run against the embedded store and never skip.\n   Write your tests ONLY in the NEW test files named in your lane section (auto-discovered by\n   cargo; KERNEL_BUILDER adds the `[[test]] required-features` entries). Do not edit other test files.\n7. Builds are expensive on this host. Use ONLY your own scoped target dir and these exact shapes,\n   run from the TARGET worktree root, in a hidden window if it may run long:\n   - `set CARGO_TARGET_DIR=D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\handshake-cargo-target\\wp-ckc-surreal-<lane>`\n     (a warm copy of the dependency cache is already there; do not delete or `cargo clean` it, and\n     NEVER touch any other directory under `Handshake_Artifacts`).\n   - iterate with `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils`\n   - prove with `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test <your_test_file_stem>`\n   - never run the whole workspace test suite, never `cargo build` a binary, never `--all-features`.\n   - Long cargo runs die if the agent shell is stopped: launch via a `.cmd` wrapper with\n     `powershell -NoProfile -Command \"Start-Process -FilePath <wrapper> -WindowStyle Hidden\"` writing to a\n     log under `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\handshake-tool\\wp-ckc-surreal-<lane>\\`,\n     then poll the log for a sentinel line. Model: `handshake-tool\\wp-ckc-surreal\\run-cargo.cmd`.\n   - Do not run `cargo fmt` over the crate (touches shared files). You may `rustfmt` your own files.\n8. Git: read-only. No commit, no stash, no checkout, no reset, no branch ops. KERNEL_BUILDER commits.\n9. No new `.md` files anywhere. No edits under `.GOV`. No writes outside the TARGET worktree and\n   your scoped artifact/tool dirs.\n10. Behaviour fidelity: keep the reference route paths, request/response JSON shapes, error codes,\n    event family names, and validation rules unless SurrealDB forces a change; when it does,\n    write the change and the reason in your final report. Where the reference used PG-only\n    features (pg_trgm similarity, pgvector `<=>`, `FOR UPDATE`, partial indexes, `COALESCE` in\n    unique indexes), use SurrealQL equivalents (`string::similarity::fuzzy` /\n    `string::distance::levenshtein`, `vector::similarity::cosine`, `BEGIN/COMMIT TRANSACTION`,\n    the stored discriminator fields) and say so in the report.\n11. Spec-realism: no `todo!()`, no `unimplemented!()`, no placeholder returns, no \"not yet wired\"\n    branches, no mocks in product code. If a piece cannot be ported, leave it OUT and report it as\n    BLOCKED with the exact reason.\n12. Report back (final message), in this shape:\n    - FILES_TOUCHED (paths)\n    - ROUTES_PORTED (path -> handler) and ROUTES_DROPPED (with reason)\n    - STORE_METHODS_ADDED\n    - REEXPORTS_WANTED (items to `pub use` in atelier/mod.rs) and EVENT_FAMILY_CONSTANTS_FOR_ALL\n    - PG_TO_SURREAL_DEVIATIONS\n    - PROOF: exact cargo commands run + pass/fail counts + log path\n    - BLOCKED / NOT_PORTED with reasons\n    - RISKS\n    Keep it factual; no claims without a command result behind them.\n",
+    "lane": "## LANE sheets  (scoped dir suffix: -sheets)\n\nOwned files (TARGET worktree, `src/backend/handshake_core/`):\n- `src/atelier/core.rs` (reference delta +89: character list/get helpers), `src/atelier/sheet.rs` (+261:\n  `SheetFieldSuggestion`, `append_sheet_version_if_current` (optimistic concurrency ->\n  `event_family::SHEET_VERSION_CONFLICT`), `get_sheet_version`, `sheet_field_suggestions`,\n  `sheet_field_values`, `sheet_field_id_from_line`, `sheet_line_looks_like_field`),\n  `src/atelier/sheet_artifacts.rs` (new, 370: `NewSheetArtifactLink`, `SheetArtifactKind`,\n  `SheetArtifactLink`, `SheetArtifactLinkWrite`, attach/list/get/detach on table\n  `atelier_sheet_artifact_link` — note the stored `active_link_key` discriminator replaces the PG\n  partial unique index; detach = set `detached_at_utc` + `detached_by`, never delete),\n  `src/atelier/sheet_templates.rs` (new, 137: bundled `templates/CHARACTER_SHEET__v2.00.txt` and\n  `templates/LLM_SAFE_SUBSET__v2.00.json` are already copied into `src/atelier/templates/`; use\n  `include_str!`), `src/atelier/documents.rs` (+67), `src/atelier/moodboards.rs` (+10),\n  `src/atelier/editable_surface_authority.rs` (+19), `src/atelier/validator_first_pass.rs` (+14),\n  `src/atelier/visual_steer_feedback.rs` (+7), `src/atelier/state_probe.rs` (+21),\n  `src/atelier/model_manual_merge.rs` (+1).\n- Router: `src/api/atelier_ckc_sheets.rs`.\n- New tests: `tests/atelier_ckc_sheets_api_tests.rs` (HTTP), `tests/atelier_sheet_artifact_link_tests.rs`\n  (port of the reference file), `tests/atelier_moodboard_tests.rs` (port of the reference file).\n  Source material for the HTTP tests: reference `tests/atelier_stealth_window_tests.rs` functions\n  `atelier_character_sheet_api_round_trips_refs_and_conflicts`,\n  `atelier_ckc_bundled_template_import_export_and_field_suggestions`,\n  `atelier_ckc_story_and_moodboard_api_links_native_documents`.\n- Table used for field suggestions: `atelier_sheet_field_value_projection` (write projection rows\n  when a sheet version is appended; PG used a projection table filled by the append path).\n\nRoutes to port (reference `api/atelier.rs` handler names in parentheses):\n- `/atelier/characters` GET (list_characters) POST (create_character)\n- `/atelier/characters/:character_internal_id` GET (get_character)\n- `/atelier/characters/:character_internal_id/sheet-versions` GET (list_sheet_versions) POST (append_sheet_version)\n- `/atelier/characters/:character_internal_id/sheet-versions/import` POST (import_sheet_version)\n- `/atelier/characters/:character_internal_id/documents` GET (list_character_documents) POST (create_character_document)\n- `/atelier/character-documents/:document_id` GET (get_character_document)\n- `/atelier/character-documents/:document_id/versions` GET/POST\n- `/atelier/character-documents/:document_id/story-cards` GET/POST, `/story-beats` GET/POST\n- `/atelier/character-documents/:document_id/moodboard/snapshots` POST, `/moodboard/latest` GET\n- `/atelier/sheet-versions/:version_id` GET (get_sheet_version)\n- `/atelier/sheet-versions/:version_id/artifact-links` GET (list_sheet_artifact_links) POST (attach_sheet_artifact_link)\n- `/atelier/sheet-artifact-links/:link_id` GET (get_sheet_artifact_link) DELETE (detach_sheet_artifact_link)\n- `/atelier/sheet-versions/:version_id/export` GET (export_sheet_version)\n- `/atelier/sheet-templates/default` GET, `/atelier/sheet-templates/default/safe-subset` GET\n- `/atelier/sheet-field-suggestions` GET (list_sheet_field_suggestions)\nNote: `refs.rs` is already ported (`crate::atelier::refs::{character_ref, sheet_version_ref, ...}`).\nThe PG `atelier_is_native_portable_ref()` function must become a Rust validator in `sheet_artifacts.rs`\n(`validate_native_portable_ref`) that rejects: whitespace, backslashes, `.gov`, `sqlite:`/`.sqlite`/`.db`,\ndrive letters, `file:`, `//`, leading `/` or `~/`, `..` segments, `electron`/`ckc`/`castkit` tokens,\nlocalhost/127.*/0.0.0.0/::1 and `llm|openai|anthropic|ollama|model-server` schemes — port the\npredicate list from reference migration `0340_atelier_sheet_artifact_links.sql` faithfully."
+  }
+}

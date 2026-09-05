@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-012",
   "title": "Restore CKC story panels and native moodboard integration",
-  "status": "PASS_V2",
+  "status": "REOPENED_FOR_SURREAL_PORT",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-07-08T15:41:34Z",
+  "updated_at_utc": "2026-09-05T01:05:00.438Z",
   "product_edit_allowed": true,
   "operator_request": "CKC gained story per character and a moodboard; the old Excalidraw attempt should be replaced by the already-built Handshake notion-style moodboard system.",
   "authority_files": {
@@ -22,7 +22,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-012.json"
   },
   "lifecycle": {
-    "status": "PASS_V2",
+    "status": "REOPENED_FOR_SURREAL_PORT",
     "active": false,
     "depends_on": [
       "MT-009",
@@ -137,5 +137,21 @@
     ],
     "supersedes": "validation_v1 (FAIL_V1)"
   },
-  "status_v2": "PASS_V2"
+  "status_v2": "PASS_V2",
+  "surreal_port_reopen": {
+    "reopened_at_utc": "2026-09-05T01:05:00.438Z",
+    "reopened_by": "KERNEL_BUILDER-20260904-213453",
+    "prior_lifecycle_status": "PASS_V2",
+    "prior_top_level_status": "PASS_V2",
+    "prior_validator_verdict": "PASS_V2",
+    "reason": "Acceptance was proven on the PostgreSQL/sqlx reference branch feat/WP-CKC-posekit-overhaul. The Operator directed a forward port onto SurrealDB (branch feat/WP-CKC-posekit-overhaul-surreal from feat/WP-KERNEL-012 @ 1d47363f); every product behaviour of this MT must be re-proven there. PG-era verdicts are preserved above as history, not as current acceptance.",
+    "reproof_via": [
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-066"
+    ]
+  }
 }

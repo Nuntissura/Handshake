@@ -13,9 +13,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-042",
   "title": "Surface Atelier/CKC/PoseKit/Ingest settings-options features in the operator settings surface",
-  "status": "PASS_V1",
+  "status": "REOPENED_FOR_SURREAL_PORT",
   "created_at_utc": "2026-07-01T18:58:35.486Z",
-  "updated_at_utc": "2026-07-05T10:18:52.246Z",
+  "updated_at_utc": "2026-09-05T01:05:00.438Z",
   "started_at_utc": null,
   "product_edit_allowed": true,
   "origin": "MT-040 audit P5 (out of MT-006 scope) + operator goal directive 'make sure the options/settings has the correct features for this wp'.",
@@ -49,7 +49,7 @@
   },
   "hbr_obligations_note": "HBR-VIS (Argus), HBR-QUIET (headless), HBR-MAN (UserManual), HBR-INT (PostgreSQL/EventLedger persistence), HBR-SWARM (parallel-agent addressability).",
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "REOPENED_FOR_SURREAL_PORT",
     "active": false,
     "depends_on": [],
     "validator_verdict": "PASS_V1",
@@ -113,5 +113,21 @@
   },
   "status_v1": "PASS_V1",
   "validator_verdict": "PASS_V1",
-  "status_before_v1": "READY_FOR_VALIDATION"
+  "status_before_v1": "READY_FOR_VALIDATION",
+  "surreal_port_reopen": {
+    "reopened_at_utc": "2026-09-05T01:05:00.438Z",
+    "reopened_by": "KERNEL_BUILDER-20260904-213453",
+    "prior_lifecycle_status": "PASS_V1",
+    "prior_top_level_status": "PASS_V1",
+    "prior_validator_verdict": "PASS_V1",
+    "reason": "Acceptance was proven on the PostgreSQL/sqlx reference branch feat/WP-CKC-posekit-overhaul. The Operator directed a forward port onto SurrealDB (branch feat/WP-CKC-posekit-overhaul-surreal from feat/WP-KERNEL-012 @ 1d47363f); every product behaviour of this MT must be re-proven there. PG-era verdicts are preserved above as history, not as current acceptance.",
+    "reproof_via": [
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-066"
+    ]
+  }
 }

@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-019",
   "title": "Integrate Facial Rust app capabilities into native Handshake Ingest",
-  "status": "PASS_V1",
+  "status": "REOPENED_FOR_SURREAL_PORT",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-07-01T02:31:32.443Z",
+  "updated_at_utc": "2026-09-05T01:05:00.438Z",
   "product_edit_allowed": true,
   "owned_files": [
     "src/backend/handshake_core/src/api/atelier.rs",
@@ -46,7 +46,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "REOPENED_FOR_SURREAL_PORT",
     "active": false,
     "depends_on": [
       "MT-017"
@@ -159,5 +159,21 @@
   },
   "status_v1": "PASS_V1",
   "validator_verdict": "PASS_V1",
-  "status_before_v1": "READY_FOR_VALIDATION"
+  "status_before_v1": "READY_FOR_VALIDATION",
+  "surreal_port_reopen": {
+    "reopened_at_utc": "2026-09-05T01:05:00.438Z",
+    "reopened_by": "KERNEL_BUILDER-20260904-213453",
+    "prior_lifecycle_status": "PASS_V1",
+    "prior_top_level_status": "PASS_V1",
+    "prior_validator_verdict": "PASS_V1",
+    "reason": "Acceptance was proven on the PostgreSQL/sqlx reference branch feat/WP-CKC-posekit-overhaul. The Operator directed a forward port onto SurrealDB (branch feat/WP-CKC-posekit-overhaul-surreal from feat/WP-KERNEL-012 @ 1d47363f); every product behaviour of this MT must be re-proven there. PG-era verdicts are preserved above as history, not as current acceptance.",
+    "reproof_via": [
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-066"
+    ]
+  }
 }

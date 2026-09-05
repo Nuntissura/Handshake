@@ -10,9 +10,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-044",
   "title": "Deferred hardening + follow-ups (consolidated tracker)",
-  "status": "PASS_V1",
+  "status": "REOPENED_FOR_SURREAL_PORT",
   "created_at_utc": "2026-07-02T08:47:55.759Z",
-  "updated_at_utc": "2026-07-05T10:51:35.782Z",
+  "updated_at_utc": "2026-09-05T01:05:00.438Z",
   "started_at_utc": null,
   "product_edit_allowed": false,
   "origin": "Honest deferrals surfaced during MT-006/014/041/043/013-010/012 implementation + adversarial reviews (2026-07-02). Consolidated so they are not forgotten; split into dedicated MTs if/when prioritized.",
@@ -34,7 +34,7 @@
     "D15 (MT-031 follow-ups): (a) envelope-wrap the OTHER 5 Facial review commands (claim/decision/status/montage/session) with durable HTTP-200 outcome envelopes + receipts, exactly like export got in MT-031 (MT-031 scoped to export per acceptance 'at least one blocked path'). (b) SPEC DECISION: a fully-decided Facial export that intentionally rejects/holds some images is currently labeled 'degraded' (funnel/problems non-empty) with a recovery_hint implying incompleteness - a plausible false-degraded that could push a model into needless recovery. Operator/spec to decide whether reject/hold-only exports should be 'succeeded'. (c) atelier_panel.rs:7600 doc comment ('surfaces the backend HTTP error text honestly') is now slightly incomplete (blocked/degraded/error arrive as Ok envelopes) - accurate only for genuine transport failures; tidy in a doc pass."
   ],
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "REOPENED_FOR_SURREAL_PORT",
     "active": false,
     "validator_verdict": "PASS_V1",
     "claimed_by": "KERNEL_BUILDER-20260705-003842",
@@ -207,5 +207,21 @@
   },
   "status_v1": "PASS_V1",
   "validator_verdict": "PASS_V1",
-  "status_before_v1": "READY_FOR_VALIDATION"
+  "status_before_v1": "READY_FOR_VALIDATION",
+  "surreal_port_reopen": {
+    "reopened_at_utc": "2026-09-05T01:05:00.438Z",
+    "reopened_by": "KERNEL_BUILDER-20260904-213453",
+    "prior_lifecycle_status": "PASS_V1",
+    "prior_top_level_status": "PASS_V1",
+    "prior_validator_verdict": "PASS_V1",
+    "reason": "Acceptance was proven on the PostgreSQL/sqlx reference branch feat/WP-CKC-posekit-overhaul. The Operator directed a forward port onto SurrealDB (branch feat/WP-CKC-posekit-overhaul-surreal from feat/WP-KERNEL-012 @ 1d47363f); every product behaviour of this MT must be re-proven there. PG-era verdicts are preserved above as history, not as current acceptance.",
+    "reproof_via": [
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-066"
+    ]
+  }
 }
