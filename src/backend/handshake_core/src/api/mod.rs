@@ -3,6 +3,14 @@ use axum::{routing::get, Router};
 use crate::AppState;
 
 pub mod atelier;
+/// WP-CKC-posekit-overhaul SurrealDB port: the CKC feature surface is split into lane routers
+/// (sheets, media/search, intake/facial, model-ops/pose/settings, prompt-feedback) so each domain
+/// owns one file. They share `atelier`'s store constructor, error envelope and actor header.
+pub mod atelier_ckc_intake_facial;
+pub mod atelier_ckc_media;
+pub mod atelier_ckc_ops;
+pub mod atelier_ckc_prompt_feedback;
+pub mod atelier_ckc_sheets;
 pub mod bundles;
 pub mod calendar;
 pub mod canvases;
@@ -54,7 +62,12 @@ pub fn routes(state: AppState) -> Router {
     let knowledge_retrieval_routes = knowledge_retrieval::routes(state.clone());
     let memory_routes = memory::routes(state.clone());
     let user_manual_routes = user_manual::routes(state.clone());
-    let atelier_routes = atelier::routes(state.clone());
+    let atelier_routes = atelier::routes(state.clone())
+        .merge(atelier_ckc_sheets::routes(state.clone()))
+        .merge(atelier_ckc_media::routes(state.clone()))
+        .merge(atelier_ckc_intake_facial::routes(state.clone()))
+        .merge(atelier_ckc_ops::routes(state.clone()))
+        .merge(atelier_ckc_prompt_feedback::routes(state.clone()));
     let source_control_routes = source_control::routes(state.clone());
     let stage_routes = stage::routes(state.clone());
     let debug_adapter_routes = debug_adapter::routes(state.clone());
