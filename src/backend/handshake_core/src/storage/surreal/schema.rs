@@ -14,7 +14,7 @@ use super::{
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 157;
+pub const SCHEMA_REVISION: i64 = 158;
 /// Stable v1 lineage identifier retained so existing embedded stores remain readable after the
 /// legacy schema-provenance corpus is removed. New source integrity is proven independently by
 /// [`DECLARATIVE_SCHEMA_CATALOG_SHA256`] and [`GENERATED_SURREALQL_SHA256`].
@@ -142,10 +142,10 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
     "tables",
     "users",
 ];
-const TABLE_DEFINITION_COUNT: usize = 281;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3075;
-const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 238;
-const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
+const TABLE_DEFINITION_COUNT: usize = 292;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3217;
+const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 249;
+const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 180;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
     "DEFINE FIELD OVERWRITE capability_grants ON TABLE atelier_transcript_receipt TYPE any DEFAULT [];",
     "DEFINE FIELD OVERWRITE decisions ON TABLE knowledge_retrieval_traces TYPE any DEFAULT [];",
@@ -155,17 +155,17 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 // SurrealDB 3.2 persists one `field.*` subtype definition per non-Any typed collection nesting
 // level. Structured INFO reads the full persisted field catalog, so these engine-generated
 // definitions are part of the exact live schema even though they are not authored DEFINE lines.
-const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 47;
+const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 48;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 793;
+const INDEX_DEFINITION_COUNT: usize = 831;
 const EVENT_DEFINITION_COUNT: usize = 19;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
-const SOURCE_TABLE_COUNT: usize = 278;
+const SOURCE_TABLE_COUNT: usize = 289;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 536;
-const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 256;
+const SOURCE_NAMED_INDEX_COUNT: usize = 563;
+const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 267;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 const REFERENCE_FIELD_COUNT: usize = 404;
@@ -981,6 +981,17 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "kb003_validation_runs",
     "kb003_promotion_decisions",
     "kb003_promotion_receipts",
+    "atelier_tag_note",
+    "atelier_ckc_search_projection",
+    "atelier_sheet_field_value_projection",
+    "atelier_sheet_artifact_link",
+    "atelier_intake_item_metadata",
+    "atelier_prompt_feedback_case",
+    "atelier_prompt_feedback_verdict",
+    "atelier_prompt_feedback_rule_pack",
+    "atelier_prompt_feedback_rewrite",
+    "atelier_prompt_feedback_export",
+    "atelier_collection_item_unlink_receipt",
 ];
 
 /// Tables whose source `id` column is represented only by the Surreal record ID.

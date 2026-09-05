@@ -332,6 +332,18 @@ struct AppendVersionBindings {
     body_raw_text: String,
     tags_json: Vec<String>,
     author: String,
+    /// When true the append is refused unless the document head equals
+    /// `expected_parent` (WP-CKC MT-012 optimistic concurrency).
+    enforce_parent: bool,
+    expected_parent: Option<SurrealUuid>,
+}
+
+/// The version and the document row the same statement advanced, so API
+/// callers never re-read mutable document metadata after a later writer.
+#[derive(SurrealValue)]
+struct AppendedVersionRow {
+    version: CharacterDocumentVersionRow,
+    document: CharacterDocumentRow,
 }
 
 #[derive(SurrealValue)]
@@ -415,40 +427,52 @@ const LIST_DOCUMENTS_STATEMENT: &str =
        AND ($doc_type = NONE OR doc_type = $doc_type) \
      ORDER BY updated_at_utc DESC, document_id ASC;";
 
+/// `THROW` tokens of [`APPEND_VERSION_STATEMENT`], matched on the error text.
+const DOCUMENT_NOT_FOUND_THROW: &str = "HSK-DOCUMENT-NOT-FOUND";
+const DOCUMENT_STALE_HEAD_THROW: &str = "HSK-DOCUMENT-STALE-HEAD";
+
 /// Append a version and advance the current-version pointer atomically. The
-/// FOR loop is the missing-document guard: zero source rows append nothing,
-/// and the final SELECT then returns an empty set, which the caller maps to
-/// NotFound.
+/// head check runs inside the statement, before the CREATE, so a stale caller
+/// writes nothing; the missing-document and stale-head outcomes are THROWs the
+/// caller maps to NotFound / Conflict. Both the version and the updated
+/// document row come back from the same statement.
 const APPEND_VERSION_STATEMENT: &str = concat!(
     "RETURN { \
        LET $doc_rid = type::record('atelier_character_document', $document_id); \
-       LET $current = (SELECT current_version_id, current_version_seq FROM $doc_rid); \
-       FOR $cur IN $current { \
-         LET $next_seq = $cur.current_version_seq + 1; \
-         LET $parent = IF $cur.current_version_id = NONE { NONE } ELSE { \
-           type::record('atelier_character_document_version', $cur.current_version_id) \
-         }; \
-         CREATE $version_rid CONTENT { \
-           version_id: $version_id, \
-           document_id: $doc_rid, \
-           version_seq: $next_seq, \
-           title: $title, \
-           body_raw_text: $body_raw_text, \
-           tags_json: $tags_json, \
-           author: $author, \
-           parent_version_id: $parent \
-         }; \
-         UPDATE $doc_rid SET \
-           title = $title, \
-           tags_json = $tags_json, \
-           current_version_id = $version_id, \
-           current_version_seq = $next_seq, \
-           updated_at_utc = time::now(); \
+       LET $cur = (SELECT current_version_id, current_version_seq FROM $doc_rid)[0]; \
+       IF $cur = NONE { THROW 'HSK-DOCUMENT-NOT-FOUND'; }; \
+       IF $enforce_parent AND $cur.current_version_id != $expected_parent { \
+         THROW 'HSK-DOCUMENT-STALE-HEAD'; \
        }; \
-       RETURN (SELECT ",
+       LET $next_seq = $cur.current_version_seq + 1; \
+       LET $parent = IF $cur.current_version_id = NONE { NONE } ELSE { \
+         type::record('atelier_character_document_version', $cur.current_version_id) \
+       }; \
+       CREATE $version_rid CONTENT { \
+         version_id: $version_id, \
+         document_id: $doc_rid, \
+         version_seq: $next_seq, \
+         title: $title, \
+         body_raw_text: $body_raw_text, \
+         tags_json: $tags_json, \
+         author: $author, \
+         parent_version_id: $parent \
+       } RETURN NONE; \
+       UPDATE $doc_rid SET \
+         title = $title, \
+         tags_json = $tags_json, \
+         current_version_id = $version_id, \
+         current_version_seq = $next_seq, \
+         updated_at_utc = time::now() RETURN NONE; \
+       RETURN { \
+         version: (SELECT ",
     "version_id, record::id(document_id) AS document_id, version_seq, title, \
      body_raw_text, tags_json, author, parent_version_id, created_at_utc",
-    " FROM $version_rid); };"
+    " FROM $version_rid)[0], \
+         document: (SELECT document_id, record::id(character_internal_id) AS character_internal_id, \
+            doc_type, title, tags_json, current_version_id, current_version_seq, \
+            created_at_utc, updated_at_utc FROM $doc_rid)[0] \
+       }; };"
 );
 
 const LATEST_VERSION_STATEMENT: &str = concat!(
@@ -647,6 +671,52 @@ impl AtelierStore {
         document_id: Uuid,
         update: &AppendCharacterDocumentVersion,
     ) -> AtelierResult<CharacterDocumentVersion> {
+        self.append_character_document_version_with_guard(document_id, update, None)
+            .await
+            .map(|(_document, version)| version)
+    }
+
+    /// Append a new character-document version only if the caller's selected
+    /// base version is still the current head. `expected_parent_version_id =
+    /// None` means the caller expects this to be the first version.
+    pub async fn append_character_document_version_if_current(
+        &self,
+        document_id: Uuid,
+        update: &AppendCharacterDocumentVersion,
+        expected_parent_version_id: Option<Uuid>,
+    ) -> AtelierResult<CharacterDocumentVersion> {
+        self.append_character_document_version_with_guard(
+            document_id,
+            update,
+            Some(expected_parent_version_id),
+        )
+        .await
+        .map(|(_document, version)| version)
+    }
+
+    /// Append a guarded character-document version and return the document row
+    /// updated in the same statement as the appended version. API callers use
+    /// this to avoid re-reading mutable document metadata after a later writer.
+    pub async fn append_character_document_version_and_document_if_current(
+        &self,
+        document_id: Uuid,
+        update: &AppendCharacterDocumentVersion,
+        expected_parent_version_id: Option<Uuid>,
+    ) -> AtelierResult<(CharacterDocument, CharacterDocumentVersion)> {
+        self.append_character_document_version_with_guard(
+            document_id,
+            update,
+            Some(expected_parent_version_id),
+        )
+        .await
+    }
+
+    async fn append_character_document_version_with_guard(
+        &self,
+        document_id: Uuid,
+        update: &AppendCharacterDocumentVersion,
+        expected_parent_version_id: Option<Option<Uuid>>,
+    ) -> AtelierResult<(CharacterDocument, CharacterDocumentVersion)> {
         let title = require_non_empty_trimmed("title", &update.title)?;
         let author = require_non_empty_trimmed("author", &update.author)?;
         let tags = clean_document_tags(&update.tags);
@@ -663,16 +733,42 @@ impl AtelierStore {
             body_raw_text: update.body_raw_text.clone(),
             tags_json: tags.clone(),
             author: author.clone(),
+            enforce_parent: expected_parent_version_id.is_some(),
+            expected_parent: expected_parent_version_id
+                .flatten()
+                .map(SurrealUuid::from),
         };
-        let row: Option<CharacterDocumentVersionRow> = self
+        let written: AtelierResult<Option<AppendedVersionRow>> = self
             .store()
             .with_data_operation(move |ctx| {
                 Box::pin(async move { ctx.query_first(APPEND_VERSION_STATEMENT, bindings).await })
             })
-            .await?;
-        let version: CharacterDocumentVersion = row
-            .ok_or_else(|| AtelierError::NotFound(format!("character document {document_id}")))?
-            .try_into()?;
+            .await
+            .map_err(AtelierError::from);
+        let row = match written {
+            Ok(row) => row,
+            Err(error) if error.to_string().contains(DOCUMENT_NOT_FOUND_THROW) => {
+                return Err(AtelierError::NotFound(format!(
+                    "character document {document_id}"
+                )));
+            }
+            Err(error) if error.to_string().contains(DOCUMENT_STALE_HEAD_THROW) => {
+                let expected = expected_parent_version_id.flatten();
+                let current = self
+                    .latest_character_document_version(document_id)
+                    .await?
+                    .map(|version| version.version_id);
+                return Err(AtelierError::Conflict(format!(
+                    "stale_character_document_version: expected parent {expected:?}, current head {current:?}"
+                )));
+            }
+            Err(error) => return Err(error),
+        };
+        let row = row.ok_or_else(|| {
+            AtelierError::Internal("appending a character document version returned no row".to_owned())
+        })?;
+        let version: CharacterDocumentVersion = row.version.try_into()?;
+        let document: CharacterDocument = row.document.try_into()?;
 
         self.record_event(
             documents_event_family::CHARACTER_DOCUMENT_VERSION_APPENDED,
@@ -688,7 +784,7 @@ impl AtelierStore {
             }),
         )
         .await?;
-        Ok(version)
+        Ok((document, version))
     }
 
     pub async fn latest_character_document_version(

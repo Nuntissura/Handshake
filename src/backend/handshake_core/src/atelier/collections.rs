@@ -14,13 +14,21 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashSet;
+use std::time::Duration;
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
+use super::media::{MediaReviewMetadata, MediaSourceProvenanceRefs};
+use super::source_evidence::{normalize_optional_ckc_source_ref, CkcSourceRefKind};
 use super::{
-    atelier_event_sql, event_ref_for_text, reject_legacy_runtime_ref, search::normalize_tag,
-    AtelierError, AtelierResult, AtelierStore,
+    atelier_event_sql, event_family, event_ref_for_text, reject_legacy_runtime_ref,
+    search::normalize_tag, AtelierError, AtelierResult, AtelierStore,
 };
+
+/// Actor recorded on collection rows written by store-internal paths that have
+/// no requesting actor (WP-CKC-posekit-overhaul MT-036 row attribution).
+const SYSTEM_COLLECTION_ACTOR: &str = "system";
 
 /// A named, ordered image set. Membership is ordered (`sort_order`) and may be
 /// optionally bound to a character and/or a specific sheet version so a
@@ -34,8 +42,19 @@ pub struct Collection {
     pub tags: Vec<String>,
     pub character_internal_id: Option<Uuid>,
     pub sheet_version_id: Option<Uuid>,
+    pub created_by: String,
+    pub updated_by: String,
     pub created_at_utc: DateTime<Utc>,
     pub updated_at_utc: DateTime<Utc>,
+}
+
+/// One page of character-scoped collections plus the canonical total, so the
+/// API can report `albums_next_offset` from the real row count rather than
+/// from the rendered subset.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CollectionPage {
+    pub collections: Vec<Collection>,
+    pub total_count: i64,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -54,7 +73,111 @@ pub struct CollectionMember {
     pub asset_id: Uuid,
     pub content_hash: String,
     pub sort_order: i64,
+    pub linked_by: String,
+    pub updated_by: String,
+    pub updated_at_utc: DateTime<Utc>,
     pub added_at_utc: DateTime<Utc>,
+}
+
+/// A membership row with the asset fields and the link-scoped provenance the
+/// CKC media-album pages render (WP-CKC-posekit-overhaul MT-010/MT-034/MT-035).
+/// `source_path_ref` / `source_url_ref` live on the membership, not on the
+/// asset: the same asset linked into two albums carries two independent refs.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CollectionMemberDetail {
+    pub collection_id: Uuid,
+    pub asset_id: Uuid,
+    pub content_hash: String,
+    pub mime: String,
+    pub source_provenance: Option<String>,
+    pub sort_order: i64,
+    pub added_at_utc: DateTime<Utc>,
+    pub linked_by: String,
+    pub updated_by: String,
+    pub updated_at_utc: DateTime<Utc>,
+    pub source_path_ref: Option<String>,
+    pub source_url_ref: Option<String>,
+}
+
+/// One page of album members plus the canonical member count.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CollectionMemberPage {
+    pub members: Vec<CollectionMemberDetail>,
+    pub total_count: i64,
+}
+
+/// Durable receipt written when a membership is unlinked from a collection.
+/// The asset row itself is preserved; only the membership goes away, and this
+/// receipt keeps the prior order / link refs / attribution auditable.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CollectionItemUnlinkReceipt {
+    pub unlink_receipt_id: Uuid,
+    pub collection_id: Uuid,
+    pub asset_id: Uuid,
+    pub prior_sort_order: i64,
+    pub prior_source_path_ref: Option<String>,
+    pub prior_source_url_ref: Option<String>,
+    pub linked_by: String,
+    pub member_updated_by: String,
+    pub member_updated_at_utc: DateTime<Utc>,
+    pub unlinked_by: String,
+    pub unlinked_at_utc: DateTime<Utc>,
+}
+
+/// Result of appending assets to a collection with optional link-scoped refs.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CollectionItemsAdded {
+    /// Memberships newly created by this call.
+    pub inserted: i64,
+    /// Pre-existing memberships whose link-scoped refs were changed by this call.
+    pub updated_refs: i64,
+}
+
+/// One explicit `(asset, position)` pair of a full album reorder.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CollectionItemReorder {
+    pub asset_id: Uuid,
+    pub sort_order: i64,
+}
+
+/// Edit of the link-scoped provenance on ONE membership. A `set_*` flag with a
+/// `None` value clears that ref; a `false` flag leaves the stored ref alone.
+#[derive(Clone, Debug, Default)]
+pub struct CollectionItemLinkRefUpdate {
+    pub set_source_path_ref: bool,
+    pub source_path_ref: Option<String>,
+    pub set_source_url_ref: bool,
+    pub source_url_ref: Option<String>,
+}
+
+/// The CKC "notes/tags" save for one media asset: review notes + review status
+/// (on `atelier_media_review_metadata`), the full replacement tag set (on
+/// `atelier_media_asset_tag`), and optional asset-global source refs (on
+/// `atelier_media_source_provenance_ref`), applied as ONE statement.
+#[derive(Clone, Debug)]
+pub struct MediaNotesTagsUpdate {
+    pub asset_id: Uuid,
+    /// `None` keeps the stored notes; `Some` replaces them.
+    pub notes: Option<String>,
+    /// `None` keeps the stored tag set; `Some` replaces it (normalized, de-duped).
+    pub tags: Option<Vec<String>>,
+    /// Canonical review status token (`unreviewed|review|approved|rejected|deferred`);
+    /// `None` keeps the stored status (or `unreviewed` for a new row).
+    pub review_status: Option<String>,
+    pub source_path_ref: Option<String>,
+    pub source_url_ref: Option<String>,
+    pub updated_by: String,
+}
+
+/// What [`AtelierStore::apply_media_notes_tags`] persisted.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MediaNotesTagsResult {
+    pub metadata: MediaReviewMetadata,
+    /// The asset's tag texts after the write, ascending.
+    pub tags: Vec<String>,
+    pub provenance: Option<MediaSourceProvenanceRefs>,
+    pub added_tags: Vec<String>,
+    pub removed_tags: Vec<String>,
 }
 
 /// A tag attached directly to one media asset.
@@ -139,6 +262,13 @@ pub mod collections_event_family {
     pub const COLLECTION_METADATA_APPLIED: &str = "atelier.collection.metadata_applied_to_images";
     pub const CONTACT_SHEET_CREATED: &str = "atelier.contact_sheet.created";
     pub const CONTACT_SHEET_SVG_RENDERED: &str = "atelier.contact_sheet.svg_rendered";
+    /// One CKC media-album membership was unlinked (asset preserved, receipt written).
+    pub const MEDIA_ALBUM_ITEM_UNLINKED: &str = "atelier.collection.media_album_item_unlinked";
+    /// Link-scoped source refs on one CKC media-album membership were edited.
+    pub const MEDIA_ALBUM_ITEM_LINK_REFS_UPDATED: &str =
+        "atelier.collection.media_album_item_link_refs_updated";
+    /// A CKC media album received an explicit full dense reorder.
+    pub const MEDIA_ALBUM_ITEMS_REORDERED: &str = "atelier.collection.media_album_items_reordered";
 
     /// All collections event families (used by parity/coverage checks).
     pub const ALL: &[&str] = &[
@@ -151,7 +281,81 @@ pub mod collections_event_family {
         COLLECTION_METADATA_APPLIED,
         CONTACT_SHEET_CREATED,
         CONTACT_SHEET_SVG_RENDERED,
+        MEDIA_ALBUM_ITEM_UNLINKED,
+        MEDIA_ALBUM_ITEM_LINK_REFS_UPDATED,
+        MEDIA_ALBUM_ITEMS_REORDERED,
     ];
+}
+
+/// Sentinel thrown inside an album-mutation statement when the membership it
+/// targets is gone. The pre-flight read already answered `NotFound` for the
+/// common case; this guards the window between that read and the write.
+const THROW_ALBUM_MEMBER_MISSING: &str = "ckc_album_member_missing";
+/// Sentinel thrown when a reorder's member set no longer matches the album.
+const THROW_REORDER_MEMBERSHIP_CHANGED: &str = "ckc_reorder_membership_changed";
+/// Sentinel thrown when the media asset a notes/tags save targets is gone.
+const THROW_MEDIA_ASSET_MISSING: &str = "ckc_media_asset_missing";
+
+const SURREAL_TRANSACTION_MAX_ATTEMPTS: usize = 10;
+const SURREAL_TRANSACTION_BACKOFF_CAP_MS: u64 = 32;
+
+/// Embedded SurrealDB reports a lost optimistic-transaction race on a busy
+/// album as a retryable conflict. Two concurrent reorders / links on one album
+/// are the MT-056 F5/F9 case; the loser retries with a bounded jittered backoff.
+fn is_surreal_retryable_transaction_conflict(error: &AtelierError) -> bool {
+    matches!(
+        error,
+        AtelierError::Database(crate::storage::surreal::SurrealStorageError::Database(source))
+            if source
+                .to_string()
+                .contains("Transaction conflict: Resource busy. This transaction can be retried")
+    )
+}
+
+fn surreal_transaction_retry_delay(seed: Uuid, failed_attempt: usize) -> Duration {
+    let exponential_cap = 1_u64
+        .checked_shl(failed_attempt.min(5) as u32)
+        .unwrap_or(SURREAL_TRANSACTION_BACKOFF_CAP_MS)
+        .min(SURREAL_TRANSACTION_BACKOFF_CAP_MS);
+    let seed = seed.as_u128();
+    let mut mixed = (seed as u64)
+        ^ ((seed >> 64) as u64)
+        ^ (failed_attempt as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15);
+    mixed ^= mixed >> 30;
+    mixed = mixed.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    mixed ^= mixed >> 27;
+    mixed = mixed.wrapping_mul(0x94d0_49bb_1331_11eb);
+    mixed ^= mixed >> 31;
+    Duration::from_millis(mixed % (exponential_cap + 1))
+}
+
+/// Translate the statement-level sentinels (and an exhausted retry budget) of
+/// an album mutation into the typed error the HTTP layer maps to 404 / 409.
+fn map_album_mutation_error(error: AtelierError, collection_id: Uuid, asset_id: Option<Uuid>) -> AtelierError {
+    let text = error.to_string();
+    if text.contains(THROW_ALBUM_MEMBER_MISSING) {
+        return AtelierError::NotFound(match asset_id {
+            Some(asset_id) => format!("media album item collection_id={collection_id} asset_id={asset_id}"),
+            None => format!("media album item collection_id={collection_id}"),
+        });
+    }
+    if text.contains(THROW_REORDER_MEMBERSHIP_CHANGED) {
+        return AtelierError::Conflict(format!(
+            "album membership for collection_id={collection_id} changed while the reorder was being applied; re-read the album and retry"
+        ));
+    }
+    if text.contains(THROW_MEDIA_ASSET_MISSING) {
+        return AtelierError::NotFound(match asset_id {
+            Some(asset_id) => format!("media asset_id={asset_id}"),
+            None => "media asset".to_owned(),
+        });
+    }
+    if is_surreal_retryable_transaction_conflict(&error) {
+        return AtelierError::Conflict(format!(
+            "collection_id={collection_id} is busy with a concurrent mutation; retry"
+        ));
+    }
+    error
 }
 
 fn clean_tags(tags: &[String]) -> Vec<String> {

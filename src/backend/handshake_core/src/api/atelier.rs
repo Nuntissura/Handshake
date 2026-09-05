@@ -12,6 +12,7 @@
 //! relational fallback exists.
 
 use axum::{
+    body::Body,
     extract::{Path, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
@@ -35,9 +36,33 @@ use crate::atelier::{
     AtelierError, AtelierStore, BulkOperationReceipt, ClipboardImageImportRequest,
     DeletionArchiveRequest, DeletionImpactPreview, DeletionImpactPreviewRequest,
     DeletionRestoreRequest, DeletionTargetRef, ImageImportRecord, MediaAssetBytesError,
-    UrlImageImportRequest,
+    NewMediaAsset, UrlImageImportRequest,
+};
+use crate::storage::artifacts::{
+    artifact_root_rel, remove_file_artifact, resolve_workspace_root,
+    write_file_artifact_streaming, ArtifactClassification, ArtifactError, ArtifactLayer,
+    StreamingFileArtifactSpec,
 };
 use crate::AppState;
+
+/// Env override (bytes) for the streaming media ingest ceiling; default 4 GiB. The ceiling is
+/// enforced while the body streams, so an over-limit upload never reaches disk in full and never
+/// reaches memory at all.
+pub(crate) const HSK_MEDIA_INGEST_MAX_BYTES_ENV: &str = "HANDSHAKE_MEDIA_INGEST_MAX_BYTES";
+const DEFAULT_MEDIA_INGEST_MAX_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+/// Optional request header naming where the bytes came from (a path, URL, capture source); falls
+/// back to `http-ingest:<actor>` so the catalog row always carries provenance.
+const HSK_HEADER_SOURCE_PROVENANCE: &str = "x-hsk-source-provenance";
+/// Optional request header carrying the original filename for the manifest `filename_hint`.
+const HSK_HEADER_FILENAME_HINT: &str = "x-hsk-filename-hint";
+
+pub(crate) fn media_ingest_max_bytes() -> u64 {
+    std::env::var(HSK_MEDIA_INGEST_MAX_BYTES_ENV)
+        .ok()
+        .and_then(|raw| raw.trim().parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_MEDIA_INGEST_MAX_BYTES)
+}
 
 pub(crate) const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
 /// Response header carrying the native ArtifactStore payload ref the served bytes came from, so a
@@ -112,7 +137,180 @@ pub fn routes(state: AppState) -> Router {
             "/atelier/media-assets/:asset_id/bytes",
             get(get_media_asset_bytes),
         )
+        .route("/atelier/media-assets", post(ingest_media_asset_bytes))
         .with_state(state)
+}
+
+#[derive(Debug, Serialize)]
+struct MediaAssetIngestResponse {
+    asset_id: Uuid,
+    content_hash: String,
+    byte_len: i64,
+    mime: String,
+    artifact_ref: String,
+    /// True when identical bytes were already catalogued: the existing asset is returned and the
+    /// freshly streamed duplicate payload was removed from the artifact tier.
+    dedup_hit: bool,
+}
+
+/// POST /atelier/media-assets — streaming, size-capped ingest of one media asset. The raw request
+/// body is the payload (no base64, no JSON envelope, no multipart); `Content-Type` is the catalog
+/// MIME; `x-hsk-actor-id` is required; `x-hsk-source-provenance` and `x-hsk-filename-hint` are
+/// optional. Bytes stream straight into the ArtifactStore (`write_file_artifact_streaming`), so peak
+/// memory is one chunk regardless of payload size, and the ceiling
+/// (`HANDSHAKE_MEDIA_INGEST_MAX_BYTES`, default 4 GiB) aborts the write before it completes.
+///
+/// Ordering and crash consistency (the Atelier pattern, made explicit): blob first, then verify,
+/// then catalog row. If the row write fails or dedups to an existing asset, the just-written
+/// artifact is removed (`remove_file_artifact`) so the blob tier never accumulates payloads with no
+/// catalog row. The reverse failure (row committed, blob missing) cannot happen on this path because
+/// `materialize_media_asset` re-verifies the ArtifactStore binding before it commits. A crash
+/// between blob rename and row commit leaves an orphan artifact directory; that orphan is
+/// unreferenced, hash-addressed, and swept by the existing artifact GC — it is never served, because
+/// serving always starts from a catalog row.
+async fn ingest_media_asset_bytes(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Body,
+) -> Result<(StatusCode, Json<MediaAssetIngestResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let mime = header_str(&headers, header::CONTENT_TYPE.as_str())
+        .map(|value| value.split(';').next().unwrap_or(value).trim().to_owned())
+        .filter(|value| !value.is_empty() && !value.starts_with("multipart/"))
+        .ok_or((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "missing_or_unsupported_content_type",
+            }),
+        ))?;
+    let max_bytes = media_ingest_max_bytes();
+    if let Some(declared) = header_str(&headers, header::CONTENT_LENGTH.as_str())
+        .and_then(|value| value.parse::<u64>().ok())
+    {
+        if declared > max_bytes {
+            return Err((
+                StatusCode::PAYLOAD_TOO_LARGE,
+                Json(ErrorResponse {
+                    error: "payload_too_large",
+                }),
+            ));
+        }
+    }
+    let source_provenance = header_str(&headers, HSK_HEADER_SOURCE_PROVENANCE)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| format!("http-ingest:{actor}"));
+    let filename_hint = header_str(&headers, HSK_HEADER_FILENAME_HINT).map(ToOwned::to_owned);
+
+    let workspace_root = resolve_workspace_root().map_err(internal_error)?;
+    let artifact_id = Uuid::now_v7();
+    let layer = ArtifactLayer::L1;
+    let spec = StreamingFileArtifactSpec {
+        artifact_id,
+        layer,
+        mime: mime.clone(),
+        filename_hint,
+        created_by_job_id: None,
+        source_entity_refs: Vec::new(),
+        source_artifact_refs: Vec::new(),
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: None,
+        max_bytes,
+    };
+    let manifest =
+        match write_file_artifact_streaming(&workspace_root, spec, body.into_data_stream()).await {
+            Ok(manifest) => manifest,
+            Err(ArtifactError::SizeLimitExceeded { .. }) => {
+                return Err((
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    Json(ErrorResponse {
+                        error: "payload_too_large",
+                    }),
+                ));
+            }
+            Err(ArtifactError::Stream(detail)) => {
+                tracing::warn!(target: "handshake_core::atelier", %detail, "media ingest stream failed");
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorResponse {
+                        error: "payload_stream_failed",
+                    }),
+                ));
+            }
+            Err(ArtifactError::Io(io_err)) if io_err.kind() == std::io::ErrorKind::InvalidData => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorResponse {
+                        error: "empty_payload",
+                    }),
+                ));
+            }
+            Err(other) => return Err(internal_error(other)),
+        };
+    let artifact_ref = format!("artifact://{}/payload", artifact_root_rel(layer, artifact_id));
+
+    let store = atelier_store(&state);
+    let asset = match store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: manifest.content_hash.clone(),
+            mime: mime.clone(),
+            byte_len: manifest.size_bytes as i64,
+            source_provenance: Some(source_provenance),
+            artifact_ref: artifact_ref.clone(),
+        })
+        .await
+    {
+        Ok(asset) => asset,
+        Err(err) => {
+            // Compensate: the catalog did not take the row, so the blob must not stay behind.
+            if let Err(cleanup) = remove_file_artifact(&workspace_root, layer, artifact_id) {
+                tracing::error!(
+                    target: "handshake_core::atelier",
+                    %artifact_id,
+                    error = %cleanup,
+                    "media ingest compensation failed: orphan artifact left for GC"
+                );
+            }
+            return Err(atelier_error(err));
+        }
+    };
+    let dedup_hit = asset.artifact_ref != artifact_ref;
+    if dedup_hit {
+        // Identical bytes were already catalogued under another artifact; ours is a duplicate blob.
+        if let Err(cleanup) = remove_file_artifact(&workspace_root, layer, artifact_id) {
+            tracing::error!(
+                target: "handshake_core::atelier",
+                %artifact_id,
+                error = %cleanup,
+                "media ingest dedup cleanup failed: duplicate artifact left for GC"
+            );
+        }
+    }
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/media-assets",
+        actor = %actor,
+        asset_id = %asset.asset_id,
+        byte_len = asset.byte_len,
+        dedup_hit,
+        "media asset ingested"
+    );
+    Ok((
+        if dedup_hit {
+            StatusCode::OK
+        } else {
+            StatusCode::CREATED
+        },
+        Json(MediaAssetIngestResponse {
+            asset_id: asset.asset_id,
+            content_hash: asset.content_hash,
+            byte_len: asset.byte_len,
+            mime: asset.mime,
+            artifact_ref: asset.artifact_ref,
+            dedup_hit,
+        }),
+    ))
 }
 
 /// GET /atelier/media-assets/:asset_id/bytes — return the raw payload bytes of a catalog media asset,

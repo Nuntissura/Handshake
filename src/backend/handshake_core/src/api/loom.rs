@@ -2206,12 +2206,13 @@ struct LoomImportResult {
     content_hash: String,
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut h = Sha256::new();
-    h.update(bytes);
-    hex::encode(h.finalize())
-}
+use crate::storage::artifacts::sha256_hex;
 
+/// JSON + base64 import. This path buffers the whole payload in memory twice (the base64 text and
+/// the decoded bytes), so it is bounded: Axum's default 2 MiB JSON body limit applies to the
+/// envelope, and the decoded size is additionally checked against the media ingest ceiling. Bulk
+/// media (video, large originals) MUST go through the streaming, size-capped
+/// `POST /atelier/media-assets` route instead; this endpoint is not a bulk-binary path.
 async fn import_loom_asset(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
@@ -2222,6 +2223,17 @@ async fn import_loom_asset(
     let bytes = STANDARD
         .decode(payload.bytes_b64.as_bytes())
         .map_err(|_| bad_request("HSK-400-LOOM-INVALID-BASE64"))?;
+    if bytes.len() as u64 > crate::api::atelier::media_ingest_max_bytes() {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            Json(ErrorResponse {
+                error: "HSK-413-LOOM-IMPORT-TOO-LARGE",
+            }),
+        ));
+    }
+    if bytes.is_empty() {
+        return Err(bad_request("HSK-400-LOOM-EMPTY-PAYLOAD"));
+    }
     let content_hash = sha256_hex(&bytes);
 
     if let Some(existing) = state

@@ -40,6 +40,10 @@ use uuid::Uuid;
 /// One workspace root for the whole test binary. `HANDSHAKE_WORKSPACE_ROOT` is process-global and
 /// tests run on parallel threads, so every test writes its own artifact (distinct UUID) into this
 /// single root instead of racing on the env var.
+/// Ingest ceiling for this test binary (bytes). Set once alongside the workspace root; the
+/// over-limit test streams a body above it, every other test stays well below it.
+const TEST_INGEST_MAX_BYTES: u64 = 6 * 1024 * 1024;
+
 fn shared_workspace_root() -> &'static PathBuf {
     static ROOT: OnceLock<PathBuf> = OnceLock::new();
     ROOT.get_or_init(|| {
@@ -47,8 +51,59 @@ fn shared_workspace_root() -> &'static PathBuf {
             .expect("create isolated media-bytes workspace root")
             .into_path();
         std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", &root);
+        std::env::set_var(
+            "HANDSHAKE_MEDIA_INGEST_MAX_BYTES",
+            TEST_INGEST_MAX_BYTES.to_string(),
+        );
         root
     })
+}
+
+/// Deterministic pseudo-random payload so two tests never collide on content hash by accident and
+/// the bytes are not compressible-trivial.
+fn pseudo_random_payload(seed: u64, len: usize) -> Vec<u8> {
+    let mut state = seed ^ 0x9E37_79B9_7F4A_7C15;
+    (0..len)
+        .map(|_| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state & 0xff) as u8
+        })
+        .collect()
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize())
+}
+
+/// Count artifact directories and stray temp files under the L1 layer of the shared root.
+fn l1_artifact_inventory() -> (usize, usize) {
+    let l1 = shared_workspace_root()
+        .join(".handshake")
+        .join("artifacts")
+        .join("L1");
+    let Ok(entries) = fs::read_dir(&l1) else {
+        return (0, 0);
+    };
+    let mut dirs = 0;
+    let mut tmp_files = 0;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            dirs += 1;
+            if let Ok(inner) = fs::read_dir(&path) {
+                tmp_files += inner
+                    .flatten()
+                    .filter(|e| e.file_name().to_string_lossy().starts_with(".hsk_tmp_"))
+                    .count();
+            }
+        }
+    }
+    (dirs, tmp_files)
 }
 
 #[derive(Default)]
@@ -327,5 +382,199 @@ async fn media_asset_bytes_route_tampered_payload_is_hard_error_never_tampered_b
         matches!(direct, Err(MediaAssetBytesError::Artifact(_))),
         "store-level read must surface the integrity failure, got {direct:?}"
     );
+    harness.shutdown().await;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Streaming ingest: POST /atelier/media-assets (raw body, size-capped, blob -> verify -> row).
+// ---------------------------------------------------------------------------------------------
+
+#[tokio::test]
+async fn media_asset_ingest_streams_raw_body_into_artifact_store_and_serves_it_back() {
+    let harness = AtelierSurrealHarness::create().await;
+    let (base, client, server) = serve(app_state(&harness)).await;
+    let payload = pseudo_random_payload(0x5701, 3 * 1024 * 1024);
+    let expected_hash = sha256_hex(&payload);
+    let (dirs_before, _) = l1_artifact_inventory();
+
+    let response = client
+        .post(format!("{base}/atelier/media-assets"))
+        .header("content-type", "video/mp4")
+        .header("x-hsk-actor-id", "operator:mt-057-test")
+        .header("x-hsk-source-provenance", "mt-057 streaming ingest fixture")
+        .header("x-hsk-filename-hint", "clip.mp4")
+        .body(payload.clone())
+        .send()
+        .await
+        .expect("send streaming ingest request");
+    let status = response.status();
+    let body: serde_json::Value = response.json().await.expect("ingest response json");
+    assert_eq!(status.as_u16(), 201, "first ingest must be 201 Created, got {body}");
+    assert_eq!(body["content_hash"], expected_hash);
+    assert_eq!(body["byte_len"], payload.len() as i64);
+    assert_eq!(body["mime"], "video/mp4");
+    assert_eq!(body["dedup_hit"], false);
+    let asset_id = body["asset_id"].as_str().expect("asset_id").to_owned();
+    let artifact_ref = body["artifact_ref"].as_str().expect("artifact_ref").to_owned();
+    assert!(
+        artifact_ref.starts_with("artifact://.handshake/artifacts/L1/")
+            && artifact_ref.ends_with("/payload"),
+        "artifact_ref must be a native single-file payload ref, got {artifact_ref}"
+    );
+    let (dirs_after, tmp_after) = l1_artifact_inventory();
+    assert_eq!(dirs_after, dirs_before + 1, "exactly one artifact directory is created");
+    assert_eq!(tmp_after, 0, "no .hsk_tmp_ residue after a successful ingest");
+
+    // The bytes round-trip through the READ path with the ingest hash as ETag.
+    let read = client
+        .get(format!("{base}/atelier/media-assets/{asset_id}/bytes"))
+        .send()
+        .await
+        .expect("read back ingested bytes");
+    assert_eq!(read.status().as_u16(), 200);
+    assert_eq!(
+        read.headers()
+            .get(reqwest::header::ETAG)
+            .and_then(|v| v.to_str().ok()),
+        Some(format!("\"sha256-{expected_hash}\"").as_str())
+    );
+    assert_eq!(
+        read.headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok()),
+        Some("video/mp4")
+    );
+    let read_bytes = read.bytes().await.expect("read body");
+    assert_eq!(read_bytes.as_ref(), payload.as_slice());
+    server.abort();
+    harness.shutdown().await;
+}
+
+#[tokio::test]
+async fn media_asset_ingest_dedups_identical_bytes_and_removes_the_duplicate_blob() {
+    let harness = AtelierSurrealHarness::create().await;
+    let (base, client, server) = serve(app_state(&harness)).await;
+    let payload = pseudo_random_payload(0x5702, 512 * 1024);
+
+    let first: serde_json::Value = client
+        .post(format!("{base}/atelier/media-assets"))
+        .header("content-type", "image/png")
+        .header("x-hsk-actor-id", "operator:mt-057-test")
+        .body(payload.clone())
+        .send()
+        .await
+        .expect("first ingest")
+        .json()
+        .await
+        .expect("first json");
+    let (dirs_after_first, _) = l1_artifact_inventory();
+
+    let second_response = client
+        .post(format!("{base}/atelier/media-assets"))
+        .header("content-type", "image/png")
+        .header("x-hsk-actor-id", "model:mt-057-second-writer")
+        .body(payload.clone())
+        .send()
+        .await
+        .expect("second ingest");
+    let second_status = second_response.status();
+    let second: serde_json::Value = second_response.json().await.expect("second json");
+    let (dirs_after_second, tmp_after_second) = l1_artifact_inventory();
+    server.abort();
+
+    assert_eq!(second_status.as_u16(), 200, "dedup returns 200, not 201: {second}");
+    assert_eq!(second["dedup_hit"], true);
+    assert_eq!(second["asset_id"], first["asset_id"], "same catalog identity");
+    assert_eq!(second["artifact_ref"], first["artifact_ref"], "same blob");
+    assert_eq!(
+        dirs_after_second, dirs_after_first,
+        "the duplicate streamed blob must be removed, not accumulated"
+    );
+    assert_eq!(tmp_after_second, 0);
+    harness.shutdown().await;
+}
+
+#[tokio::test]
+async fn media_asset_ingest_over_limit_is_413_and_leaves_no_artifact_behind() {
+    let harness = AtelierSurrealHarness::create().await;
+    let (base, client, server) = serve(app_state(&harness)).await;
+    let (dirs_before, _) = l1_artifact_inventory();
+    let oversized = pseudo_random_payload(0x5703, (TEST_INGEST_MAX_BYTES as usize) + 4096);
+
+    // Declared length above the ceiling: refused before any byte is read.
+    let declared = client
+        .post(format!("{base}/atelier/media-assets"))
+        .header("content-type", "video/mp4")
+        .header("x-hsk-actor-id", "operator:mt-057-test")
+        .body(oversized.clone())
+        .send()
+        .await
+        .expect("send oversized (declared) ingest");
+    assert_eq!(declared.status().as_u16(), 413);
+
+    // Chunked transfer with no Content-Length: refused while streaming, temp file removed.
+    let stream = futures::stream::iter(
+        oversized
+            .chunks(64 * 1024)
+            .map(|chunk| Ok::<_, std::io::Error>(chunk.to_vec()))
+            .collect::<Vec<_>>(),
+    );
+    let chunked = client
+        .post(format!("{base}/atelier/media-assets"))
+        .header("content-type", "video/mp4")
+        .header("x-hsk-actor-id", "operator:mt-057-test")
+        .body(reqwest::Body::wrap_stream(stream))
+        .send()
+        .await
+        .expect("send oversized (chunked) ingest");
+    let chunked_status = chunked.status();
+    let (dirs_after, tmp_after) = l1_artifact_inventory();
+    server.abort();
+
+    assert_eq!(chunked_status.as_u16(), 413, "streaming cap must abort with 413");
+    assert_eq!(dirs_after, dirs_before, "no artifact directory may survive a capped upload");
+    assert_eq!(tmp_after, 0, "no .hsk_tmp_ residue may survive a capped upload");
+    harness.shutdown().await;
+}
+
+#[tokio::test]
+async fn media_asset_ingest_requires_actor_and_content_type_and_rejects_empty_body() {
+    let harness = AtelierSurrealHarness::create().await;
+    let (base, client, server) = serve(app_state(&harness)).await;
+    let (dirs_before, _) = l1_artifact_inventory();
+
+    let no_actor = client
+        .post(format!("{base}/atelier/media-assets"))
+        .header("content-type", "image/png")
+        .body(b"abc".to_vec())
+        .send()
+        .await
+        .expect("send without actor");
+    assert_eq!(no_actor.status().as_u16(), 400);
+
+    let no_mime = client
+        .post(format!("{base}/atelier/media-assets"))
+        .header("x-hsk-actor-id", "operator:mt-057-test")
+        .body(b"abc".to_vec())
+        .send()
+        .await
+        .expect("send without content-type");
+    assert_eq!(no_mime.status().as_u16(), 400);
+
+    let empty = client
+        .post(format!("{base}/atelier/media-assets"))
+        .header("content-type", "image/png")
+        .header("x-hsk-actor-id", "operator:mt-057-test")
+        .body(Vec::<u8>::new())
+        .send()
+        .await
+        .expect("send empty body");
+    let empty_status = empty.status();
+    let (dirs_after, tmp_after) = l1_artifact_inventory();
+    server.abort();
+
+    assert_eq!(empty_status.as_u16(), 400, "empty payload is rejected");
+    assert_eq!(dirs_after, dirs_before);
+    assert_eq!(tmp_after, 0);
     harness.shutdown().await;
 }

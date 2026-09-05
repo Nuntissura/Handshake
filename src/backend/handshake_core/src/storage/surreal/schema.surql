@@ -1281,15 +1281,42 @@ DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_collection TYPE op
 DEFINE FIELD OVERWRITE sheet_version_id ON TABLE atelier_collection TYPE option<record<atelier_sheet_version>> ASSERT ($value = NONE OR record::exists($value)) REFERENCE ON DELETE UNSET;
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_collection TYPE datetime DEFAULT time::now();
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_collection TYPE datetime DEFAULT time::now();
+-- 0339_atelier_ckc_media_album_link_scope + 0344_atelier_ckc_media_row_attribution
+-- (WP-CKC-posekit-overhaul MT-010 / MT-036, folded into the end state). Album
+-- names are unique per CKC character, with NONE meaning the global scope. The
+-- source `UNIQUE (COALESCE(character_internal_id, zero-uuid), name)` becomes a
+-- stored discriminator so the constraint never depends on backend NONE handling
+-- in unique indexes. Row-level actor attribution is stored, not inferred from
+-- request headers or the EventLedger.
+DEFINE FIELD OVERWRITE created_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE scoped_name_key ON TABLE atelier_collection TYPE string
+    VALUE IF $this.character_internal_id != NONE {
+        'character:' + type::string($this.character_internal_id) + '|' + $this.name
+    } ELSE {
+        'global|' + $this.name
+    };
 DEFINE INDEX OVERWRITE pk_atelier_collection ON TABLE atelier_collection FIELDS collection_id UNIQUE;
-DEFINE INDEX OVERWRITE uq_atelier_collection_1 ON TABLE atelier_collection FIELDS name UNIQUE;
+DEFINE INDEX OVERWRITE ux_atelier_collection_scoped_name ON TABLE atelier_collection FIELDS scoped_name_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_collection_created_by ON TABLE atelier_collection FIELDS created_by;
 
 DEFINE TABLE OVERWRITE atelier_collection_item SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE collection_id ON TABLE atelier_collection_item TYPE record<atelier_collection> ASSERT (record::exists($value)) AND ($value = type::record('atelier_collection', record::id($this.id)[0])) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_collection_item TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND ($value = type::record('atelier_media_asset', record::id($this.id)[1])) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE sort_order ON TABLE atelier_collection_item TYPE int DEFAULT 0;
 DEFINE FIELD OVERWRITE added_at_utc ON TABLE atelier_collection_item TYPE datetime DEFAULT time::now();
+-- 0339 / 0344 membership-level provenance and attribution: the same media asset
+-- can sit in different CKC albums with different folder/source refs, and every
+-- membership row records who linked it and who last touched it.
+DEFINE FIELD OVERWRITE source_path_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE source_url_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE linked_by ON TABLE atelier_collection_item TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_collection_item TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_collection_item TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_collection_item ON TABLE atelier_collection_item FIELDS collection_id, asset_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_path_ref ON TABLE atelier_collection_item FIELDS source_path_ref;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_url_ref ON TABLE atelier_collection_item FIELDS source_url_ref;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_linked_by ON TABLE atelier_collection_item FIELDS linked_by;
 
 DEFINE TABLE OVERWRITE atelier_contact_sheet SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE sheet_id ON TABLE atelier_contact_sheet TYPE uuid ASSERT ($value = record::id($this.id));
@@ -2573,9 +2600,17 @@ DEFINE FIELD OVERWRITE result_refs.* ON TABLE atelier_action_receipt TYPE any;
 DEFINE FIELD OVERWRITE error_class ON TABLE atelier_action_receipt TYPE option<string> ASSERT $this.status = 'succeeded' OR ($value != NONE AND string::trim($value) != '');
 DEFINE FIELD OVERWRITE recovery_hint ON TABLE atelier_action_receipt TYPE option<string> ASSERT $this.status = 'succeeded' OR ($value != NONE AND string::trim($value) != '');
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_action_receipt TYPE datetime DEFAULT time::now();
+-- 0343_atelier_action_receipt_model_ops_lineage (WP-CKC-posekit-overhaul MT-022):
+-- first-class Model Ops lineage. Operator/legacy receipts carry an empty
+-- thread_id; model-operation receipt routes write a non-empty thread_id plus the
+-- coordination lease they ran under.
+DEFINE FIELD OVERWRITE thread_id ON TABLE atelier_action_receipt TYPE string DEFAULT '' ASSERT string::trim($value) = $value;
+DEFINE FIELD OVERWRITE lease_claim_id ON TABLE atelier_action_receipt TYPE option<record<atelier_model_coordination_lease>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE INDEX OVERWRITE pk_atelier_action_receipt ON TABLE atelier_action_receipt FIELDS receipt_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_action_receipt_action ON TABLE atelier_action_receipt FIELDS action_id, created_at_utc;
 DEFINE INDEX OVERWRITE idx_atelier_action_receipt_session ON TABLE atelier_action_receipt FIELDS session_id, created_at_utc;
+DEFINE INDEX OVERWRITE idx_atelier_action_receipt_thread ON TABLE atelier_action_receipt FIELDS thread_id, created_at_utc;
+DEFINE INDEX OVERWRITE idx_atelier_action_receipt_lease ON TABLE atelier_action_receipt FIELDS lease_claim_id, created_at_utc;
 
 -- 0089_atelier_reset_orphan_adoption
 DEFINE TABLE OVERWRITE atelier_reset_operation SCHEMAFULL PERMISSIONS NONE;
@@ -5132,6 +5167,249 @@ DEFINE FIELD OVERWRITE issued_at_utc ON TABLE kb003_promotion_receipts TYPE date
 DEFINE INDEX OVERWRITE pk_kb003_promotion_receipts ON TABLE kb003_promotion_receipts FIELDS receipt_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_kb003_promotion_receipts_idempotency ON TABLE kb003_promotion_receipts FIELDS idempotency_key UNIQUE;
 DEFINE INDEX OVERWRITE ix_kb003_promotion_receipts_decision ON TABLE kb003_promotion_receipts FIELDS decision_id;
+
+-- WP-CKC-posekit-overhaul on SurrealDB (MT-058). The eight legacy server
+-- backend migrations 0337-0344 of the reference branch are expressed as END
+-- STATE below; history (ALTER/backfill/DO blocks) is not ported because this
+-- bootstrap targets an empty database. Legacy migration numbers are cited per
+-- section for traceability against the reference branch only; they are not the
+-- section numbers of this file (0340/0341/0343/0344 already name unrelated
+-- sections above).
+
+-- CKC 0337_atelier_ckc_search_tag_notes (MT-011). pg_trgm, pgvector and the
+-- atelier_trgm_similarity() SQL function have no Surreal counterpart: fuzzy
+-- scoring runs in Rust over string::similarity primitives and the embedding is
+-- a typed float vector compared with vector::similarity::cosine in the search
+-- layer. scope_ref stores '' for the global note instead of NONE so the
+-- (tag_id, scope_ref) UNIQUE holds without backend NONE semantics; the Rust
+-- boundary maps '' <-> None.
+DEFINE TABLE OVERWRITE atelier_tag_note SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE tag_note_id ON TABLE atelier_tag_note TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE tag_id ON TABLE atelier_tag_note TYPE record<atelier_tag> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE scope_ref ON TABLE atelier_tag_note TYPE string DEFAULT '' ASSERT string::trim($value) = $value;
+DEFINE FIELD OVERWRITE note ON TABLE atelier_tag_note TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_tag_note TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_tag_note TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_tag_note TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_tag_note ON TABLE atelier_tag_note FIELDS tag_note_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_atelier_tag_note_tag_scope ON TABLE atelier_tag_note FIELDS tag_id, scope_ref UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_tag_note_scope_ref ON TABLE atelier_tag_note FIELDS scope_ref;
+
+DEFINE TABLE OVERWRITE atelier_ckc_search_projection SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE target_ref ON TABLE atelier_ckc_search_projection TYPE string ASSERT $value = record::id($this.id) AND string::trim($value) != '';
+DEFINE FIELD OVERWRITE target_kind ON TABLE atelier_ckc_search_projection TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE search_text_hash ON TABLE atelier_ckc_search_projection TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE embedding ON TABLE atelier_ckc_search_projection TYPE option<array<float>> ASSERT $value = NONE OR array::len($value) = 768;
+DEFINE FIELD OVERWRITE embedding_model ON TABLE atelier_ckc_search_projection TYPE option<string>;
+DEFINE FIELD OVERWRITE indexed_at_utc ON TABLE atelier_ckc_search_projection TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_ckc_search_projection ON TABLE atelier_ckc_search_projection FIELDS target_ref UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_ckc_search_projection_kind ON TABLE atelier_ckc_search_projection FIELDS target_kind;
+DEFINE INDEX OVERWRITE idx_atelier_ckc_search_projection_embedding ON TABLE atelier_ckc_search_projection FIELDS embedding_model, indexed_at_utc;
+
+-- CKC 0338_atelier_ckc_sheet_field_projection (MT-009): latest-value lookup
+-- for sheet field suggestions across a character's sheet versions.
+DEFINE TABLE OVERWRITE atelier_sheet_field_value_projection SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE projection_id ON TABLE atelier_sheet_field_value_projection TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE field_id ON TABLE atelier_sheet_field_value_projection TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE value ON TABLE atelier_sheet_field_value_projection TYPE string;
+DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_sheet_field_value_projection TYPE record<atelier_character> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE sheet_version_id ON TABLE atelier_sheet_field_value_projection TYPE record<atelier_sheet_version> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_sheet_field_value_projection TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_sheet_field_value_projection ON TABLE atelier_sheet_field_value_projection FIELDS projection_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_atelier_sheet_field_value_projection_value ON TABLE atelier_sheet_field_value_projection FIELDS field_id, value, character_internal_id, sheet_version_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_sheet_field_value_projection_field_latest ON TABLE atelier_sheet_field_value_projection FIELDS field_id, created_at_utc, sheet_version_id;
+
+-- CKC 0340_atelier_sheet_artifact_links (MT-016): typed refs from a character
+-- sheet version to Posekit/OpenPose and ComfyUI artifacts without copying
+-- payload bytes into sheet text. The atelier_is_native_portable_ref() SQL
+-- function is ported to Rust (atelier::refs); the schema keeps the structural
+-- floor (native scheme, trimmed, no whitespace, no backslash, never .gov). The
+-- source partial UNIQUE over active links (`WHERE detached_at_utc IS NULL`) is
+-- a stored discriminator, as for role_mailbox_claim_lease. The source composite
+-- FK (character_internal_id, sheet_version_id) -> atelier_sheet_version is the
+-- sheet_version_id ASSERT that the version belongs to the same character.
+DEFINE TABLE OVERWRITE atelier_sheet_artifact_link SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE link_id ON TABLE atelier_sheet_artifact_link TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_sheet_artifact_link TYPE record<atelier_character> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE sheet_version_id ON TABLE atelier_sheet_artifact_link TYPE record<atelier_sheet_version> ASSERT record::exists($value) AND $value.character_internal_id = $this.character_internal_id REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE artifact_kind ON TABLE atelier_sheet_artifact_link TYPE 'openpose_json' | 'openpose_png' | 'conditioning_png' | 'comfy_render' | 'comfy_receipt';
+DEFINE FIELD OVERWRITE artifact_ref ON TABLE atelier_sheet_artifact_link TYPE string ASSERT string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains($value, '\\') = false AND string::contains(string::lowercase($value), '.gov') = false;
+DEFINE FIELD OVERWRITE manifest_ref ON TABLE atelier_sheet_artifact_link TYPE option<string> ASSERT $value = NONE OR (string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE source_ref ON TABLE atelier_sheet_artifact_link TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '' AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE label ON TABLE atelier_sheet_artifact_link TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE reuse_role ON TABLE atelier_sheet_artifact_link TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '' AND $value = string::lowercase($value) AND string::contains($value, ' ') = false);
+DEFINE FIELD OVERWRITE linked_by ON TABLE atelier_sheet_artifact_link TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE metadata ON TABLE atelier_sheet_artifact_link TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE metadata.* ON TABLE atelier_sheet_artifact_link TYPE any;
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_sheet_artifact_link TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE detached_at_utc ON TABLE atelier_sheet_artifact_link TYPE option<datetime>;
+DEFINE FIELD OVERWRITE detached_by ON TABLE atelier_sheet_artifact_link TYPE option<string> ASSERT ($this.detached_at_utc = NONE AND $value = NONE) OR ($this.detached_at_utc != NONE AND $value != NONE AND string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE active_link_key ON TABLE atelier_sheet_artifact_link TYPE string
+    VALUE IF $this.detached_at_utc = NONE {
+        'active:' + type::string($this.sheet_version_id) + '|' + $this.artifact_kind + '|' + $this.artifact_ref
+    } ELSE {
+        'detached:' + type::string($this.link_id)
+    };
+DEFINE INDEX OVERWRITE pk_atelier_sheet_artifact_link ON TABLE atelier_sheet_artifact_link FIELDS link_id UNIQUE;
+DEFINE INDEX OVERWRITE ux_atelier_sheet_artifact_link_active_ref ON TABLE atelier_sheet_artifact_link FIELDS active_link_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_sheet_artifact_link_sheet_active ON TABLE atelier_sheet_artifact_link FIELDS sheet_version_id, detached_at_utc, created_at_utc, link_id;
+DEFINE INDEX OVERWRITE idx_atelier_sheet_artifact_link_character_kind ON TABLE atelier_sheet_artifact_link FIELDS character_internal_id, artifact_kind, created_at_utc;
+
+-- CKC 0341_atelier_intake_item_metadata (MT-017): durable per-item metadata
+-- for dataset-mining intake decisions, keyed by the intake item it describes.
+DEFINE TABLE OVERWRITE atelier_intake_item_metadata SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE item_id ON TABLE atelier_intake_item_metadata TYPE record<atelier_intake_item> ASSERT record::exists($value) AND record::id($value) = record::id($this.id) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE batch_id ON TABLE atelier_intake_item_metadata TYPE record<atelier_intake_batch> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_intake_item_metadata TYPE option<record<atelier_media_asset>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
+DEFINE FIELD OVERWRITE request_id ON TABLE atelier_intake_item_metadata TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE dataset_ref ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE character_ref ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE link_passed ON TABLE atelier_intake_item_metadata TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE tags_json ON TABLE atelier_intake_item_metadata TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE tags_json.* ON TABLE atelier_intake_item_metadata TYPE any;
+DEFINE FIELD OVERWRITE note ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE event_label ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE event_date ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE location ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE facial_profile ON TABLE atelier_intake_item_metadata TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE loaded_item_count ON TABLE atelier_intake_item_metadata TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD OVERWRITE contact_sheet_json ON TABLE atelier_intake_item_metadata TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE contact_sheet_json.* ON TABLE atelier_intake_item_metadata TYPE any;
+DEFINE FIELD OVERWRITE requested_by ON TABLE atelier_intake_item_metadata TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_intake_item_metadata TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_intake_item_metadata TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_intake_item_metadata ON TABLE atelier_intake_item_metadata FIELDS item_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_intake_item_metadata_batch ON TABLE atelier_intake_item_metadata FIELDS batch_id, updated_at_utc;
+DEFINE INDEX OVERWRITE idx_atelier_intake_item_metadata_asset ON TABLE atelier_intake_item_metadata FIELDS asset_id;
+DEFINE INDEX OVERWRITE idx_atelier_intake_item_metadata_request ON TABLE atelier_intake_item_metadata FIELDS request_id;
+
+-- CKC 0342_atelier_prompt_feedback (MT-020): deterministic prompt-feedback
+-- kernel. SurrealDB/EventLedger is the authority; JSONL export bytes live in the
+-- ArtifactStore behind a native artifact:// ref and the export row stores only
+-- the ref + content hash. The source composite PRIMARY KEY (rule_pack_id,
+-- version) is the array record id of atelier_prompt_feedback_rule_pack; the
+-- source composite FKs from rewrite/export are the rule_pack_ref record fields
+-- asserted against the scalar (rule_pack_id, rule_pack_version) columns.
+DEFINE TABLE OVERWRITE atelier_prompt_feedback_case SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE case_id ON TABLE atelier_prompt_feedback_case TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE project_id ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE source_system ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE adapter_id ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE source_iteration_id ON TABLE atelier_prompt_feedback_case TYPE option<string>;
+DEFINE FIELD OVERWRITE source_case_id ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE source_recipe_id ON TABLE atelier_prompt_feedback_case TYPE option<string>;
+DEFINE FIELD OVERWRITE segment ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE cell ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE framing ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE clothing_state ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE render_stack ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE identity_judgement_allowed ON TABLE atelier_prompt_feedback_case TYPE bool;
+DEFINE FIELD OVERWRITE prompt_quality_review_allowed ON TABLE atelier_prompt_feedback_case TYPE bool;
+DEFINE FIELD OVERWRITE positive_prompt ON TABLE atelier_prompt_feedback_case TYPE string;
+DEFINE FIELD OVERWRITE negative_prompt ON TABLE atelier_prompt_feedback_case TYPE string;
+DEFINE FIELD OVERWRITE micro_gate ON TABLE atelier_prompt_feedback_case TYPE option<string>;
+DEFINE FIELD OVERWRITE expected_failure ON TABLE atelier_prompt_feedback_case TYPE option<string>;
+DEFINE FIELD OVERWRITE image_artifact_ref ON TABLE atelier_prompt_feedback_case TYPE option<string> ASSERT $value = NONE OR (string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE sheet_artifact_ref ON TABLE atelier_prompt_feedback_case TYPE option<string> ASSERT $value = NONE OR (string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE axes ON TABLE atelier_prompt_feedback_case TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE axes.* ON TABLE atelier_prompt_feedback_case TYPE any;
+DEFINE FIELD OVERWRITE hardcore_fields ON TABLE atelier_prompt_feedback_case TYPE object FLEXIBLE DEFAULT {};
+DEFINE FIELD OVERWRITE hardcore_fields.* ON TABLE atelier_prompt_feedback_case TYPE any;
+DEFINE FIELD OVERWRITE imported_by ON TABLE atelier_prompt_feedback_case TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_prompt_feedback_case TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_prompt_feedback_case ON TABLE atelier_prompt_feedback_case FIELDS case_id UNIQUE;
+DEFINE INDEX OVERWRITE ux_atelier_prompt_feedback_case_source ON TABLE atelier_prompt_feedback_case FIELDS adapter_id, source_case_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_prompt_feedback_case_grouping ON TABLE atelier_prompt_feedback_case FIELDS segment, cell, render_stack, created_at_utc;
+DEFINE INDEX OVERWRITE idx_atelier_prompt_feedback_case_project ON TABLE atelier_prompt_feedback_case FIELDS project_id, created_at_utc;
+
+DEFINE TABLE OVERWRITE atelier_prompt_feedback_verdict SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE verdict_id ON TABLE atelier_prompt_feedback_verdict TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE case_id ON TABLE atelier_prompt_feedback_verdict TYPE record<atelier_prompt_feedback_case> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE reviewer_kind ON TABLE atelier_prompt_feedback_verdict TYPE 'operator' | 'model' | 'subagent' | 'validator' | 'script';
+DEFINE FIELD OVERWRITE reviewer_id ON TABLE atelier_prompt_feedback_verdict TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE verdict_kind ON TABLE atelier_prompt_feedback_verdict TYPE 'success' | 'watch' | 'failure' | 'reject' | 'diagnostic';
+DEFINE FIELD OVERWRITE failure_class ON TABLE atelier_prompt_feedback_verdict TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE failure_tags ON TABLE atelier_prompt_feedback_verdict TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE failure_tags.* ON TABLE atelier_prompt_feedback_verdict TYPE any;
+DEFINE FIELD OVERWRITE is_identity_judgement ON TABLE atelier_prompt_feedback_verdict TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE note ON TABLE atelier_prompt_feedback_verdict TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_prompt_feedback_verdict TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_prompt_feedback_verdict ON TABLE atelier_prompt_feedback_verdict FIELDS verdict_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_prompt_feedback_verdict_case ON TABLE atelier_prompt_feedback_verdict FIELDS case_id, created_at_utc;
+
+DEFINE TABLE OVERWRITE atelier_prompt_feedback_rule_pack SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE rule_pack_id ON TABLE atelier_prompt_feedback_rule_pack TYPE string ASSERT $value = record::id($this.id)[0] AND string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE version ON TABLE atelier_prompt_feedback_rule_pack TYPE int ASSERT $value = record::id($this.id)[1] AND $value >= 1;
+DEFINE FIELD OVERWRITE title ON TABLE atelier_prompt_feedback_rule_pack TYPE string;
+DEFINE FIELD OVERWRITE description ON TABLE atelier_prompt_feedback_rule_pack TYPE option<string>;
+DEFINE FIELD OVERWRITE rules ON TABLE atelier_prompt_feedback_rule_pack TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE rules.* ON TABLE atelier_prompt_feedback_rule_pack TYPE any;
+DEFINE FIELD OVERWRITE content_hash ON TABLE atelier_prompt_feedback_rule_pack TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE registered_by ON TABLE atelier_prompt_feedback_rule_pack TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_prompt_feedback_rule_pack TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_prompt_feedback_rule_pack ON TABLE atelier_prompt_feedback_rule_pack FIELDS rule_pack_id, version UNIQUE;
+
+DEFINE TABLE OVERWRITE atelier_prompt_feedback_rewrite SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE rewrite_id ON TABLE atelier_prompt_feedback_rewrite TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE case_id ON TABLE atelier_prompt_feedback_rewrite TYPE record<atelier_prompt_feedback_case> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE source_case_id ON TABLE atelier_prompt_feedback_rewrite TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE rule_pack_id ON TABLE atelier_prompt_feedback_rewrite TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE rule_pack_version ON TABLE atelier_prompt_feedback_rewrite TYPE int ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE rule_pack_ref ON TABLE atelier_prompt_feedback_rewrite TYPE record<atelier_prompt_feedback_rule_pack> ASSERT record::exists($value) AND $value = type::record('atelier_prompt_feedback_rule_pack', [$this.rule_pack_id, $this.rule_pack_version]) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE input_hash ON TABLE atelier_prompt_feedback_rewrite TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE output_hash ON TABLE atelier_prompt_feedback_rewrite TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE changed_fields ON TABLE atelier_prompt_feedback_rewrite TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE changed_fields.* ON TABLE atelier_prompt_feedback_rewrite TYPE any;
+DEFINE FIELD OVERWRITE rewritten_positive_prompt ON TABLE atelier_prompt_feedback_rewrite TYPE string;
+DEFINE FIELD OVERWRITE rewritten_negative_prompt ON TABLE atelier_prompt_feedback_rewrite TYPE string;
+DEFINE FIELD OVERWRITE outcome ON TABLE atelier_prompt_feedback_rewrite TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE outcome.* ON TABLE atelier_prompt_feedback_rewrite TYPE any;
+DEFINE FIELD OVERWRITE planned_by ON TABLE atelier_prompt_feedback_rewrite TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_prompt_feedback_rewrite TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_prompt_feedback_rewrite ON TABLE atelier_prompt_feedback_rewrite FIELDS rewrite_id UNIQUE;
+-- Deterministic idempotency: the same case + rule-pack version + input hash can
+-- only produce one persisted rewrite (byte-stable output).
+DEFINE INDEX OVERWRITE ux_atelier_prompt_feedback_rewrite_determinism ON TABLE atelier_prompt_feedback_rewrite FIELDS case_id, rule_pack_id, rule_pack_version, input_hash UNIQUE;
+
+DEFINE TABLE OVERWRITE atelier_prompt_feedback_export SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE export_id ON TABLE atelier_prompt_feedback_export TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE rule_pack_id ON TABLE atelier_prompt_feedback_export TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE rule_pack_version ON TABLE atelier_prompt_feedback_export TYPE int ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE rule_pack_ref ON TABLE atelier_prompt_feedback_export TYPE record<atelier_prompt_feedback_rule_pack> ASSERT record::exists($value) AND $value = type::record('atelier_prompt_feedback_rule_pack', [$this.rule_pack_id, $this.rule_pack_version]) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE artifact_ref ON TABLE atelier_prompt_feedback_export TYPE string ASSERT string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false;
+DEFINE FIELD OVERWRITE manifest_ref ON TABLE atelier_prompt_feedback_export TYPE option<string> ASSERT $value = NONE OR (string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE content_hash ON TABLE atelier_prompt_feedback_export TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE byte_len ON TABLE atelier_prompt_feedback_export TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE row_count ON TABLE atelier_prompt_feedback_export TYPE int ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE source_case_ids ON TABLE atelier_prompt_feedback_export TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE source_case_ids.* ON TABLE atelier_prompt_feedback_export TYPE any;
+DEFINE FIELD OVERWRITE rewrite_ids ON TABLE atelier_prompt_feedback_export TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE rewrite_ids.* ON TABLE atelier_prompt_feedback_export TYPE any;
+DEFINE FIELD OVERWRITE exported_by ON TABLE atelier_prompt_feedback_export TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_prompt_feedback_export TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_prompt_feedback_export ON TABLE atelier_prompt_feedback_export FIELDS export_id UNIQUE;
+DEFINE INDEX OVERWRITE ux_atelier_prompt_feedback_export_content ON TABLE atelier_prompt_feedback_export FIELDS rule_pack_id, rule_pack_version, content_hash UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_prompt_feedback_export_recent ON TABLE atelier_prompt_feedback_export FIELDS created_at_utc;
+
+-- CKC 0344_atelier_ckc_media_row_attribution (MT-036), receipt half: an album
+-- unlink preserves the prior membership row for no-context recovery. The
+-- attribution columns of the same migration live on atelier_collection and
+-- atelier_collection_item above.
+DEFINE TABLE OVERWRITE atelier_collection_item_unlink_receipt SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE unlink_receipt_id ON TABLE atelier_collection_item_unlink_receipt TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE collection_id ON TABLE atelier_collection_item_unlink_receipt TYPE record<atelier_collection> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_collection_item_unlink_receipt TYPE record<atelier_media_asset> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE prior_sort_order ON TABLE atelier_collection_item_unlink_receipt TYPE int;
+DEFINE FIELD OVERWRITE prior_source_path_ref ON TABLE atelier_collection_item_unlink_receipt TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE prior_source_url_ref ON TABLE atelier_collection_item_unlink_receipt TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+DEFINE FIELD OVERWRITE linked_by ON TABLE atelier_collection_item_unlink_receipt TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE member_updated_by ON TABLE atelier_collection_item_unlink_receipt TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE member_updated_at_utc ON TABLE atelier_collection_item_unlink_receipt TYPE datetime;
+DEFINE FIELD OVERWRITE unlinked_by ON TABLE atelier_collection_item_unlink_receipt TYPE string ASSERT string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE unlinked_at_utc ON TABLE atelier_collection_item_unlink_receipt TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_collection_item_unlink_receipt ON TABLE atelier_collection_item_unlink_receipt FIELDS unlink_receipt_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_unlink_receipt_collection ON TABLE atelier_collection_item_unlink_receipt FIELDS collection_id, unlinked_at_utc;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_unlink_receipt_unlinked_by ON TABLE atelier_collection_item_unlink_receipt FIELDS unlinked_by;
 
 UPSERT handshake_schema_state:primary SET
     version = $schema_version,

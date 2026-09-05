@@ -43,6 +43,10 @@ pub mod moodboard_event_family {
 pub struct NewMoodboardSnapshot {
     pub document_id: Uuid,
     pub raw_json_text: String,
+    /// WP-CKC MT-012 optimistic concurrency: when set, the snapshot is refused
+    /// with [`AtelierError::Conflict`] unless the moodboard document's current
+    /// version is exactly this id. `None` skips the check.
+    pub expected_document_version_id: Option<Uuid>,
     pub author: String,
 }
 
@@ -1298,6 +1302,14 @@ impl AtelierStore {
             "atelier_character_document.current_version_id",
             &document_version_link,
         )?;
+        if let Some(expected_document_version_id) = new.expected_document_version_id {
+            if document_version_id != expected_document_version_id {
+                return Err(AtelierError::Conflict(format!(
+                    "stale_moodboard_document_version: expected document version {:?}, current head {:?}",
+                    expected_document_version_id, document_version_id
+                )));
+            }
+        }
         #[derive(SurrealValue)]
         struct ExistingBinding {
             document_id: RecordId,

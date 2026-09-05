@@ -9,10 +9,23 @@ use std::collections::{HashMap, HashSet};
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
+use super::refs::{character_ref, sheet_version_ref};
 use super::{
     atelier_event_sql, event_family, reject_legacy_runtime_ref, AtelierError, AtelierResult,
     AtelierStore, BulkOperationReceipt, RecordEventBindings, RecordedLedgerRow,
 };
+
+/// Event families owned by the sheet module that the WP-CKC port adds on top of
+/// the MT-005 set in [`super::event_family`]. Listed here (pattern:
+/// `collections_event_family`) so `event_family::ALL` can be extended by the
+/// module owner without this file editing `mod.rs`.
+pub mod sheet_event_family {
+    /// A guarded sheet append was refused because the caller's expected head
+    /// was no longer the current head (WP-CKC MT-009).
+    pub const SHEET_VERSION_CONFLICT: &str = "atelier.sheet.version_conflict";
+
+    pub const ALL: &[&str] = &[SHEET_VERSION_CONFLICT];
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SheetVersion {
@@ -32,6 +45,20 @@ pub struct NewSheetVersion {
     pub raw_text: String,
     pub author: String,
     pub tool: Option<String>,
+}
+
+/// One remembered value for a CKC Field ID, aggregated over every sheet version
+/// that carried it (MT-009 field memory). `latest_*` point at the newest
+/// version that used the value.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SheetFieldSuggestion {
+    pub field_id: String,
+    pub value: String,
+    pub occurrences: i64,
+    pub latest_version_id: Uuid,
+    pub latest_character_internal_id: Uuid,
+    pub latest_sheet_version_ref: String,
+    pub latest_character_ref: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -938,7 +965,7 @@ struct FieldTypeInference {
     editable_roles: Vec<String>,
 }
 
-fn sha256_hex(text: &str) -> String {
+pub(crate) fn sha256_hex(text: &str) -> String {
     format!("{:x}", Sha256::digest(text.as_bytes()))
 }
 
@@ -1069,6 +1096,90 @@ fn split_field_line(line: &str) -> Option<(String, String, String)> {
     } else {
         None
     }
+}
+
+/// The upper-cased Field ID of one CKC sheet line, if the line is a field line.
+pub(crate) fn sheet_field_id_from_line(line: &str) -> Option<String> {
+    split_field_line(line.trim()).map(|(field_id, _, _)| field_id.to_ascii_uppercase())
+}
+
+/// True when a line has the `ID — Label:` shape even if the label is empty, so
+/// a safe-subset export can drop a malformed field line instead of leaking it.
+pub(crate) fn sheet_line_looks_like_field(line: &str) -> bool {
+    let Some(colon) = line.find(':') else {
+        return false;
+    };
+    let before_colon = line[..colon].trim();
+    let Some(id_end) = field_id_end(before_colon) else {
+        return false;
+    };
+    before_colon[id_end..]
+        .chars()
+        .any(|ch| matches!(ch, '\u{2014}' | '\u{2013}' | '-'))
+}
+
+/// The first normalised value written for `target_field_id` in a raw sheet.
+pub(crate) fn sheet_field_value(raw_text: &str, target_field_id: &str) -> Option<String> {
+    for line in raw_text.lines().map(str::trim) {
+        let Some((field_id, _, value)) = split_field_line(line) else {
+            continue;
+        };
+        if field_id.eq_ignore_ascii_case(target_field_id) {
+            return normalize_field_suggestion_value(&value);
+        }
+    }
+    None
+}
+
+/// Every normalised value written for `target_field_id` in a raw sheet, in
+/// line order (duplicates kept so ownership checks can count them).
+pub(crate) fn sheet_field_values(raw_text: &str, target_field_id: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    for line in raw_text.lines().map(str::trim) {
+        let Some((field_id, _, value)) = split_field_line(line) else {
+            continue;
+        };
+        if !field_id.eq_ignore_ascii_case(target_field_id) {
+            continue;
+        }
+        if let Some(value) = normalize_field_suggestion_value(&value) {
+            values.push(value);
+        }
+    }
+    values
+}
+
+/// Distinct `(FIELD_ID, value)` pairs of one raw sheet, in first-seen order:
+/// the rows the field-value projection stores for a new sheet version.
+fn sheet_field_values_for_projection(raw_text: &str) -> Vec<(String, String)> {
+    let mut seen = HashSet::new();
+    let mut values = Vec::new();
+    for line in raw_text.lines().map(str::trim) {
+        let Some((field_id, _, value)) = split_field_line(line) else {
+            continue;
+        };
+        let Some(value) = normalize_field_suggestion_value(&value) else {
+            continue;
+        };
+        let field_id = field_id.to_ascii_uppercase();
+        if seen.insert((field_id.clone(), value.clone())) {
+            values.push((field_id, value));
+        }
+    }
+    values
+}
+
+/// Suggestion values are trimmed, bounded, and never a template placeholder
+/// such as `<string>`.
+fn normalize_field_suggestion_value(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.is_empty() || value.len() > 500 {
+        return None;
+    }
+    if value.starts_with('<') && value.ends_with('>') {
+        return None;
+    }
+    Some(value.to_owned())
 }
 
 fn validate_template_descriptor(
@@ -1562,7 +1673,7 @@ fn parse_field_type(descriptor: &str) -> FieldTypeInference {
     }
 }
 
-fn parse_sheet_template_ast(
+pub(crate) fn parse_sheet_template_ast(
     raw_text: &str,
     template_id: &str,
     source_path: Option<&str>,
@@ -1725,6 +1836,35 @@ struct SheetVersionBinding {
     version_id: SurrealUuid,
 }
 
+/// One `atelier_sheet_field_value_projection` row written alongside a new
+/// sheet version (WP-CKC MT-009). The version and character links are taken
+/// from the enclosing append bindings, so a row cannot point at another sheet.
+#[derive(Clone, SurrealValue)]
+struct SheetFieldProjectionRow {
+    record: RecordId,
+    projection_id: SurrealUuid,
+    field_id: String,
+    value: String,
+}
+
+fn sheet_field_projection_rows(raw_text: &str) -> Vec<SheetFieldProjectionRow> {
+    sheet_field_values_for_projection(raw_text)
+        .into_iter()
+        .map(|(field_id, value)| {
+            let projection_id = Uuid::now_v7();
+            SheetFieldProjectionRow {
+                record: RecordId::new(
+                    "atelier_sheet_field_value_projection",
+                    SurrealUuid::from(projection_id),
+                ),
+                projection_id: projection_id.into(),
+                field_id,
+                value,
+            }
+        })
+        .collect()
+}
+
 #[derive(Clone, SurrealValue)]
 struct SheetAppendBindings {
     character: RecordId,
@@ -1735,6 +1875,21 @@ struct SheetAppendBindings {
     raw_text: String,
     author: String,
     tool: Option<String>,
+    projection_rows: Vec<SheetFieldProjectionRow>,
+}
+
+#[derive(SurrealValue)]
+struct FieldIdBindings {
+    field_id: String,
+}
+
+/// One `atelier_sheet_field_value_projection` row as the suggestion read
+/// returns it (record links already reduced to their uuid keys).
+#[derive(SurrealValue)]
+struct SheetFieldProjectionReadRow {
+    value: String,
+    character_internal_id: SurrealUuid,
+    sheet_version_id: SurrealUuid,
 }
 
 #[derive(Clone, SurrealValue)]
@@ -1773,6 +1928,7 @@ struct BulkSheetAppendRow {
     raw_text: String,
     author: String,
     tool: Option<String>,
+    projection_rows: Vec<SheetFieldProjectionRow>,
 }
 
 #[derive(Clone, SurrealValue)]
@@ -1816,11 +1972,27 @@ struct BulkSheetCommitRow {
     ledgers: Vec<BulkSheetLedgerRow>,
 }
 
+/// The `THROW` token the append statement raises when the caller's expected
+/// head is no longer the current head. Matched on the error text by the
+/// guarded append path and mapped to [`AtelierError::Conflict`].
+const SHEET_STALE_HEAD_THROW: &str = "HSK-SHEET-STALE-HEAD";
+
+/// Append one sheet version, its field-value projection rows, and its event in
+/// one statement. The projection rows (`FOR $row IN $domain.projection_rows`)
+/// are the CKC field-memory table; PostgreSQL filled it with an
+/// `ON CONFLICT DO NOTHING` insert per value inside the same transaction, and
+/// the rows are already distinct per version here, so no conflict can arise.
 const APPEND_SHEET_STATEMENT: &str = concat!(
-    "RETURN { LET $head = (SELECT id, seq FROM atelier_sheet_version WHERE character_internal_id = $domain.character ORDER BY seq DESC LIMIT 1)[0]; LET $head_id = IF $head = NONE { NONE } ELSE { $head.id }; IF $domain.enforce_head AND $head_id != $domain.expected_head { THROW 'HSK-SHEET-STALE-HEAD'; }; LET $next_seq = IF $head = NONE { 1 } ELSE { $head.seq + 1 }; CREATE $domain.version_record CONTENT { version_id: $domain.version_id, character_internal_id: $domain.character, parent_version_id: $head_id, seq: $next_seq, raw_text: $domain.raw_text, author: $domain.author, tool: $domain.tool } RETURN NONE; ",
+    "RETURN { LET $head = (SELECT id, seq FROM atelier_sheet_version WHERE character_internal_id = $domain.character ORDER BY seq DESC LIMIT 1)[0]; LET $head_id = IF $head = NONE { NONE } ELSE { $head.id }; IF $domain.enforce_head AND $head_id != $domain.expected_head { THROW 'HSK-SHEET-STALE-HEAD'; }; LET $next_seq = IF $head = NONE { 1 } ELSE { $head.seq + 1 }; CREATE $domain.version_record CONTENT { version_id: $domain.version_id, character_internal_id: $domain.character, parent_version_id: $head_id, seq: $next_seq, raw_text: $domain.raw_text, author: $domain.author, tool: $domain.tool } RETURN NONE; FOR $row IN $domain.projection_rows { CREATE $row.record CONTENT { projection_id: $row.projection_id, field_id: $row.field_id, value: $row.value, character_internal_id: $domain.character, sheet_version_id: $domain.version_record } RETURN NONE; }; ",
     atelier_event_sql!(),
     " RETURN (SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM $domain.version_record)[0]; };"
 );
+
+const SELECT_SHEET_VERSION_BY_ID: &str = "SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id = $version_id LIMIT 1;";
+
+/// Newest-first projection rows for one Field ID. `sheet_version_id` keys are
+/// UUID v7, so the secondary sort is time-ordered within one instant.
+const SELECT_FIELD_PROJECTION_BY_FIELD: &str = "SELECT value, record::id(character_internal_id) AS character_internal_id, record::id(sheet_version_id) AS sheet_version_id FROM atelier_sheet_field_value_projection WHERE field_id = $field_id ORDER BY created_at_utc DESC, sheet_version_id DESC;";
 
 const WRITE_PARSE_SNAPSHOT_STATEMENT: &str = concat!(
     "RETURN { LET $row = (UPSERT $domain.record CONTENT { parse_id: $domain.parse_id, version_id: $domain.version, template_id: $domain.template_id, source_path: $domain.source_path, template_version: $domain.template_version, template_hash: $domain.template_hash, ast: $domain.ast, unmapped_lines: $domain.unmapped_lines } RETURN AFTER)[0]; ",
@@ -1828,7 +2000,7 @@ const WRITE_PARSE_SNAPSHOT_STATEMENT: &str = concat!(
     " RETURN $row; };"
 );
 
-const BULK_APPEND_SHEETS_STATEMENT: &str = "BEGIN TRANSACTION; RETURN { FOR $item IN $rows { LET $head = (SELECT VALUE id FROM atelier_sheet_version WHERE character_internal_id = $item.character ORDER BY seq DESC LIMIT 1)[0]; IF $head != $item.expected_head { THROW 'HSK-SHEET-BULK-STALE-HEAD'; }; }; FOR $item IN $rows { CREATE $item.version_record CONTENT { version_id: $item.version_id, character_internal_id: $item.character, parent_version_id: $item.expected_head, seq: $item.seq, raw_text: $item.raw_text, author: $item.author, tool: $item.tool } RETURN NONE; }; FOR $event IN $events { LET $existing = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; IF $existing IS NONE { CREATE $event.ledger_id CONTENT { event_id: $event.kernel_event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.kernel_aggregate_type, aggregate_id: $event.kernel_aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.ledger_payload, created_at: $event.created_at } RETURN NONE; }; LET $ledger = (SELECT event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; CREATE $event.atelier_id CONTENT { event_id: $event.atelier_event_uuid, event_family: $event.event_family, aggregate_type: $event.kernel_aggregate_type, aggregate_id: $event.kernel_aggregate_id, kernel_event_id: $ledger.event_id, kernel_event_sequence: $ledger.event_sequence, payload: $event.atelier_payload } RETURN NONE; }; CREATE $receipt_record CONTENT { receipt_id: $receipt_id, operation: $operation, requested_by: $requested_by, target_count: $target_count, mutation_count: $mutation_count, status: 'applied', payload: $receipt_payload } RETURN NONE; RETURN { versions: (SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id IN $version_ids), receipt: (SELECT receipt_id, operation, requested_by, target_count, mutation_count, status, payload, created_at_utc FROM $receipt_record)[0], ledgers: (SELECT idempotency_key, event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key IN $event_idempotency_keys) }; }; COMMIT TRANSACTION;";
+const BULK_APPEND_SHEETS_STATEMENT: &str = "BEGIN TRANSACTION; RETURN { FOR $item IN $rows { LET $head = (SELECT VALUE id FROM atelier_sheet_version WHERE character_internal_id = $item.character ORDER BY seq DESC LIMIT 1)[0]; IF $head != $item.expected_head { THROW 'HSK-SHEET-BULK-STALE-HEAD'; }; }; FOR $item IN $rows { CREATE $item.version_record CONTENT { version_id: $item.version_id, character_internal_id: $item.character, parent_version_id: $item.expected_head, seq: $item.seq, raw_text: $item.raw_text, author: $item.author, tool: $item.tool } RETURN NONE; FOR $row IN $item.projection_rows { CREATE $row.record CONTENT { projection_id: $row.projection_id, field_id: $row.field_id, value: $row.value, character_internal_id: $item.character, sheet_version_id: $item.version_record } RETURN NONE; }; }; FOR $event IN $events { LET $existing = (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; IF $existing IS NONE { CREATE $event.ledger_id CONTENT { event_id: $event.kernel_event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.kernel_aggregate_type, aggregate_id: $event.kernel_aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.ledger_payload, created_at: $event.created_at } RETURN NONE; }; LET $ledger = (SELECT event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0]; CREATE $event.atelier_id CONTENT { event_id: $event.atelier_event_uuid, event_family: $event.event_family, aggregate_type: $event.kernel_aggregate_type, aggregate_id: $event.kernel_aggregate_id, kernel_event_id: $ledger.event_id, kernel_event_sequence: $ledger.event_sequence, payload: $event.atelier_payload } RETURN NONE; }; CREATE $receipt_record CONTENT { receipt_id: $receipt_id, operation: $operation, requested_by: $requested_by, target_count: $target_count, mutation_count: $mutation_count, status: 'applied', payload: $receipt_payload } RETURN NONE; RETURN { versions: (SELECT version_id, record::id(character_internal_id) AS character_internal_id, record::id(parent_version_id) AS parent_version_id, seq, raw_text, author, tool, created_at_utc FROM atelier_sheet_version WHERE version_id IN $version_ids), receipt: (SELECT receipt_id, operation, requested_by, target_count, mutation_count, status, payload, created_at_utc FROM $receipt_record)[0], ledgers: (SELECT idempotency_key, event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key IN $event_idempotency_keys) }; }; COMMIT TRANSACTION;";
 
 impl AtelierStore {
     async fn record_sheet_field_edit_rejection(
@@ -1887,11 +2059,77 @@ impl AtelierStore {
         .await
     }
 
+    /// Durable record of a refused guarded append (WP-CKC MT-009), keyed on
+    /// `<character_ref>:conflict` so a no-context reader can find every stale
+    /// write against one character.
+    async fn record_sheet_version_conflict(
+        &self,
+        new: &NewSheetVersion,
+        expected_parent_version_id: Option<Uuid>,
+        current_parent_version_id: Option<Uuid>,
+    ) -> AtelierResult<()> {
+        self.record_event(
+            sheet_event_family::SHEET_VERSION_CONFLICT,
+            "atelier_sheet_version",
+            &format!("{}:conflict", character_ref(new.character_internal_id)),
+            serde_json::json!({
+                "reason_code": "stale_sheet_version",
+                "character_internal_id": new.character_internal_id,
+                "character_ref": character_ref(new.character_internal_id),
+                "expected_parent_version_id": expected_parent_version_id,
+                "expected_parent_sheet_version_ref": expected_parent_version_id
+                    .map(|id| sheet_version_ref(new.character_internal_id, id)),
+                "expected_sheet_version_ref": expected_parent_version_id
+                    .map(|id| sheet_version_ref(new.character_internal_id, id)),
+                "current_head_version_id": current_parent_version_id,
+                "current_head_sheet_version_ref": current_parent_version_id
+                    .map(|id| sheet_version_ref(new.character_internal_id, id)),
+                "current_parent_version_id": current_parent_version_id,
+                "current_sheet_version_ref": current_parent_version_id
+                    .map(|id| sheet_version_ref(new.character_internal_id, id)),
+                "author": &new.author,
+                "tool": &new.tool,
+            }),
+        )
+        .await
+    }
+
     /// Append a new sheet version. Computes the next sequence number and links
     /// to the previous head as parent; never overwrites an existing version.
     pub async fn append_sheet_version(&self, new: &NewSheetVersion) -> AtelierResult<SheetVersion> {
+        self.append_sheet_version_with_guard(new, None).await
+    }
+
+    /// Append a new sheet version only if the caller's selected base version is
+    /// still the current head. `expected_parent_version_id = None` means the
+    /// caller expects this to be the first sheet version for the character.
+    /// A stale expectation records a `SHEET_VERSION_CONFLICT` event and returns
+    /// [`AtelierError::Conflict`]; nothing is appended.
+    pub async fn append_sheet_version_if_current(
+        &self,
+        new: &NewSheetVersion,
+        expected_parent_version_id: Option<Uuid>,
+    ) -> AtelierResult<SheetVersion> {
+        self.append_sheet_version_with_guard(new, Some(expected_parent_version_id))
+            .await
+    }
+
+    /// The optimistic-concurrency check runs INSIDE the append statement
+    /// (`IF $domain.enforce_head AND $head_id != $domain.expected_head THROW`),
+    /// so the head cannot move between the check and the CREATE. PostgreSQL got
+    /// the same guarantee from an advisory lock on the character; here it is the
+    /// single-statement transaction.
+    async fn append_sheet_version_with_guard(
+        &self,
+        new: &NewSheetVersion,
+        expected_parent_version_id: Option<Option<Uuid>>,
+    ) -> AtelierResult<SheetVersion> {
         let version_id = Uuid::now_v7();
-        let row: Option<SheetVersionRow> = self
+        let enforce_head = expected_parent_version_id.is_some();
+        let expected_head = expected_parent_version_id.flatten().map(|parent| {
+            RecordId::new("atelier_sheet_version", SurrealUuid::from(parent))
+        });
+        let written = self
             .write_with_event(
                 APPEND_SHEET_STATEMENT,
                 SheetAppendBindings {
@@ -1904,11 +2142,12 @@ impl AtelierStore {
                         SurrealUuid::from(version_id),
                     ),
                     version_id: version_id.into(),
-                    expected_head: None,
-                    enforce_head: false,
+                    expected_head,
+                    enforce_head,
                     raw_text: new.raw_text.clone(),
                     author: new.author.clone(),
                     tool: new.tool.clone(),
+                    projection_rows: sheet_field_projection_rows(&new.raw_text),
                 },
                 event_family::SHEET_VERSION_APPENDED,
                 "atelier_sheet_version",
@@ -1917,10 +2156,105 @@ impl AtelierStore {
                     "version_id": version_id,
                 }),
             )
-            .await?;
+            .await;
+        let row: Option<SheetVersionRow> = match written {
+            Ok(row) => row,
+            Err(error) if error.to_string().contains(SHEET_STALE_HEAD_THROW) => {
+                let expected = expected_parent_version_id.flatten();
+                let current = self
+                    .latest_sheet_version(new.character_internal_id)
+                    .await?
+                    .map(|version| version.version_id);
+                self.record_sheet_version_conflict(new, expected, current)
+                    .await?;
+                return Err(AtelierError::Conflict(format!(
+                    "stale_sheet_version: expected parent {expected:?}, current head {current:?}"
+                )));
+            }
+            Err(error) => return Err(error),
+        };
         row.map(version_from_row).ok_or_else(|| {
             AtelierError::Internal("sheet version append returned no row".to_owned())
         })
+    }
+
+    /// Fetch one sheet version by id.
+    pub async fn get_sheet_version(&self, version_id: Uuid) -> AtelierResult<SheetVersion> {
+        let row: Option<SheetVersionRow> = self
+            .with_data(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                        SELECT_SHEET_VERSION_BY_ID,
+                        SheetVersionBinding {
+                            version_id: version_id.into(),
+                        },
+                    )
+                    .await
+                })
+            })
+            .await?;
+        row.map(version_from_row).ok_or_else(|| {
+            AtelierError::NotFound(format!("sheet version version_id={version_id}"))
+        })
+    }
+
+    /// Recent distinct values for one parsed Field ID. This mirrors original
+    /// CKC field memory: suggestions are exact-field scoped, never auto-filled,
+    /// and ignore template placeholder descriptors such as `<string>`.
+    ///
+    /// Reads `atelier_sheet_field_value_projection`, the rows the append path
+    /// writes in the same statement as each version, newest version first; the
+    /// first row for a value names the latest version that used it and every
+    /// later row adds to `occurrences`.
+    pub async fn sheet_field_suggestions(
+        &self,
+        field_id: &str,
+        limit: i64,
+    ) -> AtelierResult<Vec<SheetFieldSuggestion>> {
+        let field_id = field_id.trim();
+        if field_id.is_empty() {
+            return Err(AtelierError::Validation(
+                "field_id must not be empty".to_string(),
+            ));
+        }
+        let field_id = field_id.to_ascii_uppercase();
+        let limit = limit.clamp(1, 50);
+        let rows: Vec<SheetFieldProjectionReadRow> = self
+            .with_data({
+                let field_id = field_id.clone();
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_values(
+                            SELECT_FIELD_PROJECTION_BY_FIELD,
+                            FieldIdBindings { field_id },
+                        )
+                        .await
+                    })
+                }
+            })
+            .await?;
+        let mut suggestions = Vec::<SheetFieldSuggestion>::new();
+        let mut value_index = HashMap::<String, usize>::new();
+        for row in rows {
+            if let Some(index) = value_index.get(&row.value).copied() {
+                suggestions[index].occurrences += 1;
+                continue;
+            }
+            let version_id: Uuid = row.sheet_version_id.into();
+            let character_internal_id: Uuid = row.character_internal_id.into();
+            value_index.insert(row.value.clone(), suggestions.len());
+            suggestions.push(SheetFieldSuggestion {
+                field_id: field_id.clone(),
+                value: row.value,
+                occurrences: 1,
+                latest_version_id: version_id,
+                latest_character_internal_id: character_internal_id,
+                latest_sheet_version_ref: sheet_version_ref(character_internal_id, version_id),
+                latest_character_ref: character_ref(character_internal_id),
+            });
+        }
+        suggestions.truncate(limit as usize);
+        Ok(suggestions)
     }
 
     /// The current (highest-seq) sheet version for a character, if any.
@@ -2150,6 +2484,7 @@ impl AtelierStore {
                         SurrealUuid::from(source.version_id),
                     )),
                     enforce_head: true,
+                    projection_rows: sheet_field_projection_rows(&updated_raw_text),
                     raw_text: updated_raw_text,
                     author: request.author.clone(),
                     tool: request.tool.clone(),
@@ -2316,6 +2651,7 @@ impl AtelierStore {
                 raw_text: plan.updated_raw_text.clone(),
                 author: plan.request.author.clone(),
                 tool: plan.request.tool.clone(),
+                projection_rows: sheet_field_projection_rows(&plan.updated_raw_text),
             })
             .collect::<Vec<_>>();
         let receipt_id = Uuid::now_v7();
@@ -2540,6 +2876,7 @@ impl AtelierStore {
                         SurrealUuid::from(previous_head_version_id),
                     )),
                     enforce_head: true,
+                    projection_rows: sheet_field_projection_rows(&reverted_raw_text),
                     raw_text: reverted_raw_text,
                     author: request.author.clone(),
                     tool: request.tool.clone(),

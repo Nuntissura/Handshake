@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
+use super::source_evidence::{normalize_optional_ckc_source_ref, CkcSourceRefKind};
 use super::{
     atelier_event_sql, event_family, reject_legacy_runtime_ref, AtelierError, AtelierResult,
     AtelierStore, BulkOperationReceipt,
@@ -910,8 +911,16 @@ fn validate_media_source_provenance_refs(
     update: &SetMediaSourceProvenanceRefs,
 ) -> AtelierResult<[Option<String>; 6]> {
     let refs = [
-        normalize_optional_provenance_ref("source_url_ref", &update.source_url_ref)?,
-        normalize_optional_provenance_ref("source_path_ref", &update.source_path_ref)?,
+        normalize_optional_ckc_source_ref(
+            CkcSourceRefKind::SourceUrl,
+            "source_url_ref",
+            &update.source_url_ref,
+        )?,
+        normalize_optional_ckc_source_ref(
+            CkcSourceRefKind::Folder,
+            "source_path_ref",
+            &update.source_path_ref,
+        )?,
         normalize_optional_provenance_ref("source_note_ref", &update.source_note_ref)?,
         normalize_optional_provenance_ref("contact_sheet_ref", &update.contact_sheet_ref)?,
         normalize_optional_provenance_ref("task_ref", &update.task_ref)?,
