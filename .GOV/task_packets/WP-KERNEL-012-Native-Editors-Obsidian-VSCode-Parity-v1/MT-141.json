@@ -65,7 +65,7 @@
       "claimed_at": "2026-09-01T16:46:22.087Z",
       "reason": "Stale claim released so the microtask can be staffed. It was claimed 2026-09-01 and has carried no implementation_result since, and that session has been inactive for the whole of this remediation run. Nothing is lost: its only product artefact is the recovery checkpoint committed at 7f279596, which stays on the branch and is referenced here.",
       "not_a_judgement_on_the_work": "This says nothing about the quality of what that session did. It is a liveness action only, so an unresponsive claim stops blocking the work packet from reaching a ready state.",
-      "blocked_until_mt_148": "MT-141 could not have progressed anyway. Its allowed path is src/backend/handshake_core/tests/, and that entire tree fails to compile because tempfile resolves to 3.27.0 where TempDir::from_path no longer exists. MT-148 is repairing exactly that and is in flight. Do not staff MT-141 until MT-148 lands, or the first thing the new session hits is a compile error it is not scoped to fix.",
+      "blocked_until_mt_148": "CORRECTED 2026-09-05T21:27:33.229Z: the compile blocker is ALREADY REPAIRED in the branch. MT-148 committed the tempfile fix at product 6d5d705f - tests/atelier_surreal_support/mod.rs now uses an OwnedTempRoot adopting directory.keep() instead of the removed TempDir::from_path. Verified in the working tree. What remains open on MT-148 is only its PROOF (PT-148-2 and PT-148-3), not the repair. So MT-141 is staffable now and does not have to wait: an earlier note here said it did, and that was true when written and is no longer.",
       "staffing_note": "Its declared depends_on (MT-136, MT-137, MT-138) are satisfied. The real remaining predecessor is MT-148, which is recorded here rather than added to depends_on because MT-148 postdates this contract and the dependency is environmental rather than contractual."
     }
   },
@@ -145,5 +145,5 @@
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "coder_session": "KERNEL_BUILDER-20260901-MT141-ORCH"
   },
-  "updated_at_utc": "2026-09-05T21:12:27.567Z"
+  "updated_at_utc": "2026-09-05T21:27:33.229Z"
 }
