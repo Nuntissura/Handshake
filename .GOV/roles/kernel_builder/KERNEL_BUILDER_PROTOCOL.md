@@ -312,6 +312,30 @@ single careless edit to a shared module can cost hours multiplied by the number 
 - Prefer a shared warm target dir seeded once (copy the dependency cache into each lane's scoped
   dir before the lanes start) over letting N lanes each build dependencies from cold.
 
+### Host Resource Scheduling Under Parallel Lanes [KB-CARGO-IO-001] (HARD)
+
+Parallel lanes compete for the host's disks long before they compete for its CPU. Embedded-store
+integration tests are almost pure I/O: each one bootstraps its own RocksDB store, and N of them
+running at once do not finish N times faster, they queue. Measured on this host with six lanes
+live: both physical disks at 0% idle with average queue lengths above 16, CPU at 57% across 32
+logical cores, and one rustc that had accumulated 64 seconds of CPU across 35 minutes of wall
+clock — roughly 3% utilisation. Adding a seventh lane at that point subtracts throughput.
+
+- Cap each lane at ONE cargo process OR ONE test binary at a time, never both. A lane running four
+  test binaries is not four times faster; it is slowing every other lane including itself.
+- Measure before concluding a lane is stalled or slow. `Avg. Disk Queue Length` and `% Idle Time`
+  per physical disk, plus a process's accumulated CPU time against its wall-clock age, distinguish
+  "queued behind I/O" from "wedged" and from "thinking". Log silence distinguishes none of them.
+- Point every test runner's `TMP` and `TEMP` at the artifact root before launching a test binary.
+  `tempfile::tempdir()` otherwise lands every isolated store on the system drive, which is usually
+  the busiest and the least appropriate spindle for throwaway database files.
+- When the host saturates, pause the lane whose work is furthest from the blocking deliverable
+  rather than letting everything grind. A cold `cargo check` of a full dependency tree is the
+  largest single disk consumer available; cargo caches finished units, so pausing one costs only
+  the in-flight compilation units and resumes where it stopped.
+- Tell a lane when you pause or restart its build, and why. An unexplained stop reads as a crash and
+  the lane will helpfully start it again.
+
 Use existing command surfaces where they fit the current packet instead of inventing new public helpers:
 
 - `just mt-populate <WP_ID>`
