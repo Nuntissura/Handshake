@@ -14,7 +14,7 @@
   "title": "Studio <-> CKC binding proposal: canonical blob tier, read-path contract, crash-consistency rule, size/eviction, viewport and widget ids; spec amendment recommendations for 14-studio-creative-suite STU-ASSET-004/005/007/008/012-014/025",
   "status": "CLAIMED",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-05T17:00:28.783Z",
+  "updated_at_utc": "2026-09-06T00:28:00.597Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -115,7 +115,9 @@
       "STU-ASSET-005: artifact_manifest_id is the ArtifactStore manifest ref; resolved_content_hash is bare lowercase sha256 hex (the x-hsk-content-sha256 header).",
       "STU-ASSET-007: state that `unauthorized` is producible only once WP-KERNEL-006/007 ship ResourceBroker; until then resolution is attributed, not authorized, and MUST NOT be reported as `missing`.",
       "STU-ASSET-008: bulk binary MUST ingest through the streaming route with the ceiling; base64/JSON ingest is forbidden for Studio assets.",
-      "STU-ASSET-012..014: export-back = POST /atelier/media-assets (streamed) + catalog row + derivation edge; the edge record does not exist yet in CKC (no atelier derivation table) and MUST be added before export-back is claimed."
+      "STU-ASSET-012..014: export-back = POST /atelier/media-assets (streamed) + catalog row + derivation edge; the edge record does not exist yet in CKC (no atelier derivation table) and MUST be added before export-back is claimed.",
+      "STU-ASSET-004 evidence: the port introduced NO third blob tier. Every filesystem write under src/atelier and the atelier API was checked; the two live writers are in validator_first_pass.rs and both exist at base 1d47363f, and the remaining three are inside #[cfg(test)] fixture modules. api/loom.rs now points bulk-binary callers at POST /atelier/media-assets and states it is not a bulk-binary path.",
+      "STU-ASSET-008/009: a SECOND verified byte route exists and is stricter, not weaker. GET /atelier/posekit/openpose-png/bytes?artifact_ref= resolves the manifest, requires a Posekit-generated L1 image/png, requires a rendered atelier_pose_sidecar row bound to the same ref, and requires that row to agree with the manifest on hash (via the canonical sha256_refs_match), size and MIME before reading; it then goes through the same read_file_artifact_with_manifest, so the payload is re-hashed exactly as on the media route. Sidecar missing = 404, sidecar-vs-manifest drift = 500. Studio inherits the same guarantee on Posekit exports."
     ],
     "declared_debt": [
       "Orphan L1 payload reclamation has no owner: retention GC is L3+TTL only, filesystem_health is report-only. Needs either an L1 sweeper that is link-aware or a write-ahead intent record so an interrupted ingest is resumable/rollback-able.",
