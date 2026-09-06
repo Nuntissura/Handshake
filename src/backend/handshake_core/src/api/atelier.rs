@@ -48,7 +48,7 @@ use crate::AppState;
 /// Env override (bytes) for the streaming media ingest ceiling; default 4 GiB. The ceiling is
 /// enforced while the body streams, so an over-limit upload never reaches disk in full and never
 /// reaches memory at all.
-pub(crate) const HSK_MEDIA_INGEST_MAX_BYTES_ENV: &str = "HANDSHAKE_MEDIA_INGEST_MAX_BYTES";
+const HSK_MEDIA_INGEST_MAX_BYTES_ENV: &str = "HANDSHAKE_MEDIA_INGEST_MAX_BYTES";
 const DEFAULT_MEDIA_INGEST_MAX_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 /// Optional request header naming where the bytes came from (a path, URL, capture source); falls
 /// back to `http-ingest:<actor>` so the catalog row always carries provenance.

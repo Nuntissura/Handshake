@@ -1227,7 +1227,7 @@ pub(crate) fn parse_native_artifact_payload_ref(artifact_ref: &str) -> AtelierRe
     Ok((layer, artifact_id))
 }
 
-pub(crate) fn is_native_artifact_payload_ref(artifact_ref: &str) -> bool {
+fn is_native_artifact_payload_ref(artifact_ref: &str) -> bool {
     parse_native_artifact_payload_ref(artifact_ref).is_ok()
         && !artifact_ref.to_ascii_lowercase().contains(".gov")
 }
