@@ -506,7 +506,7 @@ async fn event_crdt_and_kernel_queue_methods_are_atomic_and_durable() -> Storage
         database
             .append_kernel_events_atomic(vec![rolled_back, conflicting])
             .await,
-        Err(StorageError::Conflict(_))
+        Err(StorageError::Conflict(_) | StorageError::ConflictDetails { .. })
     ));
     assert!(!database
         .list_kernel_events_for_session(session)
