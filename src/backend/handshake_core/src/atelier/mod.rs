@@ -3,9 +3,9 @@
 //! Storage authority is Handshake's single embedded SurrealDB store (RocksDB
 //! engine, in-process, namespace `handshake`, database `primary`) plus the
 //! EventLedger + ArtifactStore + CRDT. SQLite and PostgreSQL are FORBIDDEN in
-//! any form (runtime, tests, fixtures, cache, fallback); see
-//! [`assert_embedded_store_backend`] (MT-004, MT-138) and the kernel
-//! `no_sqlite_tripwire`.
+//! any form (runtime, tests, fixtures, cache, fallback). Store constructors take
+//! concrete [`SurrealStorage`], whose open path selects the embedded RocksDB engine;
+//! Atelier has no connection-string or alternate-backend selector.
 //!
 //! SURREALDB PORT (WP-KERNEL-012 MT-138). This file owns the domain SEAM — the
 //! store handle, the schema-readiness gate, and the event-recording path that
@@ -16,13 +16,10 @@
 //! Two shape changes travel with the port and are worth stating once, here,
 //! rather than re-deriving them in thirty-four files:
 //!
-//! * There is no borrowed transaction handle. PostgreSQL let a caller open
-//!   `pool.begin()` and pass `&mut Transaction` down; the embedded store
-//!   exposes a scoped context instead ([`SurrealStorage::with_data_operation`]),
-//!   and statements that must be atomic are written as one
-//!   `BEGIN TRANSACTION; ...; COMMIT TRANSACTION;` string. So
-//!   `record_event_in_tx(&mut tx, ..)` became
-//!   [`AtelierStore::record_event_in_ctx`], which takes the scoped context.
+//! * There is no borrowed transaction handle. Domain mutations use
+//!   [`AtelierStore::write_with_event`] and the canonical event SQL fragment in
+//!   one statement, or bind prepared events into one explicit transaction.
+//!   The domain rows and their ledger/projection events commit together.
 //! * Schema is not replayed at runtime. `ensure_schema` used to execute ~150
 //!   migration files under an advisory lock; the canonical SurrealDB schema is
 //!   applied when the store opens, so the method is now a READINESS GATE that
@@ -360,18 +357,10 @@ pub mod event_family {
     ];
 }
 
-/// Runtime rejection of forbidden legacy source storage assumptions
-/// (MT-004, widened by MT-138).
-///
-/// Handshake has exactly one database and it is embedded: the SurrealDB store
-/// the backend opens in-process. There is no connection string to point
-/// somewhere else, so the only thing a caller can still get wrong is to hand
-/// atelier a legacy DSN inherited from configuration, a script, or an old
-/// environment. Both legacy families are rejected by name rather than lumped
-/// into one message, because the two mistakes have different fixes: a SQLite
-/// path means someone reintroduced an embedded relational file, while a
-/// PostgreSQL DSN means someone is still pointing at the removed server.
-pub fn assert_embedded_store_backend(reference: &str) -> AtelierResult<()> {
+/// Historical legacy-string rejection corpus for the removed connection-string boundary.
+/// Production constructors accept concrete embedded `SurrealStorage` instead.
+#[cfg(test)]
+fn assert_embedded_store_backend(reference: &str) -> AtelierResult<()> {
     let normalized = reference.trim().to_ascii_lowercase();
     if normalized.starts_with("sqlite:")
         || normalized.ends_with(".sqlite")
@@ -1093,9 +1082,9 @@ impl AtelierStore {
 
     /// Append an atelier domain event to the event ledger (MT-005).
     ///
-    /// Opens its own scoped store operation. A caller that is already inside
-    /// one calls [`Self::record_event_in_ctx`] instead, so the event lands in
-    /// the same statement as the mutation it describes.
+    /// Opens its own scoped store operation. Domain mutations instead use
+    /// [`Self::write_with_event`] or prepared events in their explicit transaction
+    /// so the mutation and event commit atomically.
     pub async fn record_event(
         &self,
         event_family: &str,
@@ -1110,32 +1099,6 @@ impl AtelierStore {
             .with_data_operation(move |ctx| {
                 Box::pin(async move { ctx.query_first(RECORD_EVENT_STATEMENT, bindings).await })
             })
-            .await?;
-        self.finish_event(prepared, recorded).await
-    }
-
-    /// [`Self::record_event`] inside a caller's scoped store operation.
-    ///
-    /// This is the replacement for the former `record_event_in_tx`, which took
-    /// a borrowed PostgreSQL `Transaction`. The embedded store has no such
-    /// handle; atomicity comes from the statement itself, which is one
-    /// `BEGIN TRANSACTION; ... COMMIT TRANSACTION;` round trip that writes the
-    /// kernel ledger row and the atelier projection row together or writes
-    /// neither.
-    pub(crate) async fn record_event_in_ctx(
-        &self,
-        ctx: &SurrealDataContext<'_>,
-        event_family: &str,
-        aggregate_type: &str,
-        aggregate_id: &str,
-        payload: serde_json::Value,
-    ) -> AtelierResult<()> {
-        let prepared = self.prepare_event(event_family, aggregate_type, aggregate_id, payload)?;
-        let recorded: Option<RecordedLedgerRow> = ctx
-            .query_first(
-                RECORD_EVENT_STATEMENT,
-                prepared.bindings.clone().with_domain(NoDomain {}),
-            )
             .await?;
         self.finish_event(prepared, recorded).await
     }

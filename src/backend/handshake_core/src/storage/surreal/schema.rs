@@ -30,7 +30,7 @@ pub const GENERATED_SURREALQL_SHA256: &str =
     "dbd8e59161391d10de599c19bb611e7502e2f0b4a3cea2f159b37fb8500b161e";
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
     "292f755c0a51de0f50e35f8ba4bdd02fb5177af13a4095ce27a5de4dd96949f5";
-pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
+const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "f51ef10d8ebc0c728a075e7a5efe4a19503cd46dea2cfa0f1bfe59332f2e34fa";
 /// Fresh-engine STRUCTURE fingerprint captured with the product-locked SurrealDB 3.2.0
 /// engine family after applying the generated schema to an absent RocksDB path.
@@ -1514,15 +1514,15 @@ pub async fn bootstrap_schema(
     Ok(report)
 }
 
-pub fn compute_generated_surql_sha256() -> String {
+fn compute_generated_surql_sha256() -> String {
     sha256_hex(SCHEMA.as_bytes())
 }
 
-pub fn compute_declarative_schema_catalog_sha256() -> Result<String, String> {
+fn compute_declarative_schema_catalog_sha256() -> Result<String, String> {
     compiled_schema_catalog_entries().map(|entries| compute_catalog_hash(&entries))
 }
 
-pub fn compute_knowledge_schema_registry_seed_sha256() -> String {
+fn compute_knowledge_schema_registry_seed_sha256() -> String {
     sha256_hex(KNOWLEDGE_SCHEMA_REGISTRY_SEED.as_bytes())
 }
 
