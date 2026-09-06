@@ -92,7 +92,7 @@ fn internal_error(err: impl std::fmt::Display) -> ApiError {
 fn map_storage_error(err: StorageError) -> ApiError {
     match err {
         StorageError::NotFound(code) => not_found(code),
-        StorageError::Conflict(code) => conflict(code),
+        StorageError::Conflict(code) | StorageError::ConflictDetails { code, .. } => conflict(code),
         StorageError::Guard(code) => (
             StatusCode::FORBIDDEN,
             Json(ErrorResponse { error: code }),

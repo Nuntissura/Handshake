@@ -556,7 +556,7 @@ fn storage_error(err: StorageError) -> ApiError {
             Json(json!({"error": "not_found", "detail": what})),
         ),
         StorageError::Validation(detail) => bad_request(detail),
-        StorageError::Conflict(detail) => (
+        StorageError::Conflict(detail) | StorageError::ConflictDetails { code: detail, .. } => (
             StatusCode::CONFLICT,
             Json(json!({"error": "conflict", "detail": detail})),
         ),

@@ -61,7 +61,9 @@ fn internal_error(err: impl std::fmt::Display) -> ApiError {
 fn map_storage_error(err: StorageError) -> ApiError {
     match err {
         StorageError::NotFound(code) => not_found(code),
-        StorageError::Conflict(code) => (StatusCode::CONFLICT, Json(ErrorResponse { error: code })),
+        StorageError::Conflict(code) | StorageError::ConflictDetails { code, .. } => {
+            (StatusCode::CONFLICT, Json(ErrorResponse { error: code }))
+        }
         StorageError::Guard(_) | StorageError::Validation("HSK-403-SILENT-EDIT") => (
             StatusCode::FORBIDDEN,
             Json(ErrorResponse {
@@ -6140,5 +6142,25 @@ mod tests {
             .await
             .map_err(|error| format!("published retry failed: {} {}", error.0, error.1 .0.error))?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod mt149_conflict_tests {
+    use super::*;
+
+    #[test]
+    fn mt149_conflict_details_preserve_http_409_and_code() {
+        for error in [
+            StorageError::Conflict("stable_conflict_code"),
+            StorageError::ConflictDetails {
+                code: "stable_conflict_code",
+                detail: "private diagnostic context".to_owned(),
+            },
+        ] {
+            let (status, Json(body)) = map_storage_error(error);
+            assert_eq!(status, StatusCode::CONFLICT);
+            assert_eq!(body.error, "stable_conflict_code");
+        }
     }
 }

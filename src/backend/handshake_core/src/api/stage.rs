@@ -93,7 +93,9 @@ fn map_storage_error(err: StorageError) -> ApiError {
     match err {
         StorageError::NotFound(code) => not_found(code),
         StorageError::Validation(_) => bad_request("HSK-400-STAGE"),
-        StorageError::Conflict(_) => api_error(StatusCode::CONFLICT, "HSK-409-STAGE-IDEMPOTENCY"),
+        StorageError::Conflict(_) | StorageError::ConflictDetails { .. } => {
+            api_error(StatusCode::CONFLICT, "HSK-409-STAGE-IDEMPOTENCY")
+        }
         other => internal_error(other),
     }
 }

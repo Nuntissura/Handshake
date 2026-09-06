@@ -831,9 +831,24 @@ fn ensure_same_event(stored: &KernelEvent, candidate: &KernelEvent) -> StorageRe
     if same {
         Ok(())
     } else {
-        Err(StorageError::Conflict(
-            "kernel event idempotency key was reused with different event content",
-        ))
+        Err(StorageError::ConflictDetails {
+            code: "kernel event idempotency key was reused with different event content",
+            detail: format!(
+                "idempotency_key={:?}; existing_payload_hash={}; new_payload_hash={}; \
+                 existing_aggregate_type={:?}; existing_aggregate_id={:?}; \
+                 new_aggregate_type={:?}; new_aggregate_id={:?}; \
+                 existing_event_id={:?}; new_event_id={:?}",
+                candidate.idempotency_key,
+                stored.payload_hash,
+                candidate.payload_hash,
+                stored.aggregate_type,
+                stored.aggregate_id,
+                candidate.aggregate_type,
+                candidate.aggregate_id,
+                stored.event_id,
+                candidate.event_id,
+            ),
+        })
     }
 }
 
@@ -1032,7 +1047,10 @@ mod tests {
             event("mt-136-concurrent-event", json!({"value": 2})),
         )
         .await;
-        assert!(matches!(conflict, Err(StorageError::Conflict(_))));
+        assert!(matches!(
+            conflict,
+            Err(StorageError::Conflict(_) | StorageError::ConflictDetails { .. })
+        ));
         storage.shutdown().await.expect("close embedded store");
     }
 
@@ -1119,7 +1137,10 @@ mod tests {
             ),
         )
         .await;
-        assert!(matches!(conflict, Err(StorageError::Conflict(_))));
+        assert!(matches!(
+            conflict,
+            Err(StorageError::Conflict(_) | StorageError::ConflictDetails { .. })
+        ));
         assert!(get_by_idempotency(&storage, "mt-136-bulk-must-rollback")
             .await
             .expect("read rolled-back event")
@@ -1137,7 +1158,10 @@ mod tests {
             ),
         )
         .await;
-        assert!(matches!(internal_conflict, Err(StorageError::Conflict(_))));
+        assert!(matches!(
+            internal_conflict,
+            Err(StorageError::Conflict(_) | StorageError::ConflictDetails { .. })
+        ));
         assert!(
             get_by_idempotency(&storage, "mt-136-bulk-internal-conflict")
                 .await

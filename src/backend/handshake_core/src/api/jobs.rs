@@ -114,7 +114,8 @@ fn storage_error(err: crate::storage::StorageError) -> ApiError {
                 error: "HSK-404-JOB-NOT-FOUND",
             }),
         ),
-        crate::storage::StorageError::Conflict(_) => (
+        crate::storage::StorageError::Conflict(_)
+        | crate::storage::StorageError::ConflictDetails { .. } => (
             StatusCode::CONFLICT,
             Json(ErrorResponse {
                 error: "HSK-409-STORAGE-CONFLICT",

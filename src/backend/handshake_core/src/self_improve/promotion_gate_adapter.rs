@@ -360,7 +360,7 @@ fn decode_status(
 fn is_idempotency_conflict(error: &StorageError) -> bool {
     matches!(
         error,
-        StorageError::Conflict(message)
+        StorageError::Conflict(message) | StorageError::ConflictDetails { code: message, .. }
             if message.starts_with("kernel event idempotency key was reused")
     )
 }
@@ -670,5 +670,24 @@ mod tests {
             }
             other => panic!("expected GateError::Io for mismatched iteration_id; got {other:?}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod mt149_conflict_tests {
+    use super::*;
+
+    #[test]
+    fn mt149_conflict_details_preserve_promotion_idempotency_classification() {
+        let code = "kernel event idempotency key was reused with different event content";
+        assert!(is_idempotency_conflict(&StorageError::Conflict(code)));
+        assert!(is_idempotency_conflict(&StorageError::ConflictDetails {
+            code,
+            detail: "idempotency_key=test; existing_payload_hash=a; new_payload_hash=b".to_owned(),
+        }));
+        assert!(!is_idempotency_conflict(&StorageError::ConflictDetails {
+            code: "unrelated conflict",
+            detail: code.to_owned(),
+        }));
     }
 }

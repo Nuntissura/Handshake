@@ -572,10 +572,9 @@ async fn ensure_workspace_exists(
 fn map_storage_error(err: StorageError) -> (StatusCode, Json<ErrorResponse>) {
     match err {
         StorageError::NotFound(code) => not_found(code),
-        StorageError::Conflict(code) => (
-            StatusCode::CONFLICT,
-            Json(ErrorResponse { error: code }),
-        ),
+        StorageError::Conflict(code) | StorageError::ConflictDetails { code, .. } => {
+            (StatusCode::CONFLICT, Json(ErrorResponse { error: code }))
+        }
         StorageError::Guard(_) | StorageError::Validation("HSK-403-SILENT-EDIT") => (
             StatusCode::FORBIDDEN,
             Json(ErrorResponse {
@@ -621,5 +620,25 @@ mod tests {
         let (status, Json(body)) = map_storage_error(StorageError::NotFound("canvas"));
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert_eq!(body.error, "canvas");
+    }
+}
+
+#[cfg(test)]
+mod mt149_conflict_tests {
+    use super::*;
+
+    #[test]
+    fn mt149_conflict_details_preserve_http_409_and_code() {
+        for error in [
+            StorageError::Conflict("stable_conflict_code"),
+            StorageError::ConflictDetails {
+                code: "stable_conflict_code",
+                detail: "private diagnostic context".to_owned(),
+            },
+        ] {
+            let (status, Json(body)) = map_storage_error(error);
+            assert_eq!(status, StatusCode::CONFLICT);
+            assert_eq!(body.error, "stable_conflict_code");
+        }
     }
 }

@@ -396,7 +396,9 @@ fn storage_error(err: StorageError) -> ApiError {
     match err {
         StorageError::NotFound(what) => not_found(what),
         StorageError::Validation(detail) => bad_request(detail),
-        StorageError::Conflict(detail) => conflict(detail),
+        StorageError::Conflict(detail) | StorageError::ConflictDetails { code: detail, .. } => {
+            conflict(detail)
+        }
         other => {
             tracing::error!(
                 target: "handshake_core::knowledge_documents_api",
@@ -2085,7 +2087,10 @@ async fn batch_documents(
                 let (error_kind, detail) = match &err {
                     StorageError::NotFound(what) => ("not_found", what.to_string()),
                     StorageError::Validation(detail) => ("validation", detail.to_string()),
-                    StorageError::Conflict(detail) => ("conflict", detail.to_string()),
+                    StorageError::Conflict(detail)
+                    | StorageError::ConflictDetails { code: detail, .. } => {
+                        ("conflict", detail.to_string())
+                    }
                     other => ("internal", other.to_string()),
                 };
                 results.push(json!({

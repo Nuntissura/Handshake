@@ -196,7 +196,9 @@ fn ingestion_error(err: IngestionError) -> ApiError {
             StatusCode::NOT_FOUND,
             Json(json!({"error": "not_found", "detail": what})),
         ),
-        IngestionError::Storage(StorageError::Conflict(detail)) => (
+        IngestionError::Storage(
+            StorageError::Conflict(detail) | StorageError::ConflictDetails { code: detail, .. },
+        ) => (
             StatusCode::CONFLICT,
             Json(json!({"error": "conflict", "detail": detail})),
         ),

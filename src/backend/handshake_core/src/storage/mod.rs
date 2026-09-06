@@ -273,6 +273,9 @@ pub enum StorageError {
     NotFound(&'static str),
     #[error("conflict: {0}")]
     Conflict(&'static str),
+    /// Conflict code with owned diagnostic context; public codes stay stable.
+    #[error("conflict: {code}; {detail}")]
+    ConflictDetails { code: &'static str, detail: String },
     #[error("validation failed: {0}")]
     Validation(&'static str),
     #[error("mutation guard blocked: {0}")]
