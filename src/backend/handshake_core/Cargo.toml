@@ -815,6 +815,17 @@ name = "model_lane_launch_tests"
 path = "tests/model_lane_launch_tests.rs"
 required-features = ["test-utils", "legacy-postgres-superseded"]
 
+# WP-1 MT-003 V6: embedded-SurrealDB replacement for the superseded
+# PostgreSQL-era `model_lane_launch_tests` suite. Proves launch-adapter
+# normalization, launched-resource owner/exact-scope attribution, atomic
+# kernel EventLedger append, deterministic no-egress fail-closed cloud launch,
+# and revocation/context-switch behaviour on a live launch. No PostgreSQL,
+# no operator credential, no paid provider.
+[[test]]
+name = "model_lane_launch_surreal_tests"
+path = "tests/model_lane_launch_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
 [[test]]
 name = "llm_client_local_routing_tests"
 path = "tests/llm_client_local_routing_tests.rs"
@@ -996,6 +1007,19 @@ required-features = ["test-utils", "surreal-test-support"]
 name = "mt016_real_embedding_e2e"
 path = "tests/mt016_real_embedding_e2e.rs"
 required-features = ["test-utils", "surreal-test-support", "candle-runtime-engine"]
+
+# WP-1 MT-024: bounded, exact, leak-free embedded-Surreal namespace/database
+# teardown for the process-ledger and real-process lifecycle suites. Declared
+# (not auto-discovered) for the same reason as `model_lane_crdt_support` below:
+# an undeclared `tests/*.rs` target carries `required-features = None`, so it is
+# compiled under DEFAULT features while its shared support module
+# (`tests/surreal_test_store_support/`) is only exercised by
+# `--features test-utils,surreal-test-support` consumers. Declaring the
+# requirement makes cargo skip the target when the features are off.
+[[test]]
+name = "mt024_surreal_scope_cleanup_tests"
+path = "tests/mt024_surreal_scope_cleanup_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
 
 # WP-1 MT-020 AC-7: `tests/model_lane_crdt_support.rs` is a SHARED SUPPORT
 # MODULE (`mod model_lane_crdt_support;` in mixed_model_lane_integration_pg_tests

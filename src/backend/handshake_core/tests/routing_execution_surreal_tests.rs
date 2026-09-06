@@ -11,14 +11,16 @@ use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
-use handshake_core::storage::surreal::{RowFilter, ScalarValue, SurrealStorage};
+use handshake_core::storage::surreal::{
+    bootstrap_schema, RowFilter, ScalarValue, SurrealStorage,
+};
 use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneLocusBinding, ModelLaneRecoveryState, ModelLaneRunRecord, ModelLaneStore,
     NewModelLaneRun,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
-    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope,
-    WorkspaceScopeRef,
+    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+    OwnerAccountId, ResourceAccessLifecycleRegistry, ResourceScope, WorkspaceScopeRef,
 };
 use handshake_core::swarm_orchestration::routing::{
     ModelLaneRoutingAuthority, ModelLaneRoutingDispatchTarget, ModelLaneRoutingStageLaunchPlan,
@@ -43,6 +45,7 @@ struct Fixture {
     isolated: EmbeddedSurrealTestScope,
     storage: SurrealStorage,
     scope: ResourceScope,
+    lifecycle: ResourceAccessLifecycleRegistry,
     store: ModelLaneStore,
     run: ModelLaneRunRecord,
     execution_id: String,
@@ -57,8 +60,17 @@ impl Fixture {
             .activate_storage()
             .await
             .expect("activate production Surreal storage wrapper");
+        bootstrap_schema(&storage)
+            .await
+            .expect("bootstrap canonical embedded schema");
         let scope = exact_scope(label);
-        let store = ModelLaneStore::new_scoped(storage.clone(), scope.clone());
+        let lifecycle = ResourceAccessLifecycleRegistry::new();
+        register_active_context(&lifecycle, &scope);
+        let store = ModelLaneStore::new_scoped_with_lifecycle(
+            storage.clone(),
+            scope.clone(),
+            lifecycle.clone(),
+        );
         let run = store
             .record_run(sample_run(label))
             .await
@@ -67,10 +79,34 @@ impl Fixture {
             isolated,
             storage,
             scope,
+            lifecycle,
             store,
             execution_id: format!("routing-{label}-{}", Uuid::now_v7().simple()),
             run,
         }
+    }
+
+    /// Builds a store for `scope` after registering its exact five-field attribution as an
+    /// ACTIVE authenticated context, so a denial proves ResourceScope isolation rather than
+    /// an unregistered lifecycle.
+    fn store_for(&self, scope: ResourceScope) -> ModelLaneStore {
+        register_active_context(&self.lifecycle, &scope);
+        ModelLaneStore::new_scoped_with_lifecycle(
+            self.storage.clone(),
+            scope,
+            self.lifecycle.clone(),
+        )
+    }
+
+    /// Builds a store for a deliberately INCOMPLETE scope. Such a scope has no exact
+    /// five-field attribution to register, so it must fail on scope shape before any
+    /// storage access.
+    fn incomplete_store_for(&self, scope: ResourceScope) -> ModelLaneStore {
+        ModelLaneStore::new_scoped_with_lifecycle(
+            self.storage.clone(),
+            scope,
+            self.lifecycle.clone(),
+        )
     }
 
     fn initial_projection(&self) -> (ModelLaneRoutingExecutionState, ModelLaneRoutingStageState) {
@@ -218,7 +254,11 @@ async fn initial_creation_retry_extra_event_and_restart_share_one_event_authorit
         .activate_storage()
         .await
         .expect("reactivate the same namespace and database");
-    fixture.store = ModelLaneStore::new_scoped(fixture.storage.clone(), fixture.scope.clone());
+    fixture.store = ModelLaneStore::new_scoped_with_lifecycle(
+        fixture.storage.clone(),
+        fixture.scope.clone(),
+        fixture.lifecycle.clone(),
+    );
     assert_eq!(
         fixture
             .store
@@ -437,7 +477,11 @@ async fn stale_cas_event_set_conflict_and_stale_fence_cannot_mutate_cancellation
         .activate_storage()
         .await
         .expect("reactivate store");
-    fixture.store = ModelLaneStore::new_scoped(fixture.storage.clone(), fixture.scope.clone());
+    fixture.store = ModelLaneStore::new_scoped_with_lifecycle(
+        fixture.storage.clone(),
+        fixture.scope.clone(),
+        fixture.lifecycle.clone(),
+    );
     assert_eq!(
         fixture
             .store
@@ -488,7 +532,7 @@ async fn five_scope_mismatches_and_incomplete_scopes_fail_closed_without_rows_or
     mismatches.push(("workspace_id", workspace));
 
     for (dimension, scope) in mismatches {
-        let denied = ModelLaneStore::new_scoped(fixture.storage.clone(), scope);
+        let denied = fixture.store_for(scope);
         assert_eq!(
             denied
                 .routing_execution_snapshot(&fixture.execution_id)
@@ -539,7 +583,7 @@ async fn five_scope_mismatches_and_incomplete_scopes_fail_closed_without_rows_or
         .with_access_space(fixture.scope.access_space.expect("access")),
     ];
     for scope in incomplete {
-        let denied = ModelLaneStore::new_scoped(fixture.storage.clone(), scope);
+        let denied = fixture.incomplete_store_for(scope);
         let error = denied
             .routing_execution_snapshot(&fixture.execution_id)
             .await
@@ -695,7 +739,7 @@ async fn projection_and_required_event_counterfactuals_fail_without_mutation() {
 async fn identical_logical_routing_ids_are_isolated_between_two_exact_scopes() {
     let fixture = Fixture::create("scope-a").await;
     let scope_b = exact_scope("scope-b");
-    let store_b = ModelLaneStore::new_scoped(fixture.storage.clone(), scope_b.clone());
+    let store_b = fixture.store_for(scope_b.clone());
     let run_b = store_b
         .record_run(fixture.run.inner.clone())
         .await
@@ -819,6 +863,17 @@ async fn preexisting_canonical_receipt_without_routing_projection_is_rejected_as
     );
     drop(inspector);
     fixture.cleanup().await;
+}
+
+/// Registers the exact five-field attribution of `scope` as an ACTIVE authenticated
+/// resource-access context. Production composes this registry from the authentication/session
+/// authority; `ModelLaneStore::new_scoped` is intentionally fail-closed without it.
+fn register_active_context(lifecycle: &ResourceAccessLifecycleRegistry, scope: &ResourceScope) {
+    let exact = ExactResourceScopeAttribution::try_from_resource_scope(scope)
+        .expect("proof scope must carry all five exact attribution fields");
+    lifecycle
+        .register_active(exact)
+        .expect("register active authenticated resource-access context");
 }
 
 fn exact_scope(label: &str) -> ResourceScope {

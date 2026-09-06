@@ -2,7 +2,9 @@
 
 mod surreal_test_store_support;
 
-use handshake_core::storage::surreal::{bootstrap_schema, SurrealStorage};
+use handshake_core::storage::surreal::{
+    bootstrap_schema, RowFilter, SurrealStorage, SurrealTestInspector,
+};
 use handshake_core::swarm_orchestration::model_lane::{
     LaunchAuthority, ModelLaneAuthority, ModelLaneAuthorityTestCorruption, ModelLaneKind,
     ModelLaneLocusBinding, ModelLaneMessageKind, ModelLanePromotionDenialReason,
@@ -12,8 +14,8 @@ use handshake_core::swarm_orchestration::model_lane::{
     NewModelLaneMessage, NewModelLanePromotionDecision, NewModelLaneRun, RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
-    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope,
-    WorkspaceScopeRef,
+    AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
+    OwnerAccountId, ResourceAccessLifecycleRegistry, ResourceScope, WorkspaceScopeRef,
 };
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -23,6 +25,7 @@ struct Harness {
     isolated: EmbeddedSurrealTestScope,
     storage: SurrealStorage,
     scope: ResourceScope,
+    lifecycle: ResourceAccessLifecycleRegistry,
     store: ModelLaneStore,
 }
 
@@ -39,13 +42,41 @@ impl Harness {
             .await
             .expect("bootstrap canonical schema");
         let scope = exact_scope(label);
-        let store = ModelLaneStore::new_scoped(storage.clone(), scope.clone());
+        let lifecycle = ResourceAccessLifecycleRegistry::new();
+        register_active_context(&lifecycle, &scope);
+        let store = ModelLaneStore::new_scoped_with_lifecycle(
+            storage.clone(),
+            scope.clone(),
+            lifecycle.clone(),
+        );
         Self {
             isolated,
             storage,
             scope,
+            lifecycle,
             store,
         }
+    }
+
+    /// One iteration of a sequential matrix, isolated by its own exact five-field scope inside
+    /// the harness's already-bootstrapped store. A fresh canonical bootstrap costs minutes, so a
+    /// per-iteration store would dominate this suite's runtime. Iterations run sequentially, so
+    /// sharing one embedded store cannot hit the concurrent key-value conflict that forces
+    /// per-test isolation; distinct scopes still give each iteration its own authority rows.
+    fn iteration(&self, label: &str) -> ModelLaneStore {
+        self.store_for(exact_scope(label))
+    }
+
+    /// Builds a store for `scope` after registering its exact five-field attribution as an
+    /// ACTIVE authenticated context, so a denial proves ResourceScope isolation rather than
+    /// an unregistered lifecycle.
+    fn store_for(&self, scope: ResourceScope) -> ModelLaneStore {
+        register_active_context(&self.lifecycle, &scope);
+        ModelLaneStore::new_scoped_with_lifecycle(
+            self.storage.clone(),
+            scope,
+            self.lifecycle.clone(),
+        )
     }
 
     async fn cleanup(mut self) {
@@ -119,7 +150,11 @@ async fn model_lane_promotion_appends_eventledger_and_replays_decision() {
         .activate_storage()
         .await
         .expect("reactivate same namespace/database");
-    let reopened = ModelLaneStore::new_scoped(storage.clone(), harness.scope.clone());
+    let reopened = ModelLaneStore::new_scoped_with_lifecycle(
+        storage.clone(),
+        harness.scope.clone(),
+        harness.lifecycle.clone(),
+    );
     assert_eq!(
         reopened
             .replay_promotion_decisions("run-mt004-promotion-positive")
@@ -252,7 +287,7 @@ async fn model_lane_promotion_preserves_exact_scope_and_denies_foreign_or_mixed_
     assert_eq!(owner.outcome, ModelLanePromotionOutcome::Approved);
 
     for (index, foreign_scope) in one_field_mismatches(&harness.scope).into_iter().enumerate() {
-        let foreign = ModelLaneStore::new_scoped(harness.storage.clone(), foreign_scope);
+        let foreign = harness.store_for(foreign_scope);
         seed_authority(&foreign, "promotion-scope", false).await;
         let foreign_decision = foreign
             .record_promotion_decision(sample_decision(
@@ -282,6 +317,7 @@ async fn model_lane_promotion_preserves_exact_scope_and_denies_foreign_or_mixed_
 
 #[tokio::test]
 async fn promotion_projection_and_event_receipt_tamper_fail_every_consumer_closed() {
+    let harness = Harness::create("promotion-tamper").await;
     for (index, corruption) in [
         ModelLaneAuthorityTestCorruption::ProjectionEventSequence,
         ModelLaneAuthorityTestCorruption::ProjectionScope,
@@ -292,8 +328,8 @@ async fn promotion_projection_and_event_receipt_tamper_fail_every_consumer_close
     .enumerate()
     {
         let label = format!("promotion-tamper-{index}");
-        let harness = Harness::create(&label).await;
-        let seeded = seed_authority(&harness.store, &label, true).await;
+        let store = harness.iteration(&label);
+        let seeded = seed_authority(&store, &label, true).await;
         let decision_id = format!("decision-tamper-{index}");
         let decision = sample_decision(
             &label,
@@ -301,45 +337,35 @@ async fn promotion_projection_and_event_receipt_tamper_fail_every_consumer_close
             &format!("idem-tamper-{index}"),
             seeded.proposal_version,
         );
-        harness
-            .store
+        store
             .record_promotion_decision(decision.clone())
             .await
             .expect("seed canonical promotion decision");
-        harness
-            .store
+        store
             .test_corrupt_scoped_authority("promotion_decision", &decision_id, corruption)
             .await
             .expect("apply enumerated exact-scope corruption");
 
         let run_id = format!("run-mt004-{label}");
-        assert!(harness
-            .store
-            .replay_promotion_decisions(&run_id)
-            .await
-            .is_err());
-        assert!(harness.store.replay_run(&run_id).await.is_err());
-        assert!(harness.store.navigation_by_run(&run_id).await.is_err());
-        assert!(harness
-            .store
-            .record_promotion_decision(decision)
-            .await
-            .is_err());
-        assert!(harness
-            .store
+        assert!(store.replay_promotion_decisions(&run_id).await.is_err());
+        assert!(store.replay_run(&run_id).await.is_err());
+        assert!(store.navigation_by_run(&run_id).await.is_err());
+        assert!(store.record_promotion_decision(decision).await.is_err());
+        assert!(store
             .record_message(sample_promoted_message(&label, &decision_id, index))
             .await
             .is_err());
-        harness.cleanup().await;
     }
+    harness.cleanup().await;
 }
 
 #[tokio::test]
 async fn navigation_rejects_tampered_run_lane_and_message_origins_before_redirect() {
+    let harness = Harness::create("origin-matrix").await;
     for (index, origin) in ["run", "lane", "message"].into_iter().enumerate() {
         let label = format!("origin-{origin}-{index}");
-        let harness = Harness::create(&label).await;
-        seed_authority(&harness.store, &label, true).await;
+        let store = harness.iteration(&label);
+        seed_authority(&store, &label, true).await;
         let run_id = format!("run-mt004-{label}");
         let lane_id = format!("lane-mt004-{label}");
         let message_id = format!("message-mt004-{label}-proposal");
@@ -349,8 +375,7 @@ async fn navigation_rejects_tampered_run_lane_and_message_origins_before_redirec
             "message" => message_id.as_str(),
             _ => unreachable!(),
         };
-        harness
-            .store
+        store
             .test_corrupt_scoped_authority(
                 origin,
                 aggregate_id,
@@ -360,18 +385,319 @@ async fn navigation_rejects_tampered_run_lane_and_message_origins_before_redirec
             .expect("retarget typed origin projection outside its receipt scope");
 
         let denied = match origin {
-            "run" => harness.store.navigation_by_run(&run_id).await.is_err(),
-            "lane" => harness.store.navigation_by_lane(&lane_id).await.is_err(),
-            "message" => harness
-                .store
-                .navigation_by_message(&message_id)
-                .await
-                .is_err(),
+            "run" => store.navigation_by_run(&run_id).await.is_err(),
+            "lane" => store.navigation_by_lane(&lane_id).await.is_err(),
+            "message" => store.navigation_by_message(&message_id).await.is_err(),
             _ => unreachable!(),
         };
         assert!(denied, "{origin} origin must validate before run redirect");
-        harness.cleanup().await;
     }
+    harness.cleanup().await;
+}
+
+/// Acceptance row 1 (all six coordinator routing policies reach a durable, EventLedger-backed
+/// promotion decision) plus the two negative-proof classes the acceptance rows name that no other
+/// case covers: mismatched expected aggregate version, and a duplicate idempotency key that
+/// carries a different canonical decision.
+#[tokio::test]
+async fn promotion_covers_every_routing_policy_and_denies_version_and_idempotency_conflicts() {
+    let harness = Harness::create("policy-matrix").await;
+    let seeded = seed_authority(&harness.store, "policy-matrix", true).await;
+
+    for (index, policy) in ModelLaneRoutingPolicy::all().iter().copied().enumerate() {
+        let mut decision = sample_decision(
+            "policy-matrix",
+            &format!("decision-policy-{index}"),
+            &format!("idem-policy-{index}"),
+            seeded.proposal_version,
+        );
+        decision.routing_policy = policy;
+        // Each policy graph gates its stages on a different authority: the cloud stages need a
+        // consent receipt, the validator lane needs a validator ref, the operator lane needs an
+        // operator ref. Supply all three so the proof exercises the graph, not a missing field.
+        decision.validator_authority_ref = Some("validator://mt004/policy-matrix".into());
+        decision.diagnostic_payload = json!({
+            "flight_recorder": "kernel_event_ledger",
+            "operator_authority_ref": "operator://mt004/policy-matrix",
+            "cloud_consent_receipt_ref": "consent://mt004/policy-matrix"
+        });
+        let stored = harness
+            .store
+            .record_promotion_decision(decision)
+            .await
+            .unwrap_or_else(|error| panic!("{policy:?} promotion decision: {error}"));
+        assert_eq!(
+            stored.outcome,
+            ModelLanePromotionOutcome::Approved,
+            "{policy:?} must reach an approved promotion"
+        );
+        assert_eq!(stored.inner.routing_policy, policy);
+        assert_eq!(stored.final_state, ModelLanePromotionState::Executed);
+        assert!(
+            stored.event_ledger_seq > 0,
+            "{policy:?} decision must be EventLedger-backed"
+        );
+    }
+    assert_eq!(
+        harness
+            .store
+            .replay_promotion_decisions("run-mt004-policy-matrix")
+            .await
+            .expect("replay every policy decision")
+            .len(),
+        ModelLaneRoutingPolicy::all().len()
+    );
+
+    let version = harness
+        .store
+        .record_promotion_decision(sample_decision(
+            "policy-matrix",
+            "decision-version",
+            "idem-version",
+            seeded.proposal_version + 41,
+        ))
+        .await
+        .expect("aggregate version mismatch is a durable denial");
+    assert_eq!(version.outcome, ModelLanePromotionOutcome::Denied);
+    assert_eq!(
+        version.denial_reason,
+        Some(ModelLanePromotionDenialReason::AggregateVersionMismatch)
+    );
+
+    // `idem-policy-0` already belongs to the LocalFirst decision recorded above. This reuse
+    // carries a different canonical decision under a policy whose authority gate is satisfied,
+    // so the conflict is proven on idempotency, not on input validation.
+    let conflict = sample_decision(
+        "policy-matrix",
+        "decision-conflict",
+        "idem-policy-0",
+        seeded.proposal_version,
+    );
+    assert!(
+        harness
+            .store
+            .record_promotion_decision(conflict)
+            .await
+            .is_err(),
+        "a reused idempotency key carrying a different canonical decision must conflict"
+    );
+    harness.cleanup().await;
+}
+
+/// Ports the fenced `model_lane_promotion_pg_tests` advisory-input authority matrix
+/// (`model_lane_promotion_durably_denies_tampered_advisory_eventledger_input` and the advisory
+/// scope arm of `model_lane_exact_scope_authority_rejects_message_run_lane_and_navigation_tamper`)
+/// onto the embedded substrate. A promotion decision may never be Approved from an advisory input
+/// whose durable projection or canonical EventLedger receipt has been tampered with.
+#[tokio::test]
+async fn promotion_denies_tampered_advisory_input_on_projection_and_receipt_authority() {
+    let harness = Harness::create("advisory-tamper").await;
+    for (index, corruption) in [
+        ModelLaneAuthorityTestCorruption::ProjectionScope,
+        ModelLaneAuthorityTestCorruption::IncompleteAttribution,
+        ModelLaneAuthorityTestCorruption::ProjectionEventSequence,
+        ModelLaneAuthorityTestCorruption::ReceiptPayloadHash,
+        ModelLaneAuthorityTestCorruption::ReceiptScope,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let label = format!("advisory-tamper-{index}");
+        let store = harness.iteration(&label);
+        let seeded = seed_authority(&store, &label, true).await;
+        let proposal_id = format!("message-mt004-{label}-proposal");
+        store
+            .test_corrupt_scoped_authority("message", &proposal_id, corruption)
+            .await
+            .expect("tamper the advisory input this decision will name");
+
+        let run_id = format!("run-mt004-{label}");
+        // Two distinct authority failures need two distinct expectations. A corruption that
+        // rewrites the row's own scope removes it from this reader's exact scope, so replay
+        // legitimately succeeds while no longer returning the message. A corruption that breaks
+        // the projection/receipt link leaves the row in scope, so replay MUST fail closed.
+        let replay = store.replay_run(&run_id).await;
+        match corruption {
+            ModelLaneAuthorityTestCorruption::ProjectionScope
+            | ModelLaneAuthorityTestCorruption::IncompleteAttribution => {
+                let replay = replay.unwrap_or_else(|error| {
+                    panic!("{corruption:?}: scope-removed message must not break replay: {error}")
+                });
+                assert!(
+                    !replay
+                        .messages
+                        .iter()
+                        .any(|message| message.message_id == proposal_id),
+                    "{corruption:?}: replay returned a message outside this exact scope"
+                );
+            }
+            _ => assert!(
+                replay.is_err(),
+                "{corruption:?}: run replay accepted a broken advisory receipt link"
+            ),
+        }
+
+        let decision = store
+            .record_promotion_decision(sample_decision(
+                &label,
+                &format!("decision-advisory-{index}"),
+                &format!("idem-advisory-{index}"),
+                seeded.proposal_version,
+            ))
+            .await;
+        match decision {
+            Ok(record) => {
+                assert_eq!(
+                    record.outcome,
+                    ModelLanePromotionOutcome::Denied,
+                    "{corruption:?}: tampered advisory input produced an approved promotion"
+                );
+                assert_eq!(
+                    record.denial_reason,
+                    Some(ModelLanePromotionDenialReason::InputRefMismatch),
+                    "{corruption:?}: tampered advisory input must deny on input-ref authority"
+                );
+            }
+            Err(_) => {
+                // A fail-closed error is also an acceptable denial of authority, provided no
+                // approved decision became durable.
+                assert!(store
+                    .replay_promotion_decisions(&run_id)
+                    .await
+                    .map(|records| records
+                        .iter()
+                        .all(|record| record.outcome != ModelLanePromotionOutcome::Approved))
+                    .unwrap_or(true));
+            }
+        }
+    }
+    harness.cleanup().await;
+}
+
+/// Ports the fenced pg
+/// `model_lane_promotion_rejects_message_projection_and_scope_tamper_on_replay_and_retry`:
+/// once a promoted message is durable, tampering its projection or canonical receipt must fail
+/// both run replay and the idempotent message retry.
+#[tokio::test]
+async fn promoted_message_projection_and_receipt_tamper_deny_replay_and_retry() {
+    let harness = Harness::create("promoted-tamper").await;
+    for (index, corruption) in [
+        ModelLaneAuthorityTestCorruption::ProjectionEventSequence,
+        ModelLaneAuthorityTestCorruption::ProjectionScope,
+        ModelLaneAuthorityTestCorruption::ReceiptPayloadHash,
+        ModelLaneAuthorityTestCorruption::ReceiptScope,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let label = format!("promoted-tamper-{index}");
+        let store = harness.iteration(&label);
+        let seeded = seed_authority(&store, &label, true).await;
+        let decision_id = format!("decision-promoted-{index}");
+        store
+            .record_promotion_decision(sample_decision(
+                &label,
+                &decision_id,
+                &format!("idem-promoted-{index}"),
+                seeded.proposal_version,
+            ))
+            .await
+            .expect("seed canonical promotion decision");
+        let promoted_input = sample_promoted_message(&label, &decision_id, index);
+        let promoted = store
+            .record_message(promoted_input.clone())
+            .await
+            .expect("record promoted message before tamper");
+        store
+            .test_corrupt_scoped_authority("message", &promoted.message_id, corruption)
+            .await
+            .expect("tamper the durable promoted message");
+
+        let run_id = format!("run-mt004-{label}");
+        // Same split as the advisory matrix: a rewritten row scope removes the promoted message
+        // from this reader entirely, while a broken projection/receipt link must fail replay closed.
+        let replay = store.replay_run(&run_id).await;
+        if corruption == ModelLaneAuthorityTestCorruption::ProjectionScope {
+            let replay = replay.unwrap_or_else(|error| {
+                panic!("{corruption:?}: scope-removed promoted message broke replay: {error}")
+            });
+            assert!(
+                !replay
+                    .messages
+                    .iter()
+                    .any(|message| message.message_id == promoted.message_id),
+                "{corruption:?}: replay returned a promoted message outside this exact scope"
+            );
+        } else {
+            assert!(
+                replay.is_err(),
+                "{corruption:?}: run replay accepted a tampered promoted message"
+            );
+        }
+        // In every class the idempotent retry must refuse: it may neither silently re-create the
+        // tampered promoted message nor return the corrupted row as a settled success.
+        assert!(
+            store.record_message(promoted_input).await.is_err(),
+            "{corruption:?}: idempotent retry accepted a tampered promoted message"
+        );
+    }
+    harness.cleanup().await;
+}
+
+/// Ports the substantive invariant of the fenced pg forged-projection arm of
+/// `model_lane_exact_scope_authority_rejects_message_run_lane_and_navigation_tamper`: run/lane
+/// authority held only in a foreign exact scope can never manufacture message-append authority
+/// for the owner scope, and the denial must be non-disclosing and leave both the projection and
+/// the EventLedger row counts unchanged.
+#[tokio::test]
+async fn foreign_scope_run_and_lane_cannot_manufacture_message_append_authority() {
+    let harness = Harness::create("foreign-append").await;
+    let foreign_scope = one_field_mismatches(&harness.scope)
+        .into_iter()
+        .next()
+        .expect("one foreign owner scope");
+    let foreign_owner = foreign_scope.owner_account_id.to_string();
+    let foreign = harness.store_for(foreign_scope);
+    seed_authority(&foreign, "foreign-append", false).await;
+
+    let inspector = harness.storage.test_inspector();
+    let authority_rows = table_count(&inspector, "model_lane_authority").await;
+    let ledger_rows = table_count(&inspector, "kernel_event_ledger").await;
+
+    // The owner store never seeded run/lane authority for this label; only the foreign scope did.
+    let error = harness
+        .store
+        .record_message(sample_message("foreign-append", "proposal"))
+        .await
+        .expect_err("foreign-scope run/lane must not authorize an owner-scope message append");
+    let rendered = error.to_string();
+    assert!(
+        !rendered.contains(&foreign_owner),
+        "denial must not disclose the foreign owner account: {rendered}"
+    );
+    assert_eq!(
+        table_count(&inspector, "model_lane_authority").await,
+        authority_rows,
+        "denied append mutated model-lane authority"
+    );
+    assert_eq!(
+        table_count(&inspector, "kernel_event_ledger").await,
+        ledger_rows,
+        "denied append reached the canonical EventLedger"
+    );
+    drop(inspector);
+    harness.cleanup().await;
+}
+
+async fn table_count(inspector: &SurrealTestInspector, table: &str) -> u64 {
+    let table = inspector
+        .table_selector(table)
+        .await
+        .unwrap_or_else(|error| panic!("select {table}: {error}"));
+    inspector
+        .row_count(&table, RowFilter::All)
+        .await
+        .unwrap_or_else(|error| panic!("count {}: {error}", table.name()))
 }
 
 async fn seed_authority(store: &ModelLaneStore, label: &str, include_messages: bool) -> Seeded {
@@ -700,6 +1026,17 @@ fn sample_locus_for(
         owner_session: format!("owner-mt004-{label}"),
         locus_binding_ref: format!("locus://wp1/mt004/{label}"),
     }
+}
+
+/// Registers the exact five-field attribution of `scope` as an ACTIVE authenticated
+/// resource-access context. Production composes this registry from the authentication/session
+/// authority; `ModelLaneStore::new_scoped` is intentionally fail-closed without it.
+fn register_active_context(lifecycle: &ResourceAccessLifecycleRegistry, scope: &ResourceScope) {
+    let exact = ExactResourceScopeAttribution::try_from_resource_scope(scope)
+        .expect("proof scope must carry all five exact attribution fields");
+    lifecycle
+        .register_active(exact)
+        .expect("register active authenticated resource-access context");
 }
 
 fn exact_scope(label: &str) -> ResourceScope {

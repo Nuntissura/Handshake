@@ -29,7 +29,8 @@
 //! Durability posture: this is the live shared dispatch projection over the
 //! same `ModelRegistry` used by `LocalRouter`. The configured artifact-to-
 //! adapter selection is durably guarded by [`super::ModelRegistryStore`] in
-//! PostgreSQL before this cache is exposed. The catalog does not create a
+//! embedded SurrealDB before this cache is exposed [CX-503R]. The catalog
+//! does not create a
 //! second database registry and it never treats a stale per-boot UUID as a
 //! restart identity.
 
@@ -158,8 +159,8 @@ impl ModelCatalog {
         })
     }
 
-    /// Construct the production catalog with the PostgreSQL-restored
-    /// embeddings/default routing identity for this boot.
+    /// Construct the production catalog with the embedded-SurrealDB-restored
+    /// embeddings/default routing identity for this boot [CX-503R].
     pub fn from_registry_with_roles_and_embedding_default(
         registry: Arc<ModelRegistry>,
         runtime_roles: HashMap<ModelId, ModelRuntimeRole>,

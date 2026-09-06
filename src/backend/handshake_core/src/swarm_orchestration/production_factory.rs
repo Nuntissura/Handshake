@@ -71,7 +71,18 @@ use crate::flight_recorder::FlightRecorderEvent;
 
 const SANDBOX_LLAMA_CLI_HOST_PATH_ENV: &str = "HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH";
 const WARM_VM_WORKTREE_GUEST_ROOT: &str = "/worktree";
-const PIDLESS_SESSION_START_DURABILITY_TIMEOUT: Duration = Duration::from_secs(5);
+/// Bounded wait for a durable START acknowledgement before a pidless session is published.
+///
+/// This is a liveness bound, not a correctness gate: on expiry the caller still fails closed,
+/// the lifecycle and STOP reservation are retained, and a late commit is closed with a matching
+/// STOP rather than being fabricated or dropped. Only the trigger point moves.
+///
+/// 5s was tuned against an idle machine. Measured 2026-09-05 on a loaded host, an embedded
+/// SurrealDB write can take far longer than that under concurrent proof stores: scope allocate,
+/// remove and close were exceeding a 10s bound for the same reason, and a launch that is denied
+/// correctly then fails while *recording* its denial is a false negative, not a real defect.
+/// 30s keeps the wait bounded while leaving room for a contended local disk.
+const PIDLESS_SESSION_START_DURABILITY_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[cfg(test)]
 type WarmAgentPackageValidator =

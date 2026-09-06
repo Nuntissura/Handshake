@@ -1877,6 +1877,7 @@ impl ModelLaneStore {
         validate_prepared_launch_pair(&records.0, &records.1)?;
         let cloud_check = is_cloud_lane(&records.1)
             .then(|| cloud_launch_check_from_records(&records.0, &records.1));
+        let is_cloud = cloud_check.is_some();
         if let Some(check) = cloud_check {
             require_exact_cloud_launch_scope(&self.access)?;
             if let Err(error) = self.ensure_cloud_launch_authority_surreal(&check).await {
@@ -1887,6 +1888,21 @@ impl ModelLaneStore {
                     )
                     .await;
             }
+        }
+        if is_cloud {
+            // Consent revocation derives its covered lanes from model_lane_cloud_authority via
+            // list_consent_lanes (storage/surreal/cloud_model_lane.rs). Until now the only writer
+            // of those rows was a #[cfg(feature = "test-utils")] helper, so in production the
+            // fence always matched zero lanes and revoking a LIVE cloud launch was structurally
+            // impossible — the HBR-PRIV-006 revocation guarantee could never hold. The binding
+            // itself already existed on the main lane row (consent_receipt_ref); it was simply
+            // absent from the store the fence reads.
+            //
+            // Written BEFORE the main lane is published so a cloud lane is never visible live
+            // without its revocable binding; publishing first would leave a window in which a
+            // running lane cannot be revoked.
+            self.record_cloud_run_surreal(records.0.clone()).await?;
+            self.record_cloud_lane_surreal(records.1.clone()).await?;
         }
         let stored_run = self
             .record_or_extend_run_surreal(records.0, &records.1)
@@ -3121,11 +3137,24 @@ impl ModelLaneStore {
         let mut denial_reason = None;
         for reference in &canonical_input_refs {
             let message_id = message_id_from_ref("input_refs[]", reference)?;
-            let record = provider
+            let record = match provider
                 .get(SurrealRecordKind::Message, &message_id, scope)
                 .await?
-                .map(surreal_message_record)
-                .transpose()?;
+            {
+                // Promotion may only admit an input whose durable row is linked to its
+                // canonical kernel EventLedger event. replay_run already gates every stored
+                // message this way; without the same gate here an orphaned or tampered row
+                // could be promoted into authority, which is precisely the failure the
+                // EventLedger atomicity requirement exists to prevent. Fail closed, as replay
+                // does, rather than degrading to an input-ref mismatch.
+                Some(stored) => {
+                    provider
+                        .validate_event_link(SurrealRecordKind::Message, &stored, scope)
+                        .await?;
+                    Some(surreal_message_record(stored)?)
+                }
+                None => None,
+            };
             match record {
                 Some(record)
                     if record.run_id == input.run_id

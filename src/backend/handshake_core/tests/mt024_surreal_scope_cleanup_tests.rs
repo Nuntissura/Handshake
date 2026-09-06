@@ -7,8 +7,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use surreal_test_store_support::{
-    cleanup_embedded_surreal_scopes, measure_owned_scopes, sweep_stale_orphans,
-    EmbeddedSurrealTestScope,
+    cleanup_embedded_surreal_scopes, independent_namespace_databases_for_proof,
+    independent_root_namespaces_for_proof, measure_owned_scopes, sweep_stale_orphans,
+    EmbeddedSurrealTestScope, DEFAULT_EMBEDDED_SCOPE_TIMEOUT,
 };
 use tokio::sync::Notify;
 
@@ -143,6 +144,223 @@ async fn process_exit_recovery_is_observable_exact_and_foreign_safe() {
     );
 }
 
+/// The recovery fence runs at allocation time and must report what it did.
+///
+/// A crashed run leaves its exact scope plus a released ownership marker. The
+/// next allocation in the same root reclaims exactly that scope, leaves a live
+/// foreign scope alone, and exposes both outcomes as a receipt rather than
+/// discarding them.
+#[cfg(windows)]
+#[tokio::test]
+async fn allocation_recovery_fence_reports_exact_reclaim_and_spares_live_scope() {
+    let root = tempfile::tempdir().expect("create MT-024 recovery-fence root");
+    let mut live = EmbeddedSurrealTestScope::create_in(root.path())
+        .await
+        .expect("allocate live foreign scope");
+    let live_scope_path = live
+        .store_path()
+        .parent()
+        .expect("live store has allocator-owned scope parent")
+        .to_path_buf();
+    live.write_foreign_survival_sentinel()
+        .await
+        .expect("write live foreign sentinel");
+
+    let orphan = EmbeddedSurrealTestScope::create_in(root.path())
+        .await
+        .expect("allocate scope that will be orphaned");
+    let orphan_scope_path = orphan
+        .leave_closed_orphan_for_proof()
+        .await
+        .expect("leave crash-shaped orphan behind");
+    assert!(
+        orphan_scope_path.exists(),
+        "orphan must survive until the next allocation sweeps"
+    );
+
+    let mut next = EmbeddedSurrealTestScope::create_in(root.path())
+        .await
+        .expect("allocate scope whose recovery fence reclaims the orphan");
+    let report = next.startup_sweep_report();
+    assert_eq!(
+        report.reclaimed,
+        vec![orphan_scope_path.clone()],
+        "the fence must reclaim exactly the orphaned scope"
+    );
+    assert!(report.errors.is_empty(), "errors: {:?}", report.errors);
+    assert!(
+        report.rejected_unsafe.is_empty(),
+        "rejected: {:?}",
+        report.rejected_unsafe
+    );
+    assert!(
+        report.skipped_live.iter().any(|path| path == &live_scope_path),
+        "the live foreign scope must be recognized and skipped: {report:?}"
+    );
+    assert!(
+        !orphan_scope_path.exists(),
+        "the orphaned scope path must be gone"
+    );
+    assert!(
+        live.foreign_survival_sentinel_exists()
+            .await
+            .expect("reread live foreign sentinel after the fence ran"),
+        "live foreign data must survive the recovery fence"
+    );
+
+    next.cleanup().await.expect("clean the fence-running scope");
+    live.cleanup().await.expect("clean the live foreign scope");
+    assert_eq!(
+        measure_owned_scopes(root.path())
+            .expect("measure emptied recovery-fence root")
+            .scope_count,
+        0
+    );
+}
+
+/// AC-4 as an assertion, not a manual step.
+///
+/// After the task-owned scopes are cleaned, each exact physical store is
+/// re-opened with the official SDK and required to report zero of this run's
+/// namespaces and databases. The re-read never consults the allocator state
+/// that performed the cleanup, so a green cleanup receipt cannot make it
+/// agree; a regression fails the build instead of waiting to be noticed.
+///
+/// The foreign-owned scope is staged by this test rather than inherited from
+/// whatever another lane happened to leave behind, and it must survive
+/// untouched. That is what makes the zero count evidence of EXACT teardown
+/// instead of evidence of broad deletion, which would also read as zero.
+#[tokio::test]
+async fn independent_reread_finds_zero_task_owned_scopes_and_spares_a_foreign_scope() {
+    let root = tempfile::tempdir().expect("create MT-024 leak-proof root");
+
+    let mut foreign = EmbeddedSurrealTestScope::create_in(root.path())
+        .await
+        .expect("stage foreign-owned scope");
+    foreign
+        .write_foreign_survival_sentinel()
+        .await
+        .expect("write staged foreign sentinel");
+    let foreign_namespace = foreign.namespace().to_owned();
+    let foreign_database = foreign.database().to_owned();
+    let foreign_store = foreign.store_path().to_path_buf();
+    // Release the engine handle so the independent re-read can open the same
+    // physical store. The ownership marker stays held, so every allocation
+    // below still sees this scope as live and must leave it alone.
+    foreign
+        .close_for_reopen()
+        .await
+        .expect("release foreign engine handle before independent reread");
+
+    let mut owned = Vec::new();
+    for _ in 0..3 {
+        owned.push(
+            EmbeddedSurrealTestScope::create_in(root.path())
+                .await
+                .expect("allocate task-owned scope"),
+        );
+    }
+    let owned_identity: Vec<(String, String, std::path::PathBuf)> = owned
+        .iter()
+        .map(|scope| {
+            (
+                scope.namespace().to_owned(),
+                scope.database().to_owned(),
+                scope.store_path().to_path_buf(),
+            )
+        })
+        .collect();
+
+    let attempts = cleanup_embedded_surreal_scopes(&mut owned).await;
+    assert_eq!(attempts.len(), owned_identity.len());
+    for attempt in &attempts {
+        assert!(
+            attempt.succeeded,
+            "every task-owned scope must clean up: {attempt:?}"
+        );
+    }
+
+    let mut surviving_task_owned = Vec::new();
+    for (namespace, database, store_path) in &owned_identity {
+        let namespaces =
+            independent_root_namespaces_for_proof(store_path, DEFAULT_EMBEDDED_SCOPE_TIMEOUT)
+                .await
+                .expect("independent canonical reread of a task-owned store");
+        if namespaces.contains(namespace) {
+            surviving_task_owned.push(format!("namespace {namespace}"));
+        }
+        let databases = independent_namespace_databases_for_proof(
+            store_path,
+            namespace,
+            DEFAULT_EMBEDDED_SCOPE_TIMEOUT,
+        )
+        .await
+        .expect("independent canonical database reread of a task-owned store");
+        if databases.contains(database) {
+            surviving_task_owned.push(format!("database {database}"));
+        }
+    }
+    assert!(
+        surviving_task_owned.is_empty(),
+        "independent canonical reread must find zero task-owned scopes, found: {surviving_task_owned:?}"
+    );
+
+    let foreign_namespaces =
+        independent_root_namespaces_for_proof(&foreign_store, DEFAULT_EMBEDDED_SCOPE_TIMEOUT)
+            .await
+            .expect("independent canonical reread of the staged foreign store");
+    assert!(
+        foreign_namespaces.contains(&foreign_namespace),
+        "the staged foreign namespace must survive exact teardown"
+    );
+    let foreign_databases = independent_namespace_databases_for_proof(
+        &foreign_store,
+        &foreign_namespace,
+        DEFAULT_EMBEDDED_SCOPE_TIMEOUT,
+    )
+    .await
+    .expect("independent canonical database reread of the staged foreign store");
+    assert!(
+        foreign_databases.contains(&foreign_database),
+        "the staged foreign database must survive exact teardown"
+    );
+
+    // Measured while the foreign engine is still closed. `measure_owned_scopes`
+    // walks each scope's contained tree, and a LIVE embedded store rewrites that
+    // tree underneath the walk, so a file can vanish between `read_dir` and
+    // `symlink_metadata`. Counting a quiescent root is the honest measurement.
+    assert_eq!(
+        measure_owned_scopes(root.path())
+            .expect("measure the root after task-owned teardown")
+            .scope_count,
+        1,
+        "only the staged foreign scope may remain"
+    );
+
+    foreign
+        .reopen()
+        .await
+        .expect("reopen the staged foreign scope");
+    assert!(
+        foreign
+            .foreign_survival_sentinel_exists()
+            .await
+            .expect("reread the staged foreign sentinel"),
+        "staged foreign data must survive exact teardown"
+    );
+
+    foreign
+        .cleanup()
+        .await
+        .expect("clean the staged foreign scope by its own authority");
+    assert_eq!(
+        measure_owned_scopes(root.path())
+            .expect("measure the emptied root")
+            .scope_count,
+        0
+    );
+}
+
 #[tokio::test]
 async fn cleanup_of_earlier_scope_preserves_later_foreign_scope_path() {
     let root = tempfile::tempdir().expect("create MT-024 scope root");
@@ -251,9 +469,22 @@ async fn cleanup_batch_attempts_later_scope_after_earlier_escaped_use_error() {
         .error
         .as_deref()
         .expect("failed cleanup exposes its error");
+    // Bounded means the injected 100 ms deadline is what stopped the wait. The
+    // receipt names that exact bound, so an unbounded wait or a silently
+    // widened deadline breaks this assertion instead of hanging the suite.
     assert!(
-        first_error.contains("timeout") || first_error.contains("exceeded"),
-        "first failure must be the injected bounded timeout: {first_error}"
+        first_error.contains("still draining operations after 100 ms"),
+        "first failure must be the injected 100 ms bounded-shutdown receipt: {first_error}"
+    );
+    assert!(
+        attempts[0].diagnostics.elapsed < Duration::from_secs(5),
+        "bounded failure must return near its own deadline, not the 120 s scope timeout: {:?}",
+        attempts[0].diagnostics.elapsed
+    );
+    assert!(
+        !attempts[0].diagnostics.database_absent
+            && !attempts[0].diagnostics.namespace_absent_after_reopen,
+        "a bounded failure must not claim the exact scope was removed"
     );
     assert!(
         attempts[1].succeeded,
@@ -284,7 +515,25 @@ async fn cleanup_batch_attempts_later_scope_after_earlier_escaped_use_error() {
         .await
         .expect("join escaped operation")
         .expect("escaped operation completes after release");
-    let recovered = scopes[0].cleanup().await.expect("retry earlier cleanup");
+    // The bounded failure is recoverable, not terminal: the receipt says the
+    // closure "continues in the background", so the caller retries against a
+    // DEADLINE rather than assuming one attempt must now succeed. This scope
+    // still carries the injected 100 ms shutdown bound, so a single retry can
+    // legitimately land while the background close is mid-drain. The deadline
+    // is what keeps this a bounded wait instead of a hang.
+    let recovery_deadline = std::time::Instant::now() + Duration::from_secs(120);
+    let recovered = loop {
+        match scopes[0].cleanup().await {
+            Ok(receipt) => break receipt,
+            Err(error) => {
+                assert!(
+                    std::time::Instant::now() < recovery_deadline,
+                    "recovery from the bounded failure exceeded its deadline: {error}"
+                );
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        }
+    };
     assert_eq!(
         scopes[0].cleanup().await.expect("repeat recovered cleanup"),
         recovered,

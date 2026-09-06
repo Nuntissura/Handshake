@@ -351,6 +351,7 @@ pub struct EmbeddedSurrealTestScope {
     storage_shutdown_timeout: Duration,
     successful_cleanup: Option<EmbeddedSurrealCleanupDiagnostics>,
     last_cleanup: Option<EmbeddedSurrealCleanupDiagnostics>,
+    startup_sweep: SweepReport,
 }
 
 impl EmbeddedSurrealCleanupDiagnostics {
@@ -388,7 +389,12 @@ impl EmbeddedSurrealTestScope {
             ));
         }
         let root = prepare_root(root.as_ref())?;
-        let _ = sweep_prepared_root(&root, DEFAULT_STALE_AGE)?;
+        // The recovery fence must never fail silently: a scope this allocation
+        // could not reclaim is retained as a receipt on the returned scope and
+        // reported on stderr, so a leak is observable in the run that saw it
+        // rather than only in some later run that happens to sweep the root.
+        let startup_sweep = sweep_prepared_root(&root, DEFAULT_STALE_AGE)?;
+        report_unreclaimed_startup_sweep(&root, &startup_sweep);
         let identity = StoreIdentity::generate();
         let scope_path = root.join(identity.scope_name());
         let marker_path = root.join(identity.marker_name());
@@ -467,7 +473,17 @@ impl EmbeddedSurrealTestScope {
             storage_shutdown_timeout: timeout,
             successful_cleanup: None,
             last_cleanup: None,
+            startup_sweep,
         })
+    }
+
+    /// Receipt for the recovery-fence sweep this allocation performed.
+    ///
+    /// `reclaimed` names the exact crash-orphaned scopes this allocation
+    /// removed; `skipped_live` names scopes a live owner still holds; `errors`
+    /// and `rejected_unsafe` name residue this allocation refused to touch.
+    pub fn startup_sweep_report(&self) -> &SweepReport {
+        &self.startup_sweep
     }
 
     pub fn namespace(&self) -> &str {
@@ -605,6 +621,17 @@ impl EmbeddedSurrealTestScope {
         }
         self.client = Some(client);
         Ok(())
+    }
+
+    /// Leaves this exact scope behind exactly as an aborted run would.
+    ///
+    /// Engine handles close first, then the ownership marker is released
+    /// without removing the scope, so the next allocation's recovery fence sees
+    /// the same stale-owner residue a crashed process leaves on disk.
+    pub async fn leave_closed_orphan_for_proof(mut self) -> io::Result<PathBuf> {
+        self.close_for_reopen().await?;
+        drop(self.owner_marker.take());
+        Ok(self.scope_path.clone())
     }
 
     pub async fn cleanup(&mut self) -> io::Result<EmbeddedSurrealCleanupDiagnostics> {
@@ -759,6 +786,99 @@ pub async fn cleanup_embedded_surreal_scopes(
         });
     }
     attempts
+}
+
+/// Independent official-SDK canonical re-read of one exact physical store.
+///
+/// Opens a FRESH root client at `store_path` and reports what the catalog
+/// actually holds. It never consults the allocator state that performed the
+/// cleanup, so a green cleanup receipt cannot make this agree with it: that
+/// independence is the point. A removed scope leaves no store directory, so
+/// the re-read observes an empty catalog, which is the same zero answer.
+pub async fn independent_root_namespaces_for_proof(
+    store_path: impl AsRef<Path>,
+    timeout: Duration,
+) -> io::Result<BTreeSet<String>> {
+    let store_path = store_path.as_ref();
+    let client = open_embedded_root(store_path, timeout, "independent canonical reread").await?;
+    let namespaces = catalog_names(
+        &client,
+        "INFO FOR ROOT;",
+        "namespaces",
+        timeout,
+        "independent canonical reread",
+    )
+    .await;
+    let closed =
+        close_embedded_client(client, store_path, timeout, "independent canonical reread").await;
+    let namespaces = namespaces?;
+    closed?;
+    Ok(namespaces)
+}
+
+/// Independent official-SDK canonical re-read of one namespace's databases.
+///
+/// Reports an empty set when the namespace itself is absent, so an exact
+/// database can be proven gone without first asserting how it went.
+pub async fn independent_namespace_databases_for_proof(
+    store_path: impl AsRef<Path>,
+    namespace: &str,
+    timeout: Duration,
+) -> io::Result<BTreeSet<String>> {
+    let store_path = store_path.as_ref();
+    let client = open_embedded_root(store_path, timeout, "independent database reread").await?;
+    let databases = async {
+        let namespaces = catalog_names(
+            &client,
+            "INFO FOR ROOT;",
+            "namespaces",
+            timeout,
+            "independent database reread",
+        )
+        .await?;
+        if !namespaces.contains(namespace) {
+            return Ok(BTreeSet::new());
+        }
+        bounded_sdk(
+            timeout,
+            "select namespace for independent database reread",
+            client.use_ns(namespace),
+        )
+        .await?;
+        catalog_names(
+            &client,
+            "INFO FOR NS;",
+            "databases",
+            timeout,
+            "independent database reread",
+        )
+        .await
+    }
+    .await;
+    let closed =
+        close_embedded_client(client, store_path, timeout, "independent database reread").await;
+    let databases = databases?;
+    closed?;
+    Ok(databases)
+}
+
+/// Emits a bounded, observable receipt for residue the recovery fence left.
+///
+/// Silence here is the failure mode this reporting exists to remove: a scope
+/// the sweep could not reclaim otherwise disappears from the run that saw it.
+/// Live scopes are never reported, because a held owner marker is the correct
+/// exact-ownership outcome, not an error.
+fn report_unreclaimed_startup_sweep(root: &Path, report: &SweepReport) {
+    if report.errors.is_empty() && report.rejected_unsafe.is_empty() {
+        return;
+    }
+    let _ = writeln!(
+        io::stderr().lock(),
+        "embedded_surreal_recovery_fence_unreclaimed root={} errors={:?} rejected_unsafe={:?}",
+        root.display(),
+        report.errors,
+        report.rejected_unsafe
+    );
 }
 
 fn validate_embedded_identifier(value: &str, prefix: &str) -> io::Result<()> {
