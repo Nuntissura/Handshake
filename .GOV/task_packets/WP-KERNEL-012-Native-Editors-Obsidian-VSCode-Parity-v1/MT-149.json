@@ -1,0 +1,145 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-149",
+  "title": "B14-MT-149-Restore-The-src-Accessors-An-Earlier-MT-Dropped-Under-Two-Other-Microtasks",
+  "group": "B14",
+  "created_at_utc": "2026-09-05T23:59:12.857Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-149.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [],
+    "blocks": [
+      "MT-141"
+    ],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "created_by": "KERNEL_BUILDER-20260903-213930",
+    "created_at_utc": "2026-09-05T23:59:12.857Z",
+    "creation_reason": "Commit b1802e5d, an earlier microtask in this same work packet, reworked the knowledge_* API modules and the flight recorder emitter and dropped accessors that other microtasks' tests assert through. Seven backend test targets cannot compile as a result, and two of them carry the acceptance proofs for MT-108 and MT-105. The MT-141 implementer found this, refused to delete the tests to reach a green compile, and stopped at BLOCKED_ON_DEPENDENCY. This microtask restores what was dropped.",
+    "why_a_separate_microtask": "MT-141's forbidden_paths exclude src/backend/handshake_core/src/**. The repair is product code, not test code. MT-141 was right not to reach for it.",
+    "urgency": "This is the gate on the largest remaining microtask in the packet. MT-141 cannot compile its last 7 targets, cannot run its suite, and cannot satisfy AC-141-4 or PT-141-2 until this lands."
+  },
+  "scope": {
+    "summary": "Restore the accessors and visibility that commit b1802e5d removed from src/backend/handshake_core/src/**, so the seven remaining backend test targets compile and MT-108's and MT-105's acceptance proofs are executable again. The durable data and behaviour still exist; only the ways of reaching them were dropped.",
+    "what_to_restore": [
+      "Five SurrealDatabase repair and SCIP accessors.",
+      "InMemoryKb003Storage: un-gated, or replaced by an equivalent the tests can construct.",
+      "starvation_watermark_at_utc, audit_reason and query_values: re-exposed."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/"
+    ],
+    "forbidden_paths": [
+      "src/backend/handshake_core/tests/",
+      ".GOV/**",
+      "src/frontend/**",
+      "app/**",
+      ".github/workflows/**"
+    ],
+    "embedded_mode_boundary": "SurrealDB and EventLedger only. Restoring an accessor must not restore any SQLite or PostgreSQL path. If an accessor cannot be restored without reintroducing a removed backend, stop and report it rather than reaching for the old implementation.",
+    "acceptance_criteria": [
+      "AC-149-1: all seven previously failing backend test targets compile. Measure with cargo check --all-targets AND --keep-going: plain cargo check stops scheduling after errors and under-reported this same tree as 2 failing when the truth was 34.",
+      "AC-149-2: each restored accessor is reconnected to the SAME durable data it read before. Restoring a name while returning a default, an empty collection, or a stub is a worse outcome than leaving it missing, because the tests would go green while proving nothing.",
+      "AC-149-3: the tests in knowledge_code_index_tests that carry MT-108's and MT-105's acceptance proofs execute and pass. Compiling is not sufficient; these are the proofs the whole microtask exists to make executable again.",
+      "AC-149-4: nothing under tests/ is modified. If a test appears to need changing, that is a finding for the Operator, not a licence — the entire reason this microtask exists is that deleting or editing those tests was the wrong answer.",
+      "AC-149-5: no accessor is restored by reintroducing SQLite or PostgreSQL.",
+      "AC-149-6: the product binary still builds and no unrelated behaviour changes. Restoring visibility should not alter runtime behaviour for anything that already compiled."
+    ],
+    "proof_targets": [
+      "PT-149-1: cargo check --all-targets --keep-going before and after, with the failing-target count quoted verbatim both times.",
+      "PT-149-2: the knowledge_code_index_tests targets run, not merely compiled, with their result lines quoted.",
+      "PT-149-3: for each restored accessor, the evidence that it reads the same durable field it read before b1802e5d - a diff against that commit is the natural source.",
+      "PT-149-4: the product binary build."
+    ],
+    "execution_constraints": [
+      "CARGO_TARGET_DIR must be Handshake_Artifacts/handshake-cargo-target/k12/m149 under the per-microtask convention. Seed it by copying the warm k12-kb0902 rather than building cold - cargo accepts a relocated target dir, which turns a 40 minute build into a file copy.",
+      "HANDSHAKE_ARTIFACTS_ROOT must be the absolute artifacts root. Sibling roots are forbidden: Handshake/Handshake_Artifacts and Handshake Worktrees/handshake-cargo-target both exist and must not be used.",
+      "Keep target paths SHORT: bundled DuckDB C++ headers hit the MSVC 260-character limit and fail with C1083.",
+      "Cap test concurrency at --test-threads=4. At default parallelism this suite livelocked: 29 tests opened 26 concurrent stores and completed 4 in 3.8 hours.",
+      "Serialise linking with -j 1 if you hit LNK1102 out of memory.",
+      "Other lanes are live in the same worktree. Stage by explicit path, never git add -A, and never kill a process you did not start."
+    ],
+    "risk_if_missed": "MT-141 stays blocked, the backend suite is never run, and the work packet cannot reach a ready state. Worse, the failure mode this microtask prevents is the tempting one: a future session under time pressure deletes the seven tests, gets a green compile, and silently destroys MT-108's and MT-105's acceptance evidence inside their own packet."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "compile and test output"
+    ],
+    "not_applicable_reason": "Backend accessor restoration with no operator-visible surface."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Restores previously-existing accessors; no command, config key, channel or navigation path changes."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "RESTORATION_WITHOUT_HOLLOW_ACCESSORS",
+    "risks": [
+      "Restoring the name but not the wiring - returning a default, an empty vec or a stub so the tests compile and pass while proving nothing. This is the single most likely failure here and AC-149-2 exists for it.",
+      "Editing tests/ to meet the accessor halfway, which recreates the exact harm this microtask was created to undo.",
+      "Reintroducing a SQLite or PostgreSQL path while restoring an accessor from its pre-pivot implementation.",
+      "Declaring success on compilation alone without running the MT-108 and MT-105 proofs."
+    ],
+    "minimum_controls": [
+      "AC-149-2 requires each accessor reconnected to the same durable data, with PT-149-3 evidencing it against b1802e5d.",
+      "AC-149-3 requires the proofs to run, not just compile.",
+      "AC-149-4 forbids touching tests/ and routes any apparent need to the Operator.",
+      "AC-149-1 mandates --keep-going so the failing count is not under-reported."
+    ],
+    "adversarial_validation_lenses": [
+      "anti-scaffold / runtime-proof",
+      "correctness",
+      "evidence preservation"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "Restores previously-existing accessors. If any restoration changes observable runtime behaviour rather than only visibility, that must be recorded under the HBR-INT-009 three-tier consideration.",
+    "VIS": "NOT_APPLICABLE: no GUI, operator, diagnostic or frontend surface.",
+    "MAN": "NOT_APPLICABLE per user_manual_obligation.",
+    "QUIET": "Compiles and test runs stay headless.",
+    "STOP": "No capacity or session-count stop reasons. An accessor that cannot be restored without reintroducing a removed backend is reported, not forced."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "unblocks": "MT-141"
+  }
+}
