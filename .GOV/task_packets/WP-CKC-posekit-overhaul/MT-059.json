@@ -29,13 +29,13 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-059.json"
   },
   "lifecycle": {
-    "status": "PENDING",
-    "active": false,
+    "status": "CLAIMED",
+    "active": true,
     "depends_on": [
       "MT-058"
     ],
-    "claimed_by": null,
-    "claimed_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260904-213453",
+    "claimed_at_utc": "2026-09-06T00:22:32.687Z",
     "completed_by": null
   },
   "state_recovery": {
@@ -126,7 +126,8 @@
   "handoff": {
     "status": "PENDING",
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification."
+    "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification.",
+    "coder_session": "KERNEL_BUILDER-20260904-213453"
   },
   "validator_verdict": "PENDING",
   "implementation_brief": {
