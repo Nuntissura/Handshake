@@ -13789,9 +13789,107 @@ fn actor_request_has_header(spec: &ActorRequestSpec, header_name: &str) -> bool 
     spec.headers.iter().any(|(name, _)| name == header_name)
 }
 
+/// WP-CKC MT-065 TARGET-ROUTER DEVIATION. The SurrealDB-port routers enforce
+/// `x-hsk-actor-kind: operator` ONLY for `x-hsk-actor-id: operator`
+/// (`api/atelier_ckc_sheets.rs`: "x-hsk-actor-kind=operator is reserved for x-hsk-actor-id=operator").
+/// The reference branch attached the operator kind to every lease-less actor request regardless of the
+/// actor id, which on this tree turns any non-`operator` actor (e.g. an operator-typed agent id in the
+/// panel's actor field) into a hard 400. So the kind is attached only when the request's own actor id is
+/// literally `operator`; any other actor must carry a Model Ops lease instead, which is exactly what the
+/// backend asks for.
 fn actor_request_needs_operator_kind(spec: &ActorRequestSpec) -> bool {
     !actor_request_has_header(spec, HSK_HEADER_ACTOR_KIND)
         && !actor_request_has_header(spec, HSK_HEADER_MODEL_LEASE_ID)
+        && actor_request_actor_id(spec) == Some(ATELIER_OPERATOR_ACTOR_ID)
+}
+
+/// The `x-hsk-actor-id` this request declares, if any.
+fn actor_request_actor_id(spec: &ActorRequestSpec) -> Option<&str> {
+    spec.headers
+        .iter()
+        .find(|(name, _)| name == HSK_HEADER_ACTOR_ID)
+        .map(|(_, value)| value.trim())
+}
+
+/// Response header naming the artifact a byte read resolved to.
+const HSK_HEADER_ARTIFACT_REF: &str = "x-hsk-artifact-ref";
+/// Response header carrying the bare lowercase 64-hex sha256 of the returned payload.
+const HSK_HEADER_CONTENT_SHA256: &str = "x-hsk-content-sha256";
+
+/// `GET {url}?{query}` returning the raw response body.
+///
+/// WP-CKC MT-065. The SurrealDB-port byte routes
+/// (`GET /atelier/media-assets/{asset_id}/bytes`, `GET /atelier/posekit/openpose-png/bytes`) promise a
+/// whole, hash-verified payload and never a partial body, and they declare that promise in the
+/// response: `Content-Length`, `ETag: "sha256-<hex>"`, and `x-hsk-content-sha256` (bare lowercase hex).
+/// The reference branch's helper threw those headers away, so a truncated or substituted body would
+/// have been decoded and painted as if it were the asset. This verifies the declared length and digest
+/// before returning, turning a corrupt read into a typed error the viewer surfaces as an explicit
+/// failure state instead of a wrong image.
+async fn get_bytes(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<Vec<u8>, AppError> {
+    let resp = client
+        .get(url)
+        .query(query)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    let status = resp.status();
+    if !status.is_success() {
+        // The atelier byte routes answer with a typed `{"error": ...}` JSON body on 400/404/500; keep
+        // it in the message so the panel's status node names the real cause.
+        let detail = resp.text().await.unwrap_or_default();
+        let detail = detail.trim();
+        return Err(AppError::Http(if detail.is_empty() {
+            format!("GET non-success status {status}")
+        } else {
+            format!("GET non-success status {status}: {detail}")
+        }));
+    }
+    let declared_len = resp
+        .headers()
+        .get(reqwest::header::CONTENT_LENGTH)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<usize>().ok());
+    let declared_sha = resp
+        .headers()
+        .get(HSK_HEADER_CONTENT_SHA256)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit()));
+    let artifact_ref = resp
+        .headers()
+        .get(HSK_HEADER_ARTIFACT_REF)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("")
+        .to_owned();
+    let bytes = resp
+        .bytes()
+        .await
+        .map(|bytes| bytes.to_vec())
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if let Some(expected) = declared_len {
+        if bytes.len() != expected {
+            return Err(AppError::Parse(format!(
+                "byte read returned a partial body: Content-Length {expected}, got {} bytes (artifact {artifact_ref})",
+                bytes.len()
+            )));
+        }
+    }
+    if let Some(expected) = declared_sha {
+        use sha2::{Digest as _, Sha256};
+        let actual = format!("{:x}", Sha256::digest(&bytes));
+        if actual != expected {
+            return Err(AppError::Parse(format!(
+                "byte read failed integrity: {HSK_HEADER_CONTENT_SHA256} {expected}, computed {actual} (artifact {artifact_ref})"
+            )));
+        }
+    }
+    Ok(bytes)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -15509,10 +15607,16 @@ fn parse_atelier_ckc_document_row(
         tags: json_required_string_vec(row, "tags")?,
         current_version_id: json_required_nonempty_string(row, "current_version_id")?,
         current_version_seq: json_required_i64(row, "current_version_seq")?,
-        current_version: Some(
-            row.get("current_version")
-                .and_then(parse_atelier_ckc_document_version_row)?,
-        ),
+        // WP-CKC MT-065 TARGET-ROUTER DEVIATION. `CharacterDocumentResponse.current_version` is
+        // `Option<CharacterDocumentVersionResponse>` (`api/atelier_ckc_sheets.rs`
+        // `character_document_response` -> `latest_character_document_version(..)` may be `None`), so a
+        // document whose versions have not materialised serialises `"current_version": null`. The
+        // reference parser made it mandatory with `?`, which discarded the WHOLE row and, through
+        // `fetch_atelier_character_documents`, failed the entire document list on one version-less doc.
+        // A missing latest version is a legitimate state, so it stays `None` here.
+        current_version: row
+            .get("current_version")
+            .and_then(parse_atelier_ckc_document_version_row),
         story_cards: Vec::new(),
         story_beats: Vec::new(),
     })
