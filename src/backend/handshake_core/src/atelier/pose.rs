@@ -3217,11 +3217,11 @@ const WRITE_POSE_WORKSPACE_RIG_STATEMENT: &str = concat!(
        WHERE workspace_ref = $domain.workspace_ref AND session_ref = $domain.session_ref \
          AND open = true AND active = true AND rig_id != $domain.rig_ref; }; ",
     atelier_event_sql!(),
-    " UPSERT $rid MERGE { workspace_ref: $domain.workspace_ref, session_ref: $domain.session_ref, \
-       rig_id: $domain.rig_ref, open: $domain.open, sort_order: $domain.sort_order, \
-       active: $domain.active, dirty_calibration: $domain.dirty_calibration, \
-       panel_state: $domain.panel_state, requested_by: $domain.requested_by, \
-       updated_at_utc: time::now() }; ",
+    " UPSERT $rid SET workspace_ref = $domain.workspace_ref, session_ref = $domain.session_ref, \
+       rig_id = $domain.rig_ref, open = $domain.open, sort_order = $domain.sort_order, \
+       active = $domain.active, dirty_calibration = $domain.dirty_calibration, \
+       panel_state = $domain.panel_state, requested_by = $domain.requested_by, \
+       updated_at_utc = time::now(); ",
     "RETURN (SELECT ",
     workspace_rig_state_columns!(),
     " FROM ONLY $rid); };"

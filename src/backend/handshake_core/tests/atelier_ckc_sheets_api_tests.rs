@@ -12,9 +12,11 @@
 
 mod atelier_surreal_support;
 
+use std::panic::AssertUnwindSafe;
 use std::sync::{Arc, OnceLock};
 
 use async_trait::async_trait;
+use futures::FutureExt;
 use atelier_surreal_support::AtelierSurrealHarness;
 use handshake_core::api::atelier_ckc_sheets::{
     ckc_character_create_model_operation_thread_id,
@@ -217,10 +219,66 @@ fn str_field<'a>(value: &'a serde_json::Value, key: &str) -> &'a str {
         .unwrap_or_else(|| panic!("`{key}` must be a string in {value}"))
 }
 
+/// Every CKC sheets HTTP proof in this binary shares ONE embedded store.
+///
+/// Bootstrapping the kernel schema into a fresh on-disk SurrealDB costs tens of minutes in a debug
+/// build and dominates the wall clock of every harness-backed proof; four private harnesses cost
+/// four bootstraps and, run in parallel, thrash the host. Each sub-proof still binds its own
+/// `axum` server and seeds its own character with a UUID-suffixed `public_id`, and no assertion
+/// here counts rows globally - they are all scoped to the sub-proof's own character, document or
+/// sheet version - so sharing the store changes no assertion. Same collapse as MT-057.
 #[tokio::test]
-async fn atelier_character_sheet_api_round_trips_refs_and_conflicts() {
+async fn atelier_ckc_sheets_api_umbrella() {
     let harness = AtelierSurrealHarness::create().await;
-    let (base_url, client, server) = serve(app_state(&harness)).await;
+    let mut failures = Vec::new();
+    run_sub_proof(
+        "character_sheet_api_round_trips_refs_and_conflicts",
+        &mut failures,
+        character_sheet_api_round_trips_refs_and_conflicts(&harness),
+    )
+    .await;
+    run_sub_proof(
+        "ckc_bundled_template_import_export_and_field_suggestions",
+        &mut failures,
+        ckc_bundled_template_import_export_and_field_suggestions(&harness),
+    )
+    .await;
+    run_sub_proof(
+        "ckc_story_and_moodboard_api_links_native_documents",
+        &mut failures,
+        ckc_story_and_moodboard_api_links_native_documents(&harness),
+    )
+    .await;
+    run_sub_proof(
+        "ckc_sheets_guarded_mutations_require_lease_or_operator",
+        &mut failures,
+        ckc_sheets_guarded_mutations_require_lease_or_operator(&harness),
+    )
+    .await;
+    harness.shutdown().await;
+    assert!(
+        failures.is_empty(),
+        "CKC sheets sub-proofs failed: {failures:?} (each failure's panic is printed above)"
+    );
+}
+
+/// Run one sub-proof and record its name instead of aborting the umbrella.
+///
+/// One shared store means one test function, and a bare `.await` would stop at the first failing
+/// sub-proof - turning every defect into its own multi-hour compile-and-run cycle. Catching the
+/// unwind keeps the remaining sub-proofs running so ONE run reports every failure; the default
+/// panic hook still prints each message, and the umbrella still fails.
+async fn run_sub_proof<F>(name: &str, failures: &mut Vec<String>, proof: F)
+where
+    F: std::future::Future<Output = ()>,
+{
+    if AssertUnwindSafe(proof).catch_unwind().await.is_err() {
+        failures.push(name.to_owned());
+    }
+}
+
+async fn character_sheet_api_round_trips_refs_and_conflicts(harness: &AtelierSurrealHarness) {
+    let (base_url, client, server) = serve(app_state(harness)).await;
     let public_id = format!("mt009-char-{}", Uuid::now_v7());
 
     let (status, character) = json_body(
@@ -341,12 +399,39 @@ async fn atelier_character_sheet_api_round_trips_refs_and_conflicts() {
     assert_eq!(first["seq"], 1);
     assert_eq!(first["author"].as_str(), Some("operator"));
     assert_eq!(str_field(&first, "sheet_version_ref"), expected_first_sheet_ref);
+    // The projection row the append just wrote, read back through the product surface rather than
+    // the catalog inspector: `SurrealTestInspector` cannot address a column named `value`, because
+    // the structured `INFO FOR TABLE` output backtick-escapes reserved SurrealQL keywords and the
+    // inspector stores the escaped spelling (see the report on test_inspector.rs).
+    let (status, projected) = json_body(
+        client
+            .get(format!(
+                "{base_url}/atelier/sheet-field-suggestions?field_id=CHAR-ID-006&limit=50"
+            ))
+            .send()
+            .await
+            .expect("field suggestions after first append"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{projected}");
+    let route_proof = projected
+        .as_array()
+        .expect("suggestions array")
+        .iter()
+        .find(|row| row["value"].as_str() == Some("route proof"))
+        .unwrap_or_else(|| {
+            panic!(
+                "append-only CKC sheet writes must populate the field-value projection in the same write: {projected}"
+            )
+        });
+    assert_eq!(route_proof["occurrences"].as_i64(), Some(1));
     assert_eq!(
-        harness
-            .row_count_by_field("atelier_sheet_field_value_projection", "value", "route proof")
-            .await,
-        1,
-        "append-only CKC sheet writes must populate the field-value projection in the same write"
+        route_proof["latest_character_internal_id"].as_str(),
+        Some(character_internal_id.as_str())
+    );
+    assert_eq!(
+        route_proof["latest_version_id"].as_str(),
+        Some(first_version_id.as_str())
     );
 
     let (status, second) = json_body(
@@ -467,13 +552,12 @@ async fn atelier_character_sheet_api_round_trips_refs_and_conflicts() {
     );
 
     server.abort();
-    harness.shutdown().await;
 }
 
-#[tokio::test]
-async fn atelier_ckc_bundled_template_import_export_and_field_suggestions() {
-    let harness = AtelierSurrealHarness::create().await;
-    let (base_url, client, server) = serve(app_state(&harness)).await;
+async fn ckc_bundled_template_import_export_and_field_suggestions(
+    harness: &AtelierSurrealHarness,
+) {
+    let (base_url, client, server) = serve(app_state(harness)).await;
     let public_id = format!("mt009-template-char-{}", Uuid::now_v7());
     let display_name = "MT-009 Template Proof";
 
@@ -771,9 +855,14 @@ async fn atelier_ckc_bundled_template_import_export_and_field_suggestions() {
                 && row["value"].as_str() == Some("proof-primary-role")
         })
         .expect("CKC should remember prior input values per field for future sheet suggestions");
-    assert!(
-        primary_role["occurrences"].as_i64().unwrap_or_default() >= 3,
-        "the value was written by the import, the JSON round trip and the unsafe variant: {primary_role}"
+    assert_eq!(
+        primary_role["occurrences"].as_i64(),
+        Some(2),
+        "only the import and JSON round trip contain this value; the unsafe variant restores the template placeholder: {primary_role}"
+    );
+    assert_eq!(
+        primary_role["latest_version_id"].as_str(),
+        Some(round_trip_version_id.as_str())
     );
     assert_eq!(
         primary_role["latest_character_internal_id"].as_str(),
@@ -833,13 +922,10 @@ async fn atelier_ckc_bundled_template_import_export_and_field_suggestions() {
     assert!(!normalized_raw.contains(&format!("  {normalized_public_id}")));
 
     server.abort();
-    harness.shutdown().await;
 }
 
-#[tokio::test]
-async fn atelier_ckc_story_and_moodboard_api_links_native_documents() {
-    let harness = AtelierSurrealHarness::create().await;
-    let (base_url, client, server) = serve(app_state(&harness)).await;
+async fn ckc_story_and_moodboard_api_links_native_documents(harness: &AtelierSurrealHarness) {
+    let (base_url, client, server) = serve(app_state(harness)).await;
     let public_id = format!("mt012-story-char-{}", Uuid::now_v7());
 
     let (status, character) = json_body(
@@ -1286,17 +1372,14 @@ async fn atelier_ckc_story_and_moodboard_api_links_native_documents() {
     assert_eq!(missing_document.status(), StatusCode::NOT_FOUND);
 
     server.abort();
-    harness.shutdown().await;
 }
 
 /// The model-operation lease guard on this lane's mutations, plus the sheet artifact-link routes
 /// driven through a real lease: bare actors are refused, an operator declaration is accepted only
 /// for the `operator` actor, and a lease is accepted only when it is bound to the exact thread
 /// the route demands.
-#[tokio::test]
-async fn atelier_ckc_sheets_guarded_mutations_require_lease_or_operator() {
-    let harness = AtelierSurrealHarness::create().await;
-    let (base_url, client, server) = serve(app_state(&harness)).await;
+async fn ckc_sheets_guarded_mutations_require_lease_or_operator(harness: &AtelierSurrealHarness) {
+    let (base_url, client, server) = serve(app_state(harness)).await;
     let actor = format!("model:mt059-{}", Uuid::now_v7());
     let session_id = format!("session-{}", Uuid::now_v7());
     let public_id = format!("mt059-lease-char-{}", Uuid::now_v7());
@@ -1363,7 +1446,7 @@ async fn atelier_ckc_sheets_guarded_mutations_require_lease_or_operator() {
     assert_eq!(unknown_lease.status(), StatusCode::NOT_FOUND, "unknown claim id");
 
     let wrong_thread_claim = claim_lease(
-        &harness,
+        harness,
         &ckc_character_create_model_operation_thread_id("some-other-character"),
         &actor,
         &session_id,
@@ -1386,7 +1469,7 @@ async fn atelier_ckc_sheets_guarded_mutations_require_lease_or_operator() {
     );
 
     let create_claim = claim_lease(
-        &harness,
+        harness,
         &ckc_character_create_model_operation_thread_id(&public_id),
         &actor,
         &session_id,
@@ -1468,7 +1551,7 @@ async fn atelier_ckc_sheets_guarded_mutations_require_lease_or_operator() {
     assert_eq!(bare_attach.status(), StatusCode::BAD_REQUEST);
 
     let artifacts_claim = claim_lease(
-        &harness,
+        harness,
         &ckc_sheet_artifacts_model_operation_thread_id(version_uuid),
         &actor,
         &session_id,
@@ -1629,5 +1712,4 @@ async fn atelier_ckc_sheets_guarded_mutations_require_lease_or_operator() {
     assert_eq!(missing_version_links.status(), StatusCode::NOT_FOUND);
 
     server.abort();
-    harness.shutdown().await;
 }

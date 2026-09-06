@@ -33,7 +33,7 @@
 use chrono::{DateTime, Utc};
 use jsonschema::{Draft, JSONSchema};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use crate::storage::artifacts::sha256_hex;
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid, Value};
 use uuid::Uuid;
 
@@ -577,11 +577,6 @@ fn required_string_array_field(
             })
         })
         .collect()
-}
-
-/// Deterministic SHA-256 hex over the canonical spec bytes.
-fn sha256_hex(bytes: &[u8]) -> String {
-    hex::encode(Sha256::digest(bytes))
 }
 
 /// Compare two `MAJOR.MINOR.PATCH` semver strings. Non-numeric / missing

@@ -1117,6 +1117,7 @@ struct NotesTagCandidate {
 
 #[derive(Clone, SurrealValue)]
 struct ApplyMediaNotesTagsBindings {
+    events: Vec<super::RecordEventBindings>,
     asset_ref: RecordId,
     metadata_rid: RecordId,
     provenance_rid: RecordId,
@@ -1432,7 +1433,7 @@ const REORDER_ALBUM_ITEMS_STATEMENT: &str = concat!(
 /// rows created on demand, link rows keyed `[asset, tag]`), optional
 /// asset-global provenance upsert, then a snapshot of all three. The event
 /// fragment records `MEDIA_REVIEW_METADATA_UPDATED`; the per-tag and
-/// provenance events are appended after commit by the caller.
+/// provenance events use the same fragment inside this transaction.
 const APPLY_MEDIA_NOTES_TAGS_STATEMENT: &str = concat!(
     "RETURN { \
        IF !record::exists($domain.asset_ref) { THROW 'ckc_media_asset_missing'; }; ",
@@ -1463,6 +1464,32 @@ const APPLY_MEDIA_NOTES_TAGS_STATEMENT: &str = concat!(
            contact_sheet_ref = $domain.contact_sheet_ref, task_ref = $domain.task_ref, \
            run_ref = $domain.run_ref, updated_by = $domain.actor, updated_at_utc = time::now(); \
        }; \
+       FOR $event IN $domain.events { \
+         LET $ledger_id = $event.ledger_id; \
+         LET $kernel_event_id = $event.kernel_event_id; \
+         LET $event_version = $event.event_version; \
+         LET $kernel_task_run_id = $event.kernel_task_run_id; \
+         LET $session_run_id = $event.session_run_id; \
+         LET $kernel_aggregate_type = $event.kernel_aggregate_type; \
+         LET $kernel_aggregate_id = $event.kernel_aggregate_id; \
+         LET $idempotency_key = $event.idempotency_key; \
+         LET $event_type = $event.event_type; \
+         LET $actor_kind = $event.actor_kind; \
+         LET $actor_id = $event.actor_id; \
+         LET $causation_id = $event.causation_id; \
+         LET $correlation_id = $event.correlation_id; \
+         LET $payload_hash = $event.payload_hash; \
+         LET $source_component = $event.source_component; \
+         LET $ledger_payload = $event.ledger_payload; \
+         LET $created_at = $event.created_at; \
+         LET $atelier_id = $event.atelier_id; \
+         LET $atelier_event_uuid = $event.atelier_event_uuid; \
+         LET $atelier_event_id = $event.atelier_event_id; \
+         LET $event_family = $event.event_family; \
+         LET $atelier_payload = $event.atelier_payload; \
+       ",
+    atelier_event_sql!(),
+    " }; \
        RETURN { \
          metadata: (SELECT record::id(asset_id) AS asset_id, favorite, rating, frontpage, \
                            carousel, notes, review_status, updated_by, updated_at_utc \
@@ -2517,7 +2544,7 @@ impl AtelierStore {
     /// review-metadata upsert, the tag-set replacement and the optional
     /// provenance upsert then commit in one statement together with the
     /// `MEDIA_REVIEW_METADATA_UPDATED` event; the per-tag and provenance events
-    /// are appended after that commit.
+    /// commit in that same statement; only Flight Recorder mirroring follows commit.
     pub async fn apply_media_notes_tags(
         &self,
         update: &MediaNotesTagsUpdate,
@@ -2614,7 +2641,47 @@ impl AtelierStore {
                 }
             })
             .collect();
+        let mut supplemental_events = Vec::new();
+        for text in &removed_tags {
+            supplemental_events.push(self.prepare_event(
+                collections_event_family::MEDIA_ASSET_UNTAGGED,
+                "atelier_media_asset_tag",
+                &event_ref_for_text(&format!("media-asset-untag:{asset_id}:{text}")),
+                serde_json::json!({ "asset_id": asset_id, "text": text }),
+            )?);
+        }
+        for text in &added_tags {
+            supplemental_events.push(self.prepare_event(
+                collections_event_family::MEDIA_ASSET_TAGGED,
+                "atelier_media_asset_tag",
+                &event_ref_for_text(&format!("media-asset-tag:{asset_id}:{text}")),
+                serde_json::json!({
+                    "asset_id": asset_id,
+                    "text": text,
+                    "tag_source_ref": event_ref_for_text(actor),
+                }),
+            )?);
+        }
+        if write_provenance {
+            supplemental_events.push(self.prepare_event(
+                event_family::MEDIA_SOURCE_PROVENANCE_REFS_SET,
+                "atelier_media_asset",
+                &asset_id.to_string(),
+                serde_json::json!({
+                    "asset_id": asset_id,
+                    "source_url_ref": final_url_ref,
+                    "source_path_ref": final_path_ref,
+                    "source_note_ref": source_note_ref,
+                    "contact_sheet_ref": contact_sheet_ref,
+                    "task_ref": task_ref,
+                    "run_ref": run_ref,
+                    "updated_by": actor,
+                }),
+            )?);
+        }
+
         let bindings = ApplyMediaNotesTagsBindings {
+            events: supplemental_events.iter().map(|event| event.bindings.clone()).collect(),
             asset_ref: media_asset_record(asset_id),
             metadata_rid: RecordId::new("atelier_media_review_metadata", SurrealUuid::from(asset_id)),
             provenance_rid: RecordId::new(
@@ -2677,45 +2744,22 @@ impl AtelierStore {
         tags.dedup();
         let provenance = snapshot.provenance.into_iter().next().map(Into::into);
 
-        for text in &removed_tags {
-            self.record_event(
-                collections_event_family::MEDIA_ASSET_UNTAGGED,
-                "atelier_media_asset_tag",
-                &event_ref_for_text(&format!("media-asset-untag:{asset_id}:{text}")),
-                serde_json::json!({ "asset_id": asset_id, "text": text }),
-            )
-            .await?;
-        }
-        for text in &added_tags {
-            self.record_event(
-                collections_event_family::MEDIA_ASSET_TAGGED,
-                "atelier_media_asset_tag",
-                &event_ref_for_text(&format!("media-asset-tag:{asset_id}:{text}")),
-                serde_json::json!({
-                    "asset_id": asset_id,
-                    "text": text,
-                    "tag_source_ref": event_ref_for_text(actor),
-                }),
-            )
-            .await?;
-        }
-        if write_provenance {
-            self.record_event(
-                event_family::MEDIA_SOURCE_PROVENANCE_REFS_SET,
-                "atelier_media_asset",
-                &asset_id.to_string(),
-                serde_json::json!({
-                    "asset_id": asset_id,
-                    "source_url_ref": final_url_ref,
-                    "source_path_ref": final_path_ref,
-                    "source_note_ref": source_note_ref,
-                    "contact_sheet_ref": contact_sheet_ref,
-                    "task_ref": task_ref,
-                    "run_ref": run_ref,
-                    "updated_by": actor,
-                }),
-            )
-            .await?;
+        for prepared in supplemental_events {
+            let key = prepared.bindings.idempotency_key.clone();
+            let recorded: Option<super::RecordedLedgerRow> = self
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "SELECT event_id, event_sequence FROM kernel_event_ledger \
+                             WHERE idempotency_key = $idempotency_key LIMIT 1;",
+                            super::IdempotencyKeyBinding { idempotency_key: key },
+                        )
+                        .await
+                    })
+                })
+                .await?;
+            self.finish_event(prepared, recorded).await?;
         }
 
         Ok(MediaNotesTagsResult {
@@ -3372,5 +3416,95 @@ mod embedded_store_tests {
             1
         );
         reopened.shutdown().await.expect("close reopened store");
+    }
+
+    async fn notes_tags_authority_snapshot(storage: &SurrealStorage) -> serde_json::Value {
+        storage.with_data_operation(|ctx| Box::pin(async move {
+            ctx.query_first(
+                "RETURN { metadata: (SELECT * FROM atelier_media_review_metadata ORDER BY id), \
+                   tags: (SELECT * FROM atelier_media_asset_tag ORDER BY id), \
+                   dictionary: (SELECT * FROM atelier_tag ORDER BY id), \
+                   provenance: (SELECT * FROM atelier_media_source_provenance_ref ORDER BY id), \
+                   ledger: (SELECT * FROM kernel_event_ledger ORDER BY id), \
+                   events: (SELECT * FROM atelier_event ORDER BY id) };",
+                super::super::NoDomain {},
+            ).await
+        })).await.expect("read canonical notes/tags authority").expect("snapshot")
+    }
+
+    #[tokio::test]
+    async fn media_notes_tags_final_event_failure_rolls_back_domain_and_ledger() {
+        let temp = tempfile::tempdir().expect("isolated media transaction store");
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::for_data_dir(temp.path()).expect("configure store"),
+        ).await.expect("open store");
+        bootstrap_schema(&storage).await.expect("bootstrap schema");
+        let atelier = AtelierStore::new(storage.clone());
+        let asset_id = Uuid::now_v7();
+        seed_media_asset(&storage, asset_id, "sha256:notes-tags-rollback").await;
+        atelier.apply_media_notes_tags(&MediaNotesTagsUpdate {
+            asset_id,
+            notes: Some("before".into()),
+            tags: Some(vec!["retired-tag".into()]),
+            review_status: Some("unreviewed".into()),
+            source_path_ref: Some("source://mt060/before".into()),
+            source_url_ref: None,
+            updated_by: "mt060-seed".into(),
+        }).await.expect("seed notes, tags and provenance");
+        let before = notes_tags_authority_snapshot(&storage).await;
+        // Reject the final projection insert, after domain changes and earlier events.
+        // This trigger lives only in this test's isolated embedded database.
+        storage.with_data_operation(|ctx| Box::pin(async move {
+            ctx.execute_returning(
+                "DEFINE EVENT mt060_reject_provenance ON TABLE atelier_event \
+                 WHEN $after.event_family = 'atelier.media.source_provenance_refs_set' \
+                 THEN { THROW 'mt060_final_event_rejected'; };",
+                super::super::NoDomain {},
+            ).await
+        })).await.expect("install final-event rejection trigger");
+        let update = MediaNotesTagsUpdate {
+            asset_id,
+            notes: Some("after".into()),
+            tags: Some(vec!["replacement-tag".into()]),
+            review_status: Some("approved".into()),
+            source_path_ref: Some("source://mt060/after".into()),
+            source_url_ref: None,
+            updated_by: "mt060-writer".into(),
+        };
+        let error = atelier.apply_media_notes_tags(&update).await
+            .expect_err("final event rejection must fail the transaction");
+        assert!(error.to_string().contains("mt060_final_event_rejected"), "{error}");
+        assert_eq!(notes_tags_authority_snapshot(&storage).await, before,
+            "metadata, tags, dictionary, provenance and both event tables must roll back");
+        storage.with_data_operation(|ctx| Box::pin(async move {
+            ctx.execute_returning(
+                "REMOVE EVENT mt060_reject_provenance ON TABLE atelier_event;",
+                super::super::NoDomain {},
+            ).await
+        })).await.expect("remove test-only trigger");
+        let applied = atelier.apply_media_notes_tags(&update).await.expect("retry after trigger removal");
+        assert_eq!(applied.metadata.notes.as_deref(), Some("after"));
+        assert_eq!(applied.metadata.updated_by, "mt060-writer");
+        assert_eq!(applied.tags, vec!["replacement-tag"]);
+        let after = notes_tags_authority_snapshot(&storage).await;
+        let previous_events = before["events"].as_array().expect("previous events");
+        let new_events: Vec<_> = after["events"].as_array().expect("events").iter()
+            .filter(|row| !previous_events.iter().any(|old| old["event_id"] == row["event_id"]))
+            .collect();
+        assert_eq!(new_events.len(), 4);
+        for family in [event_family::MEDIA_REVIEW_METADATA_UPDATED,
+            collections_event_family::MEDIA_ASSET_UNTAGGED,
+            collections_event_family::MEDIA_ASSET_TAGGED,
+            event_family::MEDIA_SOURCE_PROVENANCE_REFS_SET] {
+            let event = new_events.iter().find(|row| row["event_family"] == family)
+                .expect("every mutation family committed");
+            let ledger = after["ledger"].as_array().expect("ledger").iter()
+                .find(|row| row["event_id"] == event["kernel_event_id"])
+                .expect("projection points to a real committed ledger event");
+            assert_eq!(ledger["event_sequence"], event["kernel_event_sequence"]);
+            assert_eq!(ledger["payload"]["atelier_payload"], event["payload"]);
+        }
+        drop(atelier);
+        storage.shutdown().await.expect("close isolated store");
     }
 }

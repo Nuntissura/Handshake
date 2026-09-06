@@ -109,14 +109,7 @@ async fn latest_event_payload(
 /// content-hash is fresh per run, and the `project_id` is derived from the same
 /// `adapter_id` so project-scoped listings stay per-scenario on the shared store.
 ///
-/// `include_image_name` controls whether the standard row carries the reference
-/// fixture's `image_name` (which the adapter turns into a portable `dataset://`
-/// ref). The reference PostgreSQL schema accepted `dataset://` image refs; the
-/// current SurrealDB `atelier_prompt_feedback_case.image_artifact_ref` ASSERT
-/// only accepts `artifact://` (schema is KERNEL_BUILDER-owned, see the lane
-/// report: BLOCKED item "persist dataset:// image refs"). The adapter-level
-/// `dataset://` mapping is still asserted by the pure tests; scenarios that
-/// PERSIST cases leave the image ref out until the ASSERT is widened.
+/// `include_image_name` permits explicit adapter-only missing-image coverage.
 fn i76_fixture_request_with_options(
     adapter_id: &str,
     include_image_name: bool,
@@ -222,6 +215,7 @@ async fn prompt_feedback_kernel_proof_on_one_embedded_store() {
     scenario!(prompt_stress_csv_manifest_imports_cases);
     scenario!(i76_import_persists_prompt_cases_with_all_dimensions);
     scenario!(reimport_updates_case_in_place_and_keeps_case_id);
+    scenario!(batch_import_rolls_back_later_database_failure_and_preserves_duplicate_order);
     scenario!(verdicts_persist_for_operator_model_subagent_and_emit_events);
     scenario!(deterministic_rewrite_is_byte_stable_with_populated_trace);
     scenario!(new_feedback_produces_a_distinct_rewrite_row);
@@ -296,16 +290,8 @@ async fn prompt_stress_csv_manifest_imports_cases(harness: &AtelierSurrealHarnes
         Some("quoted, note")
     );
 
-    // Persistence: the pinned SurrealDB ASSERT on `image_artifact_ref` accepts
-    // only `artifact://` (BLOCKED: widening to `dataset://` is a KERNEL_BUILDER
-    // schema change), so the portable `dataset://` refs asserted above are
-    // dropped before the rows are written.
-    let mut persisted_cases = new_cases.clone();
-    for case in &mut persisted_cases {
-        case.image_artifact_ref = None;
-    }
     let imported = store
-        .import_prompt_cases(&persisted_cases)
+        .import_prompt_cases(&new_cases)
         .await
         .expect("persist csv prompt cases");
     assert_eq!(imported.len(), 2);
@@ -498,11 +484,7 @@ async fn i76_import_persists_prompt_cases_with_all_dimensions(harness: &AtelierS
     let store = &harness.atelier;
     let adapter_id = unique_adapter_id("leeseo.cuipp.v1");
 
-    // Persisted without the reference fixture's `image_name`: the pinned SurrealDB
-    // ASSERT on `image_artifact_ref` accepts only `artifact://` (BLOCKED schema
-    // item; the adapter-level `dataset://` mapping is proven by
-    // `cuipp_json_import_still_maps_cases`).
-    let request = i76_fixture_request_without_image_ref(&adapter_id);
+    let request = i76_fixture_request(&adapter_id);
     let new_cases = import_leeseo(&request).expect("normalize i76 rows");
     let imported = store
         .import_prompt_cases(&new_cases)
@@ -518,7 +500,10 @@ async fn i76_import_persists_prompt_cases_with_all_dimensions(harness: &AtelierS
     assert_eq!(standard.framing, "close-up");
     assert_eq!(standard.render_stack, "no_detail");
     assert!(standard.identity_judgement_allowed);
-    assert!(standard.image_artifact_ref.is_none());
+    assert_eq!(
+        standard.image_artifact_ref.as_deref(),
+        Some("dataset://leeseo/i76/closeup-01.png")
+    );
     assert_eq!(
         standard.axes.prompt_stress_positive_tail.as_deref(),
         Some("open blouse no bra")
@@ -624,6 +609,116 @@ async fn reimport_updates_case_in_place_and_keeps_case_id(harness: &AtelierSurre
         .await
         .expect("get updated case");
     assert_eq!(fetched.positive_prompt, stress_after.positive_prompt);
+}
+
+async fn batch_import_rolls_back_later_database_failure_and_preserves_duplicate_order(
+    harness: &AtelierSurrealHarness,
+) {
+    let store = &harness.atelier;
+    let adapter_id = unique_adapter_id("batch-atomic");
+    let request = i76_fixture_request(&adapter_id);
+    let mut cases = import_leeseo(&request).expect("normalize batch");
+    let original = store
+        .import_prompt_cases(&cases[..1])
+        .await
+        .expect("seed existing case")
+        .remove(0);
+    let ledger_before = harness
+        .row_count_by_field("kernel_event_ledger", "aggregate_type", CASE_AGGREGATE)
+        .await;
+    let projection_before = harness
+        .row_count_by_field("atelier_event", "aggregate_type", CASE_AGGREGATE)
+        .await;
+    cases[0].positive_prompt = "rolled back update".to_owned();
+    let mut rejected = cases[1].clone();
+    rejected.source_case_id.push_str("-invalid");
+    // This passes Rust's legacy-ref validation but violates the database's
+    // artifact-only sheet-ref ASSERT, after the update and insert execute.
+    rejected.sheet_artifact_ref = Some("dataset://batch/sheet.png".to_owned());
+    cases.push(rejected);
+    let error = store
+        .import_prompt_cases(&cases)
+        .await
+        .expect_err("later database ASSERT must abort batch");
+    assert!(
+        matches!(error, handshake_core::atelier::AtelierError::Database(_)),
+        "expected database-level failure: {error}"
+    );
+    let current = store
+        .get_prompt_case(original.case_id)
+        .await
+        .expect("reread unchanged existing case");
+    assert_eq!(current.positive_prompt, original.positive_prompt);
+    assert_eq!(current.created_at_utc, original.created_at_utc);
+    let remaining = store
+        .list_prompt_cases(&PromptCaseFilter {
+            project_id: Some(request.project_id),
+            ..Default::default()
+        })
+        .await
+        .expect("canonical rollback rows");
+    assert_eq!(remaining.len(), 1, "new rows must roll back");
+    assert_eq!(
+        harness
+            .row_count_by_field("kernel_event_ledger", "aggregate_type", CASE_AGGREGATE)
+            .await,
+        ledger_before
+    );
+    assert_eq!(
+        harness
+            .row_count_by_field("atelier_event", "aggregate_type", CASE_AGGREGATE)
+            .await,
+        projection_before
+    );
+
+    cases.pop();
+    let mut duplicate = cases[0].clone();
+    duplicate.positive_prompt = "last duplicate wins".to_owned();
+    cases.push(duplicate);
+    let mut new_key_duplicate = cases[1].clone();
+    new_key_duplicate.positive_prompt = "new source duplicate wins".to_owned();
+    cases.push(new_key_duplicate);
+    let committed = store
+        .import_prompt_cases(&cases)
+        .await
+        .expect("mixed create/update/duplicate batch");
+    assert_eq!(committed.len(), 4);
+    assert_ne!(committed[1].case_id, original.case_id);
+    assert_eq!(committed[3].case_id, committed[1].case_id);
+    assert_eq!(committed[1].positive_prompt, cases[1].positive_prompt);
+    assert_eq!(committed[3].positive_prompt, "new source duplicate wins");
+    assert_eq!(committed[3].created_at_utc, committed[1].created_at_utc);
+    let new_key_current = store
+        .get_prompt_case(committed[1].case_id)
+        .await
+        .expect("new source duplicate reread");
+    assert_eq!(new_key_current.positive_prompt, "new source duplicate wins");
+    assert_eq!(new_key_current.created_at_utc, committed[1].created_at_utc);
+    assert_eq!(committed[0].case_id, original.case_id);
+    assert_eq!(committed[2].case_id, original.case_id);
+    assert_eq!(committed[0].positive_prompt, "rolled back update");
+    assert_eq!(committed[2].positive_prompt, "last duplicate wins");
+    assert_eq!(committed[2].created_at_utc, original.created_at_utc);
+    assert_eq!(
+        store
+            .get_prompt_case(original.case_id)
+            .await
+            .expect("final duplicate reread")
+            .positive_prompt,
+        "last duplicate wins"
+    );
+    assert_eq!(
+        harness
+            .row_count_by_field("kernel_event_ledger", "aggregate_type", CASE_AGGREGATE)
+            .await,
+        ledger_before + 4
+    );
+    assert_eq!(
+        harness
+            .row_count_by_field("atelier_event", "aggregate_type", CASE_AGGREGATE)
+            .await,
+        projection_before + 4
+    );
 }
 
 async fn verdicts_persist_for_operator_model_subagent_and_emit_events(
@@ -1128,7 +1223,7 @@ async fn prompt_feedback_api_round_trips_import_verdict_rewrite_export_and_rulep
     let workspace_root: &Path = shared_workspace_root();
     let (base, client, server) = serve(app_state(&harness)).await;
     let adapter_id = unique_adapter_id("leeseo.cuipp.v1-http");
-    let fixture = i76_fixture_request_without_image_ref(&adapter_id);
+    let fixture = i76_fixture_request(&adapter_id);
 
     // Missing actor header is a 400 before any write.
     let unauthenticated = client
@@ -1190,6 +1285,37 @@ async fn prompt_feedback_api_round_trips_import_verdict_rewrite_export_and_rulep
     let standard_id: Uuid =
         serde_json::from_value(standard["case_id"].clone()).expect("standard case_id uuid");
     assert_eq!(stress["identity_judgement_allowed"], false);
+    assert_eq!(
+        standard["image_artifact_ref"],
+        "dataset://leeseo/i76/closeup-01.png"
+    );
+    let persisted_standard = harness
+        .atelier
+        .get_prompt_case(standard_id)
+        .await
+        .expect("canonical image-ref reread");
+    assert_eq!(
+        persisted_standard.image_artifact_ref.as_deref(),
+        Some("dataset://leeseo/i76/closeup-01.png")
+    );
+    let listed_standard: Vec<serde_json::Value> = client
+        .get(format!(
+            "{base}/atelier/prompt-feedback/cases?project_id={}&segment=standard",
+            fixture.project_id
+        ))
+        .send()
+        .await
+        .expect("list standard image case")
+        .error_for_status()
+        .expect("list success")
+        .json()
+        .await
+        .expect("standard case json");
+    assert_eq!(listed_standard.len(), 1);
+    assert_eq!(
+        listed_standard[0]["image_artifact_ref"],
+        standard["image_artifact_ref"]
+    );
 
     // Cases, filtered by segment.
     let listed: Vec<serde_json::Value> = client

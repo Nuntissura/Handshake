@@ -5257,6 +5257,11 @@ DEFINE INDEX OVERWRITE idx_atelier_sheet_artifact_link_character_kind ON TABLE a
 
 -- CKC 0341_atelier_intake_item_metadata (MT-017): durable per-item metadata
 -- for dataset-mining intake decisions, keyed by the intake item it describes.
+-- CKC intake request serialization; ownership is checked against current metadata.
+DEFINE TABLE OVERWRITE atelier_intake_request_guard SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE request_id ON TABLE atelier_intake_request_guard TYPE string ASSERT $value = record::id($this.id) AND string::trim($value) = $value AND $value != '';
+DEFINE FIELD OVERWRITE revision ON TABLE atelier_intake_request_guard TYPE int ASSERT $value > 0;
+
 DEFINE TABLE OVERWRITE atelier_intake_item_metadata SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE item_id ON TABLE atelier_intake_item_metadata TYPE record<atelier_intake_item> ASSERT record::exists($value) AND record::id($value) = record::id($this.id) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE batch_id ON TABLE atelier_intake_item_metadata TYPE record<atelier_intake_batch> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -5309,7 +5314,7 @@ DEFINE FIELD OVERWRITE positive_prompt ON TABLE atelier_prompt_feedback_case TYP
 DEFINE FIELD OVERWRITE negative_prompt ON TABLE atelier_prompt_feedback_case TYPE string;
 DEFINE FIELD OVERWRITE micro_gate ON TABLE atelier_prompt_feedback_case TYPE option<string>;
 DEFINE FIELD OVERWRITE expected_failure ON TABLE atelier_prompt_feedback_case TYPE option<string>;
-DEFINE FIELD OVERWRITE image_artifact_ref ON TABLE atelier_prompt_feedback_case TYPE option<string> ASSERT $value = NONE OR (string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
+DEFINE FIELD OVERWRITE image_artifact_ref ON TABLE atelier_prompt_feedback_case TYPE option<string> ASSERT $value = NONE OR ((string::starts_with($value, 'artifact://') OR string::starts_with($value, 'dataset://')) AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
 DEFINE FIELD OVERWRITE sheet_artifact_ref ON TABLE atelier_prompt_feedback_case TYPE option<string> ASSERT $value = NONE OR (string::starts_with($value, 'artifact://') AND string::trim($value) = $value AND string::contains($value, ' ') = false AND string::contains(string::lowercase($value), '.gov') = false);
 DEFINE FIELD OVERWRITE axes ON TABLE atelier_prompt_feedback_case TYPE object FLEXIBLE DEFAULT {};
 DEFINE FIELD OVERWRITE axes.* ON TABLE atelier_prompt_feedback_case TYPE any;

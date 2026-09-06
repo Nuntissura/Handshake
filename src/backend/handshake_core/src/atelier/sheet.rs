@@ -1992,7 +1992,7 @@ const SELECT_SHEET_VERSION_BY_ID: &str = "SELECT version_id, record::id(characte
 
 /// Newest-first projection rows for one Field ID. `sheet_version_id` keys are
 /// UUID v7, so the secondary sort is time-ordered within one instant.
-const SELECT_FIELD_PROJECTION_BY_FIELD: &str = "SELECT value, record::id(character_internal_id) AS character_internal_id, record::id(sheet_version_id) AS sheet_version_id FROM atelier_sheet_field_value_projection WHERE field_id = $field_id ORDER BY created_at_utc DESC, sheet_version_id DESC;";
+const SELECT_FIELD_PROJECTION_BY_FIELD: &str = "SELECT `value`, record::id(character_internal_id) AS character_internal_id, record::id(sheet_version_id) AS sheet_version_id, created_at_utc FROM atelier_sheet_field_value_projection WHERE field_id = $field_id ORDER BY created_at_utc DESC, sheet_version_id DESC;";
 
 const WRITE_PARSE_SNAPSHOT_STATEMENT: &str = concat!(
     "RETURN { LET $row = (UPSERT $domain.record CONTENT { parse_id: $domain.parse_id, version_id: $domain.version, template_id: $domain.template_id, source_path: $domain.source_path, template_version: $domain.template_version, template_hash: $domain.template_hash, ast: $domain.ast, unmapped_lines: $domain.unmapped_lines } RETURN AFTER)[0]; ",

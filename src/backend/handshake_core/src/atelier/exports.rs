@@ -28,7 +28,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use crate::storage::artifacts::sha256_hex;
 use std::{cmp::Ordering, collections::HashSet};
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
@@ -1115,11 +1115,7 @@ fn validate_backup_manifest_files(files: &[BackupManifestFile]) -> AtelierResult
     Ok(())
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
-}
+
 
 fn backup_manifest_json(
     backup_id: Uuid,

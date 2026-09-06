@@ -27,17 +27,17 @@ const PREDECESSOR_SCHEMA_INFO_SHA256: &str =
 const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
     "1f8443486cd7101babb56dd6264ffcf08538a1eae24016d2155b19d5eb6370b4";
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "9d3b830c78ffb4ac04b5af0cbdac510b29483decd076acb3e8ea81d194da4c8f";
+    "dbd8e59161391d10de599c19bb611e7502e2f0b4a3cea2f159b37fb8500b161e";
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "8d72ae48dd23fab0d4f13a750da8daad46e156a276aca207bec665016163fb27";
+    "292f755c0a51de0f50e35f8ba4bdd02fb5177af13a4095ce27a5de4dd96949f5";
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "f51ef10d8ebc0c728a075e7a5efe4a19503cd46dea2cfa0f1bfe59332f2e34fa";
 /// Fresh-engine STRUCTURE fingerprint captured with the product-locked SurrealDB 3.2.0
 /// engine family after applying the generated schema to an absent RocksDB path.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "047b1decfd076e9237d5aa5d6f8836801cbba38038ec9d84a278ebe5b69a275e";
+    "8161b4e8e01d3ef6ec14886ac203878396435e58bf78cf6c28b60fe493403bab";
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "f14a7778809d15a07fbdeae930002637af15ea42d8945b6c9636dc2d15ff274c";
+    "6866764b478e2694d7c80e57d8fc5067c12f85db02ac67d63eb0a23edcb7475f";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -142,8 +142,8 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
     "tables",
     "users",
 ];
-const TABLE_DEFINITION_COUNT: usize = 292;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3217;
+const TABLE_DEFINITION_COUNT: usize = 293;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3219;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 249;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 180;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -162,14 +162,14 @@ const INDEX_DEFINITION_COUNT: usize = 831;
 const EVENT_DEFINITION_COUNT: usize = 19;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
-const SOURCE_TABLE_COUNT: usize = 289;
+const SOURCE_TABLE_COUNT: usize = 290;
 const SOURCE_VIEW_COUNT: usize = 2;
 const SOURCE_NAMED_INDEX_COUNT: usize = 563;
 const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 267;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 const REFERENCE_FIELD_COUNT: usize = 419;
-const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 237;
+const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 238;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
 
@@ -986,6 +986,7 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "atelier_sheet_field_value_projection",
     "atelier_sheet_artifact_link",
     "atelier_intake_item_metadata",
+    "atelier_intake_request_guard",
     "atelier_prompt_feedback_case",
     "atelier_prompt_feedback_verdict",
     "atelier_prompt_feedback_rule_pack",

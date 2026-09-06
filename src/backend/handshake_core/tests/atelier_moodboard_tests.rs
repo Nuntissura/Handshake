@@ -78,12 +78,25 @@ fn moodboard_json(board_id: Uuid, layer_id: Uuid, image_id: Uuid, asset_id: Uuid
     .expect("serialize moodboard json")
 }
 
+/// Every moodboard proof in this binary shares ONE embedded store.
+///
+/// Bootstrapping the kernel schema into a fresh on-disk SurrealDB costs tens of minutes in a debug
+/// build, and it dominates the wall clock of every harness-backed proof. Each sub-proof below
+/// seeds its own character/document with a UUID-suffixed `public_id`, so sharing the store changes
+/// no assertion: nothing here asserts a global row count, only counts scoped to its own aggregate.
+/// This mirrors the same collapse applied to the media byte/ingest proof (MT-057).
+#[tokio::test]
+async fn atelier_moodboard_persistence_umbrella() {
+    let harness = AtelierSurrealHarness::create().await;
+    moodboard_changed_positions_record_distinct_snapshots(&harness).await;
+    moodboard_snapshot_guard_rejects_stale_document_version(&harness).await;
+    harness.shutdown().await;
+}
+
 /// WP-CKC MT-012 / MT-045 backend proof: a moodboard snapshot recorded with element position P1
 /// is the latest; recording again with changed positions P2 produces a distinct snapshot and a
 /// second MOODBOARD_SNAPSHOT_RECORDED event.
-#[tokio::test]
-async fn atelier_moodboard_changed_positions_record_distinct_snapshots() {
-    let harness = AtelierSurrealHarness::create().await;
+async fn moodboard_changed_positions_record_distinct_snapshots(harness: &AtelierSurrealHarness) {
     let store = &harness.atelier;
     let character = store
         .create_character(&NewCharacter {
@@ -170,14 +183,11 @@ async fn atelier_moodboard_changed_positions_record_distinct_snapshots() {
         snapshot_events, 2,
         "each distinct-position snapshot appends its own MOODBOARD_SNAPSHOT_RECORDED event"
     );
-    harness.shutdown().await;
 }
 
 /// WP-CKC MT-012 optimistic concurrency: `expected_document_version_id` pins the snapshot to the
 /// moodboard document head; a stale expectation is a typed conflict that writes nothing.
-#[tokio::test]
-async fn atelier_moodboard_snapshot_guard_rejects_stale_document_version() {
-    let harness = AtelierSurrealHarness::create().await;
+async fn moodboard_snapshot_guard_rejects_stale_document_version(harness: &AtelierSurrealHarness) {
     let store = &harness.atelier;
     let character = store
         .create_character(&NewCharacter {
@@ -255,5 +265,4 @@ async fn atelier_moodboard_snapshot_guard_rejects_stale_document_version() {
         matches!(wrong_kind, AtelierError::Validation(_)),
         "wrong document type should be a validation error: {wrong_kind:?}"
     );
-    harness.shutdown().await;
 }

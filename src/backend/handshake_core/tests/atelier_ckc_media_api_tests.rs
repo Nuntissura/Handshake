@@ -169,7 +169,21 @@ impl LlmClient for TestLlmClient {
     }
 }
 
+/// Route the lane's `tracing::error!(.., "db_error")` / `warn!` lines (which carry the real
+/// `AtelierError` text the HTTP body deliberately hides) into the captured test output, once per
+/// test binary, so a 500 in a proof names its cause.
+fn init_tracing() {
+    static INIT: OnceLock<()> = OnceLock::new();
+    INIT.get_or_init(|| {
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter("handshake_core::atelier=warn")
+            .with_test_writer()
+            .try_init();
+    });
+}
+
 fn app_state(harness: &AtelierSurrealHarness, embeddings: bool) -> AppState {
+    init_tracing();
     let recorder = Arc::new(NoopRecorder);
     AppState {
         storage: harness.database.clone(),
@@ -2459,5 +2473,56 @@ async fn atelier_ckc_search_degrades_without_embedding_model() {
     );
 
     server.abort();
+    harness.shutdown().await;
+}
+
+#[tokio::test]
+async fn atelier_ckc_media_notes_tags_commit_all_event_families() {
+    use handshake_core::atelier::{collections::collections_event_family, event_family};
+    use sha2::{Digest, Sha256};
+
+    let harness = AtelierSurrealHarness::create().await;
+    let asset_id = fresh_api_media_asset(&harness.atelier, "notes-tags-events").await;
+    let (base_url, client, server) = serve(app_state(&harness, false)).await;
+    for (actor, tag, notes) in [("event-seed", "retired-tag", "before"),
+                               ("event-writer", "replacement-tag", "after")] {
+        let (status, body) = json_of(client
+            .post(format!("{base_url}/atelier/media-assets/{asset_id}/notes-tags"))
+            .header("x-hsk-actor-id", actor)
+            .json(&serde_json::json!({
+                "notes": notes, "tags": [tag],
+                "source_path_ref": format!("source://mt060/{notes}")
+            }))
+            .send().await.expect("save notes/tags over HTTP")).await;
+        assert_eq!(status, reqwest::StatusCode::OK, "{body}");
+        assert_eq!(body["updated_by"], actor);
+    }
+    let hash_ref = |value: &str| format!("sha256:{}", hex::encode(Sha256::digest(value.as_bytes())));
+    let asset_key = asset_id.to_string();
+    for (aggregate_type, aggregate_id, family, actor_field, expected_actor) in [
+        ("atelier_media_review_metadata", asset_key.clone(),
+         event_family::MEDIA_REVIEW_METADATA_UPDATED, "requested_by", "event-writer".to_owned()),
+        ("atelier_media_asset_tag", hash_ref(&format!("media-asset-untag:{asset_id}:retired-tag")),
+         collections_event_family::MEDIA_ASSET_UNTAGGED, "", String::new()),
+        ("atelier_media_asset_tag", hash_ref(&format!("media-asset-tag:{asset_id}:replacement-tag")),
+         collections_event_family::MEDIA_ASSET_TAGGED, "tag_source_ref", hash_ref("event-writer")),
+        ("atelier_media_asset", asset_key,
+         event_family::MEDIA_SOURCE_PROVENANCE_REFS_SET, "updated_by", "event-writer".to_owned()),
+    ] {
+        let events = harness.database.list_kernel_events_for_aggregate(aggregate_type, &aggregate_id)
+            .await.expect("re-read canonical committed ledger");
+        let matching: Vec<_> = events.iter()
+            .filter(|event| event.payload["event_family"] == family)
+            .filter(|event| actor_field.is_empty()
+                || event.payload["atelier_payload"][actor_field] == expected_actor)
+            .collect();
+        assert_eq!(matching.len(), 1, "exactly one writer event for {family}");
+        assert_eq!(matching[0].payload["atelier_payload"]["asset_id"], asset_id.to_string());
+        assert_eq!(harness.row_count_by_field("atelier_event", "kernel_event_id",
+            &matching[0].event_id).await, 1, "one projection for the committed event");
+    }
+    server.abort();
+    let _ = server.await;
+    drop(client);
     harness.shutdown().await;
 }

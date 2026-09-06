@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Cursor;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 mod atelier_surreal_support;
 
@@ -75,6 +76,32 @@ use uuid::Uuid;
 
 fn embedded_backend_marker() -> Option<String> {
     Some("embedded-surreal".to_owned())
+}
+
+/// One ArtifactStore workspace root for the whole test binary.
+///
+/// `storage::artifacts::resolve_workspace_root()` reads the process-global
+/// `HANDSHAKE_WORKSPACE_ROOT`, so every fixture artifact this binary writes must land under the
+/// same root or `materialize_media_asset` cannot read back the manifest it is asked to verify.
+/// Artifacts are UUID-addressed, so sharing the root keeps every fixture isolated while the
+/// filesystem-health proofs (which assert membership, never a total finding count) stay valid.
+fn shared_workspace_root() -> &'static PathBuf {
+    static ROOT: OnceLock<PathBuf> = OnceLock::new();
+    ROOT.get_or_init(|| {
+        let root = tempfile::tempdir()
+            .expect("create isolated core-data workspace root")
+            .keep();
+        std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", &root);
+        root
+    })
+}
+
+/// Write a native ArtifactStore fixture into the binary-wide workspace root.
+fn native_artifact(payload: &[u8]) -> atelier_surreal_support::NativeMediaArtifact {
+    atelier_surreal_support::write_native_media_artifact_in_workspace(
+        shared_workspace_root(),
+        payload,
+    )
 }
 
 /// Open the shared embedded test authority; the marker argument preserves the
@@ -147,7 +174,7 @@ fn assert_portable_artifact_handle(field: &str, value: &str) {
 
 /// Materialize a fresh, run-unique media asset and return its `asset_id`.
 async fn fresh_asset(store: &AtelierStore) -> Uuid {
-    let artifact = atelier_surreal_support::write_native_media_artifact(b"core-data-test-media");
+    let artifact = native_artifact(b"core-data-test-media");
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash,
@@ -227,7 +254,7 @@ async fn atelier_filesystem_health_records_diagnostics_without_resync_or_delete(
 
     let parent_seed = format!("mt-023-health-parent-{}", Uuid::new_v4());
     let parent_artifact =
-        atelier_surreal_support::write_native_media_artifact(parent_seed.as_bytes());
+        native_artifact(parent_seed.as_bytes());
     let parent = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: parent_artifact.content_hash.clone(),
@@ -240,7 +267,7 @@ async fn atelier_filesystem_health_records_diagnostics_without_resync_or_delete(
         .expect("materialize health-check parent asset");
     let sidecar_seed = format!("mt-023-health-sidecar-{}", Uuid::new_v4());
     let sidecar_artifact =
-        atelier_surreal_support::write_native_media_artifact(sidecar_seed.as_bytes());
+        native_artifact(sidecar_seed.as_bytes());
     let sidecar = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: sidecar_artifact.content_hash.clone(),
@@ -291,7 +318,7 @@ async fn atelier_filesystem_health_records_diagnostics_without_resync_or_delete(
 
     let missing_seed = format!("mt-023-health-missing-{}", Uuid::new_v4());
     let missing_artifact =
-        atelier_surreal_support::write_native_media_artifact(missing_seed.as_bytes());
+        native_artifact(missing_seed.as_bytes());
     let missing_asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: missing_artifact.content_hash.clone(),
@@ -556,7 +583,7 @@ async fn atelier_filesystem_health_detects_missing_artifactstore_original_payloa
     let store = connected_store(&url).await;
 
     let missing_payload_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-missing-payload-original");
+        native_artifact(b"mt-023-missing-payload-original");
     let missing_payload_asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: missing_payload_artifact.content_hash.clone(),
@@ -571,7 +598,7 @@ async fn atelier_filesystem_health_detects_missing_artifactstore_original_payloa
     fs::remove_file(&payload_path).expect("remove ArtifactStore payload fixture");
 
     let missing_manifest_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-missing-manifest-original");
+        native_artifact(b"mt-023-missing-manifest-original");
     let missing_manifest_asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: missing_manifest_artifact.content_hash.clone(),
@@ -637,7 +664,7 @@ async fn atelier_filesystem_health_detects_missing_generated_thumbnail_artifact_
     let store = connected_store(&url).await;
 
     let original_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-thumbnail-original");
+        native_artifact(b"mt-023-thumbnail-original");
     let original = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: original_artifact.content_hash.clone(),
@@ -664,7 +691,7 @@ async fn atelier_filesystem_health_detects_missing_generated_thumbnail_artifact_
         .await
         .expect("mark thumbnail generating");
     let thumbnail_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-thumbnail-payload");
+        native_artifact(b"mt-023-thumbnail-payload");
     let generated = store
         .record_media_derivative_generated_with_artifact(&MediaDerivativeGenerated {
             derivative_id: requested.derivative_id,
@@ -719,7 +746,7 @@ async fn atelier_filesystem_health_does_not_mark_generated_thumbnail_payload_unt
     let store = connected_store(&url).await;
 
     let original_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-healthy-thumbnail-original");
+        native_artifact(b"mt-023-healthy-thumbnail-original");
     let original = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: original_artifact.content_hash.clone(),
@@ -749,7 +776,7 @@ async fn atelier_filesystem_health_does_not_mark_generated_thumbnail_payload_unt
         .await
         .expect("mark healthy thumbnail generating");
     let thumbnail_artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-healthy-thumbnail-payload");
+        native_artifact(b"mt-023-healthy-thumbnail-payload");
     store
         .record_media_derivative_generated_with_artifact(&MediaDerivativeGenerated {
             derivative_id: requested.derivative_id,
@@ -792,7 +819,7 @@ async fn atelier_filesystem_health_detects_untracked_artifactstore_original_payl
     };
     let store = connected_store(&url).await;
     let artifact =
-        atelier_surreal_support::write_native_media_artifact(b"mt-023-untracked-original");
+        native_artifact(b"mt-023-untracked-original");
 
     let catalog_rows = store
         .harness
@@ -860,7 +887,7 @@ async fn atelier_media_source_provenance_refs_survive_export_pending_archive_and
         .await
         .expect("append sheet version for provenance proof");
     let artifact_seed = format!("mt-027-provenance-media-{}", Uuid::new_v4());
-    let artifact = atelier_surreal_support::write_native_media_artifact(artifact_seed.as_bytes());
+    let artifact = native_artifact(artifact_seed.as_bytes());
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash.clone(),
@@ -1145,7 +1172,7 @@ async fn atelier_media_source_provenance_refs_reject_invalid_refs() {
     };
     let store = connected_store(&url).await;
     let artifact_seed = format!("mt-027-invalid-provenance-media-{}", Uuid::new_v4());
-    let artifact = atelier_surreal_support::write_native_media_artifact(artifact_seed.as_bytes());
+    let artifact = native_artifact(artifact_seed.as_bytes());
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash.clone(),
@@ -1894,7 +1921,7 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
         })
         .await
         .expect("create target collection");
-    let artifact = atelier_surreal_support::write_native_media_artifact(
+    let artifact = native_artifact(
         format!("mt-031-media-{}", Uuid::new_v4()).as_bytes(),
     );
     let asset = store
@@ -2224,10 +2251,10 @@ async fn atelier_intake_batch_classification_applies_canonical_items_and_links_p
         .await
         .expect("create target collection for batch apply");
 
-    let artifact_a = atelier_surreal_support::write_native_media_artifact(
+    let artifact_a = native_artifact(
         format!("mt-017-batch-a-{}", Uuid::new_v4()).as_bytes(),
     );
-    let artifact_b = atelier_surreal_support::write_native_media_artifact(
+    let artifact_b = native_artifact(
         format!("mt-017-batch-b-{}", Uuid::new_v4()).as_bytes(),
     );
     let asset_a = store
@@ -2574,7 +2601,7 @@ async fn atelier_intake_batch_classification_rolls_back_when_later_item_fails() 
         })
         .await
         .expect("create rollback collection");
-    let artifact = atelier_surreal_support::write_native_media_artifact(
+    let artifact = native_artifact(
         format!("mt-017-rollback-a-{}", Uuid::new_v4()).as_bytes(),
     );
     let asset = store
@@ -2924,7 +2951,7 @@ async fn atelier_intake_batch_classification_rejects_mismatched_target_collectio
         })
         .await
         .expect("create wrong collection");
-    let artifact = atelier_surreal_support::write_native_media_artifact(
+    let artifact = native_artifact(
         format!("mt-017-target-mismatch-{}", Uuid::new_v4()).as_bytes(),
     );
     let asset = store
@@ -6062,7 +6089,7 @@ async fn atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_
         .await
         .expect("record searchable moodboard snapshot");
     let image_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("mt-045-{needle}").as_bytes());
+        native_artifact(format!("mt-045-{needle}").as_bytes());
     let image = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: image_artifact.content_hash.clone(),
@@ -6412,16 +6439,16 @@ async fn atelier_saved_searches_reproduce_filters_and_retrieval_projection() {
     let store = connected_store(&url).await;
     let marker = format!("saved-search-{}", Uuid::new_v4());
     let keep_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-keep").as_bytes());
-    let excluded_artifact = atelier_surreal_support::write_native_media_artifact(
+        native_artifact(format!("{marker}-keep").as_bytes());
+    let excluded_artifact = native_artifact(
         format!("{marker}-excluded").as_bytes(),
     );
     let adult_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-adult").as_bytes());
-    let wrong_color_artifact = atelier_surreal_support::write_native_media_artifact(
+        native_artifact(format!("{marker}-adult").as_bytes());
+    let wrong_color_artifact = native_artifact(
         format!("{marker}-wrong-color").as_bytes(),
     );
-    let outside_scope_artifact = atelier_surreal_support::write_native_media_artifact(
+    let outside_scope_artifact = native_artifact(
         format!("{marker}-outside").as_bytes(),
     );
 
@@ -7159,7 +7186,7 @@ async fn atelier_share_pack_subset_manifest_includes_usage_readme_and_rejects_go
         .expect("request share-pack export");
 
     let sheet_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-sheet").as_bytes());
+        native_artifact(format!("{marker}-sheet").as_bytes());
     store
         .record_export_result(
             export.export_id,
@@ -7170,10 +7197,10 @@ async fn atelier_share_pack_subset_manifest_includes_usage_readme_and_rejects_go
         .await
         .expect("record share-pack sheet result");
 
-    let selected_artifact = atelier_surreal_support::write_native_media_artifact(
+    let selected_artifact = native_artifact(
         format!("{marker}-selected").as_bytes(),
     );
-    let unselected_artifact = atelier_surreal_support::write_native_media_artifact(
+    let unselected_artifact = native_artifact(
         format!("{marker}-unselected").as_bytes(),
     );
     let selected = store
@@ -7196,7 +7223,7 @@ async fn atelier_share_pack_subset_manifest_includes_usage_readme_and_rejects_go
         })
         .await
         .expect("materialize unselected media");
-    let readme_artifact = atelier_surreal_support::write_native_media_artifact(
+    let readme_artifact = native_artifact(
         format!("{marker}-usage-readme").as_bytes(),
     );
 
@@ -7294,7 +7321,7 @@ fn llm_evidence_file(
     redaction_required: bool,
     redacted: bool,
 ) -> LlmEvidencePackFile {
-    let artifact = atelier_surreal_support::write_native_media_artifact(payload.as_bytes());
+    let artifact = native_artifact(payload.as_bytes());
     LlmEvidencePackFile {
         kind,
         pack_path: pack_path.to_string(),
@@ -7440,9 +7467,9 @@ async fn atelier_web_portfolio_export_records_portable_manifest_contract() {
     let marker = format!("web-portfolio-{}", Uuid::new_v4());
 
     let hero_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-hero").as_bytes());
+        native_artifact(format!("{marker}-hero").as_bytes());
     let detail_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-detail").as_bytes());
+        native_artifact(format!("{marker}-detail").as_bytes());
 
     let hero = store
         .materialize_media_asset(&NewMediaAsset {
@@ -7494,7 +7521,7 @@ async fn atelier_web_portfolio_export_records_portable_manifest_contract() {
     assert_eq!(request.slug, slug, "slug is trimmed to its portable token");
 
     let manifest_payload = format!("{marker}-manifest").into_bytes();
-    let manifest_artifact = atelier_surreal_support::write_native_media_artifact(&manifest_payload);
+    let manifest_artifact = native_artifact(&manifest_payload);
     let result = store
         .record_web_portfolio_export_result(
             request.portfolio_export_id,
@@ -7667,7 +7694,7 @@ async fn atelier_backup_manifest_records_versions_checksums_and_restore_prefligh
     let store = connected_store(&url).await;
     let marker = format!("backup-manifest-{}", Uuid::new_v4());
     let artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-backup").as_bytes());
+        native_artifact(format!("{marker}-backup").as_bytes());
 
     let backup = store
         .record_backup_manifest(&NewBackupManifest {
@@ -7736,7 +7763,7 @@ async fn atelier_backup_manifest_records_versions_checksums_and_restore_prefligh
     assert_eq!(accepted.status, BackupRestorePreflightStatus::Accepted);
     assert!(accepted.refusal_reason.is_none());
 
-    let newer_app_artifact = atelier_surreal_support::write_native_media_artifact(
+    let newer_app_artifact = native_artifact(
         format!("{marker}-newer-app-backup").as_bytes(),
     );
     let newer_app_backup = store
@@ -7775,7 +7802,7 @@ async fn atelier_backup_manifest_records_versions_checksums_and_restore_prefligh
         "newer app backups are refused before restore"
     );
 
-    let newer_schema_artifact = atelier_surreal_support::write_native_media_artifact(
+    let newer_schema_artifact = native_artifact(
         format!("{marker}-newer-schema-backup").as_bytes(),
     );
     let newer_schema_backup = store
@@ -7937,7 +7964,7 @@ async fn atelier_reset_modes_preserve_original_media_and_adopt_orphan_manifest()
     };
     let store = connected_store(&url).await;
     let marker = format!("reset-orphan-{}", Uuid::new_v4());
-    let artifact = atelier_surreal_support::write_native_media_artifact(
+    let artifact = native_artifact(
         format!("{marker}-original").as_bytes(),
     );
     let asset = store
@@ -8525,7 +8552,7 @@ async fn mt067_core_data_integration_smoke_path() {
 
     // 3) materialize a real media asset from a native artifact payload
     let artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-media").as_bytes());
+        native_artifact(format!("{marker}-media").as_bytes());
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash.clone(),
@@ -8671,7 +8698,7 @@ async fn mt067_core_data_integration_smoke_path() {
         .expect("request sheet export");
     assert_eq!(export.sheet_version_id, sheet.version_id);
     let export_artifact =
-        atelier_surreal_support::write_native_media_artifact(format!("{marker}-export").as_bytes());
+        native_artifact(format!("{marker}-export").as_bytes());
     store
         .record_export_result(
             export.export_id,
@@ -8938,7 +8965,7 @@ async fn mt069_export_manifest_rejects_gov_and_machine_paths() {
         .await
         .expect("request sheet export");
     // a real, portable artifact ref to pair with rejected pack paths
-    let portable = atelier_surreal_support::write_native_media_artifact(
+    let portable = native_artifact(
         format!("{marker}-portable").as_bytes(),
     );
 

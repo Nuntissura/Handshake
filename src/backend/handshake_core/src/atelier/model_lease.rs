@@ -380,7 +380,7 @@ const RELEASE_LEASE_STATEMENT: &str = concat!(
 
 const LIST_LEASES_FOR_THREAD_STATEMENT: &str = concat!(
     "SELECT ",
-    "claim_id, thread_id, executor_kind, actor_id, session_id, claim_mode, lease_state, \
+    "created_at_utc, claim_id, thread_id, executor_kind, actor_id, session_id, claim_mode, lease_state, \
      claimed_at_utc, ttl_seconds, lease_expires_at_utc, released_at_utc, taken_over_at_utc, \
      takeover_reason, prior_claim_id, linked_work_packet_id, linked_micro_task_id, \
      math::max([0, duration::secs(time::now() - claimed_at_utc)]) AS lease_age_seconds, \

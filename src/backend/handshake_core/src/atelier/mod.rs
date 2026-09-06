@@ -851,8 +851,10 @@ pub const ATELIER_TABLES: &[&str] = &[
     "atelier_character_relationship_graph_projection",
     "atelier_character_script",
     "atelier_character_tag",
+    "atelier_ckc_search_projection",
     "atelier_collection",
     "atelier_collection_item",
+    "atelier_collection_item_unlink_receipt",
     "atelier_collection_metadata_application",
     "atelier_comfy_bridge_probe",
     "atelier_comfy_capability_registration",
@@ -894,7 +896,9 @@ pub const ATELIER_TABLES: &[&str] = &[
     "atelier_intake_batch",
     "atelier_intake_item",
     "atelier_intake_item_loom_projection",
+    "atelier_intake_item_metadata",
     "atelier_intake_item_rejection_audit",
+    "atelier_intake_request_guard",
     "atelier_md_allowlist_policy",
     "atelier_md_auth_context",
     "atelier_md_checkpoint",
@@ -929,11 +933,18 @@ pub const ATELIER_TABLES: &[&str] = &[
     "atelier_pose_sidecar",
     "atelier_pose_workspace_rig_state",
     "atelier_preference",
+    "atelier_prompt_feedback_case",
+    "atelier_prompt_feedback_export",
+    "atelier_prompt_feedback_rewrite",
+    "atelier_prompt_feedback_rule_pack",
+    "atelier_prompt_feedback_verdict",
     "atelier_reset_operation",
     "atelier_retrieval_policy",
     "atelier_saved_search",
     "atelier_screenshot_artifact_storage",
     "atelier_self_improve_sandbox_run",
+    "atelier_sheet_artifact_link",
+    "atelier_sheet_field_value_projection",
     "atelier_sheet_parse_snapshot",
     "atelier_sheet_version",
     "atelier_similarity_projection",
@@ -951,6 +962,7 @@ pub const ATELIER_TABLES: &[&str] = &[
     "atelier_story_card",
     "atelier_synthetic_input_guard",
     "atelier_tag",
+    "atelier_tag_note",
     "atelier_tag_rule",
     "atelier_transcript_artifact",
     "atelier_transcript_receipt",
@@ -1587,7 +1599,7 @@ mod guard_tests {
             .map(|table| (*table).to_owned())
             .collect();
         assert_eq!(declared, canonical);
-        assert_eq!(declared.len(), 125);
+        assert_eq!(declared.len(), 137);
     }
 
     #[tokio::test]
@@ -1655,8 +1667,8 @@ mod guard_tests {
             let concurrent_bootstrap =
                 concurrent_bootstrap.expect("second concurrent Atelier bootstrap");
             assert_ne!(first_bootstrap.applied, concurrent_bootstrap.applied);
-            assert_eq!(first_bootstrap.table_count, 125);
-            assert_eq!(concurrent_bootstrap.table_count, 125);
+            assert_eq!(first_bootstrap.table_count, 137);
+            assert_eq!(concurrent_bootstrap.table_count, 137);
             eprintln!(
                 "MT-138 timing: concurrent schema bootstrap {:?}",
                 proof_started.elapsed()

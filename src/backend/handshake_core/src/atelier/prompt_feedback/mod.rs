@@ -48,7 +48,9 @@ use crate::storage::artifacts::{
     ArtifactManifest, ArtifactPayloadKind,
 };
 
-use super::{atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
+use super::{
+    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+};
 
 use self::adapter::{export_jsonl, ExportRow};
 use self::engine::{evaluate, Feedback, RewriteOutcome};
@@ -124,7 +126,9 @@ fn is_retryable_transaction_conflict(err: &AtelierError) -> bool {
 /// winner).
 fn is_unique_index_conflict(err: &AtelierError, index_name: &str) -> bool {
     let text = err.to_string();
-    text.contains("Database index") && text.contains(index_name) && text.contains("already contains")
+    text.contains("Database index")
+        && text.contains(index_name)
+        && text.contains("already contains")
 }
 
 const RETRY_MAX_ATTEMPTS: u32 = 5;
@@ -182,13 +186,17 @@ fn to_json<T: serde::Serialize>(value: &T) -> AtelierResult<serde_json::Value> {
 
 fn version_from_row(column: &str, value: i64) -> AtelierResult<i32> {
     i32::try_from(value).map_err(|_| {
-        AtelierError::Internal(format!("{column} {value} does not fit the i32 API contract"))
+        AtelierError::Internal(format!(
+            "{column} {value} does not fit the i32 API contract"
+        ))
     })
 }
 
 fn count_from_row(column: &str, value: i64) -> AtelierResult<i32> {
     i32::try_from(value).map_err(|_| {
-        AtelierError::Internal(format!("{column} {value} does not fit the i32 API contract"))
+        AtelierError::Internal(format!(
+            "{column} {value} does not fit the i32 API contract"
+        ))
     })
 }
 
@@ -616,7 +624,8 @@ struct ExportContentKeyBindings {
 
 // --- Statements -------------------------------------------------------------
 //
-// Every write is one `RETURN { ... }` block: the event fragment and the domain
+// Individual writes use `RETURN { ... }` blocks; batch import uses an explicit
+// transaction. In both cases, the event fragment and the domain
 // row land in ONE statement, so they commit together or not at all (the
 // guarantee the PostgreSQL `pool.begin()` transactions provided). Upserts are a
 // Rust-side pre-read of the idempotency key followed by a CREATE or an UPDATE;
@@ -629,50 +638,47 @@ const FIND_CASE_BY_SOURCE_STATEMENT: &str = concat!(
        WHERE adapter_id = $adapter_id AND source_case_id = $source_case_id LIMIT 1;"
 );
 
-const CREATE_CASE_STATEMENT: &str = concat!(
-    "RETURN { LET $rid = $domain.case_rid; ",
+// SELECT evaluates each bound case block in the same explicit transaction.
+// Unlike a closure passed to array::map, the SELECT block can mutate records.
+const IMPORT_CASES_TRANSACTION: &str = concat!(
+    "BEGIN TRANSACTION; SELECT VALUE { LET $domain = $this.domain; ",
+    "LET $idempotency_key = $this.idempotency_key; LET $ledger_id = $this.ledger_id; LET $kernel_event_id = ",
+    "$this.kernel_event_id; LET $event_version = $this.event_version; LET $kernel_task_run_id = ",
+    "$this.kernel_task_run_id; LET $session_run_id = $this.session_run_id; LET $kernel_aggregate_type = ",
+    "$this.kernel_aggregate_type; LET $kernel_aggregate_id = $this.kernel_aggregate_id; LET $event_type = ",
+    "$this.event_type; LET $actor_kind = $this.actor_kind; LET $actor_id = $this.actor_id; LET $causation_id = ",
+    "$this.causation_id; LET $correlation_id = $this.correlation_id; LET $payload_hash = $this.payload_hash; LET ",
+    "$source_component = $this.source_component; LET $ledger_payload = $this.ledger_payload; LET $created_at = ",
+    "$this.created_at; LET $atelier_id = $this.atelier_id; LET $atelier_event_uuid = $this.atelier_event_uuid; ",
+    "LET $event_family = $this.event_family; LET $atelier_payload = $this.atelier_payload; ",
+    "LET $rid = $domain.case_rid; ",
     atelier_event_sql!(),
-    " CREATE $rid CONTENT { \
-         case_id: $domain.case_id, project_id: $domain.project_id, \
-         source_system: $domain.source_system, adapter_id: $domain.adapter_id, \
-         source_iteration_id: $domain.source_iteration_id, source_case_id: $domain.source_case_id, \
-         source_recipe_id: $domain.source_recipe_id, segment: $domain.segment, cell: $domain.cell, \
-         framing: $domain.framing, clothing_state: $domain.clothing_state, \
-         render_stack: $domain.render_stack, \
-         identity_judgement_allowed: $domain.identity_judgement_allowed, \
-         prompt_quality_review_allowed: $domain.prompt_quality_review_allowed, \
-         positive_prompt: $domain.positive_prompt, negative_prompt: $domain.negative_prompt, \
-         micro_gate: $domain.micro_gate, expected_failure: $domain.expected_failure, \
-         image_artifact_ref: $domain.image_artifact_ref, \
-         sheet_artifact_ref: $domain.sheet_artifact_ref, axes: $domain.axes, \
-         hardcore_fields: $domain.hardcore_fields, imported_by: $domain.imported_by \
-       }; RETURN (SELECT ",
-    prompt_case_select!(),
-    " FROM $rid); };"
+    "IF (SELECT VALUE id FROM $rid)[0] = NONE { CREATE $rid CONTENT {  case_id: $domain.case_id, project_id: ",
+    "$domain.project_id,  source_system: $domain.source_system, adapter_id: $domain.adapter_id, ",
+    "source_iteration_id: $domain.source_iteration_id, source_case_id: $domain.source_case_id,  source_recipe_id: ",
+    "$domain.source_recipe_id, segment: $domain.segment, cell: $domain.cell,  framing: $domain.framing, ",
+    "clothing_state: $domain.clothing_state,  render_stack: $domain.render_stack,  identity_judgement_allowed: ",
+    "$domain.identity_judgement_allowed,  prompt_quality_review_allowed: $domain.prompt_quality_review_allowed, ",
+    "positive_prompt: $domain.positive_prompt, negative_prompt: $domain.negative_prompt,  micro_gate: ",
+    "$domain.micro_gate, expected_failure: $domain.expected_failure,  image_artifact_ref: ",
+    "$domain.image_artifact_ref,  sheet_artifact_ref: $domain.sheet_artifact_ref, axes: $domain.axes, ",
+    "hardcore_fields: $domain.hardcore_fields, imported_by: $domain.imported_by  }; } ELSE { UPDATE $rid SET ",
+    "project_id = $domain.project_id, source_system = $domain.source_system,  source_iteration_id = ",
+    "$domain.source_iteration_id,  source_recipe_id = $domain.source_recipe_id, segment = $domain.segment,  cell ",
+    "= $domain.cell, framing = $domain.framing, clothing_state = $domain.clothing_state,  render_stack = ",
+    "$domain.render_stack,  identity_judgement_allowed = $domain.identity_judgement_allowed, ",
+    "prompt_quality_review_allowed = $domain.prompt_quality_review_allowed,  positive_prompt = ",
+    "$domain.positive_prompt, negative_prompt = $domain.negative_prompt,  micro_gate = $domain.micro_gate, ",
+    "expected_failure = $domain.expected_failure,  image_artifact_ref = $domain.image_artifact_ref, ",
+    "sheet_artifact_ref = $domain.sheet_artifact_ref, axes = $domain.axes,  hardcore_fields = ",
+    "$domain.hardcore_fields, imported_by = $domain.imported_by; }; ",
+    "RETURN (SELECT ", prompt_case_select!(), " FROM $rid)[0]; } FROM $entries; COMMIT TRANSACTION;"
 );
 
-/// Re-import of an existing `(adapter_id, source_case_id)`: update in place, keep
-/// `case_id` and `created_at_utc` (the PostgreSQL `ON CONFLICT DO UPDATE` shape).
-const UPDATE_CASE_STATEMENT: &str = concat!(
-    "RETURN { LET $rid = $domain.case_rid; ",
-    atelier_event_sql!(),
-    " UPDATE $rid SET \
-         project_id = $domain.project_id, source_system = $domain.source_system, \
-         source_iteration_id = $domain.source_iteration_id, \
-         source_recipe_id = $domain.source_recipe_id, segment = $domain.segment, \
-         cell = $domain.cell, framing = $domain.framing, clothing_state = $domain.clothing_state, \
-         render_stack = $domain.render_stack, \
-         identity_judgement_allowed = $domain.identity_judgement_allowed, \
-         prompt_quality_review_allowed = $domain.prompt_quality_review_allowed, \
-         positive_prompt = $domain.positive_prompt, negative_prompt = $domain.negative_prompt, \
-         micro_gate = $domain.micro_gate, expected_failure = $domain.expected_failure, \
-         image_artifact_ref = $domain.image_artifact_ref, \
-         sheet_artifact_ref = $domain.sheet_artifact_ref, axes = $domain.axes, \
-         hardcore_fields = $domain.hardcore_fields, imported_by = $domain.imported_by; \
-       RETURN (SELECT ",
-    prompt_case_select!(),
-    " FROM $rid); };"
-);
+#[derive(SurrealValue)]
+struct PromptCaseBatchBindings {
+    entries: Vec<super::AtelierEventBindings<PromptCaseWriteBindings>>,
+}
 
 const LIST_CASES_STATEMENT: &str = concat!(
     "SELECT ",
@@ -864,7 +870,12 @@ fn case_imported_event_payload(case: &PromptCase) -> serde_json::Value {
         .and_then(|value| value.as_object())
     {
         let mut csv_lineage = serde_json::Map::new();
-        for key in ["source_format", "source_manifest_ref", "row_number", "row_hash"] {
+        for key in [
+            "source_format",
+            "source_manifest_ref",
+            "row_number",
+            "row_hash",
+        ] {
             if let Some(value) = csv.get(key) {
                 csv_lineage.insert(key.to_string(), value.clone());
             }
@@ -892,10 +903,8 @@ impl AtelierStore {
     /// it in place. One `CASE_IMPORTED` event is emitted per case, in the same
     /// statement as that case's row.
     ///
-    /// The whole batch is validated before anything is written; each case then
-    /// commits atomically with its own event. (The PostgreSQL version wrapped the
-    /// whole batch in one transaction; the embedded store's one-statement event
-    /// fragment carries one event, so the unit of atomicity here is the case.)
+    /// Validate first, then commit every case and event in one transaction.
+    /// A conflict retries the entire batch, refreshing existing case identities.
     pub async fn import_prompt_cases(
         &self,
         cases: &[NewPromptCase],
@@ -903,19 +912,86 @@ impl AtelierStore {
         for case in cases {
             validate_new_prompt_case(case)?;
         }
-        let mut imported = Vec::with_capacity(cases.len());
-        for new in cases {
-            let case = with_retry(
-                || self.upsert_prompt_case(new),
-                |err| {
-                    is_retryable_transaction_conflict(err)
-                        || is_unique_index_conflict(err, "ux_atelier_prompt_feedback_case_source")
-                },
-            )
-            .await?;
-            imported.push(case);
+        if cases.is_empty() {
+            return Ok(Vec::new());
+        }
+        let (imported, events) = with_retry(
+            || self.import_prompt_case_batch(cases),
+            |err| {
+                is_retryable_transaction_conflict(err)
+                    || is_unique_index_conflict(err, "ux_atelier_prompt_feedback_case_source")
+            },
+        )
+        .await?;
+        // Commit retries end before observability: a mirror failure must never
+        // replay an already committed import.
+        for event in events {
+            let bindings = super::IdempotencyKeyBinding {
+                idempotency_key: event.bindings.idempotency_key.clone(),
+            };
+            let recorded = self.store().with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_first("SELECT event_id, event_sequence FROM kernel_event_ledger WHERE idempotency_key = $idempotency_key LIMIT 1;", bindings).await
+                })
+            }).await?;
+            self.finish_event(event, recorded).await?;
         }
         Ok(imported)
+    }
+
+    async fn import_prompt_case_batch(
+        &self,
+        cases: &[NewPromptCase],
+    ) -> AtelierResult<(Vec<PromptCase>, Vec<super::PreparedAtelierEvent>)> {
+        let mut identities = std::collections::HashMap::new();
+        let mut entries = Vec::with_capacity(cases.len());
+        let mut events = Vec::with_capacity(cases.len());
+        for new in cases {
+            let key = (new.adapter_id.clone(), new.source_case_id.clone());
+            let case_id = if let Some(id) = identities.get(&key) {
+                *id
+            } else {
+                let id = self
+                    .find_prompt_case_by_source(&new.adapter_id, &new.source_case_id)
+                    .await?
+                    .map(|case| case.case_id)
+                    .unwrap_or_else(Uuid::now_v7);
+                identities.insert(key, id);
+                id
+            };
+            let (domain, projected) = self.prepare_prompt_case(new, case_id)?;
+            let event = self.prepare_event(
+                prompt_feedback_event_family::CASE_IMPORTED,
+                CASE_TABLE,
+                &case_id.to_string(),
+                case_imported_event_payload(&projected),
+            )?;
+            entries.push(event.bindings.clone().with_domain(domain));
+            events.push(event);
+        }
+        let rows: Vec<PromptCaseRow> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values_at(
+                        IMPORT_CASES_TRANSACTION,
+                        PromptCaseBatchBindings { entries },
+                        1,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        let imported = rows
+            .into_iter()
+            .map(PromptCase::try_from)
+            .collect::<AtelierResult<Vec<_>>>()?;
+        if imported.len() != cases.len() {
+            return Err(AtelierError::Internal(
+                "batch import returned an unexpected case count".to_owned(),
+            ));
+        }
+        Ok((imported, events))
     }
 
     async fn find_prompt_case_by_source(
@@ -939,14 +1015,11 @@ impl AtelierStore {
         row.map(PromptCase::try_from).transpose()
     }
 
-    async fn upsert_prompt_case(&self, new: &NewPromptCase) -> AtelierResult<PromptCase> {
-        let existing = self
-            .find_prompt_case_by_source(&new.adapter_id, &new.source_case_id)
-            .await?;
-        let (case_id, statement) = match &existing {
-            Some(existing) => (existing.case_id, UPDATE_CASE_STATEMENT),
-            None => (Uuid::now_v7(), CREATE_CASE_STATEMENT),
-        };
+    fn prepare_prompt_case(
+        &self,
+        new: &NewPromptCase,
+        case_id: Uuid,
+    ) -> AtelierResult<(PromptCaseWriteBindings, PromptCase)> {
         let axes = to_json(&new.axes)?;
         let bindings = PromptCaseWriteBindings {
             case_rid: case_ref(case_id),
@@ -1002,19 +1075,7 @@ impl AtelierStore {
             imported_by: new.imported_by.clone(),
             created_at_utc: chrono::Utc::now(),
         };
-        let row: Option<PromptCaseRow> = self
-            .write_with_event(
-                statement,
-                bindings,
-                prompt_feedback_event_family::CASE_IMPORTED,
-                CASE_TABLE,
-                &case_id.to_string(),
-                case_imported_event_payload(&projected),
-            )
-            .await?;
-        row.map(PromptCase::try_from).transpose()?.ok_or_else(|| {
-            AtelierError::Internal("importing a prompt case returned no row".to_owned())
-        })
+        Ok((bindings, projected))
     }
 
     /// List prompt cases, newest first, filtered by project/segment/cell/render
@@ -1133,9 +1194,11 @@ impl AtelierStore {
                 }),
             )
             .await?;
-        row.map(ReviewVerdict::try_from).transpose()?.ok_or_else(|| {
-            AtelierError::Internal("recording a prompt verdict returned no row".to_owned())
-        })
+        row.map(ReviewVerdict::try_from)
+            .transpose()?
+            .ok_or_else(|| {
+                AtelierError::Internal("recording a prompt verdict returned no row".to_owned())
+            })
     }
 
     pub async fn list_prompt_verdicts(&self, case_id: Uuid) -> AtelierResult<Vec<ReviewVerdict>> {
@@ -1372,7 +1435,10 @@ impl AtelierStore {
         let row: Option<RewritePlanRow> = self
             .store()
             .with_data_operation(move |ctx| {
-                Box::pin(async move { ctx.query_first(FIND_REWRITE_BY_KEY_STATEMENT, bindings).await })
+                Box::pin(async move {
+                    ctx.query_first(FIND_REWRITE_BY_KEY_STATEMENT, bindings)
+                        .await
+                })
             })
             .await?;
         row.map(RewritePlan::try_from).transpose()
@@ -1625,7 +1691,9 @@ impl AtelierStore {
             // Lost the race: a concurrent identical export committed after our
             // pre-check. The UNIQUE index rejected this row (and, with it, this
             // statement's event), so do not repoint anything; return the winner.
-            Err(err) if is_unique_index_conflict(&err, "ux_atelier_prompt_feedback_export_content") => {
+            Err(err)
+                if is_unique_index_conflict(&err, "ux_atelier_prompt_feedback_export_content") =>
+            {
                 self.find_export_by_content_hash(rule_pack_id, rule_pack_version, content_hash)
                     .await?
                     .ok_or_else(|| {

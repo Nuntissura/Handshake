@@ -1793,3 +1793,243 @@ async fn intake_classification_routes_persist_metadata_and_lane_decisions() {
     server.abort();
     harness.shutdown().await;
 }
+
+/// Prepare real plans before committing them so scheduler timing cannot hide stale reads.
+#[cfg(feature = "test-utils")]
+#[tokio::test]
+async fn mt061_intake_concurrency_umbrella() {
+    use handshake_core::atelier::intake::{
+        intake_event_family, ApplyIntakeClassificationRequest, IntakeClassificationMetadata,
+    };
+    use handshake_core::atelier::AtelierError;
+
+    fn request(item_id: Uuid, request_id: &str, tag: &str) -> ApplyIntakeClassificationRequest {
+        ApplyIntakeClassificationRequest {
+            item_id,
+            lane: IntakeLane::Deferred,
+            reason: Some("concurrency proof".into()),
+            requested_by: Some("operator".into()),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(request_id.into()),
+                tags: vec![tag.into()],
+                note: Some(tag.into()),
+                ..Default::default()
+            }),
+        }
+    }
+    async fn events(store: &AtelierStore, item: Uuid) -> i64 {
+        store
+            .count_events_for_aggregate(
+                intake_event_family::INTAKE_ITEM_CLASSIFIED,
+                "atelier_intake_item",
+                &item.to_string(),
+            )
+            .await
+            .expect("read committed classification events")
+    }
+
+    let harness = AtelierSurrealHarness::create().await;
+    let store = &harness.atelier;
+    let batch_a = seed_intake_batch(store).await;
+    let batch_b = seed_intake_batch(store).await;
+    let items_a = store.list_intake_items(batch_a, None).await.unwrap();
+    let items_b = store.list_intake_items(batch_b, None).await.unwrap();
+
+    // Both preflights see an unowned request. Only one batch may commit ownership.
+    let owner_id = format!("mt061-owner-{}", Uuid::now_v7());
+    let a = request(items_a[0].item_id, &owner_id, "owner-a");
+    let b = request(items_b[0].item_id, &owner_id, "owner-b");
+    let plan_a = store.test_prepare_intake_classification(&a).await.unwrap();
+    let plan_b = store.test_prepare_intake_classification(&b).await.unwrap();
+    let (result_a, result_b) = tokio::join!(
+        store.test_apply_prepared_intake_classification(plan_a),
+        store.test_apply_prepared_intake_classification(plan_b),
+    );
+    assert_ne!(
+        result_a.is_ok(),
+        result_b.is_ok(),
+        "exactly one batch owns the request: {result_a:?}, {result_b:?}"
+    );
+    let (winner, loser, error) = if result_a.is_ok() {
+        (a.item_id, b.item_id, result_b.unwrap_err())
+    } else {
+        (b.item_id, a.item_id, result_a.unwrap_err())
+    };
+    assert!(matches!(error, AtelierError::Validation(_)), "{error:?}");
+    assert_eq!(
+        store
+            .get_intake_item_metadata(winner)
+            .await
+            .unwrap()
+            .unwrap()
+            .request_id,
+        owner_id
+    );
+    assert!(store
+        .get_intake_item_metadata(loser)
+        .await
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        store
+            .get_intake_item_by_id(loser)
+            .await
+            .unwrap()
+            .unwrap()
+            .lane,
+        IntakeLane::Pending
+    );
+    assert_eq!(events(store, winner).await, 1);
+    assert_eq!(events(store, loser).await, 0);
+    assert_eq!(
+        harness
+            .row_count_by_field("atelier_intake_request_guard", "request_id", &owner_id)
+            .await,
+        1
+    );
+
+    // The second already-read plan must rebuild its merge from the first commit.
+    let merge_item = items_a[1].item_id;
+    let first = request(
+        merge_item,
+        &format!("mt061-first-{}", Uuid::now_v7()),
+        "first",
+    );
+    let second = request(
+        merge_item,
+        &format!("mt061-second-{}", Uuid::now_v7()),
+        "second",
+    );
+    let first_plan = store
+        .test_prepare_intake_classification(&first)
+        .await
+        .unwrap();
+    let second_plan = store
+        .test_prepare_intake_classification(&second)
+        .await
+        .unwrap();
+    store
+        .test_apply_prepared_intake_classification(first_plan)
+        .await
+        .unwrap();
+    store
+        .test_apply_prepared_intake_classification(second_plan)
+        .await
+        .unwrap();
+    let merged = store
+        .get_intake_item_metadata(merge_item)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(merged.tags, vec!["first", "second"]);
+    assert_eq!(merged.note.as_deref(), Some("first"));
+    assert_eq!(events(store, merge_item).await, 2);
+    store.apply_intake_classification(&second).await.unwrap();
+    assert_eq!(
+        events(store, merge_item).await,
+        2,
+        "same request replay is event-idempotent"
+    );
+    let replayed = store
+        .get_intake_item_metadata(merge_item)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(replayed.tags, merged.tags);
+    assert_eq!(replayed.note, merged.note);
+    let mut conflicting = second.clone();
+    conflicting.reason = Some("conflicting replay".into());
+    assert!(matches!(
+        store.apply_intake_classification(&conflicting).await,
+        Err(AtelierError::Validation(_))
+    ));
+    assert_eq!(
+        store
+            .get_intake_item_metadata(merge_item)
+            .await
+            .unwrap()
+            .unwrap(),
+        replayed
+    );
+
+    // A stale later item rolls back earlier guard writes before any domain writes.
+    let rollback_id = format!("mt061-rollback-{}", Uuid::now_v7());
+    let rollback_a = request(items_b[1].item_id, &rollback_id, "rollback-a");
+    let rollback_b = request(items_b[2].item_id, &rollback_id, "rollback-b");
+    let rollback_plan_a = store
+        .test_prepare_intake_classification(&rollback_a)
+        .await
+        .unwrap();
+    let rollback_plan_b = store
+        .test_prepare_intake_classification(&rollback_b)
+        .await
+        .unwrap();
+    store
+        .classify_intake_item(
+            rollback_b.item_id,
+            IntakeLane::Deferred,
+            Some("intervening write"),
+        )
+        .await
+        .unwrap();
+    let failed = store
+        .test_commit_intake_classification_plans(vec![rollback_plan_a, rollback_plan_b])
+        .await;
+    assert!(failed
+        .unwrap_err()
+        .to_string()
+        .contains("HSK-INTAKE-STALE-PLAN"));
+    assert_eq!(
+        store
+            .get_intake_item_by_id(rollback_a.item_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .lane,
+        IntakeLane::Pending
+    );
+    assert!(store
+        .get_intake_item_metadata(rollback_a.item_id)
+        .await
+        .unwrap()
+        .is_none());
+    assert_eq!(events(store, rollback_a.item_id).await, 0);
+    assert_eq!(
+        harness
+            .row_count_by_field("atelier_intake_request_guard", "request_id", &rollback_id)
+            .await,
+        0
+    );
+    store
+        .apply_intake_classification(&rollback_a)
+        .await
+        .unwrap();
+    store
+        .apply_intake_classification(&rollback_b)
+        .await
+        .unwrap();
+    assert_eq!(events(store, rollback_a.item_id).await, 1);
+    // Ownership follows current metadata, rather than permanently reserving a request ID.
+    let replacement = request(
+        winner,
+        &format!("mt061-release-{}", Uuid::now_v7()),
+        "replacement",
+    );
+    store
+        .apply_intake_classification(&replacement)
+        .await
+        .unwrap();
+    let reused = request(loser, &owner_id, "reused");
+    store.apply_intake_classification(&reused).await.unwrap();
+    assert_eq!(
+        store
+            .get_intake_item_metadata(loser)
+            .await
+            .unwrap()
+            .unwrap()
+            .request_id,
+        owner_id
+    );
+    assert_eq!(events(store, loser).await, 1);
+    harness.shutdown().await;
+}

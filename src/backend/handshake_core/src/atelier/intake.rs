@@ -1058,11 +1058,6 @@ struct ItemRefBinding {
 }
 
 #[derive(SurrealValue)]
-struct ItemRefsBinding {
-    item_refs: Vec<RecordId>,
-}
-
-#[derive(SurrealValue)]
 struct ItemLookupBinding {
     batch_ref: RecordId,
     source_path: String,
@@ -1465,6 +1460,7 @@ fn is_retryable_write_conflict(err: &AtelierError) -> bool {
     };
     let text = storage_err.to_string().to_ascii_lowercase();
     text.contains("read or write conflict")
+        || text.contains("hsk-intake-stale-plan")
         || text.contains("can be retried")
         || text.contains("transaction conflict")
         || text.contains("resource busy")
@@ -1742,6 +1738,12 @@ struct ClassificationMetadataInput {
 struct ClassificationItemInput {
     item_ref: RecordId,
     batch_ref: RecordId,
+    expected_lane: String,
+    expected_lane_reason: Option<String>,
+    expected_updated_at: surrealdb::types::Datetime,
+    metadata_ref: RecordId,
+    expected_metadata: Option<surrealdb::types::Value>,
+    request_id: Option<String>,
     changed: bool,
     touch_batch: bool,
     lane: String,
@@ -1749,16 +1751,6 @@ struct ClassificationItemInput {
     member: Option<ClassificationMemberInput>,
     audit: Option<ClassificationAuditInput>,
     metadata: Option<ClassificationMetadataInput>,
-}
-
-impl ClassificationItemInput {
-    fn writes_anything(&self) -> bool {
-        self.changed
-            || self.touch_batch
-            || self.member.is_some()
-            || self.audit.is_some()
-            || self.metadata.is_some()
-    }
 }
 
 #[derive(Clone, SurrealValue)]
@@ -1795,7 +1787,23 @@ const GET_COLLECTION_MEMBER_STATEMENT: &str = "RETURN { \
 /// projection rows are written per element of `$events` with the same
 /// idempotent shape `atelier_event_sql!` uses for a single event.
 const APPLY_CLASSIFICATIONS_STATEMENT: &str = concat!(
-    "RETURN { \
+    "BEGIN TRANSACTION; RETURN { \
+       FOR $it IN $items { \
+         IF $it.request_id != NONE { \
+           LET $guard = type::record('atelier_intake_request_guard', $it.request_id); \
+           UPSERT $guard SET request_id = $it.request_id, revision = (revision ?? 0) + 1; \
+           IF count(SELECT id FROM atelier_intake_item_metadata \
+                    WHERE request_id = $it.request_id AND batch_id != $it.batch_ref) != 0 { \
+             THROW 'metadata.request_id is already bound to another intake batch'; \
+           }; \
+         }; \
+         LET $current = (SELECT * FROM $it.item_ref)[0]; \
+         LET $metadata = (SELECT * FROM $it.metadata_ref)[0]; \
+         IF $current.lane != $it.expected_lane \
+            OR $current.lane_reason != $it.expected_lane_reason \
+            OR $current.updated_at_utc != $it.expected_updated_at \
+            OR $metadata != $it.expected_metadata { THROW 'HSK-INTAKE-STALE-PLAN'; }; \
+       }; \
        FOR $it IN $items { \
          IF !record::exists($it.item_ref) { THROW 'intake item not found'; }; \
          IF $it.changed { \
@@ -1866,7 +1874,7 @@ const APPLY_CLASSIFICATIONS_STATEMENT: &str = concat!(
        }; \
        RETURN (SELECT ",
     item_columns!(),
-    " FROM $item_refs ORDER BY created_at_utc ASC, item_id ASC); };"
+    " FROM $item_refs ORDER BY created_at_utc ASC, item_id ASC); }; COMMIT TRANSACTION;"
 );
 
 #[derive(SurrealValue)]
@@ -1972,6 +1980,25 @@ impl AtelierStore {
         metadata: Option<&IntakeClassificationMetadata>,
         state: &mut BatchPlanState,
     ) -> AtelierResult<ClassificationPlan> {
+        // Snapshot before reading plan inputs; compare the complete typed row
+        // in the write transaction so retries rebuild rather than lose merges.
+        let metadata_ref = RecordId::new(
+            "atelier_intake_item_metadata",
+            SurrealUuid::from(existing.item_id),
+        );
+        let expected_metadata: Option<surrealdb::types::Value> = self
+            .with_data({
+                let binding = MetadataRefBinding {
+                    metadata_ref: metadata_ref.clone(),
+                };
+                move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first("SELECT * FROM $metadata_ref LIMIT 1;", binding)
+                            .await
+                    })
+                }
+            })
+            .await?;
         let normalized_reason = normalize_lane_reason(lane, reason)?;
         let (metadata, request_id) =
             normalize_classification_metadata(metadata, Some(existing.batch_id), None, false)?;
@@ -2031,8 +2058,10 @@ impl AtelierStore {
             asset_id = Some(resolved_asset_id);
 
             if let Some(target_collection_id) = batch.target_collection_id {
-                let collection_ref =
-                    RecordId::new("atelier_collection", SurrealUuid::from(target_collection_id));
+                let collection_ref = RecordId::new(
+                    "atelier_collection",
+                    SurrealUuid::from(target_collection_id),
+                );
                 let collection_row: Option<serde_json::Value> = self
                     .with_data({
                         let collection_ref = collection_ref.clone();
@@ -2073,35 +2102,34 @@ impl AtelierStore {
                     SurrealUuid::from(target_collection_id),
                     SurrealUuid::from(resolved_asset_id),
                 ];
-                let (member_exists, existing_source_path_ref): (bool, Option<String>) =
-                    match state
-                        .planned_members
-                        .get(&(target_collection_id, resolved_asset_id))
-                    {
-                        Some(planned_ref) => (true, Some(planned_ref.clone())),
-                        None => {
-                            let lookup: Option<serde_json::Value> = self
-                                .with_data({
-                                    let pair_key = pair_key.clone();
-                                    move |ctx| {
-                                        Box::pin(async move {
-                                            ctx.query_first(
-                                                GET_COLLECTION_MEMBER_STATEMENT,
-                                                CollectionMemberLookupBinding { pair_key },
-                                            )
-                                            .await
-                                        })
-                                    }
-                                })
-                                .await?;
-                            let lookup = intake_row(lookup.ok_or_else(|| {
-                                AtelierError::Internal(
-                                    "collection membership lookup returned no row".to_owned(),
-                                )
-                            })?)?;
-                            (lookup.get("exists"), lookup.get("source_path_ref"))
-                        }
-                    };
+                let (member_exists, existing_source_path_ref): (bool, Option<String>) = match state
+                    .planned_members
+                    .get(&(target_collection_id, resolved_asset_id))
+                {
+                    Some(planned_ref) => (true, Some(planned_ref.clone())),
+                    None => {
+                        let lookup: Option<serde_json::Value> = self
+                            .with_data({
+                                let pair_key = pair_key.clone();
+                                move |ctx| {
+                                    Box::pin(async move {
+                                        ctx.query_first(
+                                            GET_COLLECTION_MEMBER_STATEMENT,
+                                            CollectionMemberLookupBinding { pair_key },
+                                        )
+                                        .await
+                                    })
+                                }
+                            })
+                            .await?;
+                        let lookup = intake_row(lookup.ok_or_else(|| {
+                            AtelierError::Internal(
+                                "collection membership lookup returned no row".to_owned(),
+                            )
+                        })?)?;
+                        (lookup.get("exists"), lookup.get("source_path_ref"))
+                    }
+                };
                 let inserted = !member_exists;
                 let updated_refs = member_exists
                     && existing_source_path_ref.as_deref() != Some(source_path_ref.as_str());
@@ -2120,9 +2148,7 @@ impl AtelierStore {
                         ),
                         pair_key,
                         source_path_ref: source_path_ref.clone(),
-                        actor: requested_by
-                            .clone()
-                            .unwrap_or_else(|| "system".to_owned()),
+                        actor: requested_by.clone().unwrap_or_else(|| "system".to_owned()),
                     });
                     events.push(self.prepare_event(
                         collections_event_family::COLLECTION_IMAGES_ADDED,
@@ -2212,7 +2238,9 @@ impl AtelierStore {
         if let (Some(requested_by), Some(metadata), Some(request_id)) = (
             requested_by.as_deref(),
             metadata.as_ref(),
-            metadata.as_ref().and_then(|value| value.request_id.as_deref()),
+            metadata
+                .as_ref()
+                .and_then(|value| value.request_id.as_deref()),
         ) {
             let previous = self.get_intake_item_metadata(existing.item_id).await?;
             let mut merged_tags = Vec::new();
@@ -2296,6 +2324,12 @@ impl AtelierStore {
             input: ClassificationItemInput {
                 item_ref,
                 batch_ref,
+                expected_lane: existing.lane.as_str().to_owned(),
+                expected_lane_reason: existing.lane_reason.clone(),
+                expected_updated_at: existing.updated_at_utc.into(),
+                metadata_ref,
+                expected_metadata,
+                request_id,
                 changed,
                 touch_batch: emit_classified,
                 lane: lane.as_str().to_owned(),
@@ -2318,9 +2352,7 @@ impl AtelierStore {
         let mut item_refs = Vec::with_capacity(plans.len());
         let mut prepared_events = Vec::new();
         let mut event_bindings = Vec::new();
-        let mut needs_write = false;
         for plan in &plans {
-            needs_write |= plan.input.writes_anything() || !plan.events.is_empty();
             inputs.push(plan.input.clone());
             item_refs.push(plan.input.item_ref.clone());
         }
@@ -2338,7 +2370,7 @@ impl AtelierStore {
             }
         }
 
-        let rows: Vec<serde_json::Value> = if needs_write {
+        let rows: Vec<serde_json::Value> = {
             let bindings = ClassificationApplyBindings {
                 items: inputs,
                 item_refs,
@@ -2346,26 +2378,23 @@ impl AtelierStore {
             };
             self.with_data(move |ctx| {
                 Box::pin(async move {
-                    ctx.query_values(APPLY_CLASSIFICATIONS_STATEMENT, bindings)
+                    ctx.query_values_at(APPLY_CLASSIFICATIONS_STATEMENT, bindings, 1)
                         .await
                 })
             })
-            .await?
-        } else {
-            self.with_data(move |ctx| {
-                Box::pin(async move {
-                    ctx.query_values(
-                        concat!(
-                            "SELECT ",
-                            item_columns!(),
-                            " FROM $item_refs ORDER BY created_at_utc ASC, item_id ASC;"
-                        ),
-                        ItemRefsBinding { item_refs },
+            .await
+            .map_err(|err| {
+                if err
+                    .to_string()
+                    .contains("metadata.request_id is already bound to another intake batch")
+                {
+                    AtelierError::Validation(
+                        "metadata.request_id is already bound to another intake batch".into(),
                     )
-                    .await
-                })
-            })
-            .await?
+                } else {
+                    err
+                }
+            })?
         };
 
         for prepared in prepared_events {
@@ -2417,10 +2446,10 @@ impl AtelierStore {
             .collect()
     }
 
-    async fn apply_intake_classification_once(
+    async fn prepare_intake_classification(
         &self,
         request: &ApplyIntakeClassificationRequest,
-    ) -> AtelierResult<IntakeClassificationApplyResult> {
+    ) -> AtelierResult<ClassificationPlan> {
         let existing = self
             .get_intake_item_by_id(request.item_id)
             .await?
@@ -2441,10 +2470,7 @@ impl AtelierStore {
                 &mut state,
             )
             .await?;
-        let mut applied = self.execute_classification_plans(vec![plan]).await?;
-        applied.pop().ok_or_else(|| {
-            AtelierError::Internal("applying intake classification returned no result".to_owned())
-        })
+        Ok(plan)
     }
 
     async fn apply_intake_batch_classifications_once(
@@ -3333,9 +3359,7 @@ impl AtelierStore {
         new: &NewIntakeItem,
     ) -> AtelierResult<IntakeItem> {
         if self.get_intake_batch_by_id(batch_id).await?.is_none() {
-            return Err(AtelierError::NotFound(format!(
-                "intake batch {batch_id}"
-            )));
+            return Err(AtelierError::NotFound(format!("intake batch {batch_id}")));
         }
         if new.source_path.trim().is_empty() {
             return Err(AtelierError::Validation(
@@ -3380,10 +3404,7 @@ impl AtelierStore {
     }
 
     /// Fetch a single item by its id.
-    pub async fn get_intake_item_by_id(
-        &self,
-        item_id: Uuid,
-    ) -> AtelierResult<Option<IntakeItem>> {
+    pub async fn get_intake_item_by_id(&self, item_id: Uuid) -> AtelierResult<Option<IntakeItem>> {
         let binding = ItemRefBinding {
             item_ref: RecordId::new("atelier_intake_item", SurrealUuid::from(item_id)),
         };
@@ -3779,10 +3800,34 @@ impl AtelierStore {
         &self,
         request: &ApplyIntakeClassificationRequest,
     ) -> AtelierResult<IntakeClassificationApplyResult> {
+        self.apply_intake_classification_from_plan(request, None)
+            .await
+    }
+
+    async fn apply_intake_classification_from_plan(
+        &self,
+        request: &ApplyIntakeClassificationRequest,
+        mut initial_plan: Option<ClassificationPlan>,
+    ) -> AtelierResult<IntakeClassificationApplyResult> {
         let mut attempt = 0u32;
         loop {
             attempt += 1;
-            match self.apply_intake_classification_once(request).await {
+            let outcome = async {
+                let plan = match initial_plan.take() {
+                    Some(plan) => plan,
+                    None => self.prepare_intake_classification(request).await?,
+                };
+                self.execute_classification_plans(vec![plan])
+                    .await?
+                    .pop()
+                    .ok_or_else(|| {
+                        AtelierError::Internal(
+                            "applying intake classification returned no result".into(),
+                        )
+                    })
+            }
+            .await;
+            match outcome {
                 Err(err)
                     if attempt < INTAKE_WRITE_CONFLICT_MAX_ATTEMPTS
                         && is_retryable_write_conflict(&err) =>
@@ -3922,5 +3967,243 @@ impl AtelierStore {
             AtelierError::Internal("closing an intake batch returned no row".to_owned())
         })?)?;
         Ok(batch_from_row(&row))
+    }
+}
+
+/// A real, already-read classification plan for deterministic interleaving proofs.
+#[cfg(feature = "test-utils")]
+pub struct IntakeClassificationTestPlan {
+    request: ApplyIntakeClassificationRequest,
+    plan: ClassificationPlan,
+}
+
+#[cfg(feature = "test-utils")]
+impl AtelierStore {
+    pub async fn test_prepare_intake_classification(
+        &self,
+        request: &ApplyIntakeClassificationRequest,
+    ) -> AtelierResult<IntakeClassificationTestPlan> {
+        Ok(IntakeClassificationTestPlan {
+            request: request.clone(),
+            plan: self.prepare_intake_classification(request).await?,
+        })
+    }
+
+    pub async fn test_apply_prepared_intake_classification(
+        &self,
+        prepared: IntakeClassificationTestPlan,
+    ) -> AtelierResult<IntakeClassificationApplyResult> {
+        self.apply_intake_classification_from_plan(&prepared.request, Some(prepared.plan))
+            .await
+    }
+
+    /// Commit exactly these real plans without retry, to inspect atomic rollback.
+    pub async fn test_commit_intake_classification_plans(
+        &self,
+        plans: Vec<IntakeClassificationTestPlan>,
+    ) -> AtelierResult<Vec<IntakeClassificationApplyResult>> {
+        self.execute_classification_plans(plans.into_iter().map(|p| p.plan).collect())
+            .await
+    }
+}
+
+#[cfg(test)]
+mod transaction_tests {
+    use super::*;
+    use crate::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
+
+    async fn authority_snapshot(storage: &SurrealStorage) -> serde_json::Value {
+        storage
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.query_first(
+                "RETURN { guards: (SELECT * FROM atelier_intake_request_guard ORDER BY id), \
+                   batches: (SELECT * FROM atelier_intake_batch ORDER BY id), \
+                   items: (SELECT * FROM atelier_intake_item ORDER BY id), \
+                   metadata: (SELECT * FROM atelier_intake_item_metadata ORDER BY id), \
+                   audits: (SELECT * FROM atelier_intake_item_rejection_audit ORDER BY id), \
+                   ledger: (SELECT * FROM kernel_event_ledger ORDER BY id), \
+                   events: (SELECT * FROM atelier_event ORDER BY id) };",
+                super::super::NoDomain {},
+            ).await
+                })
+            })
+            .await
+            .expect("read intake authority")
+            .expect("snapshot")
+    }
+
+    #[tokio::test]
+    async fn intake_later_event_failure_rolls_back_domain_and_ledger() {
+        let directory = tempfile::tempdir().expect("isolated intake transaction store");
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::for_data_dir(directory.path()).expect("configure store"),
+        )
+        .await
+        .expect("open store");
+        bootstrap_schema(&storage).await.expect("bootstrap schema");
+        let store = AtelierStore::new(storage.clone());
+        let batch = store
+            .open_intake_batch(&NewIntakeBatch {
+                idempotency_key: format!("mt061-rollback-{}", Uuid::now_v7()),
+                source_label: "mt061-rollback".into(),
+                source_ref: None,
+                mode: IntakeBatchMode::Manual,
+                profile_mode: IntakeProfileMode::LooseProfile,
+                character_internal_id: None,
+                target_character_id: None,
+                target_sheet_version_id: None,
+                target_collection_id: None,
+                resume_cursor: None,
+            })
+            .await
+            .expect("open batch");
+        for index in 0..2 {
+            store
+                .add_intake_item(
+                    batch.batch_id,
+                    &NewIntakeItem {
+                        source_path: format!("artifact://intake/rollback/{index}"),
+                        file_name: format!("rollback-{index}.png"),
+                        byte_len: 42,
+                        content_hash: None,
+                    },
+                )
+                .await
+                .expect("add item");
+        }
+        let items = store
+            .list_intake_items(batch.batch_id, None)
+            .await
+            .expect("canonical item order");
+        let request = ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch.batch_id,
+            default_lane: IntakeLane::Rejected,
+            default_reason: Some("earlier-event".into()),
+            requested_by: "mt061-writer".into(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(format!("mt061-late-failure-{}", Uuid::now_v7())),
+                tags: vec!["rollback".into()],
+                note: Some("rollback proof".into()),
+                ..Default::default()
+            }),
+            overrides: vec![ApplyIntakeBatchClassificationOverride {
+                item_id: items[1].item_id,
+                lane: IntakeLane::Rejected,
+                reason: Some("mt061-reject-later-event".into()),
+            }],
+        };
+        let before = authority_snapshot(&storage).await;
+        // This isolated trigger rejects the later item's projection insert after
+        // all domain writes and the preceding item's event pair were executed.
+        storage
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.execute_returning(
+                        "DEFINE EVENT mt061_reject_later ON TABLE atelier_event \
+                 WHEN $after.event_family = 'atelier.intake.item_classified' \
+                   AND $after.payload.reason = 'mt061-reject-later-event' \
+                 THEN { THROW 'mt061_later_event_rejected'; };",
+                        super::super::NoDomain {},
+                    )
+                    .await
+                })
+            })
+            .await
+            .expect("install isolated final-event trigger");
+        let error = store
+            .apply_intake_batch_classifications(&request)
+            .await
+            .expect_err("later event must reject the transaction");
+        assert!(
+            error.to_string().contains("mt061_later_event_rejected"),
+            "{error}"
+        );
+        assert_eq!(
+            authority_snapshot(&storage).await,
+            before,
+            "guards, batches, items, metadata, audits and both event tables must roll back"
+        );
+        storage
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.execute_returning(
+                        "REMOVE EVENT mt061_reject_later ON TABLE atelier_event;",
+                        super::super::NoDomain {},
+                    )
+                    .await
+                })
+            })
+            .await
+            .expect("remove isolated trigger");
+        let applied = store
+            .apply_intake_batch_classifications(&request)
+            .await
+            .expect("success retry");
+        assert_eq!(applied.applied.len(), 2);
+        assert!(applied.failed.is_none());
+        for item in &items {
+            assert_eq!(
+                store
+                    .get_intake_item_by_id(item.item_id)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .lane,
+                IntakeLane::Rejected
+            );
+            assert_eq!(
+                store
+                    .get_intake_item_metadata(item.item_id)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .tags,
+                vec!["rollback"]
+            );
+            assert_eq!(
+                store
+                    .count_events_for_aggregate(
+                        intake_event_family::INTAKE_ITEM_CLASSIFIED,
+                        "atelier_intake_item",
+                        &item.item_id.to_string(),
+                    )
+                    .await
+                    .unwrap(),
+                1
+            );
+        }
+        let after = authority_snapshot(&storage).await;
+        assert_eq!(after["guards"].as_array().unwrap().len(), 1);
+        assert_eq!(after["metadata"].as_array().unwrap().len(), 2);
+        assert_eq!(after["audits"].as_array().unwrap().len(), 2);
+        let old_events = before["events"].as_array().unwrap();
+        let added: Vec<_> = after["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|row| {
+                !old_events
+                    .iter()
+                    .any(|old| old["event_id"] == row["event_id"])
+            })
+            .collect();
+        assert_eq!(added.len(), 4);
+        assert_eq!(
+            after["ledger"].as_array().unwrap().len(),
+            before["ledger"].as_array().unwrap().len() + 4
+        );
+        for event in added {
+            let ledger = after["ledger"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|row| row["event_id"] == event["kernel_event_id"])
+                .expect("committed ledger pair");
+            assert_eq!(ledger["event_sequence"], event["kernel_event_sequence"]);
+            assert_eq!(ledger["payload"]["atelier_payload"], event["payload"]);
+        }
+        drop(store);
+        storage.shutdown().await.expect("close isolated store");
     }
 }

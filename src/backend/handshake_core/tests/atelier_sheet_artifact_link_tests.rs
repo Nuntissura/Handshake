@@ -9,7 +9,10 @@
 
 mod atelier_surreal_support;
 
+use std::panic::AssertUnwindSafe;
+
 use atelier_surreal_support::AtelierSurrealHarness;
+use futures::FutureExt;
 use handshake_core::atelier::refs::sheet_version_ref;
 use handshake_core::atelier::sheet_artifacts::{
     sheet_artifact_event_family, NewSheetArtifactLink, SheetArtifactKind,
@@ -113,9 +116,50 @@ impl DirectLinkRow<'_> {
     }
 }
 
+/// Both sheet-artifact-link proofs in this binary share ONE embedded store.
+///
+/// Bootstrapping the kernel schema into a fresh on-disk SurrealDB costs tens of minutes in a debug
+/// build and dominates the wall clock of every harness-backed proof. Each sub-proof seeds its own
+/// character (UUID-suffixed `public_id`) and its own sheet version, and every assertion is scoped
+/// to that sheet version, so sharing the store changes no assertion. Same collapse as MT-057.
 #[tokio::test]
-async fn ckc_sheet_artifact_links_reject_cross_character_and_local_runtime_refs() {
+async fn ckc_sheet_artifact_link_umbrella() {
     let harness = AtelierSurrealHarness::create().await;
+    let mut failures = Vec::new();
+    run_sub_proof(
+        "sheet_artifact_links_reject_cross_character_and_local_runtime_refs",
+        &mut failures,
+        sheet_artifact_links_reject_cross_character_and_local_runtime_refs(&harness),
+    )
+    .await;
+    run_sub_proof(
+        "sheet_versions_round_trip_typed_posekit_and_comfy_artifact_links",
+        &mut failures,
+        sheet_versions_round_trip_typed_posekit_and_comfy_artifact_links(&harness),
+    )
+    .await;
+    harness.shutdown().await;
+    assert!(
+        failures.is_empty(),
+        "sheet artifact-link sub-proofs failed: {failures:?} (each failure's panic is printed above)"
+    );
+}
+
+/// Run one sub-proof and record its name instead of aborting the umbrella, so one run of this
+/// binary - a multi-hour compile plus a schema bootstrap - reports every failure, not just the
+/// first. The default panic hook still prints each message and the umbrella still fails.
+async fn run_sub_proof<F>(name: &str, failures: &mut Vec<String>, proof: F)
+where
+    F: std::future::Future<Output = ()>,
+{
+    if AssertUnwindSafe(proof).catch_unwind().await.is_err() {
+        failures.push(name.to_owned());
+    }
+}
+
+async fn sheet_artifact_links_reject_cross_character_and_local_runtime_refs(
+    harness: &AtelierSurrealHarness,
+) {
     let store = &harness.atelier;
     let (character_internal_id, sheet_version_id) = character_with_sheet(store, "guards").await;
     let (other_character_internal_id, _) = character_with_sheet(store, "other").await;
@@ -363,12 +407,11 @@ async fn ckc_sheet_artifact_links_reject_cross_character_and_local_runtime_refs(
         listed.len(),
         "rejected direct inserts must leave no partial rows behind"
     );
-    harness.shutdown().await;
 }
 
-#[tokio::test]
-async fn ckc_sheet_versions_round_trip_typed_posekit_and_comfy_artifact_links() {
-    let harness = AtelierSurrealHarness::create().await;
+async fn sheet_versions_round_trip_typed_posekit_and_comfy_artifact_links(
+    harness: &AtelierSurrealHarness,
+) {
     let store = &harness.atelier;
     let (character_internal_id, sheet_version_id) = character_with_sheet(store, "links").await;
 
@@ -566,5 +609,4 @@ async fn ckc_sheet_versions_round_trip_typed_posekit_and_comfy_artifact_links() 
         vec![comfy_render_ref.as_str(), openpose_ref.as_str()],
         "detaching removes the old link from the active set; the re-attach is a new, newer link"
     );
-    harness.shutdown().await;
 }
