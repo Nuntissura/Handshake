@@ -326,16 +326,19 @@ clock — roughly 3% utilisation. Adding a seventh lane at that point subtracts 
 - Measure before concluding a lane is stalled or slow. `Avg. Disk Queue Length` and `% Idle Time`
   per physical disk, plus a process's accumulated CPU time against its wall-clock age, distinguish
   "queued behind I/O" from "wedged" and from "thinking". Log silence distinguishes none of them.
-- A rustc CAN wedge under heavy contention, and neither log silence nor disk queue reveals it. The
-  signature is a process consuming essentially no CPU AND essentially no I/O while holding a large
-  working set: sample its CPU twice about 60 seconds apart, and treat under half a second of gain
-  as wedged rather than slow. Measured case on this host: a `cargo test` rustc reached a point in
-  25 minutes, then gained 0.1 to 0.3 seconds of CPU per 60-to-90-second sample for the next 40
-  minutes while transferring under 1 MB per 30 seconds. Killed and restarted, it reached the same
-  point in 4 minutes.
-- Restarting a wedged cargo is cheap and is the correct response. Cargo reuses every compilation
-  unit it already finished, so a restart resumes rather than starts over. Do not nurse a wedged
-  process on the theory that it is nearly done; it is not producing anything to be nearly done with.
+- Sample BOTH CPU and disk transfer per process, about 60 to 90 seconds apart, before judging a
+  build. The three states look identical in a log and are distinguishable only here: healthy shows
+  CPU gain; I/O starved shows low CPU with substantial transfer; not-progressing shows near-zero of
+  both while holding a large working set. Measured on this host in one run: a `cargo test` rustc sat
+  at 0.1 to 0.3 seconds of CPU per sample with under 1 MB transferred per 30 seconds for 40 minutes,
+  while a later rustc on the same crate showed 4 seconds of CPU and 167 MB transferred per 90
+  seconds — badly starved, but alive.
+- Restarting a cargo that shows near-zero CPU and near-zero I/O is cheap, so do it rather than
+  waiting. Cargo reuses every compilation unit it already finished. In the measured case the restart
+  reached in 4 minutes the point the original took 25 minutes to reach. Note honestly that cargo's
+  cache explains most of that speedup on its own, so a fast restart is not by itself proof the
+  original was hung — but a process producing neither CPU nor I/O is not producing progress either
+  way, and restarting costs almost nothing.
 - Account for consumers outside the lanes before blaming the lanes. On this host the dominant disk
   consumer during one run was a torrent client moving 483 MB per 30 seconds against the busiest
   rustc's 10 MB, and a peer Claude session's `cargo check --all-targets` was taking two rustc at
