@@ -160,6 +160,10 @@ pub struct MicroTaskJob {
     pub completion_signal: Option<CompletionSignal>,
     pub progress_artifact_ref: Option<String>,
     pub run_ledger_ref: Option<RunLedgerPointer>,
+    /// MT-187 anti-starvation watermark, written by the scheduler's
+    /// `WATERMARK_CLAIM_QUERY` on `kernel_micro_task_job`. `None` until the
+    /// job's first starvation emission.
+    pub starvation_watermark_at_utc: Option<DateTime<Utc>>,
 }
 
 impl MicroTaskJob {
@@ -191,6 +195,7 @@ impl MicroTaskJob {
             completion_signal: None,
             progress_artifact_ref: None,
             run_ledger_ref: None,
+            starvation_watermark_at_utc: None,
         }
     }
 }

@@ -37,19 +37,21 @@ use crate::storage::knowledge::{
     rich_document_loom_projection, rich_document_version_result_ref_id,
     validate_knowledge_idempotency_key, KnowledgeClaim, KnowledgeClaimConflict,
     KnowledgeClaimRetirement, KnowledgeClaimRetirementReason, KnowledgeClaimState,
-    KnowledgeCodeFile, KnowledgeCodeLanguage, KnowledgeCodeParseStatus, KnowledgeCompactionPolicy,
-    KnowledgeContextBundle, KnowledgeContextBundleItem, KnowledgeDocumentBacklink,
-    KnowledgeDocumentEmbed, KnowledgeEdge, KnowledgeEdgeLifecycle, KnowledgeEdgeType,
-    KnowledgeEditorCodeNode, KnowledgeEntity, KnowledgeEntityKind, KnowledgeExtractionStatus,
-    KnowledgeIdempotentWrite, KnowledgeIndexRun, KnowledgeIndexRunCounts, KnowledgeIndexRunOutcome,
-    KnowledgeIndexingEligibility, KnowledgeMemoryPassage, KnowledgeNamespaceAudit,
-    KnowledgeParserStatus, KnowledgePassageEvidenceRef, KnowledgeRebuildStatus,
-    KnowledgeRetrievalTrace, KnowledgeRichDocument, KnowledgeRichDocumentDraft,
-    KnowledgeRichDocumentVersion, KnowledgeRichDocumentVersionMeta, KnowledgeSchemaRegistryRow,
-    KnowledgeSource, KnowledgeSourceKind, KnowledgeSourceRoot, KnowledgeSpan, KnowledgeSpanKind,
-    KnowledgeStore, KnowledgeWikiProjection, NewKnowledgeClaim, NewKnowledgeContextBundle,
-    NewKnowledgeEdge, NewKnowledgeEntity, NewKnowledgeIndexRun, NewKnowledgeMemoryPassage,
-    NewKnowledgeRichDocument, NewKnowledgeSource, NewKnowledgeSourceRoot, NewKnowledgeSpan,
+    KnowledgeCodeFile, KnowledgeCodeLanguage, KnowledgeCodeParseStatus, KnowledgeCodeRepairEntry,
+    KnowledgeCompactionPolicy, KnowledgeContextBundle, KnowledgeContextBundleItem,
+    KnowledgeDocumentBacklink, KnowledgeDocumentEmbed, KnowledgeEdge, KnowledgeEdgeLifecycle,
+    KnowledgeEdgeType, KnowledgeEditorCodeNode, KnowledgeEntity, KnowledgeEntityKind,
+    KnowledgeExtractionStatus, KnowledgeIdempotentWrite, KnowledgeIndexRun,
+    KnowledgeIndexRunCounts, KnowledgeIndexRunOutcome, KnowledgeIndexingEligibility,
+    KnowledgeMemoryPassage, KnowledgeNamespaceAudit, KnowledgeParserStatus,
+    KnowledgePassageEvidenceRef, KnowledgeRebuildStatus, KnowledgeRetrievalTrace,
+    KnowledgeRichDocument, KnowledgeRichDocumentDraft, KnowledgeRichDocumentVersion,
+    KnowledgeRichDocumentVersionMeta, KnowledgeSchemaRegistryRow, KnowledgeScipFormat,
+    KnowledgeScipImport, KnowledgeScipImportStatus, KnowledgeSource, KnowledgeSourceKind,
+    KnowledgeSourceRoot, KnowledgeSpan, KnowledgeSpanKind, KnowledgeStore, KnowledgeWikiProjection,
+    NewKnowledgeClaim, NewKnowledgeContextBundle, NewKnowledgeEdge, NewKnowledgeEntity,
+    NewKnowledgeIndexRun, NewKnowledgeMemoryPassage, NewKnowledgeRichDocument,
+    NewKnowledgeScipImport, NewKnowledgeSource, NewKnowledgeSourceRoot, NewKnowledgeSpan,
     NewKnowledgeWikiPage, NewKnowledgeWikiProjection, UpsertEditorCodeNode,
     UpsertKnowledgeDocumentBacklink, UpsertKnowledgeDocumentEmbed,
     UpsertKnowledgeRichDocumentDraft, WikiCodeFileInput, WikiCrossSourceEdge, WikiEntityWithSpan,
@@ -5732,5 +5734,267 @@ mod wiki_store_tests {
         drop(database);
         backend.close_and_remove().await?;
         Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MT-108 code-index repair queue + MT-105 SCIP import ledger read model.
+//
+// RESTORED under WP-KERNEL-012 MT-149. These accessors were added by
+// WP-KERNEL-009 (MT-108 repair queue, MT-105 SCIP ledger) against the
+// PostgreSQL backend and were dropped with that backend by commit b1802e5d.
+// Neither the durable data nor the writers went away: the
+// `knowledge_code_repair_queue` and `knowledge_code_scip_imports` tables are
+// still defined in `schema.surql`, and `knowledge_code_index::engine` still
+// enqueues repairs through `ENQUEUE_CODE_REPAIR`. Only the ways of READING
+// that data were missing, which is why the MT-108 and MT-105 acceptance
+// proofs in `knowledge_code_index_tests` could not compile.
+//
+// Every method below reads or writes the same durable columns the retired
+// relational seam used; nothing here returns a default, a stub or an empty
+// collection in place of stored state.
+// ---------------------------------------------------------------------------
+
+#[derive(SurrealValue)]
+struct KnowledgeCodeRepairRecord {
+    code_repair_id: String,
+    workspace_id: RecordId,
+    source_id: RecordId,
+    relative_path: String,
+    reason_class: String,
+    reason_detail: JsonValue,
+    state: String,
+    attempts: i64,
+    max_attempts: i64,
+    last_attempt_at: Option<Datetime>,
+    enqueue_event_id: Option<RecordId>,
+    resolved_receipt_event_id: Option<RecordId>,
+    created_at: Datetime,
+    updated_at: Datetime,
+}
+
+fn knowledge_code_repair_to_domain(
+    record: KnowledgeCodeRepairRecord,
+) -> StorageResult<KnowledgeCodeRepairEntry> {
+    Ok(KnowledgeCodeRepairEntry {
+        code_repair_id: record.code_repair_id,
+        workspace_id: record_key(record.workspace_id)?,
+        source_id: record_key(record.source_id)?,
+        relative_path: record.relative_path,
+        reason_class: record.reason_class.parse()?,
+        reason_detail: record.reason_detail,
+        state: record.state,
+        attempts: int_i32(record.attempts, "attempts")?,
+        max_attempts: int_i32(record.max_attempts, "max_attempts")?,
+        last_attempt_at: record.last_attempt_at.map(Datetime::into_inner),
+        enqueue_event_id: opt_record_key(record.enqueue_event_id)?,
+        resolved_receipt_event_id: opt_record_key(record.resolved_receipt_event_id)?,
+        created_at: record.created_at.into_inner(),
+        updated_at: record.updated_at.into_inner(),
+    })
+}
+
+#[derive(SurrealValue)]
+struct KnowledgeScipImportRecord {
+    scip_import_id: String,
+    workspace_id: RecordId,
+    artifact_format: String,
+    tool_name: Option<String>,
+    tool_version: Option<String>,
+    artifact_hash: String,
+    status: String,
+    reason: Option<String>,
+    symbols_imported: i64,
+    occurrences_imported: i64,
+    edges_imported: i64,
+    import_detail: Option<JsonValue>,
+    imported_in_run: Option<RecordId>,
+    import_receipt_event_id: Option<RecordId>,
+    created_at: Datetime,
+}
+
+fn knowledge_scip_import_to_domain(
+    record: KnowledgeScipImportRecord,
+) -> StorageResult<KnowledgeScipImport> {
+    Ok(KnowledgeScipImport {
+        scip_import_id: record.scip_import_id,
+        workspace_id: record_key(record.workspace_id)?,
+        // Mirrors the retired relational mapper: an unknown format is a typed
+        // validation error, never a silent default.
+        artifact_format: match record.artifact_format.as_str() {
+            "scip" => KnowledgeScipFormat::Scip,
+            "lsif" => KnowledgeScipFormat::Lsif,
+            _ => return Err(StorageError::Validation("invalid scip artifact_format")),
+        },
+        tool_name: record.tool_name,
+        tool_version: record.tool_version,
+        artifact_hash: record.artifact_hash,
+        status: record.status.parse()?,
+        reason: record.reason,
+        symbols_imported: int_i32(record.symbols_imported, "symbols_imported")?,
+        occurrences_imported: int_i32(record.occurrences_imported, "occurrences_imported")?,
+        edges_imported: int_i32(record.edges_imported, "edges_imported")?,
+        import_detail: record.import_detail,
+        imported_in_run: opt_record_key(record.imported_in_run)?,
+        import_receipt_event_id: opt_record_key(record.import_receipt_event_id)?,
+        created_at: record.created_at.into_inner(),
+    })
+}
+
+impl SurrealDatabase {
+    /// MT-108: the open (`queued`/`retrying`) code-index repair entry for a
+    /// source, if any. Lets the engine and a no-context model confirm a failed
+    /// file is actually held for repair.
+    pub async fn get_open_knowledge_code_repair(
+        &self,
+        source_id: &str,
+    ) -> StorageResult<Option<KnowledgeCodeRepairEntry>> {
+        query_first_row::<KnowledgeCodeRepairRecord>(
+            self.storage(),
+            "SELECT * FROM knowledge_code_repair_queue WHERE source_id = $source \
+             AND state IN ['queued', 'retrying'] ORDER BY updated_at DESC LIMIT 1;",
+            vec![b("source", thing(KNOWLEDGE_SOURCES_TABLE, source_id))],
+        )
+        .await?
+        .map(knowledge_code_repair_to_domain)
+        .transpose()
+    }
+
+    /// MT-108: the operator-visible code-index repair queue for a workspace,
+    /// newest first.
+    pub async fn list_knowledge_code_repairs(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<KnowledgeCodeRepairEntry>> {
+        let rows: Vec<KnowledgeCodeRepairRecord> = query_rows(
+            self.storage(),
+            "SELECT * FROM knowledge_code_repair_queue WHERE workspace_id = $workspace \
+             ORDER BY created_at DESC;",
+            vec![b("workspace", thing(WORKSPACES_TABLE, workspace_id))],
+        )
+        .await?;
+        rows.into_iter()
+            .map(knowledge_code_repair_to_domain)
+            .collect()
+    }
+
+    /// MT-108: resolve a code-index repair entry after a successful re-index.
+    /// The resolving receipt is required by the table's `resolved_receipt_event_id`
+    /// assertion, and only an open (`queued`/`retrying`) entry transitions, so a
+    /// terminal entry never moves again. A conditional `UPDATE` that matched
+    /// nothing yields zero rows, which is the not-found signal.
+    pub async fn resolve_knowledge_code_repair(
+        &self,
+        code_repair_id: &str,
+        resolved_receipt_event_id: &str,
+    ) -> StorageResult<KnowledgeCodeRepairEntry> {
+        query_first_row::<KnowledgeCodeRepairRecord>(
+            self.storage(),
+            "UPDATE knowledge_code_repair_queue SET state = 'resolved', \
+             resolved_receipt_event_id = $receipt, updated_at = time::now() \
+             WHERE code_repair_id = $code_repair_id AND state IN ['queued', 'retrying'] \
+             RETURN AFTER;",
+            vec![
+                b("code_repair_id", code_repair_id.to_owned()),
+                b(
+                    "receipt",
+                    thing(KERNEL_EVENT_LEDGER_TABLE, resolved_receipt_event_id),
+                ),
+            ],
+        )
+        .await?
+        .ok_or(StorageError::NotFound("open knowledge code repair entry"))
+        .and_then(knowledge_code_repair_to_domain)
+    }
+
+    /// MT-105: record a SCIP/LSIF import attempt. Never executes the artifact.
+    /// The validation rules are the ones the retired relational seam enforced:
+    /// the artifact hash must be a lowercase sha256 digest, and any
+    /// non-`imported` outcome must carry a reason.
+    pub async fn record_knowledge_scip_import(
+        &self,
+        new_import: NewKnowledgeScipImport,
+    ) -> StorageResult<KnowledgeScipImport> {
+        if !is_sha256_hex(&new_import.artifact_hash) {
+            return Err(StorageError::Validation(
+                "scip import artifact_hash must be a lowercase sha256 hex digest",
+            ));
+        }
+        if new_import.status != KnowledgeScipImportStatus::Imported
+            && new_import.reason.as_deref().unwrap_or("").trim().is_empty()
+        {
+            return Err(StorageError::Validation(
+                "non-imported scip import must carry a reason",
+            ));
+        }
+        let scip_import_id = new_knowledge_id("KSCIP");
+        query_first_row::<KnowledgeScipImportRecord>(
+            self.storage(),
+            "CREATE type::record('knowledge_code_scip_imports', $scip_import_id) CONTENT { \
+             scip_import_id: $scip_import_id, workspace_id: $workspace, \
+             artifact_format: $artifact_format, tool_name: $tool_name, \
+             tool_version: $tool_version, artifact_hash: $artifact_hash, status: $status, \
+             reason: $reason, symbols_imported: $symbols_imported, \
+             occurrences_imported: $occurrences_imported, edges_imported: $edges_imported, \
+             import_detail: $import_detail, imported_in_run: $imported_in_run, \
+             import_receipt_event_id: $import_receipt_event_id } RETURN AFTER;",
+            vec![
+                b("scip_import_id", scip_import_id.clone()),
+                b(
+                    "workspace",
+                    thing(WORKSPACES_TABLE, &new_import.workspace_id),
+                ),
+                b(
+                    "artifact_format",
+                    new_import.artifact_format.as_str().to_owned(),
+                ),
+                b("tool_name", new_import.tool_name),
+                b("tool_version", new_import.tool_version),
+                b("artifact_hash", new_import.artifact_hash),
+                b("status", new_import.status.as_str().to_owned()),
+                b("reason", new_import.reason),
+                b("symbols_imported", i64::from(new_import.symbols_imported)),
+                b(
+                    "occurrences_imported",
+                    i64::from(new_import.occurrences_imported),
+                ),
+                b("edges_imported", i64::from(new_import.edges_imported)),
+                b("import_detail", new_import.import_detail),
+                b(
+                    "imported_in_run",
+                    opt_thing(
+                        KNOWLEDGE_INDEX_RUNS_TABLE,
+                        new_import.imported_in_run.as_deref(),
+                    ),
+                ),
+                b(
+                    "import_receipt_event_id",
+                    opt_thing(
+                        KERNEL_EVENT_LEDGER_TABLE,
+                        new_import.import_receipt_event_id.as_deref(),
+                    ),
+                ),
+            ],
+        )
+        .await?
+        .ok_or(StorageError::NotFound("knowledge scip import"))
+        .and_then(knowledge_scip_import_to_domain)
+    }
+
+    /// MT-105: the SCIP/LSIF import ledger for a workspace, newest first.
+    pub async fn list_knowledge_scip_imports(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<KnowledgeScipImport>> {
+        let rows: Vec<KnowledgeScipImportRecord> = query_rows(
+            self.storage(),
+            "SELECT * FROM knowledge_code_scip_imports WHERE workspace_id = $workspace \
+             ORDER BY created_at DESC;",
+            vec![b("workspace", thing(WORKSPACES_TABLE, workspace_id))],
+        )
+        .await?;
+        rows.into_iter()
+            .map(knowledge_scip_import_to_domain)
+            .collect()
     }
 }

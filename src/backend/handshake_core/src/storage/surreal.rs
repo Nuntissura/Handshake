@@ -366,7 +366,7 @@ impl SurrealDataContext<'_> {
     /// caller that needs several statements to be atomic writes them as
     /// `BEGIN TRANSACTION; ...; COMMIT TRANSACTION;` here rather than issuing
     /// them separately.
-    pub(crate) async fn query_values<R, B>(
+    pub async fn query_values<R, B>(
         &self,
         statement: &'static str,
         bindings: B,

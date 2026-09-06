@@ -14,10 +14,10 @@
 //!   verbs MT-011..MT-014 demand (`insert_sandbox_run`,
 //!   `update_sandbox_run_status`, `insert_sandbox_policy_version`,
 //!   `insert_validation_run`, `insert_promotion_decision`,
-//!   `insert_promotion_receipt`, `load_run_for_replay`).
+//!   `insert_promotion_receipt`). Replay is an inherent adapter method.
 //! - The production binding is [`crate::storage::surreal::SurrealKb003Storage`].
-//!   The in-memory implementation is compiled only for unit tests, so runtime
-//!   code cannot silently substitute volatile state for embedded persistence.
+//!   The explicitly constructible in-memory adapter supports tests; production
+//!   wiring continues to use embedded persistence.
 //! - MT-015's authority-mode gate names the embedded SurrealDB branch
 //!   `SurrealPrimary`. No relational or volatile authority branch is accepted.
 //!
@@ -195,21 +195,12 @@ pub trait Kb003Storage {
         &mut self,
         row: &PromotionReceiptRowV1,
     ) -> Kb003StorageResult<String>;
-
-    /// Reconstruct every durable KB003 row required by replay. The returned
-    /// bag owns its rows so an embedded query lease never escapes the store.
-    fn load_run_for_replay(
-        &self,
-        run_id: &str,
-        policy_version_id: &str,
-    ) -> Kb003StorageResult<ReplayDurableBag>;
 }
 
 // ---------------------------------------------------------------------------
-// In-memory backend is unit-test-only. Production has no volatile fallback.
+// Explicit in-memory test support. Production has no volatile fallback.
 // ---------------------------------------------------------------------------
 
-#[cfg(test)]
 #[derive(Debug, Default)]
 pub struct InMemoryKb003Storage {
     pub mode: AuthorityModeOverride,
@@ -223,13 +214,11 @@ pub struct InMemoryKb003Storage {
 /// Wrapper so we can construct test instances that pretend to be either
 /// SurrealPrimary or a degraded mode (the latter must be refused by the
 /// tripwire — see MT-015).
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AuthorityModeOverride {
     pub mode: Option<AuthorityMode>,
 }
 
-#[cfg(test)]
 impl InMemoryKb003Storage {
     pub fn new_surreal_primary() -> Self {
         Self {
@@ -247,7 +236,6 @@ impl InMemoryKb003Storage {
     }
 }
 
-#[cfg(test)]
 impl Kb003Storage for InMemoryKb003Storage {
     fn authority_mode(&self) -> AuthorityMode {
         self.mode.mode.unwrap_or(AuthorityMode::SurrealPrimary)
@@ -338,8 +326,15 @@ impl Kb003Storage for InMemoryKb003Storage {
         self.promotion_receipts.push(row.clone());
         Ok(row.receipt_id.clone())
     }
+}
 
-    fn load_run_for_replay(
+impl InMemoryKb003Storage {
+    /// Reconstruct every durable KB003 row required by replay. The returned
+    /// bag owns its rows so an embedded query lease never escapes the store.
+    /// Inherent rather than a trait method: no caller reaches it through a
+    /// `Kb003Storage` bound, and keeping it off the trait avoids forcing a
+    /// defaulted body onto write-only implementations.
+    pub fn load_run_for_replay(
         &self,
         run_id: &str,
         policy_version_id: &str,
@@ -370,7 +365,6 @@ pub struct ReplayDurableBag {
     pub receipt: Option<PromotionReceiptRowV1>,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone)]
 pub struct BorrowedReplayDurableBag<'a> {
     pub run: &'a SandboxRunV1,
@@ -380,7 +374,6 @@ pub struct BorrowedReplayDurableBag<'a> {
     pub receipt: Option<&'a PromotionReceiptRowV1>,
 }
 
-#[cfg(test)]
 impl InMemoryKb003Storage {
     /// Build a replay bag for the given run id by walking durable rows only.
     pub fn load_replay_bag<'a>(

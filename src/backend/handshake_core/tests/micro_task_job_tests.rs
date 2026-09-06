@@ -133,6 +133,7 @@ fn sample_job_with_all_fields_populated() -> MicroTaskJob {
             reason: "awaiting validator".to_string(),
         }),
         progress_artifact_ref: Some("artifact://1".to_string()),
+        starvation_watermark_at_utc: Some(now),
         run_ledger_ref: Some(RunLedgerPointer {
             run_id: "run-001".to_string(),
             uri: Some("file://x".to_string()),
@@ -176,6 +177,7 @@ fn mt_184_serde_round_trip_microtaskjob_optional_none_form() {
         completion_signal: None,
         progress_artifact_ref: None,
         run_ledger_ref: None,
+        starvation_watermark_at_utc: None,
     };
     let json = serde_json::to_string(&job).expect("serialize");
     let back: MicroTaskJob = serde_json::from_str(&json).expect("deserialize");

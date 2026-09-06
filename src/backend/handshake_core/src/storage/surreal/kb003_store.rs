@@ -170,8 +170,13 @@ impl Kb003Storage for SurrealKb003Storage {
         let row = row.clone();
         self.block_on(async move { adapter.insert_promotion_receipt_async(row).await })
     }
+}
 
-    fn load_run_for_replay(
+impl SurrealKb003Storage {
+    /// Blocking replay load against the real embedded store. Inherent for the
+    /// same reason as the in-memory backend's: nothing calls it through a
+    /// `Kb003Storage` bound.
+    pub fn load_run_for_replay(
         &self,
         run_id: &str,
         policy_version_id: &str,

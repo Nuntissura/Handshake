@@ -183,6 +183,7 @@ struct MessageRow {
     body: Value,
     parent_message_id: Option<Uuid>,
     created_at_utc: DateTime<Utc>,
+    audit_reason: Option<String>,
 }
 
 impl TryFrom<MessageRow> for RoleMailboxMessage {
@@ -212,6 +213,7 @@ impl TryFrom<MessageRow> for RoleMailboxMessage {
             body: row.body,
             parent_message_id: row.parent_message_id.map(RoleMailboxMessageId),
             created_at_utc: row.created_at_utc,
+            audit_reason: row.audit_reason,
         })
     }
 }
@@ -239,7 +241,8 @@ impl TryFrom<LeaseRow> for RoleMailboxClaimLeaseV1 {
     fn try_from(row: LeaseRow) -> Result<Self, Self::Error> {
         let holder_executor_kind =
             parse_executor_kind(&row.holder_executor_kind).ok_or(LeaseError::Conflict)?;
-        let holder_role_id = RoleId::parse(&row.holder_role_id).map_err(|_| LeaseError::Conflict)?;
+        let holder_role_id =
+            RoleId::parse(&row.holder_role_id).map_err(|_| LeaseError::Conflict)?;
         let takeover_of = match &row.takeover_of {
             Some(record) => Some(record_key_uuid(record).map_err(|_| LeaseError::Conflict)?),
             None => None,
@@ -283,9 +286,13 @@ impl TryFrom<BundleRow> for MailboxHandoffBundleV1 {
     fn try_from(row: BundleRow) -> Result<Self, Self::Error> {
         let target_role = RoleId::parse(&row.target_role)
             .map_err(|error| MailboxError::Parse(format!("target_role: {error}")))?;
-        let target_executor_kind = parse_executor_kind(&row.target_executor_kind).ok_or_else(|| {
-            MailboxError::Parse(format!("target_executor_kind: {}", row.target_executor_kind))
-        })?;
+        let target_executor_kind =
+            parse_executor_kind(&row.target_executor_kind).ok_or_else(|| {
+                MailboxError::Parse(format!(
+                    "target_executor_kind: {}",
+                    row.target_executor_kind
+                ))
+            })?;
         let linked_artifacts = serde_json::from_value(Value::Array(row.linked_artifacts))?;
         let transcript_pointer = match row.transcript_pointer {
             Some(value) => Some(serde_json::from_value::<TranscriptPointer>(value)?),
@@ -485,7 +492,7 @@ const APPEND_MESSAGE_QUERY: &str = "CREATE $record CONTENT { \
      } RETURN AFTER;";
 
 const LIST_THREAD_MESSAGES_QUERY: &str = "SELECT message_id, thread_id, message_type, from_role, \
-     to_roles, delivery_state, body, parent_message_id, created_at_utc \
+     to_roles, delivery_state, body, parent_message_id, created_at_utc, audit_reason \
      FROM role_mailbox_message WHERE thread_id = $thread \
      ORDER BY created_at_utc ASC, message_id ASC;";
 
@@ -529,7 +536,8 @@ const GET_LEASE_QUERY: &str = "SELECT lease_id, thread_id, holder_executor_kind,
 /// The last clause is what makes the update atomic without a row lock — a
 /// concurrent extension or release changes `expires_at_utc` or
 /// `released_at_utc` and this statement then affects zero rows.
-const EXTEND_LEASE_QUERY: &str = "UPDATE role_mailbox_claim_lease SET expires_at_utc = $new_expires \
+const EXTEND_LEASE_QUERY: &str =
+    "UPDATE role_mailbox_claim_lease SET expires_at_utc = $new_expires \
      WHERE lease_id = $lease_id AND released_at_utc = NONE \
      AND expires_at_utc = $current_expires AND expires_at_utc > $now RETURN AFTER;";
 
@@ -757,6 +765,7 @@ impl RoleMailboxRepository {
             body,
             parent_message_id: None,
             created_at_utc: now,
+            audit_reason: None,
         })
     }
 
@@ -814,9 +823,7 @@ impl RoleMailboxRepository {
                 MessageTransitionBindings {
                     message_id: message_id.as_uuid(),
                     next: MessageDeliveryState::DeadLettered.as_str().to_string(),
-                    allowed_from: allowed_message_from_states(
-                        MessageDeliveryState::DeadLettered,
-                    ),
+                    allowed_from: allowed_message_from_states(MessageDeliveryState::DeadLettered),
                     reason,
                 },
             )
@@ -971,8 +978,7 @@ impl RoleMailboxRepository {
         if current.expires_at_utc <= now {
             return Err(LeaseError::Expired);
         }
-        let new_expires =
-            current.expires_at_utc + chrono::Duration::seconds(extra_secs as i64);
+        let new_expires = current.expires_at_utc + chrono::Duration::seconds(extra_secs as i64);
         let updated: Vec<LeaseRow> = self
             .query(
                 EXTEND_LEASE_QUERY,
@@ -988,7 +994,10 @@ impl RoleMailboxRepository {
         let Some(row) = updated.into_iter().next() else {
             // The compare-and-swap lost: the lease was released, expired or
             // extended by someone else between the read and the write.
-            let latest = self.load_lease(lease_id).await?.ok_or(LeaseError::NotFound)?;
+            let latest = self
+                .load_lease(lease_id)
+                .await?
+                .ok_or(LeaseError::NotFound)?;
             if latest.released_at_utc.is_some() {
                 return Err(LeaseError::AlreadyReleased);
             }

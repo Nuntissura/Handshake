@@ -689,7 +689,14 @@ impl CodeIndexEngine {
             .db
             .storage()
             .with_data_operation(move |database| {
-                Box::pin(async move { database.query_first(statement, bindings).await })
+                Box::pin(async move {
+                    // Read RETURN after BEGIN, both CREATEs, and COMMIT.
+                    Ok(database
+                        .query_values_at::<String, _>(statement, bindings, 4)
+                        .await?
+                        .into_iter()
+                        .next())
+                })
             })
             .await
             .map_err(StorageError::from)

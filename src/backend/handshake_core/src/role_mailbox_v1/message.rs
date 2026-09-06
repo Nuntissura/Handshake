@@ -87,6 +87,9 @@ pub struct RoleMailboxMessage {
     pub body: serde_json::Value,
     pub parent_message_id: Option<RoleMailboxMessageId>,
     pub created_at_utc: DateTime<Utc>,
+    /// Why the message was dead-lettered, as written by `dead_letter_message`.
+    /// `None` for every message that has not been dead-lettered.
+    pub audit_reason: Option<String>,
 }
 
 impl RoleMailboxMessage {
@@ -109,6 +112,7 @@ impl RoleMailboxMessage {
             body,
             parent_message_id: None,
             created_at_utc: Utc::now(),
+            audit_reason: None,
         }
     }
 }

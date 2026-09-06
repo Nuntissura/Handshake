@@ -71,6 +71,7 @@ pub(crate) struct JobRow {
     pub claimed_at_utc: Option<DateTime<Utc>>,
     pub created_at_utc: DateTime<Utc>,
     pub updated_at_utc: DateTime<Utc>,
+    pub starvation_watermark_at_utc: Option<DateTime<Utc>>,
 }
 
 impl TryFrom<JobRow> for MicroTaskJob {
@@ -102,6 +103,7 @@ impl TryFrom<JobRow> for MicroTaskJob {
             completion_signal: None,
             progress_artifact_ref: None,
             run_ledger_ref: None,
+            starvation_watermark_at_utc: row.starvation_watermark_at_utc,
         })
     }
 }
@@ -179,7 +181,8 @@ const ESCALATE_QUERY: &str = "UPDATE kernel_micro_task_job SET \
 
 const GET_JOB_QUERY: &str = "SELECT job_id, wp_id, mt_id, mt_contract_path, iteration_n, \
      max_iterations, escalation_tier, escalation_history, task_tags, lora_id, mailbox_thread_id, \
-     state, claimed_by_session, claimed_at_utc, created_at_utc, updated_at_utc \
+     state, claimed_by_session, claimed_at_utc, created_at_utc, updated_at_utc, \
+     starvation_watermark_at_utc \
      FROM kernel_micro_task_job WHERE job_id = $job_id;";
 
 const GET_STATE_QUERY: &str =
@@ -237,6 +240,10 @@ impl MicroTaskQueue {
             claimed_at_utc: job.claimed_at_utc,
             created_at_utc: job.created_at_utc,
             updated_at_utc: job.updated_at_utc,
+            // A newly enqueued job has never been emitted as starved, so the
+            // MT-187 watermark starts unset and is written later by the
+            // scheduler's WATERMARK_CLAIM_QUERY.
+            starvation_watermark_at_utc: job.starvation_watermark_at_utc,
         };
         // CREATE, not UPSERT: a duplicate job id must fail exactly as the
         // original INSERT did rather than silently replacing a live job.
