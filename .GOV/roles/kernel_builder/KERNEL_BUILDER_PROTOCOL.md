@@ -287,6 +287,31 @@ For each implementation session:
 - Reuse a proof result while its source tree, features/profile/platform, command inputs, external-resource version, and asserted behavior remain unchanged. Do not rerun it merely to restate the same evidence on another surface.
 - Independent proof commands may run concurrently only with disjoint owner-scoped Cargo targets, SurrealDB namespaces/databases, artifact directories, ports/process ownership, and other mutable resources. Shared targets or state force serialization.
 
+### Shared-File Edit Batching Under Parallel Lanes [KB-CARGO-SHARED-001] (HARD)
+
+When more than one owner (sub-agent lane, session, or worktree) is building the same crate into
+its own scoped `CARGO_TARGET_DIR`, an edit to any file in the crate's compile graph invalidates
+EVERY owner's cache at once. On this crate a cold rebuild has been measured at 159 minutes, so a
+single careless edit to a shared module can cost hours multiplied by the number of live lanes.
+
+- Before editing a file, decide whether it is LANE-OWNED (only one owner compiles it meaningfully)
+  or SHARED. `Cargo.toml`, `Cargo.lock`, `lib.rs`, any `mod.rs`, and any module every lane imports
+  (in this crate: `api/atelier.rs`, `api/mod.rs`, `atelier/mod.rs`, `storage/mod.rs`,
+  `storage/surreal/schema.{rs,surql}`, the shared test-support module) are SHARED.
+- Do NOT edit a SHARED file while lanes are mid-build. Queue the change, state that it is queued,
+  and apply the whole queue in ONE pass at a lane-quiet boundary. One rebuild for N changes, never
+  N rebuilds.
+- The exception is a defect that BLOCKS every lane (the shared test harness failing to compile, a
+  schema pin mismatch that stops every embedded store from bootstrapping). Land that immediately,
+  and TELL every live lane what changed and why their build restarted, so a forced recompile is not
+  misread as a stall.
+- Schema edits are the most expensive class: `schema.surql` changes force a recompute of the four
+  pinned SHA-256 constants plus the definition counts, and every proof that touches an embedded
+  store is blocked until they agree. Batch every lane's schema request and apply them in one
+  revision bump.
+- Prefer a shared warm target dir seeded once (copy the dependency cache into each lane's scoped
+  dir before the lanes start) over letting N lanes each build dependencies from cold.
+
 Use existing command surfaces where they fit the current packet instead of inventing new public helpers:
 
 - `just mt-populate <WP_ID>`
@@ -443,6 +468,40 @@ Each microtask must include:
 - validator focus.
 
 Twenty or more microtasks are acceptable when that keeps implementation restartable, reviewable, and usable by lower-context models. Do not collapse microtasks merely to reduce paperwork.
+
+## Sub-Agent Steering [KB-STEER-001] (mandatory when lanes run in parallel)
+
+Sub-agents do not report while they work. A lane blocked on a two-hour build, killed by a provider
+rate limit, or stopped by the Operator emits NO signal until it terminates, so an orchestrator that
+waits for completion notifications is blind for as long as the failure lasts. Steering is therefore
+push-based, never poll-based.
+
+- ARM A WATCHER BEFORE LAUNCHING LANES. Point one persistent monitor at the lanes' own build/test
+  LOG FILES under `../Handshake_Artifacts/handshake-tool/<owner>/`, not at agent transcripts, and
+  have it emit one line per state change: started `<log>`, `DONE <exit> <test result>`, `STALL`.
+- A STALL CLAIM MUST BE PROCESS-AWARE. A running test binary prints nothing until it finishes, so
+  a static log is not evidence of a stall. Report `STALL` only when the newest log has not grown
+  for the threshold AND no `cargo`/`rustc`/`link`/test process is working in that lane's scoped
+  target dir. Keep the state string coarse (no elapsed seconds) or every poll re-emits.
+- ONE LANE, ONE OWNED FILE SET, ONE SCOPED TARGET DIR. Overlapping file ownership between lanes
+  produces edits that silently overwrite each other and proofs that cannot be attributed. A lane
+  that hits an error outside its owned files reports `file:line` and the message; it does not edit.
+- GIVE EVERY LANE A RESUME CONTRACT, NOT A CONVERSATION. Lanes are interrupted routinely (rate
+  limits, Operator stops, host pressure). Each lane's brief and its MT contract must carry enough
+  state — base commit, what is already committed, what remains, the exact proof commands — that a
+  fresh replacement agent resumes without reading any chat history. Checkpoint-commit interrupted
+  lane work promptly so nothing lives only in an agent's context.
+- TELL LANES WHAT YOU CHANGED. When the orchestrator lands a shared-file fix, message every live
+  lane with the file and the reason, per `[KB-CARGO-SHARED-001]`.
+- NEVER END AN ORCHESTRATION TURN IN "WAITING". If every lane is genuinely building, do
+  independent work: verification that touches no compile-graph file, proposal or report drafting,
+  artifact hygiene. Idling is not steering.
+- CAP CONCURRENCY BY HOST CAPACITY, NOT BY LANE COUNT. Parallel links are memory-hungry; this host
+  has been driven out of memory by five simultaneous test links. Pass a bounded `-j`, forbid lanes
+  from running two Cargo commands at once, and forbid building binaries when only `--test <name>`
+  is needed.
+- `KERNEL_BUILDER` remains responsible for every sub-agent action and for cleaning each lane's
+  scoped artifact dir after it completes.
 
 ## Risk-Triggered Adversarial Review (Parallel Sub-Agents)
 
