@@ -25,7 +25,6 @@ use crate::workflows::locus::{
 };
 
 pub const ROLE_MAILBOX_EXPORT_SCHEMA_VERSION: &str = "role_mailbox_export_v1";
-pub const ROLE_MAILBOX_EXPORT_ROOT: &str = ".handshake/gov/ROLE_MAILBOX/";
 
 #[derive(thiserror::Error, Debug)]
 pub enum RoleMailboxError {

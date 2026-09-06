@@ -429,7 +429,7 @@ fn write_canonical_json_string_nfc(out: &mut String, value: &str) {
     out.push('"');
 }
 
-pub(crate) fn openai_compat_chat_completion_body_json(
+fn openai_compat_chat_completion_body_json(
     req: &CompletionRequest,
     resolved_model_id: &str,
 ) -> Value {

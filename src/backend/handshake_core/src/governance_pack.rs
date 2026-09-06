@@ -122,9 +122,9 @@ pub struct ExportRecord {
 }
 
 #[derive(Debug, Clone)]
-pub struct GovernancePackTemplate {
-    pub rel_path: String,
-    pub body: String,
+struct GovernancePackTemplate {
+    rel_path: String,
+    body: String,
 }
 
 #[derive(Debug, Clone)]

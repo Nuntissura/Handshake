@@ -543,7 +543,7 @@ impl From<CollectionRow> for Collection {
 #[derive(SurrealValue)]
 struct CollectionMemberRow {
     collection_id: SurrealUuid,
-    asset_id: SurrealUuid,
+    member_asset_id: SurrealUuid,
     content_hash: String,
     sort_order: i64,
     linked_by: String,
@@ -556,7 +556,7 @@ impl From<CollectionMemberRow> for CollectionMember {
     fn from(row: CollectionMemberRow) -> Self {
         Self {
             collection_id: row.collection_id.into(),
-            asset_id: row.asset_id.into(),
+            asset_id: row.member_asset_id.into(),
             content_hash: row.content_hash,
             sort_order: row.sort_order,
             linked_by: row.linked_by,
@@ -570,7 +570,7 @@ impl From<CollectionMemberRow> for CollectionMember {
 #[derive(SurrealValue)]
 struct CollectionMemberDetailRow {
     collection_id: SurrealUuid,
-    asset_id: SurrealUuid,
+    member_asset_id: SurrealUuid,
     content_hash: String,
     mime: String,
     source_provenance: Option<String>,
@@ -587,7 +587,7 @@ impl From<CollectionMemberDetailRow> for CollectionMemberDetail {
     fn from(row: CollectionMemberDetailRow) -> Self {
         Self {
             collection_id: row.collection_id.into(),
-            asset_id: row.asset_id.into(),
+            asset_id: row.member_asset_id.into(),
             content_hash: row.content_hash,
             mime: row.mime,
             source_provenance: row.source_provenance,
@@ -995,7 +995,7 @@ macro_rules! collection_select {
 macro_rules! collection_member_select {
     () => {
         "asset_id.content_hash AS content_hash, \
-         record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
+         record::id(collection_id) AS collection_id, record::id(asset_id) AS member_asset_id, \
          sort_order, linked_by, updated_by, \
          updated_at_utc, added_at_utc"
     };
@@ -1007,7 +1007,7 @@ macro_rules! collection_member_detail_select {
     () => {
         "asset_id.content_hash AS content_hash, asset_id.mime AS mime, \
          asset_id.source_provenance AS source_provenance, \
-         record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
+         record::id(collection_id) AS collection_id, record::id(asset_id) AS member_asset_id, \
          sort_order, added_at_utc, \
          linked_by, updated_by, updated_at_utc, source_path_ref, source_url_ref"
     };
@@ -1338,7 +1338,7 @@ const LIST_COLLECTION_MEMBER_PAGE_STATEMENT: &str = concat!(
     "SELECT ",
     collection_member_detail_select!(),
     " FROM atelier_collection_item WHERE collection_id = $collection_ref \
-      ORDER BY sort_order ASC, asset_id ASC LIMIT $limit START $offset;"
+      ORDER BY sort_order ASC, member_asset_id ASC LIMIT $limit START $offset;"
 );
 
 const LIST_COLLECTION_MEMBER_ASSET_IDS_STATEMENT: &str =
