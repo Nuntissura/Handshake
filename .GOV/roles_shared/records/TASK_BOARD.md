@@ -57,7 +57,7 @@ Rules:
 Entry format (recommended):
 - `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
 
-- **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [ACTIVE] - branch: feat/WP-KERNEL-012 - coder: KERNEL_BUILDER/Codex - last_sync: 2026-07-01
+- **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [ACTIVE] - branch: feat/WP-KERNEL-012 - coder: KERNEL_BUILDER/Codex - last_sync: 2026-09-06
 - **[WP-CKC-posekit-overhaul]** - [ACTIVE] - branch: feat/WP-CKC-posekit-overhaul-surreal - coder: KERNEL_BUILDER/Claude - last_sync: 2026-09-05
 
 
@@ -170,7 +170,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
-- **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [IN_PROGRESS]
+- **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [IN_PROGRESS] - MT-149 READY_FOR_VALIDATION (4e3fd06f; independent validation pending)
 - **[WP-CKC-posekit-overhaul]** - [IN_PROGRESS]
 - **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [IN_PROGRESS]
 

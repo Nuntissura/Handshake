@@ -31,12 +31,12 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-141"
     ],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260906-124209",
@@ -55,7 +55,9 @@
       ],
       "previous_owner": "KERNEL_BUILDER-20260906-000700",
       "owner": "KERNEL_BUILDER-20260906-124209"
-    }
+    },
+    "ready_for_validation_at_utc": "2026-09-06T19:46:47.372Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260906-124209"
   },
   "scope": {
     "summary": "Restore the accessors and visibility that commit b1802e5d removed from src/backend/handshake_core/src/**, so the seven remaining backend test targets compile and MT-108's and MT-105's acceptance proofs are executable again. The durable data and behaviour still exist; only the ways of reaching them were dropped.",
@@ -183,12 +185,12 @@
     "unblocks": "MT-141",
     "takeover_checkpoint": {
       "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
-      "status": "DIAGNOSTIC_REPAIR_PROOF_RUNNING_NOT_READY",
+      "status": "READY_FOR_VALIDATION",
       "formatting": "rustfmt --check --edition 2021 --config skip_children=true on ten changed files: exit 0",
       "diff_check": "git diff --check: exit 0",
-      "test_changes": "Exactly two Operator-approved initializers; every existing assertion preserved",
-      "runtime_proof": "At f7791f9d: focused MT108 PASS 1/1; full knowledge target 21 passed, 1 failed (only event_ledger_idempotency_conflict_reports_key_and_hashes), 2847.54s, exit101; MT105 and MT108 passed. Final diagnostic repair 4e3fd06f focused runtime RUNNING in conflict.log; no final-source runtime verdict yet.",
-      "cross_platform_proof": "f7791f9d prior Linux cross-platform PASS retained in linux-cross-platform.log. Final source 4e3fd06f CI run34046756721 in progress; no final-source CI verdict yet.",
+      "test_changes": "Integration tests/: only two approved initializers; four src conflict assertions adapted under diagnostic approval, preserving rollback intent.",
+      "runtime_proof": "22 code-index, 3 compatibility, 5 EventLedger, 1 watermark, 1 mailbox tests passed on final source; 2 unchanged literal roundtrips reused.",
+      "cross_platform_proof": "PASS final source4e3fd06f: Linux cross-platform-build job101523061570/run34046756721; cargo check --lib --bins --all-features and cargo test --lib --all-features --no-run succeeded. Log ../Handshake/_Artifacts/handshake-tool/m149-takeover/linux-final-cross-platform.log; https://github.com/Nuntissura/Handshake/actions/runs/34046756721/job/101523061570",
       "prior_compile": "baseline-seven-targets.log: seven failing targets. compile-before-diagnostics.log at f7791f9d: cargo check --all-targets --keep-going PASS, zero failing targets, 24m14s, CARGO_EXIT=0. Final-source rerun required after diagnostic expansion.",
       "prior_runtime": "inherited-mt105-mt108-proof.log: MT105 passed, MT108 failed at start_run Expected string got none",
       "artifact_log_dir": "../Handshake/_Artifacts/handshake-tool/m149-takeover",
@@ -197,19 +199,318 @@
       "restoration_comparison": "b1802e5d^ storage/knowledge.rs durable repair/SCIP fields, state filters and ordering compared to current storage/surreal/knowledge.rs",
       "runtime_fix": "start_run reads RETURN result index 4 through existing lease-bound query_values_at; all statement errors checked first",
       "dependency_verification": "Installed surrealdb-core 3.2.0 executor retains BEGIN and COMMIT indexes; surrealdb 3.2.0 QueryResult<Vec<T>> wraps scalar RETURN",
-      "remaining": [
-        "Final-source focused diagnostic execution",
-        "Final-source complete knowledge test target",
-        "Bundled HTTP409 and promotion compatibility unit proofs",
-        "Final-source all-target --keep-going compile",
-        "Concrete product binary build",
-        "Final-source Linux CI",
-        "Readiness checklist and handoff",
-        "Clean owned m149 target"
-      ],
+      "remaining": [],
       "backup_push": "SUCCESS: public Nuntissura/Handshake feat/WP-KERNEL-012 advanced f7791f9d -> 4e3fd06f; live remote SHA and public visibility verified; exactly c8e41daf and4e3fd06f,12Rustfiles,117insertions20deletions.",
-      "cache_copy": "Completed: robocopy exit 1 (successful files copied), zero failed files; process exited normally"
-    }
+      "cache_copy": "Completed: robocopy exit 1 (successful files copied), zero failed files; process exited normally",
+      "current_main_compatibility": {
+        "main": "6519f4e2827840642a6c0401ac31055469f09d3b",
+        "head": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+        "ancestor_exit": 1,
+        "merge_tree": "e7f3a8559d1783905440d5c19666e3658120b1a8",
+        "merge_exit": 0,
+        "non_gov_diff_exit": 0,
+        "matching_src_tree": "c87546a4447e56305bb0e540ee34de70a88691b2",
+        "proof_reuse_basis": "Computed integrated candidate and tested checkout have identical product/build inputs; only governance differs."
+      },
+      "artifact_override": "Live Operator explicitly requires ../Handshake/_Artifacts/m149 and temp/m149; this instruction overrides subsequently committed KB-ART-001..005 path-shape guidance. No sibling Handshake_Artifacts folder created; cleanup remains required after proof.",
+      "final_compile": "Seven failing targets before; zero after. Final all-target --keep-going check exit0 in 18m11s.",
+      "binary_proof": "app-runtime handshake_core binary build exit0 in 47m12s; binary.log"
+    },
+    "proof_results": [
+      {
+        "mode": "compile",
+        "command": "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode compile",
+        "exit_code": 0,
+        "result_lines": [
+          "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 18m 11s",
+          "CARGO_EXIT=0"
+        ],
+        "evidence_ref": "../Handshake/_Artifacts/handshake-tool/m149-takeover/compile.log",
+        "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+        "reuse_basis": null
+      },
+      {
+        "mode": "knowledge",
+        "command": "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode knowledge",
+        "exit_code": 0,
+        "result_lines": [
+          "    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.21s",
+          "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1262.14s",
+          "CARGO_EXIT=0"
+        ],
+        "evidence_ref": "../Handshake/_Artifacts/handshake-tool/m149-takeover/knowledge.log",
+        "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+        "reuse_basis": null
+      },
+      {
+        "mode": "conflict",
+        "command": "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode conflict",
+        "exit_code": 0,
+        "result_lines": [
+          "    Finished `test` profile [unoptimized + debuginfo] target(s) in 49m 46s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 227.04s",
+          "CARGO_EXIT=0"
+        ],
+        "evidence_ref": "../Handshake/_Artifacts/handshake-tool/m149-takeover/conflict.log",
+        "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+        "reuse_basis": null
+      },
+      {
+        "mode": "unit",
+        "command": "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode unit",
+        "exit_code": 0,
+        "result_lines": [
+          "    Finished `test` profile [unoptimized + debuginfo] target(s) in 10m 10s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1969 filtered out; finished in 0.00s",
+          "CARGO_EXIT=0"
+        ],
+        "evidence_ref": "../Handshake/_Artifacts/handshake-tool/m149-takeover/unit.log",
+        "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+        "reuse_basis": null
+      },
+      {
+        "mode": "ledger",
+        "command": "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode ledger",
+        "exit_code": 0,
+        "result_lines": [
+          "    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.23s",
+          "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 1967 filtered out; finished in 24.27s",
+          "CARGO_EXIT=0"
+        ],
+        "evidence_ref": "../Handshake/_Artifacts/handshake-tool/m149-takeover/ledger.log",
+        "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+        "reuse_basis": null
+      },
+      {
+        "mode": "binary",
+        "command": "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode binary",
+        "exit_code": 0,
+        "result_lines": [
+          "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 47m 12s",
+          "CARGO_EXIT=0"
+        ],
+        "evidence_ref": "../Handshake/_Artifacts/handshake-tool/m149-takeover/binary.log",
+        "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+        "reuse_basis": null
+      },
+      {
+        "mode": "watermark",
+        "command": "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode watermark",
+        "exit_code": 0,
+        "result_lines": [
+          "    Finished `test` profile [unoptimized + debuginfo] target(s) in 9m 14s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 107.54s",
+          "CARGO_EXIT=0"
+        ],
+        "evidence_ref": "../Handshake/_Artifacts/handshake-tool/m149-takeover/watermark.log",
+        "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+        "reuse_basis": null
+      },
+      {
+        "mode": "mailbox",
+        "command": "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode mailbox",
+        "exit_code": 0,
+        "result_lines": [
+          "    Finished `test` profile [unoptimized + debuginfo] target(s) in 46.80s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 272.26s",
+          "CARGO_EXIT=0"
+        ],
+        "evidence_ref": "../Handshake/_Artifacts/handshake-tool/m149-takeover/mailbox.log",
+        "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+        "reuse_basis": null
+      },
+      {
+        "mode": "literals",
+        "command": "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode literals",
+        "exit_code": 0,
+        "result_lines": [
+          "    Finished `test` profile [unoptimized + debuginfo] target(s) in 24m 17s",
+          "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s",
+          "CARGO_EXIT=0"
+        ],
+        "evidence_ref": "../Handshake/_Artifacts/handshake-tool/m149-takeover/literals.log",
+        "product_commit": "f7791f9d2f25b1cc65385f0772379b8c6863b5fb",
+        "reuse_basis": "Later diagnostic changes do not affect job fields, serialization, test source or configuration."
+      }
+    ],
+    "hbr_closeout": {
+      "INT": "FIXED: start_run returns its actual durable run ID; operator-approved conflict diagnostics include key and hashes while API409 codes and promotion classification remain unchanged. Existing storage facade reused; additive owned diagnostic variant selected over memory leak or generic database error.",
+      "VIS": "NOT_APPLICABLE: backend restoration and error context; no GUI layout/navigation changes.",
+      "MAN": "NOT_APPLICABLE: no command/configuration/workflow changes.",
+      "QUIET": "PASS: headless builds/tests, target and temporary paths under operator root."
+    },
+    "primitive_retention": "Five repair/SCIP methods reconnect to historical durable tables/fields. Watermark projects existing persisted job column (not a historically public MicroTaskJob field); audit_reason projects actual dead-letter writer. query_values retains lease facade. InMemory remains explicit test construction, not production fallback. Concrete replay adapters retained after trait requirement removal. No test removed or gated; no SQLite/PostgreSQL path restored.",
+    "self_validator_findings": [
+      {
+        "risk": "Hollow restored accessors",
+        "disposition": "PROVEN_SAFE",
+        "evidence": "Historical field/filter/order comparison plus knowledge22, watermark1 and mailbox1 real embedded backend proofs."
+      },
+      {
+        "risk": "Transaction returns empty run ID",
+        "disposition": "FIXED",
+        "evidence": "RETURN index4 with existing error-checking facade; MT108 runtime tests pass."
+      },
+      {
+        "risk": "Conflict details change status or promotion classification",
+        "disposition": "FIXED",
+        "evidence": "Three compatibility tests and unchanged code-index diagnostics; owned details preserve static code."
+      },
+      {
+        "risk": "Conflict/replay weakens atomicity",
+        "disposition": "PROVEN_SAFE",
+        "evidence": "Five existing EventLedger module tests pass, including concurrent append and rollback; four assertions preserve rejection intent."
+      },
+      {
+        "risk": "Current-main interaction",
+        "disposition": "PROVEN_SAFE",
+        "evidence": {
+          "main": "6519f4e2827840642a6c0401ac31055469f09d3b",
+          "head": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+          "ancestor_exit": 1,
+          "merge_tree": "e7f3a8559d1783905440d5c19666e3658120b1a8",
+          "merge_exit": 0,
+          "non_gov_diff_exit": 0,
+          "matching_src_tree": "c87546a4447e56305bb0e540ee34de70a88691b2",
+          "proof_reuse_basis": "Computed integrated candidate and tested checkout have identical product/build inputs; only governance differs."
+        }
+      },
+      {
+        "risk": "GUI changes",
+        "disposition": "OUT_OF_SCOPE_BY_PACKET",
+        "evidence": "gui_obligation false; no frontend files changed."
+      }
+    ],
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+      "actor_session": "KERNEL_BUILDER-20260906-124209",
+      "summary": "MT-149 restored durable access and operator-approved conflict diagnostics; complete affected runtime and binary proofs pass; independent validator verdict pending.",
+      "prepared_at_utc": "2026-09-06T19:44:55.724Z",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "yes",
+          "explanation": "Current error code/reasons and restored accessor docs inspected; no obsolete MT ownership/approval reason introduced. Diagnostics state actual conflicting identities.",
+          "evidence_refs": [
+            "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+            "scope.diagnostic_scope_expansion_2026_09_06"
+          ],
+          "checked_at_utc": "2026-09-06T19:44:55.724Z"
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "yes",
+          "explanation": "Restored public APIs are intentional contract exports used by the formerly failing integration targets; query_values delegates to the same lease facade; diagnostic variant consumed by API mappers and promotion classifier. No production InMemory fallback.",
+          "evidence_refs": [
+            "scope.what_to_restore",
+            "handoff.primitive_retention",
+            "../Handshake/_Artifacts/handshake-tool/m149-takeover/compile.log"
+          ],
+          "checked_at_utc": "2026-09-06T19:44:55.724Z"
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "yes",
+          "explanation": "No integration test gating or assertion changes; only two approved literal initializers. New src compatibility tests execute, and Linux all-feature test compilation passed.",
+          "evidence_refs": [
+            "../Handshake/_Artifacts/handshake-tool/m149-takeover/unit.log",
+            "../Handshake/_Artifacts/handshake-tool/m149-takeover/linux-final-cross-platform.log"
+          ],
+          "checked_at_utc": "2026-09-06T19:44:55.724Z"
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "yes",
+          "explanation": "Final commit Linux cross-platform-build job succeeded: cargo check --lib --bins --all-features and cargo test --lib --all-features --no-run.",
+          "evidence_refs": [
+            "https://github.com/Nuntissura/Handshake/actions/runs/34046756721/job/101523061570",
+            "../Handshake/_Artifacts/handshake-tool/m149-takeover/linux-final-cross-platform.log"
+          ],
+          "checked_at_utc": "2026-09-06T19:44:55.724Z"
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "yes",
+          "explanation": "All declared commands exit0. Complete affected code-index target 22/22; real embedded SurrealDB/EventLedger plus watermark and mailbox proofs; binary build and all-target check pass. Literal proof reused with unchanged inputs.",
+          "evidence_refs": [
+            "handoff.proof_results",
+            "../Handshake/_Artifacts/handshake-tool/m149-takeover/compile-target-counts.log"
+          ],
+          "checked_at_utc": "2026-09-06T19:44:55.724Z"
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "Claimed by this Kernel Builder; completed_by and validator_verdict remain null. Only READY_FOR_VALIDATION is requested.",
+          "evidence_refs": [
+            "lifecycle"
+          ],
+          "checked_at_utc": "2026-09-06T19:44:55.724Z"
+        }
+      ]
+    },
+    "coder_handoff": {
+      "receipt_kind": "CODER_HANDOFF",
+      "timestamp_utc": "2026-09-06T19:47:34.766Z",
+      "correlation_id": "review:mt149-final-20260906",
+      "target_role": "INTEGRATION_VALIDATOR",
+      "target_session": "PENDING",
+      "receipts_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/RECEIPTS.jsonl"
+    },
+    "kb_ready_checklist_receipt": {
+      "overall_verdict": "PASS",
+      "generated_at_utc": "2026-09-06T19:46:06.040Z",
+      "ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl"
+    },
+    "artifact_cleanup": {
+      "status": "PASS",
+      "removed": [
+        "../Handshake/_Artifacts/m149",
+        "../Handshake/_Artifacts/temp/m149"
+      ],
+      "retained": "../Handshake/_Artifacts/handshake-tool/m149-takeover",
+      "evidence_ref": "../Handshake/_Artifacts/handshake-tool/m149-takeover/cleanup.log",
+      "verified_at_utc": "2026-09-06T19:59:26.207Z",
+      "method": "Resolved exact children under operator root, rejected reparse targets, verified no active target processes; PowerShell Remove-Item -LiteralPath -Recurse -Force; canonical Test-Path/existsSync confirmed absent."
+    },
+    "open_blockers": [],
+    "next_actor": "INTEGRATION_VALIDATOR"
   },
-  "updated_at_utc": "2026-09-06T16:51:44.7898606Z"
+  "updated_at_utc": "2026-09-06T19:59:26.208Z",
+  "owned_files": [
+    "src/backend/handshake_core/src/api/calendar.rs",
+    "src/backend/handshake_core/src/api/canvases.rs",
+    "src/backend/handshake_core/src/api/jobs.rs",
+    "src/backend/handshake_core/src/api/knowledge_documents.rs",
+    "src/backend/handshake_core/src/api/knowledge_ingestion.rs",
+    "src/backend/handshake_core/src/api/loom.rs",
+    "src/backend/handshake_core/src/api/memory.rs",
+    "src/backend/handshake_core/src/api/stage.rs",
+    "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+    "src/backend/handshake_core/src/mt_executor/job.rs",
+    "src/backend/handshake_core/src/mt_executor/queue.rs",
+    "src/backend/handshake_core/src/role_mailbox_v1/message.rs",
+    "src/backend/handshake_core/src/role_mailbox_v1/repo.rs",
+    "src/backend/handshake_core/src/self_improve/promotion_gate_adapter.rs",
+    "src/backend/handshake_core/src/storage/kb003_storage.rs",
+    "src/backend/handshake_core/src/storage/mod.rs",
+    "src/backend/handshake_core/src/storage/surreal.rs",
+    "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+    "src/backend/handshake_core/src/storage/surreal/kb003_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+    "src/backend/handshake_core/src/storage/surreal/mt136_database_surface_proof_b.rs",
+    "src/backend/handshake_core/tests/micro_task_job_tests.rs"
+  ],
+  "proof_commands": [
+    "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode compile",
+    "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode knowledge",
+    "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode conflict",
+    "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode unit",
+    "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode ledger",
+    "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode binary",
+    "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode watermark",
+    "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode mailbox",
+    "& '../Handshake/_Artifacts/handshake-tool/m149-takeover/proof.ps1' -Mode literals"
+  ]
 }
