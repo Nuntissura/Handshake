@@ -4083,6 +4083,7 @@ mod transaction_tests {
             requested_by: "mt061-writer".into(),
             metadata: Some(IntakeClassificationMetadata {
                 request_id: Some(format!("mt061-late-failure-{}", Uuid::now_v7())),
+                batch_id: Some(batch.batch_id.to_string()),
                 tags: vec!["rollback".into()],
                 note: Some("rollback proof".into()),
                 ..Default::default()

@@ -1406,11 +1406,6 @@ impl AtelierStore {
 mod guard_tests {
     use super::*;
 
-    #[derive(Clone, Debug, SurrealValue)]
-    struct MalformedTableSentinel {
-        marker: String,
-    }
-
     async fn run_mt138_catalog_mutation(storage: &SurrealStorage, statement: &'static str) {
         storage
             .with_data_operation(move |ctx| {
@@ -1436,7 +1431,10 @@ mod guard_tests {
             .bootstrap_schema()
             .await
             .expect_err("unexpected atelier table must fail closed");
-        assert!(rogue_error.to_string().contains("TABLE_SET_MISMATCH"));
+        assert!(
+            rogue_error.to_string().contains("HANDSHAKE_ATELIER_SCHEMA_PARTIAL: expected=137 present=138 first_missing=none first_unexpected=atelier_rogue"),
+            "{rogue_error:?}"
+        );
         run_mt138_catalog_mutation(storage, "REMOVE TABLE atelier_rogue; RETURN true;").await;
 
         run_mt138_catalog_mutation(
@@ -1448,9 +1446,10 @@ mod guard_tests {
             .bootstrap_schema()
             .await
             .expect_err("unexpected atelier field must fail closed");
-        assert!(extra_field_error
-            .to_string()
-            .contains("CATALOG_FINGERPRINT_MISMATCH"));
+        assert!(
+            extra_field_error.to_string().contains("CATALOG_FINGERPRINT_MISMATCH"),
+            "{extra_field_error:?}"
+        );
         run_mt138_catalog_mutation(
             storage,
             "REMOVE FIELD attacker_extra ON TABLE atelier_character; RETURN true;",
@@ -1466,9 +1465,10 @@ mod guard_tests {
             .bootstrap_schema()
             .await
             .expect_err("schemaless atelier table must fail closed");
-        assert!(schemaless_error
-            .to_string()
-            .contains("CATALOG_FINGERPRINT_MISMATCH"));
+        assert!(
+            schemaless_error.to_string().contains("CATALOG_FINGERPRINT_MISMATCH"),
+            "{schemaless_error:?}"
+        );
         run_mt138_catalog_mutation(
             storage,
             "ALTER TABLE atelier_character SCHEMAFULL; RETURN true;",
@@ -1484,9 +1484,10 @@ mod guard_tests {
             .bootstrap_schema()
             .await
             .expect_err("non-view replacement must fail closed");
-        assert!(non_view_error
-            .to_string()
-            .contains("CATALOG_FINGERPRINT_MISMATCH"));
+        assert!(
+            non_view_error.to_string().contains("CATALOG_FINGERPRINT_MISMATCH"),
+            "{non_view_error:?}"
+        );
         run_mt138_catalog_mutation(
             storage,
             "DEFINE TABLE OVERWRITE atelier_character_relationship_graph_projection TYPE NORMAL AS SELECT relationship_id AS edge_id, source_character_id, target_character_id, relationship_kind, label, notes, updated_at_utc FROM atelier_character_relationship PERMISSIONS NONE; RETURN true;",
@@ -1612,26 +1613,14 @@ mod guard_tests {
             )
             .await
             .expect("open malformed MT-138 store");
-            store
-                .with_data_operation(|ctx| {
-                    Box::pin(async move {
-                        for table in ATELIER_TABLES {
-                            let _: Option<MalformedTableSentinel> = ctx
-                                .upsert_one(
-                                    table,
-                                    "malformed",
-                                    MalformedTableSentinel {
-                                        marker: "schemaless".to_owned(),
-                                    },
-                                )
-                                .await?;
-                        }
-                        Ok(())
-                    })
-                })
-                .await
-                .expect("create full-count malformed Atelier projection");
             let atelier = AtelierStore::new(store.clone());
+            atelier.bootstrap_schema().await.expect("create canonical dependency-complete projection");
+            // Preserve the complete table/sequence set so only schema shape is adversarial.
+            run_mt138_catalog_mutation(
+                &store,
+                "ALTER TABLE atelier_character SCHEMALESS; RETURN true;",
+            )
+            .await;
             atelier
                 .ensure_schema()
                 .await
@@ -1640,7 +1629,10 @@ mod guard_tests {
                 .bootstrap_schema()
                 .await
                 .expect_err("catalog verification must reject schemaless full-count projection");
-            assert!(error.to_string().contains("CATALOG_FINGERPRINT_MISMATCH"));
+            assert!(
+                error.to_string().contains("CATALOG_FINGERPRINT_MISMATCH"),
+                "{error:?}"
+            );
             store.shutdown().await.expect("close malformed store");
         })
         .await
