@@ -1466,7 +1466,7 @@ impl AtelierStore {
             limit: i64,
         }
         let rows: Vec<SavedSearchProjectionRow> = self.store().with_data_operation(move |ctx| Box::pin(async move {
-            ctx.query_values("SELECT $saved_search_id AS saved_search_id, asset_id, content_hash, artifact_ref, string::concat('atelier://image/',<string>asset_id) AS jump_target, (SELECT VALUE tag_id.text FROM atelier_media_asset_tag WHERE asset_id=$parent.id) AS tags_json, (SELECT VALUE favorite FROM atelier_media_review_metadata WHERE asset_id=$parent.id LIMIT 1)[0] ?? false AS favorite, (SELECT VALUE rating FROM atelier_media_review_metadata WHERE asset_id=$parent.id LIMIT 1)[0] ?? 0 AS rating, NONE AS matched_color_hex, NONE AS content_tier, 'NSFW' AS view_mode FROM atelier_media_asset ORDER BY created_at_utc DESC LIMIT $limit;", RunSavedBindings{saved_search_id:saved_search_id.into(),limit}).await
+            ctx.query_values("SELECT $saved_search_id AS saved_search_id, asset_id, content_hash, artifact_ref, string::concat('atelier://image/',<string>asset_id) AS jump_target, (SELECT VALUE tag_id.text FROM atelier_media_asset_tag WHERE asset_id=$parent.id) AS tags_json, (SELECT VALUE favorite FROM atelier_media_review_metadata WHERE asset_id=$parent.id LIMIT 1)[0] ?? false AS favorite, (SELECT VALUE rating FROM atelier_media_review_metadata WHERE asset_id=$parent.id LIMIT 1)[0] ?? 0 AS rating, NONE AS matched_color_hex, NONE AS content_tier, 'NSFW' AS view_mode, created_at_utc FROM atelier_media_asset ORDER BY created_at_utc DESC LIMIT $limit;", RunSavedBindings{saved_search_id:saved_search_id.into(),limit}).await
         })).await?;
         let mut hits: Vec<SavedSearchProjectionHit> = rows
             .into_iter()
@@ -2700,7 +2700,7 @@ struct CkcCollectionRow {
 #[derive(SurrealValue)]
 struct CkcCollectionItemRow {
     collection_id: SurrealUuid,
-    asset_id: SurrealUuid,
+    member_asset_id: SurrealUuid,
     content_hash: String,
     mime: String,
     source_provenance: Option<String>,
@@ -2831,10 +2831,11 @@ const CKC_COLLECTIONS_STATEMENT: &str =
          AS sheet_version_id \
      FROM atelier_collection WHERE character_internal_id != NONE;";
 const CKC_COLLECTION_ITEMS_STATEMENT: &str =
-    "SELECT record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
+    "SELECT record::id(collection_id) AS collection_id, record::id(asset_id) AS member_asset_id, \
        asset_id.content_hash AS content_hash, asset_id.mime AS mime, \
-       asset_id.source_provenance AS source_provenance, asset_id.artifact_ref AS artifact_ref \
-     FROM atelier_collection_item ORDER BY sort_order ASC, asset_id ASC;";
+       asset_id.source_provenance AS source_provenance, asset_id.artifact_ref AS artifact_ref, \
+       sort_order \
+     FROM atelier_collection_item ORDER BY sort_order ASC, member_asset_id ASC;";
 const CKC_REVIEW_STATEMENT: &str =
     "SELECT record::id(asset_id) AS asset_id, notes, review_status FROM atelier_media_review_metadata;";
 const CKC_MEDIA_TAGS_STATEMENT: &str =
@@ -3249,7 +3250,7 @@ impl AtelierStore {
             let Some(character_id) = collection.character_internal_id.map(Uuid::from) else {
                 continue;
             };
-            let asset_id: Uuid = item.asset_id.into();
+            let asset_id: Uuid = item.member_asset_id.into();
             let character = characters.get(&character_id);
             let sheet = latest_sheet.get(&character_id);
             let char_tags = character_tags.get(&character_id).unwrap_or(&empty_tags);
