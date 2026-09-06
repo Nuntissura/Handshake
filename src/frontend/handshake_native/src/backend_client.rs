@@ -7096,6 +7096,10 @@ pub fn parse_sidebar_unlinked(value: &serde_json::Value) -> Result<Vec<UnlinkedR
 /// hard 400 ("<header> header is required"). `pub` so the rich-editor save/draft transport reuses the
 /// SAME canonical header names rather than re-deriving the strings (the MT-020 missing-headers fix).
 pub const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
+/// WP-CKC MT-065: the Model Ops lease headers the guarded CKC mutation routes require
+/// (`api/atelier_ckc_sheets::HSK_HEADER_MODEL_LEASE_ID` / `HSK_HEADER_SESSION_ID`).
+pub const HSK_HEADER_MODEL_LEASE_ID: &str = "x-hsk-model-lease-id";
+pub const HSK_HEADER_SESSION_ID: &str = "x-hsk-session-id";
 pub const HSK_HEADER_KERNEL_TASK_RUN_ID: &str = "x-hsk-kernel-task-run-id";
 pub const HSK_HEADER_SESSION_RUN_ID: &str = "x-hsk-session-run-id";
 pub const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
@@ -10758,21 +10762,39 @@ pub struct AtelierClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    /// WP-CKC MT-065: actor id used for CKC/Atelier write routes when a caller does not pass a
+    /// narrower id. Normalised so an empty/whitespace id can never reach `x-hsk-actor-id`.
+    actor_id: String,
 }
 
 impl AtelierClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self::new_with_actor_id(base_url, runtime, default_atelier_actor_id())
+    }
+
+    /// Build a client with an explicit actor id for agent/operator-attributed writes.
+    pub fn new_with_actor_id(
+        base_url: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+        actor_id: impl Into<String>,
+    ) -> Self {
         Self {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            actor_id: normalize_atelier_actor_id(actor_id),
         }
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
     pub fn production(runtime: tokio::runtime::Handle) -> Self {
         Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    /// Actor id used for CKC/Atelier write routes when the caller does not pass a narrower id.
+    pub fn actor_id(&self) -> &str {
+        &self.actor_id
     }
 
     /// Pure request builder for `GET /atelier/intake/batches`.
@@ -13684,5 +13706,6234 @@ mod tests {
         .expect_err("missing EventLedger revision must fail closed");
 
         assert!(error.to_string().contains("event_ledger_event_id"));
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// WP-CKC-posekit-overhaul MT-065 — actor-attributed request specs + Model Ops lease context.
+// Ported from feat/WP-CKC-posekit-overhaul:src/frontend/handshake_native/src/backend_client.rs.
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
+/// A request spec for endpoints that require backend actor attribution headers.
+/// Kept separate from [`RequestSpec`] to avoid widening every older route builder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActorRequestSpec {
+    pub method: HttpMethod,
+    pub url: String,
+    pub body: Option<serde_json::Value>,
+    pub headers: Vec<(String, String)>,
+}
+
+/// Optional semantic lease context for model-agent mutations. Native operator
+/// flows can keep actor-only requests, while model-agent paths can opt into the
+/// same backend lease/session gate without duplicating header construction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelOperationContext {
+    pub session_id: String,
+    pub lease_claim_id: String,
+    pub thread_id: String,
+}
+
+impl ModelOperationContext {
+    pub fn new(session_id: impl Into<String>, lease_claim_id: impl Into<String>) -> Self {
+        Self {
+            session_id: session_id.into(),
+            lease_claim_id: lease_claim_id.into(),
+            thread_id: String::new(),
+        }
+    }
+
+    pub fn new_with_thread(
+        session_id: impl Into<String>,
+        lease_claim_id: impl Into<String>,
+        thread_id: impl Into<String>,
+    ) -> Self {
+        Self {
+            session_id: session_id.into(),
+            lease_claim_id: lease_claim_id.into(),
+            thread_id: thread_id.into(),
+        }
+    }
+
+    pub fn is_complete(&self) -> bool {
+        !self.session_id.trim().is_empty()
+            && !self.lease_claim_id.trim().is_empty()
+            && !self.thread_id.trim().is_empty()
+    }
+
+    pub fn matches_thread(&self, expected_thread_id: &str) -> bool {
+        self.thread_id.trim() == expected_thread_id.trim()
+    }
+}
+
+impl ActorRequestSpec {
+    pub fn with_model_operation_context(mut self, context: Option<&ModelOperationContext>) -> Self {
+        let Some(context) = context.filter(|value| value.is_complete()) else {
+            return self;
+        };
+        self.headers
+            .retain(|(name, _)| name != HSK_HEADER_MODEL_LEASE_ID && name != HSK_HEADER_SESSION_ID);
+        self.headers.push((
+            HSK_HEADER_MODEL_LEASE_ID.to_owned(),
+            context.lease_claim_id.trim().to_owned(),
+        ));
+        self.headers.push((
+            HSK_HEADER_SESSION_ID.to_owned(),
+            context.session_id.trim().to_owned(),
+        ));
+        self
+    }
+}
+
+fn actor_request_has_header(spec: &ActorRequestSpec, header_name: &str) -> bool {
+    spec.headers.iter().any(|(name, _)| name == header_name)
+}
+
+fn actor_request_needs_operator_kind(spec: &ActorRequestSpec) -> bool {
+    !actor_request_has_header(spec, HSK_HEADER_ACTOR_KIND)
+        && !actor_request_has_header(spec, HSK_HEADER_MODEL_LEASE_ID)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// WP-CKC-posekit-overhaul MT-065 — CKC/Atelier actor identity + album paging bounds.
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
+/// Legacy explicit actor id for native Atelier/CKC writes. Model-specific or
+/// surface-specific actor ids must attach Model Ops context on guarded writes.
+pub const ATELIER_CKC_ACTOR_ID: &str = "handshake-native-atelier-ckc";
+
+pub const ATELIER_OPERATOR_ACTOR_ID: &str = "operator";
+
+const CKC_ALBUM_LIST_PAGE_LIMIT: i64 = 50;
+
+const CKC_ALBUM_MEMBER_PREVIEW_LIMIT: i64 = 50;
+
+const CKC_ALBUM_MEMBER_PAGE_LIMIT: i64 = 200;
+
+fn default_atelier_actor_id() -> String {
+    ATELIER_OPERATOR_ACTOR_ID.to_owned()
+}
+
+fn normalize_atelier_actor_id(actor_id: impl Into<String>) -> String {
+    let actor_id = actor_id.into();
+    let actor_id = actor_id.trim();
+    if actor_id.is_empty() {
+        ATELIER_OPERATOR_ACTOR_ID.to_owned()
+    } else {
+        actor_id.to_owned()
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// WP-CKC-posekit-overhaul MT-065 — the CKC / Posekit / Ingest / Facial / Prompt-Feedback /
+// Model-Ops / Preferences read+write surface the native Atelier panel consumes. Route paths are
+// the SurrealDB-port routers `api/atelier_ckc_{sheets,media,intake_facial,ops,prompt_feedback}.rs`.
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
+/// Canonical lane counts returned by the backend for a full intake batch.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AtelierLaneCounts {
+    pub pending: usize,
+    pub accepted: usize,
+    pub rejected: usize,
+    pub deferred: usize,
+    pub skipped: usize,
+    pub failed: usize,
+}
+
+impl AtelierLaneCounts {
+    pub fn total(&self) -> usize {
+        self.pending
+            .saturating_add(self.accepted)
+            .saturating_add(self.rejected)
+            .saturating_add(self.deferred)
+            .saturating_add(self.skipped)
+            .saturating_add(self.failed)
+    }
+}
+
+/// Expanded batch projection: canonical full-batch lane counts plus the currently loaded preview rows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierBatchItemsProjection {
+    pub lane_counts: AtelierLaneCounts,
+    pub items: Vec<AtelierItemRow>,
+}
+
+/// Result from applying one durable intake item classification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierIntakeClassificationRow {
+    pub item: AtelierItemRow,
+    pub asset_id: Option<String>,
+    pub media_ref: Option<String>,
+    pub collection_id: Option<String>,
+    pub collection_ref: Option<String>,
+    pub collection_inserted: bool,
+    pub requested_by: String,
+}
+
+/// Structured failure for a multi-row intake classification apply.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierIntakeClassificationFailure {
+    pub item_id: String,
+    pub index: usize,
+    pub error: String,
+}
+
+/// Delivery result for one model/operator apply request. This preserves partial
+/// success so Argus and parallel agents can recover without guessing which rows
+/// were already written before a backend error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierIntakeClassificationOutcome {
+    pub request_id: String,
+    pub batch_id: Option<String>,
+    pub total_item_count: Option<usize>,
+    pub applied_count: usize,
+    pub requested_by: String,
+    pub applied: Vec<AtelierIntakeClassificationRow>,
+    pub failed: Option<AtelierIntakeClassificationFailure>,
+}
+
+/// One row decision to send to the backend classification route.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierIntakeClassificationDecision {
+    pub item_id: String,
+    pub lane: String,
+    pub reason: Option<String>,
+    pub metadata: serde_json::Value,
+}
+
+/// One CKC character row from `GET /atelier/characters`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCharacterRow {
+    pub internal_id: String,
+    pub public_id: String,
+    pub display_name: String,
+    pub character_ref: String,
+}
+
+/// One append-only CKC sheet version row from the character sheet-version routes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSheetVersionRow {
+    pub version_id: String,
+    pub character_internal_id: String,
+    pub parent_version_id: Option<String>,
+    pub seq: i64,
+    pub raw_text: String,
+    pub author: String,
+    pub tool: Option<String>,
+    pub character_ref: String,
+    pub sheet_version_ref: String,
+}
+
+/// One media asset linked through a CKC character album.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcMediaMemberRow {
+    pub asset_id: String,
+    pub media_ref: String,
+    pub file_name: String,
+    pub content_type: String,
+    pub sort_order: i64,
+    pub source_path: Option<String>,
+    pub source_url: Option<String>,
+    pub source_path_ref: Option<String>,
+    pub source_url_ref: Option<String>,
+    pub link_source_path_ref: Option<String>,
+    pub link_source_url_ref: Option<String>,
+    pub link_source_path_ref_status: String,
+    pub link_source_url_ref_status: String,
+    pub asset_source_path_ref_status: String,
+    pub asset_source_url_ref_status: String,
+    pub source_path_ref_origin: String,
+    pub source_url_ref_origin: String,
+    pub linked_by: String,
+    pub member_updated_by: String,
+    pub member_updated_at_utc: Option<String>,
+    pub notes_updated_by: Option<String>,
+    pub notes_updated_at_utc: Option<String>,
+    pub notes: Option<String>,
+    pub review_status: Option<String>,
+    pub tags: Vec<String>,
+}
+
+/// One CKC media album/collection attached to a character and optionally a sheet version.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcMediaAlbumRow {
+    pub collection_id: String,
+    pub collection_ref: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub character_internal_id: String,
+    pub character_ref: String,
+    pub sheet_version_id: Option<String>,
+    pub sheet_version_ref: Option<String>,
+    pub tags: Vec<String>,
+    pub member_count: usize,
+    pub members_next_offset: Option<i64>,
+    pub members: Vec<AtelierCkcMediaMemberRow>,
+    pub created_by: String,
+    pub updated_by: String,
+}
+
+/// Result from appending existing media assets to a CKC album.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcMediaAlbumItemsRow {
+    pub collection_id: String,
+    pub collection_ref: String,
+    pub mutation: Option<String>,
+    pub concurrency_policy: Option<String>,
+    pub actor_id: Option<String>,
+    pub removed_by: Option<String>,
+    pub unlink_receipt_id: Option<String>,
+    pub unlinked_at_utc: Option<String>,
+    pub asset_id: Option<String>,
+    pub media_ref: Option<String>,
+    pub requested: usize,
+    pub inserted: usize,
+    pub removed: usize,
+    pub updated: usize,
+    pub reordered: usize,
+    pub offset: i64,
+    pub limit: i64,
+    pub member_count: usize,
+    pub members_next_offset: Option<i64>,
+    pub members: Vec<AtelierCkcMediaMemberRow>,
+}
+
+/// First-page CKC media album list state for one character.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcMediaAlbumListPageRow {
+    pub offset: i64,
+    pub limit: i64,
+    pub member_limit: i64,
+    pub album_count: usize,
+    pub albums_next_offset: Option<i64>,
+    pub albums: Vec<AtelierCkcMediaAlbumRow>,
+}
+
+/// One reusable Posekit/OpenPose or ComfyUI artifact linked to a CKC sheet version.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcSheetArtifactLinkRow {
+    pub link_id: String,
+    pub character_internal_id: String,
+    pub character_ref: String,
+    pub sheet_version_id: String,
+    pub sheet_version_ref: String,
+    pub typed_ref: String,
+    pub artifact_kind: String,
+    pub artifact_ref: String,
+    pub manifest_ref: Option<String>,
+    pub source_ref: Option<String>,
+    pub label: Option<String>,
+    pub reuse_role: Option<String>,
+    pub linked_by: String,
+    pub metadata: serde_json::Value,
+}
+
+/// Media note/tag write result for one asset.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcMediaNotesTagsRow {
+    pub asset_id: String,
+    pub media_ref: String,
+    pub notes: Option<String>,
+    pub review_status: Option<String>,
+    pub tags: Vec<String>,
+    pub source_path_ref: Option<String>,
+    pub source_url_ref: Option<String>,
+    pub updated_by: Option<String>,
+    pub updated_at_utc: Option<String>,
+}
+
+/// One append-only version of a CKC character document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcDocumentVersionRow {
+    pub version_id: String,
+    pub document_id: String,
+    pub document_ref: String,
+    pub version_seq: i64,
+    pub title: String,
+    pub body_raw_text: String,
+    pub tags: Vec<String>,
+    pub author: String,
+}
+
+/// One CKC story/note/moodboard character document with its current version.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcCharacterDocumentRow {
+    pub document_id: String,
+    pub document_ref: String,
+    pub character_internal_id: String,
+    pub character_ref: String,
+    pub doc_type: String,
+    pub title: String,
+    pub tags: Vec<String>,
+    pub current_version_id: String,
+    pub current_version_seq: i64,
+    pub current_version: Option<AtelierCkcDocumentVersionRow>,
+    pub story_cards: Vec<AtelierCkcStoryCardRow>,
+    pub story_beats: Vec<AtelierCkcStoryBeatRow>,
+}
+
+/// One reusable story card inside a CKC story document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcStoryCardRow {
+    pub card_id: String,
+    pub card_ref: String,
+    pub story_document_id: String,
+    pub story_document_ref: String,
+    pub seq: i64,
+    pub title: String,
+    pub body_raw_text: String,
+    pub tags: Vec<String>,
+}
+
+/// One reusable story beat inside a CKC story document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcStoryBeatRow {
+    pub beat_id: String,
+    pub beat_ref: String,
+    pub story_document_id: String,
+    pub story_document_ref: String,
+    pub card_id: Option<String>,
+    pub card_ref: Option<String>,
+    pub seq: i64,
+    pub beat_text: String,
+}
+
+/// Latest native Handshake moodboard snapshot for one CKC moodboard document.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierCkcMoodboardSnapshotRow {
+    pub snapshot_id: String,
+    pub moodboard_ref: String,
+    pub document_id: String,
+    pub document_ref: String,
+    pub document_version_id: String,
+    pub schema_id: String,
+    pub schema_version: i64,
+    pub raw_json_text: String,
+    pub moodboard_name: String,
+    pub moodboard_json: serde_json::Value,
+    pub content_sha256: String,
+    pub author: String,
+}
+
+/// One rich tag note attached to a CKC tag and optionally scoped to a character/sheet/album/media ref.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcTagNoteRow {
+    pub tag_ref: String,
+    pub tag_text: String,
+    pub scope_ref: Option<String>,
+    pub note: String,
+}
+
+/// One native CKC search hit. Refs are stable `atelier://...` handles so models can pass results to
+/// Posekit, Ingest, ComfyUI workflows, or future native Atelier tools without scraping labels.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierCkcSearchResultRow {
+    pub target_kind: String,
+    pub target_ref: String,
+    pub title: String,
+    pub snippet: String,
+    pub character_ref: Option<String>,
+    pub sheet_version_ref: Option<String>,
+    pub collection_ref: Option<String>,
+    pub media_ref: Option<String>,
+    pub tag_ref: Option<String>,
+    pub tags: Vec<String>,
+    pub tag_notes: Vec<AtelierCkcTagNoteRow>,
+    pub match_modes: Vec<String>,
+    pub fuzzy_score: f64,
+    pub vector_score: f64,
+}
+
+/// Search response from `POST /atelier/ckc/search`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierCkcSearchResponse {
+    pub query: String,
+    pub modes: Vec<String>,
+    pub semantic_available: bool,
+    pub vector_source: Option<String>,
+    pub result_count: usize,
+    pub results: Vec<AtelierCkcSearchResultRow>,
+}
+
+/// One CKC character plus its current/latest sheet version, as the native panel needs it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierCkcCharacterSheetRow {
+    pub character: AtelierCharacterRow,
+    pub latest_sheet: Option<AtelierSheetVersionRow>,
+    pub sheet_artifact_links: Vec<AtelierCkcSheetArtifactLinkRow>,
+    pub media_album_offset: i64,
+    pub media_album_limit: i64,
+    pub media_album_member_limit: i64,
+    pub media_album_count: usize,
+    pub media_albums_next_offset: Option<i64>,
+    pub media_albums: Vec<AtelierCkcMediaAlbumRow>,
+    pub story_documents: Vec<AtelierCkcCharacterDocumentRow>,
+    pub moodboard_documents: Vec<AtelierCkcCharacterDocumentRow>,
+    pub moodboard_snapshots: Vec<AtelierCkcMoodboardSnapshotRow>,
+}
+
+/// CKC character database projection loaded for the native Castkit Codex tab.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierCkcData {
+    pub characters: Vec<AtelierCkcCharacterSheetRow>,
+}
+
+/// Bundled CKC character sheet template metadata + raw text from the backend.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSheetTemplateRow {
+    pub template_id: String,
+    pub template_version: String,
+    pub file_name: String,
+    pub template_hash: String,
+    pub field_count: usize,
+    pub section_count: usize,
+    pub raw_text: String,
+}
+
+/// Original CKC LLM-safe v2.00 subset whitelist.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSafeSubsetRow {
+    pub template_id: String,
+    pub template_version: String,
+    pub file_name: String,
+    pub field_ids: Vec<String>,
+}
+
+/// One prior saved value for a CKC Field ID.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSheetFieldSuggestionRow {
+    pub field_id: String,
+    pub value: String,
+    pub occurrences: i64,
+}
+
+/// Deterministic CKC sheet export payload.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSheetExportRow {
+    pub version_id: String,
+    pub format: String,
+    pub file_name: String,
+    pub content_hash: String,
+    pub content: String,
+    pub character_ref: String,
+    pub sheet_version_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierPosekitMarkerLayersRow {
+    pub face: bool,
+    pub body: bool,
+    pub hands: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierPosekitArtifactRow {
+    pub artifact_ref: String,
+    pub manifest_ref: String,
+    pub content_hash: String,
+    pub byte_len: u64,
+    pub mime: String,
+    pub file_name: String,
+}
+
+/// Native Posekit OpenPose export generated by the backend and materialized as ArtifactStore files.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierPosekitExportRow {
+    pub schema_id: String,
+    pub source_ref: String,
+    pub rig_id: Option<String>,
+    pub yaw_deg: i32,
+    pub pitch_deg: i32,
+    pub zoom_percent: i32,
+    pub framing: serde_json::Value,
+    pub marker_layers: AtelierPosekitMarkerLayersRow,
+    pub applied_marker_edit_count: usize,
+    pub width: i32,
+    pub height: i32,
+    pub openpose_json: serde_json::Value,
+    pub openpose_json_sha256: String,
+    pub openpose_png_sha256: String,
+    pub content_hash: String,
+    pub receipt_ref: String,
+    pub openpose_png_artifact: AtelierPosekitArtifactRow,
+    pub openpose_json_artifact: AtelierPosekitArtifactRow,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierContactSheetItem {
+    pub item_id: String,
+    pub label: String,
+    pub source_ref: String,
+    pub media_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierContactSheetArtifactRow {
+    pub artifact_ref: String,
+    pub manifest_ref: String,
+    pub content_hash: String,
+    pub byte_len: u64,
+    pub mime: String,
+    pub file_name: String,
+}
+
+/// Native contact-sheet export generated by the backend and materialized as ArtifactStore files.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierContactSheetExportRow {
+    pub schema_id: String,
+    pub source_kind: String,
+    pub source_ref: String,
+    pub thumbnail_fit: String,
+    pub output_path: Option<String>,
+    pub layout: serde_json::Value,
+    pub source_items: Vec<AtelierContactSheetItem>,
+    pub item_count: usize,
+    pub rendered_item_count: usize,
+    pub omitted_item_count: usize,
+    pub include_labels: bool,
+    pub svg_sha256: String,
+    pub receipt_sha256: String,
+    pub content_hash: String,
+    pub receipt_ref: String,
+    pub svg_artifact: AtelierContactSheetArtifactRow,
+    pub receipt_artifact: AtelierContactSheetArtifactRow,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierFacialIngestArtifactRow {
+    pub artifact_ref: String,
+    pub manifest_ref: String,
+    pub content_hash: String,
+    pub byte_len: u64,
+    pub mime: String,
+    pub file_name: String,
+}
+
+/// Native Facial-derived Ingest analysis generated by the backend and stored as JSON artifacts.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierFacialIngestAnalysisRow {
+    pub schema_id: String,
+    pub batch_id: String,
+    pub profile: String,
+    pub profile_tokens: Vec<String>,
+    pub item_count: usize,
+    pub summary: serde_json::Value,
+    pub analysis_sha256: String,
+    pub receipt_sha256: String,
+    pub content_hash: String,
+    pub receipt_ref: String,
+    pub analysis_artifact: AtelierFacialIngestArtifactRow,
+    pub receipt_artifact: AtelierFacialIngestArtifactRow,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierFacialCommandRouteRow {
+    pub command: String,
+    pub method: String,
+    pub path: String,
+    pub response_schema_id: String,
+    pub result_schema_id: Option<String>,
+    pub output_schema_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierFacialFeatureListRow {
+    pub schema_id: String,
+    pub registry_schema_id: String,
+    pub feature_count: usize,
+    pub features: serde_json::Value,
+    pub command_routes: Vec<AtelierFacialCommandRouteRow>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierFacialArtifactReadRow {
+    pub schema_id: String,
+    pub artifact_ref: String,
+    pub manifest_ref: String,
+    pub content_hash: String,
+    pub byte_len: u64,
+    pub mime: String,
+    pub file_name: Option<String>,
+    pub payload_schema_id: Option<String>,
+    pub payload: serde_json::Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierFacialCommandArtifactRow {
+    pub artifact_ref: String,
+    pub manifest_ref: String,
+    pub content_hash: String,
+    pub byte_len: u64,
+    pub mime: String,
+    pub file_name: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierFacialCommandResponseRow {
+    pub schema_id: String,
+    pub command: String,
+    pub status: String,
+    pub actor: String,
+    pub result: serde_json::Value,
+    pub result_artifact: Option<AtelierFacialCommandArtifactRow>,
+    pub receipt_ref: Option<String>,
+    pub receipt_artifact: Option<AtelierFacialCommandArtifactRow>,
+    pub error: Option<String>,
+    pub degraded_reasons: Vec<String>,
+    pub recovery_hint: Option<String>,
+}
+
+/// One-slot delivery cell for off-thread intake classification writes.
+pub type AtelierIntakeClassificationCell = Arc<Mutex<Option<AtelierIntakeClassificationOutcome>>>;
+
+/// One-slot delivery cell for off-thread CKC character/sheet loads.
+pub type AtelierCkcCell = Arc<Mutex<Option<Result<AtelierCkcData, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC character creation.
+pub type AtelierCkcCreateCell = Arc<Mutex<Option<Result<AtelierCharacterRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC sheet-version appends.
+pub type AtelierCkcAppendCell = Arc<Mutex<Option<Result<AtelierSheetVersionRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC media notes/tags saves.
+pub type AtelierCkcMediaNotesCell = Arc<Mutex<Option<Result<AtelierCkcMediaNotesTagsRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC media album creation.
+pub type AtelierCkcMediaAlbumCreateCell =
+    Arc<Mutex<Option<Result<AtelierCkcMediaAlbumRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC media album item linking.
+pub type AtelierCkcMediaAlbumItemsCell =
+    Arc<Mutex<Option<Result<AtelierCkcMediaAlbumItemsRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC character media album-list paging.
+pub type AtelierCkcMediaAlbumListPageCell =
+    Arc<Mutex<Option<Result<AtelierCkcMediaAlbumListPageRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC sheet artifact attach/detach/list operations.
+pub type AtelierCkcSheetArtifactLinksCell =
+    Arc<Mutex<Option<(String, Result<Vec<AtelierCkcSheetArtifactLinkRow>, String>)>>>;
+
+/// One-slot delivery cell for off-thread CKC story document/list operations.
+pub type AtelierCkcDocumentsCell =
+    Arc<Mutex<Option<Result<Vec<AtelierCkcCharacterDocumentRow>, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC character-document write operations.
+pub type AtelierCkcCharacterDocumentCell =
+    Arc<Mutex<Option<Result<AtelierCkcCharacterDocumentRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC story-card operations.
+pub type AtelierCkcStoryCardsCell = Arc<Mutex<Option<Result<Vec<AtelierCkcStoryCardRow>, String>>>>;
+
+/// One-slot delivery cell for one off-thread CKC story-card write.
+pub type AtelierCkcStoryCardCell = Arc<Mutex<Option<Result<AtelierCkcStoryCardRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC story-beat operations.
+pub type AtelierCkcStoryBeatsCell = Arc<Mutex<Option<Result<Vec<AtelierCkcStoryBeatRow>, String>>>>;
+
+/// One-slot delivery cell for one off-thread CKC story-beat write.
+pub type AtelierCkcStoryBeatCell = Arc<Mutex<Option<Result<AtelierCkcStoryBeatRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC moodboard snapshot operations.
+pub type AtelierCkcMoodboardSnapshotCell =
+    Arc<Mutex<Option<Result<AtelierCkcMoodboardSnapshotRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC fuzzy/vector/combined search.
+pub type AtelierCkcSearchCell = Arc<Mutex<Option<Result<AtelierCkcSearchResponse, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC rich tag-note saves.
+pub type AtelierCkcTagNoteCell = Arc<Mutex<Option<Result<AtelierCkcTagNoteRow, String>>>>;
+
+/// One-slot delivery cell for the bundled CKC full character-sheet template.
+pub type AtelierCkcTemplateCell = Arc<Mutex<Option<Result<AtelierSheetTemplateRow, String>>>>;
+
+/// One-slot delivery cell for the bundled CKC short/SFW-safe field subset.
+pub type AtelierCkcSafeSubsetCell = Arc<Mutex<Option<Result<AtelierSafeSubsetRow, String>>>>;
+
+/// One-slot delivery cell for guarded CKC sheet imports.
+pub type AtelierCkcImportCell = Arc<Mutex<Option<Result<AtelierSheetVersionRow, String>>>>;
+
+/// One-slot delivery cell for deterministic CKC sheet exports.
+pub type AtelierCkcExportCell = Arc<Mutex<Option<Result<AtelierSheetExportRow, String>>>>;
+
+/// One-slot delivery cell for backend-generated Posekit OpenPose exports.
+pub type AtelierPosekitExportCell =
+    Arc<Mutex<Option<(u64, Result<AtelierPosekitExportRow, String>)>>>;
+
+/// FIFO delivery cell for fetched image byte payloads. Spawned tasks push
+/// `(request_id, Ok(bytes))` on success or `(request_id, Err(detail))` on failure; the egui UI thread
+/// drains queued deliveries and ignores stale request ids. This avoids a late stale response overwriting
+/// a newer response before the UI can drain it.
+pub type AtelierPoseSourceBytesCell = Arc<Mutex<VecDeque<(u64, Result<Vec<u8>, String>)>>>;
+
+/// One-slot delivery cell for backend-generated contact-sheet SVG exports.
+pub type AtelierContactSheetExportCell =
+    Arc<Mutex<Option<(u64, Result<AtelierContactSheetExportRow, String>)>>>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierPromptFeedbackCaseRow {
+    pub case_id: String,
+    pub project_id: String,
+    pub source_system: String,
+    pub adapter_id: String,
+    pub source_iteration_id: Option<String>,
+    pub source_case_id: String,
+    pub segment: String,
+    pub cell: String,
+    pub render_stack: String,
+    pub identity_judgement_allowed: bool,
+    pub prompt_quality_review_allowed: bool,
+    pub positive_prompt: String,
+    pub negative_prompt: String,
+    pub failure_tags: Vec<String>,
+    pub imported_by: String,
+    pub created_at_utc: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierPromptFeedbackRulePackRow {
+    pub rule_pack_id: String,
+    pub version: i64,
+    pub title: String,
+    pub content_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierPromptFeedbackImportRow {
+    pub imported_count: i64,
+    pub cases: Vec<AtelierPromptFeedbackCaseRow>,
+    pub seed_rule_pack: AtelierPromptFeedbackRulePackRow,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierPromptFeedbackRewriteRow {
+    pub rewrite_id: String,
+    pub case_id: String,
+    pub source_case_id: String,
+    pub rule_pack_id: String,
+    pub rule_pack_version: i64,
+    pub input_hash: String,
+    pub output_hash: String,
+    pub changed_fields: Vec<String>,
+    pub rewritten_positive_prompt: String,
+    pub rewritten_negative_prompt: String,
+    pub outcome: serde_json::Value,
+    pub planned_by: String,
+    pub created_at_utc: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierPromptFeedbackExportRow {
+    pub export_id: String,
+    pub rule_pack_id: String,
+    pub rule_pack_version: i64,
+    pub artifact_ref: String,
+    pub manifest_ref: Option<String>,
+    pub content_hash: String,
+    pub byte_len: i64,
+    pub row_count: i64,
+    pub source_case_ids: Vec<String>,
+    pub rewrite_ids: Vec<String>,
+    pub exported_by: String,
+    pub created_at_utc: String,
+}
+
+pub type AtelierPromptFeedbackImportCell =
+    Arc<Mutex<Option<(u64, Result<AtelierPromptFeedbackImportRow, String>)>>>;
+
+pub type AtelierPromptFeedbackRewriteCell =
+    Arc<Mutex<Option<(u64, Result<AtelierPromptFeedbackRewriteRow, String>)>>>;
+
+pub type AtelierPromptFeedbackExportCell =
+    Arc<Mutex<Option<(u64, Result<AtelierPromptFeedbackExportRow, String>)>>>;
+
+/// One-slot delivery cell for backend-generated Facial Ingest analysis artifacts.
+pub type AtelierFacialIngestAnalysisCell =
+    Arc<Mutex<Option<(u64, Result<AtelierFacialIngestAnalysisRow, String>)>>>;
+
+/// One-slot delivery cell for the self-describing Facial feature/command-route registry read
+/// (`GET /atelier/facial/features`). `Ok(row)` on a live parse, `Err(detail)` on a transport/parse
+/// failure so the panel can render an honest degraded readout instead of a silent no-op.
+pub type AtelierFacialFeatureListCell =
+    Arc<Mutex<Option<(u64, Result<AtelierFacialFeatureListRow, String>)>>>;
+
+/// One-slot delivery cell for ANY Facial review command response (session/claim/decision/status/
+/// montage/export). All six routes return the shared `hsk.atelier.facial_api.command_response@1`
+/// envelope, so one cell type + one dispatch method carries every review command. `Ok(row)` is a
+/// parsed command *outcome* envelope: `status` is one of `succeeded`/`degraded`/`blocked`/`error`,
+/// each carrying a durable `receipt_ref`. As of MT-055 all review commands return durable
+/// blocked/degraded/error outcome envelopes at HTTP 200 after request context is established
+/// (failures are parser-visible with a read-backable receipt + recovery_hint, not scraped from
+/// transport errors). `Err(detail)` is a transport/parse failure, including the pre-context HTTP 4xx
+/// cases (missing actor, bad body, unresolvable artifact ref).
+pub type AtelierFacialCommandCell =
+    Arc<Mutex<Option<(u64, Result<AtelierFacialCommandResponseRow, String>)>>>;
+
+/// One-slot delivery cell for CKC per-field prior-value suggestions.
+pub type AtelierCkcFieldSuggestionsCell =
+    Arc<Mutex<Option<Result<Vec<AtelierSheetFieldSuggestionRow>, String>>>>;
+
+/// WP-CKC MT-042: one effective Atelier default-preference row, parsed from an
+/// `EffectivePreference` JSON projection returned by `/atelier/preferences*`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierPreferenceRow {
+    pub key: String,
+    pub namespace: String,
+    pub name: String,
+    pub value: String,
+    pub value_type: String,
+    pub default_value: Option<String>,
+    /// "operator" when an operator row overrides the default, else "default".
+    pub source: String,
+    pub revision: i64,
+}
+
+/// One-slot delivery cell for the effective Atelier default-preferences list
+/// (load + save-result reload). Mirrors the CKC delivery-cell shape.
+pub type AtelierPreferencesCell = Arc<Mutex<Option<Result<Vec<AtelierPreferenceRow>, String>>>>;
+
+/// One-slot delivery cell for a single reset-to-default preference mutation.
+pub type AtelierPreferenceMutationCell = Arc<Mutex<Option<Result<AtelierPreferenceRow, String>>>>;
+
+/// WP-CKC MT-042 (F1): the result of a sequential multi-key save. Because the save
+/// PUTs one key at a time and stops on the first backend error, this carries the rows
+/// that DID persist plus the exact key + detail that failed, so the UI can report which
+/// key failed (not a bare "save failed") and re-sync from the DB.
+#[derive(Debug, Clone, Default)]
+pub struct AtelierPreferenceSaveOutcome {
+    pub saved: Vec<AtelierPreferenceRow>,
+    pub failed_key: Option<String>,
+    pub error: Option<String>,
+}
+
+/// One-slot delivery cell for a multi-key save outcome.
+pub type AtelierPreferenceSaveCell = Arc<Mutex<Option<AtelierPreferenceSaveOutcome>>>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierModelOperationLeaseRow {
+    pub claim_id: String,
+    pub thread_id: String,
+    pub executor_kind: String,
+    pub actor_id: String,
+    pub session_id: String,
+    pub claim_mode: String,
+    pub stored_state: String,
+    pub effective_state: String,
+    pub claimed_at_utc: String,
+    pub ttl_seconds: i64,
+    pub lease_expires_at_utc: String,
+    pub released_at_utc: Option<String>,
+    pub taken_over_at_utc: Option<String>,
+    pub takeover_reason: Option<String>,
+    pub prior_claim_id: Option<String>,
+    pub linked_work_packet_id: String,
+    pub linked_micro_task_id: String,
+    pub lease_age_seconds: i64,
+    pub lease_expired: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierModelOperationStateRow {
+    pub thread_id: String,
+    pub leases: Vec<AtelierModelOperationLeaseRow>,
+    pub required_headers_for_mutation: Vec<String>,
+    pub recovery_hint: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierModelOperationActionReceiptRow {
+    pub receipt_id: String,
+    pub action_id: String,
+    pub params_sha256: String,
+    pub actor_kind: String,
+    pub actor_id: String,
+    pub session_id: String,
+    pub thread_id: String,
+    pub lease_claim_id: String,
+    pub started_at_utc: String,
+    pub completed_at_utc: String,
+    pub status: String,
+    pub target_refs: Vec<String>,
+    pub evidence_refs: Vec<String>,
+    pub result_refs: Vec<String>,
+    pub error_class: Option<String>,
+    pub recovery_hint: Option<String>,
+    pub created_at_utc: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AtelierModelOperationResult {
+    Lease(AtelierModelOperationLeaseRow),
+    Leases(Vec<AtelierModelOperationLeaseRow>),
+    State(AtelierModelOperationStateRow),
+    ActionReceipt(AtelierModelOperationActionReceiptRow),
+}
+
+pub type AtelierModelOperationCell =
+    Arc<Mutex<Option<(u64, Result<AtelierModelOperationResult, String>)>>>;
+
+fn parse_atelier_lane_count(value: &serde_json::Value, field: &str) -> Result<usize, AppError> {
+    value
+        .get(field)
+        .and_then(|x| x.as_u64())
+        .and_then(|count| usize::try_from(count).ok())
+        .ok_or_else(|| AppError::Parse(format!("missing intake lane_counts.{field}")))
+}
+
+fn parse_atelier_lane_counts(value: &serde_json::Value) -> Result<AtelierLaneCounts, AppError> {
+    let counts = value
+        .get("lane_counts")
+        .ok_or_else(|| AppError::Parse("missing intake items lane_counts".to_owned()))?;
+    Ok(AtelierLaneCounts {
+        pending: parse_atelier_lane_count(counts, "pending")?,
+        accepted: parse_atelier_lane_count(counts, "accepted")?,
+        rejected: parse_atelier_lane_count(counts, "rejected")?,
+        deferred: parse_atelier_lane_count(counts, "deferred")?,
+        skipped: parse_atelier_lane_count(counts, "skipped")?,
+        failed: parse_atelier_lane_count(counts, "failed")?,
+    })
+}
+
+fn parse_atelier_batch_items_projection(
+    v: &serde_json::Value,
+) -> Result<AtelierBatchItemsProjection, AppError> {
+    let lane_counts = parse_atelier_lane_counts(v)?;
+    let items = v
+        .get("items")
+        .and_then(|x| x.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let rows = items
+        .iter()
+        .filter_map(|row| {
+            let item_id = row.get("item_id").and_then(|x| x.as_str())?.to_owned();
+            if item_id.is_empty() {
+                return None;
+            }
+            Some(AtelierItemRow {
+                item_id,
+                file_name: row
+                    .get("file_name")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("(unnamed item)")
+                    .to_owned(),
+                source_path: row
+                    .get("source_path")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_owned(),
+                lane: row
+                    .get("lane")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_owned(),
+            })
+        })
+        .collect();
+    Ok(AtelierBatchItemsProjection {
+        lane_counts,
+        items: rows,
+    })
+}
+
+fn parse_atelier_intake_item_row(row: &serde_json::Value) -> Option<AtelierItemRow> {
+    let item_id = row.get("item_id").and_then(|x| x.as_str())?.to_owned();
+    if item_id.is_empty() {
+        return None;
+    }
+    Some(AtelierItemRow {
+        item_id,
+        file_name: row
+            .get("file_name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("(unnamed item)")
+            .to_owned(),
+        source_path: row
+            .get("source_path")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        lane: row
+            .get("lane")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+    })
+}
+
+fn parse_atelier_intake_classification_row(
+    value: &serde_json::Value,
+) -> Option<AtelierIntakeClassificationRow> {
+    let item = parse_atelier_intake_item_row(value.get("item")?)?;
+    if !matches!(
+        item.lane.as_str(),
+        "pending" | "accepted" | "rejected" | "deferred" | "skipped" | "failed"
+    ) {
+        return None;
+    }
+    let collection_inserted = value.get("collection_inserted")?.as_bool()?;
+    let requested_by = value.get("requested_by")?.as_str()?.trim();
+    if requested_by.is_empty() {
+        return None;
+    }
+    let asset_id = value
+        .get("asset_id")
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned);
+    let media_ref = value
+        .get("media_ref")
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned);
+    let collection_id = value
+        .get("collection_id")
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned);
+    let collection_ref = value
+        .get("collection_ref")
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned);
+    if item.lane == "accepted" && (asset_id.is_none() || media_ref.is_none()) {
+        return None;
+    }
+    if collection_inserted && (collection_id.is_none() || collection_ref.is_none()) {
+        return None;
+    }
+    Some(AtelierIntakeClassificationRow {
+        item,
+        asset_id,
+        media_ref,
+        collection_id,
+        collection_ref,
+        collection_inserted,
+        requested_by: requested_by.to_owned(),
+    })
+}
+
+fn parse_atelier_intake_batch_classification_outcome(
+    request_id: String,
+    expected_batch_id: &str,
+    expected_requested_by: &str,
+    value: &serde_json::Value,
+) -> Result<AtelierIntakeClassificationOutcome, AppError> {
+    let batch_id = value
+        .get("batch_id")
+        .and_then(|x| x.as_str())
+        .ok_or_else(|| AppError::Parse("missing intake batch apply batch_id".to_owned()))?;
+    if batch_id != expected_batch_id {
+        return Err(AppError::Parse(format!(
+            "intake batch apply response batch_id mismatch: expected {expected_batch_id}, got {batch_id}"
+        )));
+    }
+    let total_item_count = value
+        .get("total_item_count")
+        .and_then(|x| x.as_u64())
+        .and_then(|count| usize::try_from(count).ok())
+        .ok_or_else(|| AppError::Parse("missing intake batch apply total_item_count".to_owned()))?;
+    let requested_by = value
+        .get("requested_by")
+        .and_then(|x| x.as_str())
+        .map(str::trim)
+        .filter(|x| !x.is_empty())
+        .ok_or_else(|| AppError::Parse("missing intake batch apply requested_by".to_owned()))?;
+    if requested_by != expected_requested_by {
+        return Err(AppError::Parse(format!(
+            "intake batch apply requested_by mismatch: expected {expected_requested_by}, got {requested_by}"
+        )));
+    }
+    let applied_count = value
+        .get("applied_count")
+        .and_then(|x| x.as_u64())
+        .and_then(|count| usize::try_from(count).ok())
+        .ok_or_else(|| AppError::Parse("missing intake batch apply applied_count".to_owned()))?;
+    let applied_values = value
+        .get("applied")
+        .and_then(|x| x.as_array())
+        .ok_or_else(|| AppError::Parse("missing intake batch apply rows".to_owned()))?;
+    let mut applied = Vec::with_capacity(applied_values.len());
+    for row in applied_values {
+        let parsed = parse_atelier_intake_classification_row(row)
+            .ok_or_else(|| AppError::Parse("invalid intake batch classification row".to_owned()))?;
+        if parsed.requested_by != requested_by {
+            return Err(AppError::Parse(
+                "intake batch apply row requested_by mismatch".to_owned(),
+            ));
+        }
+        applied.push(parsed);
+    }
+    let failed = match value.get("failed") {
+        Some(serde_json::Value::Null) | None => None,
+        Some(raw) => {
+            let item_id = raw
+                .get("item_id")
+                .and_then(|x| x.as_str())
+                .filter(|x| !x.trim().is_empty())
+                .ok_or_else(|| AppError::Parse("missing intake batch failed item_id".to_owned()))?
+                .to_owned();
+            let index = raw
+                .get("index")
+                .and_then(|x| x.as_u64())
+                .and_then(|index| usize::try_from(index).ok())
+                .ok_or_else(|| AppError::Parse("missing intake batch failed index".to_owned()))?;
+            let error = raw
+                .get("error")
+                .and_then(|x| x.as_str())
+                .filter(|x| !x.trim().is_empty())
+                .ok_or_else(|| AppError::Parse("missing intake batch failed error".to_owned()))?
+                .to_owned();
+            Some(AtelierIntakeClassificationFailure {
+                item_id,
+                index,
+                error,
+            })
+        }
+    };
+    if applied.len() > applied_count {
+        return Err(AppError::Parse(format!(
+            "intake batch apply preview exceeds applied_count: preview={} applied_count={applied_count}",
+            applied.len()
+        )));
+    }
+    if applied_count > total_item_count {
+        return Err(AppError::Parse(format!(
+            "intake batch apply count mismatch: applied_count={applied_count} total={total_item_count}"
+        )));
+    }
+    if failed.is_none() && applied_count != total_item_count {
+        return Err(AppError::Parse(format!(
+            "intake batch apply count mismatch: applied_count={applied_count} total={total_item_count}"
+        )));
+    }
+    Ok(AtelierIntakeClassificationOutcome {
+        request_id,
+        batch_id: Some(batch_id.to_owned()),
+        total_item_count: Some(total_item_count),
+        applied_count,
+        requested_by: requested_by.to_owned(),
+        applied,
+        failed,
+    })
+}
+
+fn actor_post_error_detail(text: &str) -> String {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(text) else {
+        return text.to_owned();
+    };
+    let Some(error) = value.get("error").and_then(|error| error.as_str()) else {
+        return text.to_owned();
+    };
+    if error == "stale_sheet_version"
+        || error == "stale_character_document_version"
+        || error == "stale_moodboard_document_version"
+    {
+        let mut detail = vec![error.to_owned()];
+        let keys: &[&str] = match error {
+            "stale_sheet_version" => &[
+                "character_ref",
+                "expected_parent_version_id",
+                "expected_parent_sheet_version_ref",
+                "current_head_version_id",
+                "current_head_sheet_version_ref",
+            ],
+            "stale_character_document_version" => &[
+                "document_ref",
+                "expected_parent_version_id",
+                "expected_parent_document_version_ref",
+                "current_head_version_id",
+                "current_head_document_version_ref",
+            ],
+            "stale_moodboard_document_version" => &[
+                "document_ref",
+                "expected_document_version_id",
+                "expected_document_version_ref",
+                "current_head_version_id",
+                "current_head_document_version_ref",
+            ],
+            _ => &[],
+        };
+        for key in keys {
+            if let Some(raw) = value.get(key) {
+                if raw.is_null() {
+                    continue;
+                }
+                let rendered = raw
+                    .as_str()
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| raw.to_string());
+                detail.push(format!("{key}={rendered}"));
+            }
+        }
+        return detail.join("; ");
+    }
+    error.to_owned()
+}
+
+async fn post_json_with_actor(
+    client: &reqwest::Client,
+    spec: &ActorRequestSpec,
+) -> Result<serde_json::Value, AppError> {
+    let body = spec
+        .body
+        .as_ref()
+        .ok_or_else(|| AppError::Parse("actor POST request missing JSON body".to_owned()))?;
+    let mut request = client
+        .post(&spec.url)
+        .timeout(Duration::from_secs(5))
+        .json(body);
+    for (name, value) in &spec.headers {
+        request = request.header(name.as_str(), value.as_str());
+    }
+    if actor_request_needs_operator_kind(spec) {
+        request = request.header(HSK_HEADER_ACTOR_KIND, "operator");
+    }
+    let resp = request
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        let detail = actor_post_error_detail(&text);
+        return Err(AppError::Http(format!(
+            "POST non-success status {status}: {detail}"
+        )));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
+}
+
+/// WP-CKC MT-042 / MT-034: send an actor-attributed JSON request whose HTTP verb is taken
+/// from `spec.method` (PUT, PATCH, or POST). Mirrors [`post_json_with_actor`] but honors the
+/// method so preference writes and CKC album link edits/reorders share one worker path.
+/// Fail-closed: a non-success status is a typed error carrying the backend detail.
+async fn send_json_with_actor(
+    client: &reqwest::Client,
+    spec: &ActorRequestSpec,
+) -> Result<serde_json::Value, AppError> {
+    let body = spec
+        .body
+        .as_ref()
+        .ok_or_else(|| AppError::Parse("actor request missing JSON body".to_owned()))?;
+    let builder = match spec.method {
+        HttpMethod::Put => client.put(&spec.url),
+        HttpMethod::Patch => client.patch(&spec.url),
+        HttpMethod::Post => client.post(&spec.url),
+        _ => {
+            return Err(AppError::Parse(
+                "send_json_with_actor only supports PUT/PATCH/POST".to_owned(),
+            ));
+        }
+    };
+    let mut request = builder.timeout(Duration::from_secs(5)).json(body);
+    for (name, value) in &spec.headers {
+        request = request.header(name.as_str(), value.as_str());
+    }
+    if actor_request_needs_operator_kind(spec) {
+        request = request.header(HSK_HEADER_ACTOR_KIND, "operator");
+    }
+    let resp = request
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        let detail = actor_post_error_detail(&text);
+        return Err(AppError::Http(format!(
+            "{} non-success status {status}: {detail}",
+            match spec.method {
+                HttpMethod::Put => "PUT",
+                HttpMethod::Patch => "PATCH",
+                _ => "POST",
+            }
+        )));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
+}
+
+async fn delete_json_with_actor(
+    client: &reqwest::Client,
+    spec: &ActorRequestSpec,
+) -> Result<serde_json::Value, AppError> {
+    let mut request = client.delete(&spec.url).timeout(Duration::from_secs(5));
+    for (name, value) in &spec.headers {
+        request = request.header(name.as_str(), value.as_str());
+    }
+    if actor_request_needs_operator_kind(spec) {
+        request = request.header(HSK_HEADER_ACTOR_KIND, "operator");
+    }
+    let resp = request
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        let detail = actor_post_error_detail(&text);
+        return Err(AppError::Http(format!(
+            "DELETE non-success status {status}: {detail}"
+        )));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
+}
+
+async fn load_atelier_ckc(
+    client: &reqwest::Client,
+    characters_url: &str,
+    base_url: &str,
+) -> Result<AtelierCkcData, AppError> {
+    let characters = fetch_atelier_characters(client, characters_url).await?;
+    let mut rows = Vec::with_capacity(characters.len());
+    for character in characters {
+        let sheet_url = format!(
+            "{}/atelier/characters/{}/sheet-versions",
+            base_url, character.internal_id
+        );
+        let latest_sheet = fetch_atelier_sheet_versions(client, &sheet_url)
+            .await?
+            .into_iter()
+            .max_by_key(|row| row.seq);
+        let sheet_artifact_links = if let Some(sheet) = latest_sheet.as_ref() {
+            let links_url = format!(
+                "{}/atelier/sheet-versions/{}/artifact-links",
+                base_url, sheet.version_id
+            );
+            fetch_atelier_sheet_artifact_links(client, &links_url).await?
+        } else {
+            Vec::new()
+        };
+        let albums_url = format!(
+            "{}/atelier/characters/{}/media-albums",
+            base_url, character.internal_id
+        );
+        let media_album_page = fetch_atelier_media_albums(client, &albums_url).await?;
+        let story_url = format!(
+            "{}/atelier/characters/{}/documents",
+            base_url, character.internal_id
+        );
+        let story_query = vec![("doc_type".to_owned(), "story".to_owned())];
+        let mut story_documents =
+            fetch_atelier_character_documents(client, &story_url, &story_query).await?;
+        for document in &mut story_documents {
+            let cards_url = format!(
+                "{}/atelier/character-documents/{}/story-cards",
+                base_url, document.document_id
+            );
+            document.story_cards = fetch_atelier_story_cards(client, &cards_url).await?;
+            let beats_url = format!(
+                "{}/atelier/character-documents/{}/story-beats",
+                base_url, document.document_id
+            );
+            document.story_beats = fetch_atelier_story_beats(client, &beats_url).await?;
+        }
+        let moodboard_url = format!(
+            "{}/atelier/characters/{}/documents",
+            base_url, character.internal_id
+        );
+        let moodboard_query = vec![("doc_type".to_owned(), "moodboard".to_owned())];
+        let moodboard_documents =
+            fetch_atelier_character_documents(client, &moodboard_url, &moodboard_query).await?;
+        let mut moodboard_snapshots = Vec::new();
+        for document in &moodboard_documents {
+            let snapshot_url = format!(
+                "{}/atelier/character-documents/{}/moodboard/latest",
+                base_url, document.document_id
+            );
+            match fetch_atelier_moodboard_snapshot(client, &snapshot_url).await? {
+                Some(snapshot) => moodboard_snapshots.push(snapshot),
+                None => {}
+            }
+        }
+        rows.push(AtelierCkcCharacterSheetRow {
+            character,
+            latest_sheet,
+            sheet_artifact_links,
+            media_album_offset: media_album_page.offset,
+            media_album_limit: media_album_page.limit,
+            media_album_member_limit: media_album_page.member_limit,
+            media_album_count: media_album_page.album_count,
+            media_albums_next_offset: media_album_page.albums_next_offset,
+            media_albums: media_album_page.albums,
+            story_documents,
+            moodboard_documents,
+            moodboard_snapshots,
+        });
+    }
+    Ok(AtelierCkcData { characters: rows })
+}
+
+async fn fetch_atelier_characters(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierCharacterRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    let arr = value.as_array().cloned().unwrap_or_default();
+    Ok(arr.iter().filter_map(parse_atelier_character_row).collect())
+}
+
+async fn fetch_atelier_sheet_versions(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierSheetVersionRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    let arr = value.as_array().cloned().unwrap_or_default();
+    Ok(arr
+        .iter()
+        .filter_map(parse_atelier_sheet_version_row)
+        .collect())
+}
+
+async fn fetch_atelier_media_albums(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<AtelierCkcMediaAlbumListPageRow, AppError> {
+    let query = vec![
+        ("offset".to_owned(), "0".to_owned()),
+        ("limit".to_owned(), CKC_ALBUM_LIST_PAGE_LIMIT.to_string()),
+        (
+            "member_limit".to_owned(),
+            CKC_ALBUM_MEMBER_PREVIEW_LIMIT.to_string(),
+        ),
+    ];
+    let value = get_json(client, url, &query).await?;
+    parse_atelier_media_album_list_page(&value)
+}
+
+fn parse_atelier_media_album_list_page(
+    value: &serde_json::Value,
+) -> Result<AtelierCkcMediaAlbumListPageRow, AppError> {
+    let page_offset = value.get("offset").and_then(|x| x.as_i64()).unwrap_or(0);
+    let page_limit = value
+        .get("limit")
+        .and_then(|x| x.as_i64())
+        .unwrap_or(CKC_ALBUM_LIST_PAGE_LIMIT);
+    let page_member_limit = value
+        .get("member_limit")
+        .and_then(|x| x.as_i64())
+        .unwrap_or(CKC_ALBUM_MEMBER_PREVIEW_LIMIT);
+    let albums_next_offset = value.get("albums_next_offset").and_then(|x| x.as_i64());
+    let arr = value
+        .get("albums")
+        .and_then(|albums| albums.as_array())
+        .cloned()
+        .or_else(|| value.as_array().cloned())
+        .unwrap_or_default();
+    let albums = arr
+        .iter()
+        .filter_map(parse_atelier_media_album_row)
+        .collect::<Vec<_>>();
+    let album_count = value
+        .get("album_count")
+        .and_then(|x| x.as_u64())
+        .map(|count| count as usize)
+        .unwrap_or(albums.len());
+    Ok(AtelierCkcMediaAlbumListPageRow {
+        offset: page_offset,
+        limit: page_limit,
+        member_limit: page_member_limit,
+        album_count,
+        albums_next_offset,
+        albums,
+    })
+}
+
+async fn fetch_atelier_sheet_artifact_links(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierCkcSheetArtifactLinkRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    parse_atelier_sheet_artifact_link_rows(&value)
+}
+
+fn parse_atelier_sheet_artifact_link_rows(
+    value: &serde_json::Value,
+) -> Result<Vec<AtelierCkcSheetArtifactLinkRow>, AppError> {
+    let arr = value.as_array().ok_or_else(|| {
+        AppError::Parse("CKC sheet artifact links response was not an array".to_owned())
+    })?;
+    arr.iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            parse_atelier_sheet_artifact_link_row(row).ok_or_else(|| {
+                AppError::Parse(format!(
+                    "malformed CKC sheet artifact link row at index {idx}"
+                ))
+            })
+        })
+        .collect()
+}
+
+async fn fetch_atelier_character_documents(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<Vec<AtelierCkcCharacterDocumentRow>, AppError> {
+    let value = get_json(client, url, query).await?;
+    let arr = value.as_array().ok_or_else(|| {
+        AppError::Parse("CKC character documents response was not an array".to_owned())
+    })?;
+    arr.iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            parse_atelier_ckc_document_row(row).ok_or_else(|| {
+                AppError::Parse(format!(
+                    "malformed CKC character document row at index {idx}"
+                ))
+            })
+        })
+        .collect()
+}
+
+async fn fetch_atelier_story_cards(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierCkcStoryCardRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    let arr = value
+        .as_array()
+        .ok_or_else(|| AppError::Parse("CKC story cards response was not an array".to_owned()))?;
+    arr.iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            parse_atelier_ckc_story_card_row(row).ok_or_else(|| {
+                AppError::Parse(format!("malformed CKC story-card row at index {idx}"))
+            })
+        })
+        .collect()
+}
+
+async fn fetch_atelier_story_beats(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierCkcStoryBeatRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    let arr = value
+        .as_array()
+        .ok_or_else(|| AppError::Parse("CKC story beats response was not an array".to_owned()))?;
+    arr.iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            parse_atelier_ckc_story_beat_row(row).ok_or_else(|| {
+                AppError::Parse(format!("malformed CKC story-beat row at index {idx}"))
+            })
+        })
+        .collect()
+}
+
+async fn fetch_atelier_moodboard_snapshot(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Option<AtelierCkcMoodboardSnapshotRow>, AppError> {
+    let resp = client
+        .get(url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if status == reqwest::StatusCode::NOT_FOUND {
+        let value = serde_json::from_str::<serde_json::Value>(&text).ok();
+        let expected_not_found = value
+            .as_ref()
+            .and_then(|value| value.get("error"))
+            .and_then(|value| value.as_str())
+            == Some("not_found");
+        if expected_not_found {
+            return Ok(None);
+        }
+        return Err(AppError::Http(format!(
+            "GET latest CKC moodboard snapshot unexpected 404 body: {text}"
+        )));
+    }
+    if !status.is_success() {
+        return Err(AppError::Http(format!(
+            "GET latest CKC moodboard snapshot non-success status {status}: {text}"
+        )));
+    }
+    let value = serde_json::from_str::<serde_json::Value>(&text)
+        .map_err(|e| AppError::Parse(e.to_string()))?;
+    parse_atelier_ckc_moodboard_snapshot_row(&value)
+        .map(Some)
+        .ok_or_else(|| {
+            AppError::Parse("malformed CKC moodboard snapshot row in latest response".to_owned())
+        })
+}
+
+fn json_string(row: &serde_json::Value, field: &str) -> Option<String> {
+    row.get(field)
+        .and_then(|x| x.as_str())
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn json_string_field(row: &serde_json::Value, field: &str) -> Option<String> {
+    row.get(field)
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned)
+}
+
+fn json_required_nonempty_string(row: &serde_json::Value, field: &str) -> Option<String> {
+    json_string_field(row, field).filter(|value| !value.is_empty())
+}
+
+fn json_required_i64(row: &serde_json::Value, field: &str) -> Option<i64> {
+    row.get(field).and_then(|x| x.as_i64())
+}
+
+fn json_string_vec(row: &serde_json::Value, field: &str) -> Vec<String> {
+    row.get(field)
+        .and_then(|x| x.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|value| value.as_str())
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn json_required_string_vec(row: &serde_json::Value, field: &str) -> Option<Vec<String>> {
+    row.get(field).and_then(|x| x.as_array()).map(|arr| {
+        arr.iter()
+            .filter_map(|value| value.as_str())
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+            .collect()
+    })
+}
+
+fn parse_atelier_character_row(row: &serde_json::Value) -> Option<AtelierCharacterRow> {
+    let internal_id = row.get("internal_id").and_then(|x| x.as_str())?.to_owned();
+    if internal_id.is_empty() {
+        return None;
+    }
+    Some(AtelierCharacterRow {
+        internal_id,
+        public_id: row
+            .get("public_id")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        display_name: row
+            .get("display_name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("(unnamed character)")
+            .to_owned(),
+        character_ref: row
+            .get("character_ref")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+    })
+}
+
+fn parse_atelier_sheet_version_row(row: &serde_json::Value) -> Option<AtelierSheetVersionRow> {
+    let version_id = row.get("version_id").and_then(|x| x.as_str())?.to_owned();
+    let character_internal_id = row
+        .get("character_internal_id")
+        .and_then(|x| x.as_str())?
+        .to_owned();
+    if version_id.is_empty() || character_internal_id.is_empty() {
+        return None;
+    }
+    Some(AtelierSheetVersionRow {
+        version_id,
+        character_internal_id,
+        parent_version_id: row
+            .get("parent_version_id")
+            .and_then(|x| x.as_str())
+            .map(ToOwned::to_owned),
+        seq: row.get("seq").and_then(|x| x.as_i64()).unwrap_or(0),
+        raw_text: row
+            .get("raw_text")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        author: row
+            .get("author")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        tool: row
+            .get("tool")
+            .and_then(|x| x.as_str())
+            .map(ToOwned::to_owned),
+        character_ref: row
+            .get("character_ref")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        sheet_version_ref: row
+            .get("sheet_version_ref")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+    })
+}
+
+fn parse_atelier_ckc_document_version_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcDocumentVersionRow> {
+    let version_id = json_required_nonempty_string(row, "version_id")?;
+    let document_id = json_required_nonempty_string(row, "document_id")?;
+    Some(AtelierCkcDocumentVersionRow {
+        version_id,
+        document_id: document_id.clone(),
+        document_ref: json_required_nonempty_string(row, "document_ref")?,
+        version_seq: json_required_i64(row, "version_seq")?,
+        title: json_string_field(row, "title")?,
+        body_raw_text: json_string_field(row, "body_raw_text")?,
+        tags: json_required_string_vec(row, "tags")?,
+        author: json_string_field(row, "author")?,
+    })
+}
+
+fn parse_atelier_ckc_document_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcCharacterDocumentRow> {
+    let document_id = json_required_nonempty_string(row, "document_id")?;
+    Some(AtelierCkcCharacterDocumentRow {
+        document_id: document_id.clone(),
+        document_ref: json_required_nonempty_string(row, "document_ref")?,
+        character_internal_id: json_required_nonempty_string(row, "character_internal_id")?,
+        character_ref: json_required_nonempty_string(row, "character_ref")?,
+        doc_type: json_required_nonempty_string(row, "doc_type")?,
+        title: json_string_field(row, "title")?,
+        tags: json_required_string_vec(row, "tags")?,
+        current_version_id: json_required_nonempty_string(row, "current_version_id")?,
+        current_version_seq: json_required_i64(row, "current_version_seq")?,
+        current_version: Some(
+            row.get("current_version")
+                .and_then(parse_atelier_ckc_document_version_row)?,
+        ),
+        story_cards: Vec::new(),
+        story_beats: Vec::new(),
+    })
+}
+
+fn parse_atelier_ckc_story_card_row(row: &serde_json::Value) -> Option<AtelierCkcStoryCardRow> {
+    let card_id = json_required_nonempty_string(row, "card_id")?;
+    let story_document_id = json_required_nonempty_string(row, "story_document_id")?;
+    Some(AtelierCkcStoryCardRow {
+        card_id: card_id.clone(),
+        card_ref: json_required_nonempty_string(row, "card_ref")?,
+        story_document_id: story_document_id.clone(),
+        story_document_ref: json_required_nonempty_string(row, "story_document_ref")?,
+        seq: json_required_i64(row, "seq")?,
+        title: json_string_field(row, "title")?,
+        body_raw_text: json_string_field(row, "body_raw_text")?,
+        tags: json_required_string_vec(row, "tags")?,
+    })
+}
+
+fn parse_atelier_ckc_story_beat_row(row: &serde_json::Value) -> Option<AtelierCkcStoryBeatRow> {
+    let beat_id = json_required_nonempty_string(row, "beat_id")?;
+    let story_document_id = json_required_nonempty_string(row, "story_document_id")?;
+    Some(AtelierCkcStoryBeatRow {
+        beat_id: beat_id.clone(),
+        beat_ref: json_required_nonempty_string(row, "beat_ref")?,
+        story_document_id: story_document_id.clone(),
+        story_document_ref: json_required_nonempty_string(row, "story_document_ref")?,
+        card_id: json_string(row, "card_id"),
+        card_ref: json_string(row, "card_ref"),
+        seq: json_required_i64(row, "seq")?,
+        beat_text: json_string_field(row, "beat_text")?,
+    })
+}
+
+fn parse_atelier_ckc_moodboard_snapshot_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcMoodboardSnapshotRow> {
+    let snapshot_id = json_required_nonempty_string(row, "snapshot_id")?;
+    let document_id = json_required_nonempty_string(row, "document_id")?;
+    let moodboard_json = row.get("moodboard_json")?.clone();
+    if !moodboard_json.is_object() {
+        return None;
+    }
+    let moodboard_name = row
+        .get("moodboard")
+        .and_then(|value| value.get("name"))
+        .and_then(|value| value.as_str())
+        .or_else(|| moodboard_json.get("name").and_then(|value| value.as_str()))
+        .map(ToOwned::to_owned)?;
+    Some(AtelierCkcMoodboardSnapshotRow {
+        snapshot_id: snapshot_id.clone(),
+        moodboard_ref: json_required_nonempty_string(row, "moodboard_ref")?,
+        document_id: document_id.clone(),
+        document_ref: json_required_nonempty_string(row, "document_ref")?,
+        document_version_id: json_required_nonempty_string(row, "document_version_id")?,
+        schema_id: json_required_nonempty_string(row, "schema_id")?,
+        schema_version: json_required_i64(row, "schema_version")?,
+        raw_json_text: json_string_field(row, "raw_json_text")?,
+        moodboard_name,
+        moodboard_json,
+        content_sha256: json_required_nonempty_string(row, "content_sha256")?,
+        author: json_string_field(row, "author")?,
+    })
+}
+
+fn parse_atelier_media_album_row(row: &serde_json::Value) -> Option<AtelierCkcMediaAlbumRow> {
+    let collection_id = json_string(row, "collection_id")?;
+    if collection_id.is_empty() {
+        return None;
+    }
+    let members = row
+        .get("members")
+        .and_then(|x| x.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(parse_atelier_media_member_row)
+                .collect()
+        })
+        .unwrap_or_default();
+    Some(AtelierCkcMediaAlbumRow {
+        collection_id: collection_id.clone(),
+        collection_ref: json_string(row, "collection_ref")
+            .unwrap_or_else(|| format!("atelier://collection/{collection_id}")),
+        name: row
+            .get("name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("(unnamed album)")
+            .to_owned(),
+        description: json_string(row, "notes"),
+        character_internal_id: json_string(row, "character_internal_id").unwrap_or_default(),
+        character_ref: json_string(row, "character_ref").unwrap_or_default(),
+        sheet_version_id: json_string(row, "sheet_version_id"),
+        sheet_version_ref: json_string(row, "sheet_version_ref"),
+        tags: json_string_vec(row, "tags"),
+        member_count: row
+            .get("member_count")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0) as usize,
+        members_next_offset: row.get("members_next_offset").and_then(|x| x.as_i64()),
+        members,
+        created_by: json_string(row, "created_by").unwrap_or_else(|| "unknown".to_owned()),
+        updated_by: json_string(row, "updated_by").unwrap_or_else(|| "unknown".to_owned()),
+    })
+}
+
+fn parse_atelier_media_album_items_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcMediaAlbumItemsRow> {
+    let collection_id = json_string(row, "collection_id")?;
+    if collection_id.is_empty() {
+        return None;
+    }
+    let members = row
+        .get("members")
+        .and_then(|x| x.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(parse_atelier_media_member_row)
+                .collect()
+        })
+        .unwrap_or_default();
+    Some(AtelierCkcMediaAlbumItemsRow {
+        collection_id: collection_id.clone(),
+        collection_ref: json_string(row, "collection_ref")
+            .unwrap_or_else(|| format!("atelier://collection/{collection_id}")),
+        mutation: json_string(row, "mutation"),
+        concurrency_policy: json_string(row, "concurrency_policy"),
+        actor_id: json_string(row, "actor_id"),
+        removed_by: json_string(row, "removed_by"),
+        unlink_receipt_id: json_string(row, "unlink_receipt_id"),
+        unlinked_at_utc: json_string(row, "unlinked_at_utc"),
+        asset_id: json_string(row, "asset_id"),
+        media_ref: json_string(row, "media_ref"),
+        requested: row.get("requested").and_then(|x| x.as_u64()).unwrap_or(0) as usize,
+        inserted: row.get("inserted").and_then(|x| x.as_u64()).unwrap_or(0) as usize,
+        removed: row.get("removed").and_then(|x| x.as_u64()).unwrap_or(0) as usize,
+        updated: row.get("updated").and_then(|x| x.as_u64()).unwrap_or(0) as usize,
+        reordered: row.get("reordered").and_then(|x| x.as_u64()).unwrap_or(0) as usize,
+        offset: row.get("offset").and_then(|x| x.as_i64()).unwrap_or(0),
+        limit: row
+            .get("limit")
+            .and_then(|x| x.as_i64())
+            .unwrap_or(CKC_ALBUM_MEMBER_PAGE_LIMIT),
+        member_count: row
+            .get("member_count")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0) as usize,
+        members_next_offset: row.get("members_next_offset").and_then(|x| x.as_i64()),
+        members,
+    })
+}
+
+fn parse_atelier_sheet_artifact_link_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcSheetArtifactLinkRow> {
+    let link_id = json_required_nonempty_string(row, "link_id")?;
+    Some(AtelierCkcSheetArtifactLinkRow {
+        link_id,
+        character_internal_id: json_required_nonempty_string(row, "character_internal_id")?,
+        character_ref: json_required_nonempty_string(row, "character_ref")?,
+        sheet_version_id: json_required_nonempty_string(row, "sheet_version_id")?,
+        sheet_version_ref: json_required_nonempty_string(row, "sheet_version_ref")?,
+        typed_ref: json_required_nonempty_string(row, "typed_ref")?,
+        artifact_kind: json_required_nonempty_string(row, "artifact_kind")?,
+        artifact_ref: json_required_nonempty_string(row, "artifact_ref")?,
+        manifest_ref: json_string(row, "manifest_ref"),
+        source_ref: json_string(row, "source_ref"),
+        label: json_string(row, "label"),
+        reuse_role: json_string(row, "reuse_role"),
+        linked_by: json_required_nonempty_string(row, "linked_by")?,
+        metadata: row
+            .get("metadata")
+            .cloned()
+            .filter(|value| value.is_object())
+            .unwrap_or_else(|| serde_json::json!({})),
+    })
+}
+
+fn parse_atelier_media_member_row(row: &serde_json::Value) -> Option<AtelierCkcMediaMemberRow> {
+    let asset_id = json_string(row, "asset_id")?;
+    if asset_id.is_empty() {
+        return None;
+    }
+    let content_hash = json_string(row, "content_hash").unwrap_or_default();
+    Some(AtelierCkcMediaMemberRow {
+        asset_id: asset_id.clone(),
+        media_ref: json_string(row, "media_ref")
+            .unwrap_or_else(|| format!("atelier://media/{asset_id}")),
+        file_name: json_string(row, "file_name")
+            .or_else(|| {
+                if content_hash.len() > 12 {
+                    Some(format!("media {}", &content_hash[..12]))
+                } else if content_hash.is_empty() {
+                    None
+                } else {
+                    Some(format!("media {content_hash}"))
+                }
+            })
+            .unwrap_or_else(|| "(unnamed media)".to_owned()),
+        content_type: json_string(row, "content_type").unwrap_or_else(|| "image".to_owned()),
+        sort_order: row.get("sort_order").and_then(|x| x.as_i64()).unwrap_or(0),
+        source_path: json_string(row, "source_path"),
+        source_url: json_string(row, "source_url"),
+        source_path_ref: json_string(row, "source_path_ref"),
+        source_url_ref: json_string(row, "source_url_ref"),
+        link_source_path_ref: json_string(row, "link_source_path_ref"),
+        link_source_url_ref: json_string(row, "link_source_url_ref"),
+        link_source_path_ref_status: json_string(row, "link_source_path_ref_status")
+            .unwrap_or_else(|| "unknown".to_owned()),
+        link_source_url_ref_status: json_string(row, "link_source_url_ref_status")
+            .unwrap_or_else(|| "unknown".to_owned()),
+        asset_source_path_ref_status: json_string(row, "asset_source_path_ref_status")
+            .unwrap_or_else(|| "unknown".to_owned()),
+        asset_source_url_ref_status: json_string(row, "asset_source_url_ref_status")
+            .unwrap_or_else(|| "unknown".to_owned()),
+        source_path_ref_origin: json_string(row, "source_path_ref_origin")
+            .unwrap_or_else(|| "unknown".to_owned()),
+        source_url_ref_origin: json_string(row, "source_url_ref_origin")
+            .unwrap_or_else(|| "unknown".to_owned()),
+        linked_by: json_string(row, "linked_by").unwrap_or_else(|| "unknown".to_owned()),
+        member_updated_by: json_string(row, "member_updated_by")
+            .unwrap_or_else(|| "unknown".to_owned()),
+        member_updated_at_utc: json_string(row, "member_updated_at_utc"),
+        notes_updated_by: json_string(row, "notes_updated_by"),
+        notes_updated_at_utc: json_string(row, "notes_updated_at_utc"),
+        notes: json_string(row, "notes"),
+        review_status: json_string(row, "review_status"),
+        tags: json_string_vec(row, "tags"),
+    })
+}
+
+fn parse_atelier_media_notes_tags_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcMediaNotesTagsRow> {
+    let asset_id = json_string(row, "asset_id")?;
+    if asset_id.is_empty() {
+        return None;
+    }
+    Some(AtelierCkcMediaNotesTagsRow {
+        asset_id: asset_id.clone(),
+        media_ref: json_string(row, "media_ref")
+            .unwrap_or_else(|| format!("atelier://media/{asset_id}")),
+        notes: json_string(row, "notes"),
+        review_status: json_string(row, "review_status"),
+        tags: json_string_vec(row, "tags"),
+        source_path_ref: json_string(row, "source_path_ref"),
+        source_url_ref: json_string(row, "source_url_ref"),
+        updated_by: json_string(row, "updated_by"),
+        updated_at_utc: json_string(row, "updated_at_utc"),
+    })
+}
+
+fn parse_atelier_ckc_tag_note_row(row: &serde_json::Value) -> Option<AtelierCkcTagNoteRow> {
+    let tag_text = json_string(row, "tag_text")?;
+    if tag_text.is_empty() {
+        return None;
+    }
+    Some(AtelierCkcTagNoteRow {
+        tag_ref: json_string(row, "tag_ref").unwrap_or_default(),
+        tag_text,
+        scope_ref: json_string(row, "scope_ref"),
+        note: json_string(row, "note").unwrap_or_default(),
+    })
+}
+
+fn parse_atelier_ckc_search_result(row: &serde_json::Value) -> Option<AtelierCkcSearchResultRow> {
+    let target_ref = json_string(row, "target_ref")?;
+    if target_ref.is_empty() {
+        return None;
+    }
+    let tag_notes = row
+        .get("tag_notes")
+        .and_then(|value| value.as_array())
+        .map(|rows| {
+            rows.iter()
+                .filter_map(parse_atelier_ckc_tag_note_row)
+                .collect()
+        })
+        .unwrap_or_default();
+    Some(AtelierCkcSearchResultRow {
+        target_kind: json_string(row, "target_kind").unwrap_or_else(|| "unknown".to_owned()),
+        target_ref,
+        title: json_string(row, "title").unwrap_or_else(|| "(untitled CKC result)".to_owned()),
+        snippet: json_string(row, "snippet").unwrap_or_default(),
+        character_ref: json_string(row, "character_ref"),
+        sheet_version_ref: json_string(row, "sheet_version_ref"),
+        collection_ref: json_string(row, "collection_ref"),
+        media_ref: json_string(row, "media_ref"),
+        tag_ref: json_string(row, "tag_ref"),
+        tags: json_string_vec(row, "tags"),
+        tag_notes,
+        match_modes: json_string_vec(row, "match_modes"),
+        fuzzy_score: row
+            .get("fuzzy_score")
+            .and_then(|value| value.as_f64())
+            .unwrap_or(0.0),
+        vector_score: row
+            .get("vector_score")
+            .and_then(|value| value.as_f64())
+            .unwrap_or(0.0),
+    })
+}
+
+fn parse_atelier_ckc_search_response(row: &serde_json::Value) -> Option<AtelierCkcSearchResponse> {
+    let results = row
+        .get("results")
+        .and_then(|value| value.as_array())
+        .map(|rows| {
+            rows.iter()
+                .filter_map(parse_atelier_ckc_search_result)
+                .collect::<Vec<_>>()
+        })?;
+    let mut modes = json_string_vec(row, "search_modes");
+    if modes.is_empty() {
+        modes = json_string_vec(row, "modes");
+    }
+    Some(AtelierCkcSearchResponse {
+        query: json_string(row, "query").unwrap_or_default(),
+        modes,
+        semantic_available: row
+            .get("semantic_available")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false),
+        vector_source: json_string(row, "vector_source"),
+        result_count: row
+            .get("result_count")
+            .and_then(|value| value.as_u64())
+            .unwrap_or(results.len() as u64) as usize,
+        results,
+    })
+}
+
+fn parse_atelier_sheet_template_row(row: &serde_json::Value) -> Option<AtelierSheetTemplateRow> {
+    Some(AtelierSheetTemplateRow {
+        template_id: json_string(row, "template_id")?,
+        template_version: json_string(row, "template_version")?,
+        file_name: json_string(row, "file_name")?,
+        template_hash: json_string(row, "template_hash")?,
+        field_count: row.get("field_count").and_then(|value| value.as_u64())? as usize,
+        section_count: row.get("section_count").and_then(|value| value.as_u64())? as usize,
+        raw_text: json_string(row, "raw_text")?,
+    })
+}
+
+fn parse_atelier_model_operation_lease_row(
+    row: &serde_json::Value,
+) -> Option<AtelierModelOperationLeaseRow> {
+    Some(AtelierModelOperationLeaseRow {
+        claim_id: json_string(row, "claim_id")?,
+        thread_id: json_string(row, "thread_id")?,
+        executor_kind: json_string(row, "executor_kind")?,
+        actor_id: json_string(row, "actor_id")?,
+        session_id: json_string(row, "session_id")?,
+        claim_mode: json_string(row, "claim_mode")?,
+        stored_state: json_string(row, "stored_state")?,
+        effective_state: json_string(row, "effective_state")?,
+        claimed_at_utc: json_string(row, "claimed_at_utc")?,
+        ttl_seconds: json_required_i64(row, "ttl_seconds")?,
+        lease_expires_at_utc: json_string(row, "lease_expires_at_utc")?,
+        released_at_utc: json_string_field(row, "released_at_utc"),
+        taken_over_at_utc: json_string_field(row, "taken_over_at_utc"),
+        takeover_reason: json_string_field(row, "takeover_reason"),
+        prior_claim_id: json_string_field(row, "prior_claim_id"),
+        linked_work_packet_id: json_string(row, "linked_work_packet_id")?,
+        linked_micro_task_id: json_string(row, "linked_micro_task_id")?,
+        lease_age_seconds: json_required_i64(row, "lease_age_seconds")?,
+        lease_expired: row.get("lease_expired").and_then(|value| value.as_bool())?,
+    })
+}
+
+fn parse_atelier_model_operation_state_row(
+    row: &serde_json::Value,
+) -> Option<AtelierModelOperationStateRow> {
+    let leases = row
+        .get("leases")
+        .and_then(|value| value.as_array())?
+        .iter()
+        .filter_map(parse_atelier_model_operation_lease_row)
+        .collect::<Vec<_>>();
+    Some(AtelierModelOperationStateRow {
+        thread_id: json_string(row, "thread_id")?,
+        leases,
+        required_headers_for_mutation: json_string_vec(row, "required_headers_for_mutation"),
+        recovery_hint: json_string(row, "recovery_hint")?,
+    })
+}
+
+fn parse_atelier_model_operation_action_receipt_row(
+    row: &serde_json::Value,
+) -> Option<AtelierModelOperationActionReceiptRow> {
+    Some(AtelierModelOperationActionReceiptRow {
+        receipt_id: json_string(row, "receipt_id")?,
+        action_id: json_string(row, "action_id")?,
+        params_sha256: json_string(row, "params_sha256")?,
+        actor_kind: json_string(row, "actor_kind")?,
+        actor_id: json_string(row, "actor_id")?,
+        session_id: json_string(row, "session_id")?,
+        thread_id: json_string(row, "thread_id")?,
+        lease_claim_id: json_string(row, "lease_claim_id")?,
+        started_at_utc: json_string(row, "started_at_utc")?,
+        completed_at_utc: json_string(row, "completed_at_utc")?,
+        status: json_string(row, "status")?,
+        target_refs: json_string_vec(row, "target_refs"),
+        evidence_refs: json_string_vec(row, "evidence_refs"),
+        result_refs: json_string_vec(row, "result_refs"),
+        error_class: json_string_field(row, "error_class"),
+        recovery_hint: json_string_field(row, "recovery_hint"),
+        created_at_utc: json_string(row, "created_at_utc")?,
+    })
+}
+
+/// WP-CKC MT-042: parse one `EffectivePreference` JSON projection into an
+/// [`AtelierPreferenceRow`]. `value` and `default_value` may be empty/absent, so
+/// they use the empty-tolerant field readers.
+fn parse_atelier_preference_row(row: &serde_json::Value) -> Option<AtelierPreferenceRow> {
+    Some(AtelierPreferenceRow {
+        key: json_string(row, "key")?,
+        namespace: json_string(row, "namespace")?,
+        name: json_string(row, "name")?,
+        value: json_string_field(row, "value")?,
+        value_type: json_string(row, "value_type")?,
+        default_value: json_string_field(row, "default_value"),
+        source: json_string(row, "source")?,
+        revision: json_required_i64(row, "revision").unwrap_or(0),
+    })
+}
+
+/// Parse a JSON array of `EffectivePreference` projections, skipping malformed rows.
+fn parse_atelier_preference_rows(value: &serde_json::Value) -> Vec<AtelierPreferenceRow> {
+    value
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(parse_atelier_preference_row)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn parse_prompt_feedback_failure_tags(row: &serde_json::Value) -> Vec<String> {
+    let direct = json_string_vec(row, "failure_tags");
+    if !direct.is_empty() {
+        return direct;
+    }
+    row.get("hardcore_fields")
+        .and_then(|fields| fields.get("failure_tags"))
+        .and_then(|value| value.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|value| value.as_str())
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn parse_atelier_prompt_feedback_case_row(
+    row: &serde_json::Value,
+) -> Option<AtelierPromptFeedbackCaseRow> {
+    Some(AtelierPromptFeedbackCaseRow {
+        case_id: json_required_nonempty_string(row, "case_id")?,
+        project_id: json_required_nonempty_string(row, "project_id")?,
+        source_system: json_required_nonempty_string(row, "source_system")?,
+        adapter_id: json_required_nonempty_string(row, "adapter_id")?,
+        source_iteration_id: json_string(row, "source_iteration_id"),
+        source_case_id: json_required_nonempty_string(row, "source_case_id")?,
+        segment: json_required_nonempty_string(row, "segment")?,
+        cell: json_required_nonempty_string(row, "cell")?,
+        render_stack: json_required_nonempty_string(row, "render_stack")?,
+        identity_judgement_allowed: row
+            .get("identity_judgement_allowed")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false),
+        prompt_quality_review_allowed: row
+            .get("prompt_quality_review_allowed")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false),
+        positive_prompt: json_string_field(row, "positive_prompt")?,
+        negative_prompt: json_string_field(row, "negative_prompt")?,
+        failure_tags: parse_prompt_feedback_failure_tags(row),
+        imported_by: json_string_field(row, "imported_by").unwrap_or_default(),
+        created_at_utc: json_string_field(row, "created_at_utc").unwrap_or_default(),
+    })
+}
+
+fn parse_atelier_prompt_feedback_case_rows(
+    value: &serde_json::Value,
+) -> Result<Vec<AtelierPromptFeedbackCaseRow>, AppError> {
+    let rows = value.as_array().ok_or_else(|| {
+        AppError::Parse("prompt-feedback cases response was not an array".to_owned())
+    })?;
+    rows.iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            parse_atelier_prompt_feedback_case_row(row).ok_or_else(|| {
+                AppError::Parse(format!("malformed prompt-feedback case row at index {idx}"))
+            })
+        })
+        .collect()
+}
+
+fn parse_atelier_prompt_feedback_rule_pack_row(
+    row: &serde_json::Value,
+) -> Option<AtelierPromptFeedbackRulePackRow> {
+    Some(AtelierPromptFeedbackRulePackRow {
+        rule_pack_id: json_required_nonempty_string(row, "rule_pack_id")?,
+        version: json_required_i64(row, "version")?,
+        title: json_string_field(row, "title").unwrap_or_default(),
+        content_hash: json_string_field(row, "content_hash").unwrap_or_default(),
+    })
+}
+
+fn parse_atelier_prompt_feedback_import_row(
+    row: &serde_json::Value,
+) -> Result<AtelierPromptFeedbackImportRow, AppError> {
+    let cases = row
+        .get("cases")
+        .ok_or_else(|| AppError::Parse("prompt-feedback import response missing cases".to_owned()))
+        .and_then(parse_atelier_prompt_feedback_case_rows)?;
+    let seed_rule_pack = row
+        .get("seed_rule_pack")
+        .and_then(parse_atelier_prompt_feedback_rule_pack_row)
+        .ok_or_else(|| {
+            AppError::Parse("prompt-feedback import response missing seed rule pack".to_owned())
+        })?;
+    Ok(AtelierPromptFeedbackImportRow {
+        imported_count: json_required_i64(row, "imported_count").unwrap_or(cases.len() as i64),
+        cases,
+        seed_rule_pack,
+    })
+}
+
+fn parse_atelier_prompt_feedback_rewrite_row(
+    row: &serde_json::Value,
+) -> Result<AtelierPromptFeedbackRewriteRow, AppError> {
+    Ok(AtelierPromptFeedbackRewriteRow {
+        rewrite_id: json_required_nonempty_string(row, "rewrite_id").ok_or_else(|| {
+            AppError::Parse("prompt-feedback rewrite response missing rewrite_id".to_owned())
+        })?,
+        case_id: json_required_nonempty_string(row, "case_id").ok_or_else(|| {
+            AppError::Parse("prompt-feedback rewrite response missing case_id".to_owned())
+        })?,
+        source_case_id: json_required_nonempty_string(row, "source_case_id").ok_or_else(|| {
+            AppError::Parse("prompt-feedback rewrite response missing source_case_id".to_owned())
+        })?,
+        rule_pack_id: json_required_nonempty_string(row, "rule_pack_id").ok_or_else(|| {
+            AppError::Parse("prompt-feedback rewrite response missing rule_pack_id".to_owned())
+        })?,
+        rule_pack_version: json_required_i64(row, "rule_pack_version").ok_or_else(|| {
+            AppError::Parse("prompt-feedback rewrite response missing rule_pack_version".to_owned())
+        })?,
+        input_hash: json_string_field(row, "input_hash").unwrap_or_default(),
+        output_hash: json_string_field(row, "output_hash").unwrap_or_default(),
+        changed_fields: json_string_vec(row, "changed_fields"),
+        rewritten_positive_prompt: json_string_field(row, "rewritten_positive_prompt")
+            .unwrap_or_default(),
+        rewritten_negative_prompt: json_string_field(row, "rewritten_negative_prompt")
+            .unwrap_or_default(),
+        outcome: row
+            .get("outcome")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+        planned_by: json_string_field(row, "planned_by").unwrap_or_default(),
+        created_at_utc: json_string_field(row, "created_at_utc").unwrap_or_default(),
+    })
+}
+
+fn parse_atelier_prompt_feedback_export_row(
+    row: &serde_json::Value,
+) -> Result<AtelierPromptFeedbackExportRow, AppError> {
+    Ok(AtelierPromptFeedbackExportRow {
+        export_id: json_required_nonempty_string(row, "export_id").ok_or_else(|| {
+            AppError::Parse("prompt-feedback export response missing export_id".to_owned())
+        })?,
+        rule_pack_id: json_required_nonempty_string(row, "rule_pack_id").ok_or_else(|| {
+            AppError::Parse("prompt-feedback export response missing rule_pack_id".to_owned())
+        })?,
+        rule_pack_version: json_required_i64(row, "rule_pack_version").ok_or_else(|| {
+            AppError::Parse("prompt-feedback export response missing rule_pack_version".to_owned())
+        })?,
+        artifact_ref: json_required_nonempty_string(row, "artifact_ref").ok_or_else(|| {
+            AppError::Parse("prompt-feedback export response missing artifact_ref".to_owned())
+        })?,
+        manifest_ref: json_string(row, "manifest_ref"),
+        content_hash: json_required_nonempty_string(row, "content_hash").ok_or_else(|| {
+            AppError::Parse("prompt-feedback export response missing content_hash".to_owned())
+        })?,
+        byte_len: json_required_i64(row, "byte_len").unwrap_or(0),
+        row_count: json_required_i64(row, "row_count").unwrap_or(0),
+        source_case_ids: json_string_vec(row, "source_case_ids"),
+        rewrite_ids: json_string_vec(row, "rewrite_ids"),
+        exported_by: json_string_field(row, "exported_by").unwrap_or_default(),
+        created_at_utc: json_string_field(row, "created_at_utc").unwrap_or_default(),
+    })
+}
+
+fn parse_atelier_safe_subset_row(row: &serde_json::Value) -> Option<AtelierSafeSubsetRow> {
+    let field_ids = json_string_vec(row, "field_ids");
+    if field_ids.is_empty() {
+        return None;
+    }
+    Some(AtelierSafeSubsetRow {
+        template_id: json_string(row, "template_id")?,
+        template_version: json_string(row, "template_version")?,
+        file_name: json_string(row, "file_name")?,
+        field_ids,
+    })
+}
+
+fn parse_atelier_sheet_field_suggestion_row(
+    row: &serde_json::Value,
+) -> Option<AtelierSheetFieldSuggestionRow> {
+    Some(AtelierSheetFieldSuggestionRow {
+        field_id: json_string(row, "field_id")?,
+        value: json_string(row, "value")?,
+        occurrences: row
+            .get("occurrences")
+            .and_then(|value| value.as_i64())
+            .unwrap_or(1),
+    })
+}
+
+fn parse_atelier_sheet_export_row(row: &serde_json::Value) -> Option<AtelierSheetExportRow> {
+    Some(AtelierSheetExportRow {
+        version_id: json_string(row, "version_id")?,
+        format: json_string(row, "format")?,
+        file_name: json_string(row, "file_name")?,
+        content_hash: json_string(row, "content_hash")?,
+        content: json_string(row, "content")?,
+        character_ref: json_string(row, "character_ref")?,
+        sheet_version_ref: json_string(row, "sheet_version_ref")?,
+    })
+}
+
+fn parse_atelier_posekit_artifact_row(
+    row: &serde_json::Value,
+) -> Option<AtelierPosekitArtifactRow> {
+    Some(AtelierPosekitArtifactRow {
+        artifact_ref: json_string(row, "artifact_ref")?,
+        manifest_ref: json_string(row, "manifest_ref")?,
+        content_hash: json_string(row, "content_hash")?,
+        byte_len: row.get("byte_len").and_then(|value| value.as_u64())?,
+        mime: json_string(row, "mime")?,
+        file_name: json_string(row, "file_name")?,
+    })
+}
+
+fn parse_atelier_posekit_marker_layers_row(
+    row: &serde_json::Value,
+) -> Option<AtelierPosekitMarkerLayersRow> {
+    Some(AtelierPosekitMarkerLayersRow {
+        face: row.get("face").and_then(|value| value.as_bool())?,
+        body: row.get("body").and_then(|value| value.as_bool())?,
+        hands: row.get("hands").and_then(|value| value.as_bool())?,
+    })
+}
+
+fn parse_atelier_posekit_export_row(row: &serde_json::Value) -> Option<AtelierPosekitExportRow> {
+    Some(AtelierPosekitExportRow {
+        schema_id: json_string(row, "schema_id")?,
+        source_ref: json_string(row, "source_ref")?,
+        rig_id: row
+            .get("rig_id")
+            .and_then(|value| value.as_str())
+            .map(str::to_owned),
+        yaw_deg: row.get("yaw_deg").and_then(|value| value.as_i64())? as i32,
+        pitch_deg: row.get("pitch_deg").and_then(|value| value.as_i64())? as i32,
+        zoom_percent: row.get("zoom_percent").and_then(|value| value.as_i64())? as i32,
+        framing: row.get("framing")?.clone(),
+        marker_layers: parse_atelier_posekit_marker_layers_row(row.get("marker_layers")?)?,
+        applied_marker_edit_count: row
+            .get("applied_marker_edit_count")
+            .and_then(|value| value.as_u64())? as usize,
+        width: row.get("width").and_then(|value| value.as_i64())? as i32,
+        height: row.get("height").and_then(|value| value.as_i64())? as i32,
+        openpose_json: row.get("openpose_json")?.clone(),
+        openpose_json_sha256: json_string(row, "openpose_json_sha256")?,
+        openpose_png_sha256: json_string(row, "openpose_png_sha256")?,
+        content_hash: json_string(row, "content_hash")?,
+        receipt_ref: json_string(row, "receipt_ref")?,
+        openpose_png_artifact: parse_atelier_posekit_artifact_row(
+            row.get("openpose_png_artifact")?,
+        )?,
+        openpose_json_artifact: parse_atelier_posekit_artifact_row(
+            row.get("openpose_json_artifact")?,
+        )?,
+    })
+}
+
+fn parse_atelier_contact_sheet_artifact_row(
+    row: &serde_json::Value,
+) -> Option<AtelierContactSheetArtifactRow> {
+    Some(AtelierContactSheetArtifactRow {
+        artifact_ref: json_string(row, "artifact_ref")?,
+        manifest_ref: json_string(row, "manifest_ref")?,
+        content_hash: json_string(row, "content_hash")?,
+        byte_len: row.get("byte_len").and_then(|value| value.as_u64())?,
+        mime: json_string(row, "mime")?,
+        file_name: json_string(row, "file_name")?,
+    })
+}
+
+fn parse_atelier_contact_sheet_export_row(
+    row: &serde_json::Value,
+) -> Option<AtelierContactSheetExportRow> {
+    let schema_id = json_string(row, "schema_id")?;
+    if schema_id != "hsk.atelier.contact_sheet_export@1" {
+        return None;
+    }
+    let layout = row.get("layout")?;
+    let rows = layout.get("rows").and_then(|value| value.as_u64())? as usize;
+    let columns = layout.get("columns").and_then(|value| value.as_u64())? as usize;
+    layout.get("dpi").and_then(|value| value.as_u64())?;
+    let cell_count = layout.get("cell_count").and_then(|value| value.as_u64())? as usize;
+    if cell_count != rows.saturating_mul(columns) {
+        return None;
+    }
+    let source_items = row
+        .get("source_items")?
+        .as_array()?
+        .iter()
+        .map(|item| {
+            Some(AtelierContactSheetItem {
+                item_id: json_string(item, "item_id")?,
+                label: json_string(item, "label")?,
+                source_ref: json_string(item, "source_ref")?,
+                media_ref: item
+                    .get("media_ref")
+                    .and_then(|value| value.as_str())
+                    .map(ToOwned::to_owned),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    let item_count = row.get("item_count").and_then(|value| value.as_u64())? as usize;
+    let rendered_item_count = row
+        .get("rendered_item_count")
+        .and_then(|value| value.as_u64())? as usize;
+    let omitted_item_count = row
+        .get("omitted_item_count")
+        .and_then(|value| value.as_u64())? as usize;
+    if rendered_item_count > item_count
+        || omitted_item_count != item_count.saturating_sub(rendered_item_count)
+        || rendered_item_count > cell_count
+        || item_count != source_items.len()
+    {
+        return None;
+    }
+    let svg_artifact = parse_atelier_contact_sheet_artifact_row(row.get("svg_artifact")?)?;
+    let receipt_artifact = parse_atelier_contact_sheet_artifact_row(row.get("receipt_artifact")?)?;
+    if svg_artifact.mime != "image/svg+xml" || receipt_artifact.mime != "application/json" {
+        return None;
+    }
+    Some(AtelierContactSheetExportRow {
+        schema_id,
+        source_kind: json_string(row, "source_kind")?,
+        source_ref: json_string(row, "source_ref")?,
+        thumbnail_fit: json_string(row, "thumbnail_fit")?,
+        output_path: row
+            .get("output_path")
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned),
+        layout: layout.clone(),
+        source_items,
+        item_count,
+        rendered_item_count,
+        omitted_item_count,
+        include_labels: row
+            .get("include_labels")
+            .and_then(|value| value.as_bool())?,
+        svg_sha256: json_string(row, "svg_sha256")?,
+        receipt_sha256: json_string(row, "receipt_sha256")?,
+        content_hash: json_string(row, "content_hash")?,
+        receipt_ref: json_string(row, "receipt_ref")?,
+        svg_artifact,
+        receipt_artifact,
+    })
+}
+
+fn parse_atelier_facial_ingest_artifact_row(
+    row: &serde_json::Value,
+) -> Option<AtelierFacialIngestArtifactRow> {
+    Some(AtelierFacialIngestArtifactRow {
+        artifact_ref: json_string(row, "artifact_ref")?,
+        manifest_ref: json_string(row, "manifest_ref")?,
+        content_hash: json_string(row, "content_hash")?,
+        byte_len: row.get("byte_len").and_then(|value| value.as_u64())?,
+        mime: json_string(row, "mime")?,
+        file_name: json_string(row, "file_name")?,
+    })
+}
+
+fn parse_atelier_facial_ingest_analysis_row(
+    row: &serde_json::Value,
+) -> Option<AtelierFacialIngestAnalysisRow> {
+    let schema_id = json_string(row, "schema_id")?;
+    if schema_id != "hsk.atelier.facial_ingest_analysis@1" {
+        return None;
+    }
+    let batch_id = json_string(row, "batch_id")?;
+    let profile = json_string(row, "profile")?;
+    let profile_tokens = row
+        .get("profile_tokens")?
+        .as_array()?
+        .iter()
+        .map(|value| value.as_str().map(ToOwned::to_owned))
+        .collect::<Option<Vec<_>>>()?;
+    if profile_tokens.is_empty() {
+        return None;
+    }
+    let item_count = row.get("item_count").and_then(|value| value.as_u64())? as usize;
+    let summary = row.get("summary")?.clone();
+    if summary
+        .get("item_count")
+        .and_then(|value| value.as_u64())
+        .map(|count| count as usize)
+        != Some(item_count)
+    {
+        return None;
+    }
+    if summary.get("profile").and_then(|value| value.as_str()) != Some(profile.as_str()) {
+        return None;
+    }
+    for field in [
+        "decoded_count",
+        "duplicate_group_count",
+        "duplicate_item_count",
+    ] {
+        summary.get(field)?.as_u64()?;
+    }
+    for field in ["quality_source", "identity_source", "dedupe_source"] {
+        let value = summary.get(field)?.as_str()?.trim();
+        if value.is_empty() {
+            return None;
+        }
+    }
+    summary.get("quality_band_counts")?.as_object()?;
+    summary.get("review_recommendation_counts")?.as_object()?;
+    let native_run = summary.get("native_run")?.as_object()?;
+    for field in [
+        "schema_id",
+        "registry_schema_id",
+        "run_id",
+        "batch_id",
+        "profile",
+        "requested_by",
+        "run_status",
+        "run_hash",
+    ] {
+        let value = native_run.get(field)?.as_str()?.trim();
+        if value.is_empty() {
+            return None;
+        }
+    }
+    if native_run.get("schema_id")?.as_str()? != "hsk.atelier.facial_native.run@1"
+        || native_run.get("registry_schema_id")?.as_str()? != "hsk.atelier.facial_native.registry@1"
+        || native_run.get("batch_id")?.as_str()? != batch_id.as_str()
+        || native_run.get("profile")?.as_str()? != profile.as_str()
+    {
+        return None;
+    }
+    if native_run.get("item_count")?.as_u64()? as usize != item_count {
+        return None;
+    }
+    native_run.get("decoded_count")?.as_u64()?;
+    native_run.get("status_counts")?.as_object()?;
+    for field in [
+        "profile_tokens",
+        "selected_feature_ids",
+        "degraded_reasons",
+        "feature_records",
+    ] {
+        let values = native_run.get(field)?.as_array()?;
+        if matches!(
+            field,
+            "profile_tokens" | "selected_feature_ids" | "feature_records"
+        ) && values.is_empty()
+        {
+            return None;
+        }
+    }
+    let capability_map = summary.get("capability_map")?.as_array()?;
+    if capability_map.is_empty() {
+        return None;
+    }
+    for capability in capability_map {
+        for field in [
+            "capability",
+            "source_feature_key",
+            "facial_source_family",
+            "native_field",
+            "artifact_contract",
+            "handshake_status",
+            "native_route",
+            "provenance_note",
+        ] {
+            let value = capability.get(field)?.as_str()?.trim();
+            if value.is_empty() {
+                return None;
+            }
+        }
+        capability.get("required_config_keys")?.as_array()?;
+    }
+    let analysis_artifact =
+        parse_atelier_facial_ingest_artifact_row(row.get("analysis_artifact")?)?;
+    let receipt_artifact = parse_atelier_facial_ingest_artifact_row(row.get("receipt_artifact")?)?;
+    if analysis_artifact.mime != "application/json" || receipt_artifact.mime != "application/json" {
+        return None;
+    }
+    let analysis_sha256 = json_string(row, "analysis_sha256")?;
+    let receipt_sha256 = json_string(row, "receipt_sha256")?;
+    if analysis_artifact.content_hash != analysis_sha256
+        || receipt_artifact.content_hash != receipt_sha256
+    {
+        return None;
+    }
+    let receipt_ref = json_string(row, "receipt_ref")?;
+    if receipt_ref != receipt_artifact.artifact_ref {
+        return None;
+    }
+    Some(AtelierFacialIngestAnalysisRow {
+        schema_id,
+        batch_id,
+        profile,
+        profile_tokens,
+        item_count,
+        summary,
+        analysis_sha256,
+        receipt_sha256,
+        content_hash: json_string(row, "content_hash")?,
+        receipt_ref,
+        analysis_artifact,
+        receipt_artifact,
+    })
+}
+
+fn parse_atelier_facial_command_artifact_row(
+    row: &serde_json::Value,
+) -> Option<AtelierFacialCommandArtifactRow> {
+    Some(AtelierFacialCommandArtifactRow {
+        artifact_ref: json_required_nonempty_string(row, "artifact_ref")?,
+        manifest_ref: json_required_nonempty_string(row, "manifest_ref")?,
+        content_hash: json_required_nonempty_string(row, "content_hash")?,
+        byte_len: row.get("byte_len").and_then(|value| value.as_u64())?,
+        mime: json_required_nonempty_string(row, "mime")?,
+        file_name: json_required_nonempty_string(row, "file_name")?,
+    })
+}
+
+fn parse_atelier_facial_command_route_row(
+    row: &serde_json::Value,
+) -> Option<AtelierFacialCommandRouteRow> {
+    Some(AtelierFacialCommandRouteRow {
+        command: json_required_nonempty_string(row, "command")?,
+        method: json_required_nonempty_string(row, "method")?,
+        path: json_required_nonempty_string(row, "path")?,
+        response_schema_id: json_required_nonempty_string(row, "response_schema_id")?,
+        result_schema_id: row
+            .get("result_schema_id")
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned),
+        output_schema_id: json_required_nonempty_string(row, "output_schema_id")?,
+    })
+}
+
+fn parse_atelier_facial_feature_list_row(
+    row: &serde_json::Value,
+) -> Option<AtelierFacialFeatureListRow> {
+    let schema_id = json_required_nonempty_string(row, "schema_id")?;
+    if schema_id != "hsk.atelier.facial.features@1" {
+        return None;
+    }
+    let registry_schema_id = json_required_nonempty_string(row, "registry_schema_id")?;
+    let feature_count = row.get("feature_count").and_then(|value| value.as_u64())? as usize;
+    let features = row.get("features")?.as_array()?;
+    if features.len() != feature_count || features.is_empty() {
+        return None;
+    }
+    let command_routes = row
+        .get("command_routes")?
+        .as_array()?
+        .iter()
+        .map(parse_atelier_facial_command_route_row)
+        .collect::<Option<Vec<_>>>()?;
+    if command_routes.is_empty() {
+        return None;
+    }
+    Some(AtelierFacialFeatureListRow {
+        schema_id,
+        registry_schema_id,
+        feature_count,
+        features: row.get("features")?.clone(),
+        command_routes,
+    })
+}
+
+fn parse_atelier_facial_artifact_read_row(
+    row: &serde_json::Value,
+) -> Option<AtelierFacialArtifactReadRow> {
+    let schema_id = json_required_nonempty_string(row, "schema_id")?;
+    if schema_id != "hsk.atelier.facial.artifact_read@1" {
+        return None;
+    }
+    Some(AtelierFacialArtifactReadRow {
+        schema_id,
+        artifact_ref: json_required_nonempty_string(row, "artifact_ref")?,
+        manifest_ref: json_required_nonempty_string(row, "manifest_ref")?,
+        content_hash: json_required_nonempty_string(row, "content_hash")?,
+        byte_len: row.get("byte_len").and_then(|value| value.as_u64())?,
+        mime: json_required_nonempty_string(row, "mime")?,
+        file_name: row
+            .get("file_name")
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned),
+        payload_schema_id: row
+            .get("payload_schema_id")
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned),
+        payload: row.get("payload")?.clone(),
+    })
+}
+
+fn parse_atelier_facial_command_response_row(
+    row: &serde_json::Value,
+) -> Result<AtelierFacialCommandResponseRow, AppError> {
+    let schema_id = json_required_nonempty_string(row, "schema_id")
+        .ok_or_else(|| AppError::Parse("Facial command response missing schema_id".to_owned()))?;
+    if schema_id != "hsk.atelier.facial_api.command_response@1" {
+        return Err(AppError::Parse(format!(
+            "unexpected Facial command response schema {schema_id}"
+        )));
+    }
+    let command = json_required_nonempty_string(row, "command")
+        .ok_or_else(|| AppError::Parse("Facial command response missing command".to_owned()))?;
+    let status = json_required_nonempty_string(row, "status")
+        .ok_or_else(|| AppError::Parse("Facial command response missing status".to_owned()))?;
+    // MT-031: the backend now returns durable command *outcome* envelopes at HTTP 200
+    // for every post-context status. Accept the four backend-produced statuses and
+    // reject any unknown status so the parser can never invent a status the backend
+    // cannot produce.
+    if !matches!(
+        status.as_str(),
+        "succeeded" | "degraded" | "blocked" | "error"
+    ) {
+        return Err(AppError::Parse(format!(
+            "unsupported Facial command response status {status}; backend produces succeeded/degraded/blocked/error envelopes"
+        )));
+    }
+    let actor = json_required_nonempty_string(row, "actor")
+        .ok_or_else(|| AppError::Parse("Facial command response missing actor".to_owned()))?;
+    let result = row
+        .get("result")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let result_artifact = row
+        .get("result_artifact")
+        .filter(|value| value.is_object())
+        .and_then(parse_atelier_facial_command_artifact_row);
+    let receipt_ref = row
+        .get("receipt_ref")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+    let receipt_artifact = row
+        .get("receipt_artifact")
+        .filter(|value| value.is_object())
+        .and_then(parse_atelier_facial_command_artifact_row);
+    let degraded_reasons = row
+        .get("degraded_reasons")
+        .and_then(|value| value.as_array())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|value| {
+                    value
+                        .as_str()
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .map(ToOwned::to_owned)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let error = row
+        .get("error")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+    let recovery_hint = row
+        .get("recovery_hint")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+    // A durable receipt is promised for EVERY backend-produced status, so
+    // receipt_ref + receipt_artifact are always required. Result artifacts are only
+    // promised for succeeded/degraded; blocked/error instead carry a non-empty stable
+    // error code (their result is optional / JSON null).
+    if receipt_ref.is_none() || receipt_artifact.is_none() {
+        return Err(AppError::Parse(format!(
+            "Facial command response status {status} missing durable receipt_ref/receipt_artifact"
+        )));
+    }
+    match status.as_str() {
+        "succeeded" | "degraded" => {
+            if result_artifact.is_none() {
+                return Err(AppError::Parse(format!(
+                    "Facial command response status {status} missing result_artifact"
+                )));
+            }
+            if status == "degraded" && degraded_reasons.is_empty() {
+                return Err(AppError::Parse(
+                    "Facial command response status degraded missing degraded_reasons".to_owned(),
+                ));
+            }
+        }
+        "blocked" | "error" => {
+            if error.is_none() {
+                return Err(AppError::Parse(format!(
+                    "Facial command response status {status} missing stable error code"
+                )));
+            }
+        }
+        _ => unreachable!("status validated to the four backend outcomes above"),
+    }
+    if status != "succeeded" && recovery_hint.is_none() {
+        return Err(AppError::Parse(format!(
+            "Facial command response status {status} missing recovery_hint"
+        )));
+    }
+    Ok(AtelierFacialCommandResponseRow {
+        schema_id,
+        command,
+        status,
+        actor,
+        result,
+        result_artifact,
+        receipt_ref,
+        receipt_artifact,
+        error,
+        degraded_reasons,
+        recovery_hint,
+    })
+}
+
+impl AtelierClient {
+    /// Build a client with an explicit actor id for agent/operator-attributed writes.
+    pub fn new_with_actor_id(
+        base_url: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+        actor_id: impl Into<String>,
+    ) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+            actor_id: normalize_atelier_actor_id(actor_id),
+        }
+    }
+
+
+    /// Actor id used for CKC/Atelier write routes when the caller does not pass a narrower id.
+    pub fn actor_id(&self) -> &str {
+        &self.actor_id
+    }
+
+
+
+    /// WP-CKC MT-042 pure request builder for `GET /atelier/preferences`.
+    pub fn preferences_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/preferences", self.base_url),
+            query: vec![],
+        }
+    }
+
+    pub fn model_operation_state_request(&self, thread_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/model-ops/state", self.base_url),
+            query: vec![("thread_id".to_owned(), thread_id.to_owned())],
+        }
+    }
+
+    pub fn model_operation_leases_request(&self, thread_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/model-ops/leases", self.base_url),
+            query: vec![("thread_id".to_owned(), thread_id.to_owned())],
+        }
+    }
+
+    pub fn model_operation_lease_request(&self, claim_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/model-ops/leases/{}", self.base_url, claim_id),
+            query: vec![],
+        }
+    }
+
+    pub fn model_operation_claim_lease_actor_request(
+        &self,
+        thread_id: &str,
+        executor_kind: &str,
+        session_id: &str,
+        claim_mode: &str,
+        ttl_seconds: i64,
+        linked_work_packet_id: &str,
+        linked_micro_task_id: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/model-ops/leases", self.base_url),
+            body: Some(serde_json::json!({
+                "thread_id": thread_id,
+                "executor_kind": executor_kind,
+                "session_id": session_id,
+                "claim_mode": claim_mode,
+                "ttl_seconds": ttl_seconds,
+                "linked_work_packet_id": linked_work_packet_id,
+                "linked_micro_task_id": linked_micro_task_id,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    pub fn model_operation_renew_lease_actor_request(
+        &self,
+        claim_id: &str,
+        session_id: &str,
+        extend_seconds: i64,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/model-ops/leases/{}/renew",
+                self.base_url, claim_id
+            ),
+            body: Some(serde_json::json!({
+                "session_id": session_id,
+                "extend_seconds": extend_seconds,
+            })),
+            headers: vec![
+                (HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned()),
+                (HSK_HEADER_SESSION_ID.to_owned(), session_id.to_owned()),
+            ],
+        }
+    }
+
+    pub fn model_operation_release_lease_actor_request(
+        &self,
+        claim_id: &str,
+        session_id: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/model-ops/leases/{}/release",
+                self.base_url, claim_id
+            ),
+            body: Some(serde_json::json!({ "session_id": session_id })),
+            headers: vec![
+                (HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned()),
+                (HSK_HEADER_SESSION_ID.to_owned(), session_id.to_owned()),
+            ],
+        }
+    }
+
+    pub fn model_operation_action_receipt_actor_request(
+        &self,
+        action_id: &str,
+        session_id: &str,
+        params: serde_json::Value,
+        status: &str,
+        target_refs: &[String],
+        evidence_refs: &[String],
+        result_refs: &[String],
+        error_class: Option<&str>,
+        recovery_hint: Option<&str>,
+        model_ops_context: Option<&ModelOperationContext>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let now = chrono::Utc::now().to_rfc3339();
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/model-ops/action-receipts", self.base_url),
+            body: Some(serde_json::json!({
+                "action_id": action_id,
+                "session_id": session_id,
+                "params": params,
+                "started_at_utc": now,
+                "completed_at_utc": now,
+                "status": status,
+                "target_refs": target_refs,
+                "evidence_refs": evidence_refs,
+                "result_refs": result_refs,
+                "error_class": error_class,
+                "recovery_hint": recovery_hint,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+        .with_model_operation_context(model_ops_context)
+    }
+
+    pub fn model_operation_action_receipt_request(&self, receipt_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/model-ops/action-receipts/{}",
+                self.base_url, receipt_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// MT-020 pure actor-attributed builder for
+    /// `POST /atelier/prompt-feedback/import` (import CUIPP/prompt-stress rows).
+    pub fn prompt_feedback_import_actor_request(
+        &self,
+        project_id: &str,
+        source_system: &str,
+        adapter_id: &str,
+        source_iteration_id: Option<&str>,
+        rows: serde_json::Value,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/prompt-feedback/import", self.base_url),
+            body: Some(serde_json::json!({
+                "project_id": project_id,
+                "source_system": source_system,
+                "adapter_id": adapter_id,
+                "source_iteration_id": source_iteration_id,
+                "rows": rows,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// MT-020 pure builder for `GET /atelier/prompt-feedback/cases` with optional
+    /// project/segment/cell/render-stack/limit filters.
+    pub fn prompt_feedback_cases_request(
+        &self,
+        project_id: Option<&str>,
+        segment: Option<&str>,
+        cell: Option<&str>,
+        render_stack: Option<&str>,
+        limit: Option<i64>,
+    ) -> GetRequestSpec {
+        let mut query: Vec<(String, String)> = Vec::new();
+        if let Some(project_id) = project_id {
+            query.push(("project_id".to_owned(), project_id.to_owned()));
+        }
+        if let Some(segment) = segment {
+            query.push(("segment".to_owned(), segment.to_owned()));
+        }
+        if let Some(cell) = cell {
+            query.push(("cell".to_owned(), cell.to_owned()));
+        }
+        if let Some(render_stack) = render_stack {
+            query.push(("render_stack".to_owned(), render_stack.to_owned()));
+        }
+        if let Some(limit) = limit {
+            query.push(("limit".to_owned(), limit.to_string()));
+        }
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/prompt-feedback/cases", self.base_url),
+            query,
+        }
+    }
+
+    /// MT-020 pure actor-attributed builder for
+    /// `POST /atelier/prompt-feedback/verdicts`.
+    pub fn prompt_feedback_verdict_actor_request(
+        &self,
+        case_id: &str,
+        reviewer_kind: &str,
+        verdict_kind: &str,
+        failure_class: Option<&str>,
+        failure_tags: &[String],
+        is_identity_judgement: bool,
+        note: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/prompt-feedback/verdicts", self.base_url),
+            body: Some(serde_json::json!({
+                "case_id": case_id,
+                "reviewer_kind": reviewer_kind,
+                "verdict_kind": verdict_kind,
+                "failure_class": failure_class,
+                "failure_tags": failure_tags,
+                "is_identity_judgement": is_identity_judgement,
+                "note": note,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// MT-020 pure actor-attributed builder for
+    /// `POST /atelier/prompt-feedback/rewrite` (deterministic preview vs a rule
+    /// pack). The backend rejects a rewrite with an empty `rule_pack_id`.
+    pub fn prompt_feedback_rewrite_actor_request(
+        &self,
+        case_id: &str,
+        rule_pack_id: &str,
+        rule_pack_version: Option<i32>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/prompt-feedback/rewrite", self.base_url),
+            body: Some(serde_json::json!({
+                "case_id": case_id,
+                "rule_pack_id": rule_pack_id,
+                "rule_pack_version": rule_pack_version,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// MT-020 pure actor-attributed builder for
+    /// `POST /atelier/prompt-feedback/export` (materialize a hashed JSONL artifact).
+    pub fn prompt_feedback_export_actor_request(
+        &self,
+        rule_pack_id: &str,
+        rule_pack_version: Option<i32>,
+        case_ids: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/prompt-feedback/export", self.base_url),
+            body: Some(serde_json::json!({
+                "rule_pack_id": rule_pack_id,
+                "rule_pack_version": rule_pack_version,
+                "case_ids": case_ids,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// MT-020 pure builder for `GET /atelier/prompt-feedback/rulepacks`.
+    pub fn prompt_feedback_rulepacks_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/prompt-feedback/rulepacks", self.base_url),
+            query: vec![],
+        }
+    }
+
+    /// WP-CKC MT-042 pure actor-attributed request builder for
+    /// `PUT /atelier/preferences` (set one operator default).
+    pub fn set_preference_actor_request(
+        &self,
+        key: &str,
+        value: &str,
+        value_type: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Put,
+            url: format!("{}/atelier/preferences", self.base_url),
+            body: Some(serde_json::json!({
+                "key": key,
+                "value": value,
+                "value_type": value_type,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// WP-CKC MT-042 pure actor-attributed request builder for
+    /// `POST /atelier/preferences/reset` (reset one default).
+    pub fn reset_preference_actor_request(&self, key: &str, actor_id: &str) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/preferences/reset", self.base_url),
+            body: Some(serde_json::json!({ "key": key })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+
+    /// Pure actor-attributed request builder for `POST /atelier/intake/items/{item_id}/classification`.
+    pub fn apply_intake_classification_actor_request(
+        &self,
+        item_id: &str,
+        lane: &str,
+        reason: Option<&str>,
+        metadata: serde_json::Value,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/intake/items/{}/classification",
+                self.base_url, item_id
+            ),
+            body: Some(serde_json::json!({
+                "lane": lane,
+                "reason": reason,
+                "metadata": metadata,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for canonical full-batch intake apply.
+    pub fn apply_intake_batch_classifications_actor_request(
+        &self,
+        batch_id: &str,
+        default_lane: &str,
+        default_reason: Option<&str>,
+        metadata: serde_json::Value,
+        overrides: &[AtelierIntakeClassificationDecision],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let overrides_json = overrides
+            .iter()
+            .map(|override_row| {
+                serde_json::json!({
+                    "item_id": override_row.item_id.as_str(),
+                    "lane": override_row.lane.as_str(),
+                    "reason": override_row.reason.as_deref(),
+                })
+            })
+            .collect::<Vec<_>>();
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/intake/batches/{}/classifications",
+                self.base_url, batch_id
+            ),
+            body: Some(serde_json::json!({
+                "default_lane": default_lane,
+                "default_reason": default_reason,
+                "metadata": metadata,
+                "overrides": overrides_json,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/characters`.
+    pub fn characters_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/characters", self.base_url),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/sheet-templates/default`.
+    pub fn default_sheet_template_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/sheet-templates/default", self.base_url),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/sheet-templates/default/safe-subset`.
+    pub fn safe_sheet_subset_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/sheet-templates/default/safe-subset",
+                self.base_url
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `POST /atelier/characters`.
+    pub fn create_character_request(&self, public_id: &str, display_name: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/characters", self.base_url),
+            body: Some(serde_json::json!({
+                "public_id": public_id,
+                "display_name": display_name,
+            })),
+        }
+    }
+
+    /// Pure request builder for template-first CKC character creation.
+    pub fn create_character_with_default_sheet_request(
+        &self,
+        public_id: &str,
+        display_name: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/characters", self.base_url),
+            body: Some(serde_json::json!({
+                "public_id": public_id,
+                "display_name": display_name,
+                "create_default_sheet": true,
+            })),
+        }
+    }
+
+    /// Pure actor-attributed request builder for `POST /atelier/characters`.
+    pub fn create_character_actor_request(
+        &self,
+        public_id: &str,
+        display_name: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.create_character_request(public_id, display_name);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for template-first CKC character creation.
+    pub fn create_character_with_default_sheet_actor_request(
+        &self,
+        public_id: &str,
+        display_name: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.create_character_with_default_sheet_request(public_id, display_name);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/characters/{id}`.
+    pub fn character_request(&self, character_internal_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/characters/{}",
+                self.base_url, character_internal_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/characters/{id}/sheet-versions`.
+    pub fn sheet_versions_request(&self, character_internal_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/characters/{}/sheet-versions",
+                self.base_url, character_internal_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for append-only CKC sheet edits. The expected parent
+    /// id is the optimistic-concurrency guard; `None` means first version.
+    pub fn append_sheet_version_request(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/characters/{}/sheet-versions",
+                self.base_url, character_internal_id
+            ),
+            body: Some(serde_json::json!({
+                "raw_text": raw_text,
+                "expected_parent_version_id": expected_parent_version_id,
+                "tool": tool,
+            })),
+        }
+    }
+
+    /// Pure actor-attributed request builder for guarded CKC sheet appends.
+    pub fn append_sheet_version_actor_request(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.append_sheet_version_request(
+            character_internal_id,
+            raw_text,
+            expected_parent_version_id,
+            tool,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for import as a semantic guarded append.
+    pub fn import_sheet_version_request(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/characters/{}/sheet-versions/import",
+                self.base_url, character_internal_id
+            ),
+            body: Some(serde_json::json!({
+                "raw_text": raw_text,
+                "expected_parent_version_id": expected_parent_version_id,
+                "tool": tool,
+            })),
+        }
+    }
+
+    /// Pure actor-attributed request builder for CKC sheet import.
+    pub fn import_sheet_version_actor_request(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.import_sheet_version_request(
+            character_internal_id,
+            raw_text,
+            expected_parent_version_id,
+            tool,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/sheet-versions/{version_id}`.
+    pub fn sheet_version_request(&self, version_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/sheet-versions/{}", self.base_url, version_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for active reusable artifact links on one CKC sheet version.
+    pub fn sheet_artifact_links_request(&self, version_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/sheet-versions/{}/artifact-links",
+                self.base_url, version_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for resolving one reusable sheet artifact typed ref.
+    pub fn sheet_artifact_link_request(&self, link_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/sheet-artifact-links/{}", self.base_url, link_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure actor-attributed request builder for attaching a reusable artifact to a CKC sheet version.
+    pub fn attach_sheet_artifact_link_actor_request(
+        &self,
+        version_id: &str,
+        artifact_kind: &str,
+        artifact_ref: &str,
+        manifest_ref: Option<&str>,
+        source_ref: Option<&str>,
+        label: Option<&str>,
+        reuse_role: Option<&str>,
+        metadata: serde_json::Value,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/sheet-versions/{}/artifact-links",
+                self.base_url, version_id
+            ),
+            body: Some(serde_json::json!({
+                "artifact_kind": artifact_kind,
+                "artifact_ref": artifact_ref,
+                "manifest_ref": manifest_ref,
+                "source_ref": source_ref,
+                "label": label,
+                "reuse_role": reuse_role,
+                "metadata": metadata,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for soft-detaching a reusable sheet artifact link.
+    pub fn detach_sheet_artifact_link_actor_request(
+        &self,
+        link_id: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Delete,
+            url: format!("{}/atelier/sheet-artifact-links/{}", self.base_url, link_id),
+            body: None,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for deterministic CKC sheet export.
+    pub fn export_sheet_version_request(&self, version_id: &str, format: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/sheet-versions/{}/export?format={}",
+                self.base_url, version_id, format
+            ),
+            query: vec![("format".to_owned(), format.to_owned())],
+        }
+    }
+
+    /// Pure request builder for prior values attached to one CKC Field ID.
+    pub fn field_suggestions_request(&self, field_id: &str, limit: usize) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/sheet-field-suggestions?field_id={}&limit={}",
+                self.base_url, field_id, limit
+            ),
+            query: vec![
+                ("field_id".to_owned(), field_id.to_owned()),
+                ("limit".to_owned(), limit.to_string()),
+            ],
+        }
+    }
+
+    /// Pure actor-attributed request builder for native Posekit OpenPose export.
+    pub fn posekit_openpose_export_actor_request(
+        &self,
+        source_ref: &str,
+        yaw_deg: f32,
+        pitch_deg: f32,
+        zoom: f32,
+        include_face: bool,
+        include_body: bool,
+        include_hands: bool,
+        rig_id: Option<&str>,
+        marker_edits: &[serde_json::Value],
+        framing: &serde_json::Value,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/posekit/openpose-export", self.base_url),
+            body: Some(serde_json::json!({
+                "source_ref": source_ref,
+                "rig_id": rig_id,
+                "yaw_deg": yaw_deg,
+                "pitch_deg": pitch_deg,
+                "zoom": zoom,
+                "include_face": include_face,
+                "include_body": include_body,
+                "include_hands": include_hands,
+                "marker_edits": marker_edits,
+                "framing": framing,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for native contact-sheet export.
+    pub fn contact_sheet_export_actor_request(
+        &self,
+        source_kind: &str,
+        source_ref: &str,
+        rows: usize,
+        columns: usize,
+        dpi: usize,
+        include_labels: bool,
+        thumbnail_fit: &str,
+        output_path: Option<&str>,
+        items: &[AtelierContactSheetItem],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let items = items
+            .iter()
+            .map(|item| {
+                serde_json::json!({
+                    "item_id": item.item_id,
+                    "label": item.label,
+                    "source_ref": item.source_ref,
+                    "media_ref": item.media_ref,
+                })
+            })
+            .collect::<Vec<_>>();
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/contact-sheets/export", self.base_url),
+            body: Some(serde_json::json!({
+                "source_kind": source_kind,
+                "source_ref": source_ref,
+                "rows": rows,
+                "columns": columns,
+                "dpi": dpi,
+                "include_labels": include_labels,
+                "thumbnail_fit": thumbnail_fit,
+                "output_path": output_path,
+                "items": items,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for native Facial Ingest analysis.
+    pub fn facial_ingest_analysis_actor_request(
+        &self,
+        batch_id: &str,
+        profile: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/intake/batches/{}/facial/analyze",
+                self.base_url, batch_id
+            ),
+            body: Some(serde_json::json!({
+                "profile": profile,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/facial/features`.
+    pub fn facial_features_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/facial/features", self.base_url),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for reading a JSON Facial ArtifactStore payload by ref.
+    pub fn facial_artifact_read_request(&self, artifact_ref: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/facial/artifacts/read", self.base_url),
+            query: vec![("artifact_ref".to_owned(), artifact_ref.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for review session creation over a canonical intake batch.
+    pub fn facial_review_session_actor_request(
+        &self,
+        batch_id: &str,
+        profile: Option<&str>,
+        shard_count: Option<usize>,
+        claim_ttl_seconds: Option<u64>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/intake/batches/{}/facial/review/session",
+                self.base_url, batch_id
+            ),
+            body: Some(serde_json::json!({
+                "profile": profile,
+                "shard_count": shard_count,
+                "claim_ttl_seconds": claim_ttl_seconds,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for claiming a review shard.
+    pub fn facial_review_claim_actor_request(
+        &self,
+        session_artifact_ref: &str,
+        existing_claim_artifact_refs: &[String],
+        decision_artifact_refs: &[String],
+        shard: Option<usize>,
+        steal_expired: bool,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/facial/review/claims", self.base_url),
+            body: Some(serde_json::json!({
+                "session_artifact_ref": session_artifact_ref,
+                "existing_claim_artifact_refs": existing_claim_artifact_refs,
+                "decision_artifact_refs": decision_artifact_refs,
+                "shard": shard,
+                "steal_expired": steal_expired,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for recording one review decision.
+    pub fn facial_review_decision_actor_request(
+        &self,
+        session_artifact_ref: &str,
+        claim_artifact_ref: &str,
+        item_id: &str,
+        decision: &str,
+        reason: &str,
+        tags: &[String],
+        notes: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/facial/review/decisions", self.base_url),
+            body: Some(serde_json::json!({
+                "session_artifact_ref": session_artifact_ref,
+                "claim_artifact_ref": claim_artifact_ref,
+                "item_id": item_id,
+                "decision": decision,
+                "reason": reason,
+                "tags": tags,
+                "notes": notes,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for replaying review status from persisted refs.
+    pub fn facial_review_status_actor_request(
+        &self,
+        session_artifact_ref: &str,
+        claim_artifact_refs: &[String],
+        decision_artifact_refs: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/facial/review/status", self.base_url),
+            body: Some(serde_json::json!({
+                "session_artifact_ref": session_artifact_ref,
+                "claim_artifact_refs": claim_artifact_refs,
+                "decision_artifact_refs": decision_artifact_refs,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for an Argus-addressable review montage tile map.
+    pub fn facial_review_montage_actor_request(
+        &self,
+        session_artifact_ref: &str,
+        decision_artifact_refs: &[String],
+        page: usize,
+        columns: usize,
+        rows: usize,
+        decision_filter: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/facial/review/montage", self.base_url),
+            body: Some(serde_json::json!({
+                "session_artifact_ref": session_artifact_ref,
+                "decision_artifact_refs": decision_artifact_refs,
+                "page": page,
+                "columns": columns,
+                "rows": rows,
+                "decision_filter": decision_filter,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for non-destructive Facial review export manifests.
+    pub fn facial_review_export_actor_request(
+        &self,
+        session_artifact_ref: &str,
+        decision_artifact_refs: &[String],
+        dataset_name: &str,
+        repeats: u32,
+        allow_partial: bool,
+        output_root_ref: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/facial/review/export", self.base_url),
+            body: Some(serde_json::json!({
+                "session_artifact_ref": session_artifact_ref,
+                "decision_artifact_refs": decision_artifact_refs,
+                "dataset_name": dataset_name,
+                "repeats": repeats,
+                "allow_partial": allow_partial,
+                "output_root_ref": output_root_ref,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/characters/{id}/documents`.
+    pub fn character_documents_request(
+        &self,
+        character_internal_id: &str,
+        doc_type: Option<&str>,
+    ) -> GetRequestSpec {
+        let query = doc_type
+            .filter(|value| !value.trim().is_empty())
+            .map(|value| vec![("doc_type".to_owned(), value.trim().to_owned())])
+            .unwrap_or_default();
+        let url = format!(
+            "{}/atelier/characters/{}/documents",
+            self.base_url, character_internal_id
+        );
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url,
+            query,
+        }
+    }
+
+    /// Pure request builder for CKC story/moodboard character-document creation.
+    pub fn create_character_document_request(
+        &self,
+        character_internal_id: &str,
+        doc_type: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/characters/{}/documents",
+                self.base_url, character_internal_id
+            ),
+            body: Some(serde_json::json!({
+                "doc_type": doc_type,
+                "title": title,
+                "body_raw_text": body_raw_text,
+                "tags": tags,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for CKC story/moodboard document creation.
+    pub fn create_character_document_actor_request(
+        &self,
+        character_internal_id: &str,
+        doc_type: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.create_character_document_request(
+            character_internal_id,
+            doc_type,
+            title,
+            body_raw_text,
+            tags,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for appending one CKC character-document version.
+    pub fn append_character_document_version_request(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        expected_parent_version_id: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/character-documents/{}/versions",
+                self.base_url, document_id
+            ),
+            body: Some(serde_json::json!({
+                "title": title,
+                "body_raw_text": body_raw_text,
+                "tags": tags,
+                "expected_parent_version_id": expected_parent_version_id,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for appending one CKC character-document version.
+    pub fn append_character_document_version_actor_request(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        expected_parent_version_id: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.append_character_document_version_request(
+            document_id,
+            title,
+            body_raw_text,
+            tags,
+            expected_parent_version_id,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for CKC story-card list.
+    pub fn story_cards_request(&self, document_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/character-documents/{}/story-cards",
+                self.base_url, document_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for CKC story-card creation.
+    pub fn add_story_card_request(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/character-documents/{}/story-cards",
+                self.base_url, document_id
+            ),
+            body: Some(serde_json::json!({
+                "title": title,
+                "body_raw_text": body_raw_text,
+                "tags": tags,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for CKC story-card creation.
+    pub fn add_story_card_actor_request(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.add_story_card_request(document_id, title, body_raw_text, tags);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for CKC story-beat list.
+    pub fn story_beats_request(&self, document_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/character-documents/{}/story-beats",
+                self.base_url, document_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for CKC story-beat creation.
+    pub fn add_story_beat_request(
+        &self,
+        document_id: &str,
+        card_id: Option<&str>,
+        beat_text: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/character-documents/{}/story-beats",
+                self.base_url, document_id
+            ),
+            body: Some(serde_json::json!({
+                "card_id": card_id,
+                "beat_text": beat_text,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for CKC story-beat creation.
+    pub fn add_story_beat_actor_request(
+        &self,
+        document_id: &str,
+        card_id: Option<&str>,
+        beat_text: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.add_story_beat_request(document_id, card_id, beat_text);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/character-documents/{id}/moodboard/latest`.
+    pub fn latest_moodboard_snapshot_request(&self, document_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/character-documents/{}/moodboard/latest",
+                self.base_url, document_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for native CKC moodboard snapshot recording.
+    pub fn record_moodboard_snapshot_request(
+        &self,
+        document_id: &str,
+        raw_json_text: &str,
+        expected_document_version_id: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/character-documents/{}/moodboard/snapshots",
+                self.base_url, document_id
+            ),
+            body: Some(serde_json::json!({
+                "raw_json_text": raw_json_text,
+                "expected_document_version_id": expected_document_version_id,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for native CKC moodboard snapshot recording.
+    pub fn record_moodboard_snapshot_actor_request(
+        &self,
+        document_id: &str,
+        raw_json_text: &str,
+        expected_document_version_id: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.record_moodboard_snapshot_request(
+            document_id,
+            raw_json_text,
+            expected_document_version_id,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Create a CKC character document off the UI thread.
+    pub fn create_ckc_character_document(
+        &self,
+        character_internal_id: &str,
+        doc_type: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcCharacterDocumentCell,
+    ) {
+        let spec = self
+            .create_character_document_actor_request(
+                character_internal_id,
+                doc_type,
+                title,
+                body_raw_text,
+                tags,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_document_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC document row in create response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Create a pending CKC moodboard document, then record its first native
+    /// moodboard snapshot against the exact version returned by the create call.
+    pub fn create_ckc_moodboard_document_snapshot(
+        &self,
+        character_internal_id: &str,
+        title: &str,
+        raw_json_text: &str,
+        tags: &[String],
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        document_cell: AtelierCkcCharacterDocumentCell,
+        snapshot_cell: AtelierCkcMoodboardSnapshotCell,
+    ) {
+        let create_spec = self
+            .create_character_document_actor_request(
+                character_internal_id,
+                "moodboard",
+                title,
+                raw_json_text,
+                tags,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let base_url = self.base_url.clone();
+        let raw_json_text = raw_json_text.to_owned();
+        let actor_id = actor_id.to_owned();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let document_result = post_json_with_actor(&client, &create_spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_document_row(&value).ok_or_else(|| {
+                        AppError::Parse(
+                            "missing CKC moodboard document row in create response".to_owned(),
+                        )
+                    })
+                });
+
+            match document_result {
+                Ok(document_row) => {
+                    let document_id = document_row.document_id.clone();
+                    let expected_document_version_id = document_row.current_version_id.clone();
+                    if let Ok(mut slot) = document_cell.lock() {
+                        *slot = Some(Ok(document_row));
+                    }
+                    let snapshot_spec = ActorRequestSpec {
+                        method: HttpMethod::Post,
+                        url: format!(
+                            "{base_url}/atelier/character-documents/{document_id}/moodboard/snapshots"
+                        ),
+                        body: Some(serde_json::json!({
+                            "raw_json_text": raw_json_text,
+                            "expected_document_version_id": expected_document_version_id,
+                        })),
+                        headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id)],
+                    }
+                    .with_model_operation_context(model_ops_context.as_ref());
+                    let snapshot_result = post_json_with_actor(&client, &snapshot_spec)
+                        .await
+                        .and_then(|value| {
+                            parse_atelier_ckc_moodboard_snapshot_row(&value).ok_or_else(|| {
+                                AppError::Parse(
+                                    "missing CKC moodboard snapshot row in create response"
+                                        .to_owned(),
+                                )
+                            })
+                        })
+                        .map_err(|e| e.to_string());
+                    if let Ok(mut slot) = snapshot_cell.lock() {
+                        *slot = Some(snapshot_result);
+                    }
+                }
+                Err(err) => {
+                    let message = err.to_string();
+                    if let Ok(mut slot) = document_cell.lock() {
+                        *slot = Some(Err(message.clone()));
+                    }
+                    if let Ok(mut slot) = snapshot_cell.lock() {
+                        *slot = Some(Err(format!(
+                            "CKC moodboard snapshot create skipped because document create failed: {message}"
+                        )));
+                    }
+                }
+            }
+        });
+    }
+
+    /// Append a CKC character-document version off the UI thread.
+    pub fn append_ckc_character_document_version(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        expected_parent_version_id: Option<&str>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcCharacterDocumentCell,
+    ) {
+        let spec = self
+            .append_character_document_version_actor_request(
+                document_id,
+                title,
+                body_raw_text,
+                tags,
+                expected_parent_version_id,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_document_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC document row in append response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Add a CKC story card off the UI thread.
+    pub fn add_ckc_story_card(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcStoryCardCell,
+    ) {
+        let spec = self
+            .add_story_card_actor_request(document_id, title, body_raw_text, tags, actor_id)
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_story_card_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC story-card row in add response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Add a CKC story beat off the UI thread.
+    pub fn add_ckc_story_beat(
+        &self,
+        document_id: &str,
+        card_id: Option<&str>,
+        beat_text: &str,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcStoryBeatCell,
+    ) {
+        let spec = self
+            .add_story_beat_actor_request(document_id, card_id, beat_text, actor_id)
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_story_beat_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC story-beat row in add response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Fetch the latest CKC moodboard snapshot off the UI thread.
+    pub fn fetch_ckc_latest_moodboard_snapshot(
+        &self,
+        document_id: &str,
+        cell: AtelierCkcMoodboardSnapshotCell,
+    ) {
+        let spec = self.latest_moodboard_snapshot_request(document_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_atelier_moodboard_snapshot(&client, &spec.url)
+                .await
+                .map_err(|e| e.to_string())
+                .and_then(|snapshot| {
+                    snapshot.ok_or_else(|| "CKC moodboard has no native snapshot yet".to_owned())
+                });
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Append the moodboard document body, then record a native moodboard snapshot
+    /// against the new backend head. The sequence keeps snapshot refs tied to the
+    /// version Argus just saved instead of racing the append.
+    pub fn save_ckc_moodboard_document_snapshot(
+        &self,
+        document_id: &str,
+        title: &str,
+        raw_json_text: &str,
+        tags: &[String],
+        expected_parent_version_id: Option<&str>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        document_cell: AtelierCkcCharacterDocumentCell,
+        snapshot_cell: AtelierCkcMoodboardSnapshotCell,
+    ) {
+        let append_spec = self
+            .append_character_document_version_actor_request(
+                document_id,
+                title,
+                raw_json_text,
+                tags,
+                expected_parent_version_id,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let base_url = self.base_url.clone();
+        let document_id = document_id.to_owned();
+        let raw_json_text = raw_json_text.to_owned();
+        let actor_id = actor_id.to_owned();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let document_result = post_json_with_actor(&client, &append_spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_document_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC moodboard document row in save response".to_owned())
+                    })
+                });
+
+            match document_result {
+                Ok(document_row) => {
+                    let expected_document_version_id = document_row.current_version_id.clone();
+                    if let Ok(mut slot) = document_cell.lock() {
+                        *slot = Some(Ok(document_row));
+                    }
+                    let snapshot_spec = ActorRequestSpec {
+                        method: HttpMethod::Post,
+                        url: format!(
+                            "{base_url}/atelier/character-documents/{document_id}/moodboard/snapshots"
+                        ),
+                        body: Some(serde_json::json!({
+                            "raw_json_text": raw_json_text,
+                            "expected_document_version_id": expected_document_version_id,
+                        })),
+                        headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id)],
+                    }
+                    .with_model_operation_context(model_ops_context.as_ref());
+                    let snapshot_result = post_json_with_actor(&client, &snapshot_spec)
+                        .await
+                        .and_then(|value| {
+                            parse_atelier_ckc_moodboard_snapshot_row(&value).ok_or_else(|| {
+                                AppError::Parse(
+                                    "missing CKC moodboard snapshot row in save response"
+                                        .to_owned(),
+                                )
+                            })
+                        })
+                        .map_err(|e| e.to_string());
+                    if let Ok(mut slot) = snapshot_cell.lock() {
+                        *slot = Some(snapshot_result);
+                    }
+                }
+                Err(err) => {
+                    let message = err.to_string();
+                    if let Ok(mut slot) = document_cell.lock() {
+                        *slot = Some(Err(message.clone()));
+                    }
+                    if let Ok(mut slot) = snapshot_cell.lock() {
+                        *slot = Some(Err(format!(
+                            "CKC moodboard snapshot save skipped because document append failed: {message}"
+                        )));
+                    }
+                }
+            }
+        });
+    }
+
+    /// Pure request builder for `GET /atelier/characters/{id}/media-albums`.
+    pub fn media_albums_request(&self, character_internal_id: &str) -> GetRequestSpec {
+        self.media_albums_page_request(
+            character_internal_id,
+            0,
+            CKC_ALBUM_LIST_PAGE_LIMIT,
+            CKC_ALBUM_MEMBER_PREVIEW_LIMIT,
+        )
+    }
+
+    /// Pure request builder for one bounded `GET /atelier/characters/{id}/media-albums` page.
+    pub fn media_albums_page_request(
+        &self,
+        character_internal_id: &str,
+        offset: i64,
+        limit: i64,
+        member_limit: i64,
+    ) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/characters/{}/media-albums",
+                self.base_url, character_internal_id
+            ),
+            query: vec![
+                ("offset".to_owned(), offset.max(0).to_string()),
+                ("limit".to_owned(), limit.max(1).to_string()),
+                ("member_limit".to_owned(), member_limit.max(1).to_string()),
+            ],
+        }
+    }
+
+    /// Pure request builder for character-scoped CKC media album creation.
+    pub fn create_media_album_request(
+        &self,
+        character_internal_id: &str,
+        name: &str,
+        notes: Option<&str>,
+        sheet_version_id: Option<&str>,
+        tags: &[String],
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/characters/{}/media-albums",
+                self.base_url, character_internal_id
+            ),
+            body: Some(serde_json::json!({
+                "name": name,
+                "notes": notes,
+                "sheet_version_id": sheet_version_id,
+                "tags": tags,
+            })),
+        }
+    }
+
+    /// Fetch a page of CKC media albums for one character off the UI thread.
+    pub fn fetch_ckc_media_album_list_page(
+        &self,
+        character_internal_id: &str,
+        offset: i64,
+        cell: AtelierCkcMediaAlbumListPageCell,
+    ) {
+        let spec = self.media_albums_page_request(
+            character_internal_id,
+            offset,
+            CKC_ALBUM_LIST_PAGE_LIMIT,
+            CKC_ALBUM_MEMBER_PREVIEW_LIMIT,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &spec.query)
+                .await
+                .and_then(|value| parse_atelier_media_album_list_page(&value))
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Actor-attributed request builder for CKC media album creation.
+    pub fn create_media_album_actor_request(
+        &self,
+        character_internal_id: &str,
+        name: &str,
+        notes: Option<&str>,
+        sheet_version_id: Option<&str>,
+        tags: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.create_media_album_request(
+            character_internal_id,
+            name,
+            notes,
+            sheet_version_id,
+            tags,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for fetching a page of CKC media album items.
+    pub fn media_album_items_page_request(
+        &self,
+        collection_id: &str,
+        offset: i64,
+        limit: i64,
+    ) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/media-albums/{}/items",
+                self.base_url, collection_id
+            ),
+            query: vec![
+                ("offset".to_owned(), offset.max(0).to_string()),
+                ("limit".to_owned(), limit.max(1).to_string()),
+            ],
+        }
+    }
+
+    /// Pure request builder for adding existing media assets to a CKC album.
+    pub fn add_media_album_items_request(
+        &self,
+        collection_id: &str,
+        asset_ids: &[String],
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/media-albums/{}/items",
+                self.base_url, collection_id
+            ),
+            body: Some(serde_json::json!({
+                "asset_ids": asset_ids,
+                "source_path_ref": source_path_ref,
+                "source_url_ref": source_url_ref,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for adding existing media assets to a CKC album.
+    pub fn add_media_album_items_actor_request(
+        &self,
+        collection_id: &str,
+        asset_ids: &[String],
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.add_media_album_items_request(
+            collection_id,
+            asset_ids,
+            source_path_ref,
+            source_url_ref,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Actor-attributed request builder for unlinking one media asset from a CKC album.
+    pub fn unlink_media_album_item_actor_request(
+        &self,
+        collection_id: &str,
+        asset_id: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Delete,
+            url: format!(
+                "{}/atelier/media-albums/{}/items/{}",
+                self.base_url, collection_id, asset_id
+            ),
+            body: None,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for editing link-scoped CKC album provenance.
+    pub fn update_media_album_item_link_request(
+        &self,
+        collection_id: &str,
+        asset_id: &str,
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+        clear_source_path_ref: bool,
+        clear_source_url_ref: bool,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: format!(
+                "{}/atelier/media-albums/{}/items/{}",
+                self.base_url, collection_id, asset_id
+            ),
+            body: Some(serde_json::json!({
+                "source_path_ref": source_path_ref,
+                "source_url_ref": source_url_ref,
+                "clear_source_path_ref": clear_source_path_ref,
+                "clear_source_url_ref": clear_source_url_ref,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for editing link-scoped CKC album provenance.
+    pub fn update_media_album_item_link_actor_request(
+        &self,
+        collection_id: &str,
+        asset_id: &str,
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+        clear_source_path_ref: bool,
+        clear_source_url_ref: bool,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.update_media_album_item_link_request(
+            collection_id,
+            asset_id,
+            source_path_ref,
+            source_url_ref,
+            clear_source_path_ref,
+            clear_source_url_ref,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for setting a full dense CKC album member order.
+    pub fn reorder_media_album_items_request(
+        &self,
+        collection_id: &str,
+        items: &[(String, i64)],
+    ) -> RequestSpec {
+        let items = items
+            .iter()
+            .map(|(asset_id, sort_order)| {
+                serde_json::json!({
+                    "asset_id": asset_id,
+                    "sort_order": sort_order,
+                })
+            })
+            .collect::<Vec<_>>();
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: format!(
+                "{}/atelier/media-albums/{}/items/reorder",
+                self.base_url, collection_id
+            ),
+            body: Some(serde_json::json!({ "items": items })),
+        }
+    }
+
+    /// Actor-attributed request builder for setting a full dense CKC album member order.
+    pub fn reorder_media_album_items_actor_request(
+        &self,
+        collection_id: &str,
+        items: &[(String, i64)],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.reorder_media_album_items_request(collection_id, items);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Create a character-scoped CKC media album off the UI thread.
+    pub fn create_ckc_media_album(
+        &self,
+        character_internal_id: &str,
+        name: &str,
+        notes: Option<&str>,
+        sheet_version_id: Option<&str>,
+        tags: &[String],
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcMediaAlbumCreateCell,
+    ) {
+        let spec = self
+            .create_media_album_actor_request(
+                character_internal_id,
+                name,
+                notes,
+                sheet_version_id,
+                tags,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_media_album_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC media album row in create response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Fetch a page of CKC media album items off the UI thread.
+    pub fn fetch_ckc_media_album_items(
+        &self,
+        collection_id: &str,
+        offset: i64,
+        limit: i64,
+        cell: AtelierCkcMediaAlbumItemsCell,
+    ) {
+        let spec = self.media_album_items_page_request(collection_id, offset, limit);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &spec.query)
+                .await
+                .and_then(|value| {
+                    parse_atelier_media_album_items_row(&value).ok_or_else(|| {
+                        AppError::Parse(
+                            "missing CKC media album items row in page response".to_owned(),
+                        )
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Link existing media assets to a CKC album off the UI thread.
+    pub fn add_ckc_media_album_items(
+        &self,
+        collection_id: &str,
+        asset_ids: &[String],
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcMediaAlbumItemsCell,
+    ) {
+        let spec = self
+            .add_media_album_items_actor_request(
+                collection_id,
+                asset_ids,
+                source_path_ref,
+                source_url_ref,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_media_album_items_row(&value).ok_or_else(|| {
+                        AppError::Parse(
+                            "missing CKC media album items row in add-items response".to_owned(),
+                        )
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Unlink one media asset from a CKC album off the UI thread. The backend preserves the asset.
+    pub fn unlink_ckc_media_album_item(
+        &self,
+        collection_id: &str,
+        asset_id: &str,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcMediaAlbumItemsCell,
+    ) {
+        let spec = self
+            .unlink_media_album_item_actor_request(collection_id, asset_id, actor_id)
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = delete_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_media_album_items_row(&value).ok_or_else(|| {
+                        AppError::Parse(
+                            "missing CKC media album items row in unlink response".to_owned(),
+                        )
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Edit link-scoped CKC album provenance off the UI thread.
+    pub fn update_ckc_media_album_item_link(
+        &self,
+        collection_id: &str,
+        asset_id: &str,
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+        clear_source_path_ref: bool,
+        clear_source_url_ref: bool,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcMediaAlbumItemsCell,
+    ) {
+        let spec = self
+            .update_media_album_item_link_actor_request(
+                collection_id,
+                asset_id,
+                source_path_ref,
+                source_url_ref,
+                clear_source_path_ref,
+                clear_source_url_ref,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = send_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_media_album_items_row(&value).ok_or_else(|| {
+                        AppError::Parse(
+                            "missing CKC media album items row in link-edit response".to_owned(),
+                        )
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Set a full dense CKC album member order off the UI thread.
+    pub fn reorder_ckc_media_album_items(
+        &self,
+        collection_id: &str,
+        items: &[(String, i64)],
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcMediaAlbumItemsCell,
+    ) {
+        let spec = self
+            .reorder_media_album_items_actor_request(collection_id, items, actor_id)
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = send_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_media_album_items_row(&value).ok_or_else(|| {
+                        AppError::Parse(
+                            "missing CKC media album items row in reorder response".to_owned(),
+                        )
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Pure request builder for image-level CKC notes/tags.
+    pub fn media_notes_tags_request(
+        &self,
+        asset_id: &str,
+        notes: Option<&str>,
+        tags: Option<&[String]>,
+        review_status: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/media-assets/{}/notes-tags",
+                self.base_url, asset_id
+            ),
+            body: Some(serde_json::json!({
+                "notes": notes,
+                "tags": tags,
+                "review_status": review_status,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for image-level CKC notes/tags.
+    pub fn media_notes_tags_actor_request(
+        &self,
+        asset_id: &str,
+        notes: Option<&str>,
+        tags: Option<&[String]>,
+        review_status: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.media_notes_tags_request(asset_id, notes, tags, review_status);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for native CKC fuzzy/vector/combined search.
+    pub fn ckc_search_request(
+        &self,
+        query: &str,
+        modes: &[String],
+        tags: &[String],
+        character_internal_id: Option<&str>,
+        collection_id: Option<&str>,
+        media_asset_id: Option<&str>,
+        similar_to_asset_id: Option<&str>,
+        similar_to_dhash_hex: Option<&str>,
+        limit: usize,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/ckc/search", self.base_url),
+            body: Some(serde_json::json!({
+                "query": query,
+                "modes": modes,
+                "tags": tags,
+                "character_internal_id": character_internal_id,
+                "collection_id": collection_id,
+                "media_asset_id": media_asset_id,
+                "similar_to_asset_id": similar_to_asset_id,
+                "similar_to_dhash_hex": similar_to_dhash_hex,
+                "limit": limit,
+            })),
+        }
+    }
+
+    /// Pure request builder for rich CKC tag-note upserts.
+    pub fn ckc_tag_note_request(
+        &self,
+        tag_text: &str,
+        scope_ref: Option<&str>,
+        note: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/ckc/tag-notes", self.base_url),
+            body: Some(serde_json::json!({
+                "tag_text": tag_text,
+                "scope_ref": scope_ref,
+                "note": note,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for rich CKC tag-note upserts.
+    pub fn ckc_tag_note_actor_request(
+        &self,
+        tag_text: &str,
+        scope_ref: Option<&str>,
+        note: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.ckc_tag_note_request(tag_text, scope_ref, note);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+
+
+    /// Apply visible intake item classifications with backend actor attribution.
+    pub fn apply_intake_classifications(
+        &self,
+        request_id: String,
+        batch_id: Option<String>,
+        decisions: Vec<AtelierIntakeClassificationDecision>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierIntakeClassificationCell,
+    ) {
+        let client = self.client.clone();
+        let client_for_specs = self.clone();
+        let actor = actor_id.to_owned();
+        self.runtime.spawn(async move {
+            let mut applied = Vec::with_capacity(decisions.len());
+            let mut failed = None;
+            for (index, decision) in decisions.into_iter().enumerate() {
+                let spec = client_for_specs
+                    .apply_intake_classification_actor_request(
+                        &decision.item_id,
+                        &decision.lane,
+                        decision.reason.as_deref(),
+                        decision.metadata,
+                        &actor,
+                    )
+                    .with_model_operation_context(model_ops_context.as_ref());
+                match post_json_with_actor(&client, &spec)
+                    .await
+                    .and_then(|value| {
+                        parse_atelier_intake_classification_row(&value).ok_or_else(|| {
+                            AppError::Parse(
+                                "missing intake classification row in apply response".to_owned(),
+                            )
+                        })
+                    }) {
+                    Ok(row) => applied.push(row),
+                    Err(err) => {
+                        failed = Some(AtelierIntakeClassificationFailure {
+                            item_id: decision.item_id,
+                            index,
+                            error: err.to_string(),
+                        });
+                        break;
+                    }
+                }
+            }
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(AtelierIntakeClassificationOutcome {
+                    request_id,
+                    batch_id,
+                    total_item_count: None,
+                    applied_count: applied.len(),
+                    requested_by: actor,
+                    applied,
+                    failed,
+                });
+            }
+        });
+    }
+
+    /// Apply the canonical persisted item set for a batch with optional visible-row overrides.
+    pub fn apply_intake_batch_classifications(
+        &self,
+        request_id: String,
+        batch_id: String,
+        default_lane: String,
+        default_reason: Option<String>,
+        metadata: serde_json::Value,
+        overrides: Vec<AtelierIntakeClassificationDecision>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierIntakeClassificationCell,
+    ) {
+        let client = self.client.clone();
+        let client_for_specs = self.clone();
+        let actor = actor_id.to_owned();
+        self.runtime.spawn(async move {
+            let spec = client_for_specs
+                .apply_intake_batch_classifications_actor_request(
+                    &batch_id,
+                    &default_lane,
+                    default_reason.as_deref(),
+                    metadata,
+                    &overrides,
+                    &actor,
+                )
+                .with_model_operation_context(model_ops_context.as_ref());
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_intake_batch_classification_outcome(
+                        request_id.clone(),
+                        &batch_id,
+                        &actor,
+                        &value,
+                    )
+                });
+            let outcome = match result {
+                Ok(outcome) => outcome,
+                Err(err) => AtelierIntakeClassificationOutcome {
+                    request_id,
+                    batch_id: Some(batch_id),
+                    total_item_count: None,
+                    applied_count: 0,
+                    requested_by: actor,
+                    applied: Vec::new(),
+                    failed: Some(AtelierIntakeClassificationFailure {
+                        item_id: "<batch-request>".to_owned(),
+                        index: 0,
+                        error: err.to_string(),
+                    }),
+                },
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(outcome);
+            }
+        });
+    }
+
+    /// Load CKC characters plus each character's latest sheet version off the UI thread.
+    pub fn fetch_ckc(&self, cell: AtelierCkcCell) {
+        let characters_url = self.characters_request().url;
+        let base_url = self.base_url.clone();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = load_atelier_ckc(&client, &characters_url, &base_url).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// WP-CKC MT-042: load the effective Atelier default preferences off the UI
+    /// thread and deliver them into `cell` (HBR-QUIET). Fail-closed: a non-success
+    /// status is delivered as an `Err`, never a fabricated default set.
+    pub fn fetch_preferences(&self, cell: AtelierPreferencesCell) {
+        let spec = self.preferences_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .map(|value| parse_atelier_preference_rows(&value))
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// WP-CKC MT-042 (F1/F5): persist a batch of CHANGED operator defaults
+    /// sequentially (one `PUT /atelier/preferences` per entry) and deliver an
+    /// [`AtelierPreferenceSaveOutcome`] into `cell`. Each entry is
+    /// `(key, value, value_type)`. On the first backend error the batch stops and
+    /// records the exact failing key + detail, alongside the rows that DID persist,
+    /// so the panel can report which key failed and re-sync the UI from the DB.
+    pub fn save_preferences(
+        &self,
+        entries: Vec<(String, String, String)>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierPreferenceSaveCell,
+    ) {
+        let planned: Vec<(String, ActorRequestSpec)> = entries
+            .iter()
+            .map(|(key, value, value_type)| {
+                (
+                    key.clone(),
+                    self.set_preference_actor_request(key, value, value_type, actor_id)
+                        .with_model_operation_context(model_ops_context.as_ref()),
+                )
+            })
+            .collect();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let mut outcome = AtelierPreferenceSaveOutcome::default();
+            for (key, spec) in &planned {
+                match send_json_with_actor(&client, spec).await {
+                    Ok(value) => match parse_atelier_preference_row(&value) {
+                        Some(row) => outcome.saved.push(row),
+                        None => {
+                            outcome.failed_key = Some(key.clone());
+                            outcome.error =
+                                Some("missing preference row in set response".to_owned());
+                            break;
+                        }
+                    },
+                    Err(e) => {
+                        outcome.failed_key = Some(key.clone());
+                        outcome.error = Some(e.to_string());
+                        break;
+                    }
+                }
+            }
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(outcome);
+            }
+        });
+    }
+
+    /// WP-CKC MT-042: reset one operator default to its registry default off the
+    /// UI thread and deliver the resulting effective row into `cell`.
+    pub fn reset_preference(
+        &self,
+        key: &str,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierPreferenceMutationCell,
+    ) {
+        let spec = self
+            .reset_preference_actor_request(key, actor_id)
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = send_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_preference_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing preference row in reset response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    pub fn dispatch_model_operation_state(
+        &self,
+        request_id: u64,
+        thread_id: &str,
+        cell: AtelierModelOperationCell,
+    ) {
+        let spec = self.model_operation_state_request(thread_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &spec.query)
+                .await
+                .and_then(|value| {
+                    parse_atelier_model_operation_state_row(&value)
+                        .map(AtelierModelOperationResult::State)
+                        .ok_or_else(|| {
+                            AppError::Parse("missing model-operation state row".to_owned())
+                        })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    pub fn dispatch_model_operation_claim_lease(
+        &self,
+        request_id: u64,
+        thread_id: &str,
+        executor_kind: &str,
+        session_id: &str,
+        claim_mode: &str,
+        ttl_seconds: i64,
+        linked_work_packet_id: &str,
+        linked_micro_task_id: &str,
+        actor_id: &str,
+        cell: AtelierModelOperationCell,
+    ) {
+        let spec = self.model_operation_claim_lease_actor_request(
+            thread_id,
+            executor_kind,
+            session_id,
+            claim_mode,
+            ttl_seconds,
+            linked_work_packet_id,
+            linked_micro_task_id,
+            actor_id,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_model_operation_lease_row(&value)
+                        .map(AtelierModelOperationResult::Lease)
+                        .ok_or_else(|| {
+                            AppError::Parse("missing model-operation lease row".to_owned())
+                        })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    pub fn dispatch_model_operation_release_lease(
+        &self,
+        request_id: u64,
+        claim_id: &str,
+        session_id: &str,
+        actor_id: &str,
+        cell: AtelierModelOperationCell,
+    ) {
+        let spec = self.model_operation_release_lease_actor_request(claim_id, session_id, actor_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_model_operation_lease_row(&value)
+                        .map(AtelierModelOperationResult::Lease)
+                        .ok_or_else(|| {
+                            AppError::Parse("missing model-operation release row".to_owned())
+                        })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    pub fn dispatch_model_operation_action_receipt(
+        &self,
+        request_id: u64,
+        spec: ActorRequestSpec,
+        cell: AtelierModelOperationCell,
+    ) {
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_model_operation_action_receipt_row(&value)
+                        .map(AtelierModelOperationResult::ActionReceipt)
+                        .ok_or_else(|| {
+                            AppError::Parse("missing model-operation action receipt row".to_owned())
+                        })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    /// Create a CKC character with backend actor attribution.
+    pub fn create_ckc_character(
+        &self,
+        public_id: &str,
+        display_name: &str,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcCreateCell,
+    ) {
+        let spec = self
+            .create_character_with_default_sheet_actor_request(public_id, display_name, actor_id)
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_character_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing character row in create response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Load the bundled CKC v2.00 full character-sheet template off the UI thread.
+    pub fn fetch_ckc_template(&self, cell: AtelierCkcTemplateCell) {
+        let spec = self.default_sheet_template_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    parse_atelier_sheet_template_row(&value)
+                        .ok_or_else(|| AppError::Parse("missing CKC sheet template row".to_owned()))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Load the bundled CKC short/SFW-safe field subset off the UI thread.
+    pub fn fetch_ckc_safe_subset(&self, cell: AtelierCkcSafeSubsetCell) {
+        let spec = self.safe_sheet_subset_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    parse_atelier_safe_subset_row(&value)
+                        .ok_or_else(|| AppError::Parse("missing CKC safe subset row".to_owned()))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Append a guarded CKC sheet version with backend actor attribution.
+    pub fn append_ckc_sheet_version(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcAppendCell,
+    ) {
+        let spec = self
+            .append_sheet_version_actor_request(
+                character_internal_id,
+                raw_text,
+                expected_parent_version_id,
+                tool,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_sheet_version_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing sheet version row in append response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Import raw CKC sheet text as a guarded append-only version.
+    pub fn import_ckc_sheet_version(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcImportCell,
+    ) {
+        let spec = self
+            .import_sheet_version_actor_request(
+                character_internal_id,
+                raw_text,
+                expected_parent_version_id,
+                tool,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_sheet_version_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing sheet version row in import response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Export the current CKC sheet version as deterministic txt/json content.
+    pub fn export_ckc_sheet_version(
+        &self,
+        version_id: &str,
+        format: &str,
+        cell: AtelierCkcExportCell,
+    ) {
+        let spec = self.export_sheet_version_request(version_id, format);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    parse_atelier_sheet_export_row(&value)
+                        .ok_or_else(|| AppError::Parse("missing CKC sheet export row".to_owned()))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Export the current Posekit state through the backend Rust generator and ArtifactStore writer.
+    /// Pure request builder for `GET /atelier/media-assets/{asset_id}/bytes` (MT-043 Posekit source
+    /// image). `asset_id` is a media-asset UUID string (the `PoseRig.source_asset_id` the Posekit left
+    /// viewport resolves from `atelier://media/<uuid>`). Kept as a pure builder so a unit test can assert
+    /// the exact URL without a live backend, matching the other `*_request` builders.
+    pub fn media_asset_bytes_request(&self, asset_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/media-assets/{}/bytes", self.base_url, asset_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/posekit/openpose-png/bytes?artifact_ref=...` (MT-050
+    /// exported OpenPose PNG bytes). `artifact_ref` is the `png_artifact_ref` returned by the backend
+    /// Posekit export. The backend route is Posekit-specific and fail-closed; this builder only handles
+    /// deterministic URL/query construction for tests and the off-thread fetcher.
+    pub fn posekit_openpose_png_bytes_request(&self, artifact_ref: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/posekit/openpose-png/bytes", self.base_url),
+            query: vec![("artifact_ref".to_owned(), artifact_ref.to_owned())],
+        }
+    }
+
+    /// Fetch the raw source-image bytes for a media asset off-thread and deliver them into `cell`. On
+    /// success the cell carries `(request_id, Ok(bytes))`; on any transport/status failure it carries
+    /// `(request_id, Err(detail))` so the Posekit viewport keeps its explicit empty/error state rather
+    /// than a fabricated placeholder. Follows the MT-020 off-thread shape: spawn on the app runtime,
+    /// never block the egui render thread (HBR-QUIET).
+    pub fn fetch_media_asset_bytes(
+        &self,
+        asset_id: &str,
+        request_id: u64,
+        cell: AtelierPoseSourceBytesCell,
+    ) {
+        let spec = self.media_asset_bytes_request(asset_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_bytes(&client, &spec.url, &spec.query)
+                .await
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                slot.push_back((request_id, result));
+            }
+        });
+    }
+
+    /// Fetch the literal exported OpenPose PNG ArtifactStore bytes off-thread and deliver them into
+    /// `cell`. Same delivery shape as source-image bytes so the egui render path remains non-blocking
+    /// and stale responses can be ignored by request id.
+    pub fn fetch_posekit_openpose_png_bytes(
+        &self,
+        artifact_ref: &str,
+        request_id: u64,
+        cell: AtelierPoseSourceBytesCell,
+    ) {
+        let spec = self.posekit_openpose_png_bytes_request(artifact_ref);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_bytes(&client, &spec.url, &spec.query)
+                .await
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                slot.push_back((request_id, result));
+            }
+        });
+    }
+
+    pub fn export_posekit_openpose(
+        &self,
+        source_ref: &str,
+        yaw_deg: f32,
+        pitch_deg: f32,
+        zoom: f32,
+        include_face: bool,
+        include_body: bool,
+        include_hands: bool,
+        rig_id: Option<&str>,
+        marker_edits: Vec<serde_json::Value>,
+        framing: serde_json::Value,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        request_id: u64,
+        cell: AtelierPosekitExportCell,
+    ) {
+        let spec = self
+            .posekit_openpose_export_actor_request(
+                source_ref,
+                yaw_deg,
+                pitch_deg,
+                zoom,
+                include_face,
+                include_body,
+                include_hands,
+                rig_id,
+                &marker_edits,
+                &framing,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_posekit_export_row(&value)
+                        .ok_or_else(|| AppError::Parse("missing Posekit export row".to_owned()))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    /// Export a native contact sheet through the backend Rust generator and ArtifactStore writer.
+    pub fn export_contact_sheet(
+        &self,
+        source_kind: &str,
+        source_ref: &str,
+        rows: usize,
+        columns: usize,
+        dpi: usize,
+        include_labels: bool,
+        thumbnail_fit: &str,
+        output_path: Option<&str>,
+        items: Vec<AtelierContactSheetItem>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        request_id: u64,
+        cell: AtelierContactSheetExportCell,
+    ) {
+        let spec = self
+            .contact_sheet_export_actor_request(
+                source_kind,
+                source_ref,
+                rows,
+                columns,
+                dpi,
+                include_labels,
+                thumbnail_fit,
+                output_path,
+                &items,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_contact_sheet_export_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing contact sheet export row".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    /// Run native Facial-derived analysis for the canonical persisted item set of one intake batch.
+    pub fn analyze_ingest_facial(
+        &self,
+        batch_id: &str,
+        profile: &str,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        request_id: u64,
+        cell: AtelierFacialIngestAnalysisCell,
+    ) {
+        let spec = self
+            .facial_ingest_analysis_actor_request(batch_id, profile, actor_id)
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_facial_ingest_analysis_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing Facial Ingest analysis row".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    /// Load the self-describing Facial feature/command-route registry off the UI thread
+    /// (`GET /atelier/facial/features`). Delivers the parsed [`AtelierFacialFeatureListRow`] (feature
+    /// count + capability families + command routes) so a no-context model can inspect which Facial
+    /// capabilities are live before driving any command. Never fabricates a registry on failure.
+    pub fn load_facial_features(&self, request_id: u64, cell: AtelierFacialFeatureListCell) {
+        let spec = self.facial_features_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &spec.query)
+                .await
+                .and_then(|value| {
+                    parse_atelier_facial_feature_list_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing Facial feature registry row".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    pub fn import_prompt_feedback(
+        &self,
+        project_id: &str,
+        source_system: &str,
+        adapter_id: &str,
+        source_iteration_id: Option<&str>,
+        rows: serde_json::Value,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        request_id: u64,
+        cell: AtelierPromptFeedbackImportCell,
+    ) {
+        let spec = self
+            .prompt_feedback_import_actor_request(
+                project_id,
+                source_system,
+                adapter_id,
+                source_iteration_id,
+                rows,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| parse_atelier_prompt_feedback_import_row(&value))
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    pub fn fetch_prompt_feedback_cases(
+        &self,
+        project_id: Option<&str>,
+        segment: Option<&str>,
+        cell_filter: Option<&str>,
+        render_stack: Option<&str>,
+        limit: Option<i64>,
+        request_id: u64,
+        cell: AtelierPromptFeedbackImportCell,
+    ) {
+        let spec = self.prompt_feedback_cases_request(
+            project_id,
+            segment,
+            cell_filter,
+            render_stack,
+            limit,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &spec.query)
+                .await
+                .and_then(|value| {
+                    parse_atelier_prompt_feedback_case_rows(&value).map(|cases| {
+                        AtelierPromptFeedbackImportRow {
+                            imported_count: cases.len() as i64,
+                            cases,
+                            seed_rule_pack: AtelierPromptFeedbackRulePackRow {
+                                rule_pack_id: String::new(),
+                                version: 0,
+                                title: String::new(),
+                                content_hash: String::new(),
+                            },
+                        }
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    pub fn rewrite_prompt_feedback_case(
+        &self,
+        case_id: &str,
+        rule_pack_id: &str,
+        rule_pack_version: Option<i32>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        request_id: u64,
+        cell: AtelierPromptFeedbackRewriteCell,
+    ) {
+        let spec = self
+            .prompt_feedback_rewrite_actor_request(
+                case_id,
+                rule_pack_id,
+                rule_pack_version,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| parse_atelier_prompt_feedback_rewrite_row(&value))
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    pub fn export_prompt_feedback(
+        &self,
+        rule_pack_id: &str,
+        rule_pack_version: Option<i32>,
+        case_ids: &[String],
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        request_id: u64,
+        cell: AtelierPromptFeedbackExportCell,
+    ) {
+        let spec = self
+            .prompt_feedback_export_actor_request(
+                rule_pack_id,
+                rule_pack_version,
+                case_ids,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| parse_atelier_prompt_feedback_export_row(&value))
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    /// Dispatch ONE prebuilt Facial review command [`ActorRequestSpec`] (session/claim/decision/status/
+    /// montage/export) off the UI thread and deliver the shared command-response envelope. The panel
+    /// builds the spec with the matching `facial_review_*_actor_request` builder (so the exact verified
+    /// route + actor header + body are asserted in the builder tests), then hands it here. A parsed
+    /// command *outcome* envelope delivers `Ok(row)` with `status` one of succeeded/degraded/blocked/
+    /// error and a durable `receipt_ref` (MT-055: every post-context review command failure is
+    /// parser-visible with a read-backable receipt and recovery_hint rather than a scraped error).
+    /// `Err(detail)` is a transport/parse failure, including the pre-context HTTP 4xx cases (missing
+    /// actor header, bad body, unresolvable artifact ref).
+    pub fn dispatch_facial_review_command(
+        &self,
+        spec: ActorRequestSpec,
+        request_id: u64,
+        cell: AtelierFacialCommandCell,
+    ) {
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| parse_atelier_facial_command_response_row(&value))
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
+    /// Load active reusable artifacts for one CKC sheet version.
+    pub fn fetch_ckc_sheet_artifact_links(
+        &self,
+        version_id: &str,
+        cell: AtelierCkcSheetArtifactLinksCell,
+    ) {
+        let spec = self.sheet_artifact_links_request(version_id);
+        let version_id = version_id.to_owned();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = match get_json(&client, &spec.url, &[]).await {
+                Ok(value) => parse_atelier_sheet_artifact_link_rows(&value),
+                Err(err) => Err(err),
+            }
+            .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((version_id, result));
+            }
+        });
+    }
+
+    /// Attach a reusable artifact ref to a CKC sheet version.
+    pub fn attach_ckc_sheet_artifact_link(
+        &self,
+        version_id: &str,
+        artifact_kind: &str,
+        artifact_ref: &str,
+        manifest_ref: Option<&str>,
+        source_ref: Option<&str>,
+        label: Option<&str>,
+        reuse_role: Option<&str>,
+        metadata: serde_json::Value,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcSheetArtifactLinksCell,
+    ) {
+        let spec = self
+            .attach_sheet_artifact_link_actor_request(
+                version_id,
+                artifact_kind,
+                artifact_ref,
+                manifest_ref,
+                source_ref,
+                label,
+                reuse_role,
+                metadata,
+                actor_id,
+            )
+            .with_model_operation_context(model_ops_context.as_ref());
+        let list_spec = self.sheet_artifact_links_request(version_id);
+        let version_id = version_id.to_owned();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = match post_json_with_actor(&client, &spec).await {
+                Ok(_) => fetch_atelier_sheet_artifact_links(&client, &list_spec.url).await,
+                Err(err) => Err(err),
+            }
+            .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((version_id, result));
+            }
+        });
+    }
+
+    /// Soft-detach a reusable CKC sheet artifact link, then reload the sheet-version link list.
+    pub fn detach_ckc_sheet_artifact_link(
+        &self,
+        sheet_version_id: &str,
+        link_id: &str,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcSheetArtifactLinksCell,
+    ) {
+        let spec = self
+            .detach_sheet_artifact_link_actor_request(link_id, actor_id)
+            .with_model_operation_context(model_ops_context.as_ref());
+        let list_spec = self.sheet_artifact_links_request(sheet_version_id);
+        let sheet_version_id = sheet_version_id.to_owned();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = match delete_json_with_actor(&client, &spec).await {
+                Ok(_) => fetch_atelier_sheet_artifact_links(&client, &list_spec.url).await,
+                Err(err) => Err(err),
+            }
+            .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((sheet_version_id, result));
+            }
+        });
+    }
+
+    /// Load prior values for one exact CKC Field ID.
+    pub fn fetch_ckc_field_suggestions(
+        &self,
+        field_id: &str,
+        limit: usize,
+        cell: AtelierCkcFieldSuggestionsCell,
+    ) {
+        let spec = self.field_suggestions_request(field_id, limit);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .map(|value| {
+                    value
+                        .as_array()
+                        .cloned()
+                        .unwrap_or_default()
+                        .iter()
+                        .filter_map(parse_atelier_sheet_field_suggestion_row)
+                        .collect::<Vec<_>>()
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Save image-level CKC notes/tags off the UI thread.
+    pub fn save_ckc_media_notes_tags(
+        &self,
+        asset_id: &str,
+        notes: Option<&str>,
+        tags: Option<&[String]>,
+        review_status: Option<&str>,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcMediaNotesCell,
+    ) {
+        let spec = self
+            .media_notes_tags_actor_request(asset_id, notes, tags, review_status, actor_id)
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_media_notes_tags_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing media notes/tags row in save response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Run CKC fuzzy/vector/combined search off the UI thread.
+    pub fn search_ckc(
+        &self,
+        query: &str,
+        modes: &[String],
+        tags: &[String],
+        character_internal_id: Option<&str>,
+        collection_id: Option<&str>,
+        media_asset_id: Option<&str>,
+        similar_to_asset_id: Option<&str>,
+        similar_to_dhash_hex: Option<&str>,
+        limit: usize,
+        cell: AtelierCkcSearchCell,
+    ) {
+        let spec = self.ckc_search_request(
+            query,
+            modes,
+            tags,
+            character_internal_id,
+            collection_id,
+            media_asset_id,
+            similar_to_asset_id,
+            similar_to_dhash_hex,
+            limit,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = match spec.body.as_ref() {
+                Some(body) => post_json(&client, &spec.url, body).await.and_then(|value| {
+                    parse_atelier_ckc_search_response(&value)
+                        .ok_or_else(|| AppError::Parse("missing CKC search response".to_owned()))
+                }),
+                None => Err(AppError::Parse(
+                    "CKC search request missing JSON body".to_owned(),
+                )),
+            }
+            .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Save a rich CKC tag note off the UI thread.
+    pub fn save_ckc_tag_note(
+        &self,
+        tag_text: &str,
+        scope_ref: Option<&str>,
+        note: &str,
+        actor_id: &str,
+        model_ops_context: Option<ModelOperationContext>,
+        cell: AtelierCkcTagNoteCell,
+    ) {
+        let spec = self
+            .ckc_tag_note_actor_request(tag_text, scope_ref, note, actor_id)
+            .with_model_operation_context(model_ops_context.as_ref());
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_tag_note_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC tag note row in save response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
     }
 }

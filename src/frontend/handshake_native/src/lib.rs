@@ -16,6 +16,10 @@ pub mod backend;
 // note (rich-text hsLink embed atom) or onto the canvas (loom:// block reference). Loads LIVE from the
 // existing WP-KERNEL-005 atelier backend via backend_client::AtelierClient (no mocks).
 pub mod atelier_side_panel;
+// WP-CKC-posekit-overhaul MT-065: the native Atelier MAIN panel (Castkit Codex / Posekit / Ingest
+// sibling tabs). It carries the 128 stable `atelier-ckc-*` AccessKit widget ids that models and Argus
+// steer this surface through (`.GOV/task_packets/WP-CKC-posekit-overhaul/MT-065.json`).
+pub mod atelier_panel;
 pub mod backend_client;
 pub mod canvas_board;
 pub mod code_editor;

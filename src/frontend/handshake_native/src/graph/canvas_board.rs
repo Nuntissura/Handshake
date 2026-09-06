@@ -117,6 +117,26 @@ pub const PLACE_BLOCK_AUTHOR_ID: &str = "canvas.place-block";
 /// Author_id prefix for a placement card. The full id is `canvas.placement.{sanitized_placement_id}`.
 pub const PLACEMENT_AUTHOR_ID_PREFIX: &str = "canvas.placement.";
 
+/// WP-CKC-posekit-overhaul MT-065. Controls whether this board is backed by the Loom canvas mutation
+/// host or by a projection-only surface such as CKC moodboards. Projection-only boards may still
+/// move/resize already-projected cards because the host can fold that geometry back into its own source
+/// document, but they must not expose add/place/connect/remove controls whose events require the Loom
+/// canvas host.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CanvasMutationPolicy {
+    #[default]
+    HostBacked,
+    SnapshotProjection,
+}
+
+impl CanvasMutationPolicy {
+    /// True when the Loom canvas host is present, so add/place/connect/group/remove controls may be
+    /// rendered and their [`CanvasEvent`]s emitted.
+    pub fn supports_host_events(self) -> bool {
+        matches!(self, Self::HostBacked)
+    }
+}
+
 /// Author_id SUFFIX for a placement card's bottom-right resize handle (WP-KERNEL-012 MT-061). The full
 /// id is `canvas.placement.{sanitized_placement_id}.resize`.
 pub const RESIZE_HANDLE_AUTHOR_ID_SUFFIX: &str = ".resize";
@@ -908,6 +928,9 @@ pub struct LoomCanvasBoard {
     pub zoom: f32,
     pub selected: HashSet<String>,
     pub edge_mode: EdgeMode,
+    /// WP-CKC-posekit-overhaul MT-065: whether this board is backed by the Loom canvas mutation host or
+    /// is a projection-only surface (CKC moodboards). See [`CanvasMutationPolicy`].
+    pub mutation_policy: CanvasMutationPolicy,
     /// The placement a `Draw edge from selected` started from; the next card click completes the edge.
     pub edge_from: Option<String>,
     pub status: String,
@@ -1021,6 +1044,7 @@ impl LoomCanvasBoard {
             zoom: 1.0,
             selected: HashSet::new(),
             edge_mode: EdgeMode::Semantic,
+            mutation_policy: CanvasMutationPolicy::HostBacked,
             edge_from: None,
             status: String::new(),
             loading: false,
@@ -1152,6 +1176,37 @@ impl LoomCanvasBoard {
     }
 
     /// True only when a confirmed projection also carries the EventLedger token required for CAS.
+    /// WP-CKC MT-065: rebind this board's mutation policy. Switching AWAY from `HostBacked` clears the
+    /// in-flight host-only interaction state (a half-drawn edge, a typed place-block id) so a projection
+    /// board can never emit a Loom canvas event no host is listening for.
+    pub fn set_mutation_policy(&mut self, policy: CanvasMutationPolicy) {
+        if self.mutation_policy == policy {
+            return;
+        }
+        self.mutation_policy = policy;
+        if !policy.supports_host_events() {
+            self.edge_from = None;
+            self.place_block_input.clear();
+        }
+    }
+
+    /// The status a projection-only board sets when a host-applied action is dispatched at it anyway
+    /// (an AccessKit route a stale registry snapshot might still name).
+    fn set_snapshot_projection_blocked_status(&mut self, action: &str) {
+        self.status = format!(
+            "{action} unavailable: CKC moodboard canvas persists existing positions and image/shape sizes only; edit snapshot JSON or source media, then open the moodboard"
+        );
+    }
+
+    /// The status line a projection-only board shows in place of the placement count, so an operator or
+    /// model reads WHY the host-mutation controls are absent rather than seeing an unexplained gap.
+    fn snapshot_projection_status_text(&self) -> String {
+        format!(
+            "{} placements; add/place/connect/group/remove controls hidden because this canvas persists existing CKC moodboard positions and image/shape sizes only",
+            self.placements.len()
+        )
+    }
+
     pub fn mutation_interactions_allowed(&self) -> bool {
         self.projection_is_confirmed()
             && !self.authoritative_updated_at.trim().is_empty()
@@ -2272,6 +2327,11 @@ impl LoomCanvasBoard {
         let mut event: Option<CanvasEvent> = None;
         let mutation_enabled = self.mutation_interactions_allowed();
         let viewport_enabled = self.viewport_interactions_allowed();
+        // WP-CKC MT-065: a SnapshotProjection board (a CKC moodboard) has no Loom canvas mutation host,
+        // so the add/group/connect/place controls whose events only that host can apply are not rendered
+        // at all. Move/resize stay available because the moodboard save folds that geometry back into the
+        // CKC snapshot document.
+        let host_events = self.mutation_policy.supports_host_events();
         // WP-KERNEL-012 MT-026 V4: pre-compute each viewport control's pre-dispatch semantic + observer
         // declaration BEFORE the toolbar closure takes `&mut self`. A control publishes its declaration
         // as the AccessKit `value`, which is what makes an Argus click on it causally acknowledgeable
@@ -2374,6 +2434,7 @@ impl LoomCanvasBoard {
                     event = Some(self.viewport_event());
                 }
 
+                if host_events {
                 ui.separator();
                 let add_card = ui.button("+ Text card");
                 emit_button_node(ui, add_card.id, ADD_CARD_AUTHOR_ID, "Add text card");
@@ -2478,12 +2539,15 @@ impl LoomCanvasBoard {
                         y: pos.y,
                     });
                 }
+                }
             });
         });
 
         // ── Status bar (Role::Status) ─────────────────────────────────────────────────────────────
         let status_text = if let Some(err) = &self.error {
             format!("Canvas error: {err}")
+        } else if self.status.is_empty() && !host_events {
+            self.snapshot_projection_status_text()
         } else if self.status.is_empty() {
             format!("{} placements", self.placements.len())
         } else {
@@ -3009,6 +3073,14 @@ impl LoomCanvasBoard {
         PLACE_BLOCK_AUTHOR_ID,
     ];
 
+    /// WP-CKC MT-065: the catalog controls a projection-only board must NOT advertise, because the events
+    /// they dispatch can only be applied by the Loom canvas host this board does not have.
+    const SNAPSHOT_PROJECTION_UNSUPPORTED_REGISTRY: &'static [&'static str] = &[
+        "canvas.remove-placement",
+        "canvas.add-edge",
+        "canvas.remove-edge",
+    ];
+
     /// Populate the knowledge registry with the canvas GLOBAL controls NOT already owned by the toolbar
     /// (zoom-reset, deselect-all, remove-placement, add-edge, remove-edge, select-card — fixed Button
     /// nodes regardless of content, AC-042-08) and one `canvas.card.<placement_id>` Group identity per
@@ -3028,17 +3100,33 @@ impl LoomCanvasBoard {
             if Self::TOOLBAR_OWNED.contains(&entry.author_id) {
                 continue; // toolbar owns this id (IN-042-08 no-duplicate)
             }
+            if !self.mutation_policy.supports_host_events()
+                && Self::SNAPSHOT_PROJECTION_UNSUPPORTED_REGISTRY.contains(&entry.author_id)
+            {
+                continue;
+            }
             reg.upsert_control(entry.author_id, entry.label, KnowledgeNodeState::present());
         }
+        let host_events = self.mutation_policy.supports_host_events();
         for card in &self.placements {
             let author = knowledge_action_registry::canvas_card_author_id(&card.placement_id);
             // AC-042-03: the card carries its source block_id (IN-042-02) + advertises the delete route so
-            // a swarm reads how to delete this exact placement.
-            let value = Some(format!(
-                "block_id={};group_id={};delete=canvas.remove-placement",
-                card.placed_block_id,
-                card.group_id.as_deref().unwrap_or("none")
-            ));
+            // a swarm reads how to delete this exact placement. A projection-only board advertises no
+            // delete route because no host can apply it (WP-CKC MT-065).
+            let value = if host_events {
+                Some(format!(
+                    "block_id={};group_id={};delete=canvas.remove-placement",
+                    card.placed_block_id,
+                    card.group_id.as_deref().unwrap_or("none")
+                ))
+            } else {
+                Some(format!(
+                    "block_id={};group_id={}",
+                    card.placed_block_id,
+                    card.group_id.as_deref().unwrap_or("none")
+                ))
+            };
+            let extra_actions: &[&str] = if host_events { &["delete"] } else { &[] };
             // AC-042-03: a card declares BOTH 'activate' (Click) AND 'delete' (a real AccessKit custom
             // action on the node), so the swarm-readable action set on canvas.card.<id> is {Click, Focus,
             // delete}. A 'delete' custom-action dispatch on the card maps to RemovePlacement.
@@ -3047,7 +3135,7 @@ impl LoomCanvasBoard {
                 KAxRole::Group,
                 card.display_title().to_owned(),
                 value,
-                &["delete"],
+                extra_actions,
                 KnowledgeNodeState::present(),
             );
         }
@@ -3134,6 +3222,28 @@ impl LoomCanvasBoard {
         author_id: &str,
         payload: Option<&str>,
     ) -> Option<CanvasEvent> {
+        // WP-CKC MT-065: on a projection-only board the host-applied actions are refused with an explicit
+        // status instead of silently dropped, so an out-of-process agent reads WHY nothing happened.
+        if !self.mutation_policy.supports_host_events() {
+            let blocked = match author_id {
+                ADD_CARD_AUTHOR_ID => Some("Add card"),
+                PLACE_BLOCK_AUTHOR_ID => Some("Place"),
+                "canvas.remove-placement" => Some("Remove"),
+                "canvas.add-edge" => Some("Connect"),
+                "canvas.remove-edge" => Some("Remove edge"),
+                other
+                    if other.starts_with(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
+                        && other.ends_with("#delete") =>
+                {
+                    Some("Remove")
+                }
+                _ => None,
+            };
+            if let Some(action) = blocked {
+                self.set_snapshot_projection_blocked_status(action);
+                return None;
+            }
+        }
         match author_id {
             "canvas.pan-left" => {
                 self.pan.x -= PAN_STEP;
@@ -3495,6 +3605,13 @@ impl LoomCanvasBoard {
             }
         }
 
+        // WP-CKC MT-065: a projection-only board (a CKC moodboard) has no Loom canvas host to apply a
+        // RemovePlacement, so the card exposes no remove affordance at all rather than a control whose
+        // click could never be honoured.
+        if !self.mutation_policy.supports_host_events() {
+            return card_event;
+        }
+
         // Remove button ('x') at the card's top-right.
         let remove_size = Vec2::splat(18.0);
         let remove_rect = Rect::from_min_size(
@@ -3620,8 +3737,16 @@ impl LoomCanvasBoard {
             // with the final clamped geometry. The host PATCHes {w,h}, then getCanvasBoard reconciles.
             if let Some((id, w, h)) = self.resizing.take() {
                 if id == placement_id {
-                    self.status = format!("Resized {placement_id} to {w:.0}x{h:.0}");
-                    event = Some(CanvasEvent::ResizePlacement { placement_id, w, h });
+                    if self.mutation_policy.supports_host_events() {
+                        self.status = format!("Resized {placement_id} to {w:.0}x{h:.0}");
+                        event = Some(CanvasEvent::ResizePlacement { placement_id, w, h });
+                    } else {
+                        // WP-CKC MT-065: on a projection board the geometry stays in the optimistic card
+                        // and is persisted by the CKC moodboard save, not by a Loom canvas PATCH.
+                        self.status = format!(
+                            "Resized {placement_id} to {w:.0}x{h:.0}; Save moodboard persists image/shape size and position"
+                        );
+                    }
                 }
             }
         }
